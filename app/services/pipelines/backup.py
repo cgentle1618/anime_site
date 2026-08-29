@@ -15,12 +15,16 @@ from app.models import (
     Franchise,
     Manga,
     Novel,
+    Person,
+    PersonRole,
     Series,
     Anime,
     AnimeMovies,
     Movies,
     TVShows,
+    Studio,
     SystemOption,
+    SystemOptionScope,
     SystemConfigs,
     Seasonal,
     WatchOrderList,
@@ -50,6 +54,7 @@ from app.utils.formatter import (
     parse_seasonal_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
+from app.services.domain.credits import sheet_link_headers, sheet_link_values
 
 from app.services.integrations.sheets import bulk_overwrite_sheet, get_all_raw_rows
 from app.services.domain import (
@@ -114,6 +119,36 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         sysopt_matrix = [sysopt_headers] + [format_model_for_sheet(o) for o in sysopts]
         bulk_overwrite_sheet("System Options", sysopt_matrix)
 
+        sysopt_scopes = db.query(SystemOptionScope).all()
+        sysopt_scope_headers = [c.name for c in SystemOptionScope.__table__.columns]
+        sysopt_scope_matrix = [sysopt_scope_headers] + [
+            format_model_for_sheet(s) for s in sysopt_scopes
+        ]
+        bulk_overwrite_sheet("System Option Scope", sysopt_scope_matrix)
+
+        # Person and Studio are written here, alongside the other entity
+        # profile tabs, rather than beside the media tabs they are credited
+        # on - Pull restores them before any entry tab so credits resolve
+        # against a person_id/studio_id that already exists.
+        people = db.query(Person).all()
+        person_headers = [c.name for c in Person.__table__.columns]
+        person_matrix = [person_headers] + [format_model_for_sheet(p) for p in people]
+        bulk_overwrite_sheet("Person", person_matrix)
+
+        person_roles = db.query(PersonRole).all()
+        person_role_headers = [c.name for c in PersonRole.__table__.columns]
+        person_role_matrix = [person_role_headers] + [
+            format_model_for_sheet(r) for r in person_roles
+        ]
+        bulk_overwrite_sheet("Person Role", person_role_matrix)
+
+        studios = db.query(Studio).all()
+        studio_headers = [c.name for c in Studio.__table__.columns]
+        studio_matrix = [studio_headers] + [
+            format_model_for_sheet(s) for s in studios
+        ]
+        bulk_overwrite_sheet("Studio", studio_matrix)
+
         # Announcements and admin form defaults live here as key/value rows,
         # so the tab is real user data rather than runtime bookkeeping.
         sysconfigs = db.query(SystemConfigs).all()
@@ -152,57 +187,89 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         ]
         bulk_overwrite_sheet("Series", series_matrix)
 
+        # Every entry tab below appends its credit/tag columns AFTER the plain
+        # model columns via sheet_link_headers/sheet_link_values. That lands
+        # them at the end of the row, not in their original position - fine,
+        # because Pull matches a column by header NAME (parse_row_to_dict),
+        # never by position. See credit_roles.LEGACY_SHEET_COLUMN for why the
+        # header text itself never changes.
         animes = db.query(Anime).all()
-        anime_headers = [c.name for c in Anime.__table__.columns]
-        anime_matrix = [anime_headers] + [format_model_for_sheet(a) for a in animes]
+        anime_headers = [c.name for c in Anime.__table__.columns] + sheet_link_headers(
+            "anime"
+        )
+        anime_matrix = [anime_headers] + [
+            format_model_for_sheet(a) + sheet_link_values(db, "anime", a)
+            for a in animes
+        ]
         bulk_overwrite_sheet("Anime", anime_matrix)
 
         anime_movies = db.query(AnimeMovies).all()
-        anime_movie_headers = [c.name for c in AnimeMovies.__table__.columns]
+        anime_movie_headers = [
+            c.name for c in AnimeMovies.__table__.columns
+        ] + sheet_link_headers("anime-movie")
         anime_movie_matrix = [anime_movie_headers] + [
-            format_model_for_sheet(m) for m in anime_movies
+            format_model_for_sheet(m) + sheet_link_values(db, "anime-movie", m)
+            for m in anime_movies
         ]
         bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
 
         movie_entries = db.query(Movies).all()
-        movie_headers = [c.name for c in Movies.__table__.columns]
+        movie_headers = [c.name for c in Movies.__table__.columns] + sheet_link_headers(
+            "movie"
+        )
         movie_matrix = [movie_headers] + [
-            format_model_for_sheet(m) for m in movie_entries
+            format_model_for_sheet(m) + sheet_link_values(db, "movie", m)
+            for m in movie_entries
         ]
         bulk_overwrite_sheet("Movies", movie_matrix)
 
         tv_show_entries = db.query(TVShows).all()
-        tv_show_headers = [c.name for c in TVShows.__table__.columns]
+        tv_show_headers = [
+            c.name for c in TVShows.__table__.columns
+        ] + sheet_link_headers("tv-show")
         tv_show_matrix = [tv_show_headers] + [
-            format_model_for_sheet(t) for t in tv_show_entries
+            format_model_for_sheet(t) + sheet_link_values(db, "tv-show", t)
+            for t in tv_show_entries
         ]
         bulk_overwrite_sheet("TV Shows", tv_show_matrix)
 
         cartoon_entries = db.query(Cartoon).all()
-        cartoon_headers = [c.name for c in Cartoon.__table__.columns]
+        cartoon_headers = [
+            c.name for c in Cartoon.__table__.columns
+        ] + sheet_link_headers("cartoon")
         cartoon_matrix = [cartoon_headers] + [
-            format_model_for_sheet(c) for c in cartoon_entries
+            format_model_for_sheet(c) + sheet_link_values(db, "cartoon", c)
+            for c in cartoon_entries
         ]
         bulk_overwrite_sheet("Cartoons", cartoon_matrix)
 
         manga_entries = db.query(Manga).all()
-        manga_headers = [c.name for c in Manga.__table__.columns]
+        manga_headers = [c.name for c in Manga.__table__.columns] + sheet_link_headers(
+            "manga"
+        )
         manga_matrix = [manga_headers] + [
-            format_model_for_sheet(m) for m in manga_entries
+            format_model_for_sheet(m) + sheet_link_values(db, "manga", m)
+            for m in manga_entries
         ]
         bulk_overwrite_sheet("Manga", manga_matrix)
 
         novel_entries = db.query(Novel).all()
-        novel_headers = [c.name for c in Novel.__table__.columns]
+        novel_headers = [c.name for c in Novel.__table__.columns] + sheet_link_headers(
+            "novel"
+        )
         novel_matrix = [novel_headers] + [
-            format_model_for_sheet(n) for n in novel_entries
+            format_model_for_sheet(n) + sheet_link_values(db, "novel", n)
+            for n in novel_entries
         ]
         bulk_overwrite_sheet("Novel", novel_matrix)
 
         comic_entries = db.query(Comic).all()
-        comic_headers = [c.name for c in Comic.__table__.columns]
+        comic_headers = [c.name for c in Comic.__table__.columns] + sheet_link_headers(
+            "comic"
+        )
         comic_matrix = [comic_headers] + [
-            format_model_for_sheet(c) for c in comic_entries
+            format_model_for_sheet(c) + sheet_link_values(db, "comic", c)
+            for c in comic_entries
         ]
         bulk_overwrite_sheet("Comic", comic_matrix)
 

@@ -139,6 +139,50 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 )
 
 
+# The sheet header each (media_type, role/field key) pair has always been
+# written under, back when the value lived in a plain string column on the
+# entry table. Keyed by the pair, not by the key alone, because the same key
+# can carry a different legacy header per media type - anime.publisher_tw
+# wrote under "distributor_tw" while manga/novel/comic wrote under
+# "publisher_tw" itself. The sheets predate this design and must keep reading
+# the same; only what sits behind the column changed. A pair absent here (for
+# example movie/source_official, which never had a legacy column) falls back
+# to its own key as the header - see credits.sheet_link_headers.
+LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
+    ("anime", "studio"): "studio",
+    ("anime", "director"): "director",
+    ("anime", "producer"): "producer",
+    ("anime", "composer"): "music",
+    ("anime", "publisher_tw"): "distributor_tw",
+    ("anime", "genre_main"): "genre_main",
+    ("anime", "genre_sub"): "genre_sub",
+    ("anime-movie", "studio"): "studio",
+    ("anime-movie", "director"): "director",
+    ("movie", "director"): "director",
+    ("tv-show", "source_official"): "source_official",
+    ("cartoon", "source_official"): "source_official",
+    ("manga", "manga_author_plot"): "author_plot",
+    ("manga", "manga_author_draw"): "author_draw",
+    ("manga", "publisher_tw"): "publisher_tw",
+    ("novel", "novel_author"): "author",
+    ("novel", "novel_illustrator"): "illustrator",
+    ("novel", "publisher_tw"): "publisher_tw",
+    ("comic", "comic_writer"): "writer",
+    ("comic", "comic_artist"): "artist",
+    ("comic", "comic_publisher"): "publisher",
+    ("comic", "comic_imprint"): "imprint",
+    ("comic", "comic_continuity"): "continuity",
+    ("comic", "comic_era"): "era",
+    ("comic", "comic_event"): "events",
+    ("comic", "publisher_tw"): "publisher_tw",
+}
+
+
+def sheet_column_for(media_type: str, key: str) -> str:
+    """The sheet header a credit role or tag field key has always used."""
+    return LEGACY_SHEET_COLUMN.get((media_type, key), key)
+
+
 def director_scope_for(media_type: str) -> str:
     """Which director dropdown a credit on this media type belongs to."""
     return "anime" if media_type in DIRECTOR_ANIME_MEDIA_TYPES else "non_anime"

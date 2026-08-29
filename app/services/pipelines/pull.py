@@ -15,12 +15,16 @@ from app.models import (
     Franchise,
     Manga,
     Novel,
+    Person,
+    PersonRole,
     Series,
     Anime,
     AnimeMovies,
     Movies,
     TVShows,
+    Studio,
     SystemOption,
+    SystemOptionScope,
     SystemConfigs,
     Seasonal,
     WatchOrderList,
@@ -47,7 +51,11 @@ from app.utils.formatter import (
     parse_comic_from_sheet,
     parse_movie_from_sheet,
     parse_tv_show_from_sheet,
+    parse_person_from_sheet,
+    parse_person_role_from_sheet,
+    parse_studio_from_sheet,
     parse_system_option_from_sheet,
+    parse_system_option_scope_from_sheet,
     parse_system_config_from_sheet,
     parse_seasonal_from_sheet,
     parse_watch_order_list_from_sheet,
@@ -60,6 +68,12 @@ from app.utils.formatter import (
     parse_note_from_sheet,
 )
 from app.utils.data_control_utils import log_data_control
+from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
+from app.services.domain.credits import (
+    names_from_sheet_value,
+    replace_credits,
+    replace_tags,
+)
 
 from app.services.integrations.sheets import (
     bulk_overwrite_sheet,
@@ -115,6 +129,20 @@ from app.services.calculation import (
 
 logger = logging.getLogger(__name__)
 
+# Hyphenated media_type key (app/utils/media_resolver.py's MEDIA_TABLES) for
+# every entry tab that carries credit/tag link columns. Drives the pop-and-
+# apply step below: a tab absent here has no link columns to restore.
+MEDIA_TYPE_FOR_TAB = {
+    "Anime": "anime",
+    "Anime Movies": "anime-movie",
+    "Movies": "movie",
+    "TV Shows": "tv-show",
+    "Cartoons": "cartoon",
+    "Manga": "manga",
+    "Novel": "novel",
+    "Comic": "comic",
+}
+
 
 def execute_pull_specific(
     db: Session, tab_name: str, action_type: str = "Manual", log_action: bool = True
@@ -135,7 +163,11 @@ def execute_pull_specific(
         "Comic": Comic,
         "Movies": Movies,
         "TV Shows": TVShows,
+        "Person": Person,
+        "Person Role": PersonRole,
+        "Studio": Studio,
         "System Options": SystemOption,
+        "System Option Scope": SystemOptionScope,
         "System Configs": SystemConfigs,
         "Seasonal": Seasonal,
         "Watch Order List": WatchOrderList,
@@ -160,7 +192,11 @@ def execute_pull_specific(
         "Comic": parse_comic_from_sheet,
         "Movies": parse_movie_from_sheet,
         "TV Shows": parse_tv_show_from_sheet,
+        "Person": parse_person_from_sheet,
+        "Person Role": parse_person_role_from_sheet,
+        "Studio": parse_studio_from_sheet,
         "System Options": parse_system_option_from_sheet,
+        "System Option Scope": parse_system_option_scope_from_sheet,
         "System Configs": parse_system_config_from_sheet,
         "Seasonal": parse_seasonal_from_sheet,
         "Watch Order List": parse_watch_order_list_from_sheet,
@@ -238,6 +274,25 @@ def execute_pull_specific(
             for key, value in clean_header_dict.items()
             if key in raw_header_dict
         }
+
+        # Credit/tag columns (studio, director, genre_main, ...) no longer
+        # back a real column on the entry model - Task 10 dropped them once
+        # media_credit/media_tag took over. Pop them out under their legacy
+        # header names here so neither the setattr loop nor Model(**...)
+        # below ever sees them; they are applied via replace_credits/
+        # replace_tags once the row itself exists, further down.
+        media_type = MEDIA_TYPE_FOR_TAB.get(tab_name)
+        pending_credits: list[tuple[str, object]] = []
+        pending_tags: list[tuple[str, object]] = []
+        if media_type:
+            for role in credit_roles_for(media_type):
+                header = sheet_column_for(media_type, role.key)
+                if header in clean_header_dict:
+                    pending_credits.append((role.key, clean_header_dict.pop(header)))
+            for field in tag_fields_for(media_type):
+                header = sheet_column_for(media_type, field.key)
+                if header in clean_header_dict:
+                    pending_tags.append((field.key, clean_header_dict.pop(header)))
 
         # Resolve String Foreign Keys -> Actual UUIDs
         # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
@@ -407,9 +462,12 @@ def execute_pull_specific(
                     )
                     continue
 
-        # System Options and System Configs use 'id', Seasonal uses 'seasonal',
-        # others use 'system_id'
-        if tab_name in ("System Options", "System Configs"):
+        # System Configs, Person Role and System Option Scope are
+        # autoincrement integer PKs and use 'id', Seasonal uses 'seasonal',
+        # others use 'system_id'. System Options used to have an 'id' PK too,
+        # but Task 4 reshaped it onto 'system_id' and Task 10 dropped the
+        # 'id' column outright - it belongs with the 'system_id' tabs now.
+        if tab_name in ("System Configs", "Person Role", "System Option Scope"):
             pk_field = "id"
         elif tab_name == "Seasonal":
             pk_field = "seasonal"
@@ -726,11 +784,32 @@ def execute_pull_specific(
             for key, value in clean_header_dict.items():
                 setattr(existing, key, value)
             rows_updated += 1
+            entry = existing
         else:
             # Create new record (PK missing, or provided but absent locally)
             new_record = Model(**clean_header_dict)
             db.add(new_record)
             rows_added += 1
+            entry = new_record
+
+        # Apply the credit/tag columns popped out above, now that the row
+        # exists. A fresh insert needs a flush first: system_id is a
+        # server/Python-side default that is not guaranteed to be populated
+        # on the instance until the row actually goes to the database, and
+        # media_credit/media_tag rows need a real entry_id to point at.
+        if media_type and (pending_credits or pending_tags):
+            if entry.system_id is None:
+                db.flush()
+            for role_key, raw_value in pending_credits:
+                replace_credits(
+                    db, media_type, entry.system_id, role_key,
+                    names_from_sheet_value(raw_value),
+                )
+            for field_key, raw_value in pending_tags:
+                replace_tags(
+                    db, media_type, entry.system_id, field_key,
+                    names_from_sheet_value(raw_value),
+                )
 
         processed += 1
 
@@ -793,6 +872,16 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
 
     tabs_in_order = [
         "System Options",
+        # Scopes point at System Options rows via option_id, so they restore
+        # right after the vocabulary they scope.
+        "System Option Scope",
+        # Person and Studio restore before every media tab: entry credits
+        # resolve against a person_id/studio_id that must already exist.
+        "Person",
+        # Roles point at Person rows via person_id, so they restore right
+        # after the people they describe.
+        "Person Role",
+        "Studio",
         # Key/value rows (announcements, admin form defaults) that nothing
         # else references, so they restore alongside the other option data.
         "System Configs",

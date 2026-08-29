@@ -19,7 +19,14 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models
-from app.utils.credit_roles import CREDIT_ROLES, TAG_FIELDS, director_scope_for
+from app.utils.credit_roles import (
+    CREDIT_ROLES,
+    TAG_FIELDS,
+    credit_roles_for,
+    director_scope_for,
+    sheet_column_for,
+    tag_fields_for,
+)
 from app.utils.name_normalize import normalize_name, split_names
 
 logger = logging.getLogger(__name__)
@@ -219,6 +226,34 @@ def tags_to_sheet_value(
 def names_from_sheet_value(raw: Optional[str]) -> list[str]:
     """Split one comma-joined sheet cell back into names."""
     return split_names(raw)
+
+
+def sheet_link_headers(media_type: str) -> list[str]:
+    """
+    The legacy sheet headers for every credit role and tag field this media
+    type carries, in the same order `sheet_link_values` fills them.
+
+    These land at the END of the entry tab, after the plain columns
+    `format_model_for_sheet` already emits. That is fine: restore matches a
+    sheet column by header NAME (`parse_row_to_dict`), never by position.
+    """
+    headers = [sheet_column_for(media_type, role.key) for role in credit_roles_for(media_type)]
+    headers += [sheet_column_for(media_type, field.key) for field in tag_fields_for(media_type)]
+    return headers
+
+
+def sheet_link_values(db: Session, media_type: str, entry) -> list[str]:
+    """Comma-joined values for every credit role and tag field, aligned with
+    `sheet_link_headers`."""
+    values = [
+        credits_to_sheet_value(db, media_type, entry.system_id, role.key)
+        for role in credit_roles_for(media_type)
+    ]
+    values += [
+        tags_to_sheet_value(db, media_type, entry.system_id, field.key)
+        for field in tag_fields_for(media_type)
+    ]
+    return values
 
 
 # ---------------------------------------------------------------------------

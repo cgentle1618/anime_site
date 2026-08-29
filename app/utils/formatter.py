@@ -495,6 +495,11 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
+        # No legacy column - movie/source_official is a new tag field the
+        # credits redesign added, so it only ever shows up at the end of the
+        # tab under its own key. Popped out in pull.py before the setattr
+        # loop, exactly like the anime/manga/novel/comic credit columns.
+        "source_official": parse_from_sheet(raw.get("source_official"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
         "release_date_usa": release_date.normalize(parse_from_sheet(raw.get("release_date_usa"), str)),
         "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
@@ -736,6 +741,72 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
         "value": parse_from_sheet(raw.get("value"), str),
         "sort_order": parse_from_sheet(raw.get("sort_order"), int),
         "remark": parse_from_sheet(raw.get("remark"), str),
+    }
+
+
+def parse_person_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Person sheet into typed data ready for
+    the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "name_native": parse_from_sheet(raw.get("name_native"), str),
+        "name_en": parse_from_sheet(raw.get("name_en"), str),
+        "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "gender": parse_from_sheet(raw.get("gender"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_person_role_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Person Role sheet into typed data ready
+    for the Database. The Person tab restores before this one (see
+    tabs_in_order in pull.py), so person_id round-trips as a plain UUID with
+    no name-resolution step - the same treatment other strict FK columns get.
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "role": parse_from_sheet(raw.get("role"), str),
+        "scope": parse_from_sheet(raw.get("scope"), str),
+    }
+
+
+def parse_studio_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Studio sheet into typed data ready for
+    the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "name_native": parse_from_sheet(raw.get("name_native"), str),
+        "name_en": parse_from_sheet(raw.get("name_en"), str),
+        "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "logo_file": parse_from_sheet(raw.get("logo_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_system_option_scope_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the System Option Scope sheet into typed
+    data ready for the Database. The System Options tab restores before this
+    one, so option_id round-trips as a plain UUID with no name-resolution
+    step - the same treatment other strict FK columns get.
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "option_id": _uuid_or_none(raw.get("option_id")),
+        "scope": parse_from_sheet(raw.get("scope"), str),
     }
 
 
