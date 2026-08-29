@@ -19,7 +19,11 @@ class FranchiseBase(BaseModel):
     cover_entry_id: Optional[UUID] = None
     type_covers: Optional[dict] = None
     type_slots: Optional[dict] = None
-    watch_next_group: Optional[str] = None
+    # size_group_derived is Calculate-owned (see app/services/domain/plan_next.py)
+    # and included here only so GET responses carry it; the admin UI never
+    # writes it back. size_group_manual is the admin's override map.
+    size_group_derived: Optional[dict] = None
+    size_group_manual: Optional[dict] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
     collection_id: Optional[UUID] = None
@@ -56,6 +60,8 @@ class SeriesBase(BaseModel):
     my_rating: Optional[str] = None
     series_expectation: Optional[str] = "Low"
     cover_entry_id: Optional[UUID] = None
+    size_group_derived: Optional[dict] = None
+    size_group_manual: Optional[dict] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
 

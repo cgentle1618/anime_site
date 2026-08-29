@@ -36,6 +36,9 @@ import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
+import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import { SIZE_GROUPS, ALLOWED_SCOPES } from "../../config/planNextGroups";
+import { effectiveBucket } from "../../utils/planNext";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -93,7 +96,7 @@ export default function FranchisePage() {
   // ── admin editable ─────────────────────────────────────────────────────────
   const [rating, setRating] = useState("");
   const [expectation, setExpectation] = useState("");
-  const [watchNextGroup, setWatchNextGroup] = useState("");
+  const [plannedTypes, setPlannedTypes] = useState(new Set());
   const [toRewatch, setToRewatch] = useState(false);
   const [remark, setRemark] = useState("");
   const [showRemark, setShowRemark] = useState(false);
@@ -174,7 +177,7 @@ export default function FranchisePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes] =
+        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
           await Promise.all([
             fetch(endpoints.resource("franchise").detail(system_id), { credentials: "include" }),
             fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: system_id }), {
@@ -204,9 +207,10 @@ export default function FranchisePage() {
             fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
+            fetch("/api/plan-next/?scope=franchise", { credentials: "include" }),
           ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg, nv, cm] = await Promise.all([
+        const [f, s, a, am, m, tv, c, mg, nv, cm, pn] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
@@ -217,6 +221,7 @@ export default function FranchisePage() {
           mgRes.json(),
           nvRes.json(),
           cmRes.json(),
+          pnRes.ok ? pnRes.json() : [],
         ]);
         setFranchise(f);
         setSeriesList(s);
@@ -228,9 +233,15 @@ export default function FranchisePage() {
         setMangaList(mg);
         setNovelList(nv);
         setComicList(cm);
+        setPlannedTypes(
+          new Set(
+            pn
+              .filter((row) => row.target_id === f.system_id)
+              .map((row) => row.media_type),
+          ),
+        );
         setRating(f.my_rating || "");
         setExpectation(f.franchise_expectation || "");
-        setWatchNextGroup(f.watch_next_group || "");
         setToRewatch(f.to_rewatch || false);
         setRemark(f.remark || "");
       } catch (e) {
@@ -261,6 +272,20 @@ export default function FranchisePage() {
   const hasTV = useMemo(() => types.includes("TV"), [types]);
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
+
+  // Media types this franchise carries a size bucket for, restricted to
+  // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
+  // planned at franchise level - see ALLOWED_SCOPES).
+  const sizeGroupMediaTypes = useMemo(() => {
+    const keys = new Set([
+      ...Object.keys(franchise?.size_group_derived || {}),
+      ...Object.keys(franchise?.size_group_manual || {}),
+    ]);
+    const filtered = Array.from(keys).filter((mt) =>
+      (ALLOWED_SCOPES[mt] || []).includes("franchise"),
+    );
+    return filtered.length > 0 ? filtered : ["anime"];
+  }, [franchise]);
 
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
@@ -411,6 +436,54 @@ export default function FranchisePage() {
     } catch {
       showToast("error", "Network error. Reverting.");
     }
+  }
+
+  async function handleTogglePlan(mediaType, next) {
+    if (!franchise) return;
+    try {
+      if (next) {
+        const res = await fetch("/api/plan-next/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            media_type: mediaType,
+            scope: "franchise",
+            target_id: franchise.system_id,
+          }),
+        });
+        if (!res.ok && res.status !== 409) return;
+      } else {
+        const params = new URLSearchParams({
+          scope: "franchise",
+          media_type: mediaType,
+          target_id: franchise.system_id,
+        });
+        const res = await fetch(`/api/plan-next/target?${params}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok && res.status !== 404) return;
+      }
+      setPlannedTypes((prev) => {
+        const nextSet = new Set(prev);
+        if (next) nextSet.add(mediaType);
+        else nextSet.delete(mediaType);
+        return nextSet;
+      });
+    } catch {
+      showToast("error", "Network error.");
+    }
+  }
+
+  function handleOverride(mediaType, key) {
+    const nextManual = { ...(franchise?.size_group_manual || {}) };
+    if (key) nextManual[mediaType] = key;
+    else delete nextManual[mediaType];
+    saveField(
+      "size_group_manual",
+      Object.keys(nextManual).length > 0 ? nextManual : null,
+    );
   }
 
   // Shared by the inline box and the full-view modal, which edit one draft.
@@ -1094,17 +1167,26 @@ export default function FranchisePage() {
                   {getDisplayName(parentCollection, "collection")}
                 </Link>
               )}
-              {hasACG && franchise.watch_next_group && (
-                <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-list-ol mr-1"></i>
-                  Watch Next:{" "}
-                  {
-                    { "12ep": "12 EP", "24ep": "24 EP", "30ep_plus": "30+ EP" }[
-                      franchise.watch_next_group
-                    ]
-                  }
-                </span>
-              )}
+              {Array.from(plannedTypes).map((mediaType) => {
+                const bucket = effectiveBucket(
+                  franchise.size_group_derived,
+                  franchise.size_group_manual,
+                  mediaType,
+                );
+                const label = (SIZE_GROUPS[mediaType] || []).find(
+                  (g) => g.key === bucket,
+                )?.label;
+                return (
+                  <span
+                    key={mediaType}
+                    className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                  >
+                    <i className="fas fa-list-ol mr-1"></i>
+                    Plan Next: {mediaType.replace("-", " ")}
+                    {label ? ` (${label})` : ""}
+                  </span>
+                );
+              })}
               {hasACG && franchise.to_rewatch && (
                 <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold">
                   <i className="fas fa-redo mr-1"></i>To Rewatch
@@ -1178,26 +1260,21 @@ export default function FranchisePage() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    Plan Next
+                  </label>
+                  <SizeGroupControls
+                    mediaTypes={sizeGroupMediaTypes}
+                    planned={plannedTypes}
+                    derived={franchise.size_group_derived}
+                    manual={franchise.size_group_manual}
+                    onTogglePlan={handleTogglePlan}
+                    onOverride={handleOverride}
+                  />
+                </div>
                 {hasACG && (
                   <>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                        Watch Next Group
-                      </label>
-                      <select
-                        value={watchNextGroup}
-                        onChange={(e) => {
-                          setWatchNextGroup(e.target.value);
-                          saveField("watch_next_group", e.target.value);
-                        }}
-                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
-                      >
-                        <option value="">— Not in Watch List —</option>
-                        <option value="12ep">12 EP</option>
-                        <option value="24ep">24 EP</option>
-                        <option value="30ep_plus">30+ EP</option>
-                      </select>
-                    </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
                         To Rewatch

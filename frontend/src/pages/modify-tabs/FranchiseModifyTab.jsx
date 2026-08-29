@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for FranchiseModifyTab.
+import { useEffect, useState } from "react";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import { releaseYear } from "../../lib/releaseDate";
 import {
@@ -9,6 +10,8 @@ import {
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
 import { FRANCHISE_TYPES } from "../../config/fieldOptions";
+import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import { ALLOWED_SCOPES } from "../../config/planNextGroups";
 
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga"],
@@ -45,6 +48,91 @@ export default function FranchiseModifyTab({
   editingItem,
 }) {
   const franchiseId = editingItem?.system_id;
+
+  // ── plan-next: which media types this franchise is queued for ───────────
+  const [plannedTypes, setPlannedTypes] = useState(new Set());
+
+  useEffect(() => {
+    if (!franchiseId) {
+      setPlannedTypes(new Set());
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/plan-next/?scope=franchise", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        if (cancelled) return;
+        setPlannedTypes(
+          new Set(
+            rows
+              .filter((r) => r.target_id === franchiseId)
+              .map((r) => r.media_type),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPlannedTypes(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [franchiseId]);
+
+  const sizeGroupMediaTypes = Array.from(
+    new Set([
+      ...Object.keys(ff.size_group_derived || editingItem?.size_group_derived || {}),
+      ...Object.keys(ff.size_group_manual || {}),
+    ]),
+  ).filter((mt) => (ALLOWED_SCOPES[mt] || []).includes("franchise"));
+  if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
+
+  async function handleTogglePlan(mediaType, next) {
+    if (!franchiseId) return;
+    try {
+      if (next) {
+        const res = await fetch("/api/plan-next/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            media_type: mediaType,
+            scope: "franchise",
+            target_id: franchiseId,
+          }),
+        });
+        if (!res.ok && res.status !== 409) return;
+      } else {
+        const params = new URLSearchParams({
+          scope: "franchise",
+          media_type: mediaType,
+          target_id: franchiseId,
+        });
+        const res = await fetch(`/api/plan-next/target?${params}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok && res.status !== 404) return;
+      }
+      setPlannedTypes((prev) => {
+        const nextSet = new Set(prev);
+        if (next) nextSet.add(mediaType);
+        else nextSet.delete(mediaType);
+        return nextSet;
+      });
+    } catch {
+      // Network error - leave the checkbox state untouched.
+    }
+  }
+
+  function handleOverride(mediaType, key) {
+    const nextManual = { ...(ff.size_group_manual || {}) };
+    if (key) nextManual[mediaType] = key;
+    else delete nextManual[mediaType];
+    uf(
+      "size_group_manual",
+      Object.keys(nextManual).length > 0 ? nextManual : null,
+    );
+  }
 
   const franchiseEntries = [
     ...(allAnime || [])
@@ -295,17 +383,18 @@ export default function FranchiseModifyTab({
           })}
         </div>
       )}
-      <Field label="Watch Next Group">
-        <select
-          className={selectCls}
-          value={ff.watch_next_group || ""}
-          onChange={(e) => uf("watch_next_group", e.target.value || null)}
-        >
-          <option value="">— Not in Watch List —</option>
-          <option value="12ep">12 EP</option>
-          <option value="24ep">24 EP</option>
-          <option value="30ep_plus">30+ EP</option>
-        </select>
+      <Field
+        label="Plan Next"
+        hint="Queue this franchise per media type, and override its derived size bucket"
+      >
+        <SizeGroupControls
+          mediaTypes={sizeGroupMediaTypes}
+          planned={plannedTypes}
+          derived={ff.size_group_derived || editingItem?.size_group_derived}
+          manual={ff.size_group_manual}
+          onTogglePlan={handleTogglePlan}
+          onOverride={handleOverride}
+        />
       </Field>
       <Field label="To Rewatch">
         <label className="flex items-center gap-2 cursor-pointer">

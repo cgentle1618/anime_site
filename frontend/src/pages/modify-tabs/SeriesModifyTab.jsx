@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for SeriesModifyTab.
+import { useEffect, useState } from "react";
 import { getDisplayName } from "../../utils/media";
 import { releaseYear } from "../../lib/releaseDate";
 import ComboBox from "../../components/forms/ComboBox";
@@ -9,6 +10,8 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import SizeGroupControls from "../../components/plan/SizeGroupControls";
+import { ALLOWED_SCOPES } from "../../config/planNextGroups";
 
 function getEntryYear(e) {
   const d =
@@ -35,6 +38,91 @@ export default function SeriesModifyTab({
   editingItem,
 }) {
   const seriesId = editingItem?.system_id;
+
+  // ── plan-next: which media types this series is queued for ──────────────
+  const [plannedTypes, setPlannedTypes] = useState(new Set());
+
+  useEffect(() => {
+    if (!seriesId) {
+      setPlannedTypes(new Set());
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/plan-next/?scope=series", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        if (cancelled) return;
+        setPlannedTypes(
+          new Set(
+            rows
+              .filter((r) => r.target_id === seriesId)
+              .map((r) => r.media_type),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPlannedTypes(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [seriesId]);
+
+  const sizeGroupMediaTypes = Array.from(
+    new Set([
+      ...Object.keys(sf.size_group_derived || editingItem?.size_group_derived || {}),
+      ...Object.keys(sf.size_group_manual || {}),
+    ]),
+  ).filter((mt) => (ALLOWED_SCOPES[mt] || []).includes("series"));
+  if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
+
+  async function handleTogglePlan(mediaType, next) {
+    if (!seriesId) return;
+    try {
+      if (next) {
+        const res = await fetch("/api/plan-next/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            media_type: mediaType,
+            scope: "series",
+            target_id: seriesId,
+          }),
+        });
+        if (!res.ok && res.status !== 409) return;
+      } else {
+        const params = new URLSearchParams({
+          scope: "series",
+          media_type: mediaType,
+          target_id: seriesId,
+        });
+        const res = await fetch(`/api/plan-next/target?${params}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok && res.status !== 404) return;
+      }
+      setPlannedTypes((prev) => {
+        const nextSet = new Set(prev);
+        if (next) nextSet.add(mediaType);
+        else nextSet.delete(mediaType);
+        return nextSet;
+      });
+    } catch {
+      // Network error - leave the checkbox state untouched.
+    }
+  }
+
+  function handleOverride(mediaType, key) {
+    const nextManual = { ...(sf.size_group_manual || {}) };
+    if (key) nextManual[mediaType] = key;
+    else delete nextManual[mediaType];
+    us(
+      "size_group_manual",
+      Object.keys(nextManual).length > 0 ? nextManual : null,
+    );
+  }
 
   // anime_movies is absent on purpose: that table has no series_id column, so
   // no anime movie can ever belong to a series.
@@ -183,6 +271,19 @@ export default function SeriesModifyTab({
             </option>
           ))}
         </select>
+      </Field>
+      <Field
+        label="Plan Next"
+        hint="Queue this series per media type, and override its derived size bucket"
+      >
+        <SizeGroupControls
+          mediaTypes={sizeGroupMediaTypes}
+          planned={plannedTypes}
+          derived={sf.size_group_derived || editingItem?.size_group_derived}
+          manual={sf.size_group_manual}
+          onTogglePlan={handleTogglePlan}
+          onOverride={handleOverride}
+        />
       </Field>
       <Field label="To Rewatch">
         <label className="flex items-center gap-2 cursor-pointer">
