@@ -1,0 +1,66 @@
+"""Plan Next ORM model - what is queued to watch or read, at any of three tiers."""
+
+import uuid
+from sqlalchemy import Column, DateTime, Index, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.database import Base, get_taipei_now
+
+
+class PlanNext(Base):
+    """
+    One thing queued to watch or read next: an entry, a series, or a franchise.
+
+    The row's existence is the flag. There is no is_next column - un-planning
+    deletes the row - so the table only ever holds what is actually queued.
+
+    The target is a FK-less (scope, media_type, target_id) triple, the same
+    contract media_relation and watch_order_item use: no single foreign key can
+    span the eight media entry tables plus series and franchise. Read-time
+    resolution goes through OWNER_TABLES in app/utils/media_resolver.py, which
+    surfaces a deleted target as missing=True rather than dropping the row, so a
+    dangling reference stays visible and fixable in the admin page. The franchise
+    and series delete paths clear these rows, the same obligation media_relation
+    already carries.
+
+    media_type is stored even for scope='entry', where it could be derived from
+    whichever table holds the id. It is the tab discriminator on the Plan page,
+    and storing it keeps one uniform key across all three scopes.
+
+    Replaces the watch_next / read_next booleans on the seven entry tables and
+    franchise.watch_next_group. Those could not represent a series at all (series
+    is one table shared by every media type, so it would have needed one boolean
+    column per type), could not bucket a franchise per media type, and left anime
+    entries with no way to be marked at all.
+    """
+
+    __tablename__ = "plan_next"
+    __table_args__ = (
+        # One row per planned thing per media type. Scoped by media_type rather
+        # than by target alone so a franchise holding both anime and TV show
+        # entries can be queued under each tab - rare, and a sign of messy data
+        # when it happens, but representable rather than silently collapsed.
+        UniqueConstraint(
+            "scope", "target_id", "media_type", name="uq_plan_next_target"
+        ),
+        # The Plan page reads one tab at a time.
+        Index("ix_plan_next_type_scope", "media_type", "scope"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+
+    # Hyphenated key from MEDIA_TABLES, e.g. "anime-movie". Not a DB enum: the
+    # vocabulary is validated in the API layer, the same choice already made for
+    # media_relation.relation_type, so adding a type needs no migration.
+    media_type = Column(String, nullable=False)
+    # One of SCOPES in app/utils/plan_next_kinds.py.
+    scope = Column(String, nullable=False)
+    target_id = Column(UUID(as_uuid=True), nullable=False)
+
+    # Free text scoping the plan, e.g. "after the movie".
+    remark = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

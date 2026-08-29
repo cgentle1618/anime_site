@@ -56,7 +56,13 @@ class Franchise(Base, NameFallbackMixin):
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
     type_covers = Column(JSONB, nullable=True)
     type_slots = Column(JSONB, nullable=True)
-    watch_next_group = Column(String, nullable=True)
+    # Size bucket per media type, e.g. {"anime": "24ep", "tv-show": "2season"}.
+    # A standing property of the group, not of a plan_next row: a series is
+    # "2 Seasons" whether or not it is queued. Two maps rather than one plus an
+    # override flag - Calculate rewrites `derived` freely and can never stomp a
+    # manual edit. See app/services/domain/size_group.py.
+    size_group_derived = Column(JSONB, nullable=True)
+    size_group_manual = Column(JSONB, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
@@ -120,6 +126,13 @@ class Series(Base, NameFallbackMixin):
     # Any entry UUID, any type. No FK: no single constraint can span the six
     # entry tables a series may hold. Mirrors Franchise.cover_entry_id.
     cover_entry_id = Column(UUID(as_uuid=True), nullable=True)
+    # Size bucket per media type, e.g. {"anime": "24ep", "tv-show": "2season"}.
+    # A standing property of the group, not of a plan_next row: a series is
+    # "2 Seasons" whether or not it is queued. Two maps rather than one plus an
+    # override flag - Calculate rewrites `derived` freely and can never stomp a
+    # manual edit. See app/services/domain/size_group.py.
+    size_group_derived = Column(JSONB, nullable=True)
+    size_group_manual = Column(JSONB, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)

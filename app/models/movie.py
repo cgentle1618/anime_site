@@ -68,7 +68,6 @@ class Movies(Base, NameFallbackMixin):
 
     source_other = Column(JSONB, default=None, nullable=True)
 
-    watch_next = Column(Boolean, nullable=True)
     to_rewatch = Column(Boolean, default=False, nullable=True)
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

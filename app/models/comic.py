@@ -91,7 +91,6 @@ class Comic(Base, NameFallbackMixin):
 
     # No UI this pass (plan pages are out of scope), but created now so adding
     # those pages later needs no migration.
-    read_next = Column(Boolean, nullable=True)
     to_reread = Column(Boolean, default=False, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
