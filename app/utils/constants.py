@@ -94,9 +94,12 @@ COMIC_TYPES: tuple[str, ...] = ("Ongoing", "Limited", "One-Shot", "Annual")
 MANGA_SERIALIZATION_STATUSES: tuple[str, ...] = ("連載中", "停更", "腰斬", "完結")
 NOVEL_SERIALIZATION_STATUSES: tuple[str, ...] = (
     "連載中",
+    "連載中 (不穩定)",
+    "連載中 (有生之年)",
     "停更",
-    "腰斬",
     "完結",
+    "腰斬",
+    "可能更多",
     "未出",
 )
 
