@@ -98,7 +98,7 @@ def validate_plan_target(db: Session, scope: str, media_type: str, target_id: UU
 
     Kept here rather than in the router so Pull can reuse it later.
     """
-    if not scope_allowed(media_type, scope):
+    if not scope_allowed("next", media_type, scope):
         return f"{media_type} cannot be planned at {scope} scope."
     if not target_exists(db, scope, media_type, target_id):
         return f"No {scope} with id {target_id}."

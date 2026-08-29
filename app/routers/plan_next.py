@@ -72,7 +72,8 @@ def list_kinds():
     return {
         "scopes": list(SCOPES),
         "allowed_scopes": {
-            media_type: sorted(scopes) for media_type, scopes in ALLOWED_SCOPES.items()
+            media_type: sorted(scopes)
+            for media_type, scopes in ALLOWED_SCOPES["next"].items()
         },
         "size_groups": {
             media_type: [{"key": g.key, "label": g.label} for g in groups]

@@ -1,6 +1,8 @@
 """
 The vocabulary of `plan_next.scope` and of the size buckets on franchise and
-series.
+series. ALLOWED_SCOPES is keyed by kind first, then media type, since which
+scopes a media type may use depends on whether the row is a next-up queue
+entry or a rewatch mark.
 
 Deliberately shaped like app/utils/relation_kinds.py: a frozen dataclass per
 value, dicts keyed by the value stored in the column, and helpers for
@@ -36,18 +38,36 @@ class SizeGroup:
 
 SCOPES: tuple[str, ...] = ("entry", "series", "franchise")
 
-# Which scopes each media type may be planned at. Entry is universal; the two
-# grouping tiers are opt-in, because anime movies, manga and novels are tracked
-# one entry at a time and comic has no franchise-level planning.
-ALLOWED_SCOPES: dict[str, frozenset[str]] = {
-    "anime": frozenset({"entry", "series", "franchise"}),
-    "movie": frozenset({"entry", "series", "franchise"}),
-    "tv-show": frozenset({"entry", "series", "franchise"}),
-    "cartoon": frozenset({"entry", "series", "franchise"}),
-    "comic": frozenset({"entry", "series"}),
-    "anime-movie": frozenset({"entry"}),
-    "manga": frozenset({"entry"}),
-    "novel": frozenset({"entry"}),
+# The two things a Plan row can mean. Not a DB enum: validated in the API
+# layer, the same choice media_type and scope already make, so adding a kind
+# needs no migration.
+KINDS: tuple[str, ...] = ("next", "rewatch")
+
+# Which scopes each media type may use, per kind. The two maps differ on
+# purpose: anime is queued one season at a time but rewatched as a whole
+# franchise, and novels are reread at every tier though they are only ever
+# queued one book at a time.
+ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
+    "next": {
+        "anime": frozenset({"entry", "series", "franchise"}),
+        "movie": frozenset({"entry", "series", "franchise"}),
+        "tv-show": frozenset({"entry", "series", "franchise"}),
+        "cartoon": frozenset({"entry", "series", "franchise"}),
+        "comic": frozenset({"entry", "series"}),
+        "anime-movie": frozenset({"entry"}),
+        "manga": frozenset({"entry"}),
+        "novel": frozenset({"entry"}),
+    },
+    "rewatch": {
+        "anime": frozenset({"franchise"}),
+        "movie": frozenset({"entry", "series", "franchise"}),
+        "tv-show": frozenset({"entry", "series", "franchise"}),
+        "cartoon": frozenset({"franchise"}),
+        "comic": frozenset({"entry", "series"}),
+        "anime-movie": frozenset({"entry"}),
+        "manga": frozenset({"entry"}),
+        "novel": frozenset({"entry", "series", "franchise"}),
+    },
 }
 
 # Upper bound of each band, paired with the bucket key it yields. Read in
@@ -95,9 +115,19 @@ SIZE_GROUPS: dict[str, tuple[SizeGroup, ...]] = {
 }
 
 
-def scope_allowed(media_type: str, scope: str) -> bool:
-    """True when this media type may be planned at this scope."""
-    return scope in ALLOWED_SCOPES.get(media_type, frozenset())
+def kind_valid(kind: str) -> bool:
+    """True when this is a kind the Plan page knows about."""
+    return kind in KINDS
+
+
+def allowed_scopes_for(kind: str) -> dict[str, frozenset[str]]:
+    """The media-type to scopes map for one kind. Empty for an unknown kind."""
+    return ALLOWED_SCOPES.get(kind, {})
+
+
+def scope_allowed(kind: str, media_type: str, scope: str) -> bool:
+    """True when this media type may be marked at this scope, for this kind."""
+    return scope in allowed_scopes_for(kind).get(media_type, frozenset())
 
 
 def size_group_keys(media_type: str) -> tuple[str, ...]:
@@ -105,6 +135,8 @@ def size_group_keys(media_type: str) -> tuple[str, ...]:
     return tuple(group.key for group in SIZE_GROUPS.get(media_type, ()))
 
 
-# Guards the two dicts against drifting from the resolver's key list.
-assert set(ALLOWED_SCOPES) == set(MEDIA_TYPE_KEYS)
+# Guards the maps against drifting from the resolver's key list.
+assert set(ALLOWED_SCOPES) == set(KINDS)
+for _kind, _map in ALLOWED_SCOPES.items():
+    assert set(_map) == set(MEDIA_TYPE_KEYS), _kind
 assert set(SIZE_THRESHOLDS) <= set(MEDIA_TYPE_KEYS)
