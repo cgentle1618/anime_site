@@ -100,6 +100,24 @@ export const endpoints = {
     reset: (type) => `/api/form-defaults/${type}`,
   },
 
+  person: {
+    list: (qs = "") => `/api/person/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/person/${id}`,
+    create: () => "/api/person/",
+    update: (id) => `/api/person/${id}`,
+    remove: (id) => `/api/person/${id}`,
+    merge: (id) => `/api/person/${id}/merge`,
+  },
+
+  studio: {
+    list: () => "/api/studio/",
+    detail: (id) => `/api/studio/${id}`,
+    create: () => "/api/studio/",
+    update: (id) => `/api/studio/${id}`,
+    remove: (id) => `/api/studio/${id}`,
+    merge: (id) => `/api/studio/${id}/merge`,
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",

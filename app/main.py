@@ -46,6 +46,7 @@ from app.routers import (
     system,
     announcements,
     form_defaults,
+    person,
 )
 from app.services.security import get_password_hash
 
@@ -167,6 +168,7 @@ app.include_router(form_defaults.router)
 
 app.include_router(data_control.router)
 app.include_router(system.router)
+app.include_router(person.router)
 
 
 # ==========================================

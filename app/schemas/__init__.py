@@ -164,6 +164,18 @@ from app.schemas.note import (
     NoteReorder,
     NoteSectionOut,
 )
+from app.schemas.staff import (
+    PersonRoleIn,
+    PersonBase,
+    PersonCreate,
+    PersonUpdate,
+    PersonResponse,
+    StudioBase,
+    StudioCreate,
+    StudioUpdate,
+    StudioResponse,
+    MergeRequest,
+)
 
 __all__ = [
     "Token",
@@ -290,4 +302,14 @@ __all__ = [
     "NoteResponse",
     "NoteReorder",
     "NoteSectionOut",
+    "PersonRoleIn",
+    "PersonBase",
+    "PersonCreate",
+    "PersonUpdate",
+    "PersonResponse",
+    "StudioBase",
+    "StudioCreate",
+    "StudioUpdate",
+    "StudioResponse",
+    "MergeRequest",
 ]
