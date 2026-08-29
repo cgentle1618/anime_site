@@ -26,6 +26,7 @@ from app.services.domain import (
 )
 from app.services.domain.plan_next import (
     attach_plan_flag,
+    delete_plans_for,
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
@@ -262,6 +263,7 @@ def delete_anime_movie(
 
     delete_cover_image(system_id)
     log_deleted_record(db, entry, "Anime Movie")
+    delete_plans_for(db, "entry", entry.system_id)
     db.delete(entry)
     db.commit()
     return {"status": "success", "message": "Anime Movie entry deleted successfully."}

@@ -202,3 +202,26 @@ def attach_plan_flag(db: Session, media_type: str, entry) -> None:
     field = PLAN_FLAG_FIELD.get(media_type)
     if field:
         setattr(entry, field, entry_flag(db, media_type, entry.system_id))
+
+
+def delete_plans_for(db: Session, scope: str, target_id: UUID) -> int:
+    """
+    Remove every plan row pointing at one deleted thing.
+
+    The target is FK-less - no single foreign key can span the eight entry
+    tables plus series and franchise - so nothing cascades and each delete path
+    has to call this, the same obligation media_relation already carries.
+    Scoped by (scope, target_id) rather than by target_id alone, so the eight
+    system_id spaces cannot collide.
+    """
+    rows = (
+        db.query(models.PlanNext)
+        .filter(
+            models.PlanNext.scope == scope,
+            models.PlanNext.target_id == target_id,
+        )
+        .all()
+    )
+    for row in rows:
+        db.delete(row)
+    return len(rows)

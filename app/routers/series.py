@@ -19,6 +19,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
+from app.services.domain.plan_next import delete_plans_for
 
 from app.utils.data_control_utils import log_deleted_record
 
@@ -199,6 +200,8 @@ def delete_series(
         raise HTTPException(status_code=404, detail="Series not found")
 
     log_deleted_record(db, db_series, "Series")
+
+    delete_plans_for(db, "series", db_series.system_id)
 
     db.delete(db_series)
     db.commit()

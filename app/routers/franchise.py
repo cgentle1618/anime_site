@@ -17,6 +17,7 @@ from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 from app.services.domain import pop_remark, upsert_remark
+from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,8 @@ def delete_franchise(
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_franchise, "Franchise")
+
+    delete_plans_for(db, "franchise", db_franchise.system_id)
 
     db.delete(db_franchise)
     db.commit()

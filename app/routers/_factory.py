@@ -17,6 +17,7 @@ from app.database import get_taipei_now
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
 from app.services.domain.plan_next import (
     attach_plan_flag,
+    delete_plans_for,
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
@@ -191,6 +192,7 @@ def make_media_router(spec) -> APIRouter:
         if entry.cover_image_file:
             delete_cover_image(entry_id)
         log_deleted_record(db, entry, spec.label)
+        delete_plans_for(db, "entry", entry.system_id)
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}
