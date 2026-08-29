@@ -392,7 +392,6 @@ export default function Cartoon() {
             watchingStatus={cartoon.watching_status}
             myRating={cartoon.my_rating}
             watchNext={cartoon.watch_next}
-            toRewatch={cartoon.to_rewatch}
             isAdmin={isAdmin}
             onEpChange={(v) =>
               performPatch({ ep_fin: v }, "Episode progress saved")
@@ -407,12 +406,6 @@ export default function Cartoon() {
               performPatch(
                 { watch_next: v },
                 v ? "Added to Watch Next" : "Removed from Watch Next",
-              )
-            }
-            onToRewatchChange={(v) =>
-              performPatch(
-                { to_rewatch: v },
-                v ? "Marked for rewatch" : "Removed from rewatch",
               )
             }
             statusOptions={WATCHING_STATUSES}

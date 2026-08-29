@@ -35,7 +35,10 @@ import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import SeriesNotes from "./SeriesNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
-import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
+import PlanKindToggles, {
+  kindLabel,
+  applicableTypes,
+} from "../../components/plan/PlanKindToggles";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -996,18 +999,21 @@ export default function SeriesPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                    {kindLabel("rewatch", seriesMediaTypes)}
-                  </label>
-                  <PlanKindToggles
-                    kind="rewatch"
-                    scope="series"
-                    mediaTypes={seriesMediaTypes}
-                    marked={rewatchMarked}
-                    onToggle={handleRewatchToggle}
-                  />
-                </div>
+                {applicableTypes("rewatch", "series", seriesMediaTypes)
+                  .length > 0 && (
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                      {kindLabel("rewatch", seriesMediaTypes)}
+                    </label>
+                    <PlanKindToggles
+                      kind="rewatch"
+                      scope="series"
+                      mediaTypes={seriesMediaTypes}
+                      marked={rewatchMarked}
+                      onToggle={handleRewatchToggle}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

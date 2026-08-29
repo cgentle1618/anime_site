@@ -392,6 +392,13 @@ export default function Comic() {
             onRatingChange={(v) =>
               performPatch({ my_rating: v || null }, "Rating saved")
             }
+            toRewatch={comic.to_reread}
+            onToRewatchChange={(v) =>
+              performPatch(
+                { to_reread: v },
+                v ? "Marked for reread" : "Removed from reread",
+              )
+            }
             statusOptions={READING_STATUSES}
             ratingOptions={MY_RATINGS}
             statusLabel="Reading Status"

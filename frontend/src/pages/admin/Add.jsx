@@ -771,7 +771,6 @@ export default function Add() {
         series_name_alt: sf.series_name_alt || null,
         my_rating: sf.my_rating || null,
         series_expectation: sf.series_expectation || null,
-        to_rewatch: !!sf.to_rewatch,
         remark: sf.remark || null,
       }),
       credentials: "include",
@@ -1431,7 +1430,6 @@ export default function Add() {
             )
           : null,
       watch_next: cf.watch_next ?? null,
-      to_rewatch: cf.to_rewatch ?? false,
       cover_image_file: cf.cover_image_file || null,
       remark: cf.remark || null,
     };

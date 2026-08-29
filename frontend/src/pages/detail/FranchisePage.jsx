@@ -37,7 +37,10 @@ import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
+import PlanKindToggles, {
+  kindLabel,
+  applicableTypes,
+} from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 
@@ -1326,18 +1329,21 @@ export default function FranchisePage() {
                     onOverride={handleOverride}
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                    {kindLabel("rewatch", franchiseMediaTypes)}
-                  </label>
-                  <PlanKindToggles
-                    kind="rewatch"
-                    scope="franchise"
-                    mediaTypes={franchiseMediaTypes}
-                    marked={rewatchMarked}
-                    onToggle={handleRewatchToggle}
-                  />
-                </div>
+                {applicableTypes("rewatch", "franchise", franchiseMediaTypes)
+                  .length > 0 && (
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                      {kindLabel("rewatch", franchiseMediaTypes)}
+                    </label>
+                    <PlanKindToggles
+                      kind="rewatch"
+                      scope="franchise"
+                      mediaTypes={franchiseMediaTypes}
+                      marked={rewatchMarked}
+                      onToggle={handleRewatchToggle}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

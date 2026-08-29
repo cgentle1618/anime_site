@@ -11,7 +11,10 @@ import {
 import ComboBox from "../../components/forms/ComboBox";
 import { FRANCHISE_TYPES } from "../../config/fieldOptions";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
+import PlanKindToggles, {
+  kindLabel,
+  applicableTypes,
+} from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
 
 const TYPE_TO_ENTRY_TYPES = {
@@ -431,15 +434,18 @@ export default function FranchiseModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      <Field label={kindLabel("rewatch", franchiseMediaTypes)}>
-        <PlanKindToggles
-          kind="rewatch"
-          scope="franchise"
-          mediaTypes={franchiseMediaTypes}
-          marked={rewatchMarked}
-          onToggle={handleRewatchToggle}
-        />
-      </Field>
+      {applicableTypes("rewatch", "franchise", franchiseMediaTypes).length >
+        0 && (
+        <Field label={kindLabel("rewatch", franchiseMediaTypes)}>
+          <PlanKindToggles
+            kind="rewatch"
+            scope="franchise"
+            mediaTypes={franchiseMediaTypes}
+            marked={rewatchMarked}
+            onToggle={handleRewatchToggle}
+          />
+        </Field>
+      )}
       <Field label="Remark">
         <textarea
           className={inputCls}

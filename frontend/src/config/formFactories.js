@@ -174,7 +174,6 @@ export const defaultCartoon = () => ({
   imdb_link: "",
   source_other: [],
   watch_next: false,
-  to_rewatch: false,
   cover_image_file: "",
   remark: "",
 });
@@ -336,7 +335,6 @@ export const defaultSeries = () => ({
   my_rating: "",
   series_expectation: "Low",
   cover_entry_id: null,
-  to_rewatch: false,
   remark: "",
 });
 

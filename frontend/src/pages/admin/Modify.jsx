@@ -150,7 +150,6 @@ function franchiseToForm(f, allCollections = []) {
     type_slots: f.type_slots ?? null,
     size_group_derived: f.size_group_derived ?? null,
     size_group_manual: f.size_group_manual ?? null,
-    to_rewatch: f.to_rewatch ?? false,
     remark: f.remark || "",
   };
 }
@@ -170,7 +169,6 @@ function seriesToForm(s, allFranchises) {
     cover_entry_id: s.cover_entry_id ?? null,
     size_group_derived: s.size_group_derived ?? null,
     size_group_manual: s.size_group_manual ?? null,
-    to_rewatch: s.to_rewatch ?? false,
     remark: s.remark || "",
   };
 }
@@ -568,7 +566,6 @@ export default function Modify() {
             url: url || "",
           })),
       watch_next: c.watch_next ?? false,
-      to_rewatch: c.to_rewatch ?? false,
       cover_image_file: c.cover_image_file || "",
       remark: c.remark || "",
     };
@@ -953,7 +950,6 @@ export default function Modify() {
         type_covers: ff.type_covers || null,
         type_slots: ff.type_slots || null,
         size_group_manual: ff.size_group_manual || null,
-        to_rewatch: ff.to_rewatch || false,
         remark: ff.remark || null,
       }),
       credentials: "include",
@@ -1023,7 +1019,6 @@ export default function Modify() {
         series_expectation: sf.series_expectation || null,
         cover_entry_id: sf.cover_entry_id || null,
         size_group_manual: sf.size_group_manual || null,
-        to_rewatch: !!sf.to_rewatch,
         remark: sf.remark || null,
       }),
       credentials: "include",
@@ -1492,7 +1487,6 @@ export default function Modify() {
             )
           : null,
       watch_next: cmf.watch_next ?? null,
-      to_rewatch: cmf.to_rewatch ?? false,
       cover_image_file: cmf.cover_image_file || null,
       remark: cmf.remark || null,
     };

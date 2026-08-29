@@ -27,6 +27,14 @@ export function kindLabel(kind, mediaTypes) {
   return allRead ? "To Reread" : "To Rewatch";
 }
 
+// The subset of `mediaTypes` that the kind/scope pair actually allows —
+// shared by this component and by call sites that need to know, before
+// rendering their own heading/wrapper, whether this control will render
+// anything at all.
+export function applicableTypes(kind, scope, mediaTypes) {
+  return mediaTypes.filter((t) => scopesFor(kind, t).includes(scope));
+}
+
 export default function PlanKindToggles({
   kind,
   scope,
@@ -35,7 +43,7 @@ export default function PlanKindToggles({
   onToggle,
   disabled = false,
 }) {
-  const applicable = mediaTypes.filter((t) => scopesFor(kind, t).includes(scope));
+  const applicable = applicableTypes(kind, scope, mediaTypes);
   if (applicable.length === 0) return null;
 
   return (

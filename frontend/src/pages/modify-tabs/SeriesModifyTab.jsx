@@ -11,7 +11,10 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import PlanKindToggles, { kindLabel } from "../../components/plan/PlanKindToggles";
+import PlanKindToggles, {
+  kindLabel,
+  applicableTypes,
+} from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
 
 function getEntryYear(e) {
@@ -316,15 +319,17 @@ export default function SeriesModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      <Field label={kindLabel("rewatch", seriesMediaTypes)}>
-        <PlanKindToggles
-          kind="rewatch"
-          scope="series"
-          mediaTypes={seriesMediaTypes}
-          marked={rewatchMarked}
-          onToggle={handleRewatchToggle}
-        />
-      </Field>
+      {applicableTypes("rewatch", "series", seriesMediaTypes).length > 0 && (
+        <Field label={kindLabel("rewatch", seriesMediaTypes)}>
+          <PlanKindToggles
+            kind="rewatch"
+            scope="series"
+            mediaTypes={seriesMediaTypes}
+            marked={rewatchMarked}
+            onToggle={handleRewatchToggle}
+          />
+        </Field>
+      )}
       <Field label="Remark">
         <textarea
           className={inputCls}

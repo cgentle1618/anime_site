@@ -319,19 +319,6 @@ export default function CartoonAddTab({
             </span>
           </label>
         </Field>
-        <Field label="To Rewatch">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!cf.to_rewatch}
-              onChange={(e) => uc("to_rewatch", e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-gray-700">
-              Mark for rewatch
-            </span>
-          </label>
-        </Field>
       </div>
 
       <SectionHeader icon="fa-film" title="Classification & Production" />
