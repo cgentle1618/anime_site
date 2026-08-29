@@ -102,3 +102,123 @@ def test_comic_detail_round_trips_read_next(admin_client, sample_comic):
     assert res.status_code == 200
     got = admin_client.get(f"/api/comic/{sample_comic.system_id}").json()
     assert got["read_next"] is True
+
+
+# ---------------------------------------------------------------------------
+# End-to-end no-op contract: an update that omits the flag key must leave the
+# plan_next row untouched. These go through the real HTTP router rather than
+# set_entry_flag directly, because PUT and PATCH reach pop_plan_flag through
+# two different payload-building paths (model_dump(exclude_unset=True) vs a
+# raw request dict) and both need covering independently.
+# ---------------------------------------------------------------------------
+
+
+def test_put_omitting_watch_next_leaves_it_true(db_session, admin_client, sample_anime):
+    res = admin_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"watch_next": True}
+    )
+    assert res.status_code == 200
+
+    # Omits watch_next entirely; only touches an unrelated field.
+    res = admin_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"anime_name_en": "Renamed"}
+    )
+    assert res.status_code == 200
+    assert res.json()["watch_next"] is True
+
+    got = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert got["watch_next"] is True
+    assert db_session.query(models.PlanNext).count() == 1
+
+
+def test_patch_omitting_watch_next_leaves_it_true(db_session, admin_client, sample_anime):
+    res = admin_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"watch_next": True}
+    )
+    assert res.status_code == 200
+
+    # PATCH takes a raw dict body, not a schema with exclude_unset - a
+    # separate code path into pop_plan_flag from PUT's.
+    res = admin_client.patch(
+        f"/api/anime/{sample_anime.system_id}", json={"anime_name_en": "Renamed Again"}
+    )
+    assert res.status_code == 200
+    assert res.json()["watch_next"] is True
+
+    got = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert got["watch_next"] is True
+    assert db_session.query(models.PlanNext).count() == 1
+
+
+def test_put_omitting_read_next_leaves_it_true(db_session, admin_client, sample_comic):
+    res = admin_client.put(
+        f"/api/comic/{sample_comic.system_id}", json={"read_next": True}
+    )
+    assert res.status_code == 200
+
+    res = admin_client.put(
+        f"/api/comic/{sample_comic.system_id}", json={"comic_name_en": "Renamed"}
+    )
+    assert res.status_code == 200
+    assert res.json()["read_next"] is True
+
+    got = admin_client.get(f"/api/comic/{sample_comic.system_id}").json()
+    assert got["read_next"] is True
+    assert db_session.query(models.PlanNext).count() == 1
+
+
+def test_patch_omitting_read_next_leaves_it_true(db_session, admin_client, sample_comic):
+    res = admin_client.put(
+        f"/api/comic/{sample_comic.system_id}", json={"read_next": True}
+    )
+    assert res.status_code == 200
+
+    res = admin_client.patch(
+        f"/api/comic/{sample_comic.system_id}", json={"comic_name_en": "Renamed Again"}
+    )
+    assert res.status_code == 200
+    assert res.json()["read_next"] is True
+
+    got = admin_client.get(f"/api/comic/{sample_comic.system_id}").json()
+    assert got["read_next"] is True
+    assert db_session.query(models.PlanNext).count() == 1
+
+
+def test_put_explicit_false_deletes_the_row_end_to_end_anime(
+    db_session, admin_client, sample_anime
+):
+    res = admin_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"watch_next": True}
+    )
+    assert res.status_code == 200
+    assert db_session.query(models.PlanNext).count() == 1
+
+    res = admin_client.put(
+        f"/api/anime/{sample_anime.system_id}", json={"watch_next": False}
+    )
+    assert res.status_code == 200
+    assert res.json()["watch_next"] is False
+
+    got = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert got["watch_next"] is False
+    assert db_session.query(models.PlanNext).count() == 0
+
+
+def test_put_explicit_false_deletes_the_row_end_to_end_comic(
+    db_session, admin_client, sample_comic
+):
+    res = admin_client.put(
+        f"/api/comic/{sample_comic.system_id}", json={"read_next": True}
+    )
+    assert res.status_code == 200
+    assert db_session.query(models.PlanNext).count() == 1
+
+    res = admin_client.put(
+        f"/api/comic/{sample_comic.system_id}", json={"read_next": False}
+    )
+    assert res.status_code == 200
+    assert res.json()["read_next"] is False
+
+    got = admin_client.get(f"/api/comic/{sample_comic.system_id}").json()
+    assert got["read_next"] is False
+    assert db_session.query(models.PlanNext).count() == 0
