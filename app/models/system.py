@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -18,13 +19,63 @@ from app.database import Base, get_taipei_now
 
 
 class SystemOption(Base):
-    """Stores dynamic choice list values for the frontend dropdowns."""
+    """
+    One value in an open vocabulary - Tier 2 of the options design.
 
-    __tablename__ = "system_options"
+    Only values no code branches on live here. Anything the business logic
+    compares against (airing status, watching status, my rating) is a Python
+    constant in app/utils/constants.py instead, served read-only by
+    app/routers/constants.py, so it cannot be renamed out from under the logic.
+    """
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    category = Column(String, index=True, nullable=False)
-    option_value = Column(String, nullable=False)
+    __tablename__ = "system_option"
+    __table_args__ = (
+        UniqueConstraint("category", "value", name="uq_system_option_value"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    category = Column(String, nullable=False, index=True)
+    value = Column(String, nullable=False)
+    sort_order = Column(Integer, nullable=False, default=0, server_default="0")
+    remark = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    scopes = relationship(
+        "SystemOptionScope",
+        back_populates="option",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class SystemOptionScope(Base):
+    """
+    Which media types a vocabulary value is offered in.
+
+    Replaces the old habit of duplicating a category per consumer - "TV Show
+    Official Source" plus "Cartoon Official Source" for one vocabulary. A value
+    with no scope rows is offered everywhere.
+    """
+
+    __tablename__ = "system_option_scope"
+    __table_args__ = (
+        UniqueConstraint("option_id", "scope", name="uq_system_option_scope"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # One of MEDIA_TYPE_KEYS (hyphenated) from app/utils/media_resolver.py.
+    scope = Column(String, nullable=False)
+
+    option = relationship("SystemOption", back_populates="scopes")
 
 
 class SystemConfigs(Base):

@@ -7,7 +7,7 @@ from app.services.domain.options_extraction import extract_system_options_from_c
 
 def _values(db, category):
     return {
-        o.option_value
+        o.value
         for o in db.query(SystemOption).filter(SystemOption.category == category).all()
     }
 
@@ -43,7 +43,7 @@ class TestExtractSystemOptionsFromComic:
         assert "Sinister War" in events
 
     def test_does_not_duplicate_existing_options(self, db_session):
-        db_session.add(SystemOption(category="Comic Publisher", option_value="Marvel"))
+        db_session.add(SystemOption(category="Comic Publisher", value="Marvel"))
         db_session.add(Comic(comic_name_en="ASM", publisher="Marvel"))
         db_session.commit()
 
@@ -54,6 +54,6 @@ class TestExtractSystemOptionsFromComic:
             for o in db_session.query(SystemOption)
             .filter(SystemOption.category == "Comic Publisher")
             .all()
-            if o.option_value == "Marvel"
+            if o.value == "Marvel"
         ]
         assert len(marvels) == 1

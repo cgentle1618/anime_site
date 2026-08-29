@@ -68,7 +68,7 @@ def extract_system_options_from_anime(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     animes = db.query(Anime).all()
     new_options = []
@@ -81,7 +81,7 @@ def extract_system_options_from_anime(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -105,7 +105,7 @@ def extract_system_options_from_anime_movie(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     movies = db.query(AnimeMovies).all()
     new_options = []
@@ -118,7 +118,7 @@ def extract_system_options_from_anime_movie(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -147,7 +147,7 @@ def extract_system_options_from_tv_show(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     shows = db.query(TVShows).all()
     new_options = []
@@ -160,7 +160,7 @@ def extract_system_options_from_tv_show(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -189,7 +189,7 @@ def extract_system_options_from_cartoon(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     cartoons = db.query(Cartoon).all()
     new_options = []
@@ -202,7 +202,7 @@ def extract_system_options_from_cartoon(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -233,7 +233,7 @@ def extract_system_options_from_manga(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     mangas = db.query(Manga).all()
     new_options = []
@@ -246,7 +246,7 @@ def extract_system_options_from_manga(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -258,7 +258,7 @@ def extract_system_options_from_manga(db: Session) -> dict:
         for val in (v.strip() for v in str(raw).split(",") if v.strip()):
             if val not in existing.get("Manga Author", set()):
                 new_options.append(
-                    SystemOption(category="Manga Author", option_value=val)
+                    SystemOption(category="Manga Author", value=val)
                 )
                 existing.setdefault("Manga Author", set()).add(val)
 
@@ -289,7 +289,7 @@ def extract_system_options_from_novel(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     novels = db.query(Novel).all()
     new_options = []
@@ -302,7 +302,7 @@ def extract_system_options_from_novel(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 
@@ -339,7 +339,7 @@ def extract_system_options_from_comic(db: Session) -> dict:
     """
     existing: dict[str, set] = {}
     for opt in db.query(SystemOption).all():
-        existing.setdefault(opt.category, set()).add(opt.option_value.strip())
+        existing.setdefault(opt.category, set()).add(opt.value.strip())
 
     comics = db.query(Comic).all()
     new_options = []
@@ -352,7 +352,7 @@ def extract_system_options_from_comic(db: Session) -> dict:
             for val in (v.strip() for v in str(raw).split(",") if v.strip()):
                 if val not in existing.get(category, set()):
                     new_options.append(
-                        SystemOption(category=category, option_value=val)
+                        SystemOption(category=category, value=val)
                     )
                     existing.setdefault(category, set()).add(val)
 

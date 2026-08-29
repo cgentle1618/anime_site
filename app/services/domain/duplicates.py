@@ -270,9 +270,11 @@ def find_duplicate_anime(db: Session) -> list[list[dict]]:
 
 def find_duplicate_system_options(db: Session) -> list[list[dict]]:
     """
-    Finds SystemOption entries that share the same category and option_value
+    Finds SystemOption entries that share the same category and value
     (case-insensitive). Returns a list of duplicate clusters; each cluster is
-    a list of system option dicts.
+    a list of system option dicts. Case-insensitive matching still finds
+    duplicates the new exact-match UNIQUE constraint on (category, value)
+    cannot (e.g. "Netflix" vs "netflix").
     """
     options = db.query(SystemOption).all()
 
@@ -280,13 +282,17 @@ def find_duplicate_system_options(db: Session) -> list[list[dict]]:
     for opt in options:
         key = (
             (opt.category or "").strip().lower(),
-            (opt.option_value or "").strip().lower(),
+            (opt.value or "").strip().lower(),
         )
         groups.setdefault(key, []).append(opt)
 
     return [
         [
-            {"id": opt.id, "category": opt.category, "option_value": opt.option_value}
+            {
+                "id": str(opt.system_id),
+                "category": opt.category,
+                "option_value": opt.value,
+            }
             for opt in members
         ]
         for members in groups.values()

@@ -722,11 +722,20 @@ def parse_comic_from_sheet(raw: dict) -> dict:
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.
+
+    OPERATIONAL HAZARD: the live spreadsheet's System Options tab still carries
+    the OLD headers (id | category | option_value) until a Backup is run
+    against the reshaped table. pull.py filters parsed keys by whatever the
+    sheet header actually carried, so pulling a stale tab silently imports
+    rows keyed only by "category" (no system_id/value/sort_order/remark).
+    Always run a Backup of this tab before a Pull.
     """
     return {
-        "id": parse_from_sheet(raw.get("id"), int),
+        "system_id": parse_from_sheet(raw.get("system_id"), str),
         "category": parse_from_sheet(raw.get("category"), str),
-        "option_value": parse_from_sheet(raw.get("option_value"), str),
+        "value": parse_from_sheet(raw.get("value"), str),
+        "sort_order": parse_from_sheet(raw.get("sort_order"), int),
+        "remark": parse_from_sheet(raw.get("remark"), str),
     }
 
 

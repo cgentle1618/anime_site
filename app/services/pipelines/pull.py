@@ -754,14 +754,6 @@ def execute_pull_specific(
             )
         return {"status": "error", "message": str(e)}
 
-    if tab_name == "System Options":
-        db.execute(
-            text(
-                "SELECT setval('system_options_id_seq', COALESCE((SELECT MAX(id) FROM system_options), 0))"
-            )
-        )
-        db.commit()
-
     if tab_name == "System Configs":
         db.execute(
             text(

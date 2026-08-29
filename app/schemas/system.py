@@ -22,7 +22,7 @@ def _check_field_key(key: str) -> None:
 
 class SystemOptionBase(BaseModel):
     category: str
-    option_value: str
+    value: str
 
 
 class SystemOptionCreate(SystemOptionBase):
@@ -30,7 +30,7 @@ class SystemOptionCreate(SystemOptionBase):
 
 
 class SystemOptionResponse(SystemOptionBase):
-    id: int
+    system_id: UUID
 
     model_config = ConfigDict(from_attributes=True)
 

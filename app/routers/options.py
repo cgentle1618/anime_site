@@ -7,6 +7,7 @@ Strictly handles database updates. Backups to Google Sheets are handled manually
 
 import logging
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -41,7 +42,7 @@ def get_all_system_options(
     """
     options = (
         db.query(models.SystemOption)
-        .order_by(models.SystemOption.category, models.SystemOption.option_value)
+        .order_by(models.SystemOption.category, models.SystemOption.value)
         .limit(limit)
         .offset(offset)
         .all()
@@ -67,7 +68,7 @@ def get_system_options(
     options = (
         db.query(models.SystemOption)
         .filter(models.SystemOption.category == category)
-        .order_by(models.SystemOption.option_value)
+        .order_by(models.SystemOption.value)
         .limit(limit)
         .offset(offset)
         .all()
@@ -94,7 +95,7 @@ def add_system_option(
         db.query(models.SystemOption)
         .filter(
             models.SystemOption.category == payload.category,
-            models.SystemOption.option_value == payload.option_value,
+            models.SystemOption.value == payload.value,
         )
         .first()
     )
@@ -103,17 +104,17 @@ def add_system_option(
         raise HTTPException(status_code=400, detail="This option already exists.")
 
     new_option = models.SystemOption(
-        category=payload.category, option_value=payload.option_value
+        category=payload.category, value=payload.value
     )
     db.add(new_option)
     db.commit()
 
-    return {"message": f"Option '{payload.option_value}' added successfully."}
+    return {"message": f"Option '{payload.value}' added successfully."}
 
 
 @router.put("/{option_id}", summary="Update System Option")
 def update_system_option(
-    option_id: int,
+    option_id: UUID,
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
@@ -124,7 +125,7 @@ def update_system_option(
     """
     db_option = (
         db.query(models.SystemOption)
-        .filter(models.SystemOption.id == option_id)
+        .filter(models.SystemOption.system_id == option_id)
         .first()
     )
 
@@ -136,8 +137,8 @@ def update_system_option(
         db.query(models.SystemOption)
         .filter(
             models.SystemOption.category == payload.category,
-            models.SystemOption.option_value == payload.option_value,
-            models.SystemOption.id != option_id,
+            models.SystemOption.value == payload.value,
+            models.SystemOption.system_id != option_id,
         )
         .first()
     )
@@ -145,18 +146,18 @@ def update_system_option(
         raise HTTPException(status_code=400, detail="This exact option already exists.")
 
     db_option.category = payload.category
-    db_option.option_value = payload.option_value
+    db_option.value = payload.value
     db.commit()
 
     return {"message": "System option updated successfully."}
 
 
 @router.delete("/{option_id}", dependencies=[Depends(get_current_admin)])
-def delete_option(option_id: int, db: Session = Depends(get_db)):
+def delete_option(option_id: UUID, db: Session = Depends(get_db)):
     """Deletes an option and logs it to the deleted_record table."""
     db_opt = (
         db.query(models.SystemOption)
-        .filter(models.SystemOption.id == option_id)
+        .filter(models.SystemOption.system_id == option_id)
         .first()
     )
     if not db_opt:

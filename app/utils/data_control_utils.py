@@ -93,7 +93,7 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
         category = None
 
         if entry_type == "System Options":
-            name_cn = getattr(entry, "option_value", None)
+            name_cn = getattr(entry, "value", None)
             category = getattr(entry, "category", None)
 
         elif entry_type == "Collection":

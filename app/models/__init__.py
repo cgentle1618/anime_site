@@ -27,6 +27,7 @@ from app.models.meme import Meme
 from app.models.note import Note
 from app.models.system import (
     SystemOption,
+    SystemOptionScope,
     SystemConfigs,
     Seasonal,
     User,
@@ -58,6 +59,7 @@ __all__ = [
     "Meme",
     "Note",
     "SystemOption",
+    "SystemOptionScope",
     "SystemConfigs",
     "Seasonal",
     "User",
