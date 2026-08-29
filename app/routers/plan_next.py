@@ -15,7 +15,8 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -23,7 +24,13 @@ from app.dependencies import get_current_admin, get_db
 from app.services.domain.plan_next import validate_plan_target
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES
-from app.utils.plan_next_kinds import ALLOWED_SCOPES, SCOPES, SIZE_GROUPS
+from app.utils.plan_next_kinds import (
+    KINDS,
+    SCOPES,
+    SIZE_GROUPS,
+    allowed_scopes_for,
+    kind_valid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +78,13 @@ def list_kinds():
     """The vocabulary the admin dropdowns and the Plan page tabs read from."""
     return {
         "scopes": list(SCOPES),
+        "kinds": list(KINDS),
         "allowed_scopes": {
-            media_type: sorted(scopes)
-            for media_type, scopes in ALLOWED_SCOPES["next"].items()
+            kind: {
+                media_type: sorted(scopes, key=SCOPES.index)
+                for media_type, scopes in allowed_scopes_for(kind).items()
+            }
+            for kind in KINDS
         },
         "size_groups": {
             media_type: [{"key": g.key, "label": g.label} for g in groups]
@@ -92,12 +103,15 @@ def list_plan_next(
     db: Session = Depends(get_db),
     media_type: Optional[str] = Query(None),
     scope: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
 ):
     query = db.query(models.PlanNext)
     if media_type:
         query = query.filter(models.PlanNext.media_type == media_type)
     if scope:
         query = query.filter(models.PlanNext.scope == scope)
+    if kind:
+        query = query.filter(models.PlanNext.kind == kind)
     return [_resolve(db, row) for row in query.all()]
 
 
@@ -112,11 +126,13 @@ def create_plan_next(
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
+    if not kind_valid(payload.kind):
+        raise HTTPException(status_code=422, detail=f"Unknown kind: {payload.kind}")
     if payload.scope not in SCOPES:
         raise HTTPException(status_code=400, detail=f"Unknown scope: {payload.scope}")
 
     reason = validate_plan_target(
-        db, payload.scope, payload.media_type, payload.target_id
+        db, payload.scope, payload.media_type, payload.target_id, payload.kind
     )
     if reason and reason.startswith("No "):
         raise HTTPException(status_code=404, detail=reason)
@@ -129,6 +145,7 @@ def create_plan_next(
             models.PlanNext.scope == payload.scope,
             models.PlanNext.target_id == payload.target_id,
             models.PlanNext.media_type == payload.media_type,
+            models.PlanNext.kind == payload.kind,
         )
         .first()
     )
@@ -142,21 +159,48 @@ def create_plan_next(
     return _resolve(db, row)
 
 
+class _PlanNextTargetBody(BaseModel):
+    """
+    Optional JSON body for DELETE /target.
+
+    Accepted alongside the original query-param form so older callers (query
+    string, no kind) and newer ones (JSON body, kind included) both work.
+    """
+
+    scope: Optional[str] = None
+    media_type: Optional[str] = None
+    target_id: Optional[UUID] = None
+    kind: Optional[str] = None
+
+
 @router.delete("/target")
 def delete_plan_next_by_target(
-    scope: str = Query(...),
-    media_type: str = Query(...),
-    target_id: UUID = Query(...),
+    scope: Optional[str] = Query(None),
+    media_type: Optional[str] = Query(None),
+    target_id: Optional[UUID] = Query(None),
+    kind: Optional[str] = Query(None),
+    body: Optional[_PlanNextTargetBody] = Body(None),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
     """Un-plan without knowing the row id, so a toggle needs one call."""
+    scope = scope or (body.scope if body else None)
+    media_type = media_type or (body.media_type if body else None)
+    target_id = target_id or (body.target_id if body else None)
+    kind = kind or (body.kind if body else None) or "next"
+
+    if not scope or not media_type or not target_id:
+        raise HTTPException(
+            status_code=422, detail="scope, media_type and target_id are required."
+        )
+
     row = (
         db.query(models.PlanNext)
         .filter(
             models.PlanNext.scope == scope,
             models.PlanNext.media_type == media_type,
             models.PlanNext.target_id == target_id,
+            models.PlanNext.kind == kind,
         )
         .first()
     )

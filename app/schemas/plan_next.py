@@ -15,6 +15,9 @@ class PlanNextBase(BaseModel):
     scope: str
     target_id: UUID
     remark: Optional[str] = None
+    # Defaults to "next" so every caller written before rewatch existed keeps
+    # working without passing the field.
+    kind: str = "next"
 
 
 class PlanNextCreate(PlanNextBase):

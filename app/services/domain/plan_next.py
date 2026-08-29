@@ -92,20 +92,22 @@ def target_exists(db: Session, scope: str, media_type: str, target_id: UUID) -> 
     )
 
 
-def validate_plan_target(db: Session, scope: str, media_type: str, target_id: UUID):
+def validate_plan_target(
+    db: Session, scope: str, media_type: str, target_id: UUID, kind: str = "next"
+):
     """
     Returns None when the triple is plannable, else a human-readable reason.
 
     Kept here rather than in the router so Pull can reuse it later.
     """
-    if not scope_allowed("next", media_type, scope):
+    if not scope_allowed(kind, media_type, scope):
         return f"{media_type} cannot be planned at {scope} scope."
     if not target_exists(db, scope, media_type, target_id):
         return f"No {scope} with id {target_id}."
     return None
 
 
-def entry_flag(db: Session, media_type: str, entry_id: UUID) -> bool:
+def entry_flag(db: Session, media_type: str, entry_id: UUID, kind: str = "next") -> bool:
     """Whether one entry is queued. Backs the watch_next / read_next fields."""
     return (
         db.query(models.PlanNext)
@@ -113,19 +115,21 @@ def entry_flag(db: Session, media_type: str, entry_id: UUID) -> bool:
             models.PlanNext.scope == "entry",
             models.PlanNext.media_type == media_type,
             models.PlanNext.target_id == entry_id,
+            models.PlanNext.kind == kind,
         )
         .first()
         is not None
     )
 
 
-def planned_entry_ids(db: Session, media_type: str) -> set:
+def planned_entry_ids(db: Session, media_type: str, kind: str = "next") -> set:
     """Every queued entry id of one media type, for list endpoints."""
     rows = (
         db.query(models.PlanNext.target_id)
         .filter(
             models.PlanNext.scope == "entry",
             models.PlanNext.media_type == media_type,
+            models.PlanNext.kind == kind,
         )
         .all()
     )
@@ -133,7 +137,7 @@ def planned_entry_ids(db: Session, media_type: str) -> set:
 
 
 def set_entry_flag(
-    db: Session, media_type: str, entry_id: UUID, planned: bool
+    db: Session, media_type: str, entry_id: UUID, planned: bool, kind: str = "next"
 ) -> None:
     """
     Upsert or delete the entry-scope row behind watch_next / read_next.
@@ -148,13 +152,14 @@ def set_entry_flag(
             models.PlanNext.scope == "entry",
             models.PlanNext.media_type == media_type,
             models.PlanNext.target_id == entry_id,
+            models.PlanNext.kind == kind,
         )
         .first()
     )
     if planned and existing is None:
         db.add(
             models.PlanNext(
-                media_type=media_type, scope="entry", target_id=entry_id
+                media_type=media_type, scope="entry", target_id=entry_id, kind=kind
             )
         )
     elif not planned and existing is not None:

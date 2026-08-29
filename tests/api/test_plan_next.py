@@ -23,7 +23,7 @@ def test_kinds_exposes_scopes_and_bucket_vocabularies(client):
     assert res.status_code == 200
     body = res.json()
     assert body["scopes"] == ["entry", "series", "franchise"]
-    assert body["allowed_scopes"]["manga"] == ["entry"]
+    assert body["allowed_scopes"]["next"]["manga"] == ["entry"]
     assert [g["key"] for g in body["size_groups"]["comic"]] == [
         "1_3",
         "4_10",
