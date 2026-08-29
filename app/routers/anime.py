@@ -14,6 +14,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
 from app.dependencies import get_db, get_current_admin
+from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
+from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.database import get_taipei_now
 from app import models
 from app import schemas
@@ -60,11 +63,14 @@ def get_all_anime(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Retrieves Anime entries, supporting foreign key filters and search.
     airing_season accepts the combined seasonal string (e.g. 'WIN 2026').
     """
-    query = db.query(models.Anime)
+    query = apply_entry_visibility(
+        db.query(models.Anime), models.Anime, "anime", db, viewer
+    )
 
     if franchise_id:
         query = query.filter(models.Anime.franchise_id == franchise_id)
@@ -97,21 +103,26 @@ def get_all_anime(
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
     attach_link_fields(db, "anime", entries)
-    return entries
+    return gate(viewer, "anime", entries, schemas.AnimeResponse)
 
 
 @router.get(
     "/{system_id}", response_model=schemas.AnimeResponse, summary="Get Anime by ID"
 )
-def get_anime_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_anime_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     db_anime = (
         db.query(models.Anime).filter(models.Anime.system_id == system_id).first()
     )
-    if not db_anime:
+    # A hidden entry answers exactly as a missing one does.
+    if not db_anime or not entry_visible(db, viewer, "anime", db_anime.system_id):
         raise HTTPException(status_code=404, detail="Anime entry not found.")
     attach_plan_flag(db, "anime", db_anime)
     attach_link_fields(db, "anime", db_anime)
-    return db_anime
+    return gate(viewer, "anime", db_anime, schemas.AnimeResponse)
 
 
 # ==========================================

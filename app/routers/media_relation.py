@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app import schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.media_relation import (
     entry_exists,
     find_duplicate,
@@ -170,6 +172,7 @@ def get_relations_for_entry(
     media_type: str = Query(...),
     entry_id: str = Query(...),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Every relation touching this entry, from both endpoints, already labelled
@@ -183,7 +186,12 @@ def get_relations_for_entry(
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    return relations_for_entry(db, media_type, uuid.UUID(entry_id))
+    anchor = uuid.UUID(entry_id)
+    # A hidden anchor answers as an absent one: naming its relations would
+    # confirm it exists.
+    if not entry_visible(db, viewer, media_type, anchor):
+        raise HTTPException(status_code=404, detail="Entry not found.")
+    return relations_for_entry(db, media_type, anchor, viewer)
 
 
 @router.get(

@@ -23,8 +23,11 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
 from app.schemas.note import sections_out, validate_note_payload
+from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.field_gate import gated_note_sections
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
-from app.utils.media_resolver import OWNER_TABLES
+from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES
 from app.utils.note_sections import NOTE_SECTIONS, section_by_key
 
 router = APIRouter(prefix="/api/notes", tags=["Note Management"])
@@ -131,15 +134,25 @@ def list_notes(
     owner_type: str = Query(...),
     owner_id: uuid.UUID = Query(...),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Every note for one owner, ordered the way the page renders them."""
     _validate_owner_type(owner_type)
-    notes = (
-        db.query(models.Note)
-        .filter(models.Note.owner_type == owner_type, models.Note.owner_id == owner_id)
-        .all()
+    # An owner may be a grouping tier, which carries no labels; entry_visible
+    # only has an opinion about the eight media types.
+    if owner_type in MEDIA_TABLES and not entry_visible(
+        db, viewer, owner_type, owner_id
+    ):
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    query = db.query(models.Note).filter(
+        models.Note.owner_type == owner_type, models.Note.owner_id == owner_id
     )
-    return _ordered(notes)
+    # A withheld section is absent rather than blanked: an empty card would
+    # advertise that there is something here to not-see.
+    withheld = gated_note_sections(viewer)
+    if withheld:
+        query = query.filter(models.Note.section.notin_(withheld))
+    return _ordered(query.all())
 
 
 # ==========================================

@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.enforcement import drop_hidden_rows
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.plan_next import validate_plan_target
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES
@@ -103,6 +105,7 @@ def list_plan_next(
     media_type: Optional[str] = Query(None),
     scope: Optional[str] = Query(None),
     kind: Optional[str] = Query(None),
+    viewer: Viewer = Depends(get_viewer),
 ):
     query = db.query(models.PlanNext)
     if media_type:
@@ -111,7 +114,16 @@ def list_plan_next(
         query = query.filter(models.PlanNext.scope == scope)
     if kind:
         query = query.filter(models.PlanNext.kind == kind)
-    return [_resolve(db, row) for row in query.all()]
+    # scope names the tier for a group plan and "entry" for an entry plan;
+    # only the latter points at something that can carry a label.
+    rows = [row for row in query.all() if row.scope == "entry"]
+    visible = drop_hidden_rows(db, viewer, rows, "media_type", "target_id")
+    keep = {row.system_id for row in visible}
+    return [
+        _resolve(db, row)
+        for row in query.all()
+        if row.scope != "entry" or row.system_id in keep
+    ]
 
 
 # ==========================================

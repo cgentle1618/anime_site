@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import {
   NAV_SECTIONS,
+  visibleSections,
   activeItem,
   activeSectionKey,
 } from "../../config/navigation";
@@ -92,7 +93,7 @@ function SectionPanel({ section, currentItem, onNavigate }) {
 }
 
 export default function Nav() {
-  const { isAdmin, refetchAuth } = useAuth();
+  const { isAdmin, has, refetchAuth } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -102,7 +103,7 @@ export default function Nav() {
   const stripRef = useRef(null);
   const triggerRefs = useRef({});
 
-  const sections = NAV_SECTIONS.filter((s) => !s.adminOnly || isAdmin);
+  const sections = visibleSections(NAV_SECTIONS, has);
   const currentSection = activeSectionKey(location.pathname);
   const currentItem = activeItem(location.pathname)?.item ?? null;
 

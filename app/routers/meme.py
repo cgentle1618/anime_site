@@ -26,6 +26,8 @@ from app import models
 from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
+from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES, entry_ref_for, resolve_entries
 
@@ -138,6 +140,7 @@ def get_all_memes(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves Memes, optionally filtered.
@@ -150,6 +153,8 @@ def get_all_memes(
     memes = (
         query.order_by(models.Meme.created_at.desc()).limit(limit).offset(offset).all()
     )
+    # The caption is the leak, so a meme on a hidden entry goes entirely.
+    memes = drop_hidden_rows(db, viewer, memes, "owner_type", "owner_id")
 
     owner_refs = resolve_entries(
         db, [(m.owner_type, m.owner_id) for m in memes], OWNER_TABLES
@@ -169,6 +174,7 @@ def get_memes_grouped(
     search_query: Optional[str] = None,
     limit: int = Query(default=2000, ge=1, le=5000),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     The Meme page's primary feed: memes bucketed by the owner they belong to.
@@ -190,6 +196,7 @@ def get_memes_grouped(
         .limit(limit)
         .all()
     )
+    memes = drop_hidden_rows(db, viewer, memes, "owner_type", "owner_id")
 
     owner_refs = resolve_entries(
         db, [(m.owner_type, m.owner_id) for m in memes], OWNER_TABLES
@@ -218,9 +225,15 @@ def get_memes_grouped(
 
 
 @router.get("/{meme_id}", response_model=schemas.MemeResolved, summary="Get Meme By ID")
-def get_meme(meme_id: str, db: Session = Depends(get_db)):
+def get_meme(
+    meme_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single Meme with its owner and linked-quote data resolved."""
     db_meme = _get_or_404(db, meme_id)
+    if not drop_hidden_rows(db, viewer, [db_meme], "owner_type", "owner_id"):
+        raise HTTPException(status_code=404, detail="Meme not found.")
     owner_refs = resolve_entries(
         db, [(db_meme.owner_type, db_meme.owner_id)], OWNER_TABLES
     )

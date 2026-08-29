@@ -352,3 +352,37 @@ cd frontend && npx playwright test
 # All backend + frontend (from project root)
 pytest tests/ -v && cd frontend && npm test -- --run
 ```
+
+## Authorization tests
+
+```
+tests/unit/
+  test_field_groups.py       ← every gated column/link field/note section still exists
+  test_rbac_permissions.py   ← permission naming, catalog composition
+  test_rbac_viewer.py        ← Viewer.has, superuser short-circuit
+tests/api/
+  test_admin_compat.py       ← walks app.routes; every admin-gated route 401s anonymously
+  test_rbac_core.py          ← seed, /api/auth/me, the rewritten admin gate
+  test_visibility.py         ← a labelled entry is absent from list and 404s on detail
+  test_visibility_aggregates.py ← quotes, memes, relations, plans, credits, notes,
+                                  watch orders, credit counts
+  test_media_type_gating.py  ← a role blocked from a whole media type
+  test_field_gating.py       ← columns and link fields stripped; the DB row survives
+  test_rbac_admin_api.py     ← roles/users/content-label CRUD and their guards
+```
+
+Two of these carry more weight than their size suggests:
+
+- **`test_field_groups.py`** is what makes a code registry safe. It introspects
+  `MEDIA_TABLES[mt].model.__table__.columns` and `LINK_FIELD_MIXINS`, so a
+  gated field that is renamed or dropped fails here instead of silently gating
+  nothing. Modelled on `test_link_fields_schema.py`, which does the same job
+  for the response mixins.
+- **`test_visibility*.py`** assert on `response.text`, not on parsed fields. An
+  entry leaks through payloads keyed differently per route
+  (`entry_display_name`, `owner_display_name`, `display_name`, graph nodes), and
+  a substring check catches all of them.
+
+`tests/api/conftest.py` seeds the roles once per session in `test_engine` and
+clears the permission cache between tests, since that cache is process-global
+and outlives a rolled-back transaction.

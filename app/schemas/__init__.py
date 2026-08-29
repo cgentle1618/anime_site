@@ -8,6 +8,23 @@ from app.schemas.auth import (
     UserCreate,
     UserOut,
 )
+from app.schemas.rbac import (
+    PermissionOut,
+    PermissionFamilyOut,
+    RoleBase,
+    RoleCreate,
+    RoleUpdate,
+    RolePermissions,
+    RoleResponse,
+    ManagedUserCreate,
+    ManagedUserUpdate,
+    ManagedUserResponse,
+    ContentLabelBase,
+    ContentLabelCreate,
+    ContentLabelUpdate,
+    ContentLabelResponse,
+    EntryLabels,
+)
 from app.schemas.system import (
     SystemOptionBase,
     SystemOptionCreate,
@@ -178,6 +195,21 @@ from app.schemas.staff import (
 )
 
 __all__ = [
+    "PermissionOut",
+    "PermissionFamilyOut",
+    "RoleBase",
+    "RoleCreate",
+    "RoleUpdate",
+    "RolePermissions",
+    "RoleResponse",
+    "ManagedUserCreate",
+    "ManagedUserUpdate",
+    "ManagedUserResponse",
+    "ContentLabelBase",
+    "ContentLabelCreate",
+    "ContentLabelUpdate",
+    "ContentLabelResponse",
+    "EntryLabels",
     "Token",
     "UserBase",
     "UserCreate",

@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.dependencies import get_db, get_current_admin
+from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
+from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.database import get_taipei_now
 from app import models
 from app import schemas
@@ -55,8 +58,11 @@ def get_all_anime_movies(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
-    query = db.query(models.AnimeMovies)
+    query = apply_entry_visibility(
+        db.query(models.AnimeMovies), models.AnimeMovies, "anime-movie", db, viewer
+    )
 
     if franchise_id:
         query = query.filter(models.AnimeMovies.franchise_id == franchise_id)
@@ -80,7 +86,7 @@ def get_all_anime_movies(
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
     attach_link_fields(db, "anime-movie", entries)
-    return entries
+    return gate(viewer, "anime-movie", entries, schemas.AnimeMovieResponse)
 
 
 @router.get(
@@ -88,17 +94,22 @@ def get_all_anime_movies(
     response_model=schemas.AnimeMovieResponse,
     summary="Get Anime Movie by ID",
 )
-def get_anime_movie_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_anime_movie_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     entry = (
         db.query(models.AnimeMovies)
         .filter(models.AnimeMovies.system_id == system_id)
         .first()
     )
-    if not entry:
+    # A hidden entry answers exactly as a missing one does.
+    if not entry or not entry_visible(db, viewer, "anime-movie", entry.system_id):
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
     attach_plan_flag(db, "anime-movie", entry)
     attach_link_fields(db, "anime-movie", entry)
-    return entry
+    return gate(viewer, "anime-movie", entry, schemas.AnimeMovieResponse)
 
 
 # ==========================================

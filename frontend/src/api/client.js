@@ -30,6 +30,8 @@ export async function fetchJson(url, options = {}) {
     const data = await res.json().catch(() => null);
     throw new Error(data?.detail || data?.message || fallback);
   }
+  // A 204 has no body to parse; DELETE endpoints answer that way.
+  if (res.status === 204) return null;
   return res.json();
 }
 

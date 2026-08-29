@@ -1,9 +1,16 @@
 // Frontend: layout component file for ProtectedRoute.
+//
+// Guards a route on one permission. It defaults to "admin", so every existing
+// <Route element={<ProtectedRoute />}> keeps behaving exactly as it did.
+//
+// This is a redirect, not a security boundary: the API refuses the request on
+// its own. The point is to send someone to the login page instead of showing
+// them a screen that will only fill with errors.
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function ProtectedRoute() {
-  const { isAdmin, loading } = useAuth();
+export default function ProtectedRoute({ permission = "admin" }) {
+  const { has, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -17,8 +24,8 @@ export default function ProtectedRoute() {
     );
   }
 
-  // If the user is not an admin, send them to login and preserve the page they wanted.
-  return isAdmin ? (
+  // Without the permission, send them to login and preserve the page they wanted.
+  return has(permission) ? (
     <Outlet />
   ) : (
     <Navigate
@@ -27,4 +34,3 @@ export default function ProtectedRoute() {
     />
   );
 }
-

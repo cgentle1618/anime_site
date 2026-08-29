@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.enforcement import filter_visible_pairs
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.credits import find_person
 from app.utils.credit_roles import PERSON_ROLES
 
@@ -27,11 +29,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/person", tags=["Person Management"])
 
 
-def _to_response(db: Session, person: models.Person) -> schemas.PersonResponse:
-    credit_count = (
-        db.query(models.MediaCredit)
+def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.PersonResponse:
+    credit_rows = (
+        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
         .filter(models.MediaCredit.person_id == person.system_id)
-        .count()
+        .all()
+    )
+    # Count only credits on entries the viewer may see. A number is a smaller
+    # leak than a title, but "worked on 3 things, you can see 2" is still one.
+    credit_count = len(
+        filter_visible_pairs(
+            db, viewer, [(mt, eid) for mt, eid in credit_rows if mt and eid]
+        )
     )
     return schemas.PersonResponse(
         system_id=person.system_id,
@@ -56,6 +65,7 @@ def get_all_people(
     role: Optional[str] = Query(default=None),
     scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves people, optionally filtered to those who hold a given role
@@ -68,7 +78,7 @@ def get_all_people(
         if scope:
             query = query.filter(models.PersonRole.scope == scope)
     people = query.order_by(models.Person.name_native).distinct().all()
-    return [_to_response(db, person) for person in people]
+    return [_to_response(db, person, viewer) for person in people]
 
 
 @router.get(
@@ -100,12 +110,16 @@ def get_role_counts(db: Session = Depends(get_db)):
 @router.get(
     "/{system_id}", response_model=schemas.PersonResponse, summary="Get Person by ID"
 )
-def get_person_by_id(system_id: UUID, db: Session = Depends(get_db)):
+def get_person_by_id(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single person by their UUID."""
     person = db.get(models.Person, system_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found.")
-    return _to_response(db, person)
+    return _to_response(db, person, viewer)
 
 
 # ==========================================

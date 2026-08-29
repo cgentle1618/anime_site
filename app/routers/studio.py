@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.enforcement import filter_visible_pairs
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.credits import find_studio
 
 logger = logging.getLogger(__name__)
@@ -24,11 +26,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/studio", tags=["Studio Management"])
 
 
-def _to_response(db: Session, studio: models.Studio) -> schemas.StudioResponse:
-    credit_count = (
-        db.query(models.MediaCredit)
+def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.StudioResponse:
+    credit_rows = (
+        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
         .filter(models.MediaCredit.studio_id == studio.system_id)
-        .count()
+        .all()
+    )
+    # Count only credits on entries the viewer may see. A number is a smaller
+    # leak than a title, but "worked on 3 things, you can see 2" is still one.
+    credit_count = len(
+        filter_visible_pairs(
+            db, viewer, [(mt, eid) for mt, eid in credit_rows if mt and eid]
+        )
     )
     return schemas.StudioResponse(
         system_id=studio.system_id,
@@ -48,21 +57,28 @@ def _to_response(db: Session, studio: models.Studio) -> schemas.StudioResponse:
 
 
 @router.get("/", response_model=List[schemas.StudioResponse], summary="Get All Studios")
-def get_all_studios(db: Session = Depends(get_db)):
+def get_all_studios(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves every studio, sorted by native name."""
     studios = db.query(models.Studio).order_by(models.Studio.name_native).all()
-    return [_to_response(db, studio) for studio in studios]
+    return [_to_response(db, studio, viewer) for studio in studios]
 
 
 @router.get(
     "/{system_id}", response_model=schemas.StudioResponse, summary="Get Studio by ID"
 )
-def get_studio_by_id(system_id: UUID, db: Session = Depends(get_db)):
+def get_studio_by_id(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single studio by its UUID."""
     studio = db.get(models.Studio, system_id)
     if studio is None:
         raise HTTPException(status_code=404, detail="Studio not found.")
-    return _to_response(db, studio)
+    return _to_response(db, studio, viewer)
 
 
 # ==========================================

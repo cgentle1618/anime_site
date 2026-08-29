@@ -42,6 +42,9 @@ import {
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { endpoints } from "../../api/endpoints";
+import ContentLabelPicker, {
+  saveEntryLabels,
+} from "../../components/forms/ContentLabelPicker";
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -246,6 +249,9 @@ export default function Modify() {
   const [allComics, setAllComics] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Content labels are the same eight keys for every media type, so they
+  // live on the page rather than in each per-type form object.
+  const [contentLabels, setContentLabels] = useState([]);
   const [activeTab, setActiveTab] = useState("anime");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -315,6 +321,16 @@ export default function Modify() {
         err.detail
           ? JSON.stringify(err.detail)
           : "Entry saved, but credits/tags failed to save.",
+      );
+    }
+    try {
+      await saveEntryLabels(mediaType, entryId, contentLabels);
+    } catch {
+      // The entry saved; only its visibility did not. Say so rather than
+      // letting the admin believe an entry is restricted when it is not.
+      showToast(
+        "error",
+        "Entry saved, but its content labels failed to save.",
       );
     }
   }
@@ -3360,6 +3376,18 @@ export default function Modify() {
               />
             )}
           </div>
+
+            {/* Content labels - the picker reads the entry's current set. */}
+            {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"].includes(editingType) && editingItem?.system_id && (
+              <div className="mt-6">
+                <ContentLabelPicker
+                  mediaType={editingType}
+                  entryId={editingItem.system_id}
+                  value={contentLabels}
+                  onChange={setContentLabels}
+                />
+              </div>
+            )}
 
           <div className="mt-6 flex justify-end">
             <button

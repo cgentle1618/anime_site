@@ -47,6 +47,32 @@ export const endpoints = {
     remove: (id) => `/api/options/${id}`,
   },
 
+  roles: {
+    list: () => "/api/roles/",
+    catalog: () => "/api/roles/catalog",
+    detail: (id) => `/api/roles/${id}`,
+    create: () => "/api/roles/",
+    update: (id) => `/api/roles/${id}`,
+    permissions: (id) => `/api/roles/${id}/permissions`,
+    remove: (id) => `/api/roles/${id}`,
+  },
+
+  users: {
+    list: () => "/api/users/",
+    create: () => "/api/users/",
+    update: (id) => `/api/users/${id}`,
+    remove: (id) => `/api/users/${id}`,
+  },
+
+  contentLabels: {
+    list: () => "/api/content-labels/",
+    create: () => "/api/content-labels/",
+    update: (id) => `/api/content-labels/${id}`,
+    remove: (id) => `/api/content-labels/${id}`,
+    forEntry: (mediaType, entryId) =>
+      `/api/content-labels/entry/${mediaType}/${entryId}`,
+  },
+
   seasonal: {
     list: () => "/api/seasonal/",
     detail: (id) => `/api/seasonal/${id}`,

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app import models
 from app.services.security import get_password_hash
+from tests.api.conftest import role_id_for
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def user_in_db(db_session):
         id=uuid.uuid4(),
         username="testuser",
         hashed_password=get_password_hash("correct_password"),
-        role="admin",
+        role_id=role_id_for(db_session, "admin"),
     )
     db_session.add(user)
     db_session.flush()

@@ -890,3 +890,80 @@ item, and `reorder`, reject a foreign `section_id` with 400.
 `POST /lists/{id}/items` with a `section_id` and no `position` appends to the
 end of **that part**, not the end of the list — appending to the tail would
 split every part the new step then sat behind.
+
+---
+
+## Authorization
+
+Every read route now resolves a **viewer** (`app/services/rbac/resolver.py`).
+An anonymous caller is the `guest` role, which is a real row with real grants —
+not a special case. Resolution never raises: a missing, malformed, expired or
+badly-signed cookie, a deleted user, or a missing role all fall back to guest.
+
+Permissions are resolved **per request from the database**, not carried in the
+JWT, so revoking one takes effect on the holder's next request rather than
+whenever their cookie expires. A process-local cache keyed by `role_id` keeps
+that to roughly zero queries; every write below calls `rbac.cache.bump()`.
+
+A viewer who may not see something gets **404**, not 403, using each router's
+own existing not-found message — a hidden entry is indistinguishable from one
+that was never there. Admin gates answer **401**, as they always did.
+
+### `GET /api/auth/me` (extended)
+
+Still never raises, and still carries `is_admin` and `username` unchanged.
+Now also returns:
+
+```json
+{ "is_admin": false, "username": null, "role": "guest",
+  "is_superuser": false, "permissions": ["media_type.anime", ...] }
+```
+
+This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
+server has already withheld what the viewer may not see.
+
+### `/api/roles` — admin
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/roles/` | Roles with their grants and user counts. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family (`admin`, `media_type`, `field_group`, `label`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. |
+| GET | `/api/roles/{id}` | |
+| POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
+| PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a superuser role. |
+| DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
+
+### `/api/users` — admin
+
+`GET /`, `POST /`, `PATCH /{id}`, `DELETE /{id}`. No self-registration.
+Two guards, both 409: you cannot delete yourself, and you cannot delete or
+demote the last account that can still administer the site.
+
+### `/api/content-labels` — admin
+
+Vocabulary CRUD, plus per-entry assignment:
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/entry/{media_type}/{entry_id}` | The label keys this entry carries. |
+| PUT | `/entry/{media_type}/{entry_id}` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing entry, 422 on an unknown label. |
+
+A newly created label is granted to nobody, so applying it hides the entry from
+everyone except superusers until a role is given `label.<key>`. That is the
+safe direction.
+
+### What gating touches
+
+Read routes that now consult the viewer: the eight media list/detail routes
+(`_factory.py`, `anime.py`, `anime_movie.py`), `media_resolver.resolve_entries`,
+quote (list/grouped/by-id), meme (list/grouped/by-id), `media_relation`
+(`/for-entry` and its domain resolver), `watch_order` (`/lists/{id}`,
+`/candidates`), `plan_next`, `credits`, `notes`, and the `credit_count` on
+person and studio.
+
+**Accepted residuals**, documented rather than fixed: `seasonal` counts are
+precomputed over all entries and over-count for a restricted viewer;
+franchise/series/collection hubs carry no labels and may render as empty
+shells; `/static/covers/<entry_id>.*` is served straight from disk by
+`StaticFiles`, so hiding an entry does not hide its cover.

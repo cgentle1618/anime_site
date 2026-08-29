@@ -5,7 +5,7 @@ Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 """
 
 import logging
-import jwt
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.services.rbac.permissions import PERM_ADMIN
+from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
     verify_password,
     create_access_token,
@@ -76,20 +78,31 @@ def login_for_access_token(
 
 
 @router.get("/me", summary="Get Current Auth Status")
-def get_me(request: Request):
-    """Returns current user's auth status. Used by React AuthContext on mount."""
-    token = request.cookies.get("access_token")
-    if not token or not token.startswith("Bearer "):
-        return {"is_admin": False, "username": None}
+def get_me(request: Request, db: Session = Depends(get_db)):
+    """
+    Returns the current viewer's auth status. Used by React AuthContext on mount.
+
+    This is the one place the SPA learns what it may show, so it carries the
+    whole permission set, not just the admin flag. `is_admin` and `username`
+    keep their old meaning and shape - every existing consumer of useAuth()
+    reads those and must not break.
+
+    Never raises. An anonymous or unresolvable caller is the guest role, which
+    is a real row with real grants, so the SPA gets a usable answer either way.
+    """
     try:
-        token_str = token.split(" ")[1]
-        payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
-        return {
-            "is_admin": payload.get("role") == "admin",
-            "username": payload.get("sub"),
-        }
+        viewer = resolve_viewer(request, db)
     except Exception:
-        return {"is_admin": False, "username": None}
+        logger.exception("Failed to resolve viewer; falling back to guest")
+        viewer = GUEST_FALLBACK
+
+    return {
+        "is_admin": viewer.has(PERM_ADMIN),
+        "username": viewer.username,
+        "role": viewer.role_name,
+        "is_superuser": viewer.is_superuser,
+        "permissions": sorted(viewer.permissions),
+    }
 
 
 @router.post("/logout", summary="Logout User and Clear Cookie")

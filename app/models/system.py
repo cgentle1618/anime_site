@@ -101,6 +101,73 @@ class Seasonal(Base):
     entry_dropped = Column(Integer, nullable=False, default=0)
 
 
+class Role(Base):
+    """
+    A named bundle of permissions - Tier 1 of the authorization design.
+
+    The permissions themselves are Python constants (app/services/rbac), for
+    the same reason SystemOption gives above: a permission names a column, a
+    media type or a field group, so a stored name with no code behind it would
+    be inert. Only the grants that bind a permission to a role are data.
+
+    `is_superuser` is not a shortcut. Without it the admin role would need an
+    explicit grant for every content label and field group, and creating one
+    would hide content from the admin until someone remembered to re-grant it.
+    """
+
+    __tablename__ = "role"
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    name = Column(String, nullable=False, unique=True, index=True)
+    label = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    # guest and admin: the app reads them by name, so they cannot be renamed
+    # or deleted through the API.
+    is_system = Column(Boolean, nullable=False, default=False, server_default="false")
+    is_superuser = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    sort_order = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    permissions = relationship(
+        "RolePermission",
+        back_populates="role",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class RolePermission(Base):
+    """
+    One permission granted to one role.
+
+    `permission` is a plain string validated against the computed catalog on
+    write, the same contract media_tag.field has against TAG_FIELD_KEYS. A
+    grant naming nothing is rejected rather than silently stored.
+    """
+
+    __tablename__ = "role_permission"
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission", name="uq_role_permission"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    role_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("role.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    permission = Column(String, nullable=False)
+    created_at = Column(DateTime, default=get_taipei_now)
+
+    role = relationship("Role", back_populates="permissions")
+
+
 class User(Base):
     """Administrative user accounts for access control."""
 
@@ -109,7 +176,17 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     username = Column(String, nullable=False, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, default="guest")
+    # `role` is not a column any more. It is mapped back on as a read-only
+    # column_property over role.name at the bottom of app/models/__init__.py,
+    # because auth.py returns it on login and mints it as a JWT claim.
+    role_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("role.system_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    role_ref = relationship("Role", lazy="joined")
 
 
 class DataControlLog(Base):

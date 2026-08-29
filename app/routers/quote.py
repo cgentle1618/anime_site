@@ -21,6 +21,8 @@ from app import models
 from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db, get_current_admin
+from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
 
@@ -132,6 +134,7 @@ def get_all_quotes(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves Quotes, optionally filtered.
@@ -152,6 +155,8 @@ def get_all_quotes(
     quotes = (
         query.order_by(models.Quote.created_at.desc()).limit(limit).offset(offset).all()
     )
+    # The quote TEXT is the leak, so the row goes, not just its entry reference.
+    quotes = drop_hidden_rows(db, viewer, quotes, "media_type", "entry_id")
 
     resolved = resolve_entries(db, [(q.media_type, q.entry_id) for q in quotes])
     membership = _meme_membership(db, [q.system_id for q in quotes])
@@ -179,6 +184,7 @@ def get_quotes_grouped(
     search_query: Optional[str] = None,
     limit: int = Query(default=2000, ge=1, le=5000),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     The Quote page's primary feed: quotes bucketed by the entry they come from.
@@ -208,6 +214,7 @@ def get_quotes_grouped(
         .limit(limit)
         .all()
     )
+    quotes = drop_hidden_rows(db, viewer, quotes, "media_type", "entry_id")
 
     resolved = resolve_entries(db, [(q.media_type, q.entry_id) for q in quotes])
 
@@ -235,9 +242,18 @@ def get_quotes_grouped(
 @router.get(
     "/{quote_id}", response_model=schemas.QuoteResolved, summary="Get Quote By ID"
 )
-def get_quote(quote_id: str, db: Session = Depends(get_db)):
+def get_quote(
+    quote_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single Quote with its referenced entry's display data."""
-    return _resolved(db, _get_or_404(db, quote_id))
+    db_quote = _get_or_404(db, quote_id)
+    if db_quote.media_type and db_quote.entry_id and not entry_visible(
+        db, viewer, db_quote.media_type, db_quote.entry_id
+    ):
+        raise HTTPException(status_code=404, detail="Quote not found.")
+    return _resolved(db, db_quote)
 
 
 # ==========================================

@@ -6,8 +6,7 @@ Centralizes database session management and security middleware.
 
 from typing import Any, Dict, Generator
 
-import jwt
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -39,16 +38,22 @@ def get_db() -> Generator[Session, None, None]:
 # ==========================================
 # AUTHENTICATION & RBAC DEPENDENCIES
 # ==========================================
-def get_current_admin(request: Request) -> Dict[str, Any]:
+def get_current_admin(
+    request: Request, db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """
     Security middleware for Role-Based Access Control (RBAC).
 
-    Mechanism:
-    1. Extracts the JWT from the secure, HTTP-Only 'access_token' cookie.
-    2. Cryptographically verifies the token using the SECRET_KEY.
-    3. Enforces that the authenticated user explicitly possesses the 'admin' role.
+    Now a thin wrapper over the permission core: the viewer is resolved once,
+    and the gate is simply "holds the admin permission". That keeps one source
+    of truth while leaving every existing Depends(get_current_admin) call site
+    untouched - FastAPI resolves the added db parameter.
 
-    Raises a 401 Unauthorized exception if any validation step fails.
+    Stricter than the token check it replaces: a validly-signed token is no
+    longer enough on its own, because the user row is consulted. A token for a
+    deleted user, or for a user whose role has since lost admin, is rejected.
+
+    Raises 401 - never 403 - to keep the one error shape the SPA knows.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -56,19 +61,17 @@ def get_current_admin(request: Request) -> Dict[str, Any]:
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token = request.cookies.get("access_token")
-    if not token or not token.startswith("Bearer "):
+    # Imported here rather than at module scope: app.services.rbac.resolver
+    # imports this module for SECRET_KEY and get_db.
+    from app.services.rbac.permissions import PERM_ADMIN
+    from app.services.rbac.resolver import resolve_viewer
+
+    viewer = resolve_viewer(request, db)
+    if not viewer.has(PERM_ADMIN):
         raise credentials_exception
 
-    try:
-        token_str = token.split(" ")[1]
-        payload = jwt.decode(token_str, SECRET_KEY, algorithms=[ALGORITHM])
-
-        role: str = payload.get("role")
-        if role != "admin":
-            raise credentials_exception
-
-        return payload
-
-    except jwt.PyJWTError:
-        raise credentials_exception
+    # No call site reads this, but it stays shaped like the JWT payload it was.
+    return viewer.token_payload or {
+        "sub": viewer.username,
+        "role": viewer.role_name,
+    }

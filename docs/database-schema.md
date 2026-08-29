@@ -1790,3 +1790,104 @@ and not yet filled still appears where the admin made it.
 
 Migration `wo_flat_order` rewrote every existing item's `position` to its
 *previous* effective reading order, so no stored guide changed on the way in.
+
+---
+
+## View Authorization (RBAC)
+
+Four tables plus one column on `users`. Full design:
+`docs/superpowers/specs/2026-08-29-view-authorization-design.md`.
+
+The permissions themselves are **not** stored. They are Python constants in
+`app/services/rbac/`, for the reason `system_option` already states: a
+permission names a column, a `MEDIA_TABLES` key or a field group, so a stored
+name with no code behind it would be inert, and renaming one in code would
+silently void its grants. Only the grants are data.
+
+### `role`
+
+| Column | Type | Notes |
+|---|---|---|
+| `system_id` | UUID PK | |
+| `name` | String, unique | `guest`, `admin`, plus any you create. Read by name in code. |
+| `label` | String | Display name. |
+| `description` | Text, null | |
+| `is_system` | Bool | `guest` and `admin`. Cannot be deleted through the API. |
+| `is_superuser` | Bool | Holds every permission implicitly — see below. |
+| `sort_order` | Int | |
+
+**Why `is_superuser` rather than granting admin everything:** without it, every
+new content label and every new field group would need a manual grant to the
+admin role, and creating one would hide content from the administrator until
+someone remembered. `Viewer.has()` short-circuits on it.
+
+### `role_permission`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | Integer PK | |
+| `role_id` | UUID FK → `role` CASCADE | |
+| `permission` | String | Validated against the computed catalog on write. |
+
+`UNIQUE(role_id, permission)`. Permission names are `<family>.<key>`, except
+bare `admin`: `media_type.tv-show`, `field_group.sources_other`, `label.nsfw`.
+Keys are the **hyphenated** `MEDIA_TABLES` spelling.
+
+### `content_label`
+
+| Column | Type | Notes |
+|---|---|---|
+| `system_id` | UUID PK | |
+| `key` | String, unique | Becomes the permission `label.<key>`. |
+| `label` | String | |
+| `description` | Text, null | |
+| `sort_order` | Int | |
+
+Admin-managed vocabulary. Deliberately **not** `system_option`: this one
+decides who can see what, so it must not share a table with values the Fill
+pipeline writes.
+
+### `media_content_label`
+
+| Column | Type | Notes |
+|---|---|---|
+| `system_id` | UUID PK | |
+| `media_type` | String | One of `MEDIA_TYPE_KEYS`, hyphenated. FK-less. |
+| `entry_id` | UUID | FK-less; resolved through `MEDIA_TABLES`. |
+| `label_id` | UUID FK → `content_label` CASCADE | |
+| `position` | Int | |
+
+`UNIQUE(media_type, entry_id, label_id)`, plus
+`ix_media_content_label_entry (media_type, entry_id)` — that index drives the
+`NOT EXISTS` anti-join every gated list query runs.
+
+The `(media_type, entry_id)` pair is the same FK-less contract `media_credit`,
+`media_tag`, `media_relation` and `watch_order_item` use, for the same reason:
+no single foreign key can span the eight media tables.
+
+**Why not reuse `media_tag`:** that table is keyed to `system_option` and is
+written by the Fill and backfill pipelines. Putting access control in it would
+mean a pipeline run could silently change who can see an entry.
+
+### `users`
+
+`role_id` (UUID FK → `role`, RESTRICT, NOT NULL) replaces the old `role`
+string column, dropped in `d1r2o3p4r5o6`. `User.role` still **reads** as the
+role's name — it is a read-only `column_property` at the bottom of
+`app/models/__init__.py`, the same idiom that maps `remark` back onto ten
+models. `app/routers/auth.py` returns it on login and mints it as a JWT claim.
+Every write goes through `role_id`.
+
+### Migrations
+
+`r1b2a3c4c5o6` (roles + grants + `users.role_id`), `c1o2n3t4e5n6` (the two
+label tables), `d1r2o3p4r5o6` (`role_id` NOT NULL, drop `users.role`).
+
+Seeding lives in `app/services/rbac/seed.py::ensure_rbac_seed`, called from the
+migration, the app lifespan **and** `tests/api/conftest.py` — because that
+conftest rebuilds the schema with `create_all` and never runs Alembic, so a
+seed written only in a migration body would be absent from every API test.
+
+**The seed grants `guest` every media type and every field group.** That is why
+this system changed no behaviour on the day it landed: an admin narrows access
+by *removing* grants, never by adding them.

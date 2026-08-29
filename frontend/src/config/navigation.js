@@ -123,7 +123,9 @@ export const NAV_SECTIONS = [
   {
     key: "admin",
     label: "Admin",
-    adminOnly: true,
+    // The permission a viewer must hold to see this tab at all. `adminOnly`
+    // is still read as a synonym for requires: "admin".
+    requires: "admin",
     items: [
       { label: "Control Center", icon: "fas fa-cog", to: "/system" },
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
@@ -140,6 +142,14 @@ export const NAV_SECTIONS = [
       { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
       { divider: true },
       { label: "Relations", icon: "fas fa-diagram-project", to: "/relations" },
+      { divider: true },
+      { label: "Users", icon: "fas fa-users", to: "/users" },
+      { label: "Roles", icon: "fas fa-user-shield", to: "/roles" },
+      {
+        label: "Content Labels",
+        icon: "fas fa-tags",
+        to: "/content-labels",
+      },
       { label: "Watch Orders", icon: "fas fa-list-ol", to: "/watch-orders" },
     ],
   },
@@ -173,4 +183,18 @@ export function activeItem(pathname, sections = NAV_SECTIONS) {
 // The tab to mark as current, or null on routes that own no tab.
 export function activeSectionKey(pathname, sections = NAV_SECTIONS) {
   return activeItem(pathname, sections)?.section.key ?? null;
+}
+
+// The permission a section needs, or null when anyone may see it.
+// `adminOnly: true` is the old spelling of requires: "admin".
+export function sectionRequirement(section) {
+  return section.requires ?? (section.adminOnly ? "admin" : null);
+}
+
+// The sections a viewer may see. `has` comes from useAuth().
+export function visibleSections(sections, has) {
+  return sections.filter((section) => {
+    const needed = sectionRequirement(section);
+    return !needed || has(needed);
+  });
 }

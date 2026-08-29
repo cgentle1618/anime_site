@@ -2031,3 +2031,34 @@ For all reusable UI blocks (entry cards, info blocks, Score Block, My Tracker Bl
 **Entry cards:** Novel Entry Card 1/2 (specified but not yet implemented)
 
 **Reusable blocks:** Novel-specific blocks listed in `reusable-elements.md` (specified but not yet implemented); Rating Distribution Block, Search Result entries for Novel, deletion info blocks for Novel
+
+---
+
+## Admin: Users, Roles, Content Labels
+
+Three pages under `/users`, `/roles` and `/content-labels`, in the Admin nav
+section. All guarded by `<ProtectedRoute permission="admin" />`.
+
+- **Users** (`pages/admin/Users.jsx`) — table plus a create row; edit swaps a
+  row into a role dropdown and an optional new password. The last-admin and
+  delete-yourself refusals come from the server and surface as toasts, so the
+  rule lives in one place.
+- **Roles** (`pages/admin/Roles.jsx`) — role list on the left, permission grid
+  on the right. The grid is built from `GET /api/roles/catalog`, not from a
+  list kept in the frontend, so a new content label or field group appears
+  without a frontend change. Saved as a whole set with one `PUT`. A superuser
+  role shows an explanation instead of a grid.
+- **Content Labels** (`pages/admin/ContentLabels.jsx`) — the vocabulary. Each
+  row shows the permission name it produces, so it is obvious what to grant in
+  Roles.
+
+`ContentLabelPicker` (`components/forms/ContentLabelPicker.jsx`) is rendered
+once on Add and once on Modify, near the submit button, rather than inside all
+sixteen per-type tabs — labels are the same keys for every media type. It
+renders nothing when no labels are defined. On Modify it reads the entry's
+current set itself, so the eight per-type selection effects need no change.
+
+**Permission-aware nav.** `NAV_SECTIONS` entries carry `requires: "<perm>"`
+(`adminOnly: true` is still read as `requires: "admin"`), and
+`visibleSections(sections, has)` filters them. `useAuth()` exposes `has()`
+alongside the unchanged `isAdmin`, so every existing consumer is untouched.

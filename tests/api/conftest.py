@@ -16,8 +16,23 @@ from sqlalchemy.orm import sessionmaker
 from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.services.rbac import cache as rbac_cache
+from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import get_password_hash, create_access_token
 from app.main import app
+
+
+def role_id_for(db, name):
+    """
+    users.role is a read-only mapping over role.name since migration C, so a
+    fixture assigns role_id. The roles themselves are seeded once per session
+    in test_engine.
+    """
+    from app import models
+
+    role = db.query(models.Role).filter(models.Role.name == name).first()
+    assert role is not None, f"role {name!r} not seeded"
+    return role.system_id
 
 
 # ---------------------------------------------------------------------------
@@ -41,8 +56,29 @@ def test_engine():
         conn.execute(text("CREATE SCHEMA public"))
 
     Base.metadata.create_all(bind=engine)
+
+    # The roles migration A seeds. conftest never runs Alembic, so they are
+    # created here instead - once, committed, session-wide. Doing it here
+    # rather than per test keeps the lifespan's own idempotent seed to a
+    # SELECT, and stops it contending with an open test transaction.
+    seeding = sessionmaker(bind=engine)()
+    ensure_rbac_seed(seeding)
+    seeding.commit()
+    seeding.close()
+
     yield engine
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _clear_permission_cache():
+    """
+    The role -> permissions cache is process-global and outlives a test's
+    rolled-back transaction, so a stale entry would leak grants between tests.
+    """
+    rbac_cache.bump()
+    yield
+    rbac_cache.bump()
 
 
 @pytest.fixture(scope="function")
@@ -94,7 +130,7 @@ def admin_client(db_session):
         id=uuid.uuid4(),
         username="testadmin",
         hashed_password=get_password_hash("testpass"),
-        role="admin",
+        role_id=role_id_for(db_session, "admin"),
     )
     db_session.add(admin)
     db_session.flush()

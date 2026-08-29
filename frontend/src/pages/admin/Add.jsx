@@ -21,6 +21,9 @@ import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
 import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { endpoints } from "../../api/endpoints";
+import ContentLabelPicker, {
+  saveEntryLabels,
+} from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
@@ -62,6 +65,9 @@ export default function Add() {
   const [formDefaults, setFormDefaults] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Content labels are the same eight keys for every media type, so they
+  // live on the page rather than in each per-type form object.
+  const [contentLabels, setContentLabels] = useState([]);
   const [activeTab, setActiveTab] = useState("anime");
   const [submitting, setSubmitting] = useState(false);
   const [lastAdded, setLastAdded] = useState(null);
@@ -214,6 +220,16 @@ export default function Add() {
         err.detail
           ? JSON.stringify(err.detail)
           : "Entry saved, but credits/tags failed to save.",
+      );
+    }
+    try {
+      await saveEntryLabels(mediaType, entryId, contentLabels);
+    } catch {
+      // The entry saved; only its visibility did not. Say so rather than
+      // letting the admin believe an entry is restricted when it is not.
+      showToast(
+        "error",
+        "Entry saved, but its content labels failed to save.",
       );
     }
   }
@@ -569,6 +585,8 @@ export default function Add() {
       else if (activeTab === "options") await submitOptions();
     } finally {
       setSubmitting(false);
+      // The next entry starts unlabelled, like every other field on the form.
+      setContentLabels([]);
     }
   }
 
@@ -2497,6 +2515,16 @@ export default function Add() {
             studioForm={studioForm}
             usf={usf}
           />
+        )}
+
+        {/* Content labels - one control for every media tab. */}
+        {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"].includes(activeTab) && (
+          <div className="mt-6">
+            <ContentLabelPicker
+              value={contentLabels}
+              onChange={setContentLabels}
+            />
+          </div>
         )}
 
         {/* Submit button */}

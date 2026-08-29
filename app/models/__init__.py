@@ -22,6 +22,7 @@ from app.models.watch_order import (
 )
 from app.models.media_relation import MediaRelation
 from app.models.staff import Person, PersonRole, Studio
+from app.models.content_label import ContentLabel, MediaContentLabel
 from app.models.media_credit import MediaCredit, MediaTag
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
@@ -32,6 +33,8 @@ from app.models.system import (
     SystemOptionScope,
     SystemConfigs,
     Seasonal,
+    Role,
+    RolePermission,
     User,
     DataControlLog,
     DeletedRecord,
@@ -69,6 +72,10 @@ __all__ = [
     "SystemOptionScope",
     "SystemConfigs",
     "Seasonal",
+    "ContentLabel",
+    "MediaContentLabel",
+    "Role",
+    "RolePermission",
     "User",
     "DataControlLog",
     "DeletedRecord",
@@ -114,3 +121,21 @@ for _model, _owner_type in _REMARK_OWNERS:
         .correlate_except(Note)
         .scalar_subquery()
     )
+
+
+# ---------------------------------------------------------------------------
+# `User.role`, read side
+# ---------------------------------------------------------------------------
+# `role` used to be a String column on users. It is now role_id -> role.name,
+# and this maps the name back on so app/routers/auth.py can keep returning it
+# on login and minting it as a JWT claim, and tests/api/test_auth.py can keep
+# asserting on it.
+#
+# Read-only by construction, like `remark` above: every write goes through
+# role_id, so the two cannot disagree.
+User.role = column_property(
+    select(Role.name)
+    .where(Role.system_id == User.role_id)
+    .correlate_except(Role)
+    .scalar_subquery()
+)

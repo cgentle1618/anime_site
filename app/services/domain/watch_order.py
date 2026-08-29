@@ -167,7 +167,9 @@ def first_section_break(items: Iterable[Any]) -> Optional[UUID]:
     return None
 
 
-def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
+def resolve_items(
+    db: Session, items: Iterable[Any], viewer=None
+) -> List[Dict[str, Any]]:
     """
     Enriches watch_order_item rows with their referenced entry's display data.
 
@@ -178,6 +180,13 @@ def resolve_items(db: Session, items: Iterable[Any]) -> List[Dict[str, Any]]:
     remove the broken step.
     """
     items = list(items)
+    if viewer is not None and not viewer.is_superuser:
+        from app.services.rbac.enforcement import drop_hidden_rows
+
+        # A step is removed rather than flagged missing: missing means "broken
+        # reference, go fix it", and a hidden entry is neither broken nor the
+        # viewer's business.
+        items = drop_hidden_rows(db, viewer, items, "media_type", "entry_id")
 
     # Group the ids to look up, so each table is queried once.
     ids_by_type: Dict[str, set] = defaultdict(set)
@@ -223,6 +232,7 @@ def list_candidate_entries(
     franchise_ids: List[UUID],
     series_ids: List[UUID] = None,
     media_types: List[str] = None,
+    viewer=None,
 ) -> List[Dict[str, Any]]:
     """
     Every entry belonging to the given franchises, flattened across the eight
@@ -252,9 +262,15 @@ def list_candidate_entries(
         if series_ids is not None:
             if not hasattr(model, "series_id"):
                 continue
-            rows = db.query(model).filter(model.series_id.in_(series_ids)).all()
+            query = db.query(model).filter(model.series_id.in_(series_ids))
         else:
-            rows = db.query(model).filter(model.franchise_id.in_(franchise_ids)).all()
+            query = db.query(model).filter(model.franchise_id.in_(franchise_ids))
+        # The picker must not offer an entry the viewer cannot see.
+        if viewer is not None:
+            from app.services.rbac.enforcement import apply_entry_visibility
+
+            query = apply_entry_visibility(query, model, media_type, db, viewer)
+        rows = query.all()
         for row in rows:
             total = (
                 getattr(row, _TOTAL_FIELDS[media_type], None)

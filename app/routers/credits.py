@@ -17,6 +17,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain import credits as credits_service
 from app.utils.credit_roles import credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
@@ -42,9 +44,18 @@ def _resolve_entry(db: Session, media_type: str, entry_id: UUID):
 
 
 @router.get("/{media_type}/{entry_id}", summary="Get an entry's credits and tags")
-def get_credits(media_type: str, entry_id: UUID, db: Session = Depends(get_db)):
+def get_credits(
+    media_type: str,
+    entry_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Returns only the roles and fields that actually have rows."""
     _resolve_entry(db, media_type, entry_id)
+    # Credits name the people on an entry, and a 200 here confirms it exists,
+    # so a hidden entry has to answer exactly as an absent one does.
+    if not entry_visible(db, viewer, media_type, entry_id):
+        raise HTTPException(status_code=404, detail="Entry not found.")
 
     credits_out: Dict[str, List[str]] = {}
     for role_spec in credit_roles_for(media_type):

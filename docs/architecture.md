@@ -385,3 +385,41 @@ after "Application shutdown complete" - noise, not a failure.
 - `alembic/env.py` reads the SQLAlchemy engine from `app/database.py` and supports both online (connected) and offline (SQL file) migration modes.
 - Migrations run automatically at container startup via `entrypoint.sh`.
 - To generate a migration: `alembic revision --autogenerate -m "description"`
+
+## View authorization
+
+Two axes, one core. **Write** permission is still `get_current_admin`; **view**
+permission is the RBAC system in `app/services/rbac/`. They share one source of
+truth: `get_current_admin` is now a wrapper over the same viewer resolution,
+so the ~130 mutation gates are unchanged while there is one place that decides
+who anyone is.
+
+**Permissions are code; grants are data.** This follows the rule
+`SystemOption`'s docstring already sets — anything the business logic compares
+against is a Python constant, so it cannot be renamed out from under the logic.
+A permission names a column, a `MEDIA_TABLES` key or a field group; all three
+are code. The one dynamic family, `label.<key>`, is *derived* from the
+`content_label` table, so `catalog(db)` is the static half plus one permission
+per label. Cross-reference the three-tier options design in `options.md`: this
+is the same argument, applied to access control.
+
+**Entries carry labels; labels never name roles.** Adding a role touches zero
+entries; labelling an entry touches zero roles.
+
+**Enforcement is server-side and in SQL.** `apply_entry_visibility` wires the
+media-type gate and the label anti-join together so no caller can apply one and
+forget the other, and the anti-join stays in the query — filtering in Python
+after `.limit()/.offset()` would silently shrink pages.
+
+**Field gating has two seams, because fields have two storages.** Link fields
+(studio, director, …) are derived Python attributes since the 26 comma-joined
+columns were dropped, so they are blanked in place. Real columns like
+`source_other` are stripped from a *copy*: nulling one on a live ORM instance
+would be flushed to disk on the next autoflush and gating would become silent
+data loss. `tests/api/test_field_gating.py` asserts the stored row survives.
+
+**Permissions resolve per request, not from the JWT.** The token carries only
+`sub`. Putting permissions in it would delay revocation until the cookie
+expired — up to `access_token_expire_minutes`, default 24 hours — and there is
+no refresh flow or blacklist to bolt on. A process-local cache keyed by
+`role_id` pays for it; every grant-changing write bumps it.

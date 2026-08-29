@@ -7,7 +7,13 @@ import Nav from "./Nav";
 
 // Nav pulls the session from context and fires search requests on typing;
 // neither is what these tests are about.
-const auth = { isAdmin: false, refetchAuth: vi.fn() };
+// Nav now asks has(permission) rather than reading isAdmin directly, so the
+// mock answers from the same flag the tests already toggle.
+const auth = {
+  isAdmin: false,
+  has: (permission) => (permission === "admin" ? auth.isAdmin : true),
+  refetchAuth: vi.fn(),
+};
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),

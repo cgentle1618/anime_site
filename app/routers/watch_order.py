@@ -22,6 +22,7 @@ from app import models
 from app import schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     ITEM_IMPORTANCE,
@@ -522,7 +523,11 @@ def get_watch_order_lists(
     response_model=schemas.WatchOrderListDetailResponse,
     summary="Get Watch Order with Items",
 )
-def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
+def get_watch_order_list(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves one watch order with its items resolved to display data."""
     db_list = _get_list_or_404(db, system_id)
     sections = (
@@ -554,7 +559,7 @@ def get_watch_order_list(system_id: str, db: Session = Depends(get_db)):
         # applied. Parts do not sort the guide - they are drawn around runs of
         # adjacent steps sharing a section_id, so a part reads wherever its
         # steps read and an unfiled step can sit between two parts.
-        resolved = resolve_items(db, items)
+        resolved = resolve_items(db, items, viewer)
 
     payload = _serialize(
         db_list,
@@ -577,6 +582,7 @@ def get_watch_order_candidates(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Every entry an order owned by this franchise (or collection) may include,
@@ -601,7 +607,7 @@ def get_watch_order_candidates(
             .all()
         ]
 
-    return list_candidate_entries(db, franchise_ids)
+    return list_candidate_entries(db, franchise_ids, viewer=viewer)
 
 
 # ==========================================
@@ -1320,7 +1326,7 @@ def reorder_watch_order_items(
     db_list.updated_at = get_taipei_now()
     db.commit()
 
-    return get_watch_order_list(system_id, db)
+    return get_watch_order_list(system_id, db, viewer=None)
 
 
 # ==========================================
@@ -1478,4 +1484,4 @@ def reorder_watch_order_sections(
     db_list.updated_at = get_taipei_now()
     db.commit()
 
-    return get_watch_order_list(system_id, db)
+    return get_watch_order_list(system_id, db, viewer=None)

@@ -962,3 +962,26 @@ Required metadata fields that should be populated for each entry type. Used by `
 | `vol_total_original`   | Skipped if `serialization_status` is not `完結` |
 | `ch_total`             | Skipped if `serialization_status` is not `完結` |
 | `cover_image_file`     |                                                 |
+
+---
+
+## `content_label` is not a fourth tier
+
+`content_label` looks like a Tier 2 open vocabulary — admin-managed rows, a key
+and a display label — and it is deliberately a separate table rather than a
+`system_option` category.
+
+`system_option` values describe a work. `content_label` values decide **who may
+see** one. Two consequences follow:
+
+- The Fill and backfill pipelines write `system_option` and `media_tag`. If
+  access control lived there, a pipeline run could silently change who can see
+  an entry, and a tag cleanup could open one up.
+- Renaming a `system_option` value is a content edit. Renaming a
+  `content_label` key would void every `label.<key>` grant that names it, which
+  is why `PATCH /api/content-labels/{id}` deliberately does not accept `key`.
+
+The permission a label produces (`label.<key>`) is the one *dynamic* member of
+the permission catalog — see `docs/database-schema.md`. Everything else in that
+catalog is a Python constant, for exactly the reason this document gives for
+Tier 1.

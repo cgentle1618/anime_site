@@ -82,3 +82,17 @@ export default defineConfig({
 | `/static` proxy | `http://localhost:8000` | Forwards cover image requests to FastAPI during development                        |
 | Build output    | `../frontend_dist`      | Relative to `frontend/` — outputs to project root; served by FastAPI in production |
 | `emptyOutDir`   | `true`                  | Clears old build before each new build                                             |
+
+## Authorization dependencies
+
+- `get_current_admin` (`app/dependencies.py`) — unchanged signature for its
+  ~130 call sites, but now a thin wrapper: it resolves the viewer and checks
+  the `admin` permission. Stricter than the token check it replaced — the user
+  row is consulted, so a validly-signed token for a deleted user, or for one
+  whose role has since lost admin, is rejected.
+- `get_viewer` (`app/services/rbac/resolver.py`) — returns a `Viewer` for any
+  request, authenticated or not. Never raises; an unresolvable caller is guest.
+- `require_permission("...")` — dependency factory gating a route on one
+  permission. 401, matching `get_current_admin`'s message and header.
+- `resolve_viewer(request, db)` — the plain function behind both, so
+  `get_current_admin` and `/api/auth/me` can call it without FastAPI injection.

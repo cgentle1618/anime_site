@@ -190,7 +190,7 @@ def _touching(media_type: str, entry_id: UUID):
 
 
 def relations_for_entry(
-    db: Session, media_type: str, entry_id: UUID
+    db: Session, media_type: str, entry_id: UUID, viewer=None
 ) -> List[Dict[str, Any]]:
     """
     Every relation touching this entry, from both endpoints, each labelled for
@@ -210,6 +210,11 @@ def relations_for_entry(
     that happen to be stored. Those extra rows carry derived=True and a `via`
     naming the neighbour they were reached through, and they exist here alone:
     the canvas reads /graph, which stays a picture of the stored rows.
+
+    `viewer` drops any edge whose far end - or whose `via` intermediate - the
+    caller may not see. An edge is removed rather than blanked: leaving it with
+    missing=True would both name the relation and tell the reader something is
+    there, and the UI reads missing as a dangling row to go and fix.
     """
     rows = (
         db.query(MediaRelation)
@@ -322,6 +327,23 @@ def relations_for_entry(
                 "via": through.display_name,
             }
         )
+
+    if viewer is not None and not viewer.is_superuser:
+        from app.services.rbac.enforcement import filter_visible_pairs
+
+        wanted = {
+            (item["other"]["media_type"], item["other"]["entry_id"])
+            for item in payload
+            if item["other"]["media_type"] and item["other"]["entry_id"]
+        }
+        visible = filter_visible_pairs(db, viewer, wanted)
+        payload = [
+            item
+            for item in payload
+            if not (item["other"]["media_type"] and item["other"]["entry_id"])
+            or (item["other"]["media_type"], item["other"]["entry_id"]) in visible
+        ]
+
     return payload
 
 

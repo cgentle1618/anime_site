@@ -55,6 +55,9 @@ import ReviewQueue from "./pages/admin/ReviewQueue";
 import WatchOrders from "./pages/admin/WatchOrders";
 import Relations from "./pages/admin/Relations";
 import SystemOptions from "./pages/admin/SystemOptions";
+import Roles from "./pages/admin/Roles";
+import Users from "./pages/admin/Users";
+import ContentLabels from "./pages/admin/ContentLabels";
 
 // One shared QueryClient keeps cache behavior consistent across the whole app.
 const queryClient = new QueryClient({
@@ -150,6 +153,9 @@ export default function App() {
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
                   <Route path="/options" element={<SystemOptions />} />
+                  <Route path="/roles" element={<Roles />} />
+                  <Route path="/users" element={<Users />} />
+                  <Route path="/content-labels" element={<ContentLabels />} />
                 </Route>
               </Route>
             </Routes>

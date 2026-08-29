@@ -13,6 +13,9 @@ from sqlalchemy import Boolean, or_
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_admin
+from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
+from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.database import get_taipei_now
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
 from app.services.domain.plan_next import (
@@ -32,9 +35,13 @@ def make_media_router(spec) -> APIRouter:
     router = APIRouter(prefix=f"/api/{spec.route}", tags=spec.tags)
     not_found = f"{spec.label} entry not found."
 
-    def _get_or_404(db: Session, entry_id: str):
+    def _get_or_404(db: Session, entry_id: str, viewer=None):
         entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
         if not entry:
+            raise HTTPException(status_code=404, detail=not_found)
+        # Same message either way: a hidden entry must be indistinguishable
+        # from one that was never there.
+        if not entry_visible(db, viewer, spec.owner_type, entry.system_id):
             raise HTTPException(status_code=404, detail=not_found)
         return entry
 
@@ -51,8 +58,11 @@ def make_media_router(spec) -> APIRouter:
         limit: int = Query(default=500, ge=1, le=2000),
         offset: int = Query(default=0, ge=0),
         db: Session = Depends(get_db),
+        viewer: Viewer = Depends(get_viewer),
     ):
-        query = db.query(spec.model)
+        query = apply_entry_visibility(
+            db.query(spec.model), spec.model, spec.owner_type, db, viewer
+        )
         columns = spec.model.__table__.columns
         for field in spec.list_filters:
             raw = request.query_params.get(field)
@@ -69,14 +79,18 @@ def make_media_router(spec) -> APIRouter:
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
         attach_link_fields(db, spec.owner_type, entries)
-        return entries
+        return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
-    def get_one(entry_id: str, db: Session = Depends(get_db)):
-        entry = _get_or_404(db, entry_id)
+    def get_one(
+        entry_id: str,
+        db: Session = Depends(get_db),
+        viewer: Viewer = Depends(get_viewer),
+    ):
+        entry = _get_or_404(db, entry_id, viewer)
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
-        return entry
+        return gate(viewer, spec.owner_type, entry, spec.response_schema)
 
     # ------------------------------------------------------------------
     # Protected write (admin only)

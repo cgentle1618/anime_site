@@ -5,6 +5,8 @@ import {
   activeItem,
   activeSectionKey,
   sectionItems,
+  sectionRequirement,
+  visibleSections,
 } from "./navigation";
 
 describe("activeSectionKey", () => {
@@ -66,9 +68,48 @@ describe("NAV_SECTIONS", () => {
     expect(owners.map((s) => s.key)).toEqual(["admin"]);
   });
 
-  it("marks Admin as the only admin-gated section", () => {
-    expect(NAV_SECTIONS.filter((s) => s.adminOnly).map((s) => s.key)).toEqual([
-      "admin",
-    ]);
+  it("marks Admin as the only permission-gated section", () => {
+    const gated = NAV_SECTIONS.filter((s) => sectionRequirement(s) !== null);
+    expect(gated.map((s) => s.key)).toEqual(["admin"]);
+    expect(sectionRequirement(gated[0])).toBe("admin");
+  });
+});
+
+describe("visibleSections", () => {
+  const holdsNothing = () => false;
+  const holdsEverything = () => true;
+
+  it("hides a section whose permission the viewer lacks", () => {
+    const keys = visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key);
+    expect(keys).not.toContain("admin");
+  });
+
+  it("shows it once the viewer holds the permission", () => {
+    const keys = visibleSections(NAV_SECTIONS, holdsEverything).map(
+      (s) => s.key,
+    );
+    expect(keys).toContain("admin");
+  });
+
+  it("leaves ungated sections alone either way", () => {
+    const keys = visibleSections(NAV_SECTIONS, holdsNothing).map((s) => s.key);
+    expect(keys).toContain("library");
+    expect(keys).toContain("insights");
+  });
+
+  it("still understands the older adminOnly spelling", () => {
+    const legacy = [{ key: "legacy", label: "Legacy", adminOnly: true }];
+    expect(sectionRequirement(legacy[0])).toBe("admin");
+    expect(visibleSections(legacy, holdsNothing)).toEqual([]);
+    expect(visibleSections(legacy, holdsEverything)).toEqual(legacy);
+  });
+
+  it("asks for the exact permission the section names", () => {
+    const asked = [];
+    visibleSections(NAV_SECTIONS, (p) => {
+      asked.push(p);
+      return true;
+    });
+    expect(asked).toContain("admin");
   });
 });

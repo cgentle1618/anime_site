@@ -49,7 +49,11 @@ from app.routers import (
     person,
     studio,
     credits,
+    roles,
+    users,
+    content_labels,
 )
+from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -78,9 +82,23 @@ async def lifespan(app: FastAPI):
 
     db = database.SessionLocal()
     try:
+        # Roles first: the admin user below is created holding one, and every
+        # request resolves against them. Idempotent, so this is safe on every
+        # boot against an already-seeded database.
+        ensure_rbac_seed(db)
+        db.commit()
+        admin_role = (
+            db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
+        )
+
         admin_user = (
             db.query(models.User).filter(models.User.username == "admin").first()
         )
+
+        if admin_user and admin_user.role_id is None and admin_role:
+            # A row that predates migration A, or one restored from a backup.
+            admin_user.role_id = admin_role.system_id
+            db.commit()
 
         if not admin_user:
             admin_pass = settings.admin_password
@@ -88,7 +106,9 @@ async def lifespan(app: FastAPI):
 
             hashed_pwd = get_password_hash(admin_pass)
             new_admin = models.User(
-                username="admin", hashed_password=hashed_pwd, role="admin"
+                username="admin",
+                hashed_password=hashed_pwd,
+                role_id=admin_role.system_id,
             )
             db.add(new_admin)
             db.commit()
@@ -173,6 +193,9 @@ app.include_router(system.router)
 app.include_router(person.router)
 app.include_router(studio.router)
 app.include_router(credits.router)
+app.include_router(roles.router)
+app.include_router(users.router)
+app.include_router(content_labels.router)
 
 
 # ==========================================

@@ -981,3 +981,28 @@ modal.
 - **Confirmation modal, orphan series** — offered when the deleted comic is the only remaining entry with that `series_id` across anime, manga, novel and comic (the series-capable ACG-style tier — cartoon, TV show and movie are not counted, matching the pattern novel and manga use).
 - **Confirmation modal, orphan franchise** — offered when the deleted comic is the only remaining comic in its franchise **and** no anime, anime movie, movie, TV show, cartoon, manga or novel entries reference that franchise either, and its series (if any) has already been cleared.
 - Deletes: `DELETE /api/comic/:id`
+
+---
+
+## Content labels on Add and Modify
+
+`ContentLabelPicker` renders **once per page**, near the submit button, on both
+Add and Modify — not inside the sixteen per-type tabs. Content labels are the
+same keys for every media type, so sixteen copies would be sixteen places to
+forget one.
+
+It renders nothing at all when no labels are defined, so the forms look
+unchanged until an admin creates one.
+
+**Add.** The entry has no `system_id` until the create call returns, so the
+selection is held in page state and PUT afterwards — the same create-then-PUT
+order the credits control already uses. Both saves happen inside `saveCredits`,
+which every media submit already calls once with the new id, so one edit covers
+all eight types. The selection resets with the rest of the form.
+
+**Modify.** The picker takes `mediaType` and `entryId` and reads the entry's
+current labels itself when the selection changes, so none of the eight per-type
+load effects had to change.
+
+If the entry saves but the labels do not, a toast says so explicitly. Silently
+succeeding would leave an admin believing an entry is restricted when it is not.
