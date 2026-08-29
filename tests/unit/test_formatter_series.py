@@ -28,7 +28,6 @@ class TestSeriesNewFields:
             "my_rating",
             "series_expectation",
             "cover_entry_id",
-            "to_rewatch",
             "created_at",
             "updated_at",
         ):
@@ -48,8 +47,10 @@ class TestSeriesNewFields:
         assert parsed["my_rating"] == "A+"
         assert parsed["series_expectation"] == "High"
 
-    def test_to_rewatch_is_parsed_as_bool(self):
-        assert parse_series_from_sheet({"to_rewatch": "TRUE"})["to_rewatch"] is True
+    def test_to_rewatch_is_no_longer_emitted(self):
+        # to_rewatch was dropped from the Series model - rewatch tracking now
+        # lives in plan_next rows with kind="rewatch".
+        assert "to_rewatch" not in parse_series_from_sheet({"to_rewatch": "TRUE"})
 
     def test_cover_entry_id_parses_a_uuid(self):
         val = uuid.uuid4()

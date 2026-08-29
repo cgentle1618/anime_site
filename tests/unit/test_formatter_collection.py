@@ -56,7 +56,6 @@ class TestFranchisePreviouslyDroppedFields:
                 "type_slots": '{"slot": 1}',
                 "size_group_derived": '{"anime": "24ep"}',
                 "size_group_manual": '{"anime": "12ep"}',
-                "to_rewatch": "true",
             }
         )
         assert parsed["cover_entry_id"] == cover
@@ -64,7 +63,11 @@ class TestFranchisePreviouslyDroppedFields:
         assert parsed["type_slots"] == {"slot": 1}
         assert parsed["size_group_derived"] == {"anime": "24ep"}
         assert parsed["size_group_manual"] == {"anime": "12ep"}
-        assert parsed["to_rewatch"] is True
+
+    def test_to_rewatch_is_no_longer_emitted(self):
+        # to_rewatch was dropped from the Franchise model - rewatch tracking
+        # now lives in plan_next rows with kind="rewatch".
+        assert "to_rewatch" not in parse_franchise_from_sheet({"to_rewatch": "true"})
 
     def test_malformed_json_becomes_none_not_crash(self):
         parsed = parse_franchise_from_sheet({"type_covers": "{not json"})

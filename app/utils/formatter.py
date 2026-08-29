@@ -271,6 +271,9 @@ def parse_plan_next_from_sheet(raw: dict) -> dict:
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+        # Defaults to "next": a Plan Next tab backed up before rewatch existed
+        # has no such column, and every row in it was a queue entry.
+        "kind": parse_from_sheet(raw.get("kind"), str) or "next",
     }
 
 
@@ -299,7 +302,6 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
         "type_slots": _safe_json(raw.get("type_slots")),
         "size_group_derived": _safe_json(raw.get("size_group_derived")),
         "size_group_manual": _safe_json(raw.get("size_group_manual")),
-        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -371,7 +373,6 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "cover_entry_id": _uuid_or_none(raw.get("cover_entry_id")),
         "size_group_derived": _safe_json(raw.get("size_group_derived")),
         "size_group_manual": _safe_json(raw.get("size_group_manual")),
-        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         # Previously omitted, so every Pull of the Series tab silently wiped it.
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -501,7 +502,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": (_safe_json(raw.get("source_other"))),
-        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -535,7 +535,6 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -570,7 +569,6 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "to_rewatch": parse_from_sheet(raw.get("to_rewatch"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -619,7 +617,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -673,7 +670,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -716,7 +712,6 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
         "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "source_other": _safe_json(raw.get("source_other")),
-        "to_reread": parse_from_sheet(raw.get("to_reread"), bool),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),

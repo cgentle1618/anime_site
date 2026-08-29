@@ -8,9 +8,15 @@ franchise fields the parser omitted were silently wiped by every Pull.
 import uuid
 
 from app.utils.formatter import (
+    parse_cartoon_from_sheet,
+    parse_comic_from_sheet,
     parse_franchise_from_sheet,
+    parse_manga_from_sheet,
+    parse_movie_from_sheet,
+    parse_novel_from_sheet,
     parse_plan_next_from_sheet,
     parse_series_from_sheet,
+    parse_tv_show_from_sheet,
 )
 
 
@@ -75,3 +81,40 @@ def test_the_dropped_columns_are_no_longer_parsed():
         {"franchise_name_en": "F", "watch_next_group": "12ep"}
     )
     assert "watch_next_group" not in parsed
+
+
+class TestPlanNextKindParsing:
+    def test_kind_is_parsed(self):
+        assert parse_plan_next_from_sheet({"kind": "rewatch"})["kind"] == "rewatch"
+
+    def test_missing_kind_defaults_to_next(self):
+        # A Plan Next tab backed up before the kind column existed.
+        assert parse_plan_next_from_sheet({})["kind"] == "next"
+
+
+class TestDroppedRewatchColumns:
+    # A stale sheet still carrying these columns must parse without error and
+    # without inventing a key: pull.py would assign it to a dropped attribute.
+    def test_franchise_parser_drops_to_rewatch(self):
+        assert "to_rewatch" not in parse_franchise_from_sheet({"to_rewatch": "TRUE"})
+
+    def test_series_parser_drops_to_rewatch(self):
+        assert "to_rewatch" not in parse_series_from_sheet({"to_rewatch": "TRUE"})
+
+    def test_movie_parser_drops_to_rewatch(self):
+        assert "to_rewatch" not in parse_movie_from_sheet({"to_rewatch": "TRUE"})
+
+    def test_tv_show_parser_drops_to_rewatch(self):
+        assert "to_rewatch" not in parse_tv_show_from_sheet({"to_rewatch": "TRUE"})
+
+    def test_cartoon_parser_drops_to_rewatch(self):
+        assert "to_rewatch" not in parse_cartoon_from_sheet({"to_rewatch": "TRUE"})
+
+    def test_manga_parser_drops_to_reread(self):
+        assert "to_reread" not in parse_manga_from_sheet({"to_reread": "TRUE"})
+
+    def test_novel_parser_drops_to_reread(self):
+        assert "to_reread" not in parse_novel_from_sheet({"to_reread": "TRUE"})
+
+    def test_comic_parser_drops_to_reread(self):
+        assert "to_reread" not in parse_comic_from_sheet({"to_reread": "TRUE"})

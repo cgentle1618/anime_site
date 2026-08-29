@@ -44,9 +44,13 @@ class TestParseComicFromSheet:
         assert parsed["events"] == "Hunted, Sinister War"
 
     def test_booleans_parse(self):
-        parsed = parse_comic_from_sheet({"is_main_entry": "TRUE", "to_reread": "FALSE"})
+        parsed = parse_comic_from_sheet({"is_main_entry": "TRUE"})
         assert parsed["is_main_entry"] is True
-        assert parsed["to_reread"] is False
+
+    def test_to_reread_is_no_longer_emitted(self):
+        # to_reread was dropped from the Comic model - rereading tracking now
+        # lives in plan_next rows with kind="rewatch".
+        assert "to_reread" not in parse_comic_from_sheet({"to_reread": "FALSE"})
 
     def test_round_trips_every_model_column(self):
         # Guards against a column being added to the model but forgotten here.
