@@ -16,7 +16,7 @@ from app.database import get_taipei_now
 from app import models
 from app import schemas
 
-from app.services.domain.credits import attach_link_fields
+from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.domain import (
     apply_completion_timestamp,
@@ -274,6 +274,7 @@ def delete_anime_movie(
     delete_cover_image(system_id)
     log_deleted_record(db, entry, "Anime Movie")
     delete_plans_for(db, "entry", entry.system_id)
+    delete_links_for(db, "anime-movie", entry.system_id)
     db.delete(entry)
     db.commit()
     return {"status": "success", "message": "Anime Movie entry deleted successfully."}

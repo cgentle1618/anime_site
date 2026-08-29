@@ -833,10 +833,25 @@ def execute_pull_specific(
             )
         return {"status": "error", "message": str(e)}
 
-    if tab_name == "System Configs":
+    # Tabs whose rows restore with the sheet's own integer PK. Postgres does
+    # not advance a sequence when a value is supplied explicitly, so after a
+    # restore into a fresh instance the table holds ids 1..N while its
+    # sequence still sits at 1 - and the next INSERT that lets the sequence
+    # pick a value fails on the primary key. Resync every one of them.
+    #
+    # Note there is deliberately NO system_options_id_seq here: that table's
+    # key became a UUID (system_id), so it has no sequence to resync.
+    id_sequences = {
+        "System Configs": ("system_configs_id_seq", "system_configs"),
+        "Person Role": ("person_role_id_seq", "person_role"),
+        "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
+    }
+    if tab_name in id_sequences:
+        sequence, table = id_sequences[tab_name]
         db.execute(
             text(
-                "SELECT setval('system_configs_id_seq', COALESCE((SELECT MAX(id) FROM system_configs), 0))"
+                f"SELECT setval('{sequence}', "
+                f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
             )
         )
         db.commit()

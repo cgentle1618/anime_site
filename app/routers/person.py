@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.domain.credits import find_person
 
 logger = logging.getLogger(__name__)
 
@@ -90,18 +91,37 @@ def create_person(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new person, along with the roles they should be offered under."""
-    data = payload.model_dump(exclude={"roles"})
-    person = models.Person(**data)
-    db.add(person)
-    db.flush()
+    """
+    Creates a person, or returns the existing one under that name with the
+    requested roles added.
 
+    Deliberately find-or-create, matching resolve_person, because this endpoint
+    is not only an admin form: ensureSourceValues.js POSTs here whenever a
+    typed name is missing from a ROLE-FILTERED suggestion list. Typing an
+    existing producer's name into anime's Director field therefore arrives as
+    a "create" for someone who already exists, and minting a second row would
+    split their credits across two people. Matching is on the normalized name,
+    the same key resolve_person uses, so the two writers agree.
+
+    Metadata on an existing person is left untouched - use PUT to edit it.
+    """
+    person = find_person(db, payload.name_native)
+    if person is None:
+        data = payload.model_dump(exclude={"roles"})
+        person = models.Person(**data)
+        db.add(person)
+        db.flush()
+
+    held = {(r.role, r.scope) for r in person.roles}
     for role_in in payload.roles:
+        if (role_in.role, role_in.scope) in held:
+            continue
         db.add(
             models.PersonRole(
                 person_id=person.system_id, role=role_in.role, scope=role_in.scope
             )
         )
+        held.add((role_in.role, role_in.scope))
 
     db.commit()
     db.refresh(person)
@@ -129,7 +149,11 @@ def update_person(
     db.query(models.PersonRole).filter_by(person_id=system_id).delete(
         synchronize_session=False
     )
+    seen = set()
     for role_in in payload.roles:
+        if (role_in.role, role_in.scope) in seen:
+            continue
+        seen.add((role_in.role, role_in.scope))
         db.add(
             models.PersonRole(
                 person_id=system_id, role=role_in.role, scope=role_in.scope

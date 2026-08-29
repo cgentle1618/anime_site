@@ -18,7 +18,7 @@ from app.database import get_taipei_now
 from app import models
 from app import schemas
 
-from app.services.domain.credits import attach_link_fields
+from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.domain import (
     apply_completion_timestamp,
@@ -321,6 +321,7 @@ def delete_anime_entry(
     log_deleted_record(db, db_anime, "Anime")
 
     delete_plans_for(db, "entry", db_anime.system_id)
+    delete_links_for(db, "anime", db_anime.system_id)
 
     db.delete(db_anime)
     db.commit()

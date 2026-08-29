@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.domain.credits import find_studio
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +76,23 @@ def create_studio(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    """Creates a new studio."""
-    studio = models.Studio(**payload.model_dump())
-    db.add(studio)
-    db.commit()
-    db.refresh(studio)
+    """
+    Creates a studio, or returns the existing one under that name.
+
+    Find-or-create for the same reason as POST /api/person: the Add and Modify
+    forms POST here through ensureSourceValues.js whenever a typed name is not
+    in the suggestion list, so a "create" for a studio that already exists is
+    routine, and a second row would split its credits. Matching is on the
+    normalized name, the key resolve_studio uses.
+
+    Metadata on an existing studio is left untouched - use PUT to edit it.
+    """
+    studio = find_studio(db, payload.name_native)
+    if studio is None:
+        studio = models.Studio(**payload.model_dump())
+        db.add(studio)
+        db.commit()
+        db.refresh(studio)
     return _to_response(db, studio)
 
 

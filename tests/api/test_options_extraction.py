@@ -94,3 +94,76 @@ def test_extraction_actually_recreates_a_deleted_scope_row(db_session):
     assert "Added 1" in report["message"]
     db_session.refresh(opt)
     assert [s.scope for s in opt.scopes] == ["anime"]
+
+
+def test_two_entries_sharing_one_option_do_not_duplicate_the_scope_row(db_session):
+    """
+    The case every other test here misses: a SECOND tag row naming the same
+    (option, media type).
+
+    The loop used to read `option.scopes` per tag. That collection loads on
+    first access and no autoflush fires between two db.add() calls, so the
+    second anime saw a stale empty list, added a duplicate
+    system_option_scope row and violated uq_system_option_scope at commit -
+    an IntegrityError on any realistic database, and a 500 on the first
+    Calculate after a restore.
+    """
+    from app.services.domain.credits import replace_tags
+
+    a = models.Anime(anime_name_cn="甲")
+    b = models.Anime(anime_name_cn="乙")
+    db_session.add_all([a, b])
+    db_session.commit()
+
+    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Action"])
+    replace_tags(db_session, "anime", b.system_id, "genre_main", ["Action"])
+    db_session.commit()
+
+    opt = (
+        db_session.query(models.SystemOption)
+        .filter_by(category="Genre Main", value="Action")
+        .one()
+    )
+    db_session.query(models.SystemOptionScope).filter_by(
+        option_id=opt.system_id
+    ).delete()
+    db_session.commit()
+
+    # Must not raise, and must add exactly one row for the shared pair.
+    report = extract_system_options(db_session)
+    assert "Added 1" in report["message"]
+    assert (
+        db_session.query(models.SystemOptionScope)
+        .filter_by(option_id=opt.system_id, scope="anime")
+        .count()
+        == 1
+    )
+
+
+def test_extraction_never_removes_a_scope_row(db_session):
+    """
+    Ruling R27: the reconcile pass is ADDITIVE. A value scoped somewhere it is
+    not currently used must keep that scope - narrowing it would un-offer the
+    value in a dropdown with no way for an admin to see why.
+    """
+    from app.services.domain.credits import replace_tags
+
+    a = models.Anime(anime_name_cn="丙")
+    db_session.add(a)
+    db_session.commit()
+    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Mystery"])
+    db_session.commit()
+
+    opt = (
+        db_session.query(models.SystemOption)
+        .filter_by(category="Genre Main", value="Mystery")
+        .one()
+    )
+    db_session.add(
+        models.SystemOptionScope(option_id=opt.system_id, scope="comic")
+    )
+    db_session.commit()
+
+    extract_system_options(db_session)
+    db_session.refresh(opt)
+    assert "comic" in {s.scope for s in opt.scopes}

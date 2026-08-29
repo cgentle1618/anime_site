@@ -49,6 +49,16 @@ def _find_by_name(db: Session, model, name: str):
     return None
 
 
+def find_person(db: Session, name: str):
+    """The existing person whose stored name normalizes to `name`, or None."""
+    return _find_by_name(db, models.Person, name)
+
+
+def find_studio(db: Session, name: str):
+    """The existing studio whose stored name normalizes to `name`, or None."""
+    return _find_by_name(db, models.Studio, name)
+
+
 def resolve_person(
     db: Session, name: str, *, role: str, scope: Optional[str] = None
 ) -> models.Person:
@@ -168,6 +178,32 @@ def replace_tags(
             )
         )
     db.flush()
+
+
+def delete_links_for(db: Session, media_type: str, entry_id: UUID) -> int:
+    """
+    Remove every credit and tag row belonging to one deleted media entry.
+
+    The (media_type, entry_id) endpoint is FK-less - no single foreign key can
+    span the eight media tables - so nothing cascades when the entry goes.
+    Without this, deleting an entry leaves its rows behind forever, and the
+    orphans then feed extract_system_options and the duplicate checks. Called
+    from every entry delete endpoint alongside delete_plans_for, which solves
+    the same problem for plan_next.
+
+    Returns the number of rows removed.
+    """
+    removed = (
+        db.query(models.MediaCredit)
+        .filter_by(media_type=media_type, entry_id=entry_id)
+        .delete(synchronize_session=False)
+    )
+    removed += (
+        db.query(models.MediaTag)
+        .filter_by(media_type=media_type, entry_id=entry_id)
+        .delete(synchronize_session=False)
+    )
+    return removed
 
 
 def credit_names(

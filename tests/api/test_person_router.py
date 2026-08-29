@@ -47,7 +47,10 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
 
 def test_unfiltered_list_returns_everyone(admin_client, client):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    _create(admin_client, "花澤香菜", [{"role": "seiyuu", "scope": None}])
+    # "seiyuu" is deliberately NOT a person role: anime.seiyuu is still a
+    # plain string column on the entry and no credit role implies it, so
+    # PersonRoleIn now rejects it. Use a real unscoped role instead.
+    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": None}])
     assert len(client.get("/api/person/").json()) == 2
 
 
@@ -82,8 +85,14 @@ def test_delete_cascades_the_credits(admin_client, db_session):
 
 
 def test_merge_repoints_credits_onto_the_survivor(admin_client, db_session):
+    # Two names that do NOT normalize to the same key - POST /api/person now
+    # dedupes on that key, so a same-key "duplicate" can no longer be created
+    # through the API at all. Merge exists for the duplicates normalization
+    # cannot catch: the same human entered under two different spellings.
     keep = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    drop = _create(admin_client, "新海 誠 ", [{"role": "director", "scope": "anime"}])
+    drop = _create(
+        admin_client, "Makoto Shinkai", [{"role": "director", "scope": "anime"}]
+    )
     entry_id = uuid.uuid4()
     db_session.add(
         models.MediaCredit(
@@ -154,3 +163,42 @@ def test_writes_require_admin(client):
         401,
         403,
     )
+
+
+def test_an_unknown_person_role_is_rejected(admin_client):
+    """
+    The frontend is now a routine writer of role strings (ensureSourceValues
+    POSTs one whenever a typed name is missing from a suggestion list), so a
+    typo in a fieldMeta.js descriptor would otherwise create a person holding
+    a role no dropdown ever queries.
+    """
+    r = admin_client.post(
+        "/api/person/",
+        json={"name_native": "誰か", "roles": [{"role": "drector", "scope": None}]},
+    )
+    assert r.status_code == 422
+
+
+def test_an_unknown_person_role_scope_is_rejected(admin_client):
+    """Role scope is anime / non_anime - never a hyphenated media type key."""
+    r = admin_client.post(
+        "/api/person/",
+        json={
+            "name_native": "誰か",
+            "roles": [{"role": "director", "scope": "anime-movie"}],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_an_empty_scope_string_is_stored_as_null(admin_client, db_session):
+    created = admin_client.post(
+        "/api/person/",
+        json={"name_native": "澤野弘之", "roles": [{"role": "composer", "scope": ""}]},
+    ).json()
+    role = (
+        db_session.query(models.PersonRole)
+        .filter_by(person_id=created["system_id"])
+        .one()
+    )
+    assert role.scope is None

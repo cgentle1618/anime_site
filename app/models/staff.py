@@ -30,7 +30,18 @@ class Person(Base):
 
     __tablename__ = "person"
     __table_args__ = (
-        UniqueConstraint("name_native", "name_en", name="uq_person_name"),
+        # NULLS NOT DISTINCT: name_en is nullable and almost always NULL, and
+        # Postgres treats two NULLs as distinct by default - without this the
+        # constraint is INERT and two Person rows with the same name_native
+        # commit cleanly. See uq_media_credit_row for the same lesson, and
+        # alembic/versions/n1u2l3l4s5n6d_* for the migration that collapsed
+        # the duplicates the inert version already allowed.
+        UniqueConstraint(
+            "name_native",
+            "name_en",
+            name="uq_person_name",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     system_id = Column(
@@ -68,7 +79,16 @@ class PersonRole(Base):
 
     __tablename__ = "person_role"
     __table_args__ = (
-        UniqueConstraint("person_id", "role", "scope", name="uq_person_role"),
+        # NULLS NOT DISTINCT: scope is NULL for every role except director, so
+        # without this the constraint never fires for the common case and one
+        # person can hold the same unscoped role many times over.
+        UniqueConstraint(
+            "person_id",
+            "role",
+            "scope",
+            name="uq_person_role",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -98,7 +118,14 @@ class Studio(Base):
 
     __tablename__ = "studio"
     __table_args__ = (
-        UniqueConstraint("name_native", "name_en", name="uq_studio_name"),
+        # NULLS NOT DISTINCT - see the note on uq_person_name; name_en is
+        # NULL on all 74 backfilled studios, so the plain constraint was inert.
+        UniqueConstraint(
+            "name_native",
+            "name_en",
+            name="uq_studio_name",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     system_id = Column(

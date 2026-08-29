@@ -23,7 +23,7 @@ from app.services.domain.plan_next import (
     set_entry_flag,
     PLAN_FLAG_FIELDS,
 )
-from app.services.domain.credits import attach_link_fields
+from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.integrations.image_manager import delete_cover_image
 from app.utils.data_control_utils import log_deleted_record
 
@@ -200,6 +200,7 @@ def make_media_router(spec) -> APIRouter:
             delete_cover_image(entry_id)
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
+        delete_links_for(db, spec.owner_type, entry.system_id)
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}
