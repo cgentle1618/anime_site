@@ -27,13 +27,7 @@ from app.services.domain.plan_next import derive_size_groups
 from app.services.domain import (
     sync_seasonal_counts,
     create_missing_seasonal,
-    extract_system_options_from_anime,
-    extract_system_options_from_anime_movie,
-    extract_system_options_from_cartoon,
-    extract_system_options_from_tv_show,
-    extract_system_options_from_manga,
-    extract_system_options_from_novel,
-    extract_system_options_from_comic,
+    extract_system_options,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_manga_from_mal,
@@ -460,60 +454,66 @@ def run_sync_size_groups(db: Session) -> dict:
 
 
 def run_sync_cartoon(db: Session) -> dict:
-    extract_system_options_from_cartoon(db)
+    # extract_system_options is not type-filtered - it scans every
+    # media_tag row - but it is called here (and from each sibling
+    # run_sync_* below) to preserve the "runs on every entry save" behavior
+    # these wrappers had before the six per-type extractors collapsed into
+    # one: Fill and Replace call these wrappers individually per entry,
+    # never the aggregate run_sync() below.
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from cartoons.",
+        "message": "Cartoon sync completed.",
     }
 
 
 def run_sync_anime(db: Session) -> dict:
     create_missing_seasonal(db)
     sync_seasonal_counts(db)
-    extract_system_options_from_anime(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "Missing seasonals created, seasonal counts synced, system options extracted.",
+        "message": "Missing seasonals created, seasonal counts synced.",
     }
 
 
 def run_sync_anime_movie(db: Session) -> dict:
-    extract_system_options_from_anime_movie(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from anime movies.",
+        "message": "Anime movie sync completed.",
     }
 
 
 def run_sync_tv_show(db: Session) -> dict:
-    extract_system_options_from_tv_show(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from TV shows.",
+        "message": "TV show sync completed.",
     }
 
 
 def run_sync_manga(db: Session) -> dict:
-    extract_system_options_from_manga(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from manga.",
+        "message": "Manga sync completed.",
     }
 
 
 def run_sync_novel(db: Session) -> dict:
-    extract_system_options_from_novel(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from novel.",
+        "message": "Novel sync completed.",
     }
 
 
 def run_sync_comic(db: Session) -> dict:
-    extract_system_options_from_comic(db)
+    extract_system_options(db)
     return {
         "status": "success",
-        "message": "System options extracted from comic.",
+        "message": "Comic sync completed.",
     }
 
 

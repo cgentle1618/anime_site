@@ -109,13 +109,7 @@ from app.services.domain.seasonal import (
 )
 
 from app.services.domain.options_extraction import (
-    extract_system_options_from_anime,
-    extract_system_options_from_anime_movie,
-    extract_system_options_from_tv_show,
-    extract_system_options_from_cartoon,
-    extract_system_options_from_manga,
-    extract_system_options_from_novel,
-    extract_system_options_from_comic,
+    extract_system_options,
 )
 
 from app.services.domain.post_processing import (
@@ -209,13 +203,7 @@ __all__ = [
     "autofill_cartoon_from_imdb",
     "create_missing_seasonal",
     "sync_seasonal_counts",
-    "extract_system_options_from_anime",
-    "extract_system_options_from_anime_movie",
-    "extract_system_options_from_tv_show",
-    "extract_system_options_from_cartoon",
-    "extract_system_options_from_manga",
-    "extract_system_options_from_novel",
-    "extract_system_options_from_comic",
+    "extract_system_options",
     "apply_single_replace_anime",
     "apply_single_replace_anime_movie",
     "apply_single_replace_movie",

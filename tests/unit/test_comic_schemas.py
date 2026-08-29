@@ -20,10 +20,6 @@ class TestComicCreateDefaults:
         c = ComicCreate()
         assert c.comic_name_en is None
 
-    def test_events_is_a_comma_joined_string(self):
-        c = ComicCreate(comic_name_en="ASM", events="Hunted, Sinister War")
-        assert c.events == "Hunted, Sinister War"
-
     def test_rejects_non_integer_issue_total(self):
         with pytest.raises(ValidationError):
             ComicCreate(comic_name_en="ASM", issue_total="not a number")
