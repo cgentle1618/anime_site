@@ -249,6 +249,11 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     B's name_native == C's name_en, etc. all collapse into one cluster).
     A person and a studio sharing a name are never grouped together - each
     table is scanned independently.
+
+    Each result's "key" is a representative label (the first member's
+    normalized name_native), not a normalization key every member is
+    guaranteed to share - a cluster formed through name_en transitivity can
+    have no single key common to all of its rows.
     """
     from app.utils.name_normalize import normalize_name
 
