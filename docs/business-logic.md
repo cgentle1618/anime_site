@@ -971,34 +971,64 @@ See `docs/database-schema.md` for the eight stored kinds and their inverses.
 ### Plan Next — the row is the flag, and does not cascade
 
 `plan_next` (see database-schema.md) replaces the old `watch_next` /
-`read_next` booleans and `franchise.watch_next_group`. There is no `is_next`
-column: a row's existence **is** the flag, so "un-planning" something is a
-delete, not an update.
+`read_next` booleans, `franchise.watch_next_group`, **and** (migration
+`9b0bcb763e8c`) the nine `to_rewatch` / `to_reread` booleans that used to live
+on `franchise`, `series`, `anime_movies`, `movies`, `tv_shows`, `cartoons`,
+`manga`, `novel` and `comic`. There is no `is_next` column: a row's existence
+**is** the flag, so "un-planning" something is a delete, not an update.
 
-**Entry-level `watch_next` / `read_next` are a virtual compatibility surface,
-not columns.** They still appear on the seven affected entry schemas'
-create/update/read models (plus `anime`, which never had a stored column for
-this and gains the field for the first time here), backed entirely by
-`plan_next` rows via `app/services/domain/plan_next.py`:
+**One table, two kinds.** `plan_next.kind` (`"next"` or `"rewatch"`)
+distinguishes the two Plan-page queues; the table name predates the second
+one. `ALLOWED_SCOPES` in `app/utils/plan_next_kinds.py` is keyed by kind first,
+then media type, since which scopes a type may use is a different question
+for each kind — anime and cartoon are queued per season/entry but rewatched as
+a whole franchise, novels are reread at every tier though only ever queued one
+book at a time. `scope_allowed(kind, media_type, scope)`,
+`validate_plan_target(db, scope, media_type, target_id, kind)`,
+`entry_flag(...)`, `planned_entry_ids(...)` and `set_entry_flag(...)` all take
+`kind` (defaulting to `"next"`) for this reason.
 
-- `pop_plan_flag(media_type, data)` — splits the flag out of a write payload,
-  shaped exactly like `pop_remark`. Its third return value distinguishes "the
-  caller never mentioned the flag" (PATCH: leave the `plan_next` row alone)
-  from "the caller sent `false`" (delete the row).
-- `set_entry_flag(db, media_type, entry_id, planned)` — upserts or deletes the
-  entry-scope row.
-- `attach_plan_flag(db, media_type, entry)` — sets the flag as a plain
-  instance attribute on an ORM object **before** it is serialized, so the
-  response schema has something to read.
-- `planned_entry_ids(db, media_type)` — every queued entry id of one type, for
-  list endpoints that need to flag many rows without one query each.
+**Entry-level `watch_next` / `read_next` / `to_rewatch` / `to_reread` are a
+virtual compatibility surface, not columns.** They still appear on the
+affected entry schemas' create/update/read models (plus `anime`, which never
+had a stored `watch_next` column and gains the field for the first time this
+way), backed entirely by `plan_next` rows via `app/services/domain/plan_next.py`:
+
+- `PLAN_FLAG_FIELDS` — the schema field name(s) each media type carries,
+  paired with the `plan_next` kind each backs: `anime` and `cartoon` have only
+  `watch_next` (kind `next`) — cartoon's rewatch flag was discarded rather
+  than moved, and anime rewatches at franchise scope only; anime-movie,
+  movie, tv-show carry `watch_next` (`next`) and `to_rewatch` (`rewatch`);
+  manga, novel, comic carry `read_next` (`next`) and `to_reread` (`rewatch`).
+- `pop_plan_flag(media_type, data)` — splits every flag out of a write
+  payload, shaped like `pop_remark`, returning `(rest, [(kind, value), ...])`
+  — only fields actually present in the payload are included, so a PATCH that
+  never mentions a flag leaves that `plan_next` row alone, while one that
+  sends `false` deletes it.
+- `set_entry_flag(db, media_type, entry_id, planned, kind="next")` — upserts or
+  deletes the entry-scope row for the given kind.
+- `attach_plan_flag(db, media_type, entry)` — sets every flag in
+  `PLAN_FLAG_FIELDS[media_type]` as a plain instance attribute on an ORM
+  object **before** it is serialized, so the response schema has something to
+  read.
+- `planned_entry_ids(db, media_type, kind="next")` — every queued (or
+  rewatch-marked) entry id of one type, for list endpoints that need to flag
+  many rows without one query each.
 
 **This is the one detail that differs from `remark`.** `remark` is exposed via
 an automatic SQLAlchemy `column_property`, so every read path gets it for
 free. `attach_plan_flag` is manual — it has to be called at every read call
-site that returns one of these seven entry types (or `anime`). A future new
-read path that forgets the call does not error; it silently reports
-`watch_next` / `read_next` as `false`/missing.
+site that returns one of these entry types (or `anime`). A future new read
+path that forgets the call does not error; it silently reports these fields as
+`false`/missing.
+
+**`franchise` and `series` carry no rewatch field of any kind, virtual or
+otherwise.** Group-level rewatch marks are read and written directly through
+`GET`/`POST /api/plan-next/` and `DELETE /api/plan-next/target` with
+`scope="franchise"` / `scope="series"`, `kind="rewatch"` — there is no
+`pop_plan_flag`/`attach_plan_flag` equivalent for the two grouping tiers, since
+neither `FranchiseCreate`/`FranchiseUpdate` nor `SeriesCreate`/`SeriesUpdate`
+carries a rewatch field to intercept.
 
 **`plan_next` rows do not cascade.** The target is the same FK-less `(scope,
 media_type, target_id)` contract `media_relation` uses, so deleting an entry,
@@ -1651,7 +1681,24 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 `_uuid_or_none` is used for plain UUID pointer columns that have **no** name-resolution step (`franchise.cover_entry_id`, `collection.cover_franchise_id`). `parse_from_sheet(..., UUID)` deliberately returns the raw *string* for an invalid UUID so the service layer can resolve names; for these columns that string would reach the database and raise, so it is coerced to `None`.
 
-> **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five are now parsed (`_safe_json` for the two JSONB fields). `watch_next_group` was later dropped from the schema entirely (see Plan Next below); `size_group_derived` and `size_group_manual` are the two JSONB fields that replaced it, and they joined this same must-parse set — on **both** the Franchise tab (`parse_franchise_from_sheet`) and the Series tab (`parse_series_from_sheet`), since both grouping tiers carry the two columns. Missing either on either tab would silently wipe it on the next Pull, exactly like the original bug.
+> **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five were parsed at the time (`_safe_json` for the two JSONB fields). `watch_next_group` was later dropped from the schema entirely (see Plan Next below); `size_group_derived` and `size_group_manual` are the two JSONB fields that replaced it, and they joined this same must-parse set — on **both** the Franchise tab (`parse_franchise_from_sheet`) and the Series tab (`parse_series_from_sheet`), since both grouping tiers carry the two columns. Missing either on either tab would silently wipe it on the next Pull, exactly like the original bug.
+>
+> `to_rewatch` was itself dropped from the schema still later, the same way
+> `watch_next_group` was (migration `9b0bcb763e8c`, see Plan Next above).
+> `parse_franchise_from_sheet` and `parse_series_from_sheet` no longer emit the
+> key at all — omitting a key a model no longer has is the safe direction,
+> unlike omitting one it still has, which is what caused the original bug.
+> `format_model_for_sheet` (backup) needed no matching change: it derives
+> headers from `__table__.columns`, so a dropped column simply stops appearing
+> in the sheet on the next Backup. Nine tabs lose a column this way:
+> `franchise`, `series`, `anime_movie`, `movie`, `tv_show` and `cartoon` lose
+> `to_rewatch`; `manga`, `novel` and `comic` lose `to_reread`. The "Plan Next"
+> tab gains `kind` instead — `parse_plan_next_from_sheet` defaults it to
+> `"next"` when the cell is missing or blank
+> (`parse_from_sheet(raw.get("kind"), str) or "next"`), so a tab backed up
+> before the column existed still Pulls correctly, and a stale `to_rewatch`
+> column left over in an old Franchise/Series tab export is silently ignored
+> rather than erroring, since the parser simply never reads that key.
 
 **`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
 

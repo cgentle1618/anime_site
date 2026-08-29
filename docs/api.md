@@ -94,7 +94,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PATCH`  | `/{system_id}` | Admin  | Partial update (e.g. inline rating edit). Body: raw JSON dict.                     |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
-**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `to_rewatch`, `remark`.
+**`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `my_rating`, `series_expectation` (default `"Low"`), `cover_entry_id`, `remark`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
 **Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`.
 
@@ -172,7 +172,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 | Method   | Path                    | Auth   | Description                                                                                                                        |
 | -------- | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`                     | Public | List all cartoons. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `to_rewatch`, `search_query`. |
+| `GET`    | `/`                     | Public | List all cartoons. Optional params: `franchise_id`, `series_id`, `watching_status`, `airing_status`, `search_query`. No `to_rewatch` filter — cartoon has no rewatch field at all (see Plan Next below); passing it is silently ignored like any unknown filter. |
 | `GET`    | `/{entry_id}`         | Public | Get a single cartoon entry by UUID.                                                                                                |
 | `POST`   | `/`                     | Admin  | Create a cartoon entry. Auto-runs `execute_replace_single_cartoon` after creation. Body: `CartoonCreate`.                          |
 | `PUT`    | `/{entry_id}`         | Admin  | Full update of a cartoon entry. Auto-runs `execute_replace_single_cartoon` after update. Body: `CartoonUpdate`.                    |
@@ -188,7 +188,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 | Method   | Path                   | Auth   | Description                                                                                                                          |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/`                    | Public | List all manga. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
 | `GET`    | `/{entry_id}`          | Public | Get a single manga entry by UUID.                                                                                                    |
 | `POST`   | `/`                    | Admin  | Create a manga entry. Auto-runs `execute_replace_single_manga` after creation. Body: `MangaCreate`.                                  |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
@@ -204,7 +204,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 | Method   | Path                   | Auth   | Description                                                                                                                           |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
 | `GET`    | `/{entry_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
@@ -223,7 +223,7 @@ Fill/Replace notes under Data Control below.
 
 | Method   | Path                   | Auth   | Description                                                                                                                           |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | Public | List all comics. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `to_reread`, `search_query`. |
+| `GET`    | `/`                    | Public | List all comics. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
 | `GET`    | `/{entry_id}`          | Public | Get a single comic entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a comic entry. Auto-runs `execute_replace_single_comic` after creation — no external metadata fetch, but it re-extracts system options and logs the write (see Data Control). Body: `ComicCreate`. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a comic entry. Auto-runs `execute_replace_single_comic` after update — same no-fetch/re-extract/log behavior. Body: `ComicUpdate`.        |
@@ -391,19 +391,22 @@ from either end without a second copy of the kind vocabulary.
 
 ## Plan Next — `/api/plan-next`
 
-What is queued to watch or read, at entry, series, or franchise scope.
-Reads are public (planning state is ordinary catalogue data); every write is
-admin-only, matching media relations and watch orders. Replaces the
-`watch_next` / `read_next` booleans and `franchise.watch_next_group` — see
-database-schema.md and business-logic.md.
+What is queued to watch or read (kind `next`), or marked for rewatch/reread
+(kind `rewatch`), at entry, series, or franchise scope. **One table backs
+both Plan-page queues** — the `plan_next` name predates the second one; see
+database-schema.md. Reads are public (planning state is ordinary catalogue
+data); every write is admin-only, matching media relations and watch orders.
+Replaces the `watch_next` / `read_next` booleans, `franchise.watch_next_group`,
+and the nine `to_rewatch` / `to_reread` booleans — see database-schema.md and
+business-logic.md.
 
-| Method   | Path                                    | Auth   | Description                                                                                                     |
-| -------- | ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                 | Public | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `allowed_scopes` (per media type), `size_groups` (per media type, `{key, label}` list). |
-| `GET`    | `/?media_type=&scope=`                   | Public | Every row, each resolved to its target's display data. Both filters optional; one call feeds the whole Plan page. |
-| `POST`   | `/`                                      | Admin  | Create one row. `404` if the target does not exist, `400` if the media type may not be planned at that scope, `409` if the `(scope, target_id, media_type)` triple already exists. |
-| `DELETE` | `/target?scope=&media_type=&target_id=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. `404` if not planned.          |
-| `DELETE` | `/{system_id}`                           | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
+| Method   | Path                                          | Auth   | Description                                                                                                     |
+| -------- | ---------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/kinds`                                       | Public | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `kinds` (`["next", "rewatch"]`), `allowed_scopes` (keyed by kind, then media type, scopes ordered entry/series/franchise), `size_groups` (per media type, `{key, label}` list). |
+| `GET`    | `/?media_type=&scope=&kind=`                   | Public | Every row, each resolved to its target's display data. All three filters optional; omitting `kind` returns both kinds in one call, so the Plan page still loads its whole dataset in one request. |
+| `POST`   | `/`                                            | Admin  | Create one row. Body includes `kind`, defaulting to `"next"` when omitted so every pre-rewatch caller keeps working. `422` for an unknown kind, `400` if the media type may not be planned at that scope for that kind, `404` if the target does not exist, `409` if the `(kind, scope, target_id, media_type)` quadruple already exists. |
+| `DELETE` | `/target?scope=&media_type=&target_id=&kind=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. Query params only. `kind` defaults to `"next"` when omitted. `404` if not planned. |
+| `DELETE` | `/{system_id}`                                 | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
 
 **Create body**
 
@@ -412,7 +415,8 @@ database-schema.md and business-logic.md.
   "media_type": "anime",
   "scope": "series",
   "target_id": "…",
-  "remark": null
+  "remark": null,
+  "kind": "next"
 }
 ```
 
@@ -422,7 +426,7 @@ database-schema.md and business-logic.md.
 ```json
 {
   "system_id": "…", "media_type": "anime", "scope": "series", "target_id": "…",
-  "remark": null, "created_at": "…", "updated_at": "…",
+  "remark": null, "kind": "next", "created_at": "…", "updated_at": "…",
   "missing": false, "display_name": "…", "label": "…", "is_tier": true,
   "cover_image_file": null, "nav_path": "/series", "expectation": "High"
 }
@@ -433,9 +437,18 @@ since the target carries no foreign key. `expectation` is read off whichever
 of `franchise_expectation` / `series_expectation` / `expectation` the target
 actually has, so the Plan page can sort every scope by the same field.
 
-**Entry-level `watch_next` / `read_next` are not endpoints of their own.**
-They ride along on the existing entry endpoints (`/api/anime`, `/api/manga`,
-etc.) as virtual fields backed by `plan_next` rows — see business-logic.md.
+**Entry-level `watch_next` / `read_next` / `to_rewatch` / `to_reread` are not
+endpoints of their own.** They ride along on the existing entry endpoints
+(`/api/anime`, `/api/manga`, etc.) as virtual fields backed by `plan_next`
+rows (`kind='next'` / `kind='rewatch'` respectively) — see business-logic.md.
+Six of the nine dropped `to_rewatch` / `to_reread` columns survive this way:
+anime-movie, movie, tv-show (`to_rewatch`); manga, novel, comic (`to_reread`).
+`anime` and `cartoon` have **no** entry-level rewatch field — both are
+rewatched at franchise scope only, targeted directly through this router with
+`scope=franchise`, `kind=rewatch`. `franchise` and `series` have no rewatch
+field of any kind; their marks go through this router with `scope=franchise`
+/ `scope=series` and `kind=rewatch` directly, never through an entry-style
+boolean on `POST /api/franchise` / `POST /api/series`.
 
 ---
 

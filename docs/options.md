@@ -430,10 +430,19 @@ business-logic.md for how a bucket is derived and how an entry inherits one.
 
 **Scopes** (`plan_next.scope`): `entry`, `series`, `franchise`.
 
-**Scope permissions** — which scopes each media type may be planned at. Entry
-is universal; the two grouping tiers are opt-in because anime movies, manga
-and novels are tracked one entry at a time, and comic has no franchise-level
-planning:
+**Plan Kind** (`plan_next.kind`): `next` | `rewatch`. `plan_next` holds two
+independent Plan-page queues distinguished by this column — "Watch Next" (what
+is queued to watch or read) and "To Rewatch" (what is marked to watch or read
+again). A row's scope permissions depend on **both** its kind and its media
+type: `ALLOWED_SCOPES` in `app/utils/plan_next_kinds.py` is keyed by kind
+first, then media type, because which tiers a type may be planned at is not
+the same question as which tiers it may be rewatched at — anime and cartoon
+are queued one season/entry at a time but rewatched as a whole franchise, and
+novels are reread at every tier though only ever queued one book at a time.
+
+**Scope permissions — kind `next` ("Watch Next").** Entry is universal; the
+two grouping tiers are opt-in because anime movies, manga and novels are
+tracked one entry at a time, and comic has no franchise-level planning:
 
 | Media type    | Entry | Series | Franchise |
 | ------------- | :---: | :----: | :-------: |
@@ -445,6 +454,31 @@ planning:
 | `anime-movie` | yes   | —      | —         |
 | `manga`       | yes   | —      | —         |
 | `novel`       | yes   | —      | —         |
+
+**Scope permissions — kind `rewatch` ("To Rewatch" / "To Reread").** Deliberately
+different from the `next` map above: anime and cartoon are rewatched at
+franchise scope only (they have **no** entry-level rewatch field at all), and
+novel gains series and franchise scope that it does not have for `next`.
+Franchise and series have no schema field for this — group-level marks are
+read and written directly through `/api/plan-next/` with `scope=franchise` /
+`scope=series`, not through an entry-style boolean:
+
+| Media type    | Entry | Series | Franchise |
+| ------------- | :---: | :----: | :-------: |
+| `anime`       | —     | —      | yes       |
+| `movie`       | yes   | yes    | yes       |
+| `tv-show`     | yes   | yes    | yes       |
+| `cartoon`     | —     | —      | yes       |
+| `comic`       | yes   | yes    | —         |
+| `anime-movie` | yes   | —      | —         |
+| `manga`       | yes   | —      | —         |
+| `novel`       | yes   | yes    | yes       |
+
+The six entry-level `yes` cells above (`anime-movie`, `movie`, `tv-show`,
+`manga`, `novel`, `comic`) are backed by virtual `to_rewatch` (movie types) /
+`to_reread` (reading types) API fields over `plan_next`; see
+database-schema.md. `anime` and `cartoon` have no such field — they are
+rewatched at franchise scope only.
 
 **Bucket vocabularies.** Keys are hyphenated media types, matching
 `app/utils/media_resolver.py`. `anime-movie`, `manga` and `novel` have **no**

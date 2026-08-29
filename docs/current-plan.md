@@ -177,8 +177,11 @@ Tests: `tests/unit/test_comic_duplicates.py` (9), plus a comic case in
 
 ### Still deferred
 
-The plan pages. `comic.read_next` and `comic.to_reread` remain columns with no
-UI, as they were when the table was created.
+None. A later "To Rewatch / To Reread — Per-Type Scopes" pass gave `plan_next`
+a `kind` column and Comic a Plan page tab; neither `comic.read_next` nor
+`comic.to_reread` is a column any more (both were dropped/replaced by
+`plan_next` rows), and both now have UI — see
+`docs/superpowers/specs/2026-08-29-rewatch-levels-design.md`.
 
 ---
 

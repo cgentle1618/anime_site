@@ -124,7 +124,6 @@ Top-level media franchise entity. Groups related series and individual entries.
 | `type_covers`           | JSONB    | Yes      | —          | Dict mapping franchise type string → entry UUID; used for per-type covers in 3x3 grids (e.g. `{"ACG": "<uuid>", "TV or Movie": "<uuid>"}` ) |
 | `size_group_derived`    | JSONB    | Yes      | —          | Dict mapping hyphenated media type → size-bucket key, written by Calculate (`run_sync_size_groups`), e.g. `{"anime": "24ep", "tv-show": "2season"}`. See [Size Groups](options.md#size-groups). |
 | `size_group_manual`     | JSONB    | Yes      | —          | Same shape as `size_group_derived`, written only by the admin. Effective bucket for a type = the `size_group_manual` key if present, else `size_group_derived`. Two maps rather than one map plus an override flag, so Calculate can rewrite `size_group_derived` freely and never stomp a manual edit. Replaces the old single-value `watch_next_group` string, which could not vary per media type. |
-| `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                                                                             |
 | `created_at`            | DateTime | No       | Taipei now |                                                                                                                                             |
 | `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                                                                                        |
 
@@ -156,7 +155,6 @@ Optional intermediate grouping layer within a franchise.
 | `cover_entry_id`       | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover; no FK constraint |
 | `size_group_derived`   | JSONB    | Yes      | —          | Dict mapping hyphenated media type → size-bucket key, written by Calculate. Same shape and semantics as `franchise.size_group_derived`. See [Size Groups](options.md#size-groups). |
 | `size_group_manual`    | JSONB    | Yes      | —          | Admin override, same shape as `size_group_derived`; a present key wins over the derived one. |
-| `to_rewatch`           | Boolean  | Yes      | `False`    |                                                                 |
 | `created_at`           | DateTime | No       | Taipei now |                                                                 |
 | `updated_at`           | DateTime | No       | Taipei now | Auto-updated on save                                           |
 
@@ -385,13 +383,12 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_rewatch` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -461,13 +458,12 @@ Live-action and animated movie entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_rewatch` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -543,13 +539,12 @@ Live-action and scripted TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_rewatch` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -626,13 +621,12 @@ Western animated TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_rewatch` is not a column either, and unlike anime-movie/movie/tv-show it has **no** virtual-field replacement: cartoon rewatches at franchise scope only (`plan_next`, `kind='rewatch'`, `scope='franchise'`), and the entry-level flag was discarded rather than moved.
 
 ---
 
@@ -725,13 +719,12 @@ Manga, manhwa, and manhua entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_reread` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -827,13 +820,12 @@ Light novel and book entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `to_reread`        | Boolean  | Yes      | —                                           |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
 | `created_at`       | DateTime | No       | Auto-set on create                          |
 | `updated_at`       | DateTime | No       | Auto-updated on save                        |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_reread` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -924,13 +916,12 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 | Column             | Type     | Nullable | Default | Notes                                                                                         |
 | ------------------ | -------- | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `to_reread`        | Boolean  | Yes      | `false` | —                                                                                                   |
 | `cover_image_file` | String   | Yes      | —       | Filename in GCS bucket: `"<system_id>.jpg"`                                                       |
 | `completed_at`     | DateTime | Yes      | —       | When entry was marked completed                                                                   |
 | `created_at`       | DateTime | No       | —       | Auto-set on create                                                                                 |
 | `updated_at`       | DateTime | No       | —       | Auto-updated on save                                                                               |
 
-`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`.
+`remark` is not a column on this table — see the `note` table further below for how it is exposed as a read-only `column_property`. `to_reread` is likewise not a column — it is a virtual field backed by `plan_next` rows (`kind='rewatch'`, `scope='entry'`); see the `plan_next` table above.
 
 ---
 
@@ -1077,13 +1068,19 @@ story.
 
 ### `plan_next`
 
-One row per thing queued to watch or read next, at entry, series or franchise
-scope. Replaces the `watch_next` / `read_next` booleans that used to live on
-`anime_movies`, `movies`, `tv_shows`, `cartoons`, `manga`, `novel` and `comic`,
-plus `franchise.watch_next_group`. Those could not represent a series at all
-(`series` is one table shared by every media type, so it would have needed one
-boolean column per type), could not bucket a franchise per media type, and
-left `anime` with no way to be marked at all.
+One row per thing queued to watch/read next, or marked for rewatch/reread, at
+entry, series or franchise scope. **The table holds both Plan-page queues —
+Watch Next and To Rewatch — distinguished by `kind`; the name predates the
+second one.** It replaces the `watch_next` / `read_next` booleans that used to
+live on `anime_movies`, `movies`, `tv_shows`, `cartoons`, `manga`, `novel` and
+`comic`, plus `franchise.watch_next_group` (the Watch Next half), and the
+`to_rewatch` / `to_reread` booleans that used to live on `franchise`,
+`series`, `anime_movies`, `movies`, `tv_shows`, `cartoons`, `manga`, `novel`
+and `comic` (the To Rewatch half, migration `9b0bcb763e8c`). Those columns
+could not represent a series at all (`series` is one table shared by every
+media type, so a series-level flag would have needed one boolean column per
+type), could not bucket a franchise per media type, and left `anime` entries
+with no way to be marked at all.
 
 **The row's existence is the flag.** There is no `is_next` column;
 un-planning something deletes the row.
@@ -1091,6 +1088,7 @@ un-planning something deletes the row.
 | Column       | Type     | Nullable | Default    | Notes                                                                 |
 | ------------ | -------- | -------- | ---------- | ---------------------------------------------------------------------- |
 | `system_id`  | UUID     | No       | `uuid4()`  | Primary key, indexed                                                  |
+| `kind`       | String   | No       | —          | `next` / `rewatch`. Not a DB enum — validated in the API layer against `KINDS` in `app/utils/plan_next_kinds.py`, the same choice already made for `media_type` and `scope`, so a new kind needs no migration. |
 | `media_type` | String   | No       | —          | Hyphenated key: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`. Stored even for `scope='entry'` (technically derivable from which table holds the id) because it is the Plan page's tab discriminator, keeping one uniform key across all three scopes. |
 | `scope`      | String   | No       | —          | `entry` / `series` / `franchise`                                       |
 | `target_id`  | UUID     | No       | —          | Entry id, `series.system_id`, or `franchise.system_id` — **no FK**    |
@@ -1100,12 +1098,15 @@ un-planning something deletes the row.
 
 **Constraints and indexes**
 
-- `uq_plan_next_target` — unique on (`scope`, `target_id`, `media_type`). A
-  franchise may legitimately appear twice — once per media type — for a
-  franchise holding both anime and TV show entries; the constraint permits
-  this deliberately rather than silently collapsing mixed-type franchises.
-- `ix_plan_next_type_scope` on (`media_type`, `scope`) — the Plan page reads
-  one tab at a time.
+- `uq_plan_next_target` — unique on (`kind`, `scope`, `target_id`,
+  `media_type`). A franchise may legitimately appear twice under one kind —
+  once per media type — for a franchise holding both anime and TV show
+  entries; the constraint permits this deliberately rather than silently
+  collapsing mixed-type franchises. `kind` joining the key is what lets the
+  same franchise/media-type pair be both queued (`next`) and marked for
+  rewatch (`rewatch`) at once.
+- `ix_plan_next_kind_type_scope` on (`kind`, `media_type`, `scope`) — the Plan
+  page reads one tab of one section (Watch Next or To Rewatch) at a time.
 - No foreign key, by necessity: no single FK spans the eight entry tables plus
   `series` and `franchise`. The target is the same FK-less `(scope,
   media_type, target_id)` contract `media_relation` and `watch_order_item`
@@ -1120,15 +1121,38 @@ does not remove the rows that point at it — every delete path must call
 the same obligation `media_relation` already carries.
 
 **`plan_next` is the single source of truth for planning state.** The
-`watch_next` / `read_next` fields still appear on the entry create/update/read
-API schemas, but they are **not columns** — they are a virtual compatibility
-surface backed entirely by `plan_next` rows (`pop_plan_flag` on write,
-`attach_plan_flag` on read; see `app/services/domain/plan_next.py`). Unlike
-`remark`, which is exposed via an automatic `column_property`, this surface
-requires every read call site to remember to call `attach_plan_flag` — a new
-read path that omits it will silently report `watch_next`/`read_next` as
-missing rather than erroring. `anime` gained a `watch_next` field for the
-first time this way; it has never had a stored boolean column for it.
+`watch_next` / `read_next` / `to_rewatch` / `to_reread` fields still appear on
+the entry create/update/read API schemas, but they are **not columns** — they
+are a virtual compatibility surface backed entirely by `plan_next` rows
+(`pop_plan_flag` on write, `attach_plan_flag` on read; see
+`app/services/domain/plan_next.py`). Unlike `remark`, which is exposed via an
+automatic `column_property`, this surface requires every read call site to
+remember to call `attach_plan_flag` — a new read path that omits it will
+silently report these fields as missing rather than erroring. `anime` gained a
+`watch_next` field for the first time this way; it has never had a stored
+boolean column for it.
+
+**Per-kind scope map** (`ALLOWED_SCOPES` in `app/utils/plan_next_kinds.py`,
+keyed by kind then media type — see options.md for the full table):
+
+- `next`: anime, movie, tv-show and cartoon may be queued at entry, series or
+  franchise scope; comic at entry or series; anime-movie, manga and novel at
+  entry only.
+- `rewatch`: anime and cartoon are rewatched at **franchise scope only**;
+  movie, tv-show and novel at entry, series or franchise; comic at entry or
+  series; anime-movie and manga at entry only.
+
+**Which entry-level flags survive as virtual API fields.** Six of the nine
+dropped columns come back as virtual `to_rewatch` / `to_reread` fields backed
+by `plan_next` rows with `kind='rewatch'`, `scope='entry'`: anime-movie,
+movie, tv-show (`to_rewatch`); manga, novel, comic (`to_reread`). `anime` and
+`cartoon` have **no** entry-level rewatch field at all — anime and cartoon are
+rewatched at franchise scope only, and cartoon's entry-level flag was
+deliberately discarded rather than moved to a scope it doesn't use.
+`franchise` and `series` have **no** replacement field either: group-level
+rewatch marks are read and written directly through `POST /api/plan-next/` and
+`DELETE /api/plan-next/target` with `scope=franchise` / `scope=series`, not
+through a schema field.
 
 ---
 

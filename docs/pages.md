@@ -412,7 +412,11 @@ Full detail page for a single cartoon entry.
 - Watching Status dropdown (admin editable)
 - My Rating dropdown (admin editable)
 - Watch Next checkbox (admin editable)
-- To Rewatch checkbox (admin editable)
+- **No To Rewatch checkbox** — cartoon has no entry-level rewatch field at
+  all; `Cartoon.jsx` no longer passes `toRewatch` / `onToRewatchChange` to
+  `MyTrackerCard`, and the card hides the control when that prop is undefined.
+  Cartoon rewatches at franchise scope only, via the franchise hub's To
+  Rewatch toggle row.
 
 **Detail cards:**
 
@@ -558,9 +562,9 @@ orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
    - Franchise type badge (raw `franchise_type` string)
    - Main title: Franchise Name CN (fallback: EN → Alt → Roman → JP)
    - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
-   - Badges: My Rating, Franchise Expectation, one "Plan Next: {media type} ({bucket label})" badge per media type currently planned at franchise scope (any of `anime` / `movie` / `tv-show` / `cartoon` — whichever the franchise has planned; label is the effective size bucket, manual override winning over derived), To Rewatch (ACG only), parent Collection (links to `/collection/:id`, shown only when `collection_id` is set), Total Entries count
+   - Badges: My Rating, Franchise Expectation, one "Plan Next: {media type} ({bucket label})" badge per media type currently planned at franchise scope (any of `anime` / `movie` / `tv-show` / `cartoon` — whichever the franchise has planned; label is the effective size bucket, manual override winning over derived), one "To Rewatch: {media type}" chip per media type currently marked for rewatch at franchise scope (`plan_next`, `kind="rewatch"`, `scope="franchise"` — the old `hasACG`-gated single "To Rewatch" badge is gone; visibility now follows whichever franchise-scope-legal types the franchise actually holds, per `ALLOWED_SCOPES["rewatch"]` in `app/utils/plan_next_kinds.py`), parent Collection (links to `/collection/:id`, shown only when `collection_id` is set), Total Entries count
    - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) uses `reading_status === "Completed"`
-   - Admin controls: Overall Rating select, Expectation select, a "Plan Next" block (`SizeGroupControls`) with one checkbox + bucket-override dropdown per applicable media type — toggling the checkbox creates/deletes a franchise-scope `plan_next` row via `POST` / `DELETE /api/plan-next/target`, and the dropdown writes `size_group_manual[type]` via `PATCH /api/franchise/:system_id` (blank = "use derived", shown as the placeholder), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id` except the plan toggle
+   - Admin controls: Overall Rating select, Expectation select, a "Plan Next" block (`SizeGroupControls`) with one checkbox + bucket-override dropdown per applicable media type — toggling the checkbox creates/deletes a `plan_next` row (`kind="next"`, `scope="franchise"`) via `POST` / `DELETE /api/plan-next/target`, and the dropdown writes `size_group_manual[type]` via `PATCH /api/franchise/:system_id` (blank = "use derived", shown as the placeholder); a "To Rewatch" (`PlanKindToggles`) row with one checkbox per media type the franchise both holds and may rewatch at franchise scope — toggling creates/deletes a `plan_next` row (`kind="rewatch"`, `scope="franchise"`) the same way. Only the "Plan Next" and "To Rewatch" blocks touch `plan_next`; everything else in this list saves via `PATCH /api/franchise/:system_id`.
    - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur via `PATCH /api/franchise/:system_id`); hidden for guests when empty. When the text overflows the three rows a "Show all" button opens `RemarkModal`. Same treatment as the Collection Hub.
 4. Series card: clickable series name badges — links to `/series/:system_id`
 5. Tab bar, in two labelled groups (see below)
@@ -667,9 +671,9 @@ Six entry lists, not seven: `anime_movies` has no `series_id` column, so an anim
    - "Series" tag (no type badge — series has no type)
    - Main title: Series Name CN (fallback: EN → Alt → Roman → JP)
    - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
-   - Badges: My Rating, Series Expectation, parent Franchise (links to `/franchise/:id`, shown only when `franchise_id` is set), To Rewatch, Total Entries count
+   - Badges: My Rating, Series Expectation, parent Franchise (links to `/franchise/:id`, shown only when `franchise_id` is set), one "To Rewatch: {media type}" chip per media type currently marked for rewatch at series scope (`plan_next`, `kind="rewatch"`, `scope="series"`; series has no rewatch column or field of its own — this is read straight from `plan_next`), Total Entries count
    - Completion block: `completed / total` across all six entry types; watchable entries (anime, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) use `reading_status === "Completed"`
-   - Admin controls: Overall Rating select, Expectation select, To Rewatch checkbox — all save via `PATCH /api/series/:system_id`
+   - Admin controls: Overall Rating select, Expectation select (both save via `PATCH /api/series/:system_id`), a "To Rewatch" (`PlanKindToggles`) row with one checkbox per media type the series both holds and may rewatch at series scope (movie, tv-show, novel, comic — anime and cartoon rewatch at franchise scope only) — toggling creates/deletes a `plan_next` row (`kind="rewatch"`, `scope="series"`) via `POST` / `DELETE /api/plan-next/target`
    - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur); hidden for guests when empty. A "Show all" button opens `RemarkModal` when the text overflows the three rows. Same treatment as the Franchise Hub.
    - No Plan Next / size-bucket control on this page — `series` does carry
      `size_group_derived` / `size_group_manual` and can be planned at series
@@ -1068,14 +1072,29 @@ Planning dashboard for tracking what to watch or read next.
      tries `cover_entry_id` among the series' member entries, then the first
      member entry with a usable cover.
 
-2. **To Rewatch** (`frontend/src/pages/plan/PlanToRewatch.jsx`) — tabbed grid:
-   - Anime tab: sorted by Franchise Name EN; shows poster, Franchise Name CN with fallback, Franchise Rating
-   - Anime Movie tab: sorted by Anime Movie Name EN; shows poster, Anime Movie Name CN with fallback, My Rating
-   - Movie tab: sorted by Movie Name EN; shows poster, Movie Name CN with fallback, My Rating
-   - TV Show tab: sorted by TV Show Name EN; shows poster, TV Show Name CN with fallback, My Rating
-   - Cartoon tab: sorted by Cartoon Name EN; shows poster, Cartoon Name CN with fallback, My Rating
-   - Manga tab: sorted by Manga Name EN; shows poster, Manga Name CN with fallback, My Rating
-   - Novel tab: sorted by Novel Name EN; shows poster, Novel Name CN with fallback, My Rating
+2. **To Rewatch** (`frontend/src/pages/plan/PlanToRewatch.jsx`) — one
+   config-driven render path for all **eight** tabs, reading `plan_next` rows
+   filtered to `kind === "rewatch"` out of the same `usePlanData.js` data
+   Watch Next already loaded (no separate endpoint call):
+   - **Eight tabs**, driven by `REWATCH_TABS` in
+     `frontend/src/config/planNextGroups.js`: Anime, Anime Movie, Movie, TV
+     Show, Cartoon, Manga, Novel, **Comic** (new — comic had no rewatch UI at
+     all before this work).
+   - Within a tab, rows group into labelled sections by scope, rendered in the
+     order **Franchise → Series → Entries**, showing only the scopes that
+     tab's media type allows for kind `rewatch` (`scopesFor("rewatch",
+     mediaType)` — see options.md's per-kind scope table). Anime and Cartoon
+     show only a Franchise section; Comic shows only Series and Entries; a
+     scope with no rows for the tab is omitted entirely rather than rendered
+     empty.
+   - Rows within a section sort by the resolved target's `display_name`
+     (alphabetical), same as before.
+   - Cards are `PlanNextCard.jsx`, the same component Watch Next uses —
+     franchise- and series-scope rows carry their tier badge, entry-scope rows
+     don't.
+   - A franchise or series marked for rewatch under two media types appears on
+     both tabs' Franchise/Series sections, making the per-type mark explicit
+     rather than inferred from one shared boolean.
 
 3. **Plan to Watch for Future Releases** (`frontend/src/pages/plan/PlanToWatchFuture.jsx`) — two-tab view of upcoming planned entries:
    - **Watch When Airs tab**: all Anime, Anime Movie, Movie, TV Show, Cartoon entries where `watching_status === "Watch When Airs"`, grouped by release year (ascending; TBD last), sorted within each year by media type order (Anime → Anime Movie → Movie → TV Show → Cartoon) then by name EN. Renders type-specific future release card per entry.
@@ -1474,7 +1493,7 @@ Category dropdown, Option Values field, "More Entries" button (batch add), Appen
 #### Add New Cartoon Entry Tab
 
 - **Titles & Naming:** Franchise (ComboBox), Series (ComboBox), Cartoon Name EN/CN/Alt, Season dropdown, Part dropdown
-- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, To Rewatch checkbox, IMDB Rating
+- **Status & Progress:** Airing Status dropdown, Watching Status dropdown, Total Episode, Episode Finished, My Rating dropdown, Watch Next checkbox, IMDB Rating — **no To Rewatch checkbox**: cartoon has no entry-level rewatch field at all, having moved to franchise-scope-only rewatch marks (see the franchise hub's To Rewatch toggle row)
 - **Classification & Production:** Cartoon Official Source, Cartoon Airing Type dropdown, Main/Spinoff dropdown, Release Date
 - **Relational & Timeline:** Prequel ID, Sequel ID, Watch Order, Derive Related dropdown
 - **Source & Links:** IMDB ID, IMDB Link, Other Source
@@ -1517,11 +1536,12 @@ Includes auto-fill from existing entry search bar (searches Comic Name EN/CN/Alt
 > Statistics and Completions tabs, in the meme and quote owner pickers, and in
 > the Review Queue's remarks tabs.
 >
-> Comic now has a Plan page tab too — see Plan below. `comic.read_next` is no
-> longer a column at all; it survives only as a virtual API field backed by
-> `plan_next` rows (see database-schema.md and business-logic.md).
-> `comic.to_reread` remains a real, unused column with no UI behind it —
-> `to_rewatch` / `to_reread` were deliberately left untouched by this work.
+> Comic now has a Plan page tab too — see Plan below. Neither `comic.read_next`
+> nor `comic.to_reread` is a column any more; both survive only as virtual API
+> fields backed by `plan_next` rows (`kind='next'` and `kind='rewatch'`
+> respectively — see database-schema.md and business-logic.md), and both now
+> have UI: Read Next and To Reread checkboxes on this Add tab and the Modify
+> tab, and a To Reread toggle on the Comic detail page.
 
 - **Titles & Naming:** Franchise (ComboBox + auto-create modal, filtered to `franchise_type` including `Comic`), Series (ComboBox + auto-create modal), Comic Name EN (primary), then Comic Name CN / Alt — **EN leads**, the only entry type that does not lead with CN
 - **Titles & Naming (cont.):** Volume Label (free text, e.g. "Vol. 5 (2018)"), Comic Type dropdown
