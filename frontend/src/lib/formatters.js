@@ -24,7 +24,7 @@ export function getRatingWeight(rating) {
 export function getOptions(allOptions, category) {
   return allOptions
     .filter((o) => o.category === category)
-    .map((o) => o.option_value);
+    .map((o) => o.value);
 }
 
 export function formatLength(minutes) {

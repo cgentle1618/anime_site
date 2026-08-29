@@ -23,16 +23,28 @@ def _check_field_key(key: str) -> None:
 class SystemOptionBase(BaseModel):
     category: str
     value: str
+    sort_order: int = 0
+    remark: Optional[str] = None
 
 
 class SystemOptionCreate(SystemOptionBase):
-    pass
+    # Media type keys (hyphenated) this value is offered in. Empty = everywhere.
+    scopes: list[str] = []
 
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
+    scopes: list[str] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def _flatten_scopes(cls, v):
+        # ORM gives SystemOptionScope rows; the API contract is plain strings.
+        if v and not isinstance(v[0], str):
+            return [s.scope for s in v]
+        return v
 
 
 

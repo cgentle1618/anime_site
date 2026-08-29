@@ -6,9 +6,10 @@ Strictly handles database updates. Backups to Google Sheets are handled manually
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -32,6 +33,7 @@ router = APIRouter(prefix="/api/options", tags=["System Options"])
     summary="Get All System Options",
 )
 def get_all_system_options(
+    scope: Optional[str] = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -40,9 +42,22 @@ def get_all_system_options(
     Fetches all system options across all categories.
     Used by the frontend UI to populate all dropdowns dynamically at once.
     """
+    query = db.query(models.SystemOption)
+    if scope:
+        query = query.filter(
+            or_(
+                ~models.SystemOption.scopes.any(),
+                models.SystemOption.scopes.any(
+                    models.SystemOptionScope.scope == scope
+                ),
+            )
+        )
     options = (
-        db.query(models.SystemOption)
-        .order_by(models.SystemOption.category, models.SystemOption.value)
+        query.order_by(
+            models.SystemOption.category,
+            models.SystemOption.sort_order,
+            models.SystemOption.value,
+        )
         .limit(limit)
         .offset(offset)
         .all()
@@ -57,6 +72,7 @@ def get_all_system_options(
 )
 def get_system_options(
     category: str,
+    scope: Optional[str] = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -65,10 +81,18 @@ def get_system_options(
     Fetches a list of system options for a specific category (e.g., 'Studio', 'Genre Main').
     Used extensively by the frontend UI to populate dropdowns dynamically.
     """
+    query = db.query(models.SystemOption).filter(models.SystemOption.category == category)
+    if scope:
+        query = query.filter(
+            or_(
+                ~models.SystemOption.scopes.any(),
+                models.SystemOption.scopes.any(
+                    models.SystemOptionScope.scope == scope
+                ),
+            )
+        )
     options = (
-        db.query(models.SystemOption)
-        .filter(models.SystemOption.category == category)
-        .order_by(models.SystemOption.value)
+        query.order_by(models.SystemOption.sort_order, models.SystemOption.value)
         .limit(limit)
         .offset(offset)
         .all()
@@ -81,7 +105,7 @@ def get_system_options(
 # ==========================================
 
 
-@router.post("/", summary="Add System Option")
+@router.post("/", response_model=schemas.SystemOptionResponse, summary="Add System Option")
 def add_system_option(
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
@@ -104,15 +128,26 @@ def add_system_option(
         raise HTTPException(status_code=400, detail="This option already exists.")
 
     new_option = models.SystemOption(
-        category=payload.category, value=payload.value
+        category=payload.category,
+        value=payload.value,
+        sort_order=payload.sort_order,
+        remark=payload.remark,
     )
+    new_option.scopes = [
+        models.SystemOptionScope(scope=s) for s in payload.scopes
+    ]
     db.add(new_option)
     db.commit()
+    db.refresh(new_option)
 
-    return {"message": f"Option '{payload.value}' added successfully."}
+    return new_option
 
 
-@router.put("/{option_id}", summary="Update System Option")
+@router.put(
+    "/{option_id}",
+    response_model=schemas.SystemOptionResponse,
+    summary="Update System Option",
+)
 def update_system_option(
     option_id: UUID,
     payload: schemas.SystemOptionCreate,
@@ -147,9 +182,15 @@ def update_system_option(
 
     db_option.category = payload.category
     db_option.value = payload.value
+    db_option.sort_order = payload.sort_order
+    db_option.remark = payload.remark
+    db_option.scopes = [
+        models.SystemOptionScope(scope=s) for s in payload.scopes
+    ]
     db.commit()
+    db.refresh(db_option)
 
-    return {"message": "System option updated successfully."}
+    return db_option
 
 
 @router.delete("/{option_id}", dependencies=[Depends(get_current_admin)])
