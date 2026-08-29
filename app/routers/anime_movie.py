@@ -16,6 +16,7 @@ from app.database import get_taipei_now
 from app import models
 from app import schemas
 
+from app.services.domain.credits import attach_link_fields
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.domain import (
     apply_completion_timestamp,
@@ -78,6 +79,7 @@ def get_all_anime_movies(
         planned = planned_entry_ids(db, "anime-movie", kind)
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
+    attach_link_fields(db, "anime-movie", entries)
     return entries
 
 
@@ -95,6 +97,7 @@ def get_anime_movie_by_id(system_id: str, db: Session = Depends(get_db)):
     if not entry:
         raise HTTPException(status_code=404, detail="Anime Movie entry not found.")
     attach_plan_flag(db, "anime-movie", entry)
+    attach_link_fields(db, "anime-movie", entry)
     return entry
 
 
@@ -137,6 +140,7 @@ def create_anime_movie(
         db.commit()
         db.refresh(new_entry)
     attach_plan_flag(db, "anime-movie", new_entry)
+    attach_link_fields(db, "anime-movie", new_entry)
     return new_entry
 
 
@@ -178,6 +182,7 @@ def update_anime_movie(
     db.commit()
     db.refresh(entry)
     attach_plan_flag(db, "anime-movie", entry)
+    attach_link_fields(db, "anime-movie", entry)
     return entry
 
 
@@ -216,6 +221,7 @@ def patch_anime_movie(
     db.commit()
     db.refresh(entry)
     attach_plan_flag(db, "anime-movie", entry)
+    attach_link_fields(db, "anime-movie", entry)
     return entry
 
 
@@ -247,6 +253,7 @@ def complete_anime_movie_entry(
     db.commit()
     db.refresh(entry)
     attach_plan_flag(db, "anime-movie", entry)
+    attach_link_fields(db, "anime-movie", entry)
     return entry
 
 

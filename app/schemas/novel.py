@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.link_fields import NovelLinkFields
 
 
 class NovelBase(BaseModel):
@@ -78,7 +79,7 @@ class NovelUpdate(NovelBase):
     pass
 
 
-class NovelResponse(NovelBase):
+class NovelResponse(NovelBase, NovelLinkFields):
     system_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

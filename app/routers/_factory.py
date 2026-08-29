@@ -23,6 +23,7 @@ from app.services.domain.plan_next import (
     set_entry_flag,
     PLAN_FLAG_FIELDS,
 )
+from app.services.domain.credits import attach_link_fields
 from app.services.integrations.image_manager import delete_cover_image
 from app.utils.data_control_utils import log_deleted_record
 
@@ -67,12 +68,14 @@ def make_media_router(spec) -> APIRouter:
             planned = planned_entry_ids(db, spec.owner_type, kind)
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
+        attach_link_fields(db, spec.owner_type, entries)
         return entries
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
     def get_one(entry_id: str, db: Session = Depends(get_db)):
         entry = _get_or_404(db, entry_id)
         attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
         return entry
 
     # ------------------------------------------------------------------
@@ -108,6 +111,7 @@ def make_media_router(spec) -> APIRouter:
             db.commit()
             db.refresh(entry)
         attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
         return entry
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
@@ -138,6 +142,7 @@ def make_media_router(spec) -> APIRouter:
         await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
         db.refresh(entry)
         attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
         return entry
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
@@ -163,6 +168,7 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
         attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
         return entry
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
@@ -180,6 +186,7 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
         attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
         return entry
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")

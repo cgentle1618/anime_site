@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.link_fields import AnimeLinkFields
 
 
 class AnimeBase(BaseModel):
@@ -76,7 +77,7 @@ class AnimeUpdate(AnimeBase):
     pass
 
 
-class AnimeResponse(AnimeBase):
+class AnimeResponse(AnimeBase, AnimeLinkFields):
     system_id: UUID
     created_at: datetime
     updated_at: datetime

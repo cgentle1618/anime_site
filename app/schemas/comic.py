@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.link_fields import ComicLinkFields
 
 
 class ComicBase(BaseModel):
@@ -54,7 +55,7 @@ class ComicUpdate(ComicBase):
     pass
 
 
-class ComicResponse(ComicBase):
+class ComicResponse(ComicBase, ComicLinkFields):
     system_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

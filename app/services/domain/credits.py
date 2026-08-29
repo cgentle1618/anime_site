@@ -446,3 +446,152 @@ def verify_backfill_lossless(db: Session) -> dict:
         len(mismatches),
     )
     return {"checked": checked, "mismatches": mismatches}
+
+
+# ---------------------------------------------------------------------------
+# Read path: legacy-named, comma-joined link values on the entry payload.
+#
+# The public pages (detail, library, statistics, cards) render an entry from
+# ONE list or detail response. Before this redesign they read plain columns -
+# `anime.studio`, `comic.era`. Dropping those columns silently blanked every
+# one of those reads, because a missing attribute is not an error in JS.
+#
+# Rather than teach seventeen public pages to issue a second request per entry
+# (an N+1 on a library page listing hundreds of rows), the entry payload keeps
+# carrying those keys, now DERIVED from media_credit/media_tag instead of
+# stored. The names are the legacy ones on purpose - `sheet_column_for` already
+# owns that mapping for the Sheets export, the Add/Modify form state already
+# uses them, and reusing it keeps one vocabulary at the API edge instead of two.
+#
+# These are READ-ONLY: they live on the *Response schemas only, never on the
+# Create/Update bases, so a write that names them is still rejected rather
+# than silently stored. Writes go through PUT /api/credits.
+# ---------------------------------------------------------------------------
+
+
+def legacy_link_fields(media_type: str) -> tuple[tuple[str, str, str], ...]:
+    """
+    (payload attribute, kind, role/field key) for one media type.
+
+    kind is "credit" or "tag" - the two link tables are read separately.
+    """
+    out = [
+        (sheet_column_for(media_type, role.key), "credit", role.key)
+        for role in credit_roles_for(media_type)
+    ]
+    out += [
+        (sheet_column_for(media_type, field.key), "tag", field.key)
+        for field in tag_fields_for(media_type)
+    ]
+    return tuple(out)
+
+
+def link_values_for_entries(
+    db: Session, media_type: str, entry_ids: list[UUID]
+) -> dict[UUID, dict[str, list[str]]]:
+    """
+    Every credit and tag for a batch of entries, in a fixed number of queries.
+
+    Returns {entry_id: {role_or_field_key: [name, ...]}}. Five queries total
+    regardless of how many entries are passed - `credit_names`/`tag_values`
+    issue one query each and are fine for a single entry, but a list endpoint
+    calling them per row is the N+1 this function exists to avoid.
+    """
+    if not entry_ids:
+        return {}
+
+    out: dict[UUID, dict[str, list[str]]] = {eid: {} for eid in entry_ids}
+
+    credit_rows = (
+        db.query(models.MediaCredit)
+        .filter(
+            models.MediaCredit.media_type == media_type,
+            models.MediaCredit.entry_id.in_(entry_ids),
+        )
+        .order_by(models.MediaCredit.position)
+        .all()
+    )
+    tag_rows = (
+        db.query(models.MediaTag)
+        .filter(
+            models.MediaTag.media_type == media_type,
+            models.MediaTag.entry_id.in_(entry_ids),
+        )
+        .order_by(models.MediaTag.position)
+        .all()
+    )
+
+    person_ids = {r.person_id for r in credit_rows if r.person_id}
+    studio_ids = {r.studio_id for r in credit_rows if r.studio_id}
+    option_ids = {r.option_id for r in tag_rows}
+
+    people = (
+        {
+            p.system_id: p.name_native
+            for p in db.query(models.Person)
+            .filter(models.Person.system_id.in_(person_ids))
+            .all()
+        }
+        if person_ids
+        else {}
+    )
+    studios = (
+        {
+            s.system_id: s.name_native
+            for s in db.query(models.Studio)
+            .filter(models.Studio.system_id.in_(studio_ids))
+            .all()
+        }
+        if studio_ids
+        else {}
+    )
+    options = (
+        {
+            o.system_id: o.value
+            for o in db.query(models.SystemOption)
+            .filter(models.SystemOption.system_id.in_(option_ids))
+            .all()
+        }
+        if option_ids
+        else {}
+    )
+
+    for row in credit_rows:
+        name = people.get(row.person_id) if row.person_id else studios.get(row.studio_id)
+        if name is None or row.entry_id not in out:
+            continue
+        out[row.entry_id].setdefault(row.role, []).append(name)
+
+    for row in tag_rows:
+        value = options.get(row.option_id)
+        if value is None or row.entry_id not in out:
+            continue
+        out[row.entry_id].setdefault(row.field, []).append(value)
+
+    return out
+
+
+def attach_link_fields(db: Session, media_type: str, entries) -> None:
+    """
+    Set the legacy-named, comma-joined link attributes on ORM entries in place.
+
+    Mirrors how `attach_plan_flag` decorates an entry with a value that is not
+    a column of its own table; the response schema then reads it like any other
+    attribute. Accepts one entry or a sequence.
+    """
+    if entries is None:
+        return
+    rows = list(entries) if isinstance(entries, (list, tuple)) else [entries]
+    if not rows:
+        return
+
+    spec = legacy_link_fields(media_type)
+    if not spec:
+        return
+
+    values = link_values_for_entries(db, media_type, [e.system_id for e in rows])
+    for entry in rows:
+        per_entry = values.get(entry.system_id, {})
+        for attr, _kind, key in spec:
+            names = per_entry.get(key) or []
+            setattr(entry, attr, ", ".join(names) if names else None)

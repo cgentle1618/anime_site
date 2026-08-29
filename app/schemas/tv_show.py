@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.link_fields import TvShowLinkFields
 
 
 class TVShowBase(BaseModel):
@@ -52,7 +53,7 @@ class TVShowUpdate(TVShowBase):
     pass
 
 
-class TVShowResponse(TVShowBase):
+class TVShowResponse(TVShowBase, TvShowLinkFields):
     system_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

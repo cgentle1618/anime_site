@@ -66,7 +66,17 @@ export function buildAutofillPatch(source, type, fieldKeys, ctx = {}) {
       continue;
     }
     if (Array.isArray(meta.builtIn)) {
-      patch[key] = Array.isArray(value) ? value : [];
+      // Link-backed array fields (comic.events) arrive from the API as the
+      // comma-joined string the entry payload has always used, so split
+      // rather than discard - otherwise auto-fill silently copies nothing.
+      patch[key] = Array.isArray(value)
+        ? value
+        : typeof value === "string"
+          ? value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
       continue;
     }
     // Most fields blank out when the source has no value. A few are marked to

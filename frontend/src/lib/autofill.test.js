@@ -318,3 +318,31 @@ describe("buildAutofillPatch — collection lookup", () => {
     expect(patch).toEqual({ collection_id: null, collection_text: "" });
   });
 });
+
+describe("buildAutofillPatch — link-backed fields", () => {
+  it("splits a comma-joined link value into an array field", () => {
+    // comic.events holds an array in form state, but the entry payload serves
+    // it as the comma-joined string the dropped column always used. Passing
+    // the string through unchanged (or discarding it) copies nothing.
+    const patch = buildAutofillPatch({ events: "Civil War, Secret Wars" }, "comic", [
+      "events",
+    ], ctx);
+    expect(patch.events).toEqual(["Civil War", "Secret Wars"]);
+  });
+
+  it("leaves an array field empty when the source has no value", () => {
+    const patch = buildAutofillPatch({}, "comic", ["events"], ctx);
+    expect(patch.events).toEqual([]);
+  });
+
+  it("copies credit and tag fields, which are plain strings", () => {
+    const patch = buildAutofillPatch(
+      { studio: "MAPPA, WIT", genre_main: "Action" },
+      "anime",
+      ["studio", "genre_main"],
+      ctx,
+    );
+    expect(patch.studio).toBe("MAPPA, WIT");
+    expect(patch.genre_main).toBe("Action");
+  });
+});
