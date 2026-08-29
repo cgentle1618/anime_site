@@ -310,6 +310,7 @@ Spreadsheet is identified by `GOOGLE_SHEET_ID` env var. One tab per model:
 | `Novel`          | `Novel`        |
 | `Seasonal`       | `Seasonal`     |
 | `Media Relation` | `MediaRelation` |
+| `Plan Next`      | `PlanNext`     |
 
 Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pull operation.
 
@@ -317,6 +318,25 @@ Tabs are auto-created (1000 rows × 50 columns) if missing on first Backup or Pu
 and the watch-order tabs are: both of its endpoints are FK-less
 `(media_type, entry_id)` pairs, so on restore the rows they point at must
 already exist.
+
+`Plan Next` (backing `plan_next` — see database-schema.md and
+business-logic.md) is registered right after `Media Relation`, for the same
+reason: its target is an FK-less `(scope, media_type, target_id)` triple, so
+on restore the entry, series, or franchise it points at must already exist.
+In `execute_pull_all`'s strict tab order it sits directly after `Media
+Relation` and before `Quote`. Backup writes it with
+`bulk_overwrite_sheet("Plan Next", ...)` in `app/services/pipelines/backup.py`;
+Pull reads it via `parse_plan_next_from_sheet` in `app/utils/formatter.py`,
+registered in both `MODEL_MAP` and `PARSER_MAP` in
+`app/services/pipelines/pull.py`. An unparseable `target_id` cell becomes
+`None` rather than failing the Pull, the same treatment every other FK-less
+target gets — the row then shows up in the admin page as `missing: true`
+instead of the whole Pull failing.
+
+`size_group_derived` and `size_group_manual` do **not** get their own tab —
+they ride along as two extra JSONB columns on the existing `Franchise` and
+`Series` tabs, parsed with `_safe_json` the same way `type_covers` /
+`type_slots` are (see the must-parse-set note in business-logic.md).
 
 ### Backup Flow (DB → Sheets)
 

@@ -21,6 +21,8 @@
 - [Media Relation Table](#media-relation-table)
   - [watch_order_list](#watch_order_list)
   - [watch_order_item](#watch_order_item)
+- [Plan Next Table](#plan-next-table)
+  - [plan_next](#plan_next)
 - [Note Table](#note-table)
   - [note](#note)
 - [System & Configuration Tables](#system--configuration-tables)
@@ -120,7 +122,8 @@ Top-level media franchise entity. Groups related series and individual entries.
 | `type_slots`            | JSONB    | Yes      | —          | Dict mapping franchise type → slot (1–9) for 3x3 grids (e.g., `{"ACG": 3, "Movie": 5}`)                                                     |
 | `cover_entry_id`        | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover for the Franchise Library page; no FK constraint                                      |
 | `type_covers`           | JSONB    | Yes      | —          | Dict mapping franchise type string → entry UUID; used for per-type covers in 3x3 grids (e.g. `{"ACG": "<uuid>", "TV or Movie": "<uuid>"}` ) |
-| `watch_next_group`      | String   | Yes      | —          | `"12ep"`, `"24ep"`, `"30ep_plus"`, or null                                                                                                  |
+| `size_group_derived`    | JSONB    | Yes      | —          | Dict mapping hyphenated media type → size-bucket key, written by Calculate (`run_sync_size_groups`), e.g. `{"anime": "24ep", "tv-show": "2season"}`. See [Size Groups](options.md#size-groups). |
+| `size_group_manual`     | JSONB    | Yes      | —          | Same shape as `size_group_derived`, written only by the admin. Effective bucket for a type = the `size_group_manual` key if present, else `size_group_derived`. Two maps rather than one map plus an override flag, so Calculate can rewrite `size_group_derived` freely and never stomp a manual edit. Replaces the old single-value `watch_next_group` string, which could not vary per media type. |
 | `to_rewatch`            | Boolean  | Yes      | `False`    |                                                                                                                                             |
 | `created_at`            | DateTime | No       | Taipei now |                                                                                                                                             |
 | `updated_at`            | DateTime | No       | Taipei now | Auto-updated on save                                                                                                                        |
@@ -151,6 +154,8 @@ Optional intermediate grouping layer within a franchise.
 | `my_rating`            | String   | Yes      | —          | Personal rating (S/A+/A/B/C/D/E/F)                              |
 | `series_expectation`   | String   | Yes      | `"Low"`    | `"Highest"`, `"High"`, `"Medium"`, `"Low"`                      |
 | `cover_entry_id`       | UUID     | Yes      | —          | UUID of any entry (any type) to use as the main cover; no FK constraint |
+| `size_group_derived`   | JSONB    | Yes      | —          | Dict mapping hyphenated media type → size-bucket key, written by Calculate. Same shape and semantics as `franchise.size_group_derived`. See [Size Groups](options.md#size-groups). |
+| `size_group_manual`    | JSONB    | Yes      | —          | Admin override, same shape as `size_group_derived`; a present key wins over the derived one. |
 | `to_rewatch`           | Boolean  | Yes      | `False`    |                                                                 |
 | `created_at`           | DateTime | No       | Taipei now |                                                                 |
 | `updated_at`           | DateTime | No       | Taipei now | Auto-updated on save                                           |
@@ -380,7 +385,6 @@ Standalone anime movie entries (distinct from the `anime` table which covers ser
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -457,7 +461,6 @@ Live-action and animated movie entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -540,7 +543,6 @@ Live-action and scripted TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -624,7 +626,6 @@ Western animated TV show entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `watch_next`       | Boolean  | Yes      | —                                           |
 | `to_rewatch`       | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -724,7 +725,6 @@ Manga, manhwa, and manhua entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | `False`                                     |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -827,7 +827,6 @@ Light novel and book entries.
 
 | Column             | Type     | Nullable | Notes                                       |
 | ------------------ | -------- | -------- | ------------------------------------------- |
-| `read_next`        | Boolean  | Yes      | —                                           |
 | `to_reread`        | Boolean  | Yes      | —                                           |
 | `cover_image_file` | String   | Yes      | Filename in GCS bucket: `"<system_id>.jpg"` |
 | `completed_at`     | DateTime | Yes      | When entry was marked completed             |
@@ -925,8 +924,7 @@ Comic has exactly one progress mode — issues — so, unlike `manga` and
 
 | Column             | Type     | Nullable | Default | Notes                                                                                         |
 | ------------------ | -------- | -------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `read_next`        | Boolean  | Yes      | —       | **No UI yet** — plan pages were out of scope for this backend plan. Created now so adding them later needs no migration. |
-| `to_reread`        | Boolean  | Yes      | `false` | Same as `read_next` — **no UI yet**.                                                              |
+| `to_reread`        | Boolean  | Yes      | `false` | —                                                                                                   |
 | `cover_image_file` | String   | Yes      | —       | Filename in GCS bucket: `"<system_id>.jpg"`                                                       |
 | `completed_at`     | DateTime | Yes      | —       | When entry was marked completed                                                                   |
 | `created_at`       | DateTime | No       | —       | Auto-set on create                                                                                 |
@@ -1072,6 +1070,65 @@ at `GET /api/media-relation/kinds`, so the admin dropdown keeps no second copy.
 Relations are **hand-curated** on the `/relations` admin page. Nothing derives
 them: chaining a franchise by release order cannot tell a sequel from a side
 story.
+
+---
+
+## Plan Next Table
+
+### `plan_next`
+
+One row per thing queued to watch or read next, at entry, series or franchise
+scope. Replaces the `watch_next` / `read_next` booleans that used to live on
+`anime_movies`, `movies`, `tv_shows`, `cartoons`, `manga`, `novel` and `comic`,
+plus `franchise.watch_next_group`. Those could not represent a series at all
+(`series` is one table shared by every media type, so it would have needed one
+boolean column per type), could not bucket a franchise per media type, and
+left `anime` with no way to be marked at all.
+
+**The row's existence is the flag.** There is no `is_next` column;
+un-planning something deletes the row.
+
+| Column       | Type     | Nullable | Default    | Notes                                                                 |
+| ------------ | -------- | -------- | ---------- | ---------------------------------------------------------------------- |
+| `system_id`  | UUID     | No       | `uuid4()`  | Primary key, indexed                                                  |
+| `media_type` | String   | No       | —          | Hyphenated key: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`. Stored even for `scope='entry'` (technically derivable from which table holds the id) because it is the Plan page's tab discriminator, keeping one uniform key across all three scopes. |
+| `scope`      | String   | No       | —          | `entry` / `series` / `franchise`                                       |
+| `target_id`  | UUID     | No       | —          | Entry id, `series.system_id`, or `franchise.system_id` — **no FK**    |
+| `remark`     | Text     | Yes      | —          | Free text scoping the plan, e.g. "after the movie"                    |
+| `created_at` | DateTime | Yes      | Taipei now |                                                                        |
+| `updated_at` | DateTime | Yes      | Taipei now | Auto-updated on save                                                  |
+
+**Constraints and indexes**
+
+- `uq_plan_next_target` — unique on (`scope`, `target_id`, `media_type`). A
+  franchise may legitimately appear twice — once per media type — for a
+  franchise holding both anime and TV show entries; the constraint permits
+  this deliberately rather than silently collapsing mixed-type franchises.
+- `ix_plan_next_type_scope` on (`media_type`, `scope`) — the Plan page reads
+  one tab at a time.
+- No foreign key, by necessity: no single FK spans the eight entry tables plus
+  `series` and `franchise`. The target is the same FK-less `(scope,
+  media_type, target_id)` contract `media_relation` and `watch_order_item`
+  already use, resolved at read time through `OWNER_TABLES` in
+  `app/utils/media_resolver.py`. A deleted target reads as `missing: true`
+  rather than vanishing, so a dangling row stays visible and fixable in the
+  admin UI instead of disappearing.
+
+**`plan_next` rows do not cascade.** Deleting a franchise, series, or entry
+does not remove the rows that point at it — every delete path must call
+`delete_plans_for(db, scope, target_id)` explicitly (see business-logic.md),
+the same obligation `media_relation` already carries.
+
+**`plan_next` is the single source of truth for planning state.** The
+`watch_next` / `read_next` fields still appear on the entry create/update/read
+API schemas, but they are **not columns** — they are a virtual compatibility
+surface backed entirely by `plan_next` rows (`pop_plan_flag` on write,
+`attach_plan_flag` on read; see `app/services/domain/plan_next.py`). Unlike
+`remark`, which is exposed via an automatic `column_property`, this surface
+requires every read call site to remember to call `attach_plan_flag` — a new
+read path that omits it will silently report `watch_next`/`read_next` as
+missing rather than erroring. `anime` gained a `watch_next` field for the
+first time this way; it has never had a stored boolean column for it.
 
 ---
 

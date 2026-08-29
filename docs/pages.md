@@ -558,9 +558,9 @@ orders, an "Open full page" link to `/watch-order/:id`, and, for admins, an
    - Franchise type badge (raw `franchise_type` string)
    - Main title: Franchise Name CN (fallback: EN → Alt → Roman → JP)
    - Sub-titles: EN / JP / Romaji / Alt — each hidden if same as main title
-   - Badges: My Rating, Franchise Expectation, Watch Next Group (ACG only), To Rewatch (ACG only), parent Collection (links to `/collection/:id`, shown only when `collection_id` is set), Total Entries count
+   - Badges: My Rating, Franchise Expectation, one "Plan Next: {media type} ({bucket label})" badge per media type currently planned at franchise scope (any of `anime` / `movie` / `tv-show` / `cartoon` — whichever the franchise has planned; label is the effective size bucket, manual override winning over derived), To Rewatch (ACG only), parent Collection (links to `/collection/:id`, shown only when `collection_id` is set), Total Entries count
    - Completion block: `completed / total` across all entry types; watchable entries (anime, anime movies, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) uses `reading_status === "Completed"`
-   - Admin controls: Overall Rating select, Expectation select, Watch Next Group select (ACG only), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id`
+   - Admin controls: Overall Rating select, Expectation select, a "Plan Next" block (`SizeGroupControls`) with one checkbox + bucket-override dropdown per applicable media type — toggling the checkbox creates/deletes a franchise-scope `plan_next` row via `POST` / `DELETE /api/plan-next/target`, and the dropdown writes `size_group_manual[type]` via `PATCH /api/franchise/:system_id` (blank = "use derived", shown as the placeholder), To Rewatch checkbox (ACG only) — all save via `PATCH /api/franchise/:system_id` except the plan toggle
    - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur via `PATCH /api/franchise/:system_id`); hidden for guests when empty. When the text overflows the three rows a "Show all" button opens `RemarkModal`. Same treatment as the Collection Hub.
 4. Series card: clickable series name badges — links to `/series/:system_id`
 5. Tab bar, in two labelled groups (see below)
@@ -671,7 +671,10 @@ Six entry lists, not seven: `anime_movies` has no `series_id` column, so an anim
    - Completion block: `completed / total` across all six entry types; watchable entries (anime, movies, TV shows, cartoons) use `watching_status === "Completed"`; readable entries (manga, novel) use `reading_status === "Completed"`
    - Admin controls: Overall Rating select, Expectation select, To Rewatch checkbox — all save via `PATCH /api/series/:system_id`
    - Remark: 3-row textarea at the bottom of the hero (admin editable, saves on blur); hidden for guests when empty. A "Show all" button opens `RemarkModal` when the text overflows the three rows. Same treatment as the Franchise Hub.
-   - No Watch Next Group control — that column does not exist on `series`.
+   - No Plan Next / size-bucket control on this page — `series` does carry
+     `size_group_derived` / `size_group_manual` and can be planned at series
+     scope, but that control lives only on the Series Modify tab
+     (`SeriesModifyTab.jsx`), not on this detail page.
 4. Tab bar, in two labelled groups (see below)
 5. Tab content sections (one rendered at a time)
 
@@ -1020,9 +1023,10 @@ Admin: `PATCH /api/seasonal/:id` for rating; `PATCH /api/anime/:id` for episode 
 
 Planning dashboard for tracking what to watch or read next.
 
-**Data loaded:**
+**Data loaded** (via `usePlanData.js`, ten endpoints in one `Promise.all`):
 
 - `GET /api/franchise/`
+- `GET /api/series/`
 - `GET /api/anime/`
 - `GET /api/anime-movie/`
 - `GET /api/movies/`
@@ -1030,18 +1034,39 @@ Planning dashboard for tracking what to watch or read next.
 - `GET /api/cartoon/`
 - `GET /api/manga/`
 - `GET /api/novel/`
+- `GET /api/comic/`
+- `GET /api/plan-next/`
 
 **Sections:**
 
-1. **Watch Next** (`frontend/src/pages/plan/PlanWatchNext.jsx`) — tabbed franchise/entry grid:
-   - Anime tab: grouped by 12ep / 24ep / 30ep+; shows poster, Franchise Name CN with fallback, Franchise Expectation
-   - Anime Movie tab: grouped by 吉卜力 / 新海誠 / 原創動畫電影 / 改編動畫電影 / 其他; shows poster, Anime Movie Name CN with fallback
-   - Movie tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, Movie Name CN with fallback
-   - TV Show tab: grouped by Franchise with the order of Disney, Marvel, all other franchises; shows poster, TV Show Name CN with fallback
-   - Cartoon tab: grouped by Official Source (Cartoon Network, Disney, Nickelodeon, Adult Swim, FOX, HBO, Comedy Central, Other); shows poster, Cartoon Name CN with fallback
-   - Manga tab: grouped by Serialization Status (完結, 連載中, 腰斬, 停更, null); shows poster, Manga Name CN with fallback
-   - Novel tab: grouped by Serialization Status (完結, 連載中, 連載中 (不穩定) & 連載中 (有生之年), 其他); shows poster, Novel Name CN with fallback
-   - Note: Anime tab uses franchise entries; other media types use the media entry directly
+1. **Watch Next** (`frontend/src/pages/plan/PlanWatchNext.jsx`) — rewritten
+   from seven near-identical hardcoded blocks (~695 lines) to one config-driven
+   render path (~90 lines) reading `plan_next` rows through `usePlanData.js`:
+   - **Eight tabs**, driven by `PLAN_TABS` in `frontend/src/config/planNextGroups.js`:
+     Anime, Anime Movie, Movie, TV Show, Cartoon, **Comic** (new — the page had
+     no comic tab before this rewrite), Manga, Novel.
+   - Rows for the active tab are every `plan_next` row of that `media_type`
+     (any scope), sorted by the resolved target's `expectation`
+     (`EXPECTATION_WEIGHT`: Highest → High → Medium → Low).
+   - Within a tab, rows are grouped by **effective size bucket** (see
+     Size Groups in options.md / `derive_size_groups` in business-logic.md),
+     via `groupByBucket` / `entryBucket` in `frontend/src/utils/planNext.js`;
+     an entry's bucket resolves through its series, falling back to its
+     franchise, except a comic entry, which buckets on its **own**
+     `issue_total`. Buckets render in vocabulary order, followed by an
+     **Ungrouped** section for anything unbucketable (`anime-movie` / `manga`
+     / `novel`, which have no bucket vocabulary at all, and anything else with
+     no resolvable bucket).
+   - Cards (`PlanNextCard.jsx`) keep the same look for entry-scope rows.
+     Franchise- and series-scope rows carry an explicit tier badge ("Series" /
+     "Franchise") in the corner, so the three scopes are distinguishable now
+     that they can sit in the same bucket. A row whose target was deleted
+     renders as a "Missing {scope} · {id}" placeholder instead of vanishing.
+   - Franchise/series cover resolution happens in `usePlanData.js`, not the
+     card: `getCoverForSlot` for a franchise (the same helper the Statistics
+     page uses), and a series-only fallback (`resolveSeriesCoverUrl`) that
+     tries `cover_entry_id` among the series' member entries, then the first
+     member entry with a usable cover.
 
 2. **To Rewatch** (`frontend/src/pages/plan/PlanToRewatch.jsx`) — tabbed grid:
    - Anime tab: sorted by Franchise Name EN; shows poster, Franchise Name CN with fallback, Franchise Rating
@@ -1492,8 +1517,11 @@ Includes auto-fill from existing entry search bar (searches Comic Name EN/CN/Alt
 > Statistics and Completions tabs, in the meme and quote owner pickers, and in
 > the Review Queue's remarks tabs.
 >
-> Still absent by decision: the plan pages. `comic.read_next` and
-> `comic.to_reread` exist as columns with no UI behind them.
+> Comic now has a Plan page tab too — see Plan below. `comic.read_next` is no
+> longer a column at all; it survives only as a virtual API field backed by
+> `plan_next` rows (see database-schema.md and business-logic.md).
+> `comic.to_reread` remains a real, unused column with no UI behind it —
+> `to_rewatch` / `to_reread` were deliberately left untouched by this work.
 
 - **Titles & Naming:** Franchise (ComboBox + auto-create modal, filtered to `franchise_type` including `Comic`), Series (ComboBox + auto-create modal), Comic Name EN (primary), then Comic Name CN / Alt — **EN leads**, the only entry type that does not lead with CN
 - **Titles & Naming (cont.):** Volume Label (free text, e.g. "Vol. 5 (2018)"), Comic Type dropdown

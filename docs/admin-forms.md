@@ -652,6 +652,24 @@ form) and is excluded from `FORM_TABS`, so it never appears on `/defaults`.
 ### Modify Franchise Entry Form
 
 - On submit: update all fields and refresh `updated_at`.
+- **Plan Next block** (`SizeGroupControls`, shared with the Franchise detail
+  page — see pages.md): one row per media type currently allowed at franchise
+  scope (`anime`, `movie`, `tv-show`, `cartoon` — see the Size Groups scope
+  table in options.md), pre-seeded from whatever keys already appear in
+  `size_group_derived` / `size_group_manual`, defaulting to just `anime` when
+  neither map has anything yet. Each row is a **plan checkbox** — checking it fires immediately: a `POST` of
+  `{scope: "franchise", media_type, target_id}` to `/api/plan-next/`,
+  unchecking a `DELETE` via `/api/plan-next/target` — and a
+  **bucket-override dropdown** that sets `size_group_manual[type]` on the
+  in-progress form state, saved along with the rest of the form on submit
+  (`PATCH /api/franchise/{id}`). The blank option means "use derived" and
+  shows the current derived value as its label, so the effective bucket is
+  always visible. Replaces the old single hardcoded
+  `12ep`/`24ep`/`30ep_plus` `<select>` bound to `watch_next_group`, which only
+  ever worked for ACG franchises. The Franchise detail page's inline edit
+  block (see pages.md) reuses the same `SizeGroupControls` component, but
+  there the bucket override also saves immediately via `PATCH`, since that
+  page has no separate submit step.
 
 ---
 
@@ -665,6 +683,14 @@ Same three sections as the Add tab, plus a Main Cover control:
 - The Franchise field supports searching existing franchises of any type (ACG, Movie, TV, Cartoon) or typing a new name.
 - A franchise must be chosen before the form can be submitted.
 - **Main Cover** appears here, not on Add, because only an existing series has entries to choose from. The dropdown builds a combined list from `allAnime` / `allMovies` / `allTvShows` / `allCartoons` / `allMangas` / `allNovels` / `allComics`, filtered to `series_id === editingItem.system_id`, tagged with `_type`, sorted newest-first. `allAnimeMovies` is excluded — `anime_movies` has no `series_id` column, so no anime movie can ever belong to a series. Blank option is `— Auto (latest with cover) —`.
+- **Plan Next block** (`SizeGroupControls`), same shape and behavior as on the
+  Modify Franchise tab: one row per media type allowed at series scope
+  (`anime`, `movie`, `tv-show`, `cartoon`, `comic`), a plan checkbox that
+  `POST`s/`DELETE`s a `{scope: "series", media_type, target_id}` `plan_next`
+  row immediately, and a bucket-override dropdown that stages
+  `size_group_manual[type]` for the next `PATCH /api/series/{id}`. Series has
+  no analogue of the Franchise detail page's inline editor, so this Modify
+  tab is the only place a series' plan state and bucket override can be set.
 - On submit: update all fields and refresh `updated_at`.
 
 ---

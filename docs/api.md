@@ -26,6 +26,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Comic — `/api/comic`](#comic--apicomic)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
+- [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Options — `/api/options`](#options--apioptions)
@@ -385,6 +386,56 @@ scope (`in_scope: false`); a ghost whose row no longer exists also carries
 the stored `media_relation` rows, with `from`/`to` as the same node keys and
 both `label` and `inverse_label` carried along so the canvas can label an edge
 from either end without a second copy of the kind vocabulary.
+
+---
+
+## Plan Next — `/api/plan-next`
+
+What is queued to watch or read, at entry, series, or franchise scope.
+Reads are public (planning state is ordinary catalogue data); every write is
+admin-only, matching media relations and watch orders. Replaces the
+`watch_next` / `read_next` booleans and `franchise.watch_next_group` — see
+database-schema.md and business-logic.md.
+
+| Method   | Path                                    | Auth   | Description                                                                                                     |
+| -------- | ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/kinds`                                 | Public | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `allowed_scopes` (per media type), `size_groups` (per media type, `{key, label}` list). |
+| `GET`    | `/?media_type=&scope=`                   | Public | Every row, each resolved to its target's display data. Both filters optional; one call feeds the whole Plan page. |
+| `POST`   | `/`                                      | Admin  | Create one row. `404` if the target does not exist, `400` if the media type may not be planned at that scope, `409` if the `(scope, target_id, media_type)` triple already exists. |
+| `DELETE` | `/target?scope=&media_type=&target_id=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. `404` if not planned.          |
+| `DELETE` | `/{system_id}`                           | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
+
+**Create body**
+
+```json
+{
+  "media_type": "anime",
+  "scope": "series",
+  "target_id": "…",
+  "remark": null
+}
+```
+
+**Read response** — each row resolves its target through the same
+`OWNER_TABLES` map `media_relation` and `watch_order_item` use:
+
+```json
+{
+  "system_id": "…", "media_type": "anime", "scope": "series", "target_id": "…",
+  "remark": null, "created_at": "…", "updated_at": "…",
+  "missing": false, "display_name": "…", "label": "…", "is_tier": true,
+  "cover_image_file": null, "nav_path": "/series", "expectation": "High"
+}
+```
+
+A deleted target resolves as `missing: true` rather than the row vanishing,
+since the target carries no foreign key. `expectation` is read off whichever
+of `franchise_expectation` / `series_expectation` / `expectation` the target
+actually has, so the Plan page can sort every scope by the same field.
+
+**Entry-level `watch_next` / `read_next` are not endpoints of their own.**
+They ride along on the existing entry endpoints (`/api/anime`, `/api/manga`,
+etc.) as virtual fields backed by `plan_next` rows — see business-logic.md.
 
 ---
 

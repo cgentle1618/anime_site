@@ -24,6 +24,7 @@ Fields marked _(future)_ are planned but not yet in the database schema.
 - [Region (Manga)](#region-manga)
 - [Serialization Status](#serialization-status)
 - [Watch Order Step Importance](#watch-order-step-importance)
+- [Size Groups](#size-groups)
 - [Note Section Kinds](#note-section-kinds)
 - [Franchise — Special Entries](#franchise--special-entries)
 - [Fields to Fill by Entry Type](#fields-to-fill-by-entry-type)
@@ -411,6 +412,63 @@ naming the neighbour the chain arrived through; the card renders that as
 "· via <name>". `GET /graph` keeps returning stored rows alone, so the
 relations canvas stays a few lines rather than a mesh of n(n-1)/2 saying one
 thing.
+
+---
+
+## Size Groups
+
+The vocabulary of `franchise.size_group_derived` / `size_group_manual` /
+`series.size_group_derived` / `size_group_manual` (bucket keys) and of
+`plan_next.scope` (planning scopes), defined in
+`app/utils/plan_next_kinds.py` and served at `GET /api/plan-next/kinds`, so the
+admin dropdowns and the Plan page tabs keep no second copy. Mirrored for the
+frontend in `frontend/src/config/planNextGroups.js`.
+
+A bucket is a standing property of a franchise or series — "2 Seasons" whether
+or not anything is currently queued — not a property of a `plan_next` row. See
+business-logic.md for how a bucket is derived and how an entry inherits one.
+
+**Scopes** (`plan_next.scope`): `entry`, `series`, `franchise`.
+
+**Scope permissions** — which scopes each media type may be planned at. Entry
+is universal; the two grouping tiers are opt-in because anime movies, manga
+and novels are tracked one entry at a time, and comic has no franchise-level
+planning:
+
+| Media type    | Entry | Series | Franchise |
+| ------------- | :---: | :----: | :-------: |
+| `anime`       | yes   | yes    | yes       |
+| `movie`       | yes   | yes    | yes       |
+| `tv-show`     | yes   | yes    | yes       |
+| `cartoon`     | yes   | yes    | yes       |
+| `comic`       | yes   | yes    | —         |
+| `anime-movie` | yes   | —      | —         |
+| `manga`       | yes   | —      | —         |
+| `novel`       | yes   | —      | —         |
+
+**Bucket vocabularies.** Keys are hyphenated media types, matching
+`app/utils/media_resolver.py`. `anime-movie`, `manga` and `novel` have **no**
+vocabulary — entry scope only, so no bucket ever applies to them.
+
+| Media type          | Key            | Label          |
+| ------------------- | -------------- | -------------- |
+| `anime`              | `12ep`         | 12 EP          |
+| `anime`              | `24ep`         | 24 EP          |
+| `anime`              | `30ep_plus`    | 30+ EP         |
+| `tv-show`, `cartoon` | `1season`      | 1 Season       |
+| `tv-show`, `cartoon` | `2season`      | 2 Seasons      |
+| `tv-show`, `cartoon` | `3season_plus` | 3+ Seasons     |
+| `movie`              | `standalone`   | Standalone     |
+| `movie`              | `2_3movies`    | 2-3 Movies     |
+| `movie`              | `4movies_plus` | 4+ Movies      |
+| `comic`              | `1_3`          | 1-3 Issues     |
+| `comic`              | `4_10`         | 4-10 Issues    |
+| `comic`              | `11_plus`      | 11+ Issues     |
+
+The `anime` vocabulary existed before this table (as the now-removed
+`franchise.watch_next_group` string) but was hardcoded across three frontend
+files and undocumented; all four vocabularies now live in one backend module
+and one frontend module, and here.
 
 ---
 

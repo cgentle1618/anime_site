@@ -583,6 +583,7 @@ Calls `derive_ep_previous_all_anime(db)`. Was `run_derive_related`.
 5. `run_sync_manga(db)`
 6. `run_sync_novel(db)`
 7. `run_sync_comic(db)`
+8. `run_sync_size_groups(db)`
 
 ---
 
@@ -627,6 +628,59 @@ Calls `derive_ep_previous_all_anime(db)`. Was `run_derive_related`.
 ### Sync — `run_sync_comic(db)`
 
 1. `extract_system_options_from_comic`
+
+---
+
+### Sync — `run_sync_size_groups(db)` (`derive_size_groups`)
+
+Rewrites `size_group_derived` on **every** franchise and series. Never reads
+or writes `size_group_manual`, which is what lets an admin override survive
+every Calculate run.
+
+For each franchise and series, and for each of the five bucketed media types
+(`anime`, `tv-show`, `cartoon`, `movie`, `comic`), the group's entries of that
+type are measured and mapped to a bucket key:
+
+| Media type            | Measure                          | `12ep` / `1season` / `standalone` / `1_3` | middle band | `30ep_plus` / `3season_plus` / `4movies_plus` / `11_plus` |
+| ---------------------- | --------------------------------- | :---: | :---: | :---: |
+| `anime`                | sum of `ep_total`                 | ≤ 12  | 13–24 | ≥ 25  |
+| `tv-show`, `cartoon`   | count of entries                  | 1     | 2     | ≥ 3   |
+| `movie`                | count of entries                  | 1     | 2–3   | ≥ 4   |
+| `comic`                | sum of `issue_total` — **series only** | ≤ 3   | 4–10  | ≥ 11  |
+| `anime-movie`, `manga`, `novel` | not derived — no bucket vocabulary applies |  |  |  |
+
+- A null count contributes `0` to a sum and still counts toward an entry
+  count.
+- A group with **no** entries of a given type gets **no key** for that type
+  in `size_group_derived` — the map is sparse, not zero-filled.
+- Comic derives **franchise-level nothing**: no franchise-scope comic bucket
+  is ever written, because comic has no franchise scope (see the Size Groups
+  scope table in options.md) and comic entries bucket on their own
+  `issue_total` rather than inheriting, so a franchise-level value would never
+  be read.
+- The `anime` rule sums rather than counting or maxing: a series made of two
+  12-episode seasons reads as `24ep`, matching how the commitment is actually
+  planned.
+
+**Manual overrides.** The effective bucket for a group and media type is
+`size_group_manual[type]` if that key is present, else `size_group_derived[type]`,
+else none. Two JSONB maps rather than one map plus an "is overridden" flag, so
+Calculate can rewrite `size_group_derived` freely every run and never clobber
+a hand-set `size_group_manual` value; clearing an override is just removing
+its key from `size_group_manual`.
+
+**Entry bucket resolution.** An entry's bucket is never stored — it is
+resolved at display/read time, not derived by Calculate:
+
+- **Comic is the sole exception to inheritance.** A comic entry buckets on
+  its **own** `issue_total`, ignoring whatever its series or franchise says.
+- **Every other entry** reads its `series_id`'s effective bucket, falling
+  back to its `franchise_id`'s effective bucket, falling back to none.
+
+Pure arithmetic lives in `app/services/domain/size_group.py`
+(`bucket_for`, `effective_bucket`, `entry_bucket`); the Calculate sweep itself
+is `derive_size_groups` in `app/services/domain/plan_next.py`, called from the
+end of `run_sync`.
 
 ---
 
@@ -911,6 +965,58 @@ that replaced the derivation are normalization rules, applied on write:
   constraints so a bad payload never surfaces as a 500.
 
 See `docs/database-schema.md` for the eight stored kinds and their inverses.
+
+---
+
+### Plan Next — the row is the flag, and does not cascade
+
+`plan_next` (see database-schema.md) replaces the old `watch_next` /
+`read_next` booleans and `franchise.watch_next_group`. There is no `is_next`
+column: a row's existence **is** the flag, so "un-planning" something is a
+delete, not an update.
+
+**Entry-level `watch_next` / `read_next` are a virtual compatibility surface,
+not columns.** They still appear on the seven affected entry schemas'
+create/update/read models (plus `anime`, which never had a stored column for
+this and gains the field for the first time here), backed entirely by
+`plan_next` rows via `app/services/domain/plan_next.py`:
+
+- `pop_plan_flag(media_type, data)` — splits the flag out of a write payload,
+  shaped exactly like `pop_remark`. Its third return value distinguishes "the
+  caller never mentioned the flag" (PATCH: leave the `plan_next` row alone)
+  from "the caller sent `false`" (delete the row).
+- `set_entry_flag(db, media_type, entry_id, planned)` — upserts or deletes the
+  entry-scope row.
+- `attach_plan_flag(db, media_type, entry)` — sets the flag as a plain
+  instance attribute on an ORM object **before** it is serialized, so the
+  response schema has something to read.
+- `planned_entry_ids(db, media_type)` — every queued entry id of one type, for
+  list endpoints that need to flag many rows without one query each.
+
+**This is the one detail that differs from `remark`.** `remark` is exposed via
+an automatic SQLAlchemy `column_property`, so every read path gets it for
+free. `attach_plan_flag` is manual — it has to be called at every read call
+site that returns one of these seven entry types (or `anime`). A future new
+read path that forgets the call does not error; it silently reports
+`watch_next` / `read_next` as `false`/missing.
+
+**`plan_next` rows do not cascade.** The target is the same FK-less `(scope,
+media_type, target_id)` contract `media_relation` uses, so deleting an entry,
+series, or franchise leaves any `plan_next` row pointing at it dangling unless
+something removes it explicitly. `delete_plans_for(db, scope, target_id)`
+is that cleanup, and — the same obligation `media_relation`'s delete cleanup
+already carries — **every** delete path must call it:
+
+- Each of the seven entry-type delete routes and the shared `_factory.py`
+  delete path call `delete_plans_for(db, "entry", entry.system_id)`.
+- `franchise` delete calls `delete_plans_for(db, "franchise", franchise.system_id)`.
+- `series` delete calls `delete_plans_for(db, "series", series.system_id)`.
+
+A row whose target was deleted without going through one of these paths (or
+before this feature existed) is not silently dropped: `GET /api/plan-next/`
+resolves each row's target through `OWNER_TABLES` and reports `missing: true`
+when it is gone, the same treatment `media_relation` and `watch_order_item`
+give a dangling reference.
 
 ---
 
@@ -1545,7 +1651,7 @@ Core type converter. Returns `None` for empty/whitespace strings.
 
 `_uuid_or_none` is used for plain UUID pointer columns that have **no** name-resolution step (`franchise.cover_entry_id`, `collection.cover_franchise_id`). `parse_from_sheet(..., UUID)` deliberately returns the raw *string* for an invalid UUID so the service layer can resolve names; for these columns that string would reach the database and raise, so it is coerced to `None`.
 
-> **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five are now parsed (`_safe_json` for the two JSONB fields).
+> **Fixed:** `parse_franchise_from_sheet` previously omitted `cover_entry_id`, `type_covers`, `type_slots`, `watch_next_group`, and `to_rewatch`, so every Pull of the Franchise tab silently wiped those five columns. All five are now parsed (`_safe_json` for the two JSONB fields). `watch_next_group` was later dropped from the schema entirely (see Plan Next below); `size_group_derived` and `size_group_manual` are the two JSONB fields that replaced it, and they joined this same must-parse set — on **both** the Franchise tab (`parse_franchise_from_sheet`) and the Series tab (`parse_series_from_sheet`), since both grouping tiers carry the two columns. Missing either on either tab would silently wipe it on the next Pull, exactly like the original bug.
 
 **`parse_movie_from_sheet`**: Foreign keys (`franchise_id`, `series_id`) parsed as `UUID` — string names are resolved to UUIDs by `execute_pull_specific`. `imdb_id` parsed as `int`.
 
