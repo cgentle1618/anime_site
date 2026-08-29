@@ -48,6 +48,7 @@ from app.routers import (
     form_defaults,
     person,
     studio,
+    credits,
 )
 from app.services.security import get_password_hash
 
@@ -171,6 +172,7 @@ app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
 app.include_router(studio.router)
+app.include_router(credits.router)
 
 
 # ==========================================
