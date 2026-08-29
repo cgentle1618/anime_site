@@ -525,6 +525,21 @@ export default function AnimeAddTab({
           </label>
         </Field>
       </div>
+      <div className="flex flex-wrap gap-6 mt-2">
+        <Field label="Watch Next">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!af.watch_next}
+              onChange={(e) => ua("watch_next", e.target.checked)}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Add to Watch Next list
+            </span>
+          </label>
+        </Field>
+      </div>
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

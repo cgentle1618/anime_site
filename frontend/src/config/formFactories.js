@@ -57,6 +57,7 @@ export const defaultAnime = () => ({
   source_netflix: "",
   source_other: [],
   seiyuu: "",
+  watch_next: false,
   cover_image_file: "",
   remark: "",
 });
