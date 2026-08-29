@@ -18,6 +18,7 @@ from app import database
 from app.config import settings
 from app.database import engine
 from app import models
+from app.schema_guard import ensure_schema
 
 from app.routers import (
     auth,
@@ -58,7 +59,7 @@ os.makedirs("static/covers", exist_ok=True)
 # so the frontend hides image controls off localhost.
 os.makedirs("static/quotes", exist_ok=True)
 
-models.Base.metadata.create_all(bind=engine)
+ensure_schema(engine)
 
 
 @asynccontextmanager
