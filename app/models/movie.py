@@ -61,7 +61,6 @@ class Movies(Base, NameFallbackMixin):
     length_min = Column(Integer, nullable=True)
     release_date_usa = Column(String, nullable=True)
     release_date_tw = Column(String, nullable=True)
-    director = Column(String, nullable=True)
 
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)

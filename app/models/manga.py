@@ -76,13 +76,10 @@ class Manga(Base, NameFallbackMixin):
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
 
-    author_plot = Column(String, nullable=True)
-    author_draw = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
     serialization_platform = Column(String, nullable=True)
-    publisher_tw = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)

@@ -35,13 +35,10 @@ class MangaBase(BaseModel):
     mal_rank: Optional[str] = None
     anilist_rating: Optional[str] = None
 
-    author_plot: Optional[str] = None
-    author_draw: Optional[str] = None
     release_date: Optional[str] = None
     end_date: Optional[str] = None
     anime_studio: Optional[str] = None
     serialization_platform: Optional[str] = None
-    publisher_tw: Optional[str] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None

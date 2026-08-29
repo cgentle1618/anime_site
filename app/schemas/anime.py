@@ -48,14 +48,6 @@ class AnimeBase(BaseModel):
     broadcast_time: Optional[time] = None
     my_watch_day: Optional[str] = None
 
-    studio: Optional[str] = None
-    director: Optional[str] = None
-    producer: Optional[str] = None
-    music: Optional[str] = None
-    distributor_tw: Optional[str] = None
-    genre_main: Optional[str] = None
-    genre_sub: Optional[str] = None
-
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
     anilist_link: Optional[str] = None

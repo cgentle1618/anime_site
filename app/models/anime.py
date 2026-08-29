@@ -83,14 +83,6 @@ class Anime(Base, NameFallbackMixin):
     broadcast_time = Column(Time, nullable=True)
     my_watch_day = Column(String, nullable=True)
 
-    studio = Column(String, nullable=True)
-    director = Column(String, nullable=True)
-    producer = Column(String, nullable=True)
-    music = Column(String, nullable=True)
-    distributor_tw = Column(String, nullable=True)
-    genre_main = Column(String, nullable=True)
-    genre_sub = Column(String, nullable=True)
-
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)

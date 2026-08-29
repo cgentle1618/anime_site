@@ -48,7 +48,6 @@ class Cartoon(Base, NameFallbackMixin):
     cartoon_name_alt = Column(String, nullable=True)
 
     season_part = Column(String, nullable=True)
-    source_official = Column(String, nullable=True)
     airing_type = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
     watching_status = Column(String, nullable=False, default="Might Watch")

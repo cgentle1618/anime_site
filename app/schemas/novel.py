@@ -49,11 +49,8 @@ class NovelBase(BaseModel):
     mal_rank: Optional[str] = None
     anilist_rating: Optional[str] = None
 
-    author: Optional[str] = None
-    illustrator: Optional[str] = None
     release_date: Optional[str] = None
     end_date: Optional[str] = None
-    publisher_tw: Optional[str] = None
 
     is_main_entry: Optional[bool] = None
     read_order: Optional[float] = None

@@ -15,6 +15,7 @@ import logging
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models
@@ -325,3 +326,88 @@ def backfill_credits(db: Session) -> dict:
         len(unplaced),
     )
     return report
+
+
+def _legacy_column_exists(db: Session, table_name: str, column: str) -> bool:
+    """
+    Whether a legacy string column is still physically present.
+
+    Checked via information_schema rather than the ORM model, because Task 10
+    deletes the Column(...) definitions in the same commit that adds this
+    check - by the time this module is imported, the model classes no longer
+    expose these attributes even when the database still carries the column
+    (true for every real run of the drop migration, which checks before it
+    drops). A missing column is treated as nothing to verify, not a failure.
+    """
+    row = db.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :t AND column_name = :c"
+        ),
+        {"t": table_name, "c": column},
+    ).first()
+    return row is not None
+
+
+def verify_backfill_lossless(db: Session) -> dict:
+    """
+    Prove the link tables already hold every name a legacy column has, before
+    Task 10's migration drops that column for good.
+
+    For each (media_type, column) in BACKFILL_MAP: read the legacy column's
+    raw values straight from the database (not through the ORM - see
+    `_legacy_column_exists`), rebuild what the link tables say for that
+    role/field via `credit_names`/`tag_values`, and compare the two as sets of
+    normalized names. Extra names on the link side are fine - a rerun or a
+    manual addition can legitimately produce them. Only a name the legacy
+    column had that the link tables are missing counts as a mismatch, because
+    that is the one case where dropping the column would actually lose data.
+
+    Returns {"checked": <rows with a non-empty legacy value>, "mismatches": [...]}.
+    An empty `mismatches` list means the drop is provably lossless.
+    """
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    checked = 0
+    mismatches: list[dict] = []
+
+    for media_type, column, kind, key in BACKFILL_MAP:
+        table_name = MEDIA_TABLES[media_type].model.__tablename__
+        if not _legacy_column_exists(db, table_name, column):
+            continue
+
+        rows = db.execute(
+            text(f'SELECT system_id, "{column}" AS raw FROM {table_name} '
+                 f'WHERE "{column}" IS NOT NULL')
+        ).fetchall()
+
+        for row in rows:
+            legacy_names = split_names(row.raw)
+            if not legacy_names:
+                continue
+            checked += 1
+            legacy_keys = {normalize_name(n) for n in legacy_names}
+
+            if kind == "credit":
+                current = credit_names(db, media_type, row.system_id, key)
+            else:
+                current = tag_values(db, media_type, row.system_id, key)
+            current_keys = {normalize_name(n) for n in current}
+
+            missing = legacy_keys - current_keys
+            if missing:
+                mismatches.append(
+                    {
+                        "media_type": media_type,
+                        "entry_id": str(row.system_id),
+                        "column": column,
+                        "missing": sorted(missing),
+                    }
+                )
+
+    logger.info(
+        "verify_backfill_lossless: %s rows checked, %s mismatches",
+        checked,
+        len(mismatches),
+    )
+    return {"checked": checked, "mismatches": mismatches}

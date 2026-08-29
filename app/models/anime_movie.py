@@ -68,8 +68,6 @@ class AnimeMovies(Base, NameFallbackMixin):
     length_min = Column(Integer, nullable=True)
     release_date_jp = Column(String, nullable=True)
     release_date_tw = Column(String, nullable=True)
-    studio = Column(String, nullable=True)
-    director = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)

@@ -29,8 +29,6 @@ class AnimeMovieBase(BaseModel):
     length_min: Optional[int] = None
     release_date_jp: Optional[str] = None
     release_date_tw: Optional[str] = None
-    studio: Optional[str] = None
-    director: Optional[str] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None

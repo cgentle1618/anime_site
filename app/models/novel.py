@@ -83,11 +83,8 @@ class Novel(Base, NameFallbackMixin):
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
 
-    author = Column(String, nullable=True)
-    illustrator = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
-    publisher_tw = Column(String, nullable=True)
 
     is_main_entry = Column(Boolean, nullable=True)
     read_order = Column(Float, nullable=True)

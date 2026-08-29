@@ -19,18 +19,10 @@ class ComicBase(BaseModel):
     volume_label: Optional[str] = None
 
     comic_type: Optional[str] = None
-    publisher: Optional[str] = None
-    imprint: Optional[str] = None
-    continuity: Optional[str] = None
-    era: Optional[str] = None
-    events: Optional[str] = None
     is_main_entry: Optional[bool] = None
 
-    writer: Optional[str] = None
-    artist: Optional[str] = None
     release_date: Optional[str] = None
     end_date: Optional[str] = None
-    publisher_tw: Optional[str] = None
 
     issue_total: Optional[int] = None
     issue_fin: int = 0

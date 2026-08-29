@@ -60,19 +60,10 @@ class Comic(Base, NameFallbackMixin):
     volume_label = Column(String, nullable=True)
 
     comic_type = Column(String, nullable=True)
-    publisher = Column(String, nullable=True)
-    imprint = Column(String, nullable=True)
-    continuity = Column(String, nullable=True)
-    era = Column(String, nullable=True)
-    # Comma-joined multi-select, same idiom as franchise.franchise_type.
-    events = Column(String, nullable=True)
     is_main_entry = Column(Boolean, nullable=True)
 
-    writer = Column(String, nullable=True)
-    artist = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
-    publisher_tw = Column(String, nullable=True)
 
     issue_total = Column(Integer, nullable=True)
     issue_fin = Column(Integer, nullable=False, default=0)

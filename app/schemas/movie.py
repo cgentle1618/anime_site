@@ -27,7 +27,6 @@ class MovieBase(BaseModel):
     length_min: Optional[int] = None
     release_date_usa: Optional[str] = None
     release_date_tw: Optional[str] = None
-    director: Optional[str] = None
 
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None

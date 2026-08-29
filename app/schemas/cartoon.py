@@ -18,7 +18,6 @@ class CartoonBase(BaseModel):
     cartoon_name_alt: Optional[str] = None
 
     season_part: Optional[str] = None
-    source_official: Optional[str] = None
     airing_type: Optional[str] = None
     airing_status: Optional[str] = None
     watching_status: str = "Might Watch"

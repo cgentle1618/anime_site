@@ -49,7 +49,6 @@ class TVShows(Base, NameFallbackMixin):
 
     region = Column(String, nullable=True)
     season_part = Column(String, nullable=True)
-    source_official = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
     watching_status = Column(String, nullable=False, default="Might Watch")
     is_main = Column(String, nullable=True)
