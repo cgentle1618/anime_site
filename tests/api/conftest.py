@@ -178,3 +178,18 @@ def sample_anime(db_session, sample_franchise):
     db_session.add(a)
     db_session.flush()
     return a
+
+
+@pytest.fixture
+def sample_comic(db_session, sample_franchise):
+    c = models.Comic(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        comic_name_en="Test Comic",
+        reading_status="Completed",
+        issue_total=6,
+        issue_fin=6,
+    )
+    db_session.add(c)
+    db_session.flush()
+    return c

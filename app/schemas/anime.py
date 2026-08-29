@@ -68,6 +68,7 @@ class AnimeBase(BaseModel):
     baha_link: Optional[str] = None
     source_netflix: Optional[bool] = False
     source_other: Optional[dict] = None
+    watch_next: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None
     completed_at: Optional[datetime] = None

@@ -103,3 +103,102 @@ def validate_plan_target(db: Session, scope: str, media_type: str, target_id: UU
     if not target_exists(db, scope, media_type, target_id):
         return f"No {scope} with id {target_id}."
     return None
+
+
+def entry_flag(db: Session, media_type: str, entry_id: UUID) -> bool:
+    """Whether one entry is queued. Backs the watch_next / read_next fields."""
+    return (
+        db.query(models.PlanNext)
+        .filter(
+            models.PlanNext.scope == "entry",
+            models.PlanNext.media_type == media_type,
+            models.PlanNext.target_id == entry_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def planned_entry_ids(db: Session, media_type: str) -> set:
+    """Every queued entry id of one media type, for list endpoints."""
+    rows = (
+        db.query(models.PlanNext.target_id)
+        .filter(
+            models.PlanNext.scope == "entry",
+            models.PlanNext.media_type == media_type,
+        )
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
+def set_entry_flag(
+    db: Session, media_type: str, entry_id: UUID, planned: bool
+) -> None:
+    """
+    Upsert or delete the entry-scope row behind watch_next / read_next.
+
+    The flag stays on the entry schemas so the Add and Modify forms, the detail
+    pages and the library filters keep working unchanged; plan_next is the only
+    place the fact is stored.
+    """
+    existing = (
+        db.query(models.PlanNext)
+        .filter(
+            models.PlanNext.scope == "entry",
+            models.PlanNext.media_type == media_type,
+            models.PlanNext.target_id == entry_id,
+        )
+        .first()
+    )
+    if planned and existing is None:
+        db.add(
+            models.PlanNext(
+                media_type=media_type, scope="entry", target_id=entry_id
+            )
+        )
+    elif not planned and existing is not None:
+        db.delete(existing)
+
+
+# The schema field name each media type uses for its plan flag. Keys are
+# MediaTypeSpec.owner_type, which is already the hyphenated media_type value.
+PLAN_FLAG_FIELD: dict[str, str] = {
+    "anime": "watch_next",
+    "anime-movie": "watch_next",
+    "movie": "watch_next",
+    "tv-show": "watch_next",
+    "cartoon": "watch_next",
+    "manga": "read_next",
+    "novel": "read_next",
+    "comic": "read_next",
+}
+
+
+def pop_plan_flag(media_type: str, data: dict):
+    """
+    Split watch_next / read_next out of a write payload.
+
+    Shaped exactly like pop_remark in app/services/domain/remark_field.py, and
+    for the same reason: the field is on the schema but not on the table. The
+    third return value matters - a PATCH that never mentions the flag must leave
+    the plan_next row alone, while a PUT that sends false must delete it.
+    """
+    field = PLAN_FLAG_FIELD.get(media_type)
+    if field is None or field not in data:
+        return data, None, False
+    rest = {k: v for k, v in data.items() if k != field}
+    return rest, data[field], True
+
+
+def attach_plan_flag(db: Session, media_type: str, entry) -> None:
+    """
+    Set the virtual flag on an ORM instance before it is serialized.
+
+    The response schema reads from attributes, and the column is gone, so the
+    value has to be put back on the object. A plain instance attribute is enough
+    - SQLAlchemy does not manage it.
+    """
+    field = PLAN_FLAG_FIELD.get(media_type)
+    if field:
+        setattr(entry, field, entry_flag(db, media_type, entry.system_id))

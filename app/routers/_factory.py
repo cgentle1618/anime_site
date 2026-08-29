@@ -15,6 +15,13 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_admin
 from app.database import get_taipei_now
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
+from app.services.domain.plan_next import (
+    attach_plan_flag,
+    planned_entry_ids,
+    pop_plan_flag,
+    set_entry_flag,
+    PLAN_FLAG_FIELD,
+)
 from app.services.integrations.image_manager import delete_cover_image
 from app.utils.data_control_utils import log_deleted_record
 
@@ -54,11 +61,19 @@ def make_media_router(spec) -> APIRouter:
         if search_query and spec.search_fields:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
-        return query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
+        entries = query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
+        field = PLAN_FLAG_FIELD.get(spec.owner_type)
+        if field:
+            planned = planned_entry_ids(db, spec.owner_type)
+            for entry in entries:
+                setattr(entry, field, entry.system_id in planned)
+        return entries
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
     def get_one(entry_id: str, db: Session = Depends(get_db)):
-        return _get_or_404(db, entry_id)
+        entry = _get_or_404(db, entry_id)
+        attach_plan_flag(db, spec.owner_type, entry)
+        return entry
 
     # ------------------------------------------------------------------
     # Protected write (admin only)
@@ -70,6 +85,7 @@ def make_media_router(spec) -> APIRouter:
         admin: dict = Depends(get_current_admin),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
+        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
@@ -79,6 +95,10 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
 
+        if has_plan:
+            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
+            db.commit()
+
         await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
         db.refresh(entry)
 
@@ -86,6 +106,7 @@ def make_media_router(spec) -> APIRouter:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
             db.commit()
             db.refresh(entry)
+        attach_plan_flag(db, spec.owner_type, entry)
         return entry
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
@@ -97,8 +118,11 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
+        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
         for key, value in payload.items():
             setattr(entry, key, value)
+        if has_plan:
+            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
@@ -112,6 +136,7 @@ def make_media_router(spec) -> APIRouter:
 
         await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
         db.refresh(entry)
+        attach_plan_flag(db, spec.owner_type, entry)
         return entry
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
@@ -123,9 +148,12 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
+        payload, planned, has_plan = pop_plan_flag(spec.owner_type, payload)
         for key, value in payload.items():
             if hasattr(entry, key):
                 setattr(entry, key, value)
+        if has_plan:
+            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned))
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
@@ -133,6 +161,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
+        attach_plan_flag(db, spec.owner_type, entry)
         return entry
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
@@ -149,6 +178,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
+        attach_plan_flag(db, spec.owner_type, entry)
         return entry
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")
