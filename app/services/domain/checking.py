@@ -19,8 +19,10 @@ from app.models import (
     Movies,
     TVShows,
     Franchise,
+    Person,
     Series,
     Seasonal,
+    Studio,
     SystemOption,
 )
 
@@ -227,3 +229,76 @@ def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
     """Sets source_baha=True if baha_link is present (and source_baha not already set)."""
     if entry.baha_link and entry.source_baha is None:
         entry.source_baha = True
+
+
+def find_duplicate_entities(db: Session) -> list[dict]:
+    """
+    Entities whose names collapse to one normalization key.
+
+    The backfill created these deliberately rather than guessing that two
+    spellings meant one person. Deleting one would cascade its credits away, so
+    the fix is POST /api/person/{id}/merge - this check is what makes the pairs
+    findable in the first place.
+
+    Groups on BOTH name_native and name_en, not name_native alone:
+    resolve_person/resolve_studio (app/services/domain/credits.py:_find_by_name)
+    look a new credit up by whichever of the two fields matches, so two rows
+    that only collide on name_en are just as ambiguous to future credit
+    resolution as two that collide on name_native. Union-find gives the
+    transitive closure across both fields (A's name_en == B's name_native,
+    B's name_native == C's name_en, etc. all collapse into one cluster).
+    A person and a studio sharing a name are never grouped together - each
+    table is scanned independently.
+    """
+    from app.utils.name_normalize import normalize_name
+
+    found: list[dict] = []
+    for kind, model in (("person", Person), ("studio", Studio)):
+        rows = db.query(model).all()
+        row_map = {str(r.system_id): r for r in rows}
+
+        parent: dict[str, str] = {}
+
+        def find(x: str) -> str:
+            root = x
+            while parent.get(root, root) != root:
+                root = parent[root]
+            while parent.get(x, x) != root:
+                nxt = parent.get(x, x)
+                parent[x] = root
+                x = nxt
+            return root
+
+        def union(x: str, y: str) -> None:
+            px, py = find(x), find(y)
+            if px != py:
+                parent[px] = py
+
+        buckets: dict[str, list[str]] = {}
+        for row in rows:
+            keys = {normalize_name(row.name_native)}
+            if row.name_en:
+                keys.add(normalize_name(row.name_en))
+            for key in keys:
+                buckets.setdefault(key, []).append(str(row.system_id))
+
+        for ids in buckets.values():
+            for i in range(1, len(ids)):
+                union(ids[0], ids[i])
+
+        clusters: dict[str, list[str]] = {}
+        for rid in row_map:
+            clusters.setdefault(find(rid), []).append(rid)
+
+        for members in clusters.values():
+            if len(members) > 1:
+                found.append(
+                    {
+                        "kind": kind,
+                        "key": normalize_name(row_map[members[0]].name_native),
+                        "ids": members,
+                        "names": [row_map[m].name_native for m in members],
+                    }
+                )
+
+    return found

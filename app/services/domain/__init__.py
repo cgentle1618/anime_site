@@ -40,6 +40,7 @@ from app.services.domain.checking import (
     has_missing_values_comic,
     has_missing_values_novel,
     apply_check_baha,
+    find_duplicate_entities,
 )
 
 from app.services.domain.completion import (
@@ -150,6 +151,7 @@ __all__ = [
     "has_missing_values_comic",
     "has_missing_values_novel",
     "apply_check_baha",
+    "find_duplicate_entities",
     "check_is_tv_completed",
     "check_is_movie_completed",
     "check_is_reading_completed",

@@ -45,6 +45,7 @@ from app.utils.utils import (
     validate_ch_math,
 )
 from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.services.domain.checking import find_duplicate_entities
 
 logger = logging.getLogger(__name__)
 
@@ -836,4 +837,5 @@ def find_all_duplicates(db: Session) -> dict:
         "novel": find_duplicate_novel(db),
         "comic": find_duplicate_comic(db),
         "system_options": find_duplicate_system_options(db),
+        "entities": find_duplicate_entities(db),
     }
