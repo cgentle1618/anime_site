@@ -11,7 +11,7 @@ import {
 import ComboBox from "../../components/forms/ComboBox";
 import { FRANCHISE_TYPES } from "../../config/fieldOptions";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import { ALLOWED_SCOPES } from "../../config/planNextGroups";
+import { scopesFor } from "../../config/planNextGroups";
 
 const TYPE_TO_ENTRY_TYPES = {
   ACG: ["anime", "manga"],
@@ -83,7 +83,7 @@ export default function FranchiseModifyTab({
       ...Object.keys(ff.size_group_derived || editingItem?.size_group_derived || {}),
       ...Object.keys(ff.size_group_manual || {}),
     ]),
-  ).filter((mt) => (ALLOWED_SCOPES[mt] || []).includes("franchise"));
+  ).filter((mt) => scopesFor("next", mt).includes("franchise"));
   if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
 
   async function handleTogglePlan(mediaType, next) {

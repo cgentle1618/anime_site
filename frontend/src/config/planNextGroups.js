@@ -67,17 +67,6 @@ export const UNGROUPED_LABELS = {
   manga: "其他",
 };
 
-export const ALLOWED_SCOPES = {
-  anime: ["entry", "series", "franchise"],
-  movie: ["entry", "series", "franchise"],
-  "tv-show": ["entry", "series", "franchise"],
-  cartoon: ["entry", "series", "franchise"],
-  comic: ["entry", "series"],
-  "anime-movie": ["entry"],
-  manga: ["entry"],
-  novel: ["entry"],
-};
-
 // Tab order on the Plan page. Comic is new - the page had no comic tab before
 // plan_next made every type render the same way.
 export const PLAN_TABS = [
@@ -96,3 +85,52 @@ export const SCOPE_LABELS = {
   series: "Series",
   franchise: "Franchise",
 };
+
+// Mirrors app/utils/plan_next_kinds.py. Kept as a literal rather than fetched
+// so the Plan page renders without waiting on a vocabulary request; the
+// table-driven test in planNext.test.js guards the two copies against drift.
+export const KINDS = ["next", "rewatch"];
+
+const SCOPE_ORDER = ["entry", "series", "franchise"];
+
+export const ALLOWED_SCOPES = {
+  next: {
+    anime: ["entry", "series", "franchise"],
+    "anime-movie": ["entry"],
+    movie: ["entry", "series", "franchise"],
+    "tv-show": ["entry", "series", "franchise"],
+    cartoon: ["entry", "series", "franchise"],
+    manga: ["entry"],
+    novel: ["entry"],
+    comic: ["entry", "series"],
+  },
+  rewatch: {
+    // Anime and cartoon are rewatched as whole franchises; novels are reread
+    // at every tier though they are only ever queued one book at a time.
+    anime: ["franchise"],
+    "anime-movie": ["entry"],
+    movie: ["entry", "series", "franchise"],
+    "tv-show": ["entry", "series", "franchise"],
+    cartoon: ["franchise"],
+    manga: ["entry"],
+    novel: ["entry", "series", "franchise"],
+    comic: ["entry", "series"],
+  },
+};
+
+export const REWATCH_TABS = [
+  { key: "anime", label: "Anime", icon: "fa-tv" },
+  { key: "anime-movie", label: "Anime Movie", icon: "fa-film" },
+  { key: "movie", label: "Movie", icon: "fa-ticket-alt" },
+  { key: "tv-show", label: "TV Show", icon: "fa-broadcast-tower" },
+  { key: "cartoon", label: "Cartoon", icon: "fa-laugh-squint" },
+  { key: "manga", label: "Manga", icon: "fa-book" },
+  { key: "novel", label: "Novel", icon: "fa-book-open" },
+  { key: "comic", label: "Comic", icon: "fa-book-dead" },
+];
+
+export function scopesFor(kind, mediaType) {
+  const scopes = ALLOWED_SCOPES[kind]?.[mediaType];
+  if (!scopes) return [];
+  return SCOPE_ORDER.filter((scope) => scopes.includes(scope));
+}

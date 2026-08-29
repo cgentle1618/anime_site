@@ -139,3 +139,62 @@ describe("groupByBucket", () => {
     expect(grouped.ungrouped).toHaveLength(1);
   });
 });
+
+import {
+  ALLOWED_SCOPES,
+  KINDS,
+  REWATCH_TABS,
+  scopesFor,
+} from "../config/planNextGroups";
+
+describe("kind vocabulary", () => {
+  it("has exactly two kinds", () => {
+    expect(KINDS).toEqual(["next", "rewatch"]);
+  });
+
+  it("covers every media type under both kinds", () => {
+    const types = Object.keys(ALLOWED_SCOPES.next);
+    expect(types).toHaveLength(8);
+    expect(Object.keys(ALLOWED_SCOPES.rewatch).sort()).toEqual(types.sort());
+  });
+});
+
+describe("scopesFor", () => {
+  // Must agree with app/utils/plan_next_kinds.py for all 16 pairs.
+  it.each([
+    ["rewatch", "anime", ["franchise"]],
+    ["rewatch", "anime-movie", ["entry"]],
+    ["rewatch", "movie", ["entry", "series", "franchise"]],
+    ["rewatch", "tv-show", ["entry", "series", "franchise"]],
+    ["rewatch", "cartoon", ["franchise"]],
+    ["rewatch", "manga", ["entry"]],
+    ["rewatch", "novel", ["entry", "series", "franchise"]],
+    ["rewatch", "comic", ["entry", "series"]],
+  ])("%s / %s", (kind, mediaType, expected) => {
+    expect(scopesFor(kind, mediaType)).toEqual(expected);
+  });
+
+  it("returns scopes in entry-series-franchise order", () => {
+    expect(scopesFor("next", "movie")).toEqual(["entry", "series", "franchise"]);
+  });
+
+  it("is empty for an unknown pair", () => {
+    expect(scopesFor("nope", "movie")).toEqual([]);
+    expect(scopesFor("rewatch", "nope")).toEqual([]);
+  });
+});
+
+describe("REWATCH_TABS", () => {
+  it("covers all eight types", () => {
+    expect(REWATCH_TABS.map((t) => t.key)).toEqual([
+      "anime",
+      "anime-movie",
+      "movie",
+      "tv-show",
+      "cartoon",
+      "manga",
+      "novel",
+      "comic",
+    ]);
+  });
+});

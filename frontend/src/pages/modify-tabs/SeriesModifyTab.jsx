@@ -11,7 +11,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import { ALLOWED_SCOPES } from "../../config/planNextGroups";
+import { scopesFor } from "../../config/planNextGroups";
 
 function getEntryYear(e) {
   const d =
@@ -73,7 +73,7 @@ export default function SeriesModifyTab({
       ...Object.keys(sf.size_group_derived || editingItem?.size_group_derived || {}),
       ...Object.keys(sf.size_group_manual || {}),
     ]),
-  ).filter((mt) => (ALLOWED_SCOPES[mt] || []).includes("series"));
+  ).filter((mt) => scopesFor("next", mt).includes("series"));
   if (sizeGroupMediaTypes.length === 0) sizeGroupMediaTypes.push("anime");
 
   async function handleTogglePlan(mediaType, next) {

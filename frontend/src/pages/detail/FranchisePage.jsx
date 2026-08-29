@@ -37,7 +37,7 @@ import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
-import { SIZE_GROUPS, ALLOWED_SCOPES } from "../../config/planNextGroups";
+import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
 
 const WATCHING_STATUS_GROUPS = {
@@ -275,14 +275,14 @@ export default function FranchisePage() {
 
   // Media types this franchise carries a size bucket for, restricted to
   // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
-  // planned at franchise level - see ALLOWED_SCOPES).
+  // planned at franchise level - see scopesFor / ALLOWED_SCOPES["next"]).
   const sizeGroupMediaTypes = useMemo(() => {
     const keys = new Set([
       ...Object.keys(franchise?.size_group_derived || {}),
       ...Object.keys(franchise?.size_group_manual || {}),
     ]);
     const filtered = Array.from(keys).filter((mt) =>
-      (ALLOWED_SCOPES[mt] || []).includes("franchise"),
+      scopesFor("next", mt).includes("franchise"),
     );
     return filtered.length > 0 ? filtered : ["anime"];
   }, [franchise]);
