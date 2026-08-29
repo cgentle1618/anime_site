@@ -7,6 +7,10 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import {
+  MY_RATINGS,
+  FRANCHISE_EXPECTATIONS,
+} from "../../config/fieldOptions";
 
 export { defaultSeries } from "../../config/formFactories";
 
@@ -89,7 +93,7 @@ export default function SeriesAddTab({
             onChange={(e) => us("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -103,7 +107,7 @@ export default function SeriesAddTab({
             onChange={(e) => us("series_expectation", e.target.value)}
           >
             <option value="">—</option>
-            {["Highest", "High", "Medium", "Low"].map((v) => (
+            {FRANCHISE_EXPECTATIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

@@ -10,6 +10,11 @@ import {
 } from "../../components/forms/FormField";
 import { getSourceValues } from "../../utils/media";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
+import {
+  AIRING_STATUSES,
+  WATCHING_STATUSES,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
 export default function AnimeMovieModifyTab({
   franchiseCollections,
@@ -94,13 +99,7 @@ export default function AnimeMovieModifyTab({
             onChange={(e) => uam("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "Not Yet Aired",
-              "Airing",
-              "Finished Airing",
-              "Canceled",
-              "Rumored",
-            ].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -113,19 +112,7 @@ export default function AnimeMovieModifyTab({
             value={amf.watching_status}
             onChange={(e) => uam("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -139,7 +126,7 @@ export default function AnimeMovieModifyTab({
             onChange={(e) => uam("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

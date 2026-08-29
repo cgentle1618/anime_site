@@ -11,6 +11,13 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import MangaNotes from "../detail/MangaNotes";
+import {
+  MANGA_REGIONS,
+  IS_MAIN,
+  MANGA_SERIALIZATION_STATUSES,
+  READING_STATUSES,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
 export default function MangaModifyTab({
   franchiseCollections,
@@ -145,7 +152,7 @@ export default function MangaModifyTab({
             onChange={(e) => umg("region", e.target.value)}
           >
             <option value="">—</option>
-            {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
+            {MANGA_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -159,7 +166,7 @@ export default function MangaModifyTab({
             onChange={(e) => umg("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -177,7 +184,7 @@ export default function MangaModifyTab({
             onChange={(e) => umg("serialization_status", e.target.value)}
           >
             <option value="">—</option>
-            {["連載中", "停更", "腰斬", "完結"].map((v) => (
+            {MANGA_SERIALIZATION_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -190,18 +197,7 @@ export default function MangaModifyTab({
             value={cmgf.reading_status}
             onChange={(e) => umg("reading_status", e.target.value)}
           >
-            {[
-              "Might Read",
-              "Plan to Read",
-              "Active Reading",
-              "Passive Reading",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Read",
-            ].map((v) => (
+            {READING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -215,7 +211,7 @@ export default function MangaModifyTab({
             onChange={(e) => umg("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

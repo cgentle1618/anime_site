@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
-  getSourceValues,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
@@ -12,6 +11,7 @@ import {
   creditsResponseToForm,
 } from "../../utils/media";
 import { fetchAllSources } from "../../lib/sources";
+import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import AnimeMovieNotes from "../detail/AnimeMovieNotes";
 import MovieNotes from "../detail/MovieNotes";
 import TVShowNotes from "../detail/TVShowNotes";
@@ -288,50 +288,10 @@ export default function Modify() {
       .filter(Boolean);
 
   // Creates whatever named values the user typed that aren't in `sources`
-  // yet, routed by source.kind (option / person / studio) — mirrors Add.jsx.
+  // yet (see lib/ensureSourceValues.js — shared with Add.jsx), then
+  // refreshes `sources` so the just-created value is selectable immediately.
   async function ensureSourceValues(fields) {
-    const toCreate = [];
-    for (const { source, values } of fields) {
-      const existing = new Set(getSourceValues(sources, source));
-      for (const v of values) {
-        if (v && !existing.has(v)) toCreate.push({ source, value: v });
-      }
-    }
-    if (toCreate.length === 0) return;
-
-    await Promise.all(
-      toCreate.map(({ source, value }) => {
-        if (source.kind === "studio") {
-          return fetch(endpoints.studio.create(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name_native: value }),
-            credentials: "include",
-          });
-        }
-        if (source.kind === "person") {
-          return fetch(endpoints.person.create(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name_native: value,
-              roles: [{ role: source.role, scope: source.scope || null }],
-            }),
-            credentials: "include",
-          });
-        }
-        return fetch(endpoints.options.create(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            category: source.category,
-            value,
-            scopes: source.scope ? [source.scope] : [],
-          }),
-          credentials: "include",
-        });
-      }),
-    );
+    await ensureSourceValuesLib(fields, sources);
     setSources(await fetchAllSources());
   }
 

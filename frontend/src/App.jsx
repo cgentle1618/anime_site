@@ -5,6 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
+import { useConstants } from "./config/useConstants";
 
 import Index from "./pages/public/Index";
 import UnderDevelopment from "./pages/public/UnderDevelopment";
@@ -65,6 +66,13 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
+  // Fetches /api/constants once on mount and, when it resolves, overwrites
+  // the bundled fieldOptions.js arrays in place (see applyConstants) and
+  // re-renders this tree so every <select> that maps over those arrays
+  // (Add/Modify tabs, none of which call this hook themselves) switches
+  // from the pre-fetch fallback to the real API-sourced values.
+  useConstants();
+
   return (
     // Provider order matters: query cache first, then auth, then UI helpers, then routing.
     <QueryClientProvider client={queryClient}>

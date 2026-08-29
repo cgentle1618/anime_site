@@ -156,3 +156,30 @@ export const CONSTANTS_FALLBACK = {
   music_status: MUSIC_STATUSES,
   seiyuu_status: SEIYUU_STATUSES,
 };
+
+// Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and
+// maps over them directly, so they are the actual values rendered in every
+// <select>. useConstants() calls this once, after GET /api/constants
+// resolves, to overwrite each array's CONTENTS in place (never reassign the
+// binding — every importer holds a reference to the same array object, and
+// only an in-place mutation is visible to code that already imported it).
+// That makes /api/constants the effective source of truth for every
+// consumer without threading the hook through each tab: these arrays are
+// the pre-fetch fallback only, exactly as CONSTANTS_FALLBACK documents.
+//
+// Deliberate trade-off: mutating an array a component already imported
+// works ONLY because array identity never changes — React never sees a new
+// prop/state value, so this mutation cannot trigger a re-render on its own.
+// That is exactly why App.jsx also calls useConstants() once at the root:
+// its setState is what forces the one re-render that lets every already-
+// mounted <select> read the arrays' new contents. Skip that call and this
+// function silently does nothing visible until the next unrelated render.
+export function applyConstants(data) {
+  if (!data) return;
+  for (const [key, target] of Object.entries(CONSTANTS_FALLBACK)) {
+    const values = data[key];
+    if (!Array.isArray(values) || !Array.isArray(target)) continue;
+    target.length = 0;
+    target.push(...values);
+  }
+}

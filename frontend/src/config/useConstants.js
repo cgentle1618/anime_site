@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 
 import * as FALLBACK from "./fieldOptions";
+import { applyConstants } from "./fieldOptions";
 
 let cache = null;
 
@@ -22,6 +23,11 @@ export function useConstants() {
       .then((data) => {
         if (data) {
           cache = data;
+          // Overwrite the bundled fieldOptions.js arrays in place so every
+          // Add/Modify tab that maps over e.g. AIRING_STATUSES (whether or
+          // not it calls this hook itself) renders API-sourced values on
+          // its next render, not just callers of useConstants().
+          applyConstants(data);
           setConstants(data);
         }
       })

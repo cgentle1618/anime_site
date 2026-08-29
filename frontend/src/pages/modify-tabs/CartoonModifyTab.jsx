@@ -9,6 +9,13 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import CartoonNotes from "../detail/CartoonNotes";
+import {
+  CARTOON_AIRING_TYPES,
+  AIRING_STATUSES,
+  WATCHING_STATUSES,
+  IS_MAIN,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
 export default function CartoonModifyTab({
   franchiseCollections,
@@ -129,7 +136,7 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {["TV", "Movie", "OVA", "Special"].map((v) => (
+            {CARTOON_AIRING_TYPES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -143,13 +150,7 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "Not Yet Aired",
-              "Airing",
-              "Finished Airing",
-              "Canceled",
-              "Rumored",
-            ].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -164,19 +165,7 @@ export default function CartoonModifyTab({
             value={cmf.watching_status}
             onChange={(e) => uc("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -190,7 +179,7 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -204,7 +193,7 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

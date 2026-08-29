@@ -10,6 +10,13 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import MovieNotes from "../detail/MovieNotes";
+import {
+  AIRING_STATUSES,
+  WATCHING_STATUSES,
+  MOVIE_TYPES,
+  IS_MAIN,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
 export default function MovieModifyTab({
   franchiseCollections,
@@ -124,13 +131,7 @@ export default function MovieModifyTab({
             onChange={(e) => umm("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "Not Yet Aired",
-              "Airing",
-              "Finished Airing",
-              "Canceled",
-              "Rumored",
-            ].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -143,19 +144,7 @@ export default function MovieModifyTab({
             value={mmf.watching_status}
             onChange={(e) => umm("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -169,8 +158,11 @@ export default function MovieModifyTab({
             onChange={(e) => umm("movie_type", e.target.value)}
           >
             <option value="">—</option>
-            <option value="Reality">Reality</option>
-            <option value="Animation">Animation</option>
+            {MOVIE_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
       </div>
@@ -182,7 +174,7 @@ export default function MovieModifyTab({
             onChange={(e) => umm("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -198,7 +190,7 @@ export default function MovieModifyTab({
             onChange={(e) => umm("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

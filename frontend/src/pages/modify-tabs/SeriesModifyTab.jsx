@@ -16,6 +16,10 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
+import {
+  MY_RATINGS,
+  FRANCHISE_EXPECTATIONS,
+} from "../../config/fieldOptions";
 
 function getEntryYear(e) {
   const d =
@@ -272,7 +276,7 @@ export default function SeriesModifyTab({
             onChange={(e) => us("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -286,7 +290,7 @@ export default function SeriesModifyTab({
             onChange={(e) => us("series_expectation", e.target.value)}
           >
             <option value="">—</option>
-            {["Highest", "High", "Medium", "Low"].map((v) => (
+            {FRANCHISE_EXPECTATIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

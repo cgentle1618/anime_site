@@ -12,18 +12,15 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import NovelNotes from "../detail/NovelNotes";
+import {
+  NOVEL_REGIONS,
+  NOVEL_TYPES,
+  IS_MAIN,
+  NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
+  READING_STATUSES,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
-const NOVEL_TYPES = ["Light Novel", "Novel", "Web", "Other"];
-const SERIALIZATION_STATUSES = [
-  "連載中",
-  "連載中 (不穩定)",
-  "連載中 (有生之年)",
-  "停更",
-  "完結",
-  "腰斬",
-  "可能更多",
-  "未出",
-];
 const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
@@ -172,7 +169,7 @@ export default function NovelModifyTab({
             onChange={(e) => unv("region", e.target.value)}
           >
             <option value="">—</option>
-            {["JP", "CN", "TW", "KR", "Western"].map((v) => (
+            {NOVEL_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -200,7 +197,7 @@ export default function NovelModifyTab({
             onChange={(e) => unv("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -239,18 +236,7 @@ export default function NovelModifyTab({
             value={cnvf.reading_status}
             onChange={(e) => unv("reading_status", e.target.value)}
           >
-            {[
-              "Might Read",
-              "Plan to Read",
-              "Active Reading",
-              "Passive Reading",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Read",
-            ].map((v) => (
+            {READING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -264,7 +250,7 @@ export default function NovelModifyTab({
             onChange={(e) => unv("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

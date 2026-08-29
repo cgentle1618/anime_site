@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
-  getSourceValues,
   cleanString,
   buildAnimePayload,
   buildAnimeMoviePayload,
@@ -23,6 +22,7 @@ import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
 import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
+import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
@@ -184,52 +184,11 @@ export default function Add() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  // Creates whatever named values the user typed that aren't in `sources` yet,
-  // routed by source.kind (option / person / studio) rather than always
-  // POSTing a system option — a director is an entity, not a vocabulary value.
+  // Creates whatever named values the user typed that aren't in `sources` yet
+  // (see lib/ensureSourceValues.js — shared with Modify.jsx), then refreshes
+  // `sources` so the just-created value is selectable immediately.
   async function ensureSourceValues(fields) {
-    const toCreate = [];
-    for (const { source, values } of fields) {
-      const existing = new Set(getSourceValues(sources, source));
-      for (const v of values) {
-        if (v && !existing.has(v)) toCreate.push({ source, value: v });
-      }
-    }
-    if (toCreate.length === 0) return;
-
-    await Promise.all(
-      toCreate.map(({ source, value }) => {
-        if (source.kind === "studio") {
-          return fetch(endpoints.studio.create(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name_native: value }),
-            credentials: "include",
-          });
-        }
-        if (source.kind === "person") {
-          return fetch(endpoints.person.create(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name_native: value,
-              roles: [{ role: source.role, scope: source.scope || null }],
-            }),
-            credentials: "include",
-          });
-        }
-        return fetch(endpoints.options.create(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            category: source.category,
-            value,
-            scopes: source.scope ? [source.scope] : [],
-          }),
-          credentials: "include",
-        });
-      }),
-    );
+    await ensureSourceValuesLib(fields, sources);
     setSources(await fetchAllSources());
   }
 

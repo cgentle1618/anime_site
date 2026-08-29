@@ -9,6 +9,13 @@ import {
 } from "../../components/forms/FormField";
 import { getDisplayName, parseTypes } from "../../utils/media";
 import TVShowNotes from "../detail/TVShowNotes";
+import {
+  TV_REGIONS,
+  AIRING_STATUSES,
+  WATCHING_STATUSES,
+  IS_MAIN,
+  MY_RATINGS,
+} from "../../config/fieldOptions";
 
 export default function TvShowModifyTab({
   franchiseCollections,
@@ -125,7 +132,7 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("region", e.target.value)}
           >
             <option value="">—</option>
-            {["歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫"].map((v) => (
+            {TV_REGIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -143,13 +150,7 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "Not Yet Aired",
-              "Airing",
-              "Finished Airing",
-              "Canceled",
-              "Rumored",
-            ].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -162,19 +163,7 @@ export default function TvShowModifyTab({
             value={tvmf.watching_status}
             onChange={(e) => utv("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -188,7 +177,7 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -222,7 +211,7 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

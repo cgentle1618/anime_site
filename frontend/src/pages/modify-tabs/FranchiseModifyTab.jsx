@@ -9,7 +9,11 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
-import { FRANCHISE_TYPES } from "../../config/fieldOptions";
+import {
+  FRANCHISE_TYPES,
+  MY_RATINGS,
+  FRANCHISE_EXPECTATIONS,
+} from "../../config/fieldOptions";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
 import PlanKindToggles, {
   kindLabel,
@@ -311,7 +315,7 @@ export default function FranchiseModifyTab({
             onChange={(e) => uf("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -325,7 +329,7 @@ export default function FranchiseModifyTab({
             onChange={(e) => uf("franchise_expectation", e.target.value)}
           >
             <option value="">—</option>
-            {["Highest", "High", "Medium", "Low"].map((v) => (
+            {FRANCHISE_EXPECTATIONS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>

@@ -13,6 +13,14 @@ import { getSourceValues } from "../../utils/media";
 import { WEEKDAYS } from "../../config/weekdays";
 import { broadcastTimeOptions } from "../../config/broadcastTimes";
 import AnimeNotes from "../detail/AnimeNotes";
+import {
+  AIRING_STATUSES,
+  WATCHING_STATUSES,
+  MY_RATINGS,
+  IS_MAIN,
+  SEIYUU_STATUSES,
+  ANIME_AIRING_TYPES,
+} from "../../config/fieldOptions";
 
 export default function AnimeModifyTab({
   franchiseCollections,
@@ -151,13 +159,7 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("airing_status", e.target.value)}
           >
             <option value="">—</option>
-            {[
-              "Not Yet Aired",
-              "Airing",
-              "Finished Airing",
-              "Canceled",
-              "Rumored",
-            ].map((v) => (
+            {AIRING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -170,19 +172,7 @@ export default function AnimeModifyTab({
             value={af.watching_status}
             onChange={(e) => ua("watching_status", e.target.value)}
           >
-            {[
-              "Might Watch",
-              "Plan to Watch",
-              "Watch When Airs",
-              "Active Watching",
-              "Passive Watching",
-              "Paused",
-              "Completed",
-              "Completed (解說)",
-              "Temp Dropped",
-              "Dropped",
-              "Won't Watch",
-            ].map((v) => (
+            {WATCHING_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -196,7 +186,7 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("my_rating", e.target.value)}
           >
             <option value="">—</option>
-            {["S", "A+", "A", "B", "C", "D", "E", "F"].map((v) => (
+            {MY_RATINGS.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -324,13 +314,11 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("airing_type", e.target.value)}
           >
             <option value="">—</option>
-            {["TV", "Movie", "ONA", "OVA", "OAD", "Special", "Other"].map(
-              (v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ),
-            )}
+            {ANIME_AIRING_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Main / Spinoff">
@@ -340,7 +328,7 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("is_main", e.target.value)}
           >
             <option value="">—</option>
-            {["本傳", "外傳", "前傳", "後傳", "總集篇"].map((v) => (
+            {IS_MAIN.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -635,7 +623,7 @@ export default function AnimeModifyTab({
             onChange={(e) => ua("seiyuu", e.target.value)}
           >
             <option value="">—</option>
-            {["Need", "Done"].map((v) => (
+            {SEIYUU_STATUSES.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
