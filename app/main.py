@@ -23,6 +23,7 @@ from app.schema_guard import ensure_schema
 from app.routers import (
     auth,
     options,
+    constants,
     collection,
     franchise,
     series,
@@ -141,6 +142,7 @@ if FRONTEND_DIST.exists():
 app.include_router(auth.router)
 
 app.include_router(options.router)
+app.include_router(constants.router)
 app.include_router(collection.router)
 app.include_router(franchise.router)
 app.include_router(series.router)
