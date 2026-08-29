@@ -184,6 +184,12 @@ export default function SeriesModifyTab({
     new Set(seriesEntries.map((e) => e._type)),
   );
 
+  const seriesApplicableRewatchTypes = applicableTypes(
+    "rewatch",
+    "series",
+    seriesMediaTypes,
+  );
+
   function entryOptionLabel(e) {
     const name = getDisplayName(e, e._type);
     const yr = releaseYear(
@@ -319,8 +325,8 @@ export default function SeriesModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      {applicableTypes("rewatch", "series", seriesMediaTypes).length > 0 && (
-        <Field label={kindLabel("rewatch", seriesMediaTypes)}>
+      {seriesApplicableRewatchTypes.length > 0 && (
+        <Field label={kindLabel("rewatch", seriesApplicableRewatchTypes)}>
           <PlanKindToggles
             kind="rewatch"
             scope="series"

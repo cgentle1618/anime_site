@@ -329,6 +329,11 @@ export default function FranchisePage() {
     comicList,
   ]);
 
+  const franchiseApplicableRewatchTypes = useMemo(
+    () => applicableTypes("rewatch", "franchise", franchiseMediaTypes),
+    [franchiseMediaTypes],
+  );
+
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below, because mixing the two in one
   // row made "Memes" read as just another entry type.
@@ -1329,11 +1334,10 @@ export default function FranchisePage() {
                     onOverride={handleOverride}
                   />
                 </div>
-                {applicableTypes("rewatch", "franchise", franchiseMediaTypes)
-                  .length > 0 && (
+                {franchiseApplicableRewatchTypes.length > 0 && (
                   <div>
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                      {kindLabel("rewatch", franchiseMediaTypes)}
+                      {kindLabel("rewatch", franchiseApplicableRewatchTypes)}
                     </label>
                     <PlanKindToggles
                       kind="rewatch"

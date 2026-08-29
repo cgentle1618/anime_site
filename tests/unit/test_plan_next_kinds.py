@@ -141,3 +141,57 @@ class TestRewatchScopes:
     def test_allowed_scopes_for_returns_the_inner_map(self):
         assert allowed_scopes_for("rewatch")["manga"] == frozenset({"entry"})
         assert allowed_scopes_for("nope") == {}
+
+
+class TestEntryRewatchFieldInvariant:
+    """
+    A media type has an entry-level rewatch virtual field (PLAN_FLAG_FIELDS)
+    if and only if "entry" is one of its allowed rewatch scopes
+    (ALLOWED_SCOPES["rewatch"]). This is enforced by an assertion at import
+    time in plan_next_kinds.py; these tests pin down both directions
+    explicitly, by name, for all eight media types, so a future edit that
+    breaks the invariant fails here with a readable message instead of only
+    an assert at import time.
+    """
+
+    EXPECTED_MEMBERS = {"anime-movie", "movie", "tv-show", "manga", "novel", "comic"}
+    EXPECTED_NON_MEMBERS = {"anime", "cartoon"}
+
+    def test_expected_and_non_member_sets_cover_all_media_types(self):
+        assert self.EXPECTED_MEMBERS | self.EXPECTED_NON_MEMBERS == set(MEDIA_TYPE_KEYS)
+        assert self.EXPECTED_MEMBERS.isdisjoint(self.EXPECTED_NON_MEMBERS)
+
+    @pytest.mark.parametrize("media_type", sorted(EXPECTED_MEMBERS))
+    def test_member_has_entry_rewatch_scope(self, media_type):
+        assert "entry" in ALLOWED_SCOPES["rewatch"][media_type], media_type
+
+    @pytest.mark.parametrize("media_type", sorted(EXPECTED_MEMBERS))
+    def test_member_has_a_rewatch_field(self, media_type):
+        from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
+
+        kinds = {kind for _field, kind in PLAN_FLAG_FIELDS.get(media_type, ())}
+        assert "rewatch" in kinds, media_type
+
+    @pytest.mark.parametrize("media_type", sorted(EXPECTED_NON_MEMBERS))
+    def test_non_member_has_no_entry_rewatch_scope(self, media_type):
+        assert "entry" not in ALLOWED_SCOPES["rewatch"][media_type], media_type
+
+    @pytest.mark.parametrize("media_type", sorted(EXPECTED_NON_MEMBERS))
+    def test_non_member_has_no_rewatch_field(self, media_type):
+        from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
+
+        kinds = {kind for _field, kind in PLAN_FLAG_FIELDS.get(media_type, ())}
+        assert "rewatch" not in kinds, media_type
+
+    def test_invariant_holds_for_every_media_type_both_directions(self):
+        from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
+
+        for media_type in MEDIA_TYPE_KEYS:
+            has_entry_rewatch_scope = "entry" in ALLOWED_SCOPES["rewatch"].get(
+                media_type, frozenset()
+            )
+            has_rewatch_field = any(
+                kind == "rewatch"
+                for _field, kind in PLAN_FLAG_FIELDS.get(media_type, ())
+            )
+            assert has_entry_rewatch_scope == has_rewatch_field, media_type

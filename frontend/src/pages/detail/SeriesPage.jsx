@@ -262,6 +262,11 @@ export default function SeriesPage() {
     comicList,
   ]);
 
+  const seriesApplicableRewatchTypes = useMemo(
+    () => applicableTypes("rewatch", "series", seriesMediaTypes),
+    [seriesMediaTypes],
+  );
+
   // Only this group filters which media entries are listed. It is shown under
   // its own label, apart from the extras below. A series carries no type, so
   // a tab appears purely because its list holds something.
@@ -999,11 +1004,10 @@ export default function SeriesPage() {
                     ))}
                   </select>
                 </div>
-                {applicableTypes("rewatch", "series", seriesMediaTypes)
-                  .length > 0 && (
+                {seriesApplicableRewatchTypes.length > 0 && (
                   <div>
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                      {kindLabel("rewatch", seriesMediaTypes)}
+                      {kindLabel("rewatch", seriesApplicableRewatchTypes)}
                     </label>
                     <PlanKindToggles
                       kind="rewatch"

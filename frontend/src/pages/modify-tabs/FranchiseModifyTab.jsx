@@ -199,6 +199,12 @@ export default function FranchiseModifyTab({
     ),
   );
 
+  const franchiseApplicableRewatchTypes = applicableTypes(
+    "rewatch",
+    "franchise",
+    franchiseMediaTypes,
+  );
+
   const franchiseTypes = parseTypes(ff.franchise_type);
 
   function entryOptionLabel(e) {
@@ -434,9 +440,8 @@ export default function FranchiseModifyTab({
           onOverride={handleOverride}
         />
       </Field>
-      {applicableTypes("rewatch", "franchise", franchiseMediaTypes).length >
-        0 && (
-        <Field label={kindLabel("rewatch", franchiseMediaTypes)}>
+      {franchiseApplicableRewatchTypes.length > 0 && (
+        <Field label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}>
           <PlanKindToggles
             kind="rewatch"
             scope="franchise"

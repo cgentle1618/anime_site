@@ -135,8 +135,46 @@ def size_group_keys(media_type: str) -> tuple[str, ...]:
     return tuple(group.key for group in SIZE_GROUPS.get(media_type, ()))
 
 
+# The schema field name(s) each media type uses for its plan flags, paired
+# with the plan_next kind each one is backed by. Keys are
+# MediaTypeSpec.owner_type, which is already the hyphenated media_type value.
+# A type absent from a pair has no such virtual field - anime has no rewatch
+# flag (it rewatches at franchise scope), cartoon has neither rewatch field.
+#
+# Lives here rather than in app/services/domain/plan_next.py (which imports
+# it) because it must sit beside ALLOWED_SCOPES for the invariant assertion
+# below: a media type has an entry-level rewatch flag if and only if it has
+# an "entry" rewatch scope. Domain code importing vocabulary is the normal
+# direction; the reverse would be circular.
+PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
+    "anime": (("watch_next", "next"),),
+    "anime-movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "tv-show": (("watch_next", "next"), ("to_rewatch", "rewatch")),
+    "cartoon": (("watch_next", "next"),),
+    "manga": (("read_next", "next"), ("to_reread", "rewatch")),
+    "novel": (("read_next", "next"), ("to_reread", "rewatch")),
+    "comic": (("read_next", "next"), ("to_reread", "rewatch")),
+}
+
+
 # Guards the maps against drifting from the resolver's key list.
 assert set(ALLOWED_SCOPES) == set(KINDS)
 for _kind, _map in ALLOWED_SCOPES.items():
     assert set(_map) == set(MEDIA_TYPE_KEYS), _kind
 assert set(SIZE_THRESHOLDS) <= set(MEDIA_TYPE_KEYS)
+
+# A media type has an entry-level rewatch virtual field if and only if
+# "entry" is one of its allowed rewatch scopes. If this ever drifts, a new
+# rewatch scope silently grows no matching field (or vice versa).
+_entry_rewatch_types = {
+    media_type
+    for media_type, scopes in ALLOWED_SCOPES["rewatch"].items()
+    if "entry" in scopes
+}
+_rewatch_field_types = {
+    media_type
+    for media_type, pairs in PLAN_FLAG_FIELDS.items()
+    if any(kind == "rewatch" for _field, kind in pairs)
+}
+assert _entry_rewatch_types == _rewatch_field_types

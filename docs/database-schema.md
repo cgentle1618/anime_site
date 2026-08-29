@@ -1154,6 +1154,17 @@ rewatch marks are read and written directly through `POST /api/plan-next/` and
 `DELETE /api/plan-next/target` with `scope=franchise` / `scope=series`, not
 through a schema field.
 
+**A second, separate way the migration's backfill could lose a mark.** The
+backfill derived which `plan_next` rows a franchise or series needed from that
+group's actual child entries at migration time, joined on the entry's own
+`franchise_id` / `series_id`. A franchise or series that was flagged
+`to_rewatch` but held no child entries of a scope-legal type — or no children
+at all — produced no rows, so its mark was lost the same way cartoon's
+entry-level mark was: silently, with nothing left behind to signal it. This
+also means an entry linked to a franchise only through its series (no direct
+`franchise_id` on the entry) did not count toward that franchise's derived
+type set, even though the franchise page shows it as a descendant.
+
 ---
 
 ## Quote & Meme Tables

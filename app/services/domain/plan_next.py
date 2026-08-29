@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.domain.size_group import bucket_for
 from app.utils.media_resolver import OWNER_TABLES
-from app.utils.plan_next_kinds import SIZE_MEASURE, scope_allowed
+from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS, SIZE_MEASURE, scope_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -164,23 +164,6 @@ def set_entry_flag(
         )
     elif not planned and existing is not None:
         db.delete(existing)
-
-
-# The schema field name(s) each media type uses for its plan flags, paired
-# with the plan_next kind each one is backed by. Keys are
-# MediaTypeSpec.owner_type, which is already the hyphenated media_type value.
-# A type absent from a pair has no such virtual field - anime has no rewatch
-# flag (it rewatches at franchise scope), cartoon has neither rewatch field.
-PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
-    "anime": (("watch_next", "next"),),
-    "anime-movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
-    "movie": (("watch_next", "next"), ("to_rewatch", "rewatch")),
-    "tv-show": (("watch_next", "next"), ("to_rewatch", "rewatch")),
-    "cartoon": (("watch_next", "next"),),
-    "manga": (("read_next", "next"), ("to_reread", "rewatch")),
-    "novel": (("read_next", "next"), ("to_reread", "rewatch")),
-    "comic": (("read_next", "next"), ("to_reread", "rewatch")),
-}
 
 
 def pop_plan_flag(media_type: str, data: dict):
