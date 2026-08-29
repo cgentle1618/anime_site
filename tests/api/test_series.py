@@ -50,7 +50,6 @@ class TestCreateSeries:
             "series_name_alt": "NS",
             "my_rating": "A",
             "series_expectation": "High",
-            "to_rewatch": True,
             "remark": "a remark",
         }
         response = admin_client.post("/api/series/", json=payload)
@@ -60,7 +59,6 @@ class TestCreateSeries:
         assert data["series_name_jp"] == "新シリーズ"
         assert data["my_rating"] == "A"
         assert data["series_expectation"] == "High"
-        assert data["to_rewatch"] is True
         assert data["remark"] == "a remark"
 
     def test_expectation_defaults_to_low(self, admin_client, sample_franchise):

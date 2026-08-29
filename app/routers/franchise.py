@@ -98,8 +98,8 @@ def create_franchise(
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
     try:
         # Build from the validated payload rather than field-by-field. The previous
-        # explicit form silently dropped cover_entry_id, type_covers, type_slots,
-        # watch_next_group and to_rewatch on every create.
+        # explicit form silently dropped cover_entry_id, type_covers, type_slots
+        # and watch_next_group on every create.
         # Explicitly assign UUID and Timestamps in Python to bypass missing database default constraints
         data, remark, has_remark = pop_remark(payload.model_dump(exclude_unset=True))
         new_franchise = models.Franchise(

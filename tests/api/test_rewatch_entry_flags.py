@@ -101,12 +101,18 @@ def test_cartoon_has_no_rewatch_field(admin_client, seeded_cartoon):
     assert "to_rewatch" not in body
 
 
-def test_cartoon_list_ignores_the_dropped_filter(client):
+def test_cartoon_list_ignores_the_dropped_filter(client, seeded_cartoon):
     # `to_rewatch` was removed from cartoon's list_filters (app/registry.py), so
     # the factory's generic query-param loop (app/routers/_factory.py) never
     # looks at it. Unknown filters aren't rejected by that loop - they're just
-    # not applied - so this is a 200 with the filter silently ignored, not a
-    # 422. (The brief's version of this test assumed stricter validation than
-    # the factory implements; see task-4-report.md.)
-    res = client.get("/api/cartoon/?to_rewatch=true")
-    assert res.status_code == 200
+    # not applied - so `?to_rewatch=true` must return exactly the same rows as
+    # no filter at all, not a 422. (The brief's version of this test assumed
+    # stricter validation than the factory implements; see task-4-report.md.)
+    filtered = client.get("/api/cartoon/?to_rewatch=true")
+    unfiltered = client.get("/api/cartoon/")
+    assert filtered.status_code == 200
+    assert (
+        sorted(e["system_id"] for e in filtered.json())
+        == sorted(e["system_id"] for e in unfiltered.json())
+        == [str(seeded_cartoon)]
+    )

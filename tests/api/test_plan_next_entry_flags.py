@@ -79,6 +79,7 @@ def test_a_group_scope_row_is_not_an_entry_flag(db_session, sample_franchise):
             media_type="anime",
             scope="franchise",
             target_id=sample_franchise.system_id,
+            kind="next",
         )
     )
     db_session.flush()

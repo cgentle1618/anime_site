@@ -77,7 +77,6 @@ class TestSeriesNewColumns:
             "my_rating",
             "series_expectation",
             "cover_entry_id",
-            "to_rewatch",
             "created_at",
             "updated_at",
         ):
@@ -109,7 +108,6 @@ class TestSeriesNewColumns:
             "cover_entry_id",
             "size_group_derived",
             "size_group_manual",
-            "to_rewatch",
             "created_at",
             "updated_at",
         ]

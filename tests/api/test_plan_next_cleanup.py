@@ -11,23 +11,27 @@ from app import models
 from app.services.domain.plan_next import delete_plans_for
 
 
-def _plan(db, scope, target_id, media_type="anime"):
+def _plan(db, scope, target_id, media_type="anime", kind="next"):
     db.add(
         models.PlanNext(
             system_id=uuid.uuid4(),
             media_type=media_type,
             scope=scope,
             target_id=target_id,
+            kind=kind,
         )
     )
     db.flush()
 
 
 def test_deleting_a_franchise_clears_every_media_type(db_session, sample_franchise):
-    _plan(db_session, "franchise", sample_franchise.system_id, "anime")
-    _plan(db_session, "franchise", sample_franchise.system_id, "tv-show")
+    # delete_plans_for is scoped by (scope, target_id) only - it deliberately
+    # takes no kind parameter, so it must clear rows of every kind too.
+    _plan(db_session, "franchise", sample_franchise.system_id, "anime", kind="next")
+    _plan(db_session, "franchise", sample_franchise.system_id, "anime", kind="rewatch")
+    _plan(db_session, "franchise", sample_franchise.system_id, "tv-show", kind="next")
 
-    assert delete_plans_for(db_session, "franchise", sample_franchise.system_id) == 2
+    assert delete_plans_for(db_session, "franchise", sample_franchise.system_id) == 3
     db_session.flush()
     assert db_session.query(models.PlanNext).count() == 0
 

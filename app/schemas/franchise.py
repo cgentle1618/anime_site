@@ -24,7 +24,6 @@ class FranchiseBase(BaseModel):
     # writes it back. size_group_manual is the admin's override map.
     size_group_derived: Optional[dict] = None
     size_group_manual: Optional[dict] = None
-    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
     collection_id: Optional[UUID] = None
 
@@ -62,7 +61,6 @@ class SeriesBase(BaseModel):
     cover_entry_id: Optional[UUID] = None
     size_group_derived: Optional[dict] = None
     size_group_manual: Optional[dict] = None
-    to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
 
 
