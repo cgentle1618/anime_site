@@ -41,10 +41,14 @@ def test_no_pipeline_or_autofill_module_still_assigns_a_dropped_column():
     assignment silently creates a dead Python attribute (SQLAlchemy does not
     error on an unknown column) and the fetched value is thrown away.
 
-    Checks both `attr =` assignment and `setattr(entry, "attr", ...)`, since
-    autofill.py's comic path used the dynamic form.
+    Checks both `attr =` assignment and `setattr(<any var>, "attr", ...)`,
+    since autofill.py's comic path used the dynamic form against a `comic`
+    variable - the regex does not assume that variable name, so it also
+    catches the same pattern written as `setattr(movie, ...)`,
+    `setattr(entry, ...)`, etc.
     """
     import inspect
+    import re
 
     from app.services.pipelines import fill, pull
     from app.services.domain import autofill
@@ -78,6 +82,9 @@ def test_no_pipeline_or_autofill_module_still_assigns_a_dropped_column():
             assert f".{dropped} =" not in source, (
                 f"{module.__name__} still assigns .{dropped} directly"
             )
-            assert f'setattr(comic, "{dropped}"' not in source, (
+            setattr_pattern = re.compile(
+                r"""setattr\(\s*\w+\s*,\s*['"]""" + re.escape(dropped) + r"""['"]"""
+            )
+            assert not setattr_pattern.search(source), (
                 f"{module.__name__} still setattr()s '{dropped}' directly"
             )
