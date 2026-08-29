@@ -218,3 +218,110 @@ def tags_to_sheet_value(
 def names_from_sheet_value(raw: Optional[str]) -> list[str]:
     """Split one comma-joined sheet cell back into names."""
     return split_names(raw)
+
+
+# ---------------------------------------------------------------------------
+# One-time backfill from the comma-joined string columns.
+#
+# Lives here rather than inside the Alembic revision so it can be tested with
+# the normal fixtures and re-run by hand if a restore brings old data back. It
+# is idempotent: replace_* is a whole-set replace, so a second run rewrites the
+# same rows.
+# ---------------------------------------------------------------------------
+
+# (media_type, column, kind, key) - kind is "credit" or "tag".
+# manga.anime_studio is deliberately absent: it points at the adaptation's
+# studio, not at a credit of the manga. See the spec's Out of Scope section.
+BACKFILL_MAP: tuple[tuple[str, str, str, str], ...] = (
+    ("anime", "studio", "credit", "studio"),
+    ("anime", "director", "credit", "director"),
+    ("anime", "producer", "credit", "producer"),
+    ("anime", "music", "credit", "composer"),
+    ("anime", "distributor_tw", "tag", "publisher_tw"),
+    ("anime", "genre_main", "tag", "genre_main"),
+    ("anime", "genre_sub", "tag", "genre_sub"),
+    ("anime-movie", "studio", "credit", "studio"),
+    ("anime-movie", "director", "credit", "director"),
+    ("movie", "director", "credit", "director"),
+    ("tv-show", "source_official", "tag", "source_official"),
+    ("cartoon", "source_official", "tag", "source_official"),
+    ("manga", "author_plot", "credit", "manga_author_plot"),
+    ("manga", "author_draw", "credit", "manga_author_draw"),
+    ("manga", "publisher_tw", "tag", "publisher_tw"),
+    ("novel", "author", "credit", "novel_author"),
+    ("novel", "illustrator", "credit", "novel_illustrator"),
+    ("novel", "publisher_tw", "tag", "publisher_tw"),
+    ("comic", "writer", "credit", "comic_writer"),
+    ("comic", "artist", "credit", "comic_artist"),
+    ("comic", "publisher", "tag", "comic_publisher"),
+    ("comic", "imprint", "tag", "comic_imprint"),
+    ("comic", "continuity", "tag", "comic_continuity"),
+    ("comic", "era", "tag", "comic_era"),
+    ("comic", "events", "tag", "comic_event"),
+    ("comic", "publisher_tw", "tag", "publisher_tw"),
+)
+
+
+def backfill_credits(db: Session) -> dict:
+    """
+    Fill media_credit and media_tag from the legacy string columns.
+
+    Returns counts plus an `unplaced` list. Nothing is guessed: a fragment that
+    is empty after trimming, or a value that survives normalization as an empty
+    key, is reported with its owner id and original column so it can be placed
+    by hand.
+    """
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    unplaced: list[dict] = []
+    credits_written = tags_written = 0
+
+    for media_type, column, kind, key in BACKFILL_MAP:
+        model = MEDIA_TABLES[media_type].model
+        if not hasattr(model, column):
+            continue
+
+        for entry in db.query(model).all():
+            raw = getattr(entry, column, None)
+            if not raw:
+                continue
+
+            names = split_names(raw)
+            dropped = [f for f in str(raw).split(",") if f.strip() == ""]
+            if dropped:
+                unplaced.append(
+                    {
+                        "media_type": media_type,
+                        "entry_id": str(entry.system_id),
+                        "column": column,
+                        "raw": raw,
+                        "reason": "empty fragment",
+                    }
+                )
+            if not names:
+                continue
+
+            if kind == "credit":
+                replace_credits(db, media_type, entry.system_id, key, names)
+                credits_written += len(names)
+            else:
+                replace_tags(db, media_type, entry.system_id, key, names)
+                tags_written += len(names)
+
+    db.commit()
+
+    report = {
+        "credits": credits_written,
+        "tags": tags_written,
+        "people": db.query(models.Person).count(),
+        "studios": db.query(models.Studio).count(),
+        "options": db.query(models.SystemOption).count(),
+        "unplaced": unplaced,
+    }
+    logger.info(
+        "backfill_credits: %s credits, %s tags, %s unplaced",
+        credits_written,
+        tags_written,
+        len(unplaced),
+    )
+    return report
