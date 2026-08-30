@@ -46,7 +46,7 @@ function TierCard({ icon, label, labelClass, titles, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+      className="bg-surface rounded-xl border border-border p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
     >
       <div>
         <div
@@ -56,14 +56,14 @@ function TierCard({ icon, label, labelClass, titles, onClick }) {
           {label}
         </div>
         <h3
-          className="font-black text-gray-900 text-base leading-tight mb-1 line-clamp-2"
+          className="font-black text-text text-base leading-tight mb-1 line-clamp-2"
           title={titles.main}
         >
           {titles.main}
         </h3>
         {titles.sub && (
           <h4
-            className="text-xs font-medium text-gray-500 truncate"
+            className="text-xs font-medium text-text-faint truncate"
             title={titles.sub}
           >
             {titles.sub}
@@ -290,9 +290,9 @@ export default function Search() {
   if (!query.trim()) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <i className="fas fa-search text-4xl text-gray-300 mb-4"></i>
-        <p className="text-gray-500 font-bold">No Search Query</p>
-        <p className="text-sm text-gray-400 mt-1">
+        <i className="fas fa-search text-4xl text-text-faint/60 mb-4"></i>
+        <p className="text-text-faint font-bold">No Search Query</p>
+        <p className="text-sm text-text-faint mt-1">
           Please enter a term in the top search bar.
         </p>
       </div>
@@ -310,12 +310,12 @@ export default function Search() {
       {/* Sticky header: title + count summary */}
       <div
         ref={stickyBarRef}
-        className="sticky top-16 z-30 bg-gray-50 pb-4 mb-8 border-b border-gray-200"
+        className="sticky top-16 z-30 bg-canvas pb-4 mb-8 border-b border-border"
       >
-        <h1 className="text-xl font-black text-gray-900">
+        <h1 className="text-xl font-black text-text">
           Search Results for "<span className="text-brand">{query}</span>"
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           {scope !== "all" && (
             <span className="inline-flex items-center gap-1 bg-brand/10 text-brand text-xs font-bold px-2 py-0.5 rounded mr-2">
               {SCOPE_LABELS[scope]}
@@ -336,9 +336,9 @@ export default function Search() {
 
       <div className="space-y-8">
         {summaryCounts.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16 text-text-faint">
             <i className="fas fa-ghost text-4xl mb-3"></i>
-            <p className="font-bold text-gray-500">No results for "{query}"</p>
+            <p className="font-bold text-text-faint">No results for "{query}"</p>
             <p className="text-sm mt-1">Try a different term or scope.</p>
           </div>
         )}
@@ -346,7 +346,7 @@ export default function Search() {
         {/* Collection cards */}
         {showCollection && matchedCollections.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-boxes-stacked text-brand/70"></i> Collections
             </h2>
             <CollapsibleCardGrid
@@ -368,7 +368,7 @@ export default function Search() {
         {/* Seasonal entries */}
         {showSeasonal && matchedSeasonal.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-calendar-alt text-brand/70"></i> Seasonal
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -378,7 +378,7 @@ export default function Search() {
                   onClick={() =>
                     navigate(`/seasonal/${encodeURIComponent(s.seasonal)}`)
                   }
-                  className="px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
+                  className="px-4 py-1.5 rounded-full border border-border bg-surface text-sm font-bold text-text-muted hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
                 >
                   {s.seasonal}
                 </button>
@@ -392,7 +392,7 @@ export default function Search() {
           <CollapsiblePillRow>
             <button
               onClick={() => setSelectedFranchise("all")}
-              className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+              className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-surface text-text-muted border-border hover:bg-surface-2"}`}
             >
               All Results
             </button>
@@ -403,7 +403,7 @@ export default function Search() {
                   key={f.system_id}
                   onClick={() => setSelectedFranchise(f.system_id)}
                   title={titles.main}
-                  className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === f.system_id ? "bg-brand text-white border-brand" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+                  className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === f.system_id ? "bg-brand text-white border-brand" : "bg-surface text-text-muted border-border hover:bg-surface-2"}`}
                 >
                   {titles.main}
                 </button>
@@ -415,7 +415,7 @@ export default function Search() {
         {/* Franchise cards */}
         {showFranchise && displayFranchises.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-sitemap text-brand/70"></i> Franchises
             </h2>
             <CollapsibleCardGrid
@@ -441,7 +441,7 @@ export default function Search() {
         {/* Series cards */}
         {showSeries && displaySeries.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
               <i className="fas fa-layer-group text-brand/70"></i> Series
             </h2>
             <CollapsibleCardGrid
@@ -464,18 +464,18 @@ export default function Search() {
         {showAnime && displayAnime.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-tv text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Anime
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {displayAnime.length} results
               </span>
             </div>
@@ -489,14 +489,14 @@ export default function Search() {
                 items.length > 0 ? (
                   <div key={label}>
                     <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5">
                         <i className={`fas ${icon} text-brand/70`}></i>
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                         {items.length}
                       </span>
-                      <div className="flex-1 border-t border-gray-100"></div>
+                      <div className="flex-1 border-t border-border"></div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {items.map((a) => (
@@ -519,18 +519,18 @@ export default function Search() {
         {showAnimeMovie && matchedAnimeMovies.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-film text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Anime Movies
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedAnimeMovies.length} results
               </span>
             </div>
@@ -551,18 +551,18 @@ export default function Search() {
         {showMovie && matchedMovies.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-ticket-alt text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Movies
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedMovies.length} results
               </span>
             </div>
@@ -583,18 +583,18 @@ export default function Search() {
         {showTvShow && matchedTvShows.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-video text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   TV Shows
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedTvShows.length} results
               </span>
             </div>
@@ -615,18 +615,18 @@ export default function Search() {
         {showCartoon && matchedCartoons.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-paint-brush text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Cartoons
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedCartoons.length} results
               </span>
             </div>
@@ -647,18 +647,18 @@ export default function Search() {
         {showManga && matchedMangas.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-book text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Manga
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedMangas.length} results
               </span>
             </div>
@@ -680,18 +680,18 @@ export default function Search() {
         {showNovel && matchedNovels.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-book-open text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Novel
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedNovels.length} results
               </span>
             </div>
@@ -712,18 +712,18 @@ export default function Search() {
         {showComic && matchedComics.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-gray-200 sticky z-20 bg-gray-50"
+              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
               <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-book-bookmark text-brand"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">
+                <h2 className="text-xl font-black text-text tracking-tight leading-none">
                   Comic
                 </h2>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
                 {matchedComics.length} results
               </span>
             </div>

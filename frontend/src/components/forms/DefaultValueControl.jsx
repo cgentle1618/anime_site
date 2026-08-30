@@ -47,7 +47,7 @@ export default function DefaultValueControl({
 
   if (!field.defaultable || field.control === "none") {
     return (
-      <span className="text-xs text-gray-400 italic">
+      <span className="text-xs text-text-faint italic">
         No default for this field
       </span>
     );
@@ -63,7 +63,7 @@ export default function DefaultValueControl({
           onChange={(e) => onChange(e.target.checked)}
           className="rounded accent-brand"
         />
-        <span className={isOverridden ? "text-gray-700" : "text-gray-400"}>
+        <span className={isOverridden ? "text-text-muted" : "text-text-faint"}>
           {checked ? "Checked" : "Unchecked"}
           {!isOverridden && " (built-in)"}
         </span>

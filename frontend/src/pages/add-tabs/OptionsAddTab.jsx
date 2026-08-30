@@ -29,7 +29,7 @@ function roleLabel(key) {
 
 function SubTabBar({ active, onSelect }) {
   return (
-    <div className="flex gap-1 border-b border-gray-200 mb-4">
+    <div className="flex gap-1 border-b border-border mb-4">
       {SUB_TABS.map((t) => (
         <button
           key={t.key}
@@ -38,7 +38,7 @@ function SubTabBar({ active, onSelect }) {
           className={`px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 -mb-px transition ${
             active === t.key
               ? "border-brand text-brand"
-              : "border-transparent text-gray-400 hover:text-gray-600"
+              : "border-transparent text-text-faint hover:text-text-muted"
           }`}
         >
           <i className={`fas ${t.icon}`}></i>
@@ -75,7 +75,7 @@ function OptionsForm({
         </datalist>
       </Field>
       <div className="space-y-2">
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
           Option Values
         </label>
         {optValues.map((v, i) => (
@@ -280,7 +280,7 @@ export default function OptionsAddTab({
   usf,
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       <SectionHeader icon="fa-cog" title="System Options" />
       <SubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
       {optionsSubTab === "options" && (

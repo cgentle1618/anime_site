@@ -15,7 +15,7 @@ export default function OptionsModifyTab({
       <SectionHeader icon="fa-cog" title="System Option" />
       <Field label="Category">
         <input
-          className={inputCls + " bg-gray-50 text-gray-500"}
+          className={inputCls + " bg-surface-2 text-text-faint"}
           value={editingItem.category}
           readOnly
         />

@@ -23,7 +23,7 @@ const EXPECTATION_COLOR = {
   Highest: "bg-purple-500/80",
   High: "bg-amber-500/80",
   Medium: "bg-sky-500/80",
-  Low: "bg-gray-500/70",
+  Low: "bg-text-faint/70",
 };
 
 const FUTURE_WATCHING_OPTIONS = [
@@ -47,7 +47,7 @@ function serializationStatusCls(status) {
   if (status === "連載中 (不穩定)" || status === "連載中 (有生之年)")
     return "bg-yellow-100 text-yellow-700 border-yellow-200";
   if (status === "停更") return "bg-red-100 text-red-700 border-red-200";
-  return "bg-gray-100 text-gray-500 border-gray-200";
+  return "bg-surface-2 text-text-faint border-border";
 }
 
 function PosterBadges({ type, variant, data, franchiseDict }) {
@@ -61,7 +61,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
       <>
         {expectation && (type === "anime" || type === "cartoon") && (
           <div
-            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-gray-500/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
+            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-text-faint/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
           >
             {expectation}
           </div>
@@ -79,7 +79,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
               title="Watch on Bahamut"
             >
               <img
@@ -90,7 +90,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
             </a>
           ) : (
             <div
-              className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
               title="Available on Bahamut (no link)"
             >
               <img
@@ -157,7 +157,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
       )}
       {bahaFlag && (
         <div
-          className="absolute bottom-1 left-1 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+          className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
           title="Available on Bahamut"
         >
           <img
@@ -180,11 +180,11 @@ function LibraryMeta({ type, data }) {
       </>
     ) : (
       <>
-        <i className="fas fa-star text-gray-300 mr-0.5"></i>-
+        <i className="fas fa-star text-text-faint/60 mr-0.5"></i>-
       </>
     );
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between">
+      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between">
         <span className="truncate pr-1">{getReleaseFallback(data)}</span>
         <span className="shrink-0 flex items-center">{malText}</span>
       </div>
@@ -193,7 +193,7 @@ function LibraryMeta({ type, data }) {
 
   if (type === "tv-show") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
         {data.season_part && (
           <span className="truncate pr-1">{data.season_part}</span>
         )}
@@ -206,7 +206,7 @@ function LibraryMeta({ type, data }) {
 
   if (type === "cartoon") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
         {data.imdb_rating && data.imdb_rating !== "N/A" && (
           <span className="shrink-0 flex items-center gap-0.5 text-yellow-600 font-bold">
@@ -222,10 +222,10 @@ function LibraryMeta({ type, data }) {
     const length = formatLength(data.length_min);
     const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>
+            <i className="fas fa-clock text-text-faint"></i>
             {length}
           </span>
         )}
@@ -237,10 +237,10 @@ function LibraryMeta({ type, data }) {
   if (type === "movie") {
     const length = formatLength(data.length_min);
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-3 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>
+            <i className="fas fa-clock text-text-faint"></i>
             {length}
           </span>
         )}
@@ -255,7 +255,7 @@ function LibraryMeta({ type, data }) {
 
   if (type === "manga") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-1 flex items-center justify-between gap-1">
         <span className="truncate pr-1">
           {releaseYear(data.release_date) || "?"}
           {releaseYear(data.end_date) &&
@@ -275,12 +275,12 @@ function LibraryMeta({ type, data }) {
 
   if (type === "novel") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-1 flex items-end justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mb-1 flex items-end justify-between gap-1">
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           {(data.type || data.serialization_status || data.version) && (
             <div className="flex items-center gap-1">
               {data.type && (
-                <span className="shrink-0 text-[9px] font-black px-1 py-0.5 rounded bg-gray-100 text-gray-500">
+                <span className="shrink-0 text-[9px] font-black px-1 py-0.5 rounded bg-surface-2 text-text-faint">
                   {data.type}
                 </span>
               )}
@@ -292,7 +292,7 @@ function LibraryMeta({ type, data }) {
                 </span>
               )}
               {data.version && (
-                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-surface-2 text-text-faint border border-border">
                   {data.version}
                 </span>
               )}
@@ -321,15 +321,15 @@ function LibraryMeta({ type, data }) {
     // show the first and count the rest.
     const events = parseTypes(data.events);
     return (
-      <div className="text-[10px] text-gray-500 font-medium mb-1 flex flex-col gap-0.5 min-w-0">
+      <div className="text-[10px] text-text-faint font-medium mb-1 flex flex-col gap-0.5 min-w-0">
         {data.comic_name_cn && (
-          <span className="truncate text-gray-400" title={data.comic_name_cn}>
+          <span className="truncate text-text-faint" title={data.comic_name_cn}>
             {data.comic_name_cn}
           </span>
         )}
         <div className="flex items-center justify-between gap-1">
           {data.volume_label && (
-            <span className="shrink-0 font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+            <span className="shrink-0 font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-surface-2 text-text-muted border border-border">
               {data.volume_label}
             </span>
           )}
@@ -353,7 +353,7 @@ function LibraryMeta({ type, data }) {
           >
             <span className="truncate">{events[0]}</span>
             {events.length > 1 && (
-              <span className="shrink-0 text-gray-400">
+              <span className="shrink-0 text-text-faint">
                 +{events.length - 1}
               </span>
             )}
@@ -374,9 +374,9 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
         ? parseInt(data.ep_total, 10)
         : "?";
     return (
-      <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-        {localFin} <span className="text-gray-400">/</span> {localTotal}
-        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
+        {localFin} <span className="text-text-faint">/</span> {localTotal}
+        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
           EP
         </span>
       </div>
@@ -390,9 +390,9 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
         ? parseInt(data.ep_total, 10)
         : "?";
     return (
-      <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-        {epFin} <span className="text-gray-400">/</span> {epTotal}
-        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
+        {epFin} <span className="text-text-faint">/</span> {epTotal}
+        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
           EP
         </span>
       </div>
@@ -412,28 +412,28 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
             e.stopPropagation();
             onToggleVol();
           }}
-          className="text-[9px] text-gray-400 hover:text-brand border border-gray-200 rounded px-1 py-0.5 transition-colors shrink-0"
+          className="text-[9px] text-text-faint hover:text-brand border border-border rounded px-1 py-0.5 transition-colors shrink-0"
           title="Toggle Ch/Vol"
         >
           {showVol ? "CH" : "VOL"}
         </button>
         {showVol ? (
-          <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
+          <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
             {volFin}
             {volFinPage > 0 && (
-              <span className="text-[9px] text-gray-400 font-sans ml-0.5">
+              <span className="text-[9px] text-text-faint font-sans ml-0.5">
                 p{volFinPage}
               </span>
             )}{" "}
-            <span className="text-gray-400">/</span> {volTotal}
-            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+            <span className="text-text-faint">/</span> {volTotal}
+            <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
               VOL
             </span>
           </div>
         ) : (
-          <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-            {chFin} <span className="text-gray-400">/</span> {chTotal}
-            <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+          <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
+            {chFin} <span className="text-text-faint">/</span> {chTotal}
+            <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
               CH
             </span>
           </div>
@@ -446,18 +446,18 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     const pd = data.progress_display;
     if (pd === "vol_tw") {
       return (
-        <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
+        <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
           <span className="font-mono">
             {data.vol_fin ?? 0} /{" "}
             {data.vol_total_tw != null ? data.vol_total_tw : "?"}
           </span>
-          <span className="text-[9px] text-gray-400">VOL TW</span>
+          <span className="text-[9px] text-text-faint">VOL TW</span>
         </div>
       );
     }
     if (pd === "arc_ch") {
       return (
-        <span className="font-mono text-[10px] font-bold text-gray-700">
+        <span className="font-mono text-[10px] font-bold text-text-muted">
           {data.arc_fin ?? 0}/{data.arc_total ?? "?"} ARC &nbsp;
           {data.ch_fin ?? 0}/{data.ch_total ?? "?"} CH
         </span>
@@ -465,21 +465,21 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     }
     if (pd === "ch") {
       return (
-        <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
+        <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
           <span className="font-mono">
             {data.ch_fin ?? 0} / {data.ch_total != null ? data.ch_total : "?"}
           </span>
-          <span className="text-[9px] text-gray-400">CH</span>
+          <span className="text-[9px] text-text-faint">CH</span>
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-1 text-[11px] font-bold text-gray-700 tracking-tight">
+      <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
         <span className="font-mono">
           {data.vol_fin ?? 0} /{" "}
           {data.vol_total_original != null ? data.vol_total_original : "?"}
         </span>
-        <span className="text-[9px] text-gray-400">VOL</span>
+        <span className="text-[9px] text-text-faint">VOL</span>
       </div>
     );
   }
@@ -488,9 +488,9 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     const issFin = data.issue_fin ?? 0;
     const issTotal = data.issue_total != null ? data.issue_total : "?";
     return (
-      <div className="font-mono text-[11px] font-bold text-gray-700 tracking-tight">
-        {issFin} <span className="text-gray-400">/</span> {issTotal}
-        <span className="text-[9px] text-gray-400 font-sans tracking-normal ml-0.5">
+      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
+        {issFin} <span className="text-text-faint">/</span> {issTotal}
+        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
           ISS
         </span>
       </div>
@@ -503,17 +503,17 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
 function FutureMeta({ type, data }) {
   if (type === "anime") {
     return data.studio ? (
-      <p className="text-[10px] text-gray-400 truncate mt-0.5">{data.studio}</p>
+      <p className="text-[10px] text-text-faint truncate mt-0.5">{data.studio}</p>
     ) : null;
   }
   if (type === "anime-movie") {
     const length = formatLength(data.length_min);
     const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
-      <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>
+            <i className="fas fa-clock text-text-faint"></i>
             {length}
           </span>
         )}
@@ -527,10 +527,10 @@ function FutureMeta({ type, data }) {
     const year = releaseYear(d);
     const shownYear = year || "TBD";
     return (
-      <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
         {length && (
           <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-gray-400"></i>
+            <i className="fas fa-clock text-text-faint"></i>
             {length}
           </span>
         )}
@@ -540,7 +540,7 @@ function FutureMeta({ type, data }) {
   }
   if (type === "tv-show") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mt-1 flex items-center justify-between gap-1">
+      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
         {data.region && <span className="shrink-0">{data.region}</span>}
         <span className="truncate">{data.release_date || "TBD"}</span>
       </div>
@@ -548,7 +548,7 @@ function FutureMeta({ type, data }) {
   }
   if (type === "cartoon") {
     return (
-      <div className="text-[10px] text-gray-500 font-medium mt-1 truncate">
+      <div className="text-[10px] text-text-faint font-medium mt-1 truncate">
         {data.release_date || "TBD"}
       </div>
     );
@@ -674,7 +674,7 @@ export default function MediaCard({
     </button>
   ) : !ADMIN_ONLY_STATUS.has(type) && currentStatus ? (
     <div
-      className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 max-w-[65px] truncate"
+      className="text-[9px] font-bold text-text-faint bg-surface-2 border border-border rounded px-1.5 py-0.5 max-w-[65px] truncate"
       title={currentStatus}
     >
       {currentStatus}
@@ -683,10 +683,10 @@ export default function MediaCard({
 
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
       onClick={() => navPath && navigate(`${navPath}/${data.system_id}`)}
     >
-      <div className="w-full aspect-[3/4] bg-gray-100 relative overflow-hidden">
+      <div className="w-full aspect-[3/4] bg-surface-2 relative overflow-hidden">
         <PosterBadges
           type={type}
           variant={variant}
@@ -704,9 +704,9 @@ export default function MediaCard({
         />
       </div>
 
-      <div className="p-3 flex flex-col flex-1 relative z-20 bg-white">
+      <div className="p-3 flex flex-col flex-1 relative z-20 bg-surface">
         <h3
-          className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight mb-1.5"
+          className="font-bold text-text text-xs line-clamp-2 leading-tight mb-1.5"
           title={title}
         >
           {title}
@@ -715,14 +715,14 @@ export default function MediaCard({
         {variant === "future" ? (
           <>
             <FutureMeta type={type} data={data} />
-            <div className="mt-auto flex items-center gap-1 border-t border-gray-100 pt-2.5">
+            <div className="mt-auto flex items-center gap-1 border-t border-border pt-2.5">
               {showAdmin && (
                 <>
                   <select
                     value={currentStatus}
                     onChange={handleStatusChange}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] font-bold rounded border border-gray-200 px-1 py-0.5 bg-white text-gray-700 cursor-pointer focus:outline-none focus:border-brand w-full"
+                    className="text-[10px] font-bold rounded border border-border px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:border-brand w-full"
                     title="Watching status"
                   >
                     {needsExtra && (
@@ -751,7 +751,7 @@ export default function MediaCard({
           <>
             <LibraryMeta type={type} data={data} />
             <div
-              className={`mt-auto flex items-center border-t border-gray-100 pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
+              className={`mt-auto flex items-center border-t border-border pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
             >
               {HAS_PROGRESS.has(type) && (
                 <ProgressDisplay

@@ -25,8 +25,8 @@ export default function SourcesCard({
     twitterLink;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+    <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
+      <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
         <i className="fas fa-link mr-1.5"></i>Sources
       </h3>
       <div className="space-y-2">
@@ -49,7 +49,7 @@ export default function SourcesCard({
           </a>
         )}
         {showBaha && !bahaLink && (
-          <div className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
+          <div className="flex items-center w-full bg-surface-2 text-text-faint px-3 py-2 rounded border border-border text-sm font-bold">
             <img
               src="https://i2.bahamut.com.tw/anime/logo.svg"
               className="h-4 mr-2 grayscale opacity-50"
@@ -64,14 +64,14 @@ export default function SourcesCard({
           </div>
         )}
         {officialSource && (
-          <div className="flex items-center w-full bg-gray-50 text-gray-700 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
-            <i className="fas fa-tv mr-2 text-gray-400"></i>
+          <div className="flex items-center w-full bg-surface-2 text-text-muted px-3 py-2 rounded border border-border text-sm font-bold">
+            <i className="fas fa-tv mr-2 text-text-faint"></i>
             {officialSource}
           </div>
         )}
         {serializationPlatform && (
-          <div className="flex items-center w-full bg-gray-50 text-gray-700 px-3 py-2 rounded border border-gray-200 text-sm font-bold">
-            <i className="fas fa-book mr-2 text-gray-400"></i>
+          <div className="flex items-center w-full bg-surface-2 text-text-muted px-3 py-2 rounded border border-border text-sm font-bold">
+            <i className="fas fa-book mr-2 text-text-faint"></i>
             {serializationPlatform}
           </div>
         )}
@@ -110,7 +110,7 @@ export default function SourcesCard({
             ) : (
               <div
                 key={name}
-                className="flex items-center w-full bg-gray-50 text-gray-500 px-3 py-2 rounded border border-gray-200 text-sm font-bold"
+                className="flex items-center w-full bg-surface-2 text-text-faint px-3 py-2 rounded border border-border text-sm font-bold"
               >
                 <i className="fas fa-play-circle mr-2 opacity-50"></i>
                 {name}
@@ -122,7 +122,7 @@ export default function SourcesCard({
             href={malLink}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
+            className="flex items-center justify-between w-full text-text-muted hover:text-brand px-3 py-2 text-sm font-bold border-b border-border"
           >
             <span className="flex items-center">
               <span className="bg-[#2E51A2] text-white text-[9px] px-1 py-0.5 rounded mr-2">
@@ -138,7 +138,7 @@ export default function SourcesCard({
             href={anilistLink}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
+            className="flex items-center justify-between w-full text-text-muted hover:text-brand px-3 py-2 text-sm font-bold border-b border-border"
           >
             <span className="flex items-center">
               <span className="bg-[#02A9FF] text-white text-[9px] px-1 py-0.5 rounded mr-2">
@@ -154,7 +154,7 @@ export default function SourcesCard({
             href={officialLink}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold border-b border-gray-50"
+            className="flex items-center justify-between w-full text-text-muted hover:text-brand px-3 py-2 text-sm font-bold border-b border-border"
           >
             <span className="flex items-center">
               <i className="fas fa-globe mr-2"></i> Official Site
@@ -167,7 +167,7 @@ export default function SourcesCard({
             href={twitterLink}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between w-full text-gray-600 hover:text-brand px-3 py-2 text-sm font-bold"
+            className="flex items-center justify-between w-full text-text-muted hover:text-brand px-3 py-2 text-sm font-bold"
           >
             <span className="flex items-center">
               <i className="fab fa-twitter mr-2 text-[#1DA1F2]"></i> Twitter
@@ -176,7 +176,7 @@ export default function SourcesCard({
           </a>
         )}
         {!hasAny && (
-          <div className="text-sm text-gray-400 italic">
+          <div className="text-sm text-text-faint italic">
             No sources recorded.
           </div>
         )}

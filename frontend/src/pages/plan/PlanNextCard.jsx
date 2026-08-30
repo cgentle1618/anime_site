@@ -24,7 +24,7 @@ export default function PlanNextCard({ row }) {
   const src = row.coverUrl || getCoverUrl(row.cover_image_file);
   const body = (
     <>
-      <div className="aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden">
+      <div className="aspect-[3/4] bg-surface-2 rounded-xl overflow-hidden">
         <img
           src={src}
           alt={row.display_name || ""}
@@ -48,7 +48,7 @@ export default function PlanNextCard({ row }) {
   );
 
   const className =
-    "group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 block";
+    "group relative rounded-xl overflow-hidden shadow-sm border border-border hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 block";
 
   return row.nav_path ? (
     <Link to={`${row.nav_path}/${row.target_id}`} className={className}>

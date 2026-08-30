@@ -160,7 +160,7 @@ export default function Anime() {
   const progressPct =
     epTotal !== "?" ? Math.round((epFin / parseInt(epTotal)) * 100) : 0;
 
-  let airingStatusColor = "bg-gray-100 text-gray-600 border border-gray-200";
+  let airingStatusColor = "bg-surface-2 text-text-muted border border-border";
   if (anime.airing_status === "Airing")
     airingStatusColor = "bg-green-100 text-green-700 border border-green-200";
   else if (anime.airing_status === "Finished Airing")
@@ -193,7 +193,7 @@ export default function Anime() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       {/* Breadcrumb */}
-      <nav className="flex text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
+      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
         <ol className="inline-flex items-center space-x-2">
           <li>
             <Link to="/library/anime" className="hover:text-brand transition">
@@ -203,7 +203,7 @@ export default function Anime() {
           <li>
             <i className="fas fa-chevron-right text-[10px]"></i>
           </li>
-          <li className="font-medium text-gray-900 truncate max-w-xs">
+          <li className="font-medium text-text truncate max-w-xs">
             {titleMain}
           </li>
         </ol>
@@ -218,7 +218,7 @@ export default function Anime() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => navigate(`/modify?id=${system_id}`)}
-              className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
+              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
             </button>
@@ -238,7 +238,7 @@ export default function Anime() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-white hover:bg-green-50 border border-gray-200 text-gray-700 hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
+              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
               <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
               Completed
@@ -262,14 +262,14 @@ export default function Anime() {
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
           {/* Poster */}
-          <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm relative group overflow-hidden">
+          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative group overflow-hidden">
             {anime.my_rating && (
               <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
                 <i className="fas fa-star text-[9px] mr-1"></i>
                 {anime.my_rating}
               </div>
             )}
-            <div className="w-full aspect-[2/3] bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
+            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border relative">
               <img
                 src={imageUrl}
                 alt="Cover"
@@ -282,7 +282,7 @@ export default function Anime() {
             {/* Hover Progress Overlay */}
             <div className="absolute bottom-2 left-2 right-2 bg-gray-900/80 backdrop-blur-sm rounded-lg p-3 shadow-xl transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
               <div className="flex justify-between items-end mb-1">
-                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-text-faint/60 uppercase tracking-wider">
                   Progress
                 </span>
                 <span className="text-[10px] font-bold text-white">
@@ -316,15 +316,15 @@ export default function Anime() {
 
           {/* System Info — admin only */}
           {isAdmin && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
+              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
                 <i className="fas fa-microchip mr-1.5"></i>System Info
               </h3>
               <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
+                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
                   System ID
                 </div>
-                <div className="text-xs font-mono text-gray-800 bg-gray-50 px-2 py-1.5 rounded border border-gray-100 break-all select-all">
+                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
                   {anime.system_id}
                 </div>
               </div>
@@ -345,22 +345,22 @@ export default function Anime() {
                 </span>
               )}
               {anime.airing_type && (
-                <span className="bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
+                <span className="bg-surface-2 text-text-muted border border-border px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
                   {anime.airing_type}
                 </span>
               )}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-1">
+            <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight mb-1">
               {titleMain}
             </h1>
             {titleSub && (
-              <h2 className="text-lg text-gray-500 font-medium mb-3">
+              <h2 className="text-lg text-text-faint font-medium mb-3">
                 {titleSub}
               </h2>
             )}
 
             {/* Franchise / Series Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-gray-500 bg-gray-50 py-2 px-3 rounded-lg border border-gray-200 inline-flex mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border inline-flex mb-6">
               <div>
                 {franchise ? (
                   <span>
@@ -373,12 +373,12 @@ export default function Anime() {
                     </Link>
                   </span>
                 ) : (
-                  <span className="text-gray-400">
+                  <span className="text-text-faint">
                     <i className="fas fa-unlink mr-1.5"></i>Independent
                   </span>
                 )}
               </div>
-              <div className="hidden sm:block text-gray-300">|</div>
+              <div className="hidden sm:block text-text-faint/60">|</div>
               <div>
                 {series ? (
                   <span>
@@ -391,7 +391,7 @@ export default function Anime() {
                     </Link>
                   </span>
                 ) : (
-                  <span className="text-gray-400">
+                  <span className="text-text-faint">
                     <i className="fas fa-minus mr-1.5"></i>No Series Hub
                   </span>
                 )}
@@ -477,19 +477,19 @@ export default function Anime() {
           {/* Notes Section: Cast & Characters */}
           <div className="grid grid-cols-1 gap-6">
             {/* Cast & Characters (Under Development) */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 shrink-0">
-                <h3 className="font-bold text-gray-800">
+            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+              <div className="bg-surface-2 border-b border-border px-4 py-3 shrink-0">
+                <h3 className="font-bold text-text">
                   <i className="fas fa-users text-brand mr-2"></i>Cast &
                   Characters
                 </h3>
               </div>
-              <div className="p-6 flex flex-col items-center justify-center text-center flex-1 bg-gray-50/50 min-h-[180px]">
+              <div className="p-6 flex flex-col items-center justify-center text-center flex-1 bg-surface-2/50 min-h-[180px]">
                 <i className="fas fa-tools text-3xl text-brand/30 mb-3"></i>
-                <p className="text-sm font-bold text-gray-600">
+                <p className="text-sm font-bold text-text-muted">
                   Under Development
                 </p>
-                <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
+                <p className="text-xs text-text-faint mt-1 max-w-[200px]">
                   Character & Staff tracking pipeline is currently being
                   engineered.
                 </p>

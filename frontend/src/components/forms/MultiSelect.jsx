@@ -86,7 +86,7 @@ export default function MultiSelect({
     <div ref={containerRef} className="relative">
       {/* Pills + input */}
       <div
-        className="flex flex-wrap gap-1.5 w-full border border-gray-200 rounded-lg px-2 py-1.5 bg-white cursor-text focus-within:ring-2 focus-within:ring-brand focus-within:border-transparent min-h-[38px]"
+        className="flex flex-wrap gap-1.5 w-full border border-border rounded-lg px-2 py-1.5 bg-surface cursor-text focus-within:ring-2 focus-within:ring-brand focus-within:border-transparent min-h-[38px]"
         onClick={() => inputRef.current?.focus()}
       >
         {selected.map((v) => (
@@ -125,9 +125,9 @@ export default function MultiSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-gray-400 font-medium">
+            <div className="px-3 py-2 text-xs text-text-faint font-medium">
               {query ? `Press Enter to add "${query}"` : "No more options"}
             </div>
           ) : (
@@ -137,7 +137,7 @@ export default function MultiSelect({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => addValue(opt)}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
+                className="w-full text-left px-3 py-2 text-sm font-medium text-text-muted hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
               >
                 {opt}
               </button>

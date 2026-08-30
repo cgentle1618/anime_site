@@ -893,15 +893,15 @@ export default function SeriesPage() {
             <div className="mb-2">
               <TierBadge tier="series" />
             </div>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight mb-1">
+            <h1 className="text-2xl font-black text-text leading-tight mb-1">
               {mainTitle}
             </h1>
             {subTitles.map(({ label, value }) => (
               <p
                 key={label}
-                className="text-sm text-gray-500 font-medium truncate flex items-center gap-1.5"
+                className="text-sm text-text-faint font-medium truncate flex items-center gap-1.5"
               >
-                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                <span className="text-[10px] font-black text-text-faint bg-surface-2 px-1.5 py-0.5 rounded shrink-0">
                   {label}
                 </span>
                 {value}
@@ -943,7 +943,7 @@ export default function SeriesPage() {
                   {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
                 </span>
               ))}
-              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
+              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
                 {totalEntries} Total Entries
               </span>
             </div>
@@ -951,20 +951,20 @@ export default function SeriesPage() {
 
           {/* Right: completion + admin controls */}
           <div className="lg:w-52 shrink-0 space-y-3">
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
+            <div className="bg-surface-2 rounded-xl p-4 border border-border">
+              <div className="text-xs font-black text-text-faint uppercase tracking-wider mb-2">
                 Completion
               </div>
-              <div className="text-2xl font-black text-gray-900 mb-1">
+              <div className="text-2xl font-black text-text mb-1">
                 {completionPct}%
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-1.5">
+              <div className="w-full bg-surface-3 rounded-full h-2 mb-1.5">
                 <div
                   className="bg-brand h-2 rounded-full transition-all"
                   style={{ width: `${completionPct}%` }}
                 ></div>
               </div>
-              <div className="text-xs text-gray-500 font-medium">
+              <div className="text-xs text-text-faint font-medium">
                 {completedCount} / {totalEntries} completed
               </div>
             </div>
@@ -972,7 +972,7 @@ export default function SeriesPage() {
             {isAdmin && (
               <div className="space-y-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Overall Rating
                   </label>
                   <select
@@ -981,7 +981,7 @@ export default function SeriesPage() {
                       setRating(e.target.value);
                       saveField("my_rating", e.target.value);
                     }}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— Not Rated —</option>
                     {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
@@ -992,7 +992,7 @@ export default function SeriesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Expectation
                   </label>
                   <select
@@ -1001,7 +1001,7 @@ export default function SeriesPage() {
                       setExpectation(e.target.value);
                       saveField("series_expectation", e.target.value);
                     }}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— None —</option>
                     {["Highest", "High", "Medium", "Low"].map((r) => (
@@ -1013,7 +1013,7 @@ export default function SeriesPage() {
                 </div>
                 {seriesApplicableRewatchTypes.length > 0 && (
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                       {kindLabel("rewatch", seriesApplicableRewatchTypes)}
                     </label>
                     <PlanKindToggles
@@ -1034,7 +1034,7 @@ export default function SeriesPage() {
         {(isAdmin || series.remark) && (
           <div className="mt-4">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
                 Remark
               </label>
               {remarkClipped && (
@@ -1056,7 +1056,7 @@ export default function SeriesPage() {
               onBlur={() => saveRemark()}
               rows={3}
               placeholder="Add private overview notes, watch order guides, or specific remarks for the entire series..."
-              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
+              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
             />
           </div>
         )}
@@ -1091,7 +1091,7 @@ export default function SeriesPage() {
             <select
               value={animeSort}
               onChange={(e) => setAnimeSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="title">Sort: Title</option>
               <option value="release_date">Sort: Release Date</option>
@@ -1099,19 +1099,19 @@ export default function SeriesPage() {
               <option value="mal_rating">Sort: MAL Rating</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setAnimeFilters, "airingType", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {[
               ["Airing", "Airing"],
@@ -1123,13 +1123,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setAnimeFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1138,16 +1138,16 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
-            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
               <input
                 type="checkbox"
                 checked={animeFilters.bahaOnly}
@@ -1202,7 +1202,7 @@ export default function SeriesPage() {
             <select
               value={mangaSort}
               onChange={(e) => setMangaSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="title">Sort: Title</option>
               <option value="my_rating">Sort: My Rating</option>
@@ -1211,7 +1211,7 @@ export default function SeriesPage() {
               <option value="end_date">Sort: End Date</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1219,13 +1219,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setMangaFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1234,20 +1234,20 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setMangaFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setMangaFilters, "region", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
@@ -1286,7 +1286,7 @@ export default function SeriesPage() {
             <select
               value={novelSort}
               onChange={(e) => setNovelSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="title">Sort: Title</option>
               <option value="my_rating">Sort: My Rating</option>
@@ -1295,7 +1295,7 @@ export default function SeriesPage() {
               <option value="end_date">Sort: End Date</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1303,13 +1303,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setNovelFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1318,20 +1318,20 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setNovelFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["JP", "CN", "TW", "KR", "Western"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
@@ -1369,7 +1369,7 @@ export default function SeriesPage() {
             <select
               value={comicSort}
               onChange={(e) => setComicSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="title">Sort: Title</option>
               <option value="my_rating">Sort: My Rating</option>
@@ -1377,7 +1377,7 @@ export default function SeriesPage() {
               <option value="end_date">Sort: End Date</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1385,13 +1385,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setComicFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1400,7 +1400,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setComicFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
@@ -1440,7 +1440,7 @@ export default function SeriesPage() {
             <select
               value={movSort}
               onChange={(e) => setMovSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="release_date">Sort: Release Date</option>
               <option value="title">Sort: Title</option>
@@ -1448,7 +1448,7 @@ export default function SeriesPage() {
               <option value="imdb_rating">Sort: IMDb Rating</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {[
               ["Finished", "Finished Airing"],
@@ -1459,13 +1459,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setMovFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1474,7 +1474,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
@@ -1513,7 +1513,7 @@ export default function SeriesPage() {
             <select
               value={tvSort}
               onChange={(e) => setTvSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="release_date">Sort: Release Date</option>
               <option value="title">Sort: Title</option>
@@ -1521,7 +1521,7 @@ export default function SeriesPage() {
               <option value="imdb_rating">Sort: IMDb Rating</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {[
               ["Airing", "Airing"],
@@ -1533,13 +1533,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setTvFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1548,7 +1548,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
@@ -1587,7 +1587,7 @@ export default function SeriesPage() {
             <select
               value={cartoonSort}
               onChange={(e) => setCartoonSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="release_date">Sort: Release Date</option>
               <option value="title">Sort: Title</option>
@@ -1595,7 +1595,7 @@ export default function SeriesPage() {
               <option value="imdb_rating">Sort: IMDb Rating</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {cartoonAiringTypeOptions.length > 0 && (
               <>
@@ -1605,12 +1605,12 @@ export default function SeriesPage() {
                     onClick={() =>
                       toggleSetFilter(setCartoonFilters, "airingType", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                   >
                     {v}
                   </button>
                 ))}
-                <div className="w-px h-5 bg-gray-200"></div>
+                <div className="w-px h-5 bg-surface-3"></div>
               </>
             )}
 
@@ -1624,13 +1624,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setCartoonFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1639,7 +1639,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
@@ -1712,7 +1712,7 @@ export default function SeriesPage() {
       {/* No entries at all. Keyed off the media tabs, not every tab: Watch
           Order and Notes are always offered, so `tabs` is never empty. */}
       {mediaTabs.length === 0 && !loading && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-text-faint">
           <i className="fas fa-box-open text-3xl mb-3"></i>
           <p className="font-medium">No entries found for this series.</p>
         </div>

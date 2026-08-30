@@ -108,17 +108,17 @@ function DeletedTable({ records, onRefresh }) {
   function renderAdditional(d) {
     if (d.type === "System Options" && d.category) {
       return (
-        <span className="text-gray-500 text-xs">Category: {d.category}</span>
+        <span className="text-text-faint text-xs">Category: {d.category}</span>
       );
     }
     if (d.type === "Franchise" && d.franchise_type) {
       return (
-        <span className="text-gray-500 text-xs">Type: {d.franchise_type}</span>
+        <span className="text-text-faint text-xs">Type: {d.franchise_type}</span>
       );
     }
     if (["Anime", "TV Show", "Movie", "Cartoon", "Manga", "Novel"].includes(d.type)) {
       return (
-        <div className="text-xs text-gray-500 space-y-0.5">
+        <div className="text-xs text-text-faint space-y-0.5">
           {d.franchise_cn && <div>Franchise: {d.franchise_cn}</div>}
           {d.series_cn && <div>Series: {d.series_cn}</div>}
         </div>
@@ -126,14 +126,14 @@ function DeletedTable({ records, onRefresh }) {
     }
     if (d.type === "Anime Movie" && d.franchise_cn) {
       return (
-        <span className="text-gray-500 text-xs">
+        <span className="text-text-faint text-xs">
           Franchise: {d.franchise_cn}
         </span>
       );
     }
     if (d.type === "Series" && d.franchise_cn) {
       return (
-        <span className="text-gray-500 text-xs">
+        <span className="text-text-faint text-xs">
           Franchise: {d.franchise_cn}
         </span>
       );
@@ -142,7 +142,7 @@ function DeletedTable({ records, onRefresh }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
       <div className="bg-red-50/50 border-b border-red-100 px-5 py-3 flex items-center justify-between">
         <span className="font-bold text-red-900">
           <i className="fas fa-trash-alt mr-2 text-red-500"></i> Recently
@@ -158,7 +158,7 @@ function DeletedTable({ records, onRefresh }) {
           </button>
           <button
             onClick={onRefresh}
-            className="text-gray-400 hover:text-red-500 transition"
+            className="text-text-faint hover:text-red-500 transition"
           >
             <i className="fas fa-redo"></i>
           </button>
@@ -166,7 +166,7 @@ function DeletedTable({ records, onRefresh }) {
       </div>
       <div className="overflow-x-auto flex-1">
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white sticky top-0 border-b border-gray-100 shadow-sm z-10">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider bg-surface sticky top-0 border-b border-border shadow-sm z-10">
             <tr>
               <th className="px-5 py-2.5 whitespace-nowrap">Time</th>
               <th className="px-5 py-2.5">Type</th>
@@ -176,10 +176,10 @@ function DeletedTable({ records, onRefresh }) {
               <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {slice.map((d, i) => (
               <tr key={i} className="hover:bg-red-50/30 transition group">
-                <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap text-xs">
+                <td className="px-5 py-2.5 text-text-faint whitespace-nowrap text-xs">
                   {formatDate(d.timestamp)}
                 </td>
                 <td className="px-5 py-2.5">
@@ -188,13 +188,13 @@ function DeletedTable({ records, onRefresh }) {
                   </span>
                 </td>
                 <td
-                  className="px-5 py-2.5 font-bold text-gray-800 max-w-[160px] truncate"
+                  className="px-5 py-2.5 font-bold text-text max-w-[160px] truncate"
                   title={d.name_cn}
                 >
                   {d.name_cn || "-"}
                 </td>
                 <td
-                  className="px-5 py-2.5 text-gray-600 max-w-[160px] truncate text-xs"
+                  className="px-5 py-2.5 text-text-muted max-w-[160px] truncate text-xs"
                   title={d.name_en}
                 >
                   {d.name_en || ""}
@@ -205,7 +205,7 @@ function DeletedTable({ records, onRefresh }) {
                 <td className="px-3 py-2.5">
                   <button
                     onClick={() => handleDeleteRecord(d.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition"
+                    className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-red-500 transition"
                     title="Delete this record"
                   >
                     <i className="fas fa-times text-xs"></i>
@@ -217,7 +217,7 @@ function DeletedTable({ records, onRefresh }) {
               <tr>
                 <td
                   colSpan={6}
-                  className="text-center py-6 text-gray-400 italic"
+                  className="text-center py-6 text-text-faint italic"
                 >
                   No deleted entries found
                 </td>
@@ -226,25 +226,25 @@ function DeletedTable({ records, onRefresh }) {
           </tbody>
         </table>
       </div>
-      <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex items-center justify-between shrink-0">
-        <div className="text-xs font-bold text-gray-500">
-          Total Deleted: <span className="text-gray-800">{records.length}</span>
+      <div className="bg-surface-2 px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
+        <div className="text-xs font-bold text-text-faint">
+          Total Deleted: <span className="text-text">{records.length}</span>
         </div>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-left"></i>
           </button>
-          <div className="text-xs font-black text-gray-700 uppercase tracking-tighter">
+          <div className="text-xs font-black text-text-muted uppercase tracking-tighter">
             Page {page} of {totalPages}
           </div>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-right"></i>
           </button>
@@ -260,7 +260,7 @@ function airingBadgeCls(status) {
   if (status === "Not Yet Aired") return "text-orange-700 bg-orange-100";
   if (status === "Canceled") return "text-red-700 bg-red-100";
   if (status === "Rumored") return "text-purple-700 bg-purple-100";
-  return "text-gray-500 bg-gray-100";
+  return "text-text-faint bg-surface-2";
 }
 
 export default function DataHistory() {
@@ -359,27 +359,27 @@ export default function DataHistory() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+          <h1 className="text-3xl font-black text-text tracking-tight">
             Data History
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-text-faint mt-1">
             Recent additions, modifications, and deletions across the database.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
             to="/system"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-surface-2 hover:text-text hover:border-border-strong transition shadow-sm flex items-center"
           >
-            <i className="fas fa-cog mr-2 text-gray-500"></i> Control Center
+            <i className="fas fa-cog mr-2 text-text-faint"></i> Control Center
           </Link>
         </div>
       </div>
 
       {/* Database Record History */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2">
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+        <div className="flex items-center justify-between border-b-2 border-border pb-2">
+          <h2 className="text-2xl font-black text-text tracking-tight">
             Database Record History
           </h2>
           <button
@@ -387,7 +387,7 @@ export default function DataHistory() {
               loadHistory();
               loadDeleted();
             }}
-            className="text-gray-400 hover:text-brand transition text-sm font-bold"
+            className="text-text-faint hover:text-brand transition text-sm font-bold"
           >
             <i className="fas fa-redo mr-1"></i> Refresh
           </button>
@@ -395,19 +395,19 @@ export default function DataHistory() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Modified Franchise */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
             <div className="bg-purple-50/50 border-b border-purple-100 px-5 py-3 font-bold text-purple-900">
               <i className="fas fa-sitemap mr-2 text-purple-500"></i> Modified
               Franchise
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border">
                   {modFranchise.length === 0 && (
                     <tr>
                       <td
                         colSpan={3}
-                        className="text-center py-6 text-gray-400 italic"
+                        className="text-center py-6 text-text-faint italic"
                       >
                         No modified franchises
                       </td>
@@ -421,16 +421,16 @@ export default function DataHistory() {
                         (window.location.href = `/franchise/${f.system_id}`)
                       }
                     >
-                      <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                      <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
                         {formatDate(f.updated_at)}
                       </td>
-                      <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">
-                        <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                      <td className="px-5 py-2.5 text-text-muted whitespace-nowrap">
+                        <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                           {f.franchise_type || "-"}
                         </span>
                       </td>
                       <td
-                        className="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]"
+                        className="px-5 py-2.5 font-bold text-text truncate max-w-[250px]"
                         title={getTitle(f, "franchise")}
                       >
                         {getTitle(f, "franchise")}
@@ -443,19 +443,19 @@ export default function DataHistory() {
           </div>
 
           {/* Added Franchise */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
             <div className="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3 font-bold text-emerald-900">
               <i className="fas fa-plus-circle mr-2 text-emerald-500"></i> Added
               Franchise
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border">
                   {addFranchise.length === 0 && (
                     <tr>
                       <td
                         colSpan={3}
-                        className="text-center py-6 text-gray-400 italic"
+                        className="text-center py-6 text-text-faint italic"
                       >
                         No recently added franchises
                       </td>
@@ -469,16 +469,16 @@ export default function DataHistory() {
                         (window.location.href = `/franchise/${f.system_id}`)
                       }
                     >
-                      <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                      <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
                         {formatDate(f.created_at)}
                       </td>
-                      <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">
-                        <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                      <td className="px-5 py-2.5 text-text-muted whitespace-nowrap">
+                        <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                           {f.franchise_type || "-"}
                         </span>
                       </td>
                       <td
-                        className="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[250px]"
+                        className="px-5 py-2.5 font-bold text-text truncate max-w-[250px]"
                         title={getTitle(f, "franchise")}
                       >
                         {getTitle(f, "franchise")}
@@ -491,18 +491,18 @@ export default function DataHistory() {
           </div>
 
           {/* Modified Anime */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
             <div className="bg-blue-50/50 border-b border-blue-100 px-5 py-3 font-bold text-blue-900">
               <i className="fas fa-tv mr-2 text-blue-500"></i> Modified Anime
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border">
                   {modAnime.length === 0 && (
                     <tr>
                       <td
                         colSpan={5}
-                        className="text-center py-6 text-gray-400 italic"
+                        className="text-center py-6 text-text-faint italic"
                       >
                         No modified anime
                       </td>
@@ -516,17 +516,17 @@ export default function DataHistory() {
                         (window.location.href = `/anime/${a.system_id}`)
                       }
                     >
-                      <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                      <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
                         {formatDate(a.updated_at)}
                       </td>
                       <td
-                        className="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]"
+                        className="px-5 py-2.5 font-bold text-text truncate max-w-[200px]"
                         title={getTitle(a, "anime")}
                       >
                         {getTitle(a, "anime")}
                       </td>
-                      <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">
-                        <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                      <td className="px-5 py-2.5 text-text-muted whitespace-nowrap">
+                        <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                           {a.airing_type || "-"}
                         </span>
                       </td>
@@ -537,7 +537,7 @@ export default function DataHistory() {
                           {a.airing_status || "-"}
                         </span>
                       </td>
-                      <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap text-xs font-medium">
+                      <td className="px-5 py-2.5 text-text-muted whitespace-nowrap text-xs font-medium">
                         {a.watching_status || "-"}
                       </td>
                     </tr>
@@ -548,18 +548,18 @@ export default function DataHistory() {
           </div>
 
           {/* Added Entry */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[400px]">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
             <div className="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3 font-bold text-indigo-900">
               <i className="fas fa-star mr-2 text-indigo-500"></i> Added Entry
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border">
                   {addedEntries.length === 0 && (
                     <tr>
                       <td
                         colSpan={5}
-                        className="text-center py-6 text-gray-400 italic"
+                        className="text-center py-6 text-text-faint italic"
                       >
                         No recently added entries
                       </td>
@@ -578,7 +578,7 @@ export default function DataHistory() {
                         className="hover:bg-indigo-50/30 transition cursor-pointer"
                         onClick={() => (window.location.href = item.__link)}
                       >
-                        <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap">
+                        <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
                           {formatDate(item.created_at)}
                         </td>
                         <td className="px-5 py-2.5">
@@ -589,21 +589,21 @@ export default function DataHistory() {
                           </span>
                         </td>
                         <td
-                          className="px-5 py-2.5 font-bold text-gray-800 truncate max-w-[200px]"
+                          className="px-5 py-2.5 font-bold text-text truncate max-w-[200px]"
                           title={item.__name}
                         >
                           {item.__name}
                         </td>
-                        <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">
+                        <td className="px-5 py-2.5 text-text-muted whitespace-nowrap">
                           {item.__type === "Anime" ? (
-                            <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                            <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                               {item.airing_type || "-"}
                             </span>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-text-faint">-</span>
                           )}
                         </td>
-                        <td className="px-5 py-2.5 text-gray-500 whitespace-nowrap text-xs">
+                        <td className="px-5 py-2.5 text-text-faint whitespace-nowrap text-xs">
                           {item.season_part || "-"}
                         </td>
                       </tr>

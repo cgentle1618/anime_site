@@ -168,10 +168,10 @@ export default function Relations() {
           <i className="fas fa-diagram-project text-brand"></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             Relations
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-text-faint font-medium mt-1">
             Prequels, alternatives, side stories and adaptations across every
             media type
           </p>
@@ -181,7 +181,7 @@ export default function Relations() {
       <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-6">
         {/* Left: pick a scope, then an entry */}
         <div className="flex flex-col gap-3">
-          <div className="flex gap-1 p-0.5 rounded-lg bg-gray-200/70">
+          <div className="flex gap-1 p-0.5 rounded-lg bg-surface-3/70">
             {[
               ["franchise", "Franchise"],
               ["collection", "Collection"],
@@ -192,8 +192,8 @@ export default function Relations() {
                 onClick={() => switchScope(value)}
                 className={`flex-1 rounded-md px-2 py-1.5 text-xs font-black transition-colors ${
                   scopeType === value
-                    ? "bg-white text-brand shadow-sm"
-                    : "text-gray-500"
+                    ? "bg-surface text-brand shadow-sm"
+                    : "text-text-faint"
                 }`}
               >
                 {label}
@@ -220,15 +220,15 @@ export default function Relations() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter entries…"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           />
 
           {!scopeId ? (
-            <p className="text-center py-8 text-sm font-medium text-gray-400">
+            <p className="text-center py-8 text-sm font-medium text-text-faint">
               Pick a {scopeType} to begin.
             </p>
           ) : grouped.length === 0 ? (
-            <p className="text-center py-8 text-sm font-medium text-gray-400">
+            <p className="text-center py-8 text-sm font-medium text-text-faint">
               No entries in this {scopeType}.
             </p>
           ) : (
@@ -239,7 +239,7 @@ export default function Relations() {
             <div className="flex max-h-[36rem] flex-col gap-4 overflow-y-auto pr-1">
               {grouped.map(([mediaType, rows]) => (
                 <div key={mediaType}>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                  <p className="text-[10px] font-black text-text-faint uppercase tracking-wider mb-1.5">
                     {mediaType}
                   </p>
                   <div className="flex flex-col gap-1">
@@ -268,7 +268,7 @@ export default function Relations() {
                           className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold transition-colors ${
                             active
                               ? "bg-brand/10 text-brand"
-                              : "text-gray-700 hover:bg-gray-100"
+                              : "text-text-muted hover:bg-surface-2"
                           }`}
                         >
                           <FittedName
@@ -276,7 +276,7 @@ export default function Relations() {
                             className="min-w-0 flex-1 truncate"
                           />
                           {counts[key] ? (
-                            <span className="shrink-0 rounded-full bg-gray-200 px-2 text-[10px] font-black text-gray-600">
+                            <span className="shrink-0 rounded-full bg-surface-3 px-2 text-[10px] font-black text-text-muted">
                               {counts[key]}
                             </span>
                           ) : null}

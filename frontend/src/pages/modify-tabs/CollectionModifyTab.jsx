@@ -30,7 +30,7 @@ export default function CollectionModifyTab({
     );
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-boxes-stacked" title="Titles & Naming" />
       <Field label="Collection Name EN">
         <input
@@ -117,7 +117,7 @@ export default function CollectionModifyTab({
           ))}
         </select>
         {memberFranchises.length === 0 && (
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-text-faint mt-1">
             No franchises assigned to this collection yet. Assign one from the
             Franchise tab first.
           </p>

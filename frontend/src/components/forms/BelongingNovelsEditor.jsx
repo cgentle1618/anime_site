@@ -1,6 +1,6 @@
 // Frontend: form component file for BelongingNovelsEditor.
 const baseCls =
-  "border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white";
+  "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
 const keyInputCls = baseCls + " w-20 shrink-0";
 const nameInputCls = baseCls + " flex-1 min-w-0";
 
@@ -30,7 +30,7 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
 
   return (
     <div>
-      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+      <p className="text-[10px] font-bold text-text-faint uppercase tracking-wider mb-2">
         {label}
       </p>
       <div className="space-y-2">
@@ -41,7 +41,7 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
                 type="button"
                 disabled={i === 0}
                 onClick={() => moveUp(i)}
-                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 leading-none px-0.5"
+                className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
               >
                 <i className="fas fa-chevron-up text-[9px]" />
               </button>
@@ -49,7 +49,7 @@ export default function BelongingNovelsEditor({ items, onChange, label, placehol
                 type="button"
                 disabled={i === items.length - 1}
                 onClick={() => moveDown(i)}
-                className="text-gray-300 hover:text-gray-500 disabled:opacity-20 leading-none px-0.5"
+                className="text-text-faint/60 hover:text-text-faint disabled:opacity-20 leading-none px-0.5"
               >
                 <i className="fas fa-chevron-down text-[9px]" />
               </button>

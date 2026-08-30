@@ -45,7 +45,7 @@ export default function MemeOwnerPicker({ ownerType, ownerId, onChange }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div className="space-y-1">
-        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+        <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wide">
           Owner Type
         </label>
         <select
@@ -73,7 +73,7 @@ export default function MemeOwnerPicker({ ownerType, ownerId, onChange }) {
       </div>
 
       <div className="space-y-1">
-        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+        <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wide">
           Owner
         </label>
         <ComboBox

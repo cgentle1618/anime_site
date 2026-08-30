@@ -137,10 +137,10 @@ export default function CollectionLibrary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-surface-2">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading collections...</p>
+          <p className="text-text-faint font-medium">Loading collections...</p>
         </div>
       </div>
     );
@@ -148,7 +148,7 @@ export default function CollectionLibrary() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-surface-2">
         <div className="text-center text-red-500">
           <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
           <p className="font-medium">{error}</p>
@@ -158,16 +158,16 @@ export default function CollectionLibrary() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       {/* Sticky toolbar */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-30 shadow-sm">
+      <div className="bg-surface border-b border-border sticky top-16 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-black text-gray-900 leading-none">
+              <h1 className="text-lg font-black text-text leading-none">
                 Collection Library
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-text-faint mt-0.5">
                 {filteredAndSorted.length} collection
                 {filteredAndSorted.length !== 1 ? "s" : ""}
                 {searchQuery && ` matching "${searchQuery}"`}
@@ -177,18 +177,18 @@ export default function CollectionLibrary() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search */}
               <div className="relative">
-                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-xs pointer-events-none"></i>
                 <input
                   type="text"
                   placeholder="Search collections..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-gray-100 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
+                  className="pl-8 pr-3 py-1.5 bg-surface-2 border border-transparent rounded-full text-sm focus:outline-none focus:bg-surface focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
                   >
                     <i className="fas fa-times text-xs"></i>
                   </button>
@@ -199,7 +199,7 @@ export default function CollectionLibrary() {
               <select
                 value={currentSort}
                 onChange={(e) => setCurrentSort(e.target.value)}
-                className="bg-gray-100 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
+                className="bg-surface-2 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
               >
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
@@ -216,9 +216,9 @@ export default function CollectionLibrary() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {filteredAndSorted.length === 0 ? (
           <div className="text-center py-24">
-            <i className="fas fa-boxes-stacked text-gray-300 text-4xl mb-4"></i>
-            <p className="text-gray-500 font-medium">No collections found</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <i className="fas fa-boxes-stacked text-text-faint/60 text-4xl mb-4"></i>
+            <p className="text-text-faint font-medium">No collections found</p>
+            <p className="text-sm text-text-faint mt-1">
               {searchQuery ? (
                 <>
                   Try a different search or{" "}

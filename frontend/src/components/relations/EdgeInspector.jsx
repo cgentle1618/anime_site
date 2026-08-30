@@ -43,17 +43,17 @@ export default function EdgeInspector({
   }
 
   return (
-    <div className="absolute right-3 top-3 z-40 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+    <div className="absolute right-3 top-3 z-40 w-64 rounded-xl border border-border bg-surface p-3 shadow-xl">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-bold leading-snug text-gray-600">
-          <span className="text-gray-900">{edge.sourceName}</span> is the{" "}
+        <p className="text-xs font-bold leading-snug text-text-muted">
+          <span className="text-text">{edge.sourceName}</span> is the{" "}
           <span className="text-brand">{edge.label}</span> of{" "}
-          <span className="text-gray-900">{edge.targetName}</span>
+          <span className="text-text">{edge.targetName}</span>
         </p>
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 text-xs text-gray-300 hover:text-gray-500"
+          className="shrink-0 text-xs text-text-faint/60 hover:text-text-faint"
         >
           <i className="fas fa-xmark"></i>
         </button>
@@ -65,24 +65,24 @@ export default function EdgeInspector({
         // "Remark" heading would be the only content under it.
         edge.remark ? (
           <>
-            <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-gray-400">
+            <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-text-faint">
               Remark
             </p>
-            <p className="mt-1 text-sm font-medium text-gray-600">
+            <p className="mt-1 text-sm font-medium text-text-muted">
               {edge.remark}
             </p>
           </>
         ) : null
       ) : (
         <>
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-text-faint">
             Kind
           </label>
           <select
             value={edge.relation_type}
             disabled={busy}
             onChange={(e) => onPatch({ kind: e.target.value })}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="mt-1 w-full rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           >
             {kinds.map((k) => (
               <option key={k.key} value={k.key}>
@@ -100,13 +100,13 @@ export default function EdgeInspector({
                 ? `A ${edge.label} reads the same both ways, so there is nothing to swap`
                 : `Make ${edge.targetName} the ${edge.label} of ${edge.sourceName} instead`
             }
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 text-[10px] font-black uppercase text-gray-500 disabled:opacity-40"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
           >
             <i className="fas fa-right-left"></i>
             Swap direction
           </button>
 
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-gray-400">
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-text-faint">
             Remark
           </label>
           <input
@@ -122,7 +122,7 @@ export default function EdgeInspector({
             // silently leave the old text in the row.
             onBlur={commitRemark}
             placeholder="Optional"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="mt-1 w-full rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           />
 
           <button

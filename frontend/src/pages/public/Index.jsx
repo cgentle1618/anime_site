@@ -77,7 +77,7 @@ function DashboardTOC({ activeId }) {
 
   return (
     <nav className="sticky top-20 space-y-0.5">
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-3">
+      <p className="text-[10px] font-black text-text-faint uppercase tracking-widest px-2 mb-3">
         Contents
       </p>
       {TOC_ITEMS.map(({ id, label, icon, level }) => {
@@ -91,12 +91,12 @@ function DashboardTOC({ activeId }) {
             } ${
               isActive
                 ? "bg-brand/10 text-brand font-bold"
-                : "text-gray-500 hover:text-gray-800 hover:bg-gray-100 font-medium"
+                : "text-text-faint hover:text-text hover:bg-surface-2 font-medium"
             }`}
           >
             <i
               className={`fas ${icon} text-xs w-3 ${
-                isActive ? "text-brand" : "text-gray-400"
+                isActive ? "text-brand" : "text-text-faint"
               }`}
             ></i>
             <span className="truncate">{label}</span>
@@ -133,19 +133,19 @@ function Section({
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-gray-50 flex items-center justify-between pb-3 mb-2 border-b-2 border-gray-100">
-        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+      <div className="sticky top-[116px] z-20 bg-canvas flex items-center justify-between pb-3 mb-2 border-b-2 border-border">
+        <h2 className="text-xl font-black text-text flex items-center gap-2">
           <i className={`fas ${icon} text-brand/70`}></i>
           {title}
         </h2>
-        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+        <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
           {count}
         </span>
       </div>
 
       {items.length === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
-          <p className="text-gray-400 font-medium italic">
+        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
+          <p className="text-text-faint font-medium italic">
             <i className="fas fa-ghost mr-2"></i>Nothing in this category right
             now.
           </p>
@@ -162,14 +162,14 @@ function Section({
             );
             return (
               <div key={type} className="space-y-6">
-                <div className="border-b-2 border-gray-100 pb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+                <div className="border-b-2 border-border pb-2 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
                     <i
                       className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
                     ></i>
                     {type}
                   </h3>
-                  <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">
+                  <span className="bg-surface-2 text-text-muted px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
                     {sorted.length} Entries
                   </span>
                 </div>
@@ -212,18 +212,18 @@ function ReadingSection({
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-gray-50 flex items-center justify-between pb-3 mb-2 border-b-2 border-gray-100">
-        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+      <div className="sticky top-[116px] z-20 bg-canvas flex items-center justify-between pb-3 mb-2 border-b-2 border-border">
+        <h2 className="text-xl font-black text-text flex items-center gap-2">
           <i className={`fas ${icon} text-brand/70`}></i>
           {title}
         </h2>
-        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+        <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
           {count}
         </span>
       </div>
       {items.length === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
-          <p className="text-gray-400 font-medium italic">
+        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
+          <p className="text-text-faint font-medium italic">
             <i className="fas fa-ghost mr-2"></i>Nothing in this category right
             now.
           </p>
@@ -242,14 +242,14 @@ function ReadingSection({
             });
             return (
               <div key={type} className="space-y-6">
-                <div className="border-b-2 border-gray-100 pb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+                <div className="border-b-2 border-border pb-2 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
                     <i
                       className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
                     ></i>
                     {type}
                   </h3>
-                  <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">
+                  <span className="bg-surface-2 text-text-muted px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
                     {sorted.length} Entries
                   </span>
                 </div>
@@ -621,19 +621,19 @@ export default function Index() {
         <div className="flex-1 min-w-0 space-y-16">
           {/* Announcement Division */}
           <div id="announcements">
-            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-bullhorn text-brand text-lg"></i>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
                   Announcement &amp; Notes
                 </h1>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                <p className="text-xs text-text-faint font-medium mt-0.5">
                   Pinned to the top of the dashboard
                 </p>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                 {announcements.length} Posted
               </span>
             </div>
@@ -642,19 +642,19 @@ export default function Index() {
 
           {/* Schedule Division */}
           <div id="schedule">
-            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-calendar-week text-brand text-lg"></i>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
                   Weekly Schedule
                 </h1>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                <p className="text-xs text-text-faint font-medium mt-0.5">
                   Sunday · Saturday
                 </p>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                 {broadcastSchedule.length + watchSchedule.length} Scheduled
               </span>
             </div>
@@ -685,19 +685,19 @@ export default function Index() {
 
           {/* Watching Division */}
           <div id="watching">
-            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-eye text-brand text-lg"></i>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
                   Watching
                 </h1>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                <p className="text-xs text-text-faint font-medium mt-0.5">
                   Anime · TV Show · Cartoon
                 </p>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                 {active.length + passive.length + paused.length} Active
               </span>
             </div>
@@ -737,19 +737,19 @@ export default function Index() {
 
           {/* Reading Division */}
           <div id="reading">
-            <div className="sticky top-16 z-30 bg-gray-50 flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
               <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
                 <i className="fas fa-book-open text-brand text-lg"></i>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
                   Reading
                 </h1>
-                <p className="text-xs text-gray-400 font-medium mt-0.5">
+                <p className="text-xs text-text-faint font-medium mt-0.5">
                   Manga · Novel · Comics
                 </p>
               </div>
-              <span className="ml-auto bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                 {activeReading.length +
                   passiveReading.length +
                   pausedReading.length}{" "}

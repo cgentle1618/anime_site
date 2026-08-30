@@ -80,7 +80,7 @@ export default function NameLinksSection({
     >
       {notes.map((n) => (
         <div key={n.system_id} className="flex gap-2 items-center group">
-          <span className="text-xs text-gray-500 shrink-0">•</span>
+          <span className="text-xs text-text-faint shrink-0">•</span>
           <div className="flex-1 min-w-0">
             {editId === n.system_id ? (
               <div>
@@ -90,7 +90,7 @@ export default function NameLinksSection({
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
                 {n.title && (
-                  <span className="text-sm text-gray-700 shrink-0">
+                  <span className="text-sm text-text-muted shrink-0">
                     {n.title}
                   </span>
                 )}
@@ -113,7 +113,7 @@ export default function NameLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <NameLinksForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}

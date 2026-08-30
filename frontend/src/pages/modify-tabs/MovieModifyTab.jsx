@@ -207,7 +207,7 @@ export default function MovieModifyTab({
               onChange={(e) => umm("watch_next", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Add to Watch Next list
             </span>
           </label>
@@ -220,7 +220,7 @@ export default function MovieModifyTab({
               onChange={(e) => umm("to_rewatch", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Mark for rewatch
             </span>
           </label>

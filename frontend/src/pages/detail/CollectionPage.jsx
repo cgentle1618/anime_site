@@ -239,11 +239,11 @@ export default function CollectionPage() {
               <div className="mb-2">
                 <TierBadge tier="collection" />
               </div>
-              <h1 className="text-2xl font-black text-gray-900 leading-tight">
+              <h1 className="text-2xl font-black text-text leading-tight">
                 {name}
               </h1>
               {altNames.length > 0 && (
-                <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-x-3">
+                <div className="text-sm text-text-faint mt-1 flex flex-wrap gap-x-3">
                   {altNames.map((f) => (
                     <span key={f.label}>{f.value}</span>
                   ))}
@@ -264,7 +264,7 @@ export default function CollectionPage() {
                     {collection.collection_expectation} Expectation
                   </span>
                 )}
-                <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
+                <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
                   {members.length}{" "}
                   {members.length === 1 ? "Franchise" : "Franchises"}
                 </span>
@@ -275,13 +275,13 @@ export default function CollectionPage() {
             {isAdmin && (
               <div className="w-full lg:w-52 shrink-0 space-y-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Overall Rating
                   </label>
                   <select
                     value={collection.my_rating || ""}
                     onChange={(e) => saveField("my_rating", e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— Not Rated —</option>
                     {MY_RATINGS.map((r) => (
@@ -292,7 +292,7 @@ export default function CollectionPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Expectation
                   </label>
                   <select
@@ -300,7 +300,7 @@ export default function CollectionPage() {
                     onChange={(e) =>
                       saveField("collection_expectation", e.target.value)
                     }
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— None —</option>
                     {FRANCHISE_EXPECTATIONS.map((x) => (
@@ -318,7 +318,7 @@ export default function CollectionPage() {
           {(isAdmin || collection.remark) && (
             <div className="mt-4">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
                   Remark
                 </label>
                 {remarkClipped && (
@@ -339,7 +339,7 @@ export default function CollectionPage() {
                 onChange={(e) => setRemarkDraft(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
-                className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
+                className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
             />
           </div>
         )}

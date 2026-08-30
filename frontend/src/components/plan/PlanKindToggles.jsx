@@ -60,7 +60,7 @@ export default function PlanKindToggles({
             onChange={(e) => onToggle(mediaType, e.target.checked)}
             className="w-4 h-4 rounded accent-brand"
           />
-          <span className="text-xs font-medium text-gray-700">
+          <span className="text-xs font-medium text-text-muted">
             {LABELS[mediaType]}
           </span>
         </label>

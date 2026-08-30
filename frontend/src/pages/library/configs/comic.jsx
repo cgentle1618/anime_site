@@ -94,28 +94,28 @@ const COMIC_LIBRARY_CONFIG = {
     {
       key: "title_en",
       header: "Title EN",
-      tdClass: "text-xs font-bold text-gray-900",
+      tdClass: "text-xs font-bold text-text",
       render: (item) => getTitle(item),
     },
     {
       key: "title_cn",
       header: "Title CN",
       thClass: "hidden md:table-cell",
-      tdClass: "text-xs text-gray-500 hidden md:table-cell",
+      tdClass: "text-xs text-text-faint hidden md:table-cell",
       render: (item) => item.comic_name_cn || "-",
     },
     {
       key: "volume_label",
       header: "Vol",
       thClass: "hidden md:table-cell",
-      tdClass: "text-xs text-center font-mono text-gray-600 hidden md:table-cell",
+      tdClass: "text-xs text-center font-mono text-text-muted hidden md:table-cell",
       render: (item) => item.volume_label || "-",
     },
     {
       key: "comic_type",
       header: "Type",
       thClass: "hidden md:table-cell",
-      tdClass: "text-xs text-center text-gray-500 hidden md:table-cell",
+      tdClass: "text-xs text-center text-text-faint hidden md:table-cell",
       render: (item) => item.comic_type || "-",
     },
     {
@@ -134,7 +134,7 @@ const COMIC_LIBRARY_CONFIG = {
       key: "progress",
       header: "Progress",
       thClass: "hidden lg:table-cell",
-      tdClass: "text-xs text-center font-mono text-gray-700 hidden lg:table-cell",
+      tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) =>
         `${item.issue_fin ?? 0} / ${item.issue_total ?? "?"} ISS`,
     },

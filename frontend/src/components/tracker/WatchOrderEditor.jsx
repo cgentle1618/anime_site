@@ -28,10 +28,10 @@ export const ITEM_IMPORTANCE = [
 // The selected rung's colors, matching the guide's badges so a step looks the
 // same in the editor as it does on the page.
 const IMPORTANCE_ACTIVE_CLASS = {
-  Essential: "bg-white text-emerald-600 shadow-sm",
-  Recommended: "bg-white text-sky-600 shadow-sm",
-  Normal: "bg-white text-gray-700 shadow-sm",
-  Optional: "bg-white text-amber-600 shadow-sm",
+  Essential: "bg-surface text-emerald-600 shadow-sm",
+  Recommended: "bg-surface text-sky-600 shadow-sm",
+  Normal: "bg-surface text-text-muted shadow-sm",
+  Optional: "bg-surface text-amber-600 shadow-sm",
 };
 
 // Exported so the create form on /watch-orders offers exactly the same
@@ -123,13 +123,13 @@ function ItemRow({
     <li
       draggable={!readOnly}
       {...dragHandlers}
-      className={`flex flex-col gap-2 p-3 rounded-xl border bg-white ${
-        item.missing ? "border-dashed border-red-200" : "border-gray-200"
+      className={`flex flex-col gap-2 p-3 rounded-xl border bg-surface ${
+        item.missing ? "border-dashed border-red-200" : "border-border"
       }`}
     >
       <div className="flex items-center gap-3">
         {!readOnly && (
-          <i className="fas fa-grip-vertical text-gray-300 cursor-grab"></i>
+          <i className="fas fa-grip-vertical text-text-faint/60 cursor-grab"></i>
         )}
         {/*
           A box rather than the old circle: a caret and two digits do not fit a
@@ -178,13 +178,13 @@ function ItemRow({
               onError={(e) => {
                 e.currentTarget.src = FALLBACK_SVG;
               }}
-              className="w-9 h-12 shrink-0 rounded object-cover bg-gray-100"
+              className="w-9 h-12 shrink-0 rounded object-cover bg-surface-2"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-gray-900 truncate">
+              <p className="text-sm font-bold text-text truncate">
                 {item.display_name}
               </p>
-              <p className="text-[11px] font-bold text-gray-400">
+              <p className="text-[11px] font-bold text-text-faint">
                 {TYPE_LABELS[item.media_type] || item.media_type}
                 {item.release_display && ` · ${item.release_display}`}
                 {item.total_episodes != null && ` · ${item.total_episodes} total`}
@@ -200,7 +200,7 @@ function ItemRow({
             onClick={() => onMove(index - 1, index - 2)}
             disabled={isFirst}
             title="Move up"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-text-muted disabled:opacity-30"
           >
             <i className="fas fa-chevron-up text-xs"></i>
           </button>
@@ -209,7 +209,7 @@ function ItemRow({
             onClick={() => onMove(index - 1, index)}
             disabled={isLast}
             title="Move down"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-text-muted disabled:opacity-30"
           >
             <i className="fas fa-chevron-down text-xs"></i>
           </button>
@@ -217,7 +217,7 @@ function ItemRow({
             type="button"
             onClick={() => onRemove(item.system_id)}
             title="Remove step"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-red-600 hover:border-red-200"
           >
             <i className="fas fa-trash text-xs"></i>
           </button>
@@ -248,18 +248,18 @@ function ItemRow({
                 commit("ep_start", epStart === "" ? "" : Number(epStart))
               }
               placeholder="from"
-              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-20 border border-border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
             />
-            <span className="text-xs text-gray-300">–</span>
+            <span className="text-xs text-text-faint/60">–</span>
             <input
               type="number"
               value={epEnd}
               onChange={(e) => setEpEnd(e.target.value)}
               onBlur={() => commit("ep_end", epEnd === "" ? "" : Number(epEnd))}
               placeholder="to"
-              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-20 border border-border rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
             />
-            <span className="text-[10px] font-bold text-gray-400">
+            <span className="text-[10px] font-bold text-text-faint">
               leave blank for the whole entry
             </span>
           </>
@@ -274,7 +274,7 @@ function ItemRow({
         <div
           role="group"
           aria-label="Importance"
-          className="inline-flex items-center gap-0.5 ml-auto p-0.5 rounded-lg bg-gray-100"
+          className="inline-flex items-center gap-0.5 ml-auto p-0.5 rounded-lg bg-surface-2"
         >
           {ITEM_IMPORTANCE.map((level) => {
             const active = (item.importance || "Normal") === level;
@@ -289,7 +289,7 @@ function ItemRow({
                 className={`text-[11px] font-bold px-2 py-0.5 rounded-md transition-colors ${
                   active
                     ? IMPORTANCE_ACTIVE_CLASS[level]
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-text-faint hover:text-text-muted"
                 }`}
               >
                 {level}
@@ -306,7 +306,7 @@ function ItemRow({
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => commit("note", note)}
           placeholder="Note for this step…"
-          className="ml-10 border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+          className="ml-10 border border-border rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
         />
       )}
     </li>
@@ -395,7 +395,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
   }, [candidates, query, type, hideAdded, added]);
 
   return (
-    <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+    <div className="border border-border rounded-xl p-3 bg-surface-2">
       {/*
         Says where the next pick lands. Without it "Add entry to this part"
         would scroll the admin to a picker that looks exactly like the one that
@@ -422,12 +422,12 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search entries to add — any language…"
-          className="flex-1 min-w-[12rem] border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+          className="flex-1 min-w-[12rem] border border-border rounded-lg px-3 py-2 text-sm font-medium bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
-          className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+          className="border border-border rounded-lg px-2 py-2 text-xs font-bold bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
         >
           <option value="">All types</option>
           {Object.entries(TYPE_LABELS).map(([slug, label]) => (
@@ -442,7 +442,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
           the search row because it narrows the same result set the box does.
         */}
         {addedCount > 0 && (
-          <label className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 cursor-pointer select-none">
+          <label className="inline-flex items-center gap-1.5 text-xs font-bold text-text-faint cursor-pointer select-none">
             <input
               type="checkbox"
               checked={hideAdded}
@@ -455,7 +455,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
       </div>
 
       {matches.length === 0 ? (
-        <p className="text-xs font-medium text-gray-400 py-2">
+        <p className="text-xs font-medium text-text-faint py-2">
           {/*
             With the toggle on, an empty result usually means there is nothing
             left to add rather than nothing matching what was typed.
@@ -475,10 +475,10 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
                 type="button"
                 disabled={disabled}
                 onClick={() => onAdd(c)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white text-left disabled:opacity-50"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface text-left disabled:opacity-50"
               >
                 <i className="fas fa-plus text-[10px] text-brand"></i>
-                <span className="text-sm font-bold text-gray-800 truncate">
+                <span className="text-sm font-bold text-text truncate">
                   {c.display_name}
                 </span>
                 {/*
@@ -496,7 +496,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
                   at a glance - and it is the thing being ordered by.
                 */}
                 {c.release_display && (
-                  <span className="shrink-0 text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                  <span className="shrink-0 text-[10px] font-bold text-text-faint whitespace-nowrap">
                     {c.release_display}
                   </span>
                 )}
@@ -509,7 +509,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
                     {label}
                   </span>
                 )}
-                <span className="ml-auto text-[10px] font-black text-gray-400 whitespace-nowrap">
+                <span className="ml-auto text-[10px] font-black text-text-faint whitespace-nowrap">
                   {TYPE_LABELS[c.media_type]}
                 </span>
               </button>
@@ -518,7 +518,7 @@ function EntryPicker({ candidates, items, onAdd, disabled, target, onClearTarget
           })}
         </ul>
       )}
-      <p className="text-[10px] font-medium text-gray-400 mt-2">
+      <p className="text-[10px] font-medium text-text-faint mt-2">
         The same entry can be added more than once — that is how a split run
         (ep 1–10, then later ep 11–12) is written.
       </p>
@@ -560,7 +560,7 @@ function PartBox({
       {...dropHandlers}
       className="rounded-2xl border-2 border-brand/20 bg-brand/[0.03] overflow-hidden"
     >
-      <header className="px-3 py-2 bg-white border-b border-brand/20 flex flex-wrap items-center gap-2">
+      <header className="px-3 py-2 bg-surface border-b border-brand/20 flex flex-wrap items-center gap-2">
         <i className="fas fa-layer-group text-brand/50 text-xs"></i>
         <input
           type="text"
@@ -568,7 +568,7 @@ function PartBox({
           onChange={(e) => setName(e.target.value)}
           onBlur={() => onPatch(section.system_id, { section_name: name })}
           placeholder="Part name…"
-          className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-black focus:outline-none focus:ring-2 focus:ring-brand"
+          className="flex-1 min-w-[140px] border border-border rounded-lg px-2 py-1 text-xs font-black focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <input
           type="text"
@@ -576,9 +576,9 @@ function PartBox({
           onChange={(e) => setRemark(e.target.value)}
           onBlur={() => onPatch(section.system_id, { remark })}
           placeholder="Part note…"
-          className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+          className="flex-1 min-w-[140px] border border-border rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand"
         />
-        <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+        <span className="text-[10px] font-black text-text-faint whitespace-nowrap">
           {count}
           {count === 1 ? " step" : " steps"}
         </span>
@@ -594,7 +594,7 @@ function PartBox({
             onClick={() => onMove(-1)}
             title="Move part up"
             aria-label="Move part up"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-text-muted disabled:opacity-30"
           >
             <i className="fas fa-chevron-up text-xs"></i>
           </button>
@@ -604,7 +604,7 @@ function PartBox({
             onClick={() => onMove(1)}
             title="Move part down"
             aria-label="Move part down"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-text-muted disabled:opacity-30"
           >
             <i className="fas fa-chevron-down text-xs"></i>
           </button>
@@ -618,7 +618,7 @@ function PartBox({
             onClick={() => onRemove(section.system_id)}
             title="Delete part (its steps stay, unfiled)"
             aria-label="Delete part"
-            className="w-7 h-7 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-200 disabled:opacity-30"
+            className="w-7 h-7 rounded-lg border border-border text-text-faint hover:text-red-600 hover:border-red-200 disabled:opacity-30"
           >
             <i className="fas fa-trash text-xs"></i>
           </button>
@@ -627,7 +627,7 @@ function PartBox({
 
       <div className="p-2 flex flex-col gap-2">
         {count === 0 ? (
-          <p className="text-xs font-medium text-gray-400 text-center py-3 border border-dashed border-gray-200 rounded-xl">
+          <p className="text-xs font-medium text-text-faint text-center py-3 border border-dashed border-border rounded-xl">
             Empty part — drag a step in, or add one below.
           </p>
         ) : (
@@ -659,7 +659,7 @@ function UnfileGap({ active, dropHandlers }) {
     <div
       {...dropHandlers}
       className={`h-2 -my-1 rounded transition-colors ${
-        active ? "h-8 my-0 border-2 border-dashed border-brand/50 bg-brand/5" : ""
+        active ? "h-8 my-0 border-2 border-dashed border-brand/50 bg-brand-soft" : ""
       }`}
     >
       {active && (
@@ -1095,7 +1095,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
 
   if (!listId) {
     return (
-      <div className="text-center py-16 text-gray-400">
+      <div className="text-center py-16 text-text-faint">
         <i className="fas fa-hand-pointer text-3xl mb-3"></i>
         <p className="font-medium">Pick a watch order to edit.</p>
       </div>
@@ -1106,7 +1106,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
 
   if (loading || !list) {
     return (
-      <div className="py-16 text-center text-gray-400">
+      <div className="py-16 text-center text-text-faint">
         <i className="fas fa-circle-notch fa-spin text-2xl"></i>
       </div>
     );
@@ -1120,7 +1120,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         the checkboxes and the picker.
       */}
       {list.media_types?.length > 0 && (
-        <div className="-mx-4 -mt-4 px-4 py-2 border-b border-gray-100 bg-gray-50/70 rounded-t-xl">
+        <div className="-mx-4 -mt-4 px-4 py-2 border-b border-border bg-surface-2/70 rounded-t-xl">
           <MediaScopeLine mediaTypes={list.media_types} />
         </div>
       )}
@@ -1128,7 +1128,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
       {/* Order metadata */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+          <label className="text-[10px] font-black text-text-faint uppercase tracking-wider">
             Name
           </label>
           <input
@@ -1139,18 +1139,18 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               e.target.value !== (list.list_name || "") &&
               patchList({ list_name: e.target.value })
             }
-            className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand"
+            className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand"
           />
         </div>
 
         <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+          <label className="text-[10px] font-black text-text-faint uppercase tracking-wider">
             Type
           </label>
           <select
             value={list.list_type || "Custom"}
             onChange={(e) => patchList({ list_type: e.target.value })}
-            className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+            className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm font-bold bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
           >
             {LIST_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -1161,7 +1161,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         </div>
 
         <div className="sm:col-span-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+          <label className="text-[10px] font-black text-text-faint uppercase tracking-wider">
             Note
           </label>
           <textarea
@@ -1173,13 +1173,13 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
               patchList({ remark: e.target.value })
             }
             placeholder="How this order should be read…"
-            className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-brand"
+            className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-brand"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer select-none">
+        <label className="inline-flex items-center gap-2 text-xs font-bold text-text-faint cursor-pointer select-none">
           <input
             type="checkbox"
             checked={!!list.is_default}
@@ -1194,7 +1194,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
           this marks the single one to actually follow. Setting it clears the
           flag on the owner's other orders.
         */}
-        <label className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer select-none">
+        <label className="inline-flex items-center gap-2 text-xs font-bold text-text-faint cursor-pointer select-none">
           <input
             type="checkbox"
             checked={!!list.is_most_recommended}
@@ -1213,7 +1213,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         controls are replaced by an explanation rather than left to fail.
       */}
       {isBuiltIn ? (
-        <p className="text-xs font-medium text-gray-500 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+        <p className="text-xs font-medium text-text-faint bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
           <i className="fas fa-wand-magic-sparkles text-sky-500 mr-1.5"></i>
           These steps are generated from release dates and refresh on their own
           as entries are added. The name, type, note and flags above are still
@@ -1237,7 +1237,7 @@ export default function WatchOrderEditor({ listId, onListChanged }) {
         what the page draws.
       */}
       {list.items.length === 0 && sections.length === 0 ? (
-        <p className="text-center py-8 text-sm font-medium text-gray-400">
+        <p className="text-center py-8 text-sm font-medium text-text-faint">
           No steps yet — add entries above.
         </p>
       ) : (

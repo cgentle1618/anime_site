@@ -64,7 +64,7 @@ export default function ContentLabels() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-text-faint">
         <i className="fas fa-spinner fa-spin mr-2"></i>Loading labels...
       </div>
     );
@@ -73,10 +73,10 @@ export default function ContentLabels() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
+        <h1 className="text-2xl font-bold text-text">
           <i className="fas fa-tags mr-2 text-brand"></i>Content Labels
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           Mark an entry with a label and it disappears for anyone whose role does
           not hold that label. Grant it in{" "}
           <Link to="/roles" className="text-brand underline">
@@ -88,9 +88,9 @@ export default function ContentLabels() {
 
       <form
         onSubmit={create}
-        className="border border-gray-200 rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
+        className="border border-border rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
       >
-        <label className="text-xs font-semibold text-gray-600">
+        <label className="text-xs font-semibold text-text-muted">
           Key
           <input
             required
@@ -100,7 +100,7 @@ export default function ContentLabels() {
             className="mt-1 w-full border rounded px-2 py-1.5 text-sm font-normal"
           />
         </label>
-        <label className="text-xs font-semibold text-gray-600">
+        <label className="text-xs font-semibold text-text-muted">
           Display name
           <input
             required
@@ -110,7 +110,7 @@ export default function ContentLabels() {
             className="mt-1 w-full border rounded px-2 py-1.5 text-sm font-normal"
           />
         </label>
-        <label className="text-xs font-semibold text-gray-600">
+        <label className="text-xs font-semibold text-text-muted">
           Description
           <input
             value={draft.description}
@@ -127,12 +127,12 @@ export default function ContentLabels() {
       </form>
 
       {labels.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">
+        <p className="text-sm text-text-faint italic">
           No labels yet, so nothing is hidden from anyone.
         </p>
       ) : (
-        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+        <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+          <thead className="bg-surface-2 text-xs uppercase text-text-faint">
             <tr>
               <th className="text-left px-4 py-2">Label</th>
               <th className="text-left px-4 py-2">Permission</th>
@@ -142,14 +142,14 @@ export default function ContentLabels() {
           </thead>
           <tbody>
             {labels.map((row) => (
-              <tr key={row.system_id} className="border-t border-gray-100">
+              <tr key={row.system_id} className="border-t border-border">
                 <td className="px-4 py-2 font-medium">{row.label}</td>
                 <td className="px-4 py-2">
-                  <code className="text-[11px] bg-gray-100 rounded px-1.5 py-0.5">
+                  <code className="text-[11px] bg-surface-2 rounded px-1.5 py-0.5">
                     {row.permission}
                   </code>
                 </td>
-                <td className="px-4 py-2 text-gray-600">{row.description}</td>
+                <td className="px-4 py-2 text-text-muted">{row.description}</td>
                 <td className="px-4 py-2 text-right">
                   <button
                     onClick={() => remove(row)}

@@ -73,7 +73,7 @@ export default function WatchOrderPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-gray-400">
+      <div className="flex items-center justify-center py-24 text-text-faint">
         <i className="fas fa-circle-notch fa-spin text-2xl"></i>
       </div>
     );
@@ -82,8 +82,8 @@ export default function WatchOrderPage() {
   if (error) {
     return (
       <div className="text-center py-24">
-        <i className="fas fa-ghost text-3xl text-gray-300 mb-3"></i>
-        <p className="font-bold text-gray-500">{error}</p>
+        <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
+        <p className="font-bold text-text-faint">{error}</p>
         <Link
           to="/"
           className="inline-block mt-4 text-sm font-bold text-brand hover:underline"
@@ -102,7 +102,7 @@ export default function WatchOrderPage() {
         {owner && (
           <Link
             to={`/${owner.type}/${owner.id}`}
-            className="text-xs font-bold text-gray-400 hover:text-brand"
+            className="text-xs font-bold text-text-faint hover:text-brand"
           >
             <i className="fas fa-arrow-left mr-1.5"></i>
             {ownerName}
@@ -116,7 +116,7 @@ export default function WatchOrderPage() {
         */}
         <MediaScopeLine mediaTypes={list.media_types} className="mt-2" />
 
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight mt-0.5">
+        <h1 className="text-3xl font-black text-text tracking-tight mt-0.5">
           {list.list_name || "Untitled Order"}
         </h1>
 
@@ -132,11 +132,11 @@ export default function WatchOrderPage() {
             </span>
           )}
           {list.is_default && (
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-surface-2 text-text-faint border border-border">
               Default
             </span>
           )}
-          <span className="ml-auto text-xs font-bold text-gray-400">
+          <span className="ml-auto text-xs font-bold text-text-faint">
             {list.item_count} steps
           </span>
         </div>
@@ -144,7 +144,7 @@ export default function WatchOrderPage() {
         {isAdmin && (
           <Link
             to="/watch-orders"
-            className="inline-block mt-2 text-xs font-bold text-gray-500 hover:text-gray-700"
+            className="inline-block mt-2 text-xs font-bold text-text-faint hover:text-text-muted"
           >
             <i className="fas fa-pen mr-1"></i>Edit this order
           </Link>
@@ -154,8 +154,8 @@ export default function WatchOrderPage() {
       <WatchOrderGuide list={list} roomy />
 
       {siblings.length > 0 && (
-        <div className="mt-10 pt-5 border-t border-gray-200">
-          <p className="text-xs font-black text-gray-400 uppercase tracking-wide mb-3">
+        <div className="mt-10 pt-5 border-t border-border">
+          <p className="text-xs font-black text-text-faint uppercase tracking-wide mb-3">
             Other orders for {ownerName || "this title"}
           </p>
           <div className="flex flex-col gap-2">
@@ -163,13 +163,13 @@ export default function WatchOrderPage() {
               <Link
                 key={s.system_id}
                 to={`/watch-order/${s.system_id}`}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand/40 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-surface hover:border-brand/40 transition-colors"
               >
-                <i className="fas fa-list-ol text-gray-300"></i>
-                <span className="text-sm font-bold text-gray-800">
+                <i className="fas fa-list-ol text-text-faint/60"></i>
+                <span className="text-sm font-bold text-text">
                   {s.list_name || "Untitled Order"}
                 </span>
-                <span className="ml-auto text-xs font-bold text-gray-400">
+                <span className="ml-auto text-xs font-bold text-text-faint">
                   {s.item_count} steps
                 </span>
               </Link>

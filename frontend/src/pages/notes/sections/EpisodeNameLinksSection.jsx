@@ -47,7 +47,7 @@ const toFields = (val) => ({
   links: (val.links || []).map((l) => l.trim()).filter(Boolean),
 });
 
-const selectCls = inputCls + " bg-white";
+const selectCls = inputCls + " bg-surface";
 
 function EpisodeNameLinksForm({ val, setVal, section }) {
   return (
@@ -134,7 +134,7 @@ export default function EpisodeNameLinksSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
+          className="border border-border rounded-lg p-2.5 bg-surface-2"
         >
           {editId === n.system_id ? (
             <div>
@@ -155,18 +155,18 @@ export default function EpisodeNameLinksSection({
                     </span>
                   )}
                   {n.title && (
-                    <span className="text-sm font-semibold text-gray-800">
+                    <span className="text-sm font-semibold text-text">
                       {n.title}
                     </span>
                   )}
                   {n.status && (
-                    <span className="text-[11px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] font-bold bg-surface-3 text-text-muted px-1.5 py-0.5 rounded">
                       {n.status}
                     </span>
                   )}
                 </div>
                 {n.content && (
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  <p className="text-sm text-text whitespace-pre-wrap">
                     {n.content}
                   </p>
                 )}
@@ -187,7 +187,7 @@ export default function EpisodeNameLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <EpisodeNameLinksForm
             val={draft}
             setVal={setDraft}

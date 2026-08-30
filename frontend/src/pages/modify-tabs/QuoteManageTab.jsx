@@ -88,7 +88,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
         <QuoteEntryPicker
           mediaType={mediaType}
           entryId={entryId}
@@ -103,7 +103,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
           placeholder={`Search quotes to ${isDelete ? "delete" : "modify"}...`}
           className={inputCls}
         />
-        <p className="text-[11px] text-gray-400 font-medium">
+        <p className="text-[11px] text-text-faint font-medium">
           {isLoading
             ? "Loading..."
             : `${quotes.length} quote${quotes.length === 1 ? "" : "s"} shown`}
@@ -115,8 +115,8 @@ export default function QuoteManageTab({ mode = "modify" }) {
         return (
           <div
             key={q.system_id}
-            className={`bg-white rounded-2xl border shadow-sm p-4 ${
-              isDelete ? "border-red-100" : "border-gray-200"
+            className={`bg-surface rounded-2xl border shadow-sm p-4 ${
+              isDelete ? "border-red-100" : "border-border"
             }`}
           >
             {editId === q.system_id ? (
@@ -132,7 +132,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                   </button>
                   <button
                     onClick={() => setEditId(null)}
-                    className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-black text-gray-600 hover:bg-gray-200"
+                    className="rounded-lg bg-surface-2 px-4 py-2 text-xs font-black text-text-muted hover:bg-surface-3"
                   >
                     Cancel
                   </button>
@@ -142,19 +142,19 @@ export default function QuoteManageTab({ mode = "modify" }) {
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   {q.text && (
-                    <p className="text-sm text-gray-800 italic whitespace-pre-wrap">
+                    <p className="text-sm text-text italic whitespace-pre-wrap">
                       “{q.text}”
                     </p>
                   )}
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-400 font-medium">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-faint font-medium">
                     {q.speaker && (
-                      <span className="text-gray-500">— {q.speaker}</span>
+                      <span className="text-text-faint">— {q.speaker}</span>
                     )}
                     {q.episode && <span>{q.episode}</span>}
                     {q.needs_review && (
                       <span className="text-amber-600">needs review</span>
                     )}
-                    <span className="text-gray-300">·</span>
+                    <span className="text-text-faint/60">·</span>
                     <span className={q.missing ? "text-red-400 italic" : ""}>
                       {q.missing
                         ? "unlinked entry"
@@ -165,7 +165,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mt-2 max-h-32 rounded-lg border border-gray-200"
+                      className="mt-2 max-h-32 rounded-lg border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -185,7 +185,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                       </button>
                       <button
                         onClick={() => setConfirmId(null)}
-                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-black text-gray-600 hover:bg-gray-200"
+                        className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-black text-text-muted hover:bg-surface-3"
                       >
                         Cancel
                       </button>
@@ -218,8 +218,8 @@ export default function QuoteManageTab({ mode = "modify" }) {
       })}
 
       {!isLoading && !quotes.length && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-          <p className="text-sm text-gray-400 italic">No quotes found.</p>
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
+          <p className="text-sm text-text-faint italic">No quotes found.</p>
         </div>
       )}
     </div>

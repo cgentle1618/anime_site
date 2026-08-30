@@ -82,9 +82,9 @@ const TV_LIBRARY_CONFIG = {
         const sub  = item.tv_name_en || "";
         return (
           <>
-            <div className="text-xs font-bold text-gray-900 leading-tight line-clamp-1">{main}</div>
+            <div className="text-xs font-bold text-text leading-tight line-clamp-1">{main}</div>
             {sub && sub !== main && (
-              <div className="text-[9px] text-gray-400 line-clamp-1">{sub}</div>
+              <div className="text-[9px] text-text-faint line-clamp-1">{sub}</div>
             )}
           </>
         );
@@ -94,7 +94,7 @@ const TV_LIBRARY_CONFIG = {
       key: "season",
       header: "Season",
       thClass: "hidden md:table-cell",
-      tdClass: "text-xs text-center text-gray-500 hidden md:table-cell",
+      tdClass: "text-xs text-center text-text-faint hidden md:table-cell",
       render: (item) => item.season_part || "-",
     },
     airingStatusColumn(),
@@ -102,7 +102,7 @@ const TV_LIBRARY_CONFIG = {
       key: "ep",
       header: "EP",
       thClass: "hidden lg:table-cell",
-      tdClass: "text-xs text-center font-mono text-gray-700 hidden lg:table-cell",
+      tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
       render: (item) => `${item.ep_fin ?? 0} / ${item.ep_total ?? "?"}`,
     },
     myRatingColumn(),

@@ -49,11 +49,11 @@ export function toQuotePayload(val, extra = {}) {
 function Row({ label, children, hint }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+      <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wide">
         {label}
       </label>
       {children}
-      {hint && <p className="text-[10px] text-gray-400">{hint}</p>}
+      {hint && <p className="text-[10px] text-text-faint">{hint}</p>}
     </div>
   );
 }
@@ -67,9 +67,9 @@ function Check({ label, checked, onChange, hint }) {
         onChange={(e) => onChange(e.target.checked)}
         className="mt-0.5 accent-brand"
       />
-      <span className="text-xs text-gray-700 leading-tight">
+      <span className="text-xs text-text-muted leading-tight">
         {label}
-        {hint && <span className="block text-[10px] text-gray-400">{hint}</span>}
+        {hint && <span className="block text-[10px] text-text-faint">{hint}</span>}
       </span>
     </label>
   );
@@ -188,7 +188,7 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
             <img
               src={imageUrl}
               alt=""
-              className="mt-2 max-h-40 rounded-lg border border-gray-200"
+              className="mt-2 max-h-40 rounded-lg border border-border"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}

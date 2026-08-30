@@ -98,15 +98,15 @@ export default function ComboBox({
     <div ref={containerRef} className="relative">
       {/* Display: selected item OR text input */}
       {selectedId ? (
-        <div className="flex items-center gap-2 w-full border border-brand/40 rounded-lg px-3 py-2 bg-brand/5">
+        <div className="flex items-center gap-2 w-full border border-brand/40 rounded-lg px-3 py-2 bg-brand-soft">
           <i className="fas fa-check-circle text-brand text-xs shrink-0"></i>
-          <span className="text-sm font-bold text-gray-800 flex-1 truncate">
+          <span className="text-sm font-bold text-text flex-1 truncate">
             {selectedLabel}
           </span>
           <button
             type="button"
             onClick={handleClear}
-            className="text-gray-400 hover:text-red-500 transition shrink-0"
+            className="text-text-faint hover:text-red-500 transition shrink-0"
           >
             <i className="fas fa-times text-xs"></i>
           </button>
@@ -122,14 +122,14 @@ export default function ComboBox({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             required={required && !selectedId && !inputText}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="w-full border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             autoComplete="off"
           />
           {(query || inputText) && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+              className="absolute right-2.5 top-2.5 text-text-faint hover:text-text-muted"
             >
               <i className="fas fa-times text-xs"></i>
             </button>
@@ -139,9 +139,9 @@ export default function ComboBox({
 
       {/* Dropdown */}
       {open && !selectedId && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-gray-400 font-medium">
+            <div className="px-3 py-2 text-xs text-text-faint font-medium">
               {allowNew && query
                 ? `"${query}" — will be created as new`
                 : "No matches found"}
@@ -153,7 +153,7 @@ export default function ComboBox({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleSelect(item)}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
+                className="w-full text-left px-3 py-2 text-sm font-medium text-text-muted hover:bg-brand/10 hover:text-brand transition-colors first:rounded-t-xl last:rounded-b-xl truncate"
               >
                 {item.label}
               </button>

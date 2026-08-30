@@ -152,14 +152,14 @@ function SeasonalBlock({
   return (
     <div className="space-y-6">
       {/* Block header card */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">
+            <p className="text-[10px] font-black text-text-faint uppercase tracking-[0.15em] mb-1">
               {blockTitle}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-2xl font-black text-gray-900">
+              <h2 className="text-2xl font-black text-text">
                 {seasonalId}
               </h2>
               {seasonal?.my_rating && (
@@ -177,7 +177,7 @@ function SeasonalBlock({
             </div>
 
             <div className="flex flex-wrap gap-2 mt-3">
-              <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-xs font-bold border border-gray-200">
+              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold border border-border">
                 {totalEntries} Total
               </span>
               <span className="bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full text-xs font-bold border border-violet-200">
@@ -199,14 +199,14 @@ function SeasonalBlock({
             {totalEntries > 0 && (
               <div className="mt-4">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
                     Completion
                   </span>
                   <span className="text-[10px] font-bold text-brand">
                     {completionPct}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-surface-3 rounded-full h-1.5 overflow-hidden">
                   <div
                     className="bg-brand h-1.5 rounded-full transition-all duration-700"
                     style={{ width: `${completionPct}%` }}
@@ -218,7 +218,7 @@ function SeasonalBlock({
 
           {isAdmin && seasonal && (
             <div className="shrink-0">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1.5">
+              <label className="block text-[10px] font-black text-text-faint uppercase tracking-[0.15em] mb-1.5">
                 Seasonal Rating
               </label>
               <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ function SeasonalBlock({
                   value={seasonal.my_rating || ""}
                   onChange={(e) => handleRating(e.target.value)}
                   disabled={saving}
-                  className="bg-white border border-gray-300 text-gray-900 text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
+                  className="bg-surface border border-border-strong text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
                 >
                   <option value="">—</option>
                   {RATING_OPTIONS.map((r) => (
@@ -251,9 +251,9 @@ function SeasonalBlock({
 
       {/* Anime sections */}
       {totalEntries === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-gray-200 border-dashed">
-          <i className="fas fa-ghost text-3xl text-gray-300 mb-3"></i>
-          <p className="text-gray-500 font-medium">
+        <div className="flex flex-col items-center justify-center py-10 bg-surface rounded-xl border border-border border-dashed">
+          <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
+          <p className="text-text-faint font-medium">
             No anime entries for this season yet.
           </p>
         </div>
@@ -267,12 +267,12 @@ function SeasonalBlock({
             const sorted = sortAnime(items, franchiseMap);
             return (
               <div key={section.key}>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-                  <h3 className="text-base font-black text-gray-700 flex items-center gap-2">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                  <h3 className="text-base font-black text-text-muted flex items-center gap-2">
                     <i className={`fas ${section.icon} text-brand/60`}></i>
                     {section.label}
                   </h3>
-                  <span className="bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full text-xs font-bold border border-gray-200">
+                  <span className="bg-surface-2 text-text-faint px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
                     {sorted.length}
                   </span>
                 </div>
@@ -443,7 +443,7 @@ export default function SeasonalOverall() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">
+          <p className="text-text-faint font-medium">
             Loading seasonal overview...
           </p>
         </div>
@@ -471,11 +471,11 @@ export default function SeasonalOverall() {
           <i className="fas fa-calendar text-brand text-lg"></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             Seasonal
           </h1>
           {currentSeason && (
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
+            <p className="text-xs text-text-faint font-medium mt-0.5">
               Current Season:{" "}
               <span className="text-brand font-bold">{currentSeason}</span>
             </p>
@@ -484,7 +484,7 @@ export default function SeasonalOverall() {
       </div>
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <nav className="flex gap-1">
           {[
             {
@@ -505,7 +505,7 @@ export default function SeasonalOverall() {
               className={`px-5 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-brand text-brand"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-text-faint hover:text-text-muted"
               }`}
             >
               <i className={`fas ${tab.icon}`}></i>
@@ -531,13 +531,13 @@ export default function SeasonalOverall() {
               showRatingDistribution
             />
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
-              <i className="fas fa-calendar-times text-3xl text-gray-300 mb-3"></i>
-              <p className="text-gray-500 font-medium">
+            <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
+              <i className="fas fa-calendar-times text-3xl text-text-faint/60 mb-3"></i>
+              <p className="text-text-faint font-medium">
                 No current season configured.
               </p>
               {isAdmin && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-text-faint mt-1">
                   Set one in the Admin → System Config panel.
                 </p>
               )}
@@ -562,9 +562,9 @@ export default function SeasonalOverall() {
               sections={NEXT_SECTIONS}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
-              <i className="fas fa-calendar-times text-3xl text-gray-300 mb-3"></i>
-              <p className="text-gray-500 font-medium">
+            <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
+              <i className="fas fa-calendar-times text-3xl text-text-faint/60 mb-3"></i>
+              <p className="text-text-faint font-medium">
                 Could not determine next season.
               </p>
             </div>
@@ -574,41 +574,41 @@ export default function SeasonalOverall() {
 
       {/* ── All Seasons Tab ── */}
       {activeTab === "all" && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
           {allYears.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <i className="fas fa-ghost text-3xl text-gray-300 mb-3"></i>
-              <p className="text-gray-500 font-medium">
+              <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
+              <p className="text-text-faint font-medium">
                 No seasonal data available.
               </p>
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-20">
+                <tr className="bg-surface-2 border-b border-border">
+                  <th className="px-6 py-3 text-left text-xs font-black text-text-faint uppercase tracking-wider w-20">
                     Year
                   </th>
                   {SEASONS.map((s) => (
                     <th
                       key={s}
-                      className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider"
+                      className="px-4 py-3 text-center text-xs font-black text-text-faint uppercase tracking-wider"
                     >
                       {SEASON_LABELS[s]}
-                      <span className="block text-[10px] font-bold text-gray-400 normal-case tracking-normal mt-0.5">
+                      <span className="block text-[10px] font-bold text-text-faint normal-case tracking-normal mt-0.5">
                         {s}
                       </span>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {allYears.map((year) => (
                   <tr
                     key={year}
-                    className="hover:bg-gray-50/50 transition-colors"
+                    className="hover:bg-surface-2/50 transition-colors"
                   >
-                    <td className="px-6 py-4 font-black text-gray-900 text-base">
+                    <td className="px-6 py-4 font-black text-text text-base">
                       {year}
                     </td>
                     {SEASONS.map((season) => {
@@ -627,16 +627,16 @@ export default function SeasonalOverall() {
                                   ? "bg-brand text-white shadow-sm hover:shadow-md hover:scale-105"
                                   : isNext
                                     ? "bg-brand/10 text-brand border border-brand/30 hover:bg-brand/20"
-                                    : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
+                                    : "bg-surface-2 text-text-muted border border-border hover:bg-surface-3"
                               }`}
                             >
                               {isCurrent && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-pulse shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-surface/80 animate-pulse shrink-0" />
                               )}
                               {id}
                             </Link>
                           ) : (
-                            <span className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-gray-300 border border-dashed border-gray-200 cursor-default select-none">
+                            <span className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-text-faint/60 border border-dashed border-border cursor-default select-none">
                               {id}
                             </span>
                           )}

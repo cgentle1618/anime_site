@@ -23,7 +23,7 @@ export default function DefaultsTab({
   const { defaults, autofill } = draft;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       {groups.map(({ group, fields }) => {
         const autofillable = fields.filter((f) => f.autofillable !== false);
         const allOn =
@@ -45,7 +45,7 @@ export default function DefaultsTab({
                       !allOn,
                     )
                   }
-                  className="ml-4 mt-2 text-[10px] font-bold text-gray-400 hover:text-brand whitespace-nowrap uppercase tracking-wider"
+                  className="ml-4 mt-2 text-[10px] font-bold text-text-faint hover:text-brand whitespace-nowrap uppercase tracking-wider"
                 >
                   {allOn ? "Auto-fill: none" : "Auto-fill: all"}
                 </button>
@@ -61,10 +61,10 @@ export default function DefaultsTab({
                     className="grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] gap-2 md:gap-4 md:items-center"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-gray-700 truncate">
+                      <div className="text-xs font-bold text-text-muted truncate">
                         {field.label}
                       </div>
-                      <div className="text-[10px] font-mono text-gray-300 truncate">
+                      <div className="text-[10px] font-mono text-text-faint/60 truncate">
                         {field.key}
                       </div>
                     </div>
@@ -83,7 +83,7 @@ export default function DefaultsTab({
                           type="button"
                           title={`Revert to built-in (${describeBuiltIn(field)})`}
                           onClick={() => clearFieldDefault(field.key)}
-                          className="text-gray-300 hover:text-brand shrink-0 px-1"
+                          className="text-text-faint/60 hover:text-brand shrink-0 px-1"
                         >
                           <i className="fas fa-undo text-xs"></i>
                         </button>
@@ -92,9 +92,9 @@ export default function DefaultsTab({
 
                     <div className="shrink-0">
                       {field.autofillable === false ? (
-                        <span className="text-[10px] text-gray-300">—</span>
+                        <span className="text-[10px] text-text-faint/60">—</span>
                       ) : (
-                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer">
+                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer">
                           <input
                             type="checkbox"
                             checked={autofill.includes(field.key)}

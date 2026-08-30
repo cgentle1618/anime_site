@@ -88,7 +88,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
 
   if (editing) {
     return (
-      <div className="border border-brand/30 rounded-lg p-3 bg-brand/5">
+      <div className="border border-brand/30 rounded-lg p-3 bg-brand-soft">
         <MemeForm
           val={draft}
           setVal={setDraft}
@@ -105,7 +105,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200"
+            className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-bold text-text-muted hover:bg-surface-3"
           >
             Cancel
           </button>
@@ -115,7 +115,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
   }
 
   return (
-    <div className="group border border-gray-100 rounded-lg p-3 bg-gray-50/70 hover:bg-gray-50 transition">
+    <div className="group border border-border rounded-lg p-3 bg-surface-2/70 hover:bg-surface-2 transition">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {/* The image has no stored position — a meme has at most one, and it
@@ -124,7 +124,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <img
               src={imageUrl}
               alt=""
-              className="mb-2 max-h-64 rounded-lg border border-gray-200"
+              className="mb-2 max-h-64 rounded-lg border border-border"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
@@ -132,7 +132,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
           )}
 
           {meme.text && (
-            <p className="text-base text-gray-800 whitespace-pre-wrap leading-relaxed">
+            <p className="text-base text-text whitespace-pre-wrap leading-relaxed">
               {meme.text}
               {/* quote_id is a real FK with ON DELETE SET NULL, so a deleted
                   quote simply unlinks — there is no dangling state to render. */}
@@ -147,7 +147,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             </p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 font-medium">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-faint font-medium">
             {meme.episode && <span>{meme.episode}</span>}
             {meme.is_favorite && (
               <Pill tone="amber">
@@ -174,7 +174,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <button
               onClick={copyText}
               title="Copy text"
-              className="h-7 w-7 rounded-lg text-gray-400 hover:bg-white hover:text-brand"
+              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
             >
               <i className="fas fa-copy text-xs" />
             </button>
@@ -183,7 +183,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <button
               onClick={copyImage}
               title="Copy image"
-              className="h-7 w-7 rounded-lg text-gray-400 hover:bg-white hover:text-brand"
+              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
             >
               <i className="fas fa-image text-xs" />
             </button>
@@ -194,10 +194,10 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                 onClick={() => patch({ is_favorite: !meme.is_favorite })}
                 disabled={busy}
                 title="Toggle favorite"
-                className={`h-7 w-7 rounded-lg hover:bg-white ${
+                className={`h-7 w-7 rounded-lg hover:bg-surface ${
                   meme.is_favorite
                     ? "text-amber-500"
-                    : "text-gray-400 hover:text-amber-500"
+                    : "text-text-faint hover:text-amber-500"
                 }`}
               >
                 <i className="fas fa-star text-xs" />
@@ -208,7 +208,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                   setEditing(true);
                 }}
                 title="Edit"
-                className="h-7 w-7 rounded-lg text-gray-400 hover:bg-white hover:text-brand"
+                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
               >
                 <i className="fas fa-pen text-xs" />
               </button>
@@ -216,7 +216,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                 onClick={remove}
                 disabled={busy}
                 title="Delete"
-                className="h-7 w-7 rounded-lg text-gray-400 hover:bg-white hover:text-red-500"
+                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-red-500"
               >
                 <i className="fas fa-trash text-xs" />
               </button>

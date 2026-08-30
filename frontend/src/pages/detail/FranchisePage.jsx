@@ -1193,15 +1193,15 @@ export default function FranchisePage() {
             <div className="mb-2">
               <TierBadge tier="franchise" prefix={franchise.franchise_type} />
             </div>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight mb-1">
+            <h1 className="text-2xl font-black text-text leading-tight mb-1">
               {mainTitle}
             </h1>
             {subTitles.map(({ label, value }) => (
               <p
                 key={label}
-                className="text-sm text-gray-500 font-medium truncate flex items-center gap-1.5"
+                className="text-sm text-text-faint font-medium truncate flex items-center gap-1.5"
               >
-                <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                <span className="text-[10px] font-black text-text-faint bg-surface-2 px-1.5 py-0.5 rounded shrink-0">
                   {label}
                 </span>
                 {value}
@@ -1263,7 +1263,7 @@ export default function FranchisePage() {
                   {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
                 </span>
               ))}
-              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full text-xs font-bold">
+              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
                 {totalEntries} Total Entries
               </span>
             </div>
@@ -1271,20 +1271,20 @@ export default function FranchisePage() {
 
           {/* Right: completion + admin controls */}
           <div className="lg:w-52 shrink-0 space-y-3">
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
+            <div className="bg-surface-2 rounded-xl p-4 border border-border">
+              <div className="text-xs font-black text-text-faint uppercase tracking-wider mb-2">
                 Completion
               </div>
-              <div className="text-2xl font-black text-gray-900 mb-1">
+              <div className="text-2xl font-black text-text mb-1">
                 {completionPct}%
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-1.5">
+              <div className="w-full bg-surface-3 rounded-full h-2 mb-1.5">
                 <div
                   className="bg-brand h-2 rounded-full transition-all"
                   style={{ width: `${completionPct}%` }}
                 ></div>
               </div>
-              <div className="text-xs text-gray-500 font-medium">
+              <div className="text-xs text-text-faint font-medium">
                 {completedCount} / {totalEntries} completed
               </div>
             </div>
@@ -1292,7 +1292,7 @@ export default function FranchisePage() {
             {isAdmin && (
               <div className="space-y-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Overall Rating
                   </label>
                   <select
@@ -1301,7 +1301,7 @@ export default function FranchisePage() {
                       setRating(e.target.value);
                       saveField("my_rating", e.target.value);
                     }}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— Not Rated —</option>
                     {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
@@ -1312,7 +1312,7 @@ export default function FranchisePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Expectation
                   </label>
                   <select
@@ -1321,7 +1321,7 @@ export default function FranchisePage() {
                       setExpectation(e.target.value);
                       saveField("franchise_expectation", e.target.value);
                     }}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
                   >
                     <option value="">— None —</option>
                     {["Highest", "High", "Medium", "Low"].map((r) => (
@@ -1332,7 +1332,7 @@ export default function FranchisePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                     Plan Next
                   </label>
                   <SizeGroupControls
@@ -1346,7 +1346,7 @@ export default function FranchisePage() {
                 </div>
                 {franchiseApplicableRewatchTypes.length > 0 && (
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
                       {kindLabel("rewatch", franchiseApplicableRewatchTypes)}
                     </label>
                     <PlanKindToggles
@@ -1367,7 +1367,7 @@ export default function FranchisePage() {
         {(isAdmin || franchise.remark) && (
           <div className="mt-4">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
                 Remark
               </label>
               {remarkClipped && (
@@ -1389,7 +1389,7 @@ export default function FranchisePage() {
               onBlur={() => saveRemark()}
               rows={3}
               placeholder="Add private overview notes, watch order guides, or specific remarks for the entire franchise..."
-              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 text-gray-500 cursor-default"}`}
+              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
             />
           </div>
         )}
@@ -1397,8 +1397,8 @@ export default function FranchisePage() {
 
       {/* Series list */}
       {seriesList.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <div className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-5">
+          <div className="text-xs font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
             <i className="fas fa-layer-group text-brand/60"></i> Series
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1453,7 +1453,7 @@ export default function FranchisePage() {
               <select
                 value={animeSort}
                 onChange={(e) => setAnimeSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="title">Sort: Title</option>
                 <option value="release_date">Sort: Release Date</option>
@@ -1461,7 +1461,7 @@ export default function FranchisePage() {
                 <option value="mal_rating">Sort: MAL Rating</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
                 <button
@@ -1469,13 +1469,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "airingType", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 ["Airing", "Airing"],
@@ -1487,13 +1487,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 "Planned",
@@ -1507,15 +1507,15 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
                 <input
                   type="checkbox"
                   checked={animeFilters.bahaOnly}
@@ -1530,11 +1530,11 @@ export default function FranchisePage() {
                 Baha Only
               </label>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setAnimeGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -1559,16 +1559,16 @@ export default function FranchisePage() {
                       }
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                           <i
                             className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
                           ></i>
                           {label}
                         </h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                           {group.anime.length}
                         </span>
-                        <div className="flex-1 border-t border-gray-100"></div>
+                        <div className="flex-1 border-t border-border"></div>
                       </div>
                       <div className={GRID_CLS}>
                         {group.anime.map((a) => (
@@ -1629,7 +1629,7 @@ export default function FranchisePage() {
               <select
                 value={animeMovieSort}
                 onChange={(e) => setAnimeMovieSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="release_date">Sort: Release Date</option>
                 <option value="title">Sort: Title</option>
@@ -1666,7 +1666,7 @@ export default function FranchisePage() {
               <select
                 value={mangaSort}
                 onChange={(e) => setMangaSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
@@ -1675,7 +1675,7 @@ export default function FranchisePage() {
                 <option value="end_date">Sort: End Date</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["連載中", "完結", "腰斬", "停更"].map((v) => (
                 <button
@@ -1683,13 +1683,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMangaFilters, "serializationStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
                 (v) => (
@@ -1698,30 +1698,30 @@ export default function FranchisePage() {
                     onClick={() =>
                       toggleSetFilter(setMangaFilters, "readingStatus", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                   >
                     {v}
                   </button>
                 ),
               )}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
                 <button
                   key={v}
                   onClick={() => toggleSetFilter(setMangaFilters, "region", v)}
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setMangaGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -1746,16 +1746,16 @@ export default function FranchisePage() {
                       }
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                           <i
                             className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book"} text-brand/70`}
                           ></i>
                           {label}
                         </h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                           {group.manga.length}
                         </span>
-                        <div className="flex-1 border-t border-gray-100"></div>
+                        <div className="flex-1 border-t border-border"></div>
                       </div>
                       <div className={GRID_CLS}>
                         {group.manga.map((m) => (
@@ -1803,7 +1803,7 @@ export default function FranchisePage() {
               <select
                 value={novelSort}
                 onChange={(e) => setNovelSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
@@ -1812,7 +1812,7 @@ export default function FranchisePage() {
                 <option value="end_date">Sort: End Date</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["連載中", "完結", "腰斬", "停更"].map((v) => (
                 <button
@@ -1820,13 +1820,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setNovelFilters, "serializationStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
                 (v) => (
@@ -1835,30 +1835,30 @@ export default function FranchisePage() {
                     onClick={() =>
                       toggleSetFilter(setNovelFilters, "readingStatus", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                   >
                     {v}
                   </button>
                 ),
               )}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {["JP", "CN", "TW", "KR", "Western"].map((v) => (
                 <button
                   key={v}
                   onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setNovelGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -1883,16 +1883,16 @@ export default function FranchisePage() {
                       }
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                           <i
                             className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
                           ></i>
                           {label}
                         </h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                           {group.novels.length}
                         </span>
-                        <div className="flex-1 border-t border-gray-100"></div>
+                        <div className="flex-1 border-t border-border"></div>
                       </div>
                       <div className={GRID_CLS}>
                         {group.novels.map((n) => (
@@ -1937,14 +1937,14 @@ export default function FranchisePage() {
             <select
               value={comicSort}
               onChange={(e) => setComicSort(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
             >
               <option value="release_date">Sort: Release Date</option>
               <option value="title">Sort: Title</option>
               <option value="my_rating">Sort: My Rating</option>
             </select>
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Ongoing", "Limited", "One-Shot", "Annual"].map((v) => (
               <button
@@ -1952,13 +1952,13 @@ export default function FranchisePage() {
                 onClick={() =>
                   toggleSetFilter(setComicFilters, "comicType", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.comicType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.comicType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1967,7 +1967,7 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setComicFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
@@ -1976,12 +1976,12 @@ export default function FranchisePage() {
 
             {comicEras.length > 0 && (
               <>
-                <div className="w-px h-5 bg-gray-200"></div>
+                <div className="w-px h-5 bg-surface-3"></div>
                 {comicEras.map((v) => (
                   <button
                     key={v}
                     onClick={() => toggleSetFilter(setComicFilters, "era", v)}
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.era.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.era.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                   >
                     {v}
                   </button>
@@ -1989,11 +1989,11 @@ export default function FranchisePage() {
               </>
             )}
 
-            <div className="w-px h-5 bg-gray-200"></div>
+            <div className="w-px h-5 bg-surface-3"></div>
 
             <button
               onClick={() => setComicGroupBySeries((v) => !v)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
             >
               <i className="fas fa-layer-group mr-1"></i>Group by Series
             </button>
@@ -2017,16 +2017,16 @@ export default function FranchisePage() {
                     }
                   >
                     <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                      <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                         <i
                           className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
                         ></i>
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                         {group.comics.length}
                       </span>
-                      <div className="flex-1 border-t border-gray-100"></div>
+                      <div className="flex-1 border-t border-border"></div>
                     </div>
                     <div className={GRID_CLS}>
                       {group.comics.map((c) => (
@@ -2072,7 +2072,7 @@ export default function FranchisePage() {
               <select
                 value={movSort}
                 onChange={(e) => setMovSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="release_date">Sort: Release Date</option>
                 <option value="title">Sort: Title</option>
@@ -2080,7 +2080,7 @@ export default function FranchisePage() {
                 <option value="imdb_rating">Sort: IMDb Rating</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 ["Finished", "Finished Airing"],
@@ -2091,13 +2091,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 "Planned",
@@ -2111,17 +2111,17 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setMovGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -2148,16 +2148,16 @@ export default function FranchisePage() {
                       }
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                           <i
                             className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
                           ></i>
                           {label}
                         </h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                           {group.movies.length}
                         </span>
-                        <div className="flex-1 border-t border-gray-100"></div>
+                        <div className="flex-1 border-t border-border"></div>
                       </div>
                       <div className={GRID_CLS}>
                         {group.movies.map((m) => (
@@ -2203,7 +2203,7 @@ export default function FranchisePage() {
               <select
                 value={tvSort}
                 onChange={(e) => setTvSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="release_date">Sort: Release Date</option>
                 <option value="title">Sort: Title</option>
@@ -2211,7 +2211,7 @@ export default function FranchisePage() {
                 <option value="imdb_rating">Sort: IMDb Rating</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 ["Airing", "Airing"],
@@ -2223,13 +2223,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 "Planned",
@@ -2243,17 +2243,17 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setTvGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -2281,16 +2281,16 @@ export default function FranchisePage() {
                     >
                       {tvShowSeriesGroups.length > 1 && (
                         <div className="flex items-center gap-3 mb-4">
-                          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                          <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                             <i
                               className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-video"} text-brand/70`}
                             ></i>
                             {label}
                           </h3>
-                          <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                          <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                             {group.shows.length}
                           </span>
-                          <div className="flex-1 border-t border-gray-100"></div>
+                          <div className="flex-1 border-t border-border"></div>
                         </div>
                       )}
                       <div className={GRID_CLS}>
@@ -2337,7 +2337,7 @@ export default function FranchisePage() {
               <select
                 value={cartoonSort}
                 onChange={(e) => setCartoonSort(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
               >
                 <option value="release_date">Sort: Release Date</option>
                 <option value="title">Sort: Title</option>
@@ -2345,7 +2345,7 @@ export default function FranchisePage() {
                 <option value="imdb_rating">Sort: IMDb Rating</option>
               </select>
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {cartoonAiringTypeOptions.length > 0 && (
                 <>
@@ -2355,12 +2355,12 @@ export default function FranchisePage() {
                       onClick={() =>
                         toggleSetFilter(setCartoonFilters, "airingType", v)
                       }
-                      className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                      className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                     >
                       {v}
                     </button>
                   ))}
-                  <div className="w-px h-5 bg-gray-200"></div>
+                  <div className="w-px h-5 bg-surface-3"></div>
                 </>
               )}
 
@@ -2374,13 +2374,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               {[
                 "Planned",
@@ -2394,17 +2394,17 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-gray-200"></div>
+              <div className="w-px h-5 bg-surface-3"></div>
 
               <button
                 onClick={() => setCartoonGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonGroupBySeries ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
               >
                 <i className="fas fa-layer-group mr-1"></i>Group by Series
               </button>
@@ -2431,16 +2431,16 @@ export default function FranchisePage() {
                       }
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                           <i
                             className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-tv"} text-brand/70`}
                           ></i>
                           {label}
                         </h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
                           {group.cartoons.length}
                         </span>
-                        <div className="flex-1 border-t border-gray-100"></div>
+                        <div className="flex-1 border-t border-border"></div>
                       </div>
                       <div className={GRID_CLS}>
                         {group.cartoons.map((c) => (
@@ -2518,7 +2518,7 @@ export default function FranchisePage() {
 
       {/* No content at all */}
       {tabs.length === 0 && !loading && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-text-faint">
           <i className="fas fa-box-open text-3xl mb-3"></i>
           <p className="font-medium">No entries found for this franchise.</p>
         </div>

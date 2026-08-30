@@ -161,8 +161,8 @@ export default function RelationForm({
 
   if (!entry) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
-        <p className="text-center text-sm font-medium text-gray-400">
+      <div className="rounded-2xl border border-border bg-surface-2 p-6">
+        <p className="text-center text-sm font-medium text-text-faint">
           Pick an entry on the left to edit its relations as a form.
         </p>
       </div>
@@ -170,9 +170,9 @@ export default function RelationForm({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-black text-gray-900">{entry.display_name}</h2>
+        <h2 className="text-sm font-black text-text">{entry.display_name}</h2>
         <span
           className={`rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
             entry.media_type,
@@ -180,15 +180,15 @@ export default function RelationForm({
         >
           {entry.media_type}
         </span>
-        <span className="ml-auto text-[10px] font-black uppercase tracking-wider text-gray-400">
+        <span className="ml-auto text-[10px] font-black uppercase tracking-wider text-text-faint">
           {rows.length} relation{rows.length === 1 ? "" : "s"}
         </span>
       </div>
 
       {loading && rows.length === 0 ? (
-        <p className="mt-4 text-sm font-medium text-gray-400">Loading…</p>
+        <p className="mt-4 text-sm font-medium text-text-faint">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="mt-4 text-sm font-medium text-gray-400">
+        <p className="mt-4 text-sm font-medium text-text-faint">
           No relations yet — add one below, or drag from its handle on the canvas.
         </p>
       ) : (
@@ -206,27 +206,27 @@ export default function RelationForm({
         </div>
       )}
 
-      <form onSubmit={add} className="mt-4 border-t border-gray-100 pt-4">
-        <p className="text-xs font-bold leading-snug text-gray-600">
-          <span className="text-gray-900">
+      <form onSubmit={add} className="mt-4 border-t border-border pt-4">
+        <p className="text-xs font-bold leading-snug text-text-muted">
+          <span className="text-text">
             {subject?.display_name || "…pick an entry"}
           </span>{" "}
           is the <span className="text-brand">{kindLabel}</span> of{" "}
-          <span className="text-gray-900">
+          <span className="text-text">
             {object?.display_name || "…pick an entry"}
           </span>
         </p>
 
         <div className="mt-2 flex flex-wrap items-end gap-2">
           <label className="flex min-w-[12rem] flex-1 flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
               Other entry
             </span>
             <select
               value={draft.other}
               disabled={writing}
               onChange={(e) => setDraft((d) => ({ ...d, other: e.target.value }))}
-              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+              className="rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             >
               <option value="">Pick an entry…</option>
               {pickable.map((c) => (
@@ -241,14 +241,14 @@ export default function RelationForm({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
               Kind
             </span>
             <select
               value={kind}
               disabled={writing}
               onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value }))}
-              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+              className="rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             >
               {kinds.map((k) => (
                 <option key={k.key} value={k.key}>
@@ -259,7 +259,7 @@ export default function RelationForm({
           </label>
 
           <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
               Remark
             </span>
             <input
@@ -268,7 +268,7 @@ export default function RelationForm({
               disabled={writing}
               onChange={(e) => setDraft((d) => ({ ...d, remark: e.target.value }))}
               placeholder="Optional"
-              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+              className="rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
             />
           </label>
 
@@ -277,7 +277,7 @@ export default function RelationForm({
             disabled={writing}
             onClick={() => setDraft((d) => ({ ...d, swapped: !d.swapped }))}
             title="Turn the sentence around"
-            className="rounded-lg border border-gray-200 px-2 py-2 text-[10px] font-black uppercase text-gray-500 disabled:opacity-40"
+            className="rounded-lg border border-border px-2 py-2 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
           >
             Swap
           </button>
@@ -348,24 +348,24 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
   return (
     <div
       data-testid={`relation-row-${row.system_id}`}
-      className="rounded-xl border border-gray-100 bg-gray-50/60 p-2"
+      className="rounded-xl border border-border bg-surface-2/60 p-2"
     >
-      <p className="text-xs font-bold leading-snug text-gray-600">
-        <span className="text-gray-900">{from.display_name}</span> is the{" "}
+      <p className="text-xs font-bold leading-snug text-text-muted">
+        <span className="text-text">{from.display_name}</span> is the{" "}
         <span className="text-brand">{label}</span> of{" "}
-        <span className="text-gray-900">{to.display_name}</span>
+        <span className="text-text">{to.display_name}</span>
       </p>
 
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
             Kind
           </span>
           <select
             value={row.relation_type}
             disabled={busy}
             onChange={(e) => patch({ kind: e.target.value })}
-            className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           >
             {kinds.map((k) => (
               <option key={k.key} value={k.key}>
@@ -376,7 +376,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
         </label>
 
         <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
             Remark
           </span>
           <input
@@ -388,7 +388,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
             // of PATCHes.
             onBlur={commitRemark}
             placeholder="Optional"
-            className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           />
         </label>
 
@@ -401,7 +401,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
               ? `A ${label} reads the same both ways, so there is nothing to swap`
               : `Make ${to.display_name} the ${label} of ${from.display_name} instead`
           }
-          className="rounded-lg border border-gray-200 px-2 py-2 text-[10px] font-black uppercase text-gray-500 disabled:opacity-40"
+          className="rounded-lg border border-border px-2 py-2 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
         >
           Swap
         </button>

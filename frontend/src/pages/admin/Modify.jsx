@@ -2376,10 +2376,10 @@ export default function Modify() {
         key={a.system_id}
         type="button"
         onClick={() => openEditor(a, "anime")}
-        className="flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {a.airing_type && (
-          <span className="text-[9px] font-black text-gray-400 shrink-0">
+          <span className="text-[9px] font-black text-text-faint shrink-0">
             {a.airing_type}
           </span>
         )}
@@ -2387,8 +2387,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2407,7 +2407,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2468,14 +2468,14 @@ export default function Modify() {
         key={m.system_id}
         type="button"
         onClick={() => openEditor(m, "movie")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2494,7 +2494,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2655,14 +2655,14 @@ export default function Modify() {
         key={t.system_id}
         type="button"
         onClick={() => openEditor(t, "tv-show")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {t.tv_name_cn || t.tv_name_en || t.tv_name_alt || "Unknown"}
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2681,7 +2681,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2726,7 +2726,7 @@ export default function Modify() {
         key={c.system_id}
         type="button"
         onClick={() => openEditor(c, "cartoon")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {c.cartoon_name_cn ||
           c.cartoon_name_en ||
@@ -2735,8 +2735,8 @@ export default function Modify() {
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2755,7 +2755,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2800,14 +2800,14 @@ export default function Modify() {
         key={m.system_id}
         type="button"
         onClick={() => openEditor(m, "manga")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {m.manga_name_cn || m.manga_name_en || m.manga_name_alt || "Unknown"}
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2826,7 +2826,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2871,14 +2871,14 @@ export default function Modify() {
         key={n.system_id}
         type="button"
         onClick={() => openEditor(n, "novel")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {n.novel_name_cn || n.novel_name_en || n.novel_name_alt || "Unknown"}
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2897,7 +2897,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2942,14 +2942,14 @@ export default function Modify() {
         key={c.system_id}
         type="button"
         onClick={() => openEditor(c, "comic")}
-        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 hover:border-brand hover:text-brand transition"
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
       >
         {c.comic_name_en || c.comic_name_cn || c.comic_name_alt || "Unknown"}
       </button>
     );
     return (
-      <div className="mb-5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-gray-50 px-4 pt-3 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
           Other entries in this franchise
         </p>
         {Object.entries(bySeries).map(([sid, entries]) => {
@@ -2968,7 +2968,7 @@ export default function Modify() {
         {noSeries.length > 0 && (
           <div>
             {Object.keys(bySeries).length > 0 && (
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
                 No Series
               </p>
             )}
@@ -2988,7 +2988,7 @@ export default function Modify() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading...</p>
+          <p className="text-text-faint font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -2996,10 +2996,10 @@ export default function Modify() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+        <h1 className="text-2xl font-black text-text flex items-center gap-3">
           <i className="fas fa-edit text-brand"></i> Modify Database
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           Search for an entry to edit its fields.
         </p>
       </div>
@@ -3042,7 +3042,7 @@ export default function Modify() {
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
               <div className="relative">
-                <i className="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
+                <i className="fas fa-search absolute left-4 top-3.5 text-text-faint"></i>
                 <input
                   type="text"
                   value={searchQuery}
@@ -3053,11 +3053,11 @@ export default function Modify() {
                   onFocus={() => setSearchOpen(true)}
                   placeholder="Type a title to search..."
                   autoComplete="off"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white shadow-sm"
+                  className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface shadow-sm"
                 />
               </div>
               {searchOpen && searchResults.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
                   {searchResults.map((item) => {
                     const sub =
                       activeTab === "anime" || activeTab === "anime-movie"
@@ -3078,13 +3078,13 @@ export default function Modify() {
                           openEditor(item, activeTab);
                           setSearchOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 hover:bg-brand/10 border-b border-gray-50 last:border-0 transition"
+                        className="w-full text-left px-4 py-3 hover:bg-brand/10 border-b border-border last:border-0 transition"
                       >
-                        <div className="text-sm font-bold text-gray-800">
+                        <div className="text-sm font-bold text-text">
                           {getItemLabel(item, activeTab)}
                         </div>
                         {sub && (
-                          <div className="text-xs text-gray-400">{sub}</div>
+                          <div className="text-xs text-text-faint">{sub}</div>
                         )}
                       </button>
                     );
@@ -3094,7 +3094,7 @@ export default function Modify() {
             </div>
           ) : (
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
                 Select Category
               </label>
               <select
@@ -3118,7 +3118,7 @@ export default function Modify() {
                 <button
                   key={opt.system_id}
                   onClick={() => openEditor(opt, "options")}
-                  className="text-left px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand hover:text-brand hover:bg-brand/5 transition shadow-sm"
+                  className="text-left px-3 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium text-text-muted hover:border-brand hover:text-brand hover:bg-brand-soft transition shadow-sm"
                 >
                   {opt.value}
                 </button>
@@ -3128,7 +3128,7 @@ export default function Modify() {
 
           {activeTab !== "options" && (
             <div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+              <p className="text-xs font-black text-text-faint uppercase tracking-widest mb-3">
                 <i className="fas fa-clock mr-1"></i> Recently Modified
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -3155,22 +3155,22 @@ export default function Modify() {
                     <button
                       key={item.system_id}
                       onClick={() => openEditor(item, activeTab)}
-                      className="text-left bg-white border border-gray-200 rounded-xl p-4 hover:border-brand hover:shadow-md hover:-translate-y-0.5 transition-all shadow-sm"
+                      className="text-left bg-surface border border-border rounded-xl p-4 hover:border-brand hover:shadow-md hover:-translate-y-0.5 transition-all shadow-sm"
                     >
                       {badge && (
-                        <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 mb-1.5">
+                        <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint mb-1.5">
                           {badge}
                         </span>
                       )}
-                      <div className="text-sm font-bold text-gray-800 line-clamp-1">
+                      <div className="text-sm font-bold text-text line-clamp-1">
                         {getItemLabel(item, activeTab)}
                       </div>
                       {sub && (
-                        <div className="text-xs text-gray-400 mt-0.5 truncate">
+                        <div className="text-xs text-text-faint mt-0.5 truncate">
                           {sub}
                         </div>
                       )}
-                      <div className="text-[9px] text-gray-300 mt-2 font-mono">
+                      <div className="text-[9px] text-text-faint/60 mt-2 font-mono">
                         {item.updated_at
                           ? new Date(item.updated_at).toLocaleDateString()
                           : ""}
@@ -3191,11 +3191,11 @@ export default function Modify() {
             <button
               type="button"
               onClick={closeEditor}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition shrink-0"
             >
               <i className="fas fa-arrow-left text-xs"></i> Back
             </button>
-            <span className="font-mono text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded truncate">
+            <span className="font-mono text-xs text-text-faint bg-surface-2 px-2 py-1 rounded truncate">
               {editingItem.system_id}
             </span>
           </div>
@@ -3215,8 +3215,8 @@ export default function Modify() {
           {/* Novel ribbon — grouped by series */}
           {editingType === "novel" && novelRibbonSection}
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
-            <h2 className="text-lg font-black text-gray-900">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+            <h2 className="text-lg font-black text-text">
               {getItemLabel(editingItem, editingType)}
             </h2>
             <p className="text-xs text-brand font-bold">

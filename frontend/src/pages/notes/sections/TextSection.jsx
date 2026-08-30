@@ -49,7 +49,7 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
   };
 
   const textareaCls =
-    inputCls + (isAdmin ? "" : " bg-gray-50 text-gray-600 cursor-default");
+    inputCls + (isAdmin ? "" : " bg-surface-2 text-text-muted cursor-default");
 
   const saveBtn = (
     <button
@@ -63,14 +63,14 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
-        <h4 className="font-bold text-sm text-gray-800">{section.label}</h4>
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between">
+        <h4 className="font-bold text-sm text-text">{section.label}</h4>
         <button
           type="button"
           onClick={() => setFullscreen(true)}
           title="Open fullscreen"
-          className={btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"}
+          className={btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"}
         >
           <i className="fas fa-expand text-[10px]"></i> Fullscreen
         </button>
@@ -93,11 +93,11 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
           onClick={() => setFullscreen(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shrink-0">
-              <h4 className="font-bold text-sm text-gray-800">
+            <div className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0">
+              <h4 className="font-bold text-sm text-text">
                 {section.label}
               </h4>
               <button
@@ -105,7 +105,7 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
                 onClick={() => setFullscreen(false)}
                 title="Exit fullscreen"
                 className={
-                  btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"
                 }
               >
                 <i className="fas fa-compress text-[10px]"></i> Close
@@ -174,8 +174,8 @@ function TextList({ section, notes, isAdmin, onCreate, onUpdate, onDelete }) {
             </div>
           ) : (
             <div className="flex gap-2 items-start group">
-              <span className="text-xs text-gray-500 mt-0.5 shrink-0">•</span>
-              <span className="text-sm text-gray-800 flex-1 whitespace-pre-wrap">
+              <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
+              <span className="text-sm text-text flex-1 whitespace-pre-wrap">
                 {n.content}
               </span>
               <ItemActions

@@ -49,5 +49,5 @@ export const AIRING_STATUS_CLS = {
   "Not Yet Aired":   "text-orange-700 bg-orange-100",
   Canceled:          "text-red-700 bg-red-100",
   Rumored:           "text-purple-700 bg-purple-100",
-  _default:          "text-gray-500 bg-gray-100",
+  _default:          "text-text-faint bg-surface-2",
 };

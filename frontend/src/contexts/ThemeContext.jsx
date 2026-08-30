@@ -75,3 +75,9 @@ export function useTheme() {
   if (!ctx) throw new Error("useTheme must be used inside <ThemeProvider>");
   return ctx;
 }
+
+/** The current theme name, "light" when rendered without a provider (leaf
+ *  components tested in isolation, e.g. the relations canvas). */
+export function useThemeOrLight() {
+  return useContext(ThemeContext)?.theme ?? "light";
+}

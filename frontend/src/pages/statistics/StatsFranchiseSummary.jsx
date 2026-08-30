@@ -13,8 +13,8 @@ const MY_RATING_COLORS = {
   C: "bg-orange-400",
   D: "bg-rose-400",
   E: "bg-red-600",
-  F: "bg-gray-500",
-  Unrated: "bg-gray-300",
+  F: "bg-text-faint",
+  Unrated: "bg-surface-3",
 };
 
 const MAL_BUCKETS = [
@@ -46,7 +46,7 @@ function computeRatingRows(items) {
   return {
     rows: [...RATING_ORDER, "Unrated"].map((rating) => ({
       label: rating,
-      color: MY_RATING_COLORS[rating] || "bg-gray-300",
+      color: MY_RATING_COLORS[rating] || "bg-surface-3",
       count: counts[rating],
       dim: rating === "Unrated",
     })),
@@ -57,10 +57,10 @@ function computeRatingRows(items) {
 function RatingDistributionCard({ title, subtitle, rows, total }) {
   const maxCount = Math.max(...rows.filter((r) => !r.dim).map((r) => r.count), 1);
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <p className="text-xs font-black text-text-faint uppercase tracking-wider mb-4 flex items-center justify-between">
         <span>{title}</span>
-        <span className="text-gray-400 font-medium normal-case">{subtitle}</span>
+        <span className="text-text-faint font-medium normal-case">{subtitle}</span>
       </p>
       <div className="space-y-3">
         {rows.map(({ label, color, count, dim }) => {
@@ -70,21 +70,21 @@ function RatingDistributionCard({ title, subtitle, rows, total }) {
             <div key={label} className="flex items-center gap-3">
               <span
                 className={`w-16 text-right font-black shrink-0 ${
-                  dim ? "text-xs text-gray-400" : "text-sm text-gray-700"
+                  dim ? "text-xs text-text-faint" : "text-sm text-text-muted"
                 }`}
               >
                 {label}
               </span>
-              <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+              <div className="flex-1 bg-surface-2 rounded-full h-5 overflow-hidden">
                 <div
                   className={`h-5 rounded-full transition-all duration-700 ${color}`}
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
-              <span className="w-8 text-right text-sm font-bold text-gray-700 shrink-0">
+              <span className="w-8 text-right text-sm font-bold text-text-muted shrink-0">
                 {count}
               </span>
-              <span className="w-10 text-right text-xs text-gray-400 font-medium shrink-0">
+              <span className="w-10 text-right text-xs text-text-faint font-medium shrink-0">
                 {pct !== null ? `${pct}%` : ""}
               </span>
             </div>
@@ -166,8 +166,8 @@ export default function StatsFranchiseSummary({
     <>
       {/* Block 2 — Rating Distribution */}
       <section>
-        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
-          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
+          <h2 className="text-xl font-black text-text flex items-center gap-2">
             <i className="fas fa-star text-brand/70"></i>
             Rating Distribution
           </h2>
@@ -242,16 +242,16 @@ export default function StatsFranchiseSummary({
 
       {/* Block 2.5 — Anime Seasonal Overview */}
       <section>
-        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
-          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
+          <h2 className="text-xl font-black text-text flex items-center gap-2">
             <i className="fas fa-calendar-alt text-brand/70"></i>
             Anime Seasonal Overview
           </h2>
         </div>
         {seasonals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
-            <i className="fas fa-calendar-times text-3xl text-gray-300 mb-3"></i>
-            <p className="text-gray-500 font-medium">
+          <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
+            <i className="fas fa-calendar-times text-3xl text-text-faint/60 mb-3"></i>
+            <p className="text-text-faint font-medium">
               No seasonal data available.
             </p>
           </div>
@@ -264,26 +264,26 @@ export default function StatsFranchiseSummary({
             );
             return (
               <>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
-                        <th className="text-left px-5 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                      <tr className="border-b border-border bg-surface-2">
+                        <th className="text-left px-5 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           Season
                         </th>
-                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                        <th className="text-center px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           Rating
                         </th>
-                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                        <th className="text-center px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           <span className="text-green-600">Completed</span>
                         </th>
-                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                        <th className="text-center px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           <span className="text-violet-600">Planned</span>
                         </th>
-                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                        <th className="text-center px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           <span className="text-blue-600">Watching</span>
                         </th>
-                        <th className="text-center px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider">
+                        <th className="text-center px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider">
                           <span className="text-red-500">Dropped</span>
                         </th>
                       </tr>
@@ -294,13 +294,13 @@ export default function StatsFranchiseSummary({
                         return (
                           <tr
                             key={s.seasonal}
-                            className={`border-b transition-colors ${isCurrent ? "bg-brand/5 border-brand/20 hover:bg-brand/10" : `border-gray-50 hover:bg-gray-50 ${idx % 2 === 0 ? "" : "bg-gray-50/40"}`}`}
+                            className={`border-b transition-colors ${isCurrent ? "bg-brand-soft border-brand/20 hover:bg-brand/10" : `border-border hover:bg-surface-2 ${idx % 2 === 0 ? "" : "bg-surface-2/40"}`}`}
                           >
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-2">
                                 <Link
                                   to={`/seasonal/${encodeURIComponent(s.seasonal)}`}
-                                  className={`font-black tracking-wide hover:text-brand transition-colors ${isCurrent ? "text-brand" : "text-gray-900"}`}
+                                  className={`font-black tracking-wide hover:text-brand transition-colors ${isCurrent ? "text-brand" : "text-text"}`}
                                 >
                                   {s.seasonal}
                                 </Link>
@@ -317,35 +317,35 @@ export default function StatsFranchiseSummary({
                                   {s.my_rating}
                                 </span>
                               ) : (
-                                <span className="text-gray-300 text-xs font-medium">
+                                <span className="text-text-faint/60 text-xs font-medium">
                                   —
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span
-                                className={`text-sm font-bold ${s.entry_completed > 0 ? "text-green-600" : "text-gray-300"}`}
+                                className={`text-sm font-bold ${s.entry_completed > 0 ? "text-green-600" : "text-text-faint/60"}`}
                               >
                                 {s.entry_completed}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span
-                                className={`text-sm font-bold ${s.entry_planned > 0 ? "text-violet-600" : "text-gray-300"}`}
+                                className={`text-sm font-bold ${s.entry_planned > 0 ? "text-violet-600" : "text-text-faint/60"}`}
                               >
                                 {s.entry_planned}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span
-                                className={`text-sm font-bold ${s.entry_watching > 0 ? "text-blue-600" : "text-gray-300"}`}
+                                className={`text-sm font-bold ${s.entry_watching > 0 ? "text-blue-600" : "text-text-faint/60"}`}
                               >
                                 {s.entry_watching}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span
-                                className={`text-sm font-bold ${s.entry_dropped > 0 ? "text-red-500" : "text-gray-300"}`}
+                                className={`text-sm font-bold ${s.entry_dropped > 0 ? "text-red-500" : "text-text-faint/60"}`}
                               >
                                 {s.entry_dropped}
                               </span>
@@ -361,18 +361,18 @@ export default function StatsFranchiseSummary({
                     <button
                       onClick={() => setSeasonalPage((p) => p - 1)}
                       disabled={seasonalPage === 0}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
                     >
                       <i className="fas fa-chevron-left text-[10px]"></i>
                       Prev
                     </button>
-                    <span className="text-xs text-gray-400 font-medium">
+                    <span className="text-xs text-text-faint font-medium">
                       Page {seasonalPage + 1} of {totalPages}
                     </span>
                     <button
                       onClick={() => setSeasonalPage((p) => p + 1)}
                       disabled={seasonalPage >= totalPages - 1}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
                     >
                       Next
                       <i className="fas fa-chevron-right text-[10px]"></i>

@@ -59,7 +59,7 @@ const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
 
 function RouteFallback() {
-  return <div className="p-8 text-sm text-gray-500">Loading…</div>;
+  return <div className="p-8 text-sm text-text-faint">Loading…</div>;
 }
 
 export default function App() {

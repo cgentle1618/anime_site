@@ -51,11 +51,11 @@ export default function ComicDashboardCard({
 
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
+      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
       onClick={() => navigate(`/comic/${comic.system_id}`)}
     >
       <div className="flex p-3">
-        <div className="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
+        <div className="w-20 h-28 shrink-0 bg-surface-2 rounded-lg overflow-hidden border border-border relative">
           {comic.my_rating && (
             <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
               <i className="fas fa-star text-[8px] mr-1"></i>
@@ -79,18 +79,18 @@ export default function ComicDashboardCard({
         <div className="ml-4 flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex items-baseline gap-1.5 min-w-0">
             <h3
-              className="font-bold text-gray-900 text-sm line-clamp-2 leading-tight min-w-0"
+              className="font-bold text-text text-sm line-clamp-2 leading-tight min-w-0"
               title={title}
             >
               {title}
             </h3>
             {comic.volume_label && (
-              <span className="shrink-0 font-mono text-[10px] font-bold text-gray-500">
+              <span className="shrink-0 font-mono text-[10px] font-bold text-text-faint">
                 {comic.volume_label}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 truncate mt-1 mb-2">
+          <p className="text-xs text-text-faint truncate mt-1 mb-2">
             From: {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
@@ -101,12 +101,12 @@ export default function ComicDashboardCard({
             )}
             {events.length > 0 && (
               <span
-                className="bg-gray-100 text-gray-600 border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[130px]"
+                className="bg-surface-2 text-text-muted border-border px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[130px]"
                 title={events.join(", ")}
               >
                 {events[0]}
                 {events.length > 1 && (
-                  <span className="text-gray-400"> +{events.length - 1}</span>
+                  <span className="text-text-faint"> +{events.length - 1}</span>
                 )}
               </span>
             )}
@@ -118,7 +118,7 @@ export default function ComicDashboardCard({
               e.stopPropagation();
               navigate(`/modify?id=${comic.system_id}&type=comic`);
             }}
-            className="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100"
+            className="absolute top-2 right-2 bg-surface/90 text-text-faint hover:text-brand hover:bg-surface rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-border"
             title="Quick Edit"
           >
             <i className="fas fa-pencil-alt text-xs"></i>
@@ -127,18 +127,18 @@ export default function ComicDashboardCard({
       </div>
 
       <div
-        className="bg-gray-50 p-3 border-t border-gray-100 mt-auto"
+        className="bg-surface-2 p-3 border-t border-border mt-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-end mb-1.5">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
             Progress
           </span>
           <span className="text-[10px] font-bold text-brand">
             {hasTotal ? `${progressPercent}%` : "Ongoing"}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
+        <div className="w-full bg-surface-3 rounded-full h-1.5 mb-3 overflow-hidden">
           <div
             className="bg-brand h-1.5 rounded-full transition-all duration-500"
             style={{ width: hasTotal ? `${progressPercent}%` : "0%" }}
@@ -146,10 +146,10 @@ export default function ComicDashboardCard({
         </div>
 
         {isAdmin ? (
-          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
             <button
               onClick={() => handleIssueChange(fin - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
               title="One issue back"
             >
               <i className="fas fa-minus text-[10px]"></i>
@@ -157,18 +157,18 @@ export default function ComicDashboardCard({
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-16 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={fin}
                 onChange={(e) =>
                   handleIssueChange(parseInt(e.target.value, 10) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-16 text-center">
+              <span className="text-text-faint mx-0.5 text-xs">/</span>
+              <span className="text-text-faint text-[13px] w-16 text-center">
                 {hasTotal ? total : "?"}
               </span>
-              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+              <span className="text-text-faint ml-1 text-[10px] font-sans">
                 ISS
               </span>
             </div>
@@ -181,14 +181,14 @@ export default function ComicDashboardCard({
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+          <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-gray-900 w-14 text-center">{fin}</span>
-              <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-14 text-center">
+              <span className="text-text w-14 text-center">{fin}</span>
+              <span className="text-text-faint mx-0.5 text-xs">/</span>
+              <span className="text-text-faint text-[13px] w-14 text-center">
                 {hasTotal ? total : "?"}
               </span>
-              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+              <span className="text-text-faint ml-1 text-[10px] font-sans">
                 ISS
               </span>
             </div>

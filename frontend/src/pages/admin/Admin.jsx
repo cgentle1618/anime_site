@@ -35,7 +35,7 @@ function StreamBox({
     specificOptions?.[0]?.url ?? "",
   );
 
-  const selectCls = `w-full bg-white border rounded-lg text-[10px] font-bold px-1 py-2 focus:outline-none ${borderColor.replace("border ", "border-")} ${titleColor}`;
+  const selectCls = `w-full bg-surface border rounded-lg text-[10px] font-bold px-1 py-2 focus:outline-none ${borderColor.replace("border ", "border-")} ${titleColor}`;
 
   return (
     <div className={`${color} ${borderColor} rounded-xl p-4 flex flex-col`}>
@@ -47,7 +47,7 @@ function StreamBox({
           <>
             <button
               onClick={() => onStart(allUrl)}
-              className={`w-full bg-white hover:opacity-80 border py-2 rounded-lg text-xs font-bold shadow-sm transition ${borderColor.replace("border ", "border-")} ${titleColor}`}
+              className={`w-full bg-surface hover:opacity-80 border py-2 rounded-lg text-xs font-bold shadow-sm transition ${borderColor.replace("border ", "border-")} ${titleColor}`}
             >
               {allLabel}
             </button>
@@ -67,7 +67,7 @@ function StreamBox({
                 <button
                   onClick={() => onStart(specificSelected)}
                   disabled={!specificSelected}
-                  className={`bg-white hover:opacity-80 border px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-40 ${borderColor.replace("border ", "border-")} ${titleColor}`}
+                  className={`bg-surface hover:opacity-80 border px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-40 ${borderColor.replace("border ", "border-")} ${titleColor}`}
                 >
                   <i className="fas fa-play"></i>
                 </button>
@@ -147,9 +147,9 @@ function LogsTable({ logs, onRefresh }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-      <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-surface-2 border-b border-border px-6 py-4 flex items-center justify-between">
+        <h2 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
           <i className="fas fa-terminal text-brand mr-2"></i> Data Control Log
         </h2>
         <div className="flex items-center gap-3">
@@ -162,7 +162,7 @@ function LogsTable({ logs, onRefresh }) {
           </button>
           <button
             onClick={onRefresh}
-            className="text-gray-400 hover:text-brand transition"
+            className="text-text-faint hover:text-brand transition"
           >
             <i className="fas fa-redo"></i>
           </button>
@@ -170,7 +170,7 @@ function LogsTable({ logs, onRefresh }) {
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white border-b border-gray-100">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider bg-surface border-b border-border">
             <tr>
               <th className="px-6 py-3">Action</th>
               <th className="px-6 py-3">Trigger</th>
@@ -180,7 +180,7 @@ function LogsTable({ logs, onRefresh }) {
               <th className="px-3 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {slice.map((log, i) => {
               let statusEl;
               if (log.status === "Success") {
@@ -212,13 +212,13 @@ function LogsTable({ logs, onRefresh }) {
               return (
                 <tr
                   key={i}
-                  className="hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors group"
+                  className="hover:bg-surface-2 border-b border-border last:border-0 transition-colors group"
                 >
                   <td className="px-6 py-3">
-                    <div className="font-bold text-gray-800">
+                    <div className="font-bold text-text">
                       {log.action_main || "Unknown"}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[10px] text-text-faint">
                       {log.action_specific || ""}
                     </div>
                   </td>
@@ -229,7 +229,7 @@ function LogsTable({ logs, onRefresh }) {
                       {log.type || "Manual"}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
+                  <td className="px-6 py-3 text-text-faint whitespace-nowrap">
                     {formatDate(log.timestamp)}
                   </td>
                   <td className="px-6 py-3">{statusEl}</td>
@@ -249,7 +249,7 @@ function LogsTable({ logs, onRefresh }) {
                   <td className="px-3 py-3">
                     <button
                       onClick={() => handleDeleteLog(log.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition"
+                      className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-red-500 transition"
                       title="Delete this log entry"
                     >
                       <i className="fas fa-times text-xs"></i>
@@ -262,7 +262,7 @@ function LogsTable({ logs, onRefresh }) {
               <tr>
                 <td
                   colSpan={6}
-                  className="text-center py-6 italic text-gray-400"
+                  className="text-center py-6 italic text-text-faint"
                 >
                   No data control logs found
                 </td>
@@ -271,25 +271,25 @@ function LogsTable({ logs, onRefresh }) {
           </tbody>
         </table>
       </div>
-      <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex items-center justify-between shrink-0">
-        <div className="text-xs font-bold text-gray-500">
-          Total Logs: <span className="text-gray-800">{logs.length}</span>
+      <div className="bg-surface-2 px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
+        <div className="text-xs font-bold text-text-faint">
+          Total Logs: <span className="text-text">{logs.length}</span>
         </div>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="p-2 text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-left"></i>
           </button>
-          <div className="text-xs font-black text-gray-700 uppercase tracking-tighter">
+          <div className="text-xs font-black text-text-muted uppercase tracking-tighter">
             Page {page} of {totalPages}
           </div>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="p-2 text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-right"></i>
           </button>
@@ -332,14 +332,14 @@ function CoverImageModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-black text-gray-900">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-black text-text">
             Cover Image Check
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition text-lg"
+            className="text-text-faint hover:text-text-muted transition text-lg"
           >
             <i className="fas fa-times"></i>
           </button>
@@ -372,8 +372,8 @@ function CoverImageModal({
           )}
 
           {result.orphaned_count > 0 && (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <p className="text-sm font-bold text-gray-600 mb-2">
+            <div className="bg-surface-2 border border-border rounded-xl p-4">
+              <p className="text-sm font-bold text-text-muted mb-2">
                 {result.orphaned_count} orphaned file
                 {result.orphaned_count !== 1 ? "s" : ""} in storage
               </p>
@@ -381,7 +381,7 @@ function CoverImageModal({
                 {result.orphaned.map((filename, i) => (
                   <div
                     key={i}
-                    className="text-xs text-gray-500 font-mono truncate"
+                    className="text-xs text-text-faint font-mono truncate"
                   >
                     {filename}
                   </div>
@@ -398,9 +398,9 @@ function CoverImageModal({
             </div>
           )}
 
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-text-faint">
             Checked{" "}
-            <span className="font-bold text-gray-800">
+            <span className="font-bold text-text">
               {result.total_checked}
             </span>{" "}
             entries with a cover image record.
@@ -409,7 +409,7 @@ function CoverImageModal({
           {result.missing_count === 0 ? (
             <div className="text-center py-6">
               <i className="fas fa-check-circle text-4xl text-emerald-400 block mb-3"></i>
-              <p className="font-bold text-gray-700">
+              <p className="font-bold text-text-muted">
                 All cover images are present.
               </p>
             </div>
@@ -450,10 +450,10 @@ function CoverImageModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-5 border-t border-gray-100 pt-4">
+        <div className="flex justify-end gap-3 px-6 pb-5 border-t border-border pt-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            className="px-4 py-2 text-sm font-bold text-text-muted bg-surface-2 hover:bg-surface-3 rounded-lg transition"
           >
             Close
           </button>
@@ -462,7 +462,7 @@ function CoverImageModal({
               <button
                 onClick={() => onDownload([...selected])}
                 disabled={downloading || selected.size === 0}
-                className="px-4 py-2 text-sm font-bold text-brand border border-brand hover:bg-brand/5 rounded-lg transition disabled:opacity-40"
+                className="px-4 py-2 text-sm font-bold text-brand border border-brand hover:bg-brand-soft rounded-lg transition disabled:opacity-40"
               >
                 Download Selected ({selected.size})
               </button>
@@ -503,7 +503,7 @@ function RemarksModal({ results, onClose }) {
 
     if (entries.length === 0) {
       return (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-text-faint">
           <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
           <p className="font-bold">No remarks found</p>
         </div>
@@ -511,12 +511,12 @@ function RemarksModal({ results, onClose }) {
     }
 
     const colClass = "pb-2 pr-4 whitespace-nowrap";
-    const cellClass = "py-2.5 pr-4 whitespace-nowrap text-xs text-gray-500";
+    const cellClass = "py-2.5 pr-4 whitespace-nowrap text-xs text-text-faint";
 
     if (tab === "anime") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -525,7 +525,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -533,24 +533,24 @@ function RemarksModal({ results, onClose }) {
                 onClick={() => (window.location.href = `/anime/${e.system_id}`)}
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.anime_name_cn}
                 >
                   {e.anime_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.anime_name_en}
                 >
                   {e.anime_name_en || "—"}
                 </td>
                 <td className={cellClass}>
-                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                  <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                     {e.airing_type || "—"}
                   </span>
                 </td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -563,7 +563,7 @@ function RemarksModal({ results, onClose }) {
     if (tab === "anime_movie") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -571,7 +571,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -581,19 +581,19 @@ function RemarksModal({ results, onClose }) {
                 }
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.anime_movie_name_cn}
                 >
                   {e.anime_movie_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.anime_movie_name_en}
                 >
                   {e.anime_movie_name_en || "—"}
                 </td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -606,7 +606,7 @@ function RemarksModal({ results, onClose }) {
     if (tab === "movie") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -615,7 +615,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -623,20 +623,20 @@ function RemarksModal({ results, onClose }) {
                 onClick={() => (window.location.href = `/movie/${e.system_id}`)}
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.movie_name_cn}
                 >
                   {e.movie_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.movie_name_en}
                 >
                   {e.movie_name_en || "—"}
                 </td>
                 <td className={cellClass}>{e.release_date || "—"}</td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -649,7 +649,7 @@ function RemarksModal({ results, onClose }) {
     if (tab === "tv_show") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -658,7 +658,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -666,20 +666,20 @@ function RemarksModal({ results, onClose }) {
                 onClick={() => (window.location.href = `/tv/${e.system_id}`)}
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.tv_name_cn}
                 >
                   {e.tv_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.tv_name_en}
                 >
                   {e.tv_name_en || "—"}
                 </td>
                 <td className={cellClass}>{e.season_part || "—"}</td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -692,7 +692,7 @@ function RemarksModal({ results, onClose }) {
     if (tab === "cartoon") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -701,7 +701,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -711,24 +711,24 @@ function RemarksModal({ results, onClose }) {
                 }
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.cartoon_name_cn}
                 >
                   {e.cartoon_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.cartoon_name_en}
                 >
                   {e.cartoon_name_en || "—"}
                 </td>
                 <td className={cellClass}>
-                  <span className="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                  <span className="bg-surface-2 border border-border px-2 py-0.5 rounded text-[10px] font-bold">
                     {e.airing_type || "—"}
                   </span>
                 </td>
                 <td className={cellClass}>{e.watching_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -741,7 +741,7 @@ function RemarksModal({ results, onClose }) {
     if (tab === "manga") {
       return (
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
             <tr>
               <th className={colClass}>Name (CN)</th>
               <th className={colClass}>Name (EN)</th>
@@ -750,7 +750,7 @@ function RemarksModal({ results, onClose }) {
               <th className="pb-2">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {entries.map((e, i) => (
               <tr
                 key={i}
@@ -758,20 +758,20 @@ function RemarksModal({ results, onClose }) {
                 onClick={() => (window.location.href = `/manga/${e.system_id}`)}
               >
                 <td
-                  className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                  className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                   title={e.manga_name_cn}
                 >
                   {e.manga_name_cn || "—"}
                 </td>
                 <td
-                  className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                  className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                   title={e.manga_name_en}
                 >
                   {e.manga_name_en || "—"}
                 </td>
                 <td className={cellClass}>{e.is_main || "—"}</td>
                 <td className={cellClass}>{e.reading_status || "—"}</td>
-                <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+                <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                   {e.remark}
                 </td>
               </tr>
@@ -784,7 +784,7 @@ function RemarksModal({ results, onClose }) {
     // novel
     return (
       <table className="w-full text-sm text-left">
-        <thead className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100 sticky top-0 bg-white">
+        <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border sticky top-0 bg-surface">
           <tr>
             <th className={colClass}>Name (CN)</th>
             <th className={colClass}>Name (EN)</th>
@@ -793,7 +793,7 @@ function RemarksModal({ results, onClose }) {
             <th className="pb-2">Remark</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {entries.map((e, i) => (
             <tr
               key={i}
@@ -801,20 +801,20 @@ function RemarksModal({ results, onClose }) {
               onClick={() => (window.location.href = `/novel/${e.system_id}`)}
             >
               <td
-                className="py-2.5 pr-4 font-bold text-gray-800 max-w-[160px] truncate whitespace-nowrap"
+                className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
                 title={e.novel_name_cn}
               >
                 {e.novel_name_cn || "—"}
               </td>
               <td
-                className="py-2.5 pr-4 text-gray-600 max-w-[160px] truncate whitespace-nowrap text-xs"
+                className="py-2.5 pr-4 text-text-muted max-w-[160px] truncate whitespace-nowrap text-xs"
                 title={e.novel_name_en}
               >
                 {e.novel_name_en || "—"}
               </td>
               <td className={cellClass}>{e.is_main || "—"}</td>
               <td className={cellClass}>{e.reading_status || "—"}</td>
-              <td className="py-2.5 text-gray-700 text-xs max-w-[300px]">
+              <td className="py-2.5 text-text-muted text-xs max-w-[300px]">
                 {e.remark}
               </td>
             </tr>
@@ -829,13 +829,13 @@ function RemarksModal({ results, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-black text-gray-900">
+            <h2 className="text-lg font-black text-text">
               Entries With Remarks
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-text-faint mt-0.5">
               {totalEntries === 0
                 ? "No entries have a remark."
                 : `${totalEntries} entr${totalEntries !== 1 ? "ies" : "y"} with a remark.`}
@@ -843,13 +843,13 @@ function RemarksModal({ results, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition text-lg"
+            className="text-text-faint hover:text-text-muted transition text-lg"
           >
             <i className="fas fa-times"></i>
           </button>
         </div>
 
-        <div className="flex border-b border-gray-200 px-6">
+        <div className="flex border-b border-border px-6">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -857,7 +857,7 @@ function RemarksModal({ results, onClose }) {
               className={`px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition ${
                 tab === t.key
                   ? "border-brand text-brand"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-text-faint hover:text-text-muted"
               }`}
             >
               {t.label}
@@ -910,13 +910,13 @@ function DuplicatesModal({ results, onClose }) {
             <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase">
               {group[0].franchise_type || "—"}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1">EN Name</th>
@@ -925,7 +925,7 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((f, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {f.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
@@ -947,16 +947,16 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {group[0].franchise_id?.slice(0, 8)}…
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1 pr-3">EN Name</th>
@@ -966,14 +966,14 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((s, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {s.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
                     {s.series_name_cn || "—"}
                   </td>
                   <td className="py-1 pr-3">{s.series_name_en || "—"}</td>
-                  <td className="py-1 text-gray-400">
+                  <td className="py-1 text-text-faint">
                     {s.series_name_alt || "—"}
                   </td>
                 </tr>
@@ -996,22 +996,22 @@ function DuplicatesModal({ results, onClose }) {
               {a0.airing_type || "—"}
             </span>
             {a0.season_part && (
-              <span className="text-[10px] text-gray-600">
+              <span className="text-[10px] text-text-muted">
                 {a0.season_part}
               </span>
             )}
             {a0.ep_special != null && (
-              <span className="text-[10px] text-gray-500">
+              <span className="text-[10px] text-text-faint">
                 Ep.Special: {a0.ep_special}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1">EN Name</th>
@@ -1020,7 +1020,7 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((a, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {a.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
@@ -1043,16 +1043,16 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {a0.franchise_id?.slice(0, 8)}…
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1">EN Name</th>
@@ -1061,7 +1061,7 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((m, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {m.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
@@ -1084,21 +1084,21 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {m0.franchise_id?.slice(0, 8)}…
             </span>
             {m0.series_id && (
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[10px] font-mono text-text-faint">
                 Series: {m0.series_id.slice(0, 8)}…
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1 pr-3">EN Name</th>
@@ -1108,14 +1108,14 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((m, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {m.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
                     {m.movie_name_cn || "—"}
                   </td>
                   <td className="py-1 pr-3">{m.movie_name_en || "—"}</td>
-                  <td className="py-1 text-gray-400">
+                  <td className="py-1 text-text-faint">
                     {m.movie_name_alt || "—"}
                   </td>
                 </tr>
@@ -1134,16 +1134,16 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {t0.franchise_id?.slice(0, 8)}…
             </span>
             {t0.series_id && (
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[10px] font-mono text-text-faint">
                 Series: {t0.series_id.slice(0, 8)}…
               </span>
             )}
             {t0.season_part && (
-              <span className="text-[10px] text-gray-600">
+              <span className="text-[10px] text-text-muted">
                 {t0.season_part}
               </span>
             )}
@@ -1152,13 +1152,13 @@ function DuplicatesModal({ results, onClose }) {
                 {t0.is_main ? "Main" : "Side"}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1 pr-3">EN Name</th>
@@ -1168,12 +1168,12 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((t, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {t.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">{t.tv_name_cn || "—"}</td>
                   <td className="py-1 pr-3">{t.tv_name_en || "—"}</td>
-                  <td className="py-1 text-gray-400">{t.tv_name_alt || "—"}</td>
+                  <td className="py-1 text-text-faint">{t.tv_name_alt || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -1190,16 +1190,16 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {c0.franchise_id?.slice(0, 8)}…
             </span>
             {c0.series_id && (
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[10px] font-mono text-text-faint">
                 Series: {c0.series_id.slice(0, 8)}…
               </span>
             )}
             {c0.season_part && (
-              <span className="text-[10px] text-gray-600">
+              <span className="text-[10px] text-text-muted">
                 {c0.season_part}
               </span>
             )}
@@ -1208,13 +1208,13 @@ function DuplicatesModal({ results, onClose }) {
                 {c0.is_main ? "Main" : "Side"}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1 pr-3">EN Name</th>
@@ -1224,14 +1224,14 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((c, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {c.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
                     {c.cartoon_name_cn || "—"}
                   </td>
                   <td className="py-1 pr-3">{c.cartoon_name_en || "—"}</td>
-                  <td className="py-1 text-gray-400">
+                  <td className="py-1 text-text-faint">
                     {c.cartoon_name_alt || "—"}
                   </td>
                 </tr>
@@ -1250,11 +1250,11 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {mg0.franchise_id?.slice(0, 8)}…
             </span>
             {mg0.series_id && (
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[10px] font-mono text-text-faint">
                 Series: {mg0.series_id.slice(0, 8)}…
               </span>
             )}
@@ -1263,13 +1263,13 @@ function DuplicatesModal({ results, onClose }) {
                 {mg0.is_main ? "Main" : "Side"}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1">EN Name</th>
@@ -1278,7 +1278,7 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((mg, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {mg.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
@@ -1301,11 +1301,11 @@ function DuplicatesModal({ results, onClose }) {
           className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-mono text-gray-400">
+            <span className="text-[10px] font-mono text-text-faint">
               Franchise: {nv0.franchise_id?.slice(0, 8)}…
             </span>
             {nv0.series_id && (
-              <span className="text-[10px] font-mono text-gray-400">
+              <span className="text-[10px] font-mono text-text-faint">
                 Series: {nv0.series_id.slice(0, 8)}…
               </span>
             )}
@@ -1314,13 +1314,13 @@ function DuplicatesModal({ results, onClose }) {
                 {nv0.is_main ? "Main" : "Side"}
               </span>
             )}
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-faint">
               {group.length} entries
             </span>
           </div>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-gray-400 text-[10px] uppercase">
+              <tr className="text-text-faint text-[10px] uppercase">
                 <th className="text-left pb-1 pr-3">ID</th>
                 <th className="text-left pb-1 pr-3">CN Name</th>
                 <th className="text-left pb-1">EN Name</th>
@@ -1329,7 +1329,7 @@ function DuplicatesModal({ results, onClose }) {
             <tbody className="divide-y divide-orange-100">
               {group.map((nv, i) => (
                 <tr key={i}>
-                  <td className="py-1 pr-3 font-mono text-[10px] text-gray-400">
+                  <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
                     {nv.system_id.slice(0, 8)}…
                   </td>
                   <td className="py-1 pr-3 font-bold">
@@ -1351,16 +1351,16 @@ function DuplicatesModal({ results, onClose }) {
         className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
       >
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+          <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded">
             {group[0].category}
           </span>
-          <span className="text-xs text-gray-500">{group.length} entries</span>
+          <span className="text-xs text-text-faint">{group.length} entries</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {group.map((opt, i) => (
             <span
               key={i}
-              className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded font-mono"
+              className="text-xs bg-surface border border-border px-2 py-0.5 rounded font-mono"
             >
               [{opt.system_id}] {opt.value}
             </span>
@@ -1375,13 +1375,13 @@ function DuplicatesModal({ results, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-black text-gray-900">
+            <h2 className="text-lg font-black text-text">
               Duplicate Check Results
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-text-faint mt-0.5">
               {totalGroups === 0
                 ? "No duplicates found across all categories."
                 : `${totalGroups} duplicate group${totalGroups !== 1 ? "s" : ""} detected.`}
@@ -1389,13 +1389,13 @@ function DuplicatesModal({ results, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition text-lg"
+            className="text-text-faint hover:text-text-muted transition text-lg"
           >
             <i className="fas fa-times"></i>
           </button>
         </div>
 
-        <div className="flex border-b border-gray-200 px-6">
+        <div className="flex border-b border-border px-6">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -1403,7 +1403,7 @@ function DuplicatesModal({ results, onClose }) {
               className={`px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition ${
                 tab === t.key
                   ? "border-brand text-brand"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-text-faint hover:text-text-muted"
               }`}
             >
               {t.label}
@@ -1418,7 +1418,7 @@ function DuplicatesModal({ results, onClose }) {
 
         <div className="overflow-y-auto flex-1 p-6">
           {activeTab.groups.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-text-faint">
               <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
               <p className="font-bold">No duplicates found</p>
             </div>
@@ -1869,12 +1869,12 @@ export default function Admin() {
         />
       )}
       {/* 1. Header & Entry Modification Nav */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
+          <h1 className="text-3xl font-black text-text tracking-tight mb-2">
             System Administration
           </h1>
-          <p className="text-gray-500 font-medium">
+          <p className="text-text-faint font-medium">
             Master control center for data actions, configurations, and history
             logs.
           </p>
@@ -1882,38 +1882,38 @@ export default function Admin() {
         <div className="flex flex-wrap gap-3">
           <Link
             to="/options"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-list-check mr-2 text-amber-500"></i> System
             Options
           </Link>
           <Link
             to="/data-history"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-history mr-2 text-violet-500"></i> Data History
           </Link>
           <Link
             to="/review-queue"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-tasks mr-2 text-rose-500"></i> Review Queue
           </Link>
           <Link
             to="/add"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-plus mr-2 text-emerald-500"></i> New Entry
           </Link>
           <Link
             to="/modify"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
           </Link>
           <Link
             to="/delete"
-            className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center"
           >
             <i className="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
           </Link>
@@ -1923,13 +1923,13 @@ export default function Admin() {
       {/* 2. Top Grid: Season Config & Data Control */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Current Season Block */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col">
-          <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 flex flex-col">
+          <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
             <i className="fas fa-calendar-alt text-brand mr-2"></i> Current
             Season
           </h2>
           <div className="text-center mb-6">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+            <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
               Active Season Config
             </div>
             <div className="text-3xl font-black text-brand tracking-tight">
@@ -1940,7 +1940,7 @@ export default function Admin() {
             <select
               value={seasonCode}
               onChange={(e) => setSeasonCode(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2.5"
+              className="w-full bg-surface-2 border border-border-strong rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2.5"
             >
               <option value="WIN">Winter (WIN)</option>
               <option value="SPR">Spring (SPR)</option>
@@ -1952,7 +1952,7 @@ export default function Admin() {
               value={seasonYear}
               onChange={(e) => setSeasonYear(e.target.value)}
               placeholder="YYYY (e.g. 2026)"
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono focus:ring-brand focus:border-brand py-2.5 px-3"
+              className="w-full bg-surface-2 border border-border-strong rounded-lg text-sm font-mono focus:ring-brand focus:border-brand py-2.5 px-3"
             />
             <button
               onClick={handleSetSeason}
@@ -1965,8 +1965,8 @@ export default function Admin() {
         </div>
 
         {/* Data Control Action Buttons */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 xl:col-span-2 flex flex-col">
-          <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 xl:col-span-2 flex flex-col">
+          <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
             <i className="fas fa-database text-brand mr-2"></i> Data Control
             Actions
           </h2>
@@ -2045,7 +2045,7 @@ export default function Admin() {
                   executeSync("/api/data-control/pull", setPullLoading)
                 }
                 disabled={pullLoading}
-                className="w-full bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
+                className="w-full bg-surface hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pullLoading ? (
                   <i className="fas fa-circle-notch fa-spin"></i>
@@ -2057,7 +2057,7 @@ export default function Admin() {
                 <select
                   value={pullTab}
                   onChange={(e) => setPullTab(e.target.value)}
-                  className="w-full bg-white border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
+                  className="w-full bg-surface border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
                 >
                   <option value="Anime">Anime</option>
                   <option value="Anime Movies">Anime Movies</option>
@@ -2088,7 +2088,7 @@ export default function Admin() {
                     )
                   }
                   disabled={pullLoading}
-                  className="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-60"
+                  className="bg-surface hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-60"
                 >
                   <i className="fas fa-play"></i>
                 </button>
@@ -2109,7 +2109,7 @@ export default function Admin() {
                   executeSync("/api/data-control/backup", setPushLoading)
                 }
                 disabled={pushLoading}
-                className="w-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
+                className="w-full bg-surface hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pushLoading ? (
                   <i className="fas fa-circle-notch fa-spin"></i>
@@ -2123,8 +2123,8 @@ export default function Admin() {
       </div>
 
       {/* 3. Calculate & Fix */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+        <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
           <i className="fas fa-calculator text-brand mr-2"></i> Calculate &amp;
           Fix
         </h2>
@@ -2134,7 +2134,7 @@ export default function Admin() {
               runCalc("calculateall", "/api/data-control/calculate/all")
             }
             disabled={!!calcLoading.calculateall}
-            className="flex flex-col items-center gap-2 p-3 bg-brand/5 hover:bg-brand/10 border border-brand/30 hover:border-brand/50 rounded-xl text-xs font-bold text-brand transition disabled:opacity-60"
+            className="flex flex-col items-center gap-2 p-3 bg-brand-soft hover:bg-brand/10 border border-brand/30 hover:border-brand/50 rounded-xl text-xs font-bold text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-calculator text-lg"></i>
             {calcLoading.calculateall ? (
@@ -2170,7 +2170,7 @@ export default function Admin() {
           <button
             onClick={runCheckCoverImage}
             disabled={!!calcLoading.checkcoverimage}
-            className="flex flex-col items-center gap-2 p-3 bg-gray-50 hover:bg-brand/5 border border-gray-200 hover:border-brand/30 rounded-xl text-xs font-bold text-gray-700 hover:text-brand transition disabled:opacity-60"
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-image text-lg"></i>
             {calcLoading.checkcoverimage ? (
@@ -2183,8 +2183,8 @@ export default function Admin() {
       </div>
 
       {/* 4. Announcement & Notes */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest mb-4 flex items-center border-b border-gray-100 pb-2">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+        <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
           <i className="fas fa-bullhorn text-brand mr-2"></i> Announcement &amp;
           Notes
         </h2>
@@ -2192,12 +2192,12 @@ export default function Admin() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Existing notes */}
           <div className="space-y-3">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
               Posted ({announcements.length})
             </p>
             {announcements.length === 0 ? (
-              <div className="flex items-center justify-center py-8 px-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-                <p className="text-gray-400 font-medium italic text-sm">
+              <div className="flex items-center justify-center py-8 px-4 bg-surface-2 rounded-xl border border-border border-dashed">
+                <p className="text-text-faint font-medium italic text-sm">
                   No Announcement &amp; Notes
                 </p>
               </div>
@@ -2208,18 +2208,18 @@ export default function Admin() {
                     key={item.title}
                     className={`rounded-xl border px-3 py-2.5 transition ${
                       annEditing === item.title
-                        ? "border-brand/50 bg-brand/5"
-                        : "border-gray-200 bg-gray-50"
+                        ? "border-brand/50 bg-brand-soft"
+                        : "border-border bg-surface-2"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-gray-800 truncate">
+                      <span className="text-sm font-bold text-text truncate">
                         {item.title}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => startEditAnnouncement(item)}
-                          className="text-xs font-bold text-gray-500 hover:text-brand bg-white border border-gray-200 rounded-lg px-2 py-1 transition"
+                          className="text-xs font-bold text-text-faint hover:text-brand bg-surface border border-border rounded-lg px-2 py-1 transition"
                         >
                           <i className="fas fa-edit"></i>
                         </button>
@@ -2229,7 +2229,7 @@ export default function Admin() {
                           className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
                             annConfirmDelete === item.title
                               ? "bg-red-600 text-white border-red-600"
-                              : "bg-white text-gray-500 hover:text-red-600 border-gray-200"
+                              : "bg-surface text-text-faint hover:text-red-600 border-border"
                           }`}
                         >
                           {annConfirmDelete === item.title ? (
@@ -2240,7 +2240,7 @@ export default function Admin() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">
+                    <p className="text-xs text-text-faint mt-1 line-clamp-2 whitespace-pre-wrap">
                       {item.body}
                     </p>
                   </div>
@@ -2251,7 +2251,7 @@ export default function Admin() {
 
           {/* Add / edit form */}
           <div className="space-y-3">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <p className="text-[10px] font-black text-text-faint uppercase tracking-widest">
               {annEditing !== null ? `Editing "${annEditing}"` : "New Note"}
             </p>
             <input
@@ -2260,14 +2260,14 @@ export default function Admin() {
               onChange={(e) => setAnnTitle(e.target.value)}
               placeholder="Title"
               maxLength={120}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
             />
             <textarea
               value={annBody}
               onChange={(e) => setAnnBody(e.target.value)}
               rows={6}
               placeholder="Write the announcement or note. Line breaks are preserved."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
             />
             <div className="flex gap-3">
               <button
@@ -2286,7 +2286,7 @@ export default function Admin() {
               {annEditing !== null && (
                 <button
                   onClick={resetAnnouncementForm}
-                  className="px-5 bg-white border border-gray-300 rounded-lg py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-100 transition"
+                  className="px-5 bg-surface border border-border-strong rounded-lg py-2.5 text-sm font-bold text-text-muted hover:bg-surface-2 transition"
                 >
                   Cancel
                 </button>

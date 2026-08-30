@@ -298,14 +298,14 @@ export default function NotesTemplate({
           and a headed card with no body inside it reads as a bug beside the
           group cards that do have one. */}
       {loading ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-            <h3 className="font-bold text-gray-800">
+        <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="bg-surface-2 border-b border-border px-4 py-3">
+            <h3 className="font-bold text-text">
               <i className="fas fa-book-open text-brand mr-2"></i>Notes
             </h3>
           </div>
           <div className="p-4 space-y-3">
-            <div className="py-10 text-center text-gray-400">
+            <div className="py-10 text-center text-text-faint">
               <i className="fas fa-circle-notch fa-spin text-xl"></i>
               <p className="text-xs mt-2">Loading notes...</p>
             </div>

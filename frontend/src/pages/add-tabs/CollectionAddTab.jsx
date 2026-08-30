@@ -14,7 +14,7 @@ export { defaultCollection } from "../../config/formFactories";
 
 export default function CollectionAddTab({ cf, uf }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-boxes-stacked" title="Titles & Naming" />
       <Field label="Collection Name EN">
         <input
@@ -95,7 +95,7 @@ export default function CollectionAddTab({ cf, uf }) {
         />
       </Field>
 
-      <p className="text-xs text-gray-400 pt-2 border-t border-gray-100">
+      <p className="text-xs text-text-faint pt-2 border-t border-border">
         <i className="fas fa-info-circle mr-1"></i>
         A Collection groups related franchises. Assign franchises to it from the
         Franchise tab — the cover is then taken from a member franchise.

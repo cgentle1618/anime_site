@@ -72,8 +72,8 @@ export default function RelationsSection({ mediaType, entryId }) {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+    <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
+      <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
         <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
       </h3>
       <div className="flex flex-col gap-3">
@@ -113,15 +113,15 @@ export default function RelationsSection({ mediaType, entryId }) {
               <div className="min-w-0 flex-1">
                 <div
                   className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${
-                    FAMILY_COLOR[row.family] || "text-gray-500"
+                    FAMILY_COLOR[row.family] || "text-text-faint"
                   }`}
                 >
                   {row.label}
                 </div>
-                <div className="text-sm font-bold text-gray-900 truncate">
+                <div className="text-sm font-bold text-text truncate">
                   {other.display_name}
                 </div>
-                <div className="text-[11px] text-gray-500">
+                <div className="text-[11px] text-text-faint">
                   {other.label}
                   {row.remark ? ` · ${row.remark}` : ""}
                   {/* A derived row has no relation of its own behind it - it
@@ -136,13 +136,13 @@ export default function RelationsSection({ mediaType, entryId }) {
           );
 
           const className =
-            "bg-gray-50 rounded-lg border border-gray-200 p-2 flex items-center gap-3 transition";
+            "bg-surface-2 rounded-lg border border-border p-2 flex items-center gap-3 transition";
 
           return other.nav_path ? (
             <Link
               key={rowKey(row)}
               to={other.nav_path}
-              className={`${className} cursor-pointer hover:bg-brand/5 hover:border-brand/30`}
+              className={`${className} cursor-pointer hover:bg-brand-soft hover:border-brand/30`}
             >
               {body}
             </Link>

@@ -85,7 +85,7 @@ export default function MemeManageTab({ mode = "modify" }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
         <MemeOwnerPicker
           ownerType={ownerType}
           ownerId={ownerId}
@@ -100,7 +100,7 @@ export default function MemeManageTab({ mode = "modify" }) {
           placeholder={`Search memes to ${isDelete ? "delete" : "modify"}...`}
           className={inputCls}
         />
-        <p className="text-[11px] text-gray-400 font-medium">
+        <p className="text-[11px] text-text-faint font-medium">
           {isLoading
             ? "Loading..."
             : `${memes.length} meme${memes.length === 1 ? "" : "s"} shown`}
@@ -112,8 +112,8 @@ export default function MemeManageTab({ mode = "modify" }) {
         return (
           <div
             key={m.system_id}
-            className={`bg-white rounded-2xl border shadow-sm p-4 ${
-              isDelete ? "border-red-100" : "border-gray-200"
+            className={`bg-surface rounded-2xl border shadow-sm p-4 ${
+              isDelete ? "border-red-100" : "border-border"
             }`}
           >
             {editId === m.system_id ? (
@@ -134,7 +134,7 @@ export default function MemeManageTab({ mode = "modify" }) {
                   </button>
                   <button
                     onClick={() => setEditId(null)}
-                    className="rounded-lg bg-gray-100 px-4 py-2 text-xs font-black text-gray-600 hover:bg-gray-200"
+                    className="rounded-lg bg-surface-2 px-4 py-2 text-xs font-black text-text-muted hover:bg-surface-3"
                   >
                     Cancel
                   </button>
@@ -147,14 +147,14 @@ export default function MemeManageTab({ mode = "modify" }) {
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mb-2 max-h-32 rounded-lg border border-gray-200"
+                      className="mb-2 max-h-32 rounded-lg border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
                     />
                   )}
                   {m.text && (
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                    <p className="text-sm text-text whitespace-pre-wrap">
                       {m.text}
                       {m.quote_id && (
                         <span className="ml-1.5 text-[10px] font-bold text-brand">
@@ -164,16 +164,16 @@ export default function MemeManageTab({ mode = "modify" }) {
                     </p>
                   )}
                   {!m.text && !imageUrl && (
-                    <p className="text-sm text-gray-400 italic">(empty)</p>
+                    <p className="text-sm text-text-faint italic">(empty)</p>
                   )}
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-400 font-medium">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text-faint font-medium">
                     {m.episode && <span>{m.episode}</span>}
                     {m.owner_is_tier && m.owner_label && (
                       <span className="text-brand font-bold">
                         {m.owner_label}
                       </span>
                     )}
-                    <span className="text-gray-300">·</span>
+                    <span className="text-text-faint/60">·</span>
                     <span className={m.missing ? "text-red-400 italic" : ""}>
                       {m.missing
                         ? "unlinked owner"
@@ -194,7 +194,7 @@ export default function MemeManageTab({ mode = "modify" }) {
                       </button>
                       <button
                         onClick={() => setConfirmId(null)}
-                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-black text-gray-600 hover:bg-gray-200"
+                        className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-black text-text-muted hover:bg-surface-3"
                       >
                         Cancel
                       </button>
@@ -227,8 +227,8 @@ export default function MemeManageTab({ mode = "modify" }) {
       })}
 
       {!isLoading && !memes.length && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-          <p className="text-sm text-gray-400 italic">No memes found.</p>
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-8 text-center">
+          <p className="text-sm text-text-faint italic">No memes found.</p>
         </div>
       )}
     </div>

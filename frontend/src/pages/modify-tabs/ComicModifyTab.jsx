@@ -362,7 +362,7 @@ export default function ComicModifyTab({
               onChange={(e) => ucm("is_main_entry", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Main line entry (not a spinoff)
             </span>
           </label>
@@ -382,7 +382,7 @@ export default function ComicModifyTab({
         />
       </Field>
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
           Other Sources
         </label>
         <div className="space-y-2">
@@ -454,7 +454,7 @@ export default function ComicModifyTab({
               onChange={(e) => ucm("read_next", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Add to Read Next list
             </span>
           </label>
@@ -467,7 +467,7 @@ export default function ComicModifyTab({
               onChange={(e) => ucm("to_reread", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Mark for reread
             </span>
           </label>

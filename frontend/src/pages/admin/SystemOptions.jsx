@@ -124,7 +124,7 @@ function TitleBar({ tier1Keys, categories, activeId }) {
     `block truncate rounded px-2 py-1 text-xs font-semibold transition ${
       activeId === id
         ? "bg-gray-900 text-white"
-        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        : "text-text-faint hover:bg-surface-2 hover:text-text"
     }`;
 
   return (
@@ -132,9 +132,9 @@ function TitleBar({ tier1Keys, categories, activeId }) {
       <nav
         aria-label="Section index"
         ref={listRef}
-        className="sticky top-28 max-h-[calc(100vh-9rem)] overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-4"
+        className="sticky top-28 max-h-[calc(100vh-9rem)] overflow-y-auto bg-surface border border-border rounded-2xl shadow-sm p-4"
       >
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-3">
+        <p className="text-[10px] font-black text-text-faint uppercase tracking-widest px-2 mb-3">
           On this page
         </p>
 
@@ -145,7 +145,7 @@ function TitleBar({ tier1Keys, categories, activeId }) {
         >
           Tier 1 · Closed Enums
         </a>
-        <div className="ml-2 border-l border-gray-100 pl-2 mt-1 mb-3">
+        <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
           {tier1Keys.map((key) => (
             <a
               key={key}
@@ -165,9 +165,9 @@ function TitleBar({ tier1Keys, categories, activeId }) {
         >
           Tier 2 · Open Vocabularies
         </a>
-        <div className="ml-2 border-l border-gray-100 pl-2 mt-1 mb-3">
+        <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
           {categories.length === 0 ? (
-            <span className="block px-2 py-1 text-xs text-gray-300">—</span>
+            <span className="block px-2 py-1 text-xs text-text-faint/60">—</span>
           ) : (
             categories.map((category) => (
               <a
@@ -197,17 +197,17 @@ function TitleBar({ tier1Keys, categories, activeId }) {
 
 function SectionHeader({ tier, title, subtitle, source, children }) {
   return (
-    <div className="border-b border-gray-200 pb-4 mb-6">
+    <div className="border-b border-border pb-4 mb-6">
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded">
           Tier {tier}
         </span>
-        <h2 className="text-xl font-black text-gray-900 tracking-tight">
+        <h2 className="text-xl font-black text-text tracking-tight">
           {title}
         </h2>
-        <code className="text-xs font-mono text-gray-400">{source}</code>
+        <code className="text-xs font-mono text-text-faint">{source}</code>
       </div>
-      <p className="text-sm text-gray-500 font-medium mt-2 max-w-3xl">
+      <p className="text-sm text-text-faint font-medium mt-2 max-w-3xl">
         {subtitle}
       </p>
       {children}
@@ -226,7 +226,7 @@ function ReadOnlyNote({ children }) {
 
 function ValueChip({ children }) {
   return (
-    <span className="inline-block bg-gray-100 border border-gray-200 text-gray-700 text-xs font-semibold rounded px-2 py-1">
+    <span className="inline-block bg-surface-2 border border-border text-text-muted text-xs font-semibold rounded px-2 py-1">
       {children}
     </span>
   );
@@ -237,7 +237,7 @@ function Tier1({ constants, keys }) {
     <section
       id="tier-1"
       data-section-anchor
-      className="scroll-mt-28 bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
     >
       <SectionHeader
         tier="1"
@@ -256,13 +256,13 @@ function Tier1({ constants, keys }) {
             key={key}
             id={`enum-${key}`}
             data-section-anchor
-            className="scroll-mt-28 border border-gray-200 rounded-xl p-4 flex flex-col"
+            className="scroll-mt-28 border border-border rounded-xl p-4 flex flex-col"
           >
             <div className="flex items-baseline justify-between gap-2 mb-3">
-              <h3 className="text-sm font-black text-gray-800">
+              <h3 className="text-sm font-black text-text">
                 {prettifyKey(key)}
               </h3>
-              <span className="text-[10px] font-bold text-gray-400">
+              <span className="text-[10px] font-bold text-text-faint">
                 {constants[key].length}
               </span>
             </div>
@@ -289,7 +289,7 @@ function Tier2({ groups, loading }) {
     <section
       id="tier-2"
       data-section-anchor
-      className="scroll-mt-28 bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
     >
       <SectionHeader
         tier="2"
@@ -311,9 +311,9 @@ function Tier2({ groups, loading }) {
       </SectionHeader>
 
       {loading ? (
-        <p className="text-sm text-gray-400 font-medium">Loading options…</p>
+        <p className="text-sm text-text-faint font-medium">Loading options…</p>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-gray-400 font-medium">
+        <p className="text-sm text-text-faint font-medium">
           No system options recorded.
         </p>
       ) : (
@@ -326,14 +326,14 @@ function Tier2({ groups, loading }) {
               className="scroll-mt-28"
             >
               <div className="flex items-baseline gap-2 mb-2">
-                <h3 className="text-sm font-black text-gray-800">{category}</h3>
-                <span className="text-[10px] font-bold text-gray-400">
+                <h3 className="text-sm font-black text-text">{category}</h3>
+                <span className="text-[10px] font-bold text-text-faint">
                   {rows.length} value{rows.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <div className="overflow-x-auto border border-border rounded-xl">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-500">
+                  <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
                     <tr>
                       <th className="text-left font-black px-3 py-2 w-16">#</th>
                       <th className="text-left font-black px-3 py-2">Value</th>
@@ -341,18 +341,18 @@ function Tier2({ groups, loading }) {
                       <th className="text-left font-black px-3 py-2">Remark</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {rows.map((row) => (
                       <tr key={row.system_id}>
-                        <td className="px-3 py-2 text-gray-400 font-mono text-xs">
+                        <td className="px-3 py-2 text-text-faint font-mono text-xs">
                           {row.sort_order}
                         </td>
-                        <td className="px-3 py-2 font-semibold text-gray-800">
+                        <td className="px-3 py-2 font-semibold text-text">
                           {row.value}
                         </td>
                         <td className="px-3 py-2">
                           {row.scopes.length === 0 ? (
-                            <span className="text-xs text-gray-400 italic">
+                            <span className="text-xs text-text-faint italic">
                               everywhere
                             </span>
                           ) : (
@@ -368,7 +368,7 @@ function Tier2({ groups, loading }) {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-xs text-gray-500">
+                        <td className="px-3 py-2 text-xs text-text-faint">
                           {row.remark || "—"}
                         </td>
                       </tr>
@@ -389,7 +389,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
     <section
       id="tier-3"
       data-section-anchor
-      className="scroll-mt-28 bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
     >
       <SectionHeader
         tier="3"
@@ -411,32 +411,32 @@ function Tier3({ roleCounts, studioCount, loading }) {
       </SectionHeader>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="border border-gray-200 rounded-xl p-4">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+        <div className="border border-border rounded-xl p-4">
+          <div className="text-[10px] font-bold text-text-faint uppercase tracking-widest mb-1">
             Studio records
           </div>
-          <div className="text-3xl font-black text-gray-900 tracking-tight">
+          <div className="text-3xl font-black text-text tracking-tight">
             {loading ? "…" : studioCount}
           </div>
         </div>
-        <div className="border border-gray-200 rounded-xl p-4">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+        <div className="border border-border rounded-xl p-4">
+          <div className="text-[10px] font-bold text-text-faint uppercase tracking-widest mb-1">
             Person roles held
           </div>
-          <div className="text-3xl font-black text-gray-900 tracking-tight">
+          <div className="text-3xl font-black text-text tracking-tight">
             {loading
               ? "…"
               : Object.values(roleCounts).reduce((a, b) => a + b, 0)}
           </div>
-          <p className="text-[11px] text-gray-400 mt-1">
+          <p className="text-[11px] text-text-faint mt-1">
             Sum across roles — one person holding two roles counts twice.
           </p>
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-xl">
+      <div className="overflow-x-auto border border-border rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-500">
+          <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
             <tr>
               <th className="text-left font-black px-3 py-2">Old category</th>
               <th className="text-left font-black px-3 py-2">New home</th>
@@ -444,22 +444,22 @@ function Tier3({ roleCounts, studioCount, loading }) {
               <th className="text-right font-black px-3 py-2 w-24">Records</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {TIER3_ROWS.map((row) => (
               <tr key={row.oldCategory}>
-                <td className="px-3 py-2 font-semibold text-gray-800">
+                <td className="px-3 py-2 font-semibold text-text">
                   {row.oldCategory}
                 </td>
                 <td className="px-3 py-2">
-                  <code className="text-xs font-mono text-gray-600">
+                  <code className="text-xs font-mono text-text-muted">
                     {row.home}
                     {row.roleKey ? ` · ${row.roleKey}` : ""}
                   </code>
                 </td>
-                <td className="px-3 py-2 text-xs text-gray-500">
+                <td className="px-3 py-2 text-xs text-text-faint">
                   {row.detail || "—"}
                 </td>
-                <td className="px-3 py-2 text-right font-black text-gray-900">
+                <td className="px-3 py-2 text-right font-black text-text">
                   {loading
                     ? "…"
                     : row.roleKey
@@ -472,8 +472,8 @@ function Tier3({ roleCounts, studioCount, loading }) {
         </table>
       </div>
 
-      <p className="text-xs text-gray-400 mt-4 leading-relaxed max-w-3xl">
-        <strong className="text-gray-500">Not built:</strong>{" "}
+      <p className="text-xs text-text-faint mt-4 leading-relaxed max-w-3xl">
+        <strong className="text-text-faint">Not built:</strong>{" "}
         <code className="font-mono">character</code> and{" "}
         <code className="font-mono">character_voice</code> were designed but
         deferred. <code className="font-mono">anime.seiyuu</code> is unrelated —
@@ -594,21 +594,21 @@ export default function SystemOptions() {
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
+          <h1 className="text-3xl font-black text-text tracking-tight mb-2">
             System Options
           </h1>
-          <p className="text-gray-500 font-medium max-w-3xl">
+          <p className="text-text-faint font-medium max-w-3xl">
             Every choice list in the app, in the three homes they live in. Read
             only — this page is an inventory, not an editor.
           </p>
         </div>
         <Link
           to="/system"
-          className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50 transition shadow-sm flex items-center self-start"
+          className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-surface-2 transition shadow-sm flex items-center self-start"
         >
-          <i className="fas fa-arrow-left mr-2 text-gray-400"></i> Back to Admin
+          <i className="fas fa-arrow-left mr-2 text-text-faint"></i> Back to Admin
         </Link>
       </div>
 

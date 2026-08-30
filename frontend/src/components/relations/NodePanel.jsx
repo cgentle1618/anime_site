@@ -17,7 +17,7 @@ export default function NodePanel({
   onClose,
 }) {
   return (
-    <div className="absolute left-3 top-3 z-40 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+    <div className="absolute left-3 top-3 z-40 w-64 rounded-xl border border-border bg-surface p-3 shadow-xl">
       <div className="flex items-start gap-2">
         <img
           src={getCoverUrl(node.cover_image_file)}
@@ -25,7 +25,7 @@ export default function NodePanel({
           className="h-16 w-12 shrink-0 rounded-md object-cover"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black leading-tight text-gray-900">
+          <p className="text-xs font-black leading-tight text-text">
             {node.display_name || "Missing entry"}
           </p>
           <span
@@ -39,14 +39,14 @@ export default function NodePanel({
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 text-xs text-gray-300 hover:text-gray-500"
+          className="shrink-0 text-xs text-text-faint/60 hover:text-text-faint"
         >
           <i className="fas fa-xmark"></i>
         </button>
       </div>
 
       {relations.length === 0 ? (
-        <p className="mt-3 text-[11px] font-bold text-gray-400">
+        <p className="mt-3 text-[11px] font-bold text-text-faint">
           No relations yet — drag from its handle to add one.
         </p>
       ) : (
@@ -54,7 +54,7 @@ export default function NodePanel({
           {relations.map((r) => (
             <p
               key={r.system_id}
-              className="truncate text-[11px] font-bold text-gray-600"
+              className="truncate text-[11px] font-bold text-text-muted"
             >
               <span className="text-brand">{r.label}</span> — {r.otherName}
             </p>
@@ -69,7 +69,7 @@ export default function NodePanel({
           className={`rounded-lg border px-2 py-1.5 text-[10px] font-black uppercase ${
             isolated
               ? "border-brand bg-brand/10 text-brand"
-              : "border-gray-200 text-gray-500"
+              : "border-border text-text-faint"
           }`}
         >
           Isolate
@@ -77,7 +77,7 @@ export default function NodePanel({
         {node.nav_path ? (
           <Link
             to={node.nav_path}
-            className="ml-auto text-[10px] font-black uppercase text-gray-400 hover:text-brand"
+            className="ml-auto text-[10px] font-black uppercase text-text-faint hover:text-brand"
           >
             Open entry <i className="fas fa-arrow-up-right-from-square"></i>
           </Link>

@@ -47,8 +47,8 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
   const tone = data.missing
     ? "border-red-300 bg-red-50"
     : data.in_scope
-      ? "border-gray-200 bg-white"
-      : "border-dashed border-gray-300 bg-gray-50";
+      ? "border-border bg-surface"
+      : "border-dashed border-border-strong bg-surface-2";
 
   // Opacity is decided in one place, not two: a ghost's own opacity-70 and a
   // dimmed node's opacity-20 are the same Tailwind specificity, so having both
@@ -83,7 +83,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        className={`!h-3 !w-3 !bg-gray-400${handleCls}`}
+        className={`!h-3 !w-3 !bg-text-faint${handleCls}`}
       />
 
       {data.missing ? (
@@ -102,7 +102,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
         <FittedName
           name={label}
           lines={TITLE_LINES}
-          className="line-clamp-2 text-xs font-black leading-tight text-gray-800"
+          className="line-clamp-2 text-xs font-black leading-tight text-text"
         />
         <span
           className={`mt-1 inline-block rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
@@ -125,7 +125,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
         type="source"
         position={Position.Bottom}
         isConnectable={isConnectable}
-        className={`!h-3 !w-3 !bg-gray-400${handleCls}`}
+        className={`!h-3 !w-3 !bg-text-faint${handleCls}`}
       />
     </div>
   );

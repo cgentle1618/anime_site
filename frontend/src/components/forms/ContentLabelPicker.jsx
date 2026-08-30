@@ -65,9 +65,9 @@ export default function ContentLabelPicker({
   if (failed || labels.length === 0) return null;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3">
-      <h4 className="text-xs font-bold text-gray-600 uppercase mb-2">
-        <i className="fas fa-tags mr-1.5 text-gray-400"></i>Content Labels
+    <div className="border border-border rounded-lg p-3">
+      <h4 className="text-xs font-bold text-text-muted uppercase mb-2">
+        <i className="fas fa-tags mr-1.5 text-text-faint"></i>Content Labels
       </h4>
       <div className="flex flex-wrap gap-3">
         {labels.map((row) => (
@@ -86,7 +86,7 @@ export default function ContentLabelPicker({
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-gray-500 mt-2">
+      <p className="text-[11px] text-text-faint mt-2">
         A labelled entry is hidden from anyone whose role does not hold that
         label.
       </p>

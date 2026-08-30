@@ -53,11 +53,11 @@ const STATUS_STYLES = {
     icon: "fa-times-circle",
   },
   "Won't Watch": {
-    cls: "bg-gray-50 text-gray-400 border-gray-200",
+    cls: "bg-surface-2 text-text-faint border-border",
     icon: "fa-ban",
   },
   "Might Watch": {
-    cls: "bg-gray-50 text-gray-400 border-gray-200",
+    cls: "bg-surface-2 text-text-faint border-border",
     icon: "fa-question",
   },
 };
@@ -65,7 +65,7 @@ const STATUS_STYLES = {
 const STATUS_BUTTON_CONFIG = {
   "Might Watch": {
     symbol: "+",
-    cls: "bg-gray-50 text-gray-400 border-gray-200",
+    cls: "bg-surface-2 text-text-faint border-border",
     target: "Plan to Watch",
   },
   "Plan to Watch": {
@@ -135,7 +135,7 @@ export function getNextStatus(current) {
 }
 
 const READING_BUTTON_CONFIG = {
-  "Might Read": { symbol: "+", cls: "bg-gray-50 text-gray-400 border-gray-200", target: "Plan to Read" },
+  "Might Read": { symbol: "+", cls: "bg-surface-2 text-text-faint border-border", target: "Plan to Read" },
   "Plan to Read": { symbol: "…", cls: "bg-purple-50 text-purple-600 border-purple-200", target: "Might Read" },
   "Active Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
   "Passive Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },

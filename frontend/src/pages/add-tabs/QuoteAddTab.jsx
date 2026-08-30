@@ -5,7 +5,7 @@ import { SectionHeader } from "../../components/forms/FormField";
 
 export default function QuoteAddTab({ qf, uq }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-5">
       <SectionHeader icon="fa-link" title="Attached Entry" />
       <QuoteEntryPicker
         mediaType={qf.media_type}

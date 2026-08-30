@@ -90,17 +90,17 @@ export default function ConnectPopup({
     <form
       onSubmit={submit}
       style={{ left: position.x, top: position.y }}
-      className="absolute z-50 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl"
+      className="absolute z-50 w-72 rounded-xl border border-border bg-surface p-3 shadow-xl"
     >
       <p
         data-testid="connect-sentence"
-        className="text-xs font-bold leading-snug text-gray-600"
+        className="text-xs font-bold leading-snug text-text-muted"
       >
-        <span className="text-gray-900">
+        <span className="text-text">
           {subject?.display_name || "This entry"}
         </span>{" "}
         is the <span className="text-brand">{label}</span> of{" "}
-        <span className="text-gray-900">
+        <span className="text-text">
           {object?.display_name || "…pick an entry"}
         </span>
       </p>
@@ -113,13 +113,13 @@ export default function ConnectPopup({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search every media type…"
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+            className="w-full rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
           />
           {searching ? (
-            <p className="mt-1 text-[10px] font-bold text-gray-400">Searching…</p>
+            <p className="mt-1 text-[10px] font-bold text-text-faint">Searching…</p>
           ) : null}
           {hits.length > 0 && (
-            <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-gray-100">
+            <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-border">
               {hits.map((hit) => (
                 <button
                   key={hit.key}
@@ -128,15 +128,15 @@ export default function ConnectPopup({
                     setPicked(hit);
                     setQuery("");
                   }}
-                  className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-xs font-bold hover:bg-gray-50 ${
-                    picked?.key === hit.key ? "bg-brand/10 text-brand" : "text-gray-700"
+                  className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-xs font-bold hover:bg-surface-2 ${
+                    picked?.key === hit.key ? "bg-brand/10 text-brand" : "text-text-muted"
                   }`}
                 >
                   <FittedName
                     name={hit.display_name}
                     className="min-w-0 flex-1 truncate"
                   />
-                  <span className="shrink-0 text-[9px] uppercase text-gray-400">
+                  <span className="shrink-0 text-[9px] uppercase text-text-faint">
                     {hit.media_type}
                   </span>
                 </button>
@@ -155,7 +155,7 @@ export default function ConnectPopup({
             className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
               kind === k.key
                 ? "bg-brand text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-surface-2 text-text-muted hover:bg-surface-3"
             }`}
           >
             {k.label}
@@ -168,7 +168,7 @@ export default function ConnectPopup({
         value={remark}
         onChange={(e) => setRemark(e.target.value)}
         placeholder="Remark (optional)"
-        className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+        className="mt-2 w-full rounded-lg border border-border px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
       />
 
       {error ? (
@@ -181,14 +181,14 @@ export default function ConnectPopup({
         <button
           type="button"
           onClick={() => setSwapped((s) => !s)}
-          className="rounded-lg border border-gray-200 px-2 py-1.5 text-[10px] font-black uppercase text-gray-500"
+          className="rounded-lg border border-border px-2 py-1.5 text-[10px] font-black uppercase text-text-faint"
         >
           Swap
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-2 py-1.5 text-[10px] font-black uppercase text-gray-400"
+          className="rounded-lg px-2 py-1.5 text-[10px] font-black uppercase text-text-faint"
         >
           Cancel
         </button>

@@ -114,7 +114,7 @@ export default function MemeSection({
         return (
           <div
             key={item.system_id}
-            className="border border-gray-100 rounded-lg p-2 bg-gray-50"
+            className="border border-border rounded-lg p-2 bg-surface-2"
           >
             {editId === item.system_id ? (
               <div>
@@ -133,14 +133,14 @@ export default function MemeSection({
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mb-1 max-h-40 rounded-lg border border-gray-200"
+                      className="mb-1 max-h-40 rounded-lg border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
                     />
                   )}
                   {item.text && (
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                    <p className="text-sm text-text whitespace-pre-wrap">
                       {item.text}
                       {item.quote_id && (
                         <span className="ml-1.5 rounded-full bg-brand/10 text-brand px-1.5 py-0.5 text-[10px] font-bold">
@@ -149,7 +149,7 @@ export default function MemeSection({
                       )}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-text-faint font-medium">
                     {item.episode && <span>{item.episode}</span>}
                     {item.is_favorite && (
                       <i className="fas fa-star text-amber-500" />
@@ -172,7 +172,7 @@ export default function MemeSection({
         );
       })}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <MemeForm
             val={draft}
             setVal={setDraft}
@@ -189,7 +189,7 @@ export default function MemeSection({
         </div>
       )}
       {!items.length && !adding && (
-        <p className="text-xs text-gray-400 italic">
+        <p className="text-xs text-text-faint italic">
           {isLoading ? "Loading..." : "No entries."}
         </p>
       )}

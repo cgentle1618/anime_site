@@ -10,7 +10,7 @@ const MY_RATING_COLORS = {
   C: "bg-orange-400",
   D: "bg-rose-400",
   E: "bg-red-600",
-  F: "bg-gray-500",
+  F: "bg-text-faint",
 };
 
 const MAL_BUCKETS = [
@@ -46,8 +46,8 @@ export default function RatingDistributionBlock({ animeData }) {
   if (total === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-6 flex items-center gap-2">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider mb-6 flex items-center gap-2">
         <i className="fas fa-chart-bar text-brand"></i>
         Rating Distribution
       </h3>

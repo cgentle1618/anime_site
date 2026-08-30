@@ -221,7 +221,7 @@ export default function FormDefaults() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading...</p>
+          <p className="text-text-faint font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -236,10 +236,10 @@ export default function FormDefaults() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+        <h1 className="text-2xl font-black text-text flex items-center gap-3">
           <i className="fas fa-sliders-h text-brand"></i> Form Defaults
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           Set the starting value of each Add-form field and choose which fields
           auto-fill copies. Applies to new entries only — existing entries are
           never changed.
@@ -269,8 +269,8 @@ export default function FormDefaults() {
       />
 
       {/* Footer actions */}
-      <div className="sticky bottom-4 mt-6 flex flex-wrap items-center gap-3 bg-white/95 backdrop-blur border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-        <span className="text-xs font-bold text-gray-500">
+      <div className="sticky bottom-4 mt-6 flex flex-wrap items-center gap-3 bg-surface/95 backdrop-blur border border-border rounded-xl px-4 py-3 shadow-sm">
+        <span className="text-xs font-bold text-text-faint">
           {overrideCount} field{overrideCount === 1 ? "" : "s"} overridden ·{" "}
           {autofillCount} auto-filled
         </span>
@@ -285,7 +285,7 @@ export default function FormDefaults() {
             type="button"
             onClick={handleReset}
             disabled={saving}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+            className="px-3 py-2 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition disabled:opacity-50"
           >
             <i className="fas fa-undo text-xs mr-1.5"></i>
             Reset tab to built-in

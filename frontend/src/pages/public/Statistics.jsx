@@ -40,10 +40,10 @@ export default function Statistics() {
           <i className="fas fa-chart-bar text-brand text-lg"></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             Statistics
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">
+          <p className="text-xs text-text-faint font-medium mt-0.5">
             {franchises.length} franchises tracked
           </p>
         </div>

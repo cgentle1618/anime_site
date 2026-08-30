@@ -160,15 +160,15 @@ export default function PlanToWatchFuture({
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-gray-200">
-        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-border">
+        <h2 className="text-xl font-black text-text flex items-center gap-2">
           <i className="fas fa-calendar-alt text-brand/70"></i>
           Plan to Watch for Future Releases
         </h2>
       </div>
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="border-b border-border mb-6 overflow-x-auto">
         <nav className="flex gap-1 min-w-max">
           {MAIN_TABS.map((tab) => (
             <button
@@ -177,7 +177,7 @@ export default function PlanToWatchFuture({
               className={`px-4 py-2.5 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.key
                   ? "border-brand text-brand"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-text-faint hover:text-text-muted"
               }`}
             >
               <i className={`fas ${tab.icon} text-xs`}></i>
@@ -189,12 +189,12 @@ export default function PlanToWatchFuture({
 
       {/* Content */}
       {totalCount === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
-          <i className="fas fa-calendar-alt text-3xl text-gray-300 mb-3"></i>
-          <p className="text-gray-500 font-medium">
+        <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
+          <i className="fas fa-calendar-alt text-3xl text-text-faint/60 mb-3"></i>
+          <p className="text-text-faint font-medium">
             No entries with &ldquo;{activeTab}&rdquo; status.
           </p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-text-faint text-xs mt-1">
             Set watching status on an entry to see it here.
           </p>
         </div>
@@ -203,13 +203,13 @@ export default function PlanToWatchFuture({
           {grouped.map(({ year, entries }) => (
             <div key={year}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm font-black text-gray-600 uppercase tracking-wider">
+                <span className="text-sm font-black text-text-muted uppercase tracking-wider">
                   {year}
                 </span>
-                <span className="text-xs text-gray-400 font-medium">
+                <span className="text-xs text-text-faint font-medium">
                   ({entries.length})
                 </span>
-                <div className="flex-1 h-px bg-gray-100 ml-1"></div>
+                <div className="flex-1 h-px bg-surface-2 ml-1"></div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {entries.map((entry) => renderCard(entry))}

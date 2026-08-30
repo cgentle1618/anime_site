@@ -29,9 +29,9 @@ function stepDown(v) {
 }
 
 const inputCls =
-  "text-gray-900 w-12 text-right bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60";
+  "text-text w-12 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60";
 const minusBtnCls =
-  "w-8 h-8 shrink-0 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center";
+  "w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center";
 const plusBtnCls =
   "w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center";
 
@@ -40,11 +40,11 @@ function TrackerRow({ isHighlighted, label, children }) {
     <div
       className={`pl-3 pr-2 py-2.5 rounded-r-lg transition-colors ${
         isHighlighted
-          ? "border-l-4 border-brand bg-brand/5"
+          ? "border-l-4 border-brand bg-brand-soft"
           : "border-l-4 border-transparent"
       }`}
     >
-      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+      <div className="text-[11px] font-bold text-text-faint uppercase tracking-wider mb-2">
         {label}
       </div>
       {children}
@@ -104,14 +104,14 @@ export default function NovelTrackerBlock({
     onChChange(bounded);
   }
 
-  const selectCls = `block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${
-    !isAdmin ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
+  const selectCls = `block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${
+    !isAdmin ? "bg-surface-2 text-text-faint cursor-not-allowed" : ""
   }`;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5">
-        <h3 className="font-bold text-gray-800 text-lg flex items-center">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
+      <div className="bg-surface-2 border-b border-border px-5 py-3.5">
+        <h3 className="font-bold text-text text-lg flex items-center">
           <i className="fas fa-book-reader text-brand mr-2"></i>My Tracker
         </h3>
       </div>
@@ -120,7 +120,7 @@ export default function NovelTrackerBlock({
         {/* Status, Rating & Progress Display */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               Reading Status
             </label>
             <select
@@ -135,7 +135,7 @@ export default function NovelTrackerBlock({
             </select>
           </div>
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               Rating
             </label>
             <select
@@ -151,7 +151,7 @@ export default function NovelTrackerBlock({
             </select>
           </div>
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               Progress Display
             </label>
             <select
@@ -169,7 +169,7 @@ export default function NovelTrackerBlock({
 
         {/* Vol tracker */}
         <TrackerRow isHighlighted={volHighlighted} label="Volumes">
-          <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm w-fit">
+          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
             {isAdmin && (
               <button type="button" onClick={() => handleVolStep(-1)} className={minusBtnCls}>
                 <i className="fas fa-minus text-xs"></i>
@@ -189,28 +189,28 @@ export default function NovelTrackerBlock({
                 }}
                 className={inputCls}
               />
-              <span className="text-gray-400 mx-1 text-xs">/</span>
+              <span className="text-text-faint mx-1 text-xs">/</span>
               {/* TW total — always first when present */}
               {volTotalTw !== null && (
-                <span className={`text-sm leading-none ${primaryIsTw ? "text-gray-900 font-bold" : "text-gray-400 font-normal"}`}>
+                <span className={`text-sm leading-none ${primaryIsTw ? "text-text font-bold" : "text-text-faint font-normal"}`}>
                   {volTotalTw}
                 </span>
               )}
               {/* Separator only when both totals present */}
               {volTotalTw !== null && volTotalOrig !== null && (
-                <span className="text-gray-300 mx-1.5 text-xs">;</span>
+                <span className="text-text-faint/60 mx-1.5 text-xs">;</span>
               )}
               {/* Orig total — always second when present */}
               {volTotalOrig !== null && (
-                <span className={`text-sm leading-none ${!primaryIsTw ? "text-gray-900 font-bold" : "text-gray-400 font-normal"}`}>
+                <span className={`text-sm leading-none ${!primaryIsTw ? "text-text font-bold" : "text-text-faint font-normal"}`}>
                   {volTotalOrig}
                 </span>
               )}
               {/* Fallback when neither total is set */}
               {volTotalTw === null && volTotalOrig === null && (
-                <span className="text-gray-500 text-sm leading-none">?</span>
+                <span className="text-text-faint text-sm leading-none">?</span>
               )}
-              <span className="text-[9px] text-gray-400 font-sans ml-1.5">VOL</span>
+              <span className="text-[9px] text-text-faint font-sans ml-1.5">VOL</span>
             </div>
             {isAdmin && (
               <button type="button" onClick={() => handleVolStep(1)} className={plusBtnCls}>
@@ -222,7 +222,7 @@ export default function NovelTrackerBlock({
 
         {/* Arc tracker */}
         <TrackerRow isHighlighted={arcHighlighted} label="Arcs">
-          <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm w-fit">
+          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
             {isAdmin && (
               <button type="button" onClick={() => handleArcStep(-1)} className={minusBtnCls}>
                 <i className="fas fa-minus text-xs"></i>
@@ -242,9 +242,9 @@ export default function NovelTrackerBlock({
                 }}
                 className={inputCls}
               />
-              <span className="text-gray-400 mx-1 text-xs">/</span>
-              <span className="text-gray-500 text-sm leading-none">{arcTotal ?? "?"}</span>
-              <span className="text-[9px] text-gray-400 font-sans ml-1.5">ARC</span>
+              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint text-sm leading-none">{arcTotal ?? "?"}</span>
+              <span className="text-[9px] text-text-faint font-sans ml-1.5">ARC</span>
             </div>
             {isAdmin && (
               <button type="button" onClick={() => handleArcStep(1)} className={plusBtnCls}>
@@ -256,7 +256,7 @@ export default function NovelTrackerBlock({
 
         {/* Ch tracker */}
         <TrackerRow isHighlighted={chHighlighted} label="Chapters">
-          <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm w-fit">
+          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
             {isAdmin && (
               <button type="button" onClick={() => handleChStep(-1)} className={minusBtnCls}>
                 <i className="fas fa-minus text-xs"></i>
@@ -276,9 +276,9 @@ export default function NovelTrackerBlock({
                 }}
                 className={inputCls}
               />
-              <span className="text-gray-400 mx-1 text-xs">/</span>
-              <span className="text-gray-500 text-sm leading-none">{chTotal ?? "?"}</span>
-              <span className="text-[9px] text-gray-400 font-sans ml-1.5">CH</span>
+              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint text-sm leading-none">{chTotal ?? "?"}</span>
+              <span className="text-[9px] text-text-faint font-sans ml-1.5">CH</span>
             </div>
             {isAdmin && (
               <button type="button" onClick={() => handleChStep(1)} className={plusBtnCls}>
@@ -291,7 +291,7 @@ export default function NovelTrackerBlock({
         {/* Flags */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               Read Next
             </label>
             <label
@@ -310,11 +310,11 @@ export default function NovelTrackerBlock({
                 }
                 className="w-4 h-4 rounded accent-brand"
               />
-              <span className="text-sm font-medium text-gray-700">Read Next</span>
+              <span className="text-sm font-medium text-text-muted">Read Next</span>
             </label>
           </div>
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               To Reread
             </label>
             <label
@@ -333,7 +333,7 @@ export default function NovelTrackerBlock({
                 }
                 className="w-4 h-4 rounded accent-brand"
               />
-              <span className="text-sm font-medium text-gray-700">To Reread</span>
+              <span className="text-sm font-medium text-text-muted">To Reread</span>
             </label>
           </div>
         </div>

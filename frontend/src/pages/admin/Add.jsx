@@ -2295,7 +2295,7 @@ export default function Add() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading...</p>
+          <p className="text-text-faint font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -2305,10 +2305,10 @@ export default function Add() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+        <h1 className="text-2xl font-black text-text flex items-center gap-3">
           <i className="fas fa-plus-circle text-brand"></i> Append Database
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           Add new entries to the anime database.
         </p>
       </div>
@@ -2559,27 +2559,27 @@ export default function Add() {
       {/* ── DUPLICATE MODAL ── */}
       {duplicateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+          <div className="bg-surface rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
             <div className="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center gap-3">
               <i className="fas fa-exclamation-triangle text-amber-500 text-xl"></i>
-              <h3 className="font-black text-gray-900">Potential Duplicate</h3>
+              <h3 className="font-black text-text">Potential Duplicate</h3>
             </div>
             <div className="px-6 py-5">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-text-muted">
                 An entry with the name{" "}
-                <span className="font-bold text-gray-900">
+                <span className="font-bold text-text">
                   "{duplicateModal.name}"
                 </span>{" "}
                 may already exist in the database.
               </p>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-text-faint mt-2">
                 Are you sure you want to proceed and create a duplicate?
               </p>
             </div>
             <div className="px-6 pb-5 flex gap-3 justify-end">
               <button
                 onClick={duplicateModal.onCancel}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+                className="px-4 py-2 border border-border rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition"
               >
                 Cancel
               </button>

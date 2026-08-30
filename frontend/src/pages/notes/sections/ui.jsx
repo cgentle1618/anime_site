@@ -21,20 +21,20 @@ function useCollapsed(count) {
 }
 
 export const inputCls =
-  "w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
+  "w-full border border-border-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
 export const btnCls =
   "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors";
 
 export function SectionCard({ label, count, isAdmin, onAdd, children }) {
   const [collapsed, setCollapsed] = useCollapsed(count);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
       <div
-        className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between cursor-pointer select-none"
+        className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
         <div className="flex items-center gap-2">
-          <h4 className="font-bold text-sm text-gray-800">{label}</h4>
+          <h4 className="font-bold text-sm text-text">{label}</h4>
           {count > 0 && (
             <span className="text-[10px] font-black bg-brand/10 text-brand rounded-full px-1.5 py-0.5">
               {count}
@@ -60,7 +60,7 @@ export function SectionCard({ label, count, isAdmin, onAdd, children }) {
             </button>
           )}
           <i
-            className={`fas fa-chevron-${collapsed ? "down" : "up"} text-gray-400 text-xs`}
+            className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-xs`}
           ></i>
         </div>
       </div>
@@ -80,13 +80,13 @@ export function SectionCard({ label, count, isAdmin, onAdd, children }) {
 export function GroupCard({ label, icon, count, showCount = true, children }) {
   const [collapsed, setCollapsed] = useCollapsed(count);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
       <div
-        className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between cursor-pointer select-none"
+        className="bg-surface-2 border-b border-border px-4 py-3 flex items-center justify-between cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-gray-800">
+          <h3 className="font-bold text-text">
             {icon && <i className={`fas ${icon} text-brand mr-2`}></i>}
             {label}
           </h3>
@@ -97,7 +97,7 @@ export function GroupCard({ label, icon, count, showCount = true, children }) {
           )}
         </div>
         <i
-          className={`fas fa-chevron-${collapsed ? "down" : "up"} text-gray-400 text-xs`}
+          className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-xs`}
         ></i>
       </div>
       {!collapsed && <div className="p-4 space-y-3">{children}</div>}
@@ -112,14 +112,14 @@ export function ItemActions({ isAdmin, onEdit, onDelete }) {
       <button
         type="button"
         onClick={onEdit}
-        className="text-gray-400 hover:text-brand text-xs px-1"
+        className="text-text-faint hover:text-brand text-xs px-1"
       >
         <i className="fas fa-pencil-alt"></i>
       </button>
       <button
         type="button"
         onClick={onDelete}
-        className="text-gray-400 hover:text-red-500 text-xs px-1"
+        className="text-text-faint hover:text-red-500 text-xs px-1"
       >
         <i className="fas fa-trash"></i>
       </button>
@@ -140,7 +140,7 @@ export function SaveCancel({ onSave, onCancel }) {
       <button
         type="button"
         onClick={onCancel}
-        className={btnCls + " bg-gray-100 text-gray-600 hover:bg-gray-200"}
+        className={btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"}
       >
         Cancel
       </button>
@@ -161,7 +161,7 @@ export function LinkPill({ url }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-xs text-brand hover:underline bg-brand/5 border border-brand/20 rounded px-1.5 py-0.5 max-w-[200px] truncate"
+      className="inline-flex items-center gap-1 text-xs text-brand hover:underline bg-brand-soft border border-brand/20 rounded px-1.5 py-0.5 max-w-[200px] truncate"
     >
       <i className="fas fa-external-link-alt text-[9px]"></i>
       {label}
@@ -206,5 +206,5 @@ export function LinksEditor({ links, onChange }) {
 }
 
 export const EmptyHint = () => (
-  <p className="text-xs text-gray-400 italic">No entries.</p>
+  <p className="text-xs text-text-faint italic">No entries.</p>
 );

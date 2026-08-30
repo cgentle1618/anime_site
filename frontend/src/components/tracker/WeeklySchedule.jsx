@@ -26,7 +26,7 @@ function ScheduleEntry({ item, timeField }) {
   const navPath = MEDIA_CONFIG[item._media_type]?.navPath;
   const time = timeField ? formatTime(item[timeField]) : "";
   const cls =
-    "block px-2.5 py-1.5 rounded-lg text-sm font-bold text-gray-700 bg-gray-50 border border-gray-200 leading-tight";
+    "block px-2.5 py-1.5 rounded-lg text-sm font-bold text-text-muted bg-surface-2 border border-border leading-tight";
 
   const body = (
     <>
@@ -103,35 +103,35 @@ export default function WeeklySchedule({
   return (
     <div id={id}>
       <div
-        className={`flex items-center justify-between pb-3 mb-2 border-b-2 border-gray-100 ${
+        className={`flex items-center justify-between pb-3 mb-2 border-b-2 border-border ${
           collapsible ? "cursor-pointer select-none" : ""
         }`}
         onClick={collapsible ? () => setCollapsed((v) => !v) : undefined}
       >
-        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+        <h2 className="text-xl font-black text-text flex items-center gap-2">
           <i className={`fas ${icon} text-brand/70`}></i>
           {title}
         </h2>
         <div className="flex items-center gap-3">
           {subtitle && (
-            <span className="hidden sm:inline text-xs text-gray-400 font-medium">
+            <span className="hidden sm:inline text-xs text-text-faint font-medium">
               {subtitle}
             </span>
           )}
-          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+          <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
             {total}
           </span>
           {collapsible && (
             <i
-              className={`fas fa-chevron-${collapsed ? "down" : "up"} text-gray-400 text-sm`}
+              className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-sm`}
             ></i>
           )}
         </div>
       </div>
 
       {collapsed ? null : total === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-white/50 rounded-xl border border-gray-200 border-dashed">
-          <p className="text-gray-400 font-medium italic">
+        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
+          <p className="text-text-faint font-medium italic">
             <i className="fas fa-ghost mr-2"></i>
             {emptyText}
           </p>
@@ -148,24 +148,24 @@ export default function WeeklySchedule({
                 key={day}
                 className={`w-64 shrink-0 rounded-xl border p-3 ${
                   isToday
-                    ? "bg-brand/5 border-brand/30"
-                    : "bg-white border-gray-200"
+                    ? "bg-brand-soft border-brand/30"
+                    : "bg-surface border-border"
                 }`}
               >
-                <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-gray-100">
+                <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-border">
                   <h3
                     className={`text-xs font-black uppercase tracking-widest ${
-                      isToday ? "text-brand" : "text-gray-500"
+                      isToday ? "text-brand" : "text-text-faint"
                     }`}
                   >
                     {day.slice(0, 3)}
                   </h3>
-                  <span className="text-[10px] font-bold text-gray-400">
+                  <span className="text-[10px] font-bold text-text-faint">
                     {dayItems.length}
                   </span>
                 </div>
                 {dayItems.length === 0 ? (
-                  <p className="text-xs text-gray-300 font-medium italic py-1">
+                  <p className="text-xs text-text-faint/60 font-medium italic py-1">
                     —
                   </p>
                 ) : (

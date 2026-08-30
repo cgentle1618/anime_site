@@ -41,8 +41,8 @@ function FavoriteGrid({
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
-        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+      <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
+        <h2 className="text-xl font-black text-text flex items-center gap-2">
           <i className="fas fa-th text-brand/70"></i>
           {title}
         </h2>
@@ -56,9 +56,9 @@ function FavoriteGrid({
               <Link
                 key={slot}
                 to={`/franchise/${f.system_id}`}
-                className="group relative rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                className="group relative rounded-xl overflow-hidden shadow-sm border border-border hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               >
-                <div className="aspect-[3/4] bg-gray-100">
+                <div className="aspect-[3/4] bg-surface-2">
                   <img
                     src={coverUrl}
                     alt={getDisplayName(f)}
@@ -89,10 +89,10 @@ function FavoriteGrid({
           return (
             <div
               key={slot}
-              className="aspect-[3/4] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center bg-gray-50/50"
+              className="aspect-[3/4] rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center bg-surface-2/50"
             >
-              <span className="text-2xl font-black text-gray-200">{slot}</span>
-              <span className="text-[10px] text-gray-300 font-medium mt-1">
+              <span className="text-2xl font-black text-text-faint/60">{slot}</span>
+              <span className="text-[10px] text-text-faint/60 font-medium mt-1">
                 Empty
               </span>
             </div>

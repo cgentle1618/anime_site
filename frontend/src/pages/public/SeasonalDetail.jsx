@@ -193,7 +193,7 @@ export default function SeasonalDetail() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading seasonal data...</p>
+          <p className="text-text-faint font-medium">Loading seasonal data...</p>
         </div>
       </div>
     );
@@ -221,7 +221,7 @@ export default function SeasonalDetail() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Hero */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
         <div className="flex flex-col sm:flex-row sm:items-start gap-6">
           {/* Left: name + stats */}
           <div className="flex-1 min-w-0">
@@ -233,19 +233,19 @@ export default function SeasonalDetail() {
                 onClick={() =>
                   navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)
                 }
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-text-faint hover:text-brand hover:border-brand transition shrink-0"
                 title={`Previous: ${prevSeason}`}
               >
                 <i className="fas fa-chevron-left text-xs"></i>
               </button>
-              <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+              <h1 className="text-3xl font-black text-text tracking-tight">
                 {seasonalId}
               </h1>
               <button
                 onClick={() =>
                   navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)
                 }
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-brand hover:border-brand transition shrink-0"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-text-faint hover:text-brand hover:border-brand transition shrink-0"
                 title={`Next: ${nextSeason}`}
               >
                 <i className="fas fa-chevron-right text-xs"></i>
@@ -259,7 +259,7 @@ export default function SeasonalDetail() {
             </div>
 
             <div className="flex flex-wrap gap-3 mt-4">
-              <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+              <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                 {totalEntries} Total
               </span>
               <span className="bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-sm font-bold border border-violet-200">
@@ -281,14 +281,14 @@ export default function SeasonalDetail() {
             {/* Completion bar */}
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1.5">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-text-faint uppercase tracking-wider">
                   Completion
                 </span>
                 <span className="text-xs font-bold text-brand">
                   {completionPct}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-surface-3 rounded-full h-2 overflow-hidden">
                 <div
                   className="bg-brand h-2 rounded-full transition-all duration-700"
                   style={{ width: `${completionPct}%` }}
@@ -300,7 +300,7 @@ export default function SeasonalDetail() {
           {/* Right: admin rating control */}
           {isAdmin && (
             <div className="shrink-0">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-text-faint uppercase tracking-wider mb-1.5">
                 Seasonal Rating
               </label>
               <div className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function SeasonalDetail() {
                   value={seasonal?.my_rating || ""}
                   onChange={(e) => handleRatingChange(e.target.value)}
                   disabled={savingRating}
-                  className="bg-white border border-gray-300 text-gray-900 text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
+                  className="bg-surface border border-border-strong text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
                 >
                   <option value="">—</option>
                   {RATING_OPTIONS.map((r) => (
@@ -340,12 +340,12 @@ export default function SeasonalDetail() {
 
           return (
             <div key={section.key}>
-              <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-gray-200">
-                <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+              <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
+                <h2 className="text-xl font-black text-text flex items-center gap-2">
                   <i className={`fas ${section.icon} text-brand/70`}></i>
                   {section.label}
                 </h2>
-                <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold border border-gray-200">
+                <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
                   {sorted.length}
                 </span>
               </div>
@@ -365,9 +365,9 @@ export default function SeasonalDetail() {
         })}
 
         {totalEntries === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 border-dashed">
-            <i className="fas fa-ghost text-3xl text-gray-300 mb-3"></i>
-            <p className="text-gray-500 font-medium">
+          <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
+            <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
+            <p className="text-text-faint font-medium">
               No anime entries for this season.
             </p>
           </div>

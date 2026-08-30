@@ -47,11 +47,11 @@ export function toMemePayload(val, extra = {}) {
 function Row({ label, children, hint }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+      <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wide">
         {label}
       </label>
       {children}
-      {hint && <p className="text-[10px] text-gray-400">{hint}</p>}
+      {hint && <p className="text-[10px] text-text-faint">{hint}</p>}
     </div>
   );
 }
@@ -161,7 +161,7 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
             <img
               src={imageUrl}
               alt=""
-              className="mt-2 max-h-40 rounded-lg border border-gray-200"
+              className="mt-2 max-h-40 rounded-lg border border-border"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
@@ -196,7 +196,7 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
           onChange={(e) => set("is_favorite", e.target.checked)}
           className="accent-brand"
         />
-        <span className="text-xs text-gray-700">Favorite</span>
+        <span className="text-xs text-text-muted">Favorite</span>
       </label>
 
       <Row label="Remark">

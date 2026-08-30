@@ -111,7 +111,7 @@ export default function QuoteSection({
         return (
           <div
             key={item.system_id}
-            className="border border-gray-100 rounded-lg p-2 bg-gray-50"
+            className="border border-border rounded-lg p-2 bg-surface-2"
           >
             {editId === item.system_id ? (
               <div>
@@ -122,18 +122,18 @@ export default function QuoteSection({
               <div className="flex gap-2 items-start">
                 <div className="flex-1 space-y-1">
                   {item.text && (
-                    <p className="text-sm text-gray-800 italic whitespace-pre-wrap">
+                    <p className="text-sm text-text italic whitespace-pre-wrap">
                       "{item.text}"
                     </p>
                   )}
                   {item.translation && (
-                    <p className="text-xs text-gray-500 whitespace-pre-wrap">
+                    <p className="text-xs text-text-faint whitespace-pre-wrap">
                       {item.translation}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-text-faint font-medium">
                     {item.speaker && (
-                      <span className="text-gray-500">— {item.speaker}</span>
+                      <span className="text-text-faint">— {item.speaker}</span>
                     )}
                     {item.original_source && (
                       <span>quoting {item.original_source}</span>
@@ -160,7 +160,7 @@ export default function QuoteSection({
                     {(item.tags || []).map((t) => (
                       <span
                         key={t}
-                        className="rounded-full bg-gray-100 text-gray-600 px-1.5 py-0.5 font-bold"
+                        className="rounded-full bg-surface-2 text-text-muted px-1.5 py-0.5 font-bold"
                       >
                         {t}
                       </span>
@@ -170,7 +170,7 @@ export default function QuoteSection({
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mt-1 max-h-40 rounded-lg border border-gray-200"
+                      className="mt-1 max-h-40 rounded-lg border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -192,7 +192,7 @@ export default function QuoteSection({
         );
       })}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <QuoteForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
@@ -204,7 +204,7 @@ export default function QuoteSection({
         </div>
       )}
       {!items.length && !adding && (
-        <p className="text-xs text-gray-400 italic">
+        <p className="text-xs text-text-faint italic">
           {isLoading ? "Loading..." : "No entries."}
         </p>
       )}

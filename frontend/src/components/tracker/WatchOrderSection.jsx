@@ -81,7 +81,7 @@ function OrderChip({ list, active, onSelect }) {
       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
         active
           ? "bg-brand text-white border-brand"
-          : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-900"
+          : "bg-surface text-text-muted border-border hover:border-border-strong hover:text-text"
       }`}
     >
       {list.is_most_recommended && (
@@ -91,7 +91,7 @@ function OrderChip({ list, active, onSelect }) {
       )}
       <span className="truncate max-w-[18rem]">{name}</span>
       <span
-        className={`shrink-0 font-bold ${active ? "text-white/70" : "text-gray-400"}`}
+        className={`shrink-0 font-bold ${active ? "text-white/70" : "text-text-faint"}`}
       >
         {list.item_count}
       </span>
@@ -107,11 +107,11 @@ function OrderChips({ groups, selectedId, onSelect }) {
         <div key={group.label} className="flex flex-wrap items-center gap-2">
           {i > 0 && (
             <div
-              className="w-px h-5 bg-gray-200 shrink-0 mr-1"
+              className="w-px h-5 bg-surface-3 shrink-0 mr-1"
               aria-hidden="true"
             />
           )}
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+          <span className="text-[10px] font-black text-text-faint uppercase tracking-widest whitespace-nowrap">
             {group.label}
           </span>
           {group.lists.map((l) => (
@@ -180,7 +180,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
 
   if (loading) {
     return (
-      <div className="py-10 text-center text-gray-400">
+      <div className="py-10 text-center text-text-faint">
         <i className="fas fa-circle-notch fa-spin text-xl"></i>
       </div>
     );
@@ -188,7 +188,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
 
   if (error) {
     return (
-      <div className="py-10 text-center text-gray-400 font-medium text-sm">
+      <div className="py-10 text-center text-text-faint font-medium text-sm">
         {error}
       </div>
     );
@@ -238,7 +238,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
 
   if (!lists.length) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="text-center py-12 text-text-faint">
         <i className="fas fa-list-ol text-3xl mb-3"></i>
         <p className="font-medium">No watch order has been written yet.</p>
         {isAdmin && (
@@ -252,7 +252,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
             </button>
             <Link
               to="/watch-orders"
-              className="text-sm font-bold text-gray-500 hover:underline"
+              className="text-sm font-bold text-text-faint hover:underline"
             >
               Build one by hand
             </Link>
@@ -279,10 +279,10 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
             row: two unlabelled segmented controls, each opening on "All", would
             not say which one narrows the orders and which narrows the steps.
           */}
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+          <span className="text-[10px] font-black text-text-faint uppercase tracking-widest whitespace-nowrap">
             Scope
           </span>
-          <div className="inline-flex items-center gap-1 p-0.5 rounded-lg bg-gray-100">
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-lg bg-surface-2">
             {[{ key: "all", label: "All" }, ...scopes].map((opt) => (
               <button
                 key={opt.key}
@@ -290,8 +290,8 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
                 onClick={() => selectScope(opt.key)}
                 className={`text-xs font-bold px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
                   scope === opt.key
-                    ? "bg-white text-brand shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-surface text-brand shadow-sm"
+                    : "text-text-faint hover:text-text-muted"
                 }`}
               >
                 {opt.label}
@@ -314,7 +314,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           <select
             value={selectedId || ""}
             onChange={(e) => setSelectedId(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+            className="border border-border rounded-lg px-3 py-2 text-sm font-bold text-text-muted bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
           >
             {groups.map((group) => (
               <optgroup key={group.label} label={group.label}>
@@ -335,14 +335,14 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
         )}
 
         {visibleLists.length === 1 && (
-          <span className="text-sm font-black text-gray-900">
+          <span className="text-sm font-black text-text">
             {visibleLists[0].list_name || "Untitled Order"}
             {visibleLists[0].is_most_recommended && (
               <span className="ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
                 <i className="fas fa-star mr-1"></i>Most recommended
               </span>
             )}
-            <span className="ml-2 text-xs font-bold text-gray-400">
+            <span className="ml-2 text-xs font-bold text-text-faint">
               {visibleLists[0].item_count} steps
             </span>
           </span>
@@ -361,7 +361,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
             <button
               type="button"
               onClick={() => createRelease()}
-              className="text-xs font-bold text-gray-500 hover:text-brand whitespace-nowrap"
+              className="text-xs font-bold text-text-faint hover:text-brand whitespace-nowrap"
             >
               <i className="fas fa-wand-magic-sparkles mr-1"></i>Add built-in
             </button>
@@ -369,7 +369,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
           {isAdmin && (
             <Link
               to="/watch-orders"
-              className="text-xs font-bold text-gray-500 hover:text-gray-700 whitespace-nowrap"
+              className="text-xs font-bold text-text-faint hover:text-text-muted whitespace-nowrap"
             >
               <i className="fas fa-pen mr-1"></i>Edit
             </Link>

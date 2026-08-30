@@ -101,7 +101,7 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
   const scope = mediaScope(mediaTypes);
   if (!scope) return null;
 
-  const tone = scope.cross ? "text-sky-600" : "text-gray-500";
+  const tone = scope.cross ? "text-sky-600" : "text-text-faint";
 
   // Compact form for a row subtitle, where the per-type chips would not fit.
   if (short) {
@@ -123,9 +123,9 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
       {scope.cross ? (
         <>
           Cross-type
-          <span className="text-gray-300">·</span>
+          <span className="text-text-faint/60">·</span>
           {scope.chips.map((c) => (
-            <span key={c.slug} className="flex items-center gap-1 text-gray-500">
+            <span key={c.slug} className="flex items-center gap-1 text-text-faint">
               <i className={`fas ${c.icon} text-[10px]`}></i>
               {c.label}
             </span>
@@ -260,12 +260,12 @@ function StepRow({ item, index, roomy }) {
   // can be removed rather than silently vanishing from the guide.
   if (item.missing) {
     return (
-      <li className="flex items-center gap-3 py-3 px-3 rounded-xl border border-dashed border-gray-200 bg-gray-50">
-        <span className="w-7 h-7 shrink-0 rounded-full bg-gray-200 text-gray-500 text-xs font-black flex items-center justify-center">
+      <li className="flex items-center gap-3 py-3 px-3 rounded-xl border border-dashed border-border bg-surface-2">
+        <span className="w-7 h-7 shrink-0 rounded-full bg-surface-3 text-text-faint text-xs font-black flex items-center justify-center">
           {index}
         </span>
-        <i className="fas fa-triangle-exclamation text-gray-400"></i>
-        <span className="text-sm font-medium text-gray-400">
+        <i className="fas fa-triangle-exclamation text-text-faint"></i>
+        <span className="text-sm font-medium text-text-faint">
           Entry no longer exists
         </span>
       </li>
@@ -289,7 +289,7 @@ function StepRow({ item, index, roomy }) {
         onError={(e) => {
           e.currentTarget.src = FALLBACK_SVG;
         }}
-        className={`shrink-0 rounded-lg object-cover bg-gray-100 ${
+        className={`shrink-0 rounded-lg object-cover bg-surface-2 ${
           roomy ? "w-14 h-20" : "w-10 h-14"
         }`}
       />
@@ -297,7 +297,7 @@ function StepRow({ item, index, roomy }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span
-            className={`font-bold text-gray-900 truncate ${
+            className={`font-bold text-text truncate ${
               roomy ? "text-base" : "text-sm"
             }`}
           >
@@ -326,16 +326,16 @@ function StepRow({ item, index, roomy }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mt-1">
-          <span className="text-[11px] font-bold text-gray-400">
+          <span className="text-[11px] font-bold text-text-faint">
             {TYPE_LABELS[item.media_type] || item.media_type}
           </span>
           {item.release_display && (
-            <span className="text-[11px] font-medium text-gray-400">
+            <span className="text-[11px] font-medium text-text-faint">
               {item.release_display}
             </span>
           )}
           {item.total_episodes != null && (
-            <span className="text-[11px] font-medium text-gray-400">
+            <span className="text-[11px] font-medium text-text-faint">
               {item.total_episodes} total
             </span>
           )}
@@ -355,7 +355,7 @@ function StepRow({ item, index, roomy }) {
 
         {item.note && (
           <p
-            className={`text-gray-500 font-medium mt-1 ${
+            className={`text-text-faint font-medium mt-1 ${
               roomy ? "text-sm" : "text-xs"
             }`}
           >
@@ -370,8 +370,8 @@ function StepRow({ item, index, roomy }) {
     roomy ? "py-3 px-4" : "py-2.5 px-3"
   } ${
     item.importance === "Optional"
-      ? "border-gray-100 bg-gray-50/60 opacity-75 hover:opacity-100"
-      : "border-gray-200 bg-white hover:border-brand/40"
+      ? "border-border bg-surface-2/60 opacity-75 hover:opacity-100"
+      : "border-border bg-surface hover:border-brand/40"
   }`;
 
   return (
@@ -444,7 +444,7 @@ export default function WatchOrderGuide({
 
   if (!items.length) {
     return (
-      <div className="text-center py-10 text-gray-400">
+      <div className="text-center py-10 text-text-faint">
         <i className="fas fa-list-ol text-2xl mb-2"></i>
         <p className="font-medium text-sm">This watch order has no steps yet.</p>
       </div>
@@ -462,7 +462,7 @@ export default function WatchOrderGuide({
       */}
       {list.remark && (
         <p
-          className={`text-gray-600 font-medium pt-3 mb-3 ${
+          className={`text-text-muted font-medium pt-3 mb-3 ${
             roomy ? "text-sm" : "text-xs"
           }`}
         >
@@ -475,7 +475,7 @@ export default function WatchOrderGuide({
         guide whose steps are all Normal has nothing to narrow to.
       */}
       {(optionalCount > 0 || essentialCount > 0) && (
-        <div className="inline-flex items-center gap-1 mb-3 p-0.5 rounded-lg bg-gray-100">
+        <div className="inline-flex items-center gap-1 mb-3 p-0.5 rounded-lg bg-surface-2">
           {FILTERS.map((f) => {
             // Each option is hidden unless it has something to act on, so a
             // guide with optional steps but no essential ones does not offer
@@ -495,8 +495,8 @@ export default function WatchOrderGuide({
                 onClick={() => setFilter(f.key)}
                 className={`text-xs font-bold px-2.5 py-1 rounded-md transition-colors ${
                   filter === f.key
-                    ? "bg-white text-brand shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-surface text-brand shadow-sm"
+                    : "text-text-faint hover:text-text-muted"
                 }`}
               >
                 {f.label}
@@ -512,7 +512,7 @@ export default function WatchOrderGuide({
         says so rather than leaving a blank space under the controls.
       */}
       {!visible.length && (
-        <p className="text-sm font-medium text-gray-400 py-6 text-center">
+        <p className="text-sm font-medium text-text-faint py-6 text-center">
           No steps match this filter.
         </p>
       )}
@@ -528,7 +528,7 @@ export default function WatchOrderGuide({
           block.kind === "part" ? (
             <section
               key={block.key}
-              className={`rounded-2xl border border-gray-200 bg-gray-50/60 overflow-hidden ${
+              className={`rounded-2xl border border-border bg-surface-2/60 overflow-hidden ${
                 roomy ? "mt-2 first:mt-0" : "mt-1.5 first:mt-0"
               }`}
             >
@@ -538,22 +538,22 @@ export default function WatchOrderGuide({
                 part is shown by the container instead of being inferred from
                 where the next heading happens to start.
               */}
-              <header className="px-3 py-2 bg-white/70 border-b border-gray-200">
+              <header className="px-3 py-2 bg-surface/70 border-b border-border">
                 <div className="flex items-baseline gap-2">
                   <h4
-                    className={`font-black text-gray-800 tracking-tight ${
+                    className={`font-black text-text tracking-tight ${
                       roomy ? "text-base" : "text-sm"
                     }`}
                   >
                     {block.section.section_name || "Untitled Section"}
                   </h4>
-                  <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+                  <span className="text-[10px] font-black text-text-faint whitespace-nowrap">
                     {block.rows.length}
                     {block.rows.length === 1 ? " step" : " steps"}
                   </span>
                 </div>
                 {block.section.remark && (
-                  <p className="text-xs text-gray-500 font-medium mt-1">
+                  <p className="text-xs text-text-faint font-medium mt-1">
                     {block.section.remark}
                   </p>
                 )}
@@ -596,8 +596,8 @@ export default function WatchOrderGuide({
         needs to know the order does not end there.
       */}
       {hiddenCount > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-          <span className="text-xs font-bold text-gray-400">
+        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-3">
+          <span className="text-xs font-bold text-text-faint">
             Showing {shown.length} of {visible.length} steps
           </span>
           {fullHref && (

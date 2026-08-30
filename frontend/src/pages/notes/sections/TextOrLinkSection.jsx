@@ -19,7 +19,7 @@ function Row({ note }) {
   const link = note.links?.filter(Boolean)[0];
   if (link) return <LinkPill url={link} />;
   return (
-    <span className="text-sm text-gray-800 flex-1 whitespace-pre-wrap">
+    <span className="text-sm text-text flex-1 whitespace-pre-wrap">
       {note.content}
     </span>
   );
@@ -77,7 +77,7 @@ export default function TextOrLinkSection({
             </div>
           ) : (
             <div className="flex gap-2 items-start group">
-              <span className="text-xs text-gray-500 mt-0.5 shrink-0">•</span>
+              <span className="text-xs text-text-faint mt-0.5 shrink-0">•</span>
               <div className="flex-1 min-w-0">
                 <Row note={n} />
               </div>

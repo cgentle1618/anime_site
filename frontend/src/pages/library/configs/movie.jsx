@@ -89,9 +89,9 @@ const MOVIE_LIBRARY_CONFIG = {
         const sub  = item.movie_name_en || "";
         return (
           <>
-            <div className="text-xs font-bold text-gray-900 leading-tight line-clamp-1">{main}</div>
+            <div className="text-xs font-bold text-text leading-tight line-clamp-1">{main}</div>
             {sub && sub !== main && (
-              <div className="text-[9px] text-gray-400 line-clamp-1">{sub}</div>
+              <div className="text-[9px] text-text-faint line-clamp-1">{sub}</div>
             )}
           </>
         );
@@ -104,14 +104,14 @@ const MOVIE_LIBRARY_CONFIG = {
       key: "director",
       header: "Director",
       thClass: "hidden xl:table-cell",
-      tdClass: "text-xs text-center text-gray-500 hidden xl:table-cell truncate max-w-[8rem]",
+      tdClass: "text-xs text-center text-text-faint hidden xl:table-cell truncate max-w-[8rem]",
       render: (item) => item.director || "-",
     },
     {
       key: "release",
       header: "Release",
       thClass: "hidden xl:table-cell",
-      tdClass: "text-xs text-center text-gray-500 hidden xl:table-cell",
+      tdClass: "text-xs text-center text-text-faint hidden xl:table-cell",
       render: (item) => item.release_date_usa || "-",
     },
     watchButtonColumn(),

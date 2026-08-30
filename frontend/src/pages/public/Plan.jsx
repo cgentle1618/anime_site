@@ -38,10 +38,10 @@ export default function Plan() {
           <i className="fas fa-clipboard-list text-brand text-lg"></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             Plan
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">
+          <p className="text-xs text-text-faint font-medium mt-0.5">
             Watch Next, To Rewatch &amp; Future Plans
           </p>
         </div>

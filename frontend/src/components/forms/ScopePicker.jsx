@@ -42,7 +42,7 @@ export default function ScopePicker({ scopes, setScopes, mediaTypes }) {
             className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
               selected.has(key)
                 ? "bg-brand text-white border-brand"
-                : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                : "bg-surface text-text-faint border-border hover:border-border-strong"
             }`}
           >
             {key}

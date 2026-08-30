@@ -44,7 +44,7 @@ const toFields = (val) => ({
   links: val.link.trim() ? [val.link.trim()] : [],
 });
 
-const selectCls = inputCls + " bg-white";
+const selectCls = inputCls + " bg-surface";
 
 function MusicTrackForm({ val, setVal, section }) {
   return (
@@ -140,7 +140,7 @@ export default function MusicTrackSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
+          className="border border-border rounded-lg p-2.5 bg-surface-2"
         >
           {editId === n.system_id ? (
             <div>
@@ -156,12 +156,12 @@ export default function MusicTrackSection({
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {n.title && (
-                    <span className="text-sm font-semibold text-gray-800">
+                    <span className="text-sm font-semibold text-text">
                       {n.title}
                     </span>
                   )}
                   {n.kind && (
-                    <span className="text-[11px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] font-bold bg-surface-3 text-text-muted px-1.5 py-0.5 rounded">
                       {n.kind}
                     </span>
                   )}
@@ -172,7 +172,7 @@ export default function MusicTrackSection({
                   )}
                 </div>
                 {n.content && (
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  <p className="text-sm text-text whitespace-pre-wrap">
                     {n.content}
                   </p>
                 )}
@@ -193,7 +193,7 @@ export default function MusicTrackSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <MusicTrackForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}

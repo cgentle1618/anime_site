@@ -78,7 +78,7 @@ export default function FanEdge({
             // The chip is opaque on purpose: a label sitting on one of its own
             // fan's lines has to stay readable, and this is the text the whole
             // relation is named by.
-            className="pointer-events-none absolute rounded bg-white/95 px-1 leading-tight shadow-sm"
+            className="pointer-events-none absolute rounded bg-surface/95 px-1 leading-tight shadow-sm"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               ...labelStyle,

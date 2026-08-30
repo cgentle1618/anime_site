@@ -2,10 +2,10 @@
 export function InfoRow({ label, value }) {
   return (
     <div>
-      <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">
+      <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
         {label}
       </div>
-      <div className="text-sm font-medium text-gray-800">
+      <div className="text-sm font-medium text-text">
         {value != null && value !== "" ? value : "-"}
       </div>
     </div>
@@ -14,9 +14,9 @@ export function InfoRow({ label, value }) {
 
 export default function InfoCard({ title, icon, fields }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h3 className="font-bold text-gray-800">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-surface-2 border-b border-border px-4 py-3 flex items-center justify-between">
+        <h3 className="font-bold text-text">
           <i className={`fas ${icon} text-brand mr-2`}></i>
           {title}
         </h3>

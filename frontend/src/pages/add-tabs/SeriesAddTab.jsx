@@ -21,7 +21,7 @@ export default function SeriesAddTab({
   franchiseCollections,
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-layer-group" title="Titles & Naming" />
       <Field label="Parent Franchise" required>
         <ComboBox

@@ -186,10 +186,10 @@ export default function FranchiseLibrary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-surface-2">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-gray-500 font-medium">Loading franchises...</p>
+          <p className="text-text-faint font-medium">Loading franchises...</p>
         </div>
       </div>
     );
@@ -197,7 +197,7 @@ export default function FranchiseLibrary() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-surface-2">
         <div className="text-center text-red-500">
           <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
           <p className="font-medium">{error}</p>
@@ -211,7 +211,7 @@ export default function FranchiseLibrary() {
     return (
       <button
         onClick={() => toggleFilter(value)}
-        className={`px-3 py-1 rounded-full border text-xs font-bold transition-colors ${active ? "bg-brand text-white border-brand" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+        className={`px-3 py-1 rounded-full border text-xs font-bold transition-colors ${active ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
       >
         {label}
       </button>
@@ -219,16 +219,16 @@ export default function FranchiseLibrary() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       {/* Sticky toolbar */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-30 shadow-sm">
+      <div className="bg-surface border-b border-border sticky top-16 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-black text-gray-900 leading-none">
+              <h1 className="text-lg font-black text-text leading-none">
                 Franchise Library
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-text-faint mt-0.5">
                 {filteredAndSorted.length} franchise
                 {filteredAndSorted.length !== 1 ? "s" : ""}
                 {searchQuery && ` matching "${searchQuery}"`}
@@ -238,18 +238,18 @@ export default function FranchiseLibrary() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search */}
               <div className="relative">
-                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-xs pointer-events-none"></i>
                 <input
                   type="text"
                   placeholder="Search franchises..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-gray-100 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
+                  className="pl-8 pr-3 py-1.5 bg-surface-2 border border-transparent rounded-full text-sm focus:outline-none focus:bg-surface focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
                   >
                     <i className="fas fa-times text-xs"></i>
                   </button>
@@ -260,7 +260,7 @@ export default function FranchiseLibrary() {
               <select
                 value={currentSort}
                 onChange={(e) => setCurrentSort(e.target.value)}
-                className="bg-gray-100 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
+                className="bg-surface-2 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
               >
                 <option value="title">Sort: Title</option>
                 <option value="my_rating">Sort: My Rating</option>
@@ -270,7 +270,7 @@ export default function FranchiseLibrary() {
               {/* Filters button */}
               <button
                 onClick={() => setShowFilters((o) => !o)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${showFilters ? "bg-gray-100 border-gray-300 text-gray-700" : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${showFilters ? "bg-surface-2 border-border-strong text-text-muted" : "bg-surface border-border text-text-faint hover:bg-surface-2"}`}
               >
                 <i className="fas fa-filter text-xs"></i>
                 Filters
@@ -282,18 +282,18 @@ export default function FranchiseLibrary() {
               </button>
 
               {/* View toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+              <div className="flex bg-surface-2 rounded-lg p-0.5 gap-0.5">
                 <button
                   onClick={() => setCurrentView("grid")}
                   title="Grid view"
-                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "grid" ? "bg-white text-brand shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "grid" ? "bg-surface text-brand shadow-sm" : "text-text-faint hover:text-text-muted"}`}
                 >
                   <i className="fas fa-th-large"></i>
                 </button>
                 <button
                   onClick={() => setCurrentView("table")}
                   title="Table view"
-                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "table" ? "bg-white text-brand shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "table" ? "bg-surface text-brand shadow-sm" : "text-text-faint hover:text-text-muted"}`}
                 >
                   <i className="fas fa-list"></i>
                 </button>
@@ -303,8 +303,8 @@ export default function FranchiseLibrary() {
 
           {/* Filter panel */}
           {showFilters && (
-            <div className="border-t border-gray-100 mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0">
+            <div className="border-t border-border mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="text-xs font-bold text-text-faint uppercase tracking-wider shrink-0">
                 Type
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -321,7 +321,7 @@ export default function FranchiseLibrary() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="ml-auto text-xs font-bold text-gray-400 hover:text-red-500 transition flex items-center gap-1"
+                  className="ml-auto text-xs font-bold text-text-faint hover:text-red-500 transition flex items-center gap-1"
                 >
                   <i className="fas fa-times"></i> Clear
                 </button>
@@ -335,21 +335,21 @@ export default function FranchiseLibrary() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentView === "table" ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <i className="fas fa-tools text-gray-400 text-2xl"></i>
+            <div className="w-16 h-16 bg-surface-2 rounded-full flex items-center justify-center mb-4">
+              <i className="fas fa-tools text-text-faint text-2xl"></i>
             </div>
-            <h2 className="text-lg font-bold text-gray-700 mb-1">
+            <h2 className="text-lg font-bold text-text-muted mb-1">
               Table View Under Development
             </h2>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-text-faint">
               Switch to grid view to browse franchises.
             </p>
           </div>
         ) : filteredAndSorted.length === 0 ? (
           <div className="text-center py-24">
-            <i className="fas fa-search text-gray-300 text-4xl mb-4"></i>
-            <p className="text-gray-500 font-medium">No franchises found</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <i className="fas fa-search text-text-faint/60 text-4xl mb-4"></i>
+            <p className="text-text-faint font-medium">No franchises found</p>
+            <p className="text-sm text-text-faint mt-1">
               {activeFilterCount > 0 || searchQuery ? (
                 <>
                   Try adjusting your filters or{" "}

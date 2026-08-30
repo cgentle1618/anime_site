@@ -113,7 +113,7 @@ export default function EpisodeTextSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
+          className="border border-border rounded-lg p-2.5 bg-surface-2"
         >
           {editId === n.system_id ? (
             <div>
@@ -134,13 +134,13 @@ export default function EpisodeTextSection({
                     </span>
                   )}
                   {n.kind && (
-                    <span className="text-[11px] font-medium bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] font-medium bg-surface-3 text-text-muted px-1.5 py-0.5 rounded">
                       {n.kind}
                     </span>
                   )}
                 </div>
                 {n.content && (
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  <p className="text-sm text-text whitespace-pre-wrap">
                     {n.content}
                   </p>
                 )}
@@ -158,7 +158,7 @@ export default function EpisodeTextSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <EpisodeTextForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}

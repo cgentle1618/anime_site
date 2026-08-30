@@ -112,7 +112,7 @@ describe("NotesTemplate groups", () => {
     await waitFor(() =>
       expect(screen.getByText("Overview")).toBeInTheDocument(),
     );
-    const group = screen.getByText("音樂 Music").closest("div.bg-white");
+    const group = screen.getByText("音樂 Music").closest("div.bg-surface");
     expect(group).not.toBeNull();
     expect(group.textContent).not.toContain("Trivia");
     expect(screen.getByText("Trivia")).toBeInTheDocument();
@@ -123,11 +123,11 @@ describe("NotesTemplate groups", () => {
     await waitFor(() =>
       expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
     );
-    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     expect(notesCard.textContent).not.toContain("音樂 Music");
     expect(notesCard.textContent).toContain("Overview");
     // Peers under one parent, so the page lays them out with equal weight.
-    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
     expect(groupCard.parentElement).toBe(notesCard.parentElement);
   });
 });
@@ -170,10 +170,10 @@ describe("NotesTemplate standalone sections", () => {
       expect(screen.getByText("Resources")).toBeInTheDocument(),
     );
     expect(screen.getAllByText("Resources")).toHaveLength(1);
-    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     expect(notesCard.textContent).toContain("Overview");
     expect(notesCard.textContent).not.toContain("Resources");
-    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
     expect(groupCard.textContent).not.toContain("Resources");
   });
 
@@ -182,8 +182,8 @@ describe("NotesTemplate standalone sections", () => {
     await waitFor(() =>
       expect(screen.getByText("Resources")).toBeInTheDocument(),
     );
-    const notesCard = screen.getByText("Notes").closest("div.bg-white");
-    const solo = screen.getByText("Resources").closest("div.bg-white");
+    const notesCard = screen.getByText("Notes").closest("div.bg-surface");
+    const solo = screen.getByText("Resources").closest("div.bg-surface");
     expect(solo.parentElement).toBe(notesCard.parentElement);
   });
 });
@@ -220,7 +220,7 @@ describe("NotesTemplate collapse-when-empty", () => {
       expect(screen.getByText("an overview")).toBeInTheDocument(),
     );
     // Trivia has no rows, so its "No entries." hint stays behind the header.
-    const trivia = screen.getByText("Trivia").closest("div.bg-white");
+    const trivia = screen.getByText("Trivia").closest("div.bg-surface");
     expect(trivia.textContent).not.toContain("No entries.");
   });
 
@@ -228,9 +228,9 @@ describe("NotesTemplate collapse-when-empty", () => {
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
     await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
-    const notesCard = screen.getByText("Notes").closest("div.bg-white");
+    const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     expect(notesCard.textContent).not.toContain("Overview");
-    const groupCard = screen.getByText("音樂 Music").closest("div.bg-white");
+    const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");
     expect(groupCard.textContent).not.toContain("OP");
   });
 
@@ -260,7 +260,7 @@ describe("NotesTemplate collapse-when-empty", () => {
     renderTemplate();
     await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Notes"));
-    const trivia = screen.getByText("Trivia").closest("div.bg-white");
+    const trivia = screen.getByText("Trivia").closest("div.bg-surface");
     fireEvent.click(within(trivia).getByRole("button", { name: /Add/ }));
     expect(within(trivia).getByRole("textbox")).toBeInTheDocument();
   });

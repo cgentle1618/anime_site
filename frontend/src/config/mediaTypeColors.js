@@ -14,7 +14,7 @@ export const MEDIA_TYPE_COLORS = {
   comic: { chip: "bg-red-100 text-red-700", dot: "bg-red-500" },
 };
 
-const FALLBACK = { chip: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
+const FALLBACK = { chip: "bg-surface-2 text-text-muted", dot: "bg-text-faint" };
 
 /** Chip classes for a media type, neutral for a type we do not know yet. */
 export function mediaTypeChip(mediaType) {

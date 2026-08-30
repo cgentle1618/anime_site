@@ -41,10 +41,10 @@ export default function ScoreBlock({
         </div>
       </div>
       <div className="ml-auto text-right">
-        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+        <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
           Last Updated
         </div>
-        <div className="text-sm font-mono text-gray-600">
+        <div className="text-sm font-mono text-text-muted">
           {updatedAt ? new Date(updatedAt).toLocaleString() : "-"}
         </div>
       </div>

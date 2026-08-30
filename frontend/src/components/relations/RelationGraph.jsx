@@ -16,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { buildUrl } from "../../api/client";
+import { useThemeOrLight } from "../../contexts/ThemeContext";
 import { MEDIA_TYPE_COLORS } from "../../config/mediaTypeColors";
 import { endpoints } from "../../api/endpoints";
 import RelationNode from "./RelationNode";
@@ -174,6 +175,7 @@ function GraphCanvas({
   focusNonce,
   readOnly = false,
 }) {
+  const theme = useThemeOrLight();
   const [nodes, setNodes] = useState([]);
   const [graphEdges, setGraphEdges] = useState([]);
   // Which media types the toolbar has toggled off. They dim rather than
@@ -850,8 +852,8 @@ function GraphCanvas({
 
   if (!scopeId) {
     return (
-      <div className="flex h-[36rem] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
-        <p className="text-sm font-medium text-gray-400">
+      <div className="flex h-[36rem] items-center justify-center rounded-2xl border border-border bg-surface-2">
+        <p className="text-sm font-medium text-text-faint">
           Pick a {scopeType} to see its relations.
         </p>
       </div>
@@ -866,7 +868,7 @@ function GraphCanvas({
         // Layout are both z-50, and a tie between them would be settled by
         // document order - which puts the scroll buttons over the minimap.
         // Toasts stay above at z-[100], so a write still reports itself here.
-        expanded ? "fixed inset-0 z-[90] bg-white p-4" : "relative"
+        expanded ? "fixed inset-0 z-[90] bg-surface p-4" : "relative"
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -879,12 +881,12 @@ function GraphCanvas({
             // scope switch, so the row being reversed is not always one the
             // current canvas shows.
             title={describeEntry(lastEntry)}
-            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-rotate-left"></i>
             Undo
             {history.length > 1 ? (
-              <span className="rounded-full bg-gray-200 px-1.5 text-[9px] text-gray-600">
+              <span className="rounded-full bg-surface-3 px-1.5 text-[9px] text-text-muted">
                 {history.length}
               </span>
             ) : null}
@@ -897,7 +899,7 @@ function GraphCanvas({
             onClick={tidy}
             disabled={writing || loading || nodes.length === 0}
             title="Drop every hand-placed position and re-run the automatic layout"
-            className="flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-wand-magic-sparkles"></i>
             Tidy
@@ -927,12 +929,12 @@ function GraphCanvas({
               onClick={() => toggleType(type)}
               title={`${on ? "Dim" : "Restore"} every ${label} on the canvas`}
               className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-opacity ${
-                on ? "border-gray-200 text-gray-600" : "border-gray-100 text-gray-300"
+                on ? "border-border text-text-muted" : "border-border text-text-faint/60"
               }`}
             >
               <span
                 className={`h-2 w-2 rounded-full ${
-                  (MEDIA_TYPE_COLORS[type] || {}).dot || "bg-gray-400"
+                  (MEDIA_TYPE_COLORS[type] || {}).dot || "bg-text-faint"
                 } ${on ? "" : "opacity-40"}`}
               />
               {label}
@@ -952,7 +954,7 @@ function GraphCanvas({
               ? "Return the graph to the page (Escape)"
               : "Fill the window with the graph"
           }
-          className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-gray-600 transition-opacity hover:bg-gray-50"
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2"
         >
           <i className={`fas ${expanded ? "fa-compress" : "fa-expand"}`}></i>
           {expanded ? "Collapse" : "Expand"}
@@ -963,13 +965,14 @@ function GraphCanvas({
           than on the outer wrapper, they overlay the canvas only and never
           cover the toolbar above it, whose height changes as it wraps. */}
       <div
-        className={`relative rounded-2xl border border-gray-200 bg-gray-50 ${
+        className={`relative rounded-2xl border border-border bg-surface-2 ${
           // min-h-0 so the flex child may shrink below the canvas's content
           // height instead of pushing the toolbar off the top of the screen.
           expanded ? "min-h-0 flex-1" : "h-[36rem]"
         }`}
       >
         <ReactFlow
+          colorMode={theme}
           nodes={displayNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
@@ -1003,15 +1006,15 @@ function GraphCanvas({
             failed, a scope with nothing in it, and a scope still loading. */}
         {loadError ? (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-6">
-            <div className="pointer-events-auto max-w-sm rounded-xl border border-red-200 bg-white p-4 text-center shadow-lg">
+            <div className="pointer-events-auto max-w-sm rounded-xl border border-red-200 bg-surface p-4 text-center shadow-lg">
               <p className="text-sm font-black text-red-500">
                 Could not load this {scopeType}&apos;s relations.
               </p>
-              <p className="mt-1 text-xs font-medium text-gray-500">{loadError}</p>
+              <p className="mt-1 text-xs font-medium text-text-faint">{loadError}</p>
               <button
                 type="button"
                 onClick={() => refetch()}
-                className="mt-3 rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-600 hover:bg-gray-50"
+                className="mt-3 rounded-lg border border-border px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-text-muted hover:bg-surface-2"
               >
                 Try again
               </button>
@@ -1019,7 +1022,7 @@ function GraphCanvas({
           </div>
         ) : !loading && nodes.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-            <p className="text-sm font-medium text-gray-400">
+            <p className="text-sm font-medium text-text-faint">
               This {scopeType} has no entries yet.
             </p>
           </div>
@@ -1054,7 +1057,7 @@ function GraphCanvas({
       </div>
 
       {loading ? (
-        <p className="text-xs font-bold text-gray-400">Loading graph…</p>
+        <p className="text-xs font-bold text-text-faint">Loading graph…</p>
       ) : null}
 
       {pending && !readOnly ? (

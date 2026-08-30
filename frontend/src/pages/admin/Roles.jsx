@@ -126,7 +126,7 @@ export default function Roles() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-text-faint">
         <i className="fas fa-spinner fa-spin mr-2"></i>Loading roles...
       </div>
     );
@@ -135,10 +135,10 @@ export default function Roles() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
+        <h1 className="text-2xl font-bold text-text">
           <i className="fas fa-user-shield mr-2 text-brand"></i>Roles
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           A role is a named bundle of permissions. Everyone who is not logged in
           is <strong>Guest</strong>. Narrow access by removing permissions, not
           by adding them.
@@ -154,20 +154,20 @@ export default function Roles() {
               onClick={() => setSelectedId(role.system_id)}
               className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition ${
                 role.system_id === selectedId
-                  ? "border-brand bg-brand/5 font-semibold"
-                  : "border-gray-200 hover:bg-gray-50"
+                  ? "border-brand bg-brand-soft font-semibold"
+                  : "border-border hover:bg-surface-2"
               }`}
             >
               <div className="flex items-center justify-between">
                 <span>{role.label}</span>
                 {role.is_system && (
                   <i
-                    className="fas fa-lock text-[10px] text-gray-400"
+                    className="fas fa-lock text-[10px] text-text-faint"
                     title="Built in - cannot be renamed or deleted"
                   ></i>
                 )}
               </div>
-              <div className="text-[11px] text-gray-500">
+              <div className="text-[11px] text-text-faint">
                 {role.is_superuser
                   ? "all permissions"
                   : `${role.permissions.length} permission(s)`}
@@ -179,7 +179,7 @@ export default function Roles() {
           {creating ? (
             <form
               onSubmit={createRole}
-              className="border border-gray-200 rounded-lg p-3 space-y-2"
+              className="border border-border rounded-lg p-3 space-y-2"
             >
               <input
                 required
@@ -209,7 +209,7 @@ export default function Roles() {
                 <button
                   type="button"
                   onClick={() => setCreating(false)}
-                  className="px-2 py-1 text-xs text-gray-500"
+                  className="px-2 py-1 text-xs text-text-faint"
                 >
                   Cancel
                 </button>
@@ -218,7 +218,7 @@ export default function Roles() {
           ) : (
             <button
               onClick={() => setCreating(true)}
-              className="w-full border border-dashed border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50"
+              className="w-full border border-dashed border-border-strong rounded-lg px-3 py-2 text-sm text-text-faint hover:bg-surface-2"
             >
               <i className="fas fa-plus mr-1"></i>New role
             </button>
@@ -228,7 +228,7 @@ export default function Roles() {
         {/* Permission grid */}
         <section>
           {!selected ? (
-            <p className="text-gray-500 text-sm">Pick a role.</p>
+            <p className="text-text-faint text-sm">Pick a role.</p>
           ) : selected.is_superuser ? (
             <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
               <strong>{selected.label}</strong> is a superuser role: it holds
@@ -240,10 +240,10 @@ export default function Roles() {
             <>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">
+                  <h2 className="text-lg font-bold text-text">
                     {selected.label}
                   </h2>
-                  <p className="text-xs text-gray-500">{selected.description}</p>
+                  <p className="text-xs text-text-faint">{selected.description}</p>
                 </div>
                 <div className="flex gap-2">
                   {!selected.is_system && selected.user_count === 0 && (
@@ -268,16 +268,16 @@ export default function Roles() {
                 {catalog.map((family) => (
                   <div
                     key={family.family}
-                    className="border border-gray-200 rounded-lg p-4"
+                    className="border border-border rounded-lg p-4"
                   >
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">
+                    <h3 className="text-sm font-bold text-text-muted mb-3">
                       <i
-                        className={`fas ${FAMILY_ICONS[family.family] ?? "fa-key"} mr-2 text-gray-400`}
+                        className={`fas ${FAMILY_ICONS[family.family] ?? "fa-key"} mr-2 text-text-faint`}
                       ></i>
                       {family.label}
                     </h3>
                     {family.permissions.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">
+                      <p className="text-xs text-text-faint italic">
                         None defined yet.
                       </p>
                     ) : (
@@ -296,7 +296,7 @@ export default function Roles() {
                             <span>
                               <span className="font-medium">{p.label}</span>
                               {p.description && (
-                                <span className="block text-[11px] text-gray-500">
+                                <span className="block text-[11px] text-text-faint">
                                   {p.description}
                                 </span>
                               )}

@@ -36,7 +36,7 @@ const TIER_STYLES = {
   franchise: "bg-brand/10 text-brand border-brand/20",
   series: "bg-violet-50 text-violet-600 border-violet-200",
   collection: "bg-amber-50 text-amber-600 border-amber-200",
-  order: "bg-gray-100 text-gray-600 border-gray-200",
+  order: "bg-surface-2 text-text-muted border-border",
 };
 
 // One bar for everything, the way the universal search in the nav works:
@@ -64,7 +64,7 @@ function TierPill({ tier }) {
   return (
     <span
       className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ${
-        TIER_STYLES[tier] || "bg-gray-100 text-gray-500 border-gray-200"
+        TIER_STYLES[tier] || "bg-surface-2 text-text-faint border-border"
       }`}
     >
       {TIER_LABELS[tier] || tier}
@@ -95,9 +95,9 @@ function NewOrderForm({ owner, onCreate, onCancel, busy }) {
   return (
     <form
       onSubmit={submit}
-      className="flex flex-col gap-2 p-3 rounded-xl border border-gray-200 bg-gray-50"
+      className="flex flex-col gap-2 p-3 rounded-xl border border-border bg-surface-2"
     >
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+      <p className="text-[10px] font-black text-text-faint uppercase tracking-wider">
         New order in {owner.name}
       </p>
 
@@ -107,14 +107,14 @@ function NewOrderForm({ owner, onCreate, onCancel, busy }) {
         onChange={(e) => setName(e.target.value)}
         autoFocus
         placeholder="Order name, e.g. Chronological"
-        className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+        className="border border-border rounded-lg px-2 py-2 text-xs font-bold bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
       />
 
       <select
         value={listType}
         onChange={(e) => setListType(e.target.value)}
         aria-label="Order type"
-        className="border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+        className="border border-border rounded-lg px-2 py-2 text-xs font-bold bg-surface focus:outline-none focus:ring-2 focus:ring-brand"
       >
         {LIST_TYPES.map((t) => (
           <option key={t} value={t}>
@@ -134,7 +134,7 @@ function NewOrderForm({ owner, onCreate, onCancel, busy }) {
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-2 rounded-lg text-xs font-black text-gray-500 hover:text-gray-700"
+          className="px-3 py-2 rounded-lg text-xs font-black text-text-faint hover:text-text-muted"
         >
           Cancel
         </button>
@@ -153,20 +153,20 @@ function OwnerRow({ owner, counts, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(owner.key)}
-      className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-gray-200 bg-white hover:border-brand hover:bg-brand/5 transition-colors"
+      className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-border bg-surface hover:border-brand hover:bg-brand-soft transition-colors"
     >
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-bold text-gray-800 truncate">
+        <span className="block text-sm font-bold text-text truncate">
           {owner.name}
         </span>
-        <span className="block text-[10px] font-bold text-gray-400 mt-0.5">
+        <span className="block text-[10px] font-bold text-text-faint mt-0.5">
           {total === 0
             ? "No orders yet"
             : `${total} order${total === 1 ? "" : "s"}`}
           {builtIn > 0 ? ` · ${builtIn} built-in` : ""}
         </span>
       </span>
-      <i className="fas fa-chevron-right text-[10px] text-gray-300"></i>
+      <i className="fas fa-chevron-right text-[10px] text-text-faint/60"></i>
     </button>
   );
 }
@@ -178,8 +178,8 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
     <div
       className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
         selected
-          ? "border-brand bg-brand/5"
-          : "border-gray-200 bg-white hover:border-gray-300"
+          ? "border-brand bg-brand-soft"
+          : "border-border bg-surface hover:border-border-strong"
       }`}
     >
       <button
@@ -187,7 +187,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
         onClick={() => onSelect(list.system_id)}
         className="flex-1 text-left min-w-0"
       >
-        <span className="block text-sm font-bold text-gray-800 truncate">
+        <span className="block text-sm font-bold text-text truncate">
           {list.list_name || "Untitled Order"}
         </span>
         {/* Scope gets its own line here too, rather than being buried in
@@ -210,7 +210,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
               {list.list_type}
             </span>
           )}
-          <span className="text-[10px] font-bold text-gray-400">
+          <span className="text-[10px] font-bold text-text-faint">
             {list.is_most_recommended && (
               <i className="fas fa-star text-amber-400 mr-1"></i>
             )}
@@ -223,7 +223,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
       <Link
         to={`/watch-order/${list.system_id}`}
         title="Open public page"
-        className="text-gray-300 hover:text-brand"
+        className="text-text-faint/60 hover:text-brand"
       >
         <i className="fas fa-arrow-up-right-from-square text-xs"></i>
       </Link>
@@ -234,7 +234,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
         title={
           list.auto_source ? "Duplicate as an editable order" : "Duplicate order"
         }
-        className="text-gray-300 hover:text-brand disabled:opacity-40"
+        className="text-text-faint/60 hover:text-brand disabled:opacity-40"
       >
         <i className="fas fa-copy text-xs"></i>
       </button>
@@ -242,7 +242,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
         type="button"
         onClick={() => onDelete(list.system_id)}
         title="Delete order"
-        className="text-gray-300 hover:text-red-600"
+        className="text-text-faint/60 hover:text-red-600"
       >
         <i className="fas fa-trash text-xs"></i>
       </button>
@@ -575,10 +575,10 @@ export default function WatchOrders() {
           <i className="fas fa-list-ol text-brand"></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             Watch Orders
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-text-faint font-medium mt-1">
             Ordered viewing guides across every media type
           </p>
         </div>
@@ -589,12 +589,12 @@ export default function WatchOrders() {
         <div className="flex flex-col gap-3">
           {/* One bar for owners and orders alike, present in every state so a
               search is always one keystroke away, even while drilled in. */}
-          <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-brand">
+          <div className="flex items-center border border-border rounded-lg bg-surface focus-within:ring-2 focus-within:ring-brand">
             <select
               value={searchScope}
               onChange={(e) => setSearchScope(e.target.value)}
               aria-label="Search scope"
-              className="shrink-0 bg-transparent border-r border-gray-200 pl-2.5 pr-1 py-2 text-xs font-bold text-gray-500 focus:outline-none"
+              className="shrink-0 bg-transparent border-r border-border pl-2.5 pr-1 py-2 text-xs font-bold text-text-faint focus:outline-none"
             >
               {SCOPES.map((s) => (
                 <option key={s} value={s}>
@@ -614,7 +614,7 @@ export default function WatchOrders() {
                 type="button"
                 onClick={() => setQuery("")}
                 title="Clear search"
-                className="px-2.5 text-gray-300 hover:text-brand"
+                className="px-2.5 text-text-faint/60 hover:text-brand"
               >
                 <i className="fas fa-xmark text-xs"></i>
               </button>
@@ -622,7 +622,7 @@ export default function WatchOrders() {
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <label className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-500 cursor-pointer select-none">
+            <label className="inline-flex items-center gap-2 text-[11px] font-bold text-text-faint cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={showGenerated}
@@ -636,7 +636,7 @@ export default function WatchOrders() {
               onClick={backfillRelease}
               disabled={busy}
               title="Give every franchise, series and collection its built-in orders"
-              className="text-[11px] font-bold text-gray-500 hover:text-brand disabled:opacity-40"
+              className="text-[11px] font-bold text-text-faint hover:text-brand disabled:opacity-40"
             >
               <i className="fas fa-wand-magic-sparkles mr-1"></i>Backfill built-in
               orders
@@ -644,7 +644,7 @@ export default function WatchOrders() {
           </div>
 
           {loading ? (
-            <div className="py-10 text-center text-gray-400">
+            <div className="py-10 text-center text-text-faint">
               <i className="fas fa-circle-notch fa-spin"></i>
             </div>
           ) : scopedOwner && !searching ? (
@@ -655,17 +655,17 @@ export default function WatchOrders() {
                   type="button"
                   onClick={() => setScope(null)}
                   title="Back to owners"
-                  className="mt-0.5 text-gray-400 hover:text-brand"
+                  className="mt-0.5 text-text-faint hover:text-brand"
                 >
                   <i className="fas fa-arrow-left text-sm"></i>
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-gray-900 leading-tight break-words">
+                  <p className="text-sm font-black text-text leading-tight break-words">
                     {scopedOwner.name}
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-1">
                     <TierPill tier={scopedOwner.tier} />
-                    <span className="text-[10px] font-bold text-gray-400">
+                    <span className="text-[10px] font-bold text-text-faint">
                       {scopedLists.length} order
                       {scopedLists.length === 1 ? "" : "s"}
                     </span>
@@ -692,7 +692,7 @@ export default function WatchOrders() {
               )}
 
               {scopedLists.length === 0 ? (
-                <p className="text-center py-8 text-sm font-medium text-gray-400">
+                <p className="text-center py-8 text-sm font-medium text-text-faint">
                   No orders here yet.
                 </p>
               ) : (
@@ -715,7 +715,7 @@ export default function WatchOrders() {
             /* Owners and orders together: browsing with an empty box, search
                results once something is typed. Same sections either way. */
             <div className="flex flex-col gap-3">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+              <p className="text-[10px] font-black text-text-faint uppercase tracking-wider">
                 {searching
                   ? "Matching"
                   : searchScope === "order"
@@ -725,7 +725,7 @@ export default function WatchOrders() {
               </p>
 
               {results.count === 0 ? (
-                <p className="text-center py-8 text-sm font-medium text-gray-400">
+                <p className="text-center py-8 text-sm font-medium text-text-faint">
                   {searching
                     ? "Nothing matches that name."
                     : "No watch orders yet. Search for a franchise to start one."}
@@ -736,7 +736,7 @@ export default function WatchOrders() {
                     <div key={tier}>
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <TierPill tier={tier} />
-                        <span className="text-[10px] font-black text-gray-400">
+                        <span className="text-[10px] font-black text-text-faint">
                           {rows.length}
                         </span>
                       </div>
@@ -757,7 +757,7 @@ export default function WatchOrders() {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center gap-1.5">
                         <TierPill tier="order" />
-                        <span className="text-[10px] font-black text-gray-400">
+                        <span className="text-[10px] font-black text-text-faint">
                           {results.orderGroups.reduce(
                             (n, [, rows]) => n + rows.length,
                             0
@@ -768,7 +768,7 @@ export default function WatchOrders() {
                           name are only telling apart by who owns them. */}
                       {results.orderGroups.map(([key, rows]) => (
                         <div key={key}>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
+                          <p className="text-[10px] font-black text-text-faint uppercase tracking-wider mb-1.5">
                             {ownerLabel(key)}
                           </p>
                           <div className="flex flex-col gap-1">
@@ -795,7 +795,7 @@ export default function WatchOrders() {
         </div>
 
         {/* Right: the editor */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-surface rounded-xl border border-border p-4">
           <WatchOrderEditor listId={selectedId} onListChanged={loadLists} />
         </div>
       </div>

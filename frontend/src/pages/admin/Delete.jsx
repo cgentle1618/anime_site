@@ -122,9 +122,9 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
         <input
-          className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-400"
+          className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-400"
           placeholder={placeholder}
           value={query}
           onChange={(e) => {
@@ -135,7 +135,7 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
         />
       </div>
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-56 overflow-y-auto">
           {filtered.map((item) => (
             <div
               key={item.system_id || item.id}
@@ -581,10 +581,10 @@ export default function Delete() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-black text-text flex items-center gap-2">
           <i className="fas fa-trash-alt text-red-500/70"></i> Delete Entry
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-faint mt-1">
           Permanently remove records from the database
         </p>
       </div>
@@ -618,7 +618,7 @@ export default function Delete() {
       {/* ANIME TAB */}
       {tab === "anime" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search anime to delete..."
               items={db.anime}
@@ -626,10 +626,10 @@ export default function Delete() {
               onSelect={setSelectedAnime}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "anime")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
                     {item.airing_type || "TV"}
                   </div>
@@ -639,7 +639,7 @@ export default function Delete() {
           </div>
 
           {selectedAnime && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedAnime.cover_image_file)}
@@ -650,44 +650,44 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedAnime, "anime")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedAnime.anime_name_en ||
                       selectedAnime.anime_name_roman ||
                       "-"}
                   </p>
                   {selectedAnime.anime_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedAnime.anime_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnime.airing_type || "TV"}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnime.watching_status || "Unset"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedAnime.franchise_id)} /{" "}
                     {getSeriesTitle(selectedAnime.series_id)}
                   </p>
                   {selectedAnime.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedAnime.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedAnime.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedAnime(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -707,7 +707,7 @@ export default function Delete() {
       {/* ANIME MOVIE TAB */}
       {tab === "anime-movie" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search anime movie to delete..."
               items={db["anime-movie"]}
@@ -715,10 +715,10 @@ export default function Delete() {
               onSelect={setSelectedAnimeMovie}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "anime-movie")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
                     {item.release_date_jp || item.release_date_tw || "—"}
                   </div>
@@ -728,7 +728,7 @@ export default function Delete() {
           </div>
 
           {selectedAnimeMovie && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
@@ -739,43 +739,43 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedAnimeMovie, "anime-movie")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedAnimeMovie.anime_movie_name_en ||
                       selectedAnimeMovie.anime_movie_name_roman ||
                       "-"}
                   </p>
                   {selectedAnimeMovie.anime_movie_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedAnimeMovie.anime_movie_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnimeMovie.airing_status || "Unknown"}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedAnimeMovie.watching_status || "Unset"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
                   </p>
                   {selectedAnimeMovie.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedAnimeMovie.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedAnimeMovie.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedAnimeMovie(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -797,7 +797,7 @@ export default function Delete() {
       {/* MOVIE TAB */}
       {tab === "movie" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search movie to delete..."
               items={db.movie}
@@ -805,10 +805,10 @@ export default function Delete() {
               onSelect={setSelectedMovie}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "movie")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
                     {item.release_date_usa || item.release_date_tw || "—"}
                   </div>
@@ -818,7 +818,7 @@ export default function Delete() {
           </div>
 
           {selectedMovie && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedMovie.cover_image_file)}
@@ -829,48 +829,48 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedMovie, "movie")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedMovie.movie_name_en || "-"}
                   </p>
                   {selectedMovie.movie_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedMovie.movie_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedMovie.movie_type && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedMovie.movie_type}
                       </span>
                     )}
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedMovie.airing_status || "Unknown"}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedMovie.watching_status || "Unset"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedMovie.franchise_id)}
                     {selectedMovie.series_id &&
                       ` / ${getSeriesTitle(selectedMovie.series_id)}`}
                   </p>
                   {selectedMovie.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedMovie.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedMovie.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedMovie(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -890,7 +890,7 @@ export default function Delete() {
       {/* TV SHOW TAB */}
       {tab === "tv-show" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search TV show to delete..."
               items={db["tv-show"]}
@@ -898,10 +898,10 @@ export default function Delete() {
               onSelect={setSelectedTvShow}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "tv-show")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.season_part ? ` · ${item.season_part}` : ""}
                   </div>
@@ -911,7 +911,7 @@ export default function Delete() {
           </div>
 
           {selectedTvShow && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedTvShow.cover_image_file)}
@@ -922,31 +922,31 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedTvShow, "tv-show")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedTvShow.tv_name_en || "-"}
                   </p>
                   {selectedTvShow.tv_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedTvShow.tv_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedTvShow.airing_type && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedTvShow.airing_type}
                       </span>
                     )}
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedTvShow.airing_status || "Unknown"}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedTvShow.watching_status || "Unset"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedTvShow.franchise_id)}
                     {selectedTvShow.series_id &&
                       ` / ${getSeriesTitle(selectedTvShow.series_id)}`}
@@ -954,18 +954,18 @@ export default function Delete() {
                       ` · ${selectedTvShow.season_part}`}
                   </p>
                   {selectedTvShow.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedTvShow.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedTvShow.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedTvShow(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -985,7 +985,7 @@ export default function Delete() {
       {/* CARTOON TAB */}
       {tab === "cartoon" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search cartoon to delete..."
               items={db.cartoon}
@@ -993,10 +993,10 @@ export default function Delete() {
               onSelect={setSelectedCartoon}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "cartoon")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
                     {item.airing_type || "—"}
                   </div>
@@ -1006,7 +1006,7 @@ export default function Delete() {
           </div>
 
           {selectedCartoon && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedCartoon.cover_image_file)}
@@ -1017,26 +1017,26 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedCartoon, "cartoon")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedCartoon.cartoon_name_en || "-"}
                   </p>
                   {selectedCartoon.cartoon_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedCartoon.cartoon_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2">
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedCartoon.airing_status || "Unknown"}
                     </span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedCartoon.watching_status || "Unset"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedCartoon.franchise_id)}
                     {selectedCartoon.series_id &&
                       ` / ${getSeriesTitle(selectedCartoon.series_id)}`}
@@ -1044,18 +1044,18 @@ export default function Delete() {
                       ` · ${selectedCartoon.season_part}`}
                   </p>
                   {selectedCartoon.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedCartoon.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedCartoon.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedCartoon(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1075,7 +1075,7 @@ export default function Delete() {
       {/* MANGA TAB */}
       {tab === "manga" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search manga to delete..."
               items={db.manga}
@@ -1083,10 +1083,10 @@ export default function Delete() {
               onSelect={setSelectedManga}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "manga")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)} ·{" "}
                     {item.release_date || "—"}
                   </div>
@@ -1096,7 +1096,7 @@ export default function Delete() {
           </div>
 
           {selectedManga && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedManga.cover_image_file)}
@@ -1107,52 +1107,52 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedManga, "manga")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedManga.manga_name_en || "-"}
                   </p>
                   {selectedManga.manga_name_jp && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedManga.manga_name_jp}
                     </p>
                   )}
                   {selectedManga.manga_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedManga.manga_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedManga.reading_status && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedManga.reading_status}
                       </span>
                     )}
                     {selectedManga.region && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedManga.region}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedManga.franchise_id)}
                     {selectedManga.series_id &&
                       ` / ${getSeriesTitle(selectedManga.series_id)}`}
                   </p>
                   {selectedManga.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedManga.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedManga.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedManga(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1172,7 +1172,7 @@ export default function Delete() {
       {/* NOVEL TAB */}
       {tab === "novel" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search novel to delete..."
               items={db.novel}
@@ -1180,10 +1180,10 @@ export default function Delete() {
               onSelect={setSelectedNovel}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "novel")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.type ? ` · ${item.type}` : ""}
                     {item.release_date ? ` · ${item.release_date}` : ""}
@@ -1194,7 +1194,7 @@ export default function Delete() {
           </div>
 
           {selectedNovel && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedNovel.cover_image_file)}
@@ -1205,57 +1205,57 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedNovel, "novel")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedNovel.novel_name_en || "-"}
                   </p>
                   {selectedNovel.novel_name_jp && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedNovel.novel_name_jp}
                     </p>
                   )}
                   {selectedNovel.novel_name_alt && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-faint">
                       {selectedNovel.novel_name_alt}
                     </p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedNovel.type && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedNovel.type}
                       </span>
                     )}
                     {selectedNovel.reading_status && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedNovel.reading_status}
                       </span>
                     )}
                     {selectedNovel.region && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedNovel.region}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedNovel.franchise_id)}
                     {selectedNovel.series_id &&
                       ` / ${getSeriesTitle(selectedNovel.series_id)}`}
                   </p>
                   {selectedNovel.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedNovel.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedNovel.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedNovel(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1275,7 +1275,7 @@ export default function Delete() {
       {/* COMIC TAB */}
       {tab === "comic" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search comic to delete..."
               items={db.comic}
@@ -1283,10 +1283,10 @@ export default function Delete() {
               onSelect={setSelectedComic}
               renderItem={(item) => (
                 <div>
-                  <div className="font-bold text-gray-800 text-sm">
+                  <div className="font-bold text-text text-sm">
                     {getDisplayTitle(item, "comic")}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-text-faint">
                     {getFranchiseTitle(item.franchise_id)}
                     {item.comic_type ? ` · ${item.comic_type}` : ""}
                     {item.release_date ? ` · ${item.release_date}` : ""}
@@ -1297,7 +1297,7 @@ export default function Delete() {
           </div>
 
           {selectedComic && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedComic.cover_image_file)}
@@ -1308,54 +1308,54 @@ export default function Delete() {
                   alt=""
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">
+                  <h3 className="font-black text-text text-base truncate">
                     {getDisplayTitle(selectedComic, "comic")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {selectedComic.volume_label || "-"}
                   </p>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {selectedComic.comic_type && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedComic.comic_type}
                       </span>
                     )}
                     {selectedComic.publisher && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedComic.publisher}
                       </span>
                     )}
                     {selectedComic.reading_status && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedComic.reading_status}
                       </span>
                     )}
                     {(selectedComic.issue_fin != null ||
                       selectedComic.issue_total != null) && (
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                         {selectedComic.issue_fin ?? 0} /{" "}
                         {selectedComic.issue_total ?? "?"} ISSUES
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedComic.franchise_id)}
                     {selectedComic.series_id &&
                       ` / ${getSeriesTitle(selectedComic.series_id)}`}
                   </p>
                   {selectedComic.remark && (
-                    <p className="text-xs italic text-gray-400 mt-1">
+                    <p className="text-xs italic text-text-faint mt-1">
                       {selectedComic.remark}
                     </p>
                   )}
-                  <p className="text-xs font-mono text-gray-400">
+                  <p className="text-xs font-mono text-text-faint">
                     {selectedComic.system_id}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedComic(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1375,7 +1375,7 @@ export default function Delete() {
       {/* FRANCHISE TAB */}
       {tab === "franchise" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search franchise to delete..."
               items={db.franchise}
@@ -1425,10 +1425,10 @@ export default function Delete() {
                 ].filter((x) => x.n > 0);
                 return (
                   <div>
-                    <div className="font-bold text-gray-800 text-sm">
+                    <div className="font-bold text-text text-sm">
                       {getDisplayTitle(item, "franchise")}
                     </div>
-                    <div className="text-[11px] text-gray-500">
+                    <div className="text-[11px] text-text-faint">
                       {counts.length > 0
                         ? counts.map((x) => `${x.n} ${x.label}`).join(" · ")
                         : "No entries"}
@@ -1440,13 +1440,13 @@ export default function Delete() {
           </div>
 
           {selectedFranchise && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-black text-gray-900 text-base">
+                  <h3 className="font-black text-text text-base">
                     {getDisplayTitle(selectedFranchise, "franchise")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {[
                       selectedFranchise.franchise_name_en,
                       selectedFranchise.franchise_name_alt,
@@ -1455,14 +1455,14 @@ export default function Delete() {
                       .join(" · ") || "No alt names"}
                   </p>
                   {selectedFranchise.franchise_type && (
-                    <span className="inline-block mt-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">
+                    <span className="inline-block mt-1 bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
                       {selectedFranchise.franchise_type}
                     </span>
                   )}
-                  <p className="text-xs font-mono text-gray-400 mt-1">
+                  <p className="text-xs font-mono text-text-faint mt-1">
                     {selectedFranchise.system_id}
                   </p>
-                  <p className="text-sm font-bold text-gray-600 mt-2">
+                  <p className="text-sm font-bold text-text-muted mt-2">
                     {[
                       { label: "Series", n: db.series.filter((s) => s.franchise_id === selectedFranchise.system_id).length },
                       { label: "Anime", n: db.anime.filter((a) => a.franchise_id === selectedFranchise.system_id).length },
@@ -1482,7 +1482,7 @@ export default function Delete() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedFranchise(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1508,7 +1508,7 @@ export default function Delete() {
       {/* SERIES TAB */}
       {tab === "series" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <SearchBox
               placeholder="Search series to delete..."
               items={db.series}
@@ -1536,10 +1536,10 @@ export default function Delete() {
                 ].filter((x) => x.n > 0);
                 return (
                   <div>
-                    <div className="font-bold text-gray-800 text-sm">
+                    <div className="font-bold text-text text-sm">
                       {getDisplayTitle(item, "series")}
                     </div>
-                    <div className="text-[11px] text-gray-500">
+                    <div className="text-[11px] text-text-faint">
                       {getFranchiseTitle(item.franchise_id)}
                       {counts.length > 0 &&
                         " · " +
@@ -1552,13 +1552,13 @@ export default function Delete() {
           </div>
 
           {selectedSeries && (
-            <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-black text-gray-900 text-base">
+                  <h3 className="font-black text-text text-base">
                     {getDisplayTitle(selectedSeries, "series")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-faint">
                     {[
                       selectedSeries.series_name_en,
                       selectedSeries.series_name_alt,
@@ -1566,13 +1566,13 @@ export default function Delete() {
                       .filter(Boolean)
                       .join(" · ") || "No alt names"}
                   </p>
-                  <p className="text-xs font-mono text-gray-400 mt-1">
+                  <p className="text-xs font-mono text-text-faint mt-1">
                     {selectedSeries.system_id}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-text-faint mt-1">
                     {getFranchiseTitle(selectedSeries.franchise_id)}
                   </p>
-                  <p className="text-sm font-bold text-gray-600 mt-1">
+                  <p className="text-sm font-bold text-text-muted mt-1">
                     {[
                       { label: "Anime", n: db.anime.filter((a) => a.series_id === selectedSeries.system_id).length },
                       { label: "Manga", n: db.manga.filter((m) => m.series_id === selectedSeries.system_id).length },
@@ -1587,7 +1587,7 @@ export default function Delete() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedSeries(null)}
-                    className="text-gray-400 hover:text-gray-700 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition"
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
                   >
                     <i className="fas fa-times"></i>
                   </button>
@@ -1613,9 +1613,9 @@ export default function Delete() {
       {/* OPTIONS TAB */}
       {tab === "options" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex gap-3">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 flex gap-3">
             <select
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand flex-1"
+              className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand flex-1"
               value={optCategoryFilter}
               onChange={(e) => setOptCategoryFilter(e.target.value)}
             >
@@ -1634,21 +1634,21 @@ export default function Delete() {
                 filteredOptions.map((opt) => (
                   <div
                     key={opt.system_id}
-                    className="bg-white border border-gray-200 rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm"
+                    className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm"
                   >
-                    <span className="font-bold text-gray-700 text-sm truncate pr-2">
+                    <span className="font-bold text-text-muted text-sm truncate pr-2">
                       {opt.value}
                     </span>
                     <button
                       onClick={() => initDelete("options", opt)}
-                      className="text-gray-400 hover:text-red-600 transition w-7 h-7 flex items-center justify-center rounded-md bg-white shadow-sm border border-gray-200 shrink-0"
+                      className="text-text-faint hover:text-red-600 transition w-7 h-7 flex items-center justify-center rounded-md bg-surface shadow-sm border border-border shrink-0"
                     >
                       <i className="fas fa-trash-alt text-xs"></i>
                     </button>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full text-center text-sm text-gray-500 italic py-8 border border-dashed border-gray-300 rounded-xl">
+                <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
                   No options in this category.
                 </div>
               )}
@@ -1660,19 +1660,19 @@ export default function Delete() {
       {/* Delete Confirmation Modal */}
       {modal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-md p-6 scale-100 transition-transform">
+          <div className="bg-surface rounded-2xl border border-border shadow-2xl w-full max-w-md p-6 scale-100 transition-transform">
             <div className="text-center mb-4">
               <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <i className="fas fa-trash-alt text-red-600 text-xl"></i>
               </div>
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <div className="text-xs font-bold text-text-faint uppercase tracking-widest">
                 {modal.type.toUpperCase()}
                 {modal.item.category ? ` (${modal.item.category})` : ""}
               </div>
-              <h3 className="font-black text-gray-900 text-lg mt-1">
+              <h3 className="font-black text-text text-lg mt-1">
                 {getDisplayTitle(modal.item, modal.type)}
               </h3>
-              <p className="text-xs font-mono text-gray-400 mt-1">
+              <p className="text-xs font-mono text-text-faint mt-1">
                 {modal.item.system_id || modal.item.id}
               </p>
             </div>
@@ -2106,7 +2106,7 @@ export default function Delete() {
             <div className="flex gap-3">
               <button
                 onClick={() => setModal(null)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2.5 border border-border rounded-xl text-sm font-bold text-text-muted hover:bg-surface-2 transition"
               >
                 Cancel
               </button>

@@ -13,7 +13,7 @@ const CHOICES = [
   {
     value: null,
     label: "No Change",
-    cls: "bg-white text-gray-600 border-gray-200 hover:bg-gray-50",
+    cls: "bg-surface text-text-muted border-border hover:bg-surface-2",
   },
 ];
 
@@ -33,20 +33,20 @@ export default function MarkAiringModal({
       }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+        className="bg-surface rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center gap-3">
           <i className="fas fa-bolt text-amber-500 text-xl"></i>
-          <h3 className="font-black text-gray-900">Mark as {airingStatus}</h3>
+          <h3 className="font-black text-text">Mark as {airingStatus}</h3>
         </div>
         <div className="px-6 py-5">
-          <p className="text-sm text-gray-600">
-            "<span className="font-bold text-gray-900">{title}</span>" will be
+          <p className="text-sm text-text-muted">
+            "<span className="font-bold text-text">{title}</span>" will be
             set to{" "}
-            <span className="font-bold text-gray-900">{airingStatus}</span>.
+            <span className="font-bold text-text">{airingStatus}</span>.
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-text-faint mt-2">
             Watching status is currently{" "}
             <span className="font-bold">{currentStatus}</span>. Set it to:
           </p>
@@ -63,7 +63,7 @@ export default function MarkAiringModal({
           ))}
           <button
             onClick={onCancel}
-            className="mt-1 text-xs font-bold text-gray-400 hover:text-gray-600 transition"
+            className="mt-1 text-xs font-bold text-text-faint hover:text-text-muted transition"
           >
             Cancel
           </button>

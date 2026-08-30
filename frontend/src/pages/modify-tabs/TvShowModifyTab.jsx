@@ -254,7 +254,7 @@ export default function TvShowModifyTab({
               onChange={(e) => utv("watch_next", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Add to Watch Next list
             </span>
           </label>
@@ -267,7 +267,7 @@ export default function TvShowModifyTab({
               onChange={(e) => utv("to_rewatch", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Mark for rewatch
             </span>
           </label>
@@ -294,7 +294,7 @@ export default function TvShowModifyTab({
           />
         </Field>
         <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
             Other Sources
           </label>
           <div className="space-y-2">

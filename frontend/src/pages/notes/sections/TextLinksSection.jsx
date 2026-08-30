@@ -105,7 +105,7 @@ export default function TextLinksSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-gray-100 rounded-lg p-2.5 bg-gray-50"
+          className="border border-border rounded-lg p-2.5 bg-surface-2"
         >
           {editId === n.system_id ? (
             <div>
@@ -125,7 +125,7 @@ export default function TextLinksSection({
                   </span>
                 )}
                 {n.content && (
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  <p className="text-sm text-text whitespace-pre-wrap">
                     {n.content}
                   </p>
                 )}
@@ -133,7 +133,7 @@ export default function TextLinksSection({
                   <LinkPill key={j} url={l} />
                 ))}
                 {!n.content && !(n.links || []).filter(Boolean).length && (
-                  <span className="text-xs text-gray-400 italic">(empty)</span>
+                  <span className="text-xs text-text-faint italic">(empty)</span>
                 )}
               </div>
               <ItemActions
@@ -149,7 +149,7 @@ export default function TextLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand/5">
+        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
           <TextLinksForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}

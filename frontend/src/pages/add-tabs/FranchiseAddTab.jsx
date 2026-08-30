@@ -17,7 +17,7 @@ export { defaultFranchise } from "../../config/formFactories";
 
 export default function FranchiseAddTab({ ff, uf, collectionItems }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
       <Field label="Franchise Name EN">
         <input

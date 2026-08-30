@@ -62,10 +62,10 @@ export default function ComicAddTab({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-2">
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
       {/* Auto-fill search */}
       <div ref={comicFillRef} className="relative mb-4">
-        <div className="flex items-center gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
           <i className="fas fa-magic text-brand text-sm"></i>
           <input
             type="text"
@@ -76,7 +76,7 @@ export default function ComicAddTab({
             }}
             onFocus={() => setComicFillOpen(true)}
             placeholder="Auto-fill from existing entry — type a name to search..."
-            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-gray-700 placeholder-gray-400"
+            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
             autoComplete="off"
           />
           {comicFillQuery && (
@@ -86,14 +86,14 @@ export default function ComicAddTab({
                 setComicFillQuery("");
                 setComicFillOpen(false);
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-text-faint hover:text-text-muted"
             >
               <i className="fas fa-times text-xs"></i>
             </button>
           )}
         </div>
         {comicFillOpen && comicFillResults.length > 0 && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
             {comicFillResults.map((c) => {
               const f = allFranchises.find(
                 (x) => x.system_id === c.franchise_id,
@@ -104,19 +104,19 @@ export default function ComicAddTab({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applyComicAutofill(c)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-gray-50 last:border-0"
+                  className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
                 >
                   <div className="flex items-center gap-2">
                     {c.comic_type && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
                         {c.comic_type}
                       </span>
                     )}
-                    <span className="text-sm font-bold text-gray-800">
+                    <span className="text-sm font-bold text-text">
                       {c.comic_name_en || c.comic_name_cn}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-text-faint">
                     {f ? getDisplayName(f, "franchise") : "Standalone"}
                   </div>
                 </button>
@@ -430,7 +430,7 @@ export default function ComicAddTab({
               onChange={(e) => ucm("is_main_entry", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Main line entry (not a spinoff)
             </span>
           </label>
@@ -450,7 +450,7 @@ export default function ComicAddTab({
         />
       </Field>
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
           Other Sources
         </label>
         <div className="space-y-2">
@@ -519,7 +519,7 @@ export default function ComicAddTab({
               onChange={(e) => ucm("read_next", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Add to Read Next list
             </span>
           </label>
@@ -532,7 +532,7 @@ export default function ComicAddTab({
               onChange={(e) => ucm("to_reread", e.target.checked)}
               className="w-4 h-4 rounded accent-brand"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-text-muted">
               Mark for reread
             </span>
           </label>

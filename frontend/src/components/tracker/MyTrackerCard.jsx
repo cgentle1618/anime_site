@@ -21,7 +21,7 @@ export default function MyTrackerCard({
   rewatchLabel = "To Rewatch",
 }) {
   const selectDisabledCls = !isAdmin
-    ? "bg-gray-50 text-gray-500 cursor-not-allowed"
+    ? "bg-surface-2 text-text-faint cursor-not-allowed"
     : "";
 
   function stepEp(delta) {
@@ -44,10 +44,10 @@ export default function MyTrackerCard({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
+      <div className="bg-surface-2 border-b border-border px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h3 className="font-bold text-gray-800 text-lg flex items-center">
+          <h3 className="font-bold text-text text-lg flex items-center">
             <i className="fas fa-chart-line text-brand mr-2"></i>My Tracker
           </h3>
           {hasCum && (
@@ -60,11 +60,11 @@ export default function MyTrackerCard({
           )}
         </div>
         {/* Episode Editor */}
-        <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
+        <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm">
           <button
             onClick={() => stepEp(-1)}
             disabled={!isAdmin}
-            className="w-8 h-8 shrink-0 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center disabled:opacity-40"
+            className="w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center disabled:opacity-40"
           >
             <i className="fas fa-minus text-xs"></i>
           </button>
@@ -74,10 +74,10 @@ export default function MyTrackerCard({
               value={epFin}
               disabled={!isAdmin}
               onChange={handleInputChange}
-              className="text-gray-900 w-10 text-right bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
+              className="text-text w-10 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
             />
-            <span className="text-gray-400 mx-1 text-xs">/</span>
-            <span className="text-gray-500 text-sm leading-none">
+            <span className="text-text-faint mx-1 text-xs">/</span>
+            <span className="text-text-faint text-sm leading-none">
               {epTotal}
             </span>
           </div>
@@ -93,14 +93,14 @@ export default function MyTrackerCard({
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Status */}
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+          <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
             {statusLabel}
           </label>
           <select
             value={watchingStatus || ""}
             disabled={!isAdmin}
             onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-            className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+            className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
           >
             {statusOptions.map((s) => (
               <option key={s} value={s}>
@@ -111,14 +111,14 @@ export default function MyTrackerCard({
         </div>
         {/* Rating */}
         <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+          <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
             Rating
           </label>
           <select
             value={myRating || ""}
             disabled={!isAdmin}
             onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-            className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+            className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
           >
             <option value="">Unrated</option>
             {ratingOptions.map((r) => (
@@ -130,7 +130,7 @@ export default function MyTrackerCard({
         </div>
         {onWatchNextChange !== undefined && (
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               Watch Next
             </label>
             <label
@@ -143,7 +143,7 @@ export default function MyTrackerCard({
                 onChange={(e) => isAdmin && onWatchNextChange(e.target.checked)}
                 className="w-4 h-4 rounded accent-brand"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-text-muted">
                 Watch Next
               </span>
             </label>
@@ -151,7 +151,7 @@ export default function MyTrackerCard({
         )}
         {onToRewatchChange !== undefined && (
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
               {rewatchLabel}
             </label>
             <label
@@ -164,7 +164,7 @@ export default function MyTrackerCard({
                 onChange={(e) => isAdmin && onToRewatchChange(e.target.checked)}
                 className="w-4 h-4 rounded accent-brand"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-text-muted">
                 {rewatchLabel}
               </span>
             </label>

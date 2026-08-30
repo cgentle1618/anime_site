@@ -12,8 +12,8 @@ const SERIALIZATION_COLORS = {
   "連載中 (不穩定)": "bg-yellow-100 text-yellow-700 border-yellow-200",
   "連載中 (有生之年)": "bg-orange-100 text-orange-700 border-orange-200",
   停更: "bg-red-100 text-red-600 border-red-200",
-  可能更多: "bg-gray-100 text-gray-600 border-gray-200",
-  未出: "bg-gray-100 text-gray-500 border-gray-200",
+  可能更多: "bg-surface-2 text-text-muted border-border",
+  未出: "bg-surface-2 text-text-faint border-border",
 };
 
 export default function NovelDashboardCard({
@@ -62,7 +62,7 @@ export default function NovelDashboardCard({
 
   const serializationColor =
     SERIALIZATION_COLORS[novel.serialization_status] ||
-    "bg-gray-100 text-gray-600 border-gray-200";
+    "bg-surface-2 text-text-muted border-border";
 
   // ── Admin change handlers ────────────────────────────────────────
   function handleVolChange(newVal) {
@@ -112,28 +112,28 @@ export default function NovelDashboardCard({
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
             <button
               onClick={() => handleVolChange(Math.round(fin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
             >
               <i className="fas fa-minus text-[10px]"></i>
             </button>
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-16 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={fin}
                 onChange={(e) =>
                   handleVolChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-16 text-center">
+              <span className="text-text-faint mx-0.5 text-xs">/</span>
+              <span className="text-text-faint text-[13px] w-16 text-center">
                 {total}
               </span>
-              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+              <span className="text-text-faint ml-1 text-[10px] font-sans">
                 {unit}
               </span>
             </div>
@@ -147,14 +147,14 @@ export default function NovelDashboardCard({
         );
       }
       return (
-        <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-gray-900 w-12 text-center">{fin}</span>
-            <span className="text-gray-400 mx-0.5 text-xs">/</span>
-            <span className="text-gray-500 text-[13px] w-12 text-center">
+            <span className="text-text w-12 text-center">{fin}</span>
+            <span className="text-text-faint mx-0.5 text-xs">/</span>
+            <span className="text-text-faint text-[13px] w-12 text-center">
               {total}
             </span>
-            <span className="text-gray-400 ml-1 text-[10px] font-sans">
+            <span className="text-text-faint ml-1 text-[10px] font-sans">
               {unit}
             </span>
           </div>
@@ -170,37 +170,37 @@ export default function NovelDashboardCard({
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20 gap-1">
+          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20 gap-1">
             <button
               onClick={() => handleChChange(Math.round(chFin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
             >
               <i className="fas fa-minus text-[10px]"></i>
             </button>
             <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none flex-1 whitespace-nowrap gap-1">
-              <span className="text-[9px] text-gray-400 font-sans">ARC</span>
+              <span className="text-[9px] text-text-faint font-sans">ARC</span>
               <input
                 type="number"
-                className="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-text w-10 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={arcFin}
                 onChange={(e) =>
                   handleArcChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-gray-400 text-[9px]">/{arcTotal}</span>
-              <span className="text-gray-300 mx-0.5">·</span>
-              <span className="text-[9px] text-gray-400 font-sans">CH</span>
+              <span className="text-text-faint text-[9px]">/{arcTotal}</span>
+              <span className="text-text-faint/60 mx-0.5">·</span>
+              <span className="text-[9px] text-text-faint font-sans">CH</span>
               <input
                 type="number"
-                className="text-gray-900 w-10 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-text w-10 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={chFin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-gray-400 text-[9px]">/{chTotal}</span>
+              <span className="text-text-faint text-[9px]">/{chTotal}</span>
             </div>
             <button
               onClick={() => handleChChange(Math.round(chFin) + 1)}
@@ -212,15 +212,15 @@ export default function NovelDashboardCard({
         );
       }
       return (
-        <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none w-full px-1 gap-1">
-            <span className="text-[9px] text-gray-400 font-sans">ARC</span>
-            <span className="text-gray-900">
+            <span className="text-[9px] text-text-faint font-sans">ARC</span>
+            <span className="text-text">
               {arcFin}/{arcTotal}
             </span>
-            <span className="text-gray-300 mx-1">·</span>
-            <span className="text-[9px] text-gray-400 font-sans">CH</span>
-            <span className="text-gray-900">
+            <span className="text-text-faint/60 mx-1">·</span>
+            <span className="text-[9px] text-text-faint font-sans">CH</span>
+            <span className="text-text">
               {chFin}/{chTotal}
             </span>
           </div>
@@ -234,28 +234,28 @@ export default function NovelDashboardCard({
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-white rounded-lg p-1.5 border border-gray-200 shadow-sm relative z-20">
+          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
             <button
               onClick={() => handleChChange(Math.round(fin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition flex items-center justify-center"
+              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
             >
               <i className="fas fa-minus text-[10px]"></i>
             </button>
             <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-gray-900 w-16 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
                 value={fin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-gray-400 mx-0.5 text-xs">/</span>
-              <span className="text-gray-500 text-[13px] w-16 text-center">
+              <span className="text-text-faint mx-0.5 text-xs">/</span>
+              <span className="text-text-faint text-[13px] w-16 text-center">
                 {total}
               </span>
-              <span className="text-gray-400 ml-1 text-[10px] font-sans">
+              <span className="text-text-faint ml-1 text-[10px] font-sans">
                 CH
               </span>
             </div>
@@ -269,14 +269,14 @@ export default function NovelDashboardCard({
         );
       }
       return (
-        <div className="flex items-center justify-center bg-gray-50 rounded-lg p-1.5 border border-gray-200 shadow-inner h-[40px]">
+        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
           <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
-            <span className="text-gray-900 w-14 text-center">{fin}</span>
-            <span className="text-gray-400 mx-0.5 text-xs">/</span>
-            <span className="text-gray-500 text-[13px] w-14 text-center">
+            <span className="text-text w-14 text-center">{fin}</span>
+            <span className="text-text-faint mx-0.5 text-xs">/</span>
+            <span className="text-text-faint text-[13px] w-14 text-center">
               {total}
             </span>
-            <span className="text-gray-400 ml-1 text-[10px] font-sans">CH</span>
+            <span className="text-text-faint ml-1 text-[10px] font-sans">CH</span>
           </div>
         </div>
       );
@@ -285,11 +285,11 @@ export default function NovelDashboardCard({
 
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
+      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
       onClick={() => navigate(`/novel/${novel.system_id}`)}
     >
       <div className="flex p-3">
-        <div className="w-20 h-28 shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 relative">
+        <div className="w-20 h-28 shrink-0 bg-surface-2 rounded-lg overflow-hidden border border-border relative">
           {novel.my_rating && (
             <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
               <i className="fas fa-star text-[8px] mr-1"></i>
@@ -312,12 +312,12 @@ export default function NovelDashboardCard({
         </div>
         <div className="ml-4 flex-1 min-w-0 flex flex-col justify-center">
           <h3
-            className="font-bold text-gray-900 text-sm line-clamp-2 leading-tight mb-1"
+            className="font-bold text-text text-sm line-clamp-2 leading-tight mb-1"
             title={title}
           >
             {title}
           </h3>
-          <p className="text-xs text-gray-500 truncate mb-2">
+          <p className="text-xs text-text-faint truncate mb-2">
             From: {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
@@ -336,7 +336,7 @@ export default function NovelDashboardCard({
               e.stopPropagation();
               navigate(`/modify?id=${novel.system_id}&type=novel`);
             }}
-            className="absolute top-2 right-2 bg-white/90 text-gray-500 hover:text-brand hover:bg-white rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-gray-100"
+            className="absolute top-2 right-2 bg-surface/90 text-text-faint hover:text-brand hover:bg-surface rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-border"
             title="Quick Edit"
           >
             <i className="fas fa-pencil-alt text-xs"></i>
@@ -345,18 +345,18 @@ export default function NovelDashboardCard({
       </div>
 
       <div
-        className="bg-gray-50 p-3 border-t border-gray-100 mt-auto"
+        className="bg-surface-2 p-3 border-t border-border mt-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-end mb-1.5">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
             Progress
           </span>
           <span className="text-[10px] font-bold text-brand">
             {progressLabel}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden">
+        <div className="w-full bg-surface-3 rounded-full h-1.5 mb-3 overflow-hidden">
           <div
             className="bg-brand h-1.5 rounded-full transition-all duration-500"
             style={{
