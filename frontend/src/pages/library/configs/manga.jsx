@@ -7,14 +7,8 @@ import {
   planFlagColumn,
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  releaseScore,
-} from "../../../lib/releaseDate";
-import {
-  READING_STATUS_GROUP,
-  getRatingWeight,
-  getReadingButtonConfig,
-} from "../../../utils/media";
+import { releaseScore } from "../../../lib/releaseDate";
+import { READING_STATUS_GROUP } from "../../../utils/media";
 
 function getTitle(m)   {
   return m.manga_name_cn || m.manga_name_en || m.manga_name_roman

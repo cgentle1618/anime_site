@@ -7,12 +7,7 @@ import {
   myRatingSort,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  WATCHING_STATUS_GROUP,
-  AIRING_STATUS_CLS,
-  getRatingWeight,
-  getStatusButtonConfig,
-} from "../../../utils/media";
+import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 function getTitle(c)   { return c.cartoon_name_cn || c.cartoon_name_en || c.cartoon_name_alt || ""; }
 function getSortKey(c) { return c.cartoon_name_en || c.cartoon_name_alt || c.cartoon_name_cn || ""; }

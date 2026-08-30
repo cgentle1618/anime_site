@@ -8,13 +8,7 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  isBaha,
-  WATCHING_STATUS_GROUP,
-  AIRING_STATUS_CLS,
-  getRatingWeight,
-  getStatusButtonConfig,
-} from "../../../utils/media";
+import { isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 10000 + month * 100 + day

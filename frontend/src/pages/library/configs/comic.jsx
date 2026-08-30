@@ -5,15 +5,8 @@ import {
   planFlagColumn,
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  releaseScore,
-} from "../../../lib/releaseDate";
-import {
-  READING_STATUS_GROUP,
-  getRatingWeight,
-  getReadingButtonConfig,
-  parseTypes,
-} from "../../../utils/media";
+import { releaseScore } from "../../../lib/releaseDate";
+import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
 
 // EN leads for comics, matching Comic.display_name on the backend and
 // NAMING_CONFIGS. Every other library type leads with CN.

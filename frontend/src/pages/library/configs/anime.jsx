@@ -7,19 +7,12 @@ import {
   myRatingSort,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  releaseScore,
-  releaseYear,
-} from "../../../lib/releaseDate";
+import { releaseScore, releaseYear } from "../../../lib/releaseDate";
 import {
   getDisplayName,
   getSortName,
   isBaha,
   WATCHING_STATUS_GROUP,
-  AIRING_STATUS_CLS,
-  getRatingWeight,
-  getStatusButtonConfig,
-  cleanString,
 } from "../../../utils/media";
 
 // ---------------------------------------------------------------------------

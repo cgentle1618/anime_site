@@ -7,15 +7,8 @@ import {
   planFlagColumn,
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  releaseScore,
-} from "../../../lib/releaseDate";
-import {
-  READING_STATUS_GROUP,
-  getRatingWeight,
-  getReadingButtonConfig,
-  getNovelProgress,
-} from "../../../utils/media";
+import { releaseScore } from "../../../lib/releaseDate";
+import { READING_STATUS_GROUP, getNovelProgress } from "../../../utils/media";
 
 function getTitle(n)   {
   return n.novel_name_cn || n.novel_name_en || n.novel_name_roman

@@ -8,12 +8,7 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import {
-  WATCHING_STATUS_GROUP,
-  AIRING_STATUS_CLS,
-  getRatingWeight,
-  getStatusButtonConfig,
-} from "../../../utils/media";
+import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 function getTitle(m)   { return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || ""; }
 function getSortKey(m) { return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || ""; }

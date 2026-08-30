@@ -1,4 +1,5 @@
 // Frontend: root React component that wires providers and routes together.
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./hooks/useToast";
@@ -22,34 +23,43 @@ import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
 import Comic from "./pages/detail/Comic";
-import WatchOrder from "./pages/detail/WatchOrder";
-import SeasonalDetail from "./pages/public/SeasonalDetail";
 
-import Plan from "./pages/public/Plan";
-import SeasonalOverall from "./pages/public/SeasonalOverall";
-import Statistics from "./pages/public/Statistics";
-import FutureReleases from "./pages/public/FutureReleases";
-import Completions from "./pages/public/Completions";
-import Quotes from "./pages/public/Quotes";
-import Memes from "./pages/public/Memes";
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
 import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
 
-import Admin from "./pages/admin/Admin";
-import Add from "./pages/admin/Add";
-import Modify from "./pages/admin/Modify";
-import Delete from "./pages/admin/Delete";
-import FormDefaults from "./pages/admin/FormDefaults";
-import DataHistory from "./pages/admin/DataHistory";
-import ReviewQueue from "./pages/admin/ReviewQueue";
-import WatchOrders from "./pages/admin/WatchOrders";
-import Relations from "./pages/admin/Relations";
-import SystemOptions from "./pages/admin/SystemOptions";
-import Roles from "./pages/admin/Roles";
-import Users from "./pages/admin/Users";
-import ContentLabels from "./pages/admin/ContentLabels";
+
+// Route-level code splitting: the admin pages, the relations canvas
+// (@xyflow) and the statistics pages are a large share of the bundle and
+// never needed on first paint. Each becomes its own chunk, fetched on
+// first navigation.
+const WatchOrder = lazy(() => import("./pages/detail/WatchOrder"));
+const SeasonalDetail = lazy(() => import("./pages/public/SeasonalDetail"));
+const Plan = lazy(() => import("./pages/public/Plan"));
+const SeasonalOverall = lazy(() => import("./pages/public/SeasonalOverall"));
+const Statistics = lazy(() => import("./pages/public/Statistics"));
+const FutureReleases = lazy(() => import("./pages/public/FutureReleases"));
+const Completions = lazy(() => import("./pages/public/Completions"));
+const Quotes = lazy(() => import("./pages/public/Quotes"));
+const Memes = lazy(() => import("./pages/public/Memes"));
+const Admin = lazy(() => import("./pages/admin/Admin"));
+const Add = lazy(() => import("./pages/admin/Add"));
+const Modify = lazy(() => import("./pages/admin/Modify"));
+const Delete = lazy(() => import("./pages/admin/Delete"));
+const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
+const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
+const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
+const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
+const Relations = lazy(() => import("./pages/admin/Relations"));
+const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
+const Roles = lazy(() => import("./pages/admin/Roles"));
+const Users = lazy(() => import("./pages/admin/Users"));
+const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
+
+function RouteFallback() {
+  return <div className="p-8 text-sm text-gray-500">Loading…</div>;
+}
 
 export default function App() {
   // Fetches /api/constants once on mount and, when it resolves, overwrites
@@ -68,6 +78,7 @@ export default function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route element={<Layout />}>
                 {/* Pages anyone can visit. */}
@@ -132,6 +143,7 @@ export default function App() {
                 </Route>
               </Route>
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
