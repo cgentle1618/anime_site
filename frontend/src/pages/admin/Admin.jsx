@@ -2060,7 +2060,7 @@ export default function Admin() {
                   className="w-full bg-surface border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
                 >
                   <option value="Anime">Anime</option>
-                  <option value="Anime Movies">Anime Movies</option>
+                  <option value="Anime Movie">Anime Movie</option>
                   <option value="Movies">Movies</option>
                   <option value="TV Shows">TV Show</option>
                   <option value="Cartoons">Cartoon</option>
