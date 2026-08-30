@@ -29,6 +29,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
+- [Search — `/api/search`](#search--apisearch)
 - [Constants — `/api/constants`](#constants--apiconstants)
 - [Options — `/api/options`](#options--apioptions)
 - [Person — `/api/person`](#person--apiperson)
@@ -572,6 +573,67 @@ has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 | `PATCH` | `/{seasonal_id}`  | Admin  | Update `my_rating` for a seasonal record. Body: `SeasonalUpdate`.                                   |
 
 **Response model:** `SeasonalResponse`
+
+---
+
+## Search — `/api/search`
+
+Cross-type search. One request covers every named table, so the nav dropdown and
+the `/search` page each make a single call instead of fanning out over twelve
+list endpoints.
+
+| Method | Path | Auth   | Description                                     |
+| ------ | ---- | ------ | ----------------------------------------------- |
+| `GET`  | `/`  | Public | Every entry, group, and season matching a query. |
+
+**Query parameters**
+
+| Name    | Default | Description                                                                                    |
+| ------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `q`     | `""`    | Search text. Empty or all-punctuation returns empty buckets, never the whole collection.       |
+| `scope` | `all`   | One bucket key, or `all`. An unrecognised value is a `422`.                                    |
+| `limit` | `500`   | Cap per bucket, 1–2000.                                                                        |
+
+**Matching.** The query and every name column are lowercased and stripped of
+whitespace and punctuation before the substring test, so `re zero` finds
+`Re:Zero`. This mirrors the frontend's `cleanString` (`frontend/src/lib/naming.js`)
+and runs in SQL via `translate()`; the two character lists are kept in step by
+hand, in `app/services/domain/search.py`. Note that `%` is on the stripped list
+and `_` is not, which is why the `LIKE` autoescapes.
+
+**Ordering.** Within a bucket, whole-title matches come first, then the type's
+name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending).
+Sorting in SQL rather than after the fact means an exact match cannot be cut by
+`limit` before it is floated.
+
+**Response:** `SearchResponse`
+
+```
+{
+  "query": "gundam",
+  "scope": "all",
+  "results": {
+    "collection": [...], "franchise": [...], "series": [...],
+    "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
+    "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
+    "seasonal": [...]
+  },
+  "related_franchises": [...]
+}
+```
+
+Every bucket key is always present, empty for the types the scope did not ask
+about. Rows carry the same response schema as that type's own list endpoint —
+plan flags, link fields, RBAC visibility, and field gating all included.
+
+**Franchise expansion.** At `scope=all`, a franchise whose name matched brings
+its anime with it, so searching a franchise name finds the shows in it even when
+none of their own titles contain the query. A scoped anime search does not
+expand: that is a question about anime names.
+
+**`related_franchises`** are the franchises the anime results belong to — the
+filter pills on the search page. Not the same set as `results.franchise`, which
+holds franchises whose own name matched.
 
 ---
 

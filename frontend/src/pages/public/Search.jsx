@@ -3,10 +3,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
-import { cleanString } from "../../utils/media";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
-import { useMediaList } from "../../hooks/useMediaList";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 
@@ -84,90 +82,19 @@ export default function Search() {
   const { isAdmin } = useAuth();
 
   const hasQuery = !!query.trim();
-  const needsFranchise =
-    scope === "all" || scope === "franchise" || scope === "anime";
-  const needsAnime = scope === "all" || scope === "anime";
-  const needsAnimeMovie = scope === "all" || scope === "anime-movie";
-  const needsMovie = scope === "all" || scope === "movie";
-  const needsTvShow = scope === "all" || scope === "tv-show";
-  const needsCartoon = scope === "all" || scope === "cartoon";
-  const needsManga = scope === "all" || scope === "manga";
-  const needsNovel = scope === "all" || scope === "novel";
-  const needsComic = scope === "all" || scope === "comic";
-  const needsSeries = scope === "all" || scope === "series";
-  const needsSeasonal = scope === "all" || scope === "seasonal";
-  const needsCollection = scope === "all" || scope === "collection";
 
-  const franchiseQuery = useMediaList("franchise", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsFranchise,
+  // One request. The backend runs the search - normalising case, whitespace and
+  // punctuation in SQL the way cleanString used to in the browser - and returns
+  // one bucket per type. This page used to pull up to 2000 rows from each of
+  // twelve tables and filter them here, which meant the whole collection
+  // crossed the wire to answer a question about a handful of rows.
+  const searchQuery = useApiQuery(["api", "search"], "/api/search/", {
+    params: { q: query, scope },
+    enabled: hasQuery,
   });
-  const animeQuery = useMediaList("anime", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsAnime,
-  });
-  const seriesQuery = useMediaList("series", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsSeries,
-  });
-  const seasonalQuery = useApiQuery(["api", "seasonal"], "/api/seasonal/", {
-    enabled: hasQuery && needsSeasonal,
-  });
-  const collectionQuery = useApiQuery(
-    ["api", "collection"],
-    "/api/collection/",
-    {
-      params: { limit: 2000 },
-      enabled: hasQuery && needsCollection,
-    },
-  );
-  const animeMovieQuery = useMediaList("anime-movie", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsAnimeMovie,
-  });
-  const movieQuery = useMediaList("movie", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsMovie,
-  });
-  const tvQuery = useMediaList("tv-show", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsTvShow,
-  });
-  const cartoonQuery = useMediaList("cartoon", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsCartoon,
-  });
-  const mangaQuery = useMediaList("manga", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsManga,
-  });
-  const novelQuery = useMediaList("novel", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsNovel,
-  });
-  const comicQuery = useMediaList("comic", {
-    params: { limit: 2000 },
-    enabled: hasQuery && needsComic,
-  });
-  const activeQueries = [
-    needsFranchise && franchiseQuery,
-    needsAnime && animeQuery,
-    needsSeries && seriesQuery,
-    needsSeasonal && seasonalQuery,
-    needsCollection && collectionQuery,
-    needsAnimeMovie && animeMovieQuery,
-    needsMovie && movieQuery,
-    needsTvShow && tvQuery,
-    needsCartoon && cartoonQuery,
-    needsManga && mangaQuery,
-    needsNovel && novelQuery,
-    needsComic && comicQuery,
-  ].filter(Boolean);
-  const loading =
-    hasQuery && activeQueries.some((queryResult) => queryResult.isLoading);
-  const error =
-    activeQueries.find((queryResult) => queryResult.error)?.error?.message ||
-    null;
+  const loading = hasQuery && searchQuery.isLoading;
+  const error = searchQuery.error?.message || null;
+
   const [matchedFranchises, setMatchedFranchises] = useState([]);
   const [filterPillFranchises, setFilterPillFranchises] = useState([]);
   const [matchedSeries, setMatchedSeries] = useState([]);
@@ -181,14 +108,6 @@ export default function Search() {
   const [matchedComics, setMatchedComics] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
-  const [allAnime, setAllAnime] = useState([]);
-  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
-  const [allMovies, setAllMovies] = useState([]);
-  const [allTvShows, setAllTvShows] = useState([]);
-  const [allCartoons, setAllCartoons] = useState([]);
-  const [allMangas, setAllMangas] = useState([]);
-  const [allNovels, setAllNovels] = useState([]);
-  const [allComics, setAllComics] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -202,9 +121,13 @@ export default function Search() {
     return () => ro.disconnect();
   }, []);
 
+  // The buckets are held in state, not read straight from the response, because
+  // the inline card editors hand back an updated row and expect it to replace
+  // the one on screen without a refetch.
   useEffect(() => {
     setSelectedFranchise("all");
-    if (!query.trim()) {
+    const results = searchQuery.data?.results;
+    if (!hasQuery || !results) {
       setMatchedSeasonal([]);
       setMatchedCollections([]);
       setMatchedFranchises([]);
@@ -220,238 +143,25 @@ export default function Search() {
       setMatchedComics([]);
       return;
     }
-    if (loading || error) return;
-
-    const allFranchises = franchiseQuery.data || [];
-    const all = animeQuery.data || [];
-    const allSeries = seriesQuery.data || [];
-    const allSeasonal = seasonalQuery.data || [];
-    const allCollections = collectionQuery.data || [];
-    const animeMovieResults = animeMovieQuery.data || [];
-    const movieResults = movieQuery.data || [];
-    const tvShowResults = tvQuery.data || [];
-    const cartoonResults = cartoonQuery.data || [];
-    const mangaResults = mangaQuery.data || [];
-    const novelResults = novelQuery.data || [];
-    const comicResults = comicQuery.data || [];
-    setAllAnime(all);
-    setAllAnimeMovies(animeMovieResults);
-    setAllMovies(movieResults);
-    setAllTvShows(tvShowResults);
-    setAllCartoons(cartoonResults);
-    setAllMangas(mangaResults);
-    setAllNovels(novelResults);
-    setAllComics(comicResults);
-
-    const qClean = cleanString(query);
-
-    // Seasonal
-    const msea = allSeasonal
-      .filter((s) => cleanString(s.seasonal).includes(qClean))
-      .sort((a, b) => b.seasonal.localeCompare(a.seasonal));
-
-    // Collection
-    const mcol = allCollections
-      .filter((c) =>
-        [
-          c.collection_name_cn,
-          c.collection_name_en,
-          c.collection_name_roman,
-          c.collection_name_jp,
-          c.collection_name_alt,
-        ].some((n) => cleanString(n).includes(qClean)),
-      )
-      .sort((a, b) =>
-        (a.collection_name_cn || "").localeCompare(b.collection_name_cn || ""),
-      );
-
-    // Franchise (direct name match + franchises of matched anime)
-    const directF = allFranchises.filter((f) =>
-      [
-        f.franchise_name_cn,
-        f.franchise_name_en,
-        f.franchise_name_roman,
-        f.franchise_name_jp,
-        f.franchise_name_alt,
-      ].some((n) => cleanString(n).includes(qClean)),
-    );
-    const directA = all.filter((a) =>
-      [
-        a.anime_name_cn,
-        a.anime_name_en,
-        a.anime_name_roman,
-        a.anime_name_jp,
-        a.anime_name_alt,
-      ].some((n) => cleanString(n).includes(qClean)),
-    );
-    const fIdSet = new Set(directF.map((f) => f.system_id));
-    const mf = allFranchises
-      .filter((f) => fIdSet.has(f.system_id))
-      .sort((a, b) =>
-        (a.franchise_name_cn || "").localeCompare(b.franchise_name_cn || ""),
-      );
-
-    // Anime (direct + all anime in matched franchises when scope=all)
-    const directFIdSet = new Set(directF.map((f) => f.system_id));
-    const aIdSet = new Set(directA.map((a) => a.system_id));
-    if (scope === "all")
-      all.forEach((a) => {
-        if (a.franchise_id && directFIdSet.has(a.franchise_id))
-          aIdSet.add(a.system_id);
-      });
-    const ma = all
-      .filter((a) => aIdSet.has(a.system_id))
-      .sort((a, b) =>
-        (a.anime_name_cn || "").localeCompare(b.anime_name_cn || ""),
-      );
-
-    // Franchise filter pills — derived from anime results
-    const pillFIdSet = new Set(ma.map((a) => a.franchise_id).filter(Boolean));
-    const pillFranchises = allFranchises
-      .filter((f) => pillFIdSet.has(f.system_id))
-      .sort((a, b) =>
-        (a.franchise_name_cn || "").localeCompare(b.franchise_name_cn || ""),
-      );
-
-    // Series
-    const ms = allSeries
-      .filter((s) =>
-        [s.series_name_cn, s.series_name_en, s.series_name_alt].some((n) =>
-          cleanString(n).includes(qClean),
-        ),
-      )
-      .sort((a, b) =>
-        (a.series_name_cn || "").localeCompare(b.series_name_cn || ""),
-      );
-
-    // Anime Movies
-    const mam = animeMovieResults
-      .filter((m) =>
-        [
-          m.anime_movie_name_cn,
-          m.anime_movie_name_en,
-          m.anime_movie_name_roman,
-          m.anime_movie_name_jp,
-          m.anime_movie_name_alt,
-        ].some((n) => cleanString(n).includes(qClean)),
-      )
-      .sort((a, b) =>
-        (a.anime_movie_name_cn || "").localeCompare(
-          b.anime_movie_name_cn || "",
-        ),
-      );
-
-    // Movies
-    const mmv = movieResults
-      .filter((m) =>
-        [m.movie_name_cn, m.movie_name_en, m.movie_name_alt].some((n) =>
-          cleanString(n).includes(qClean),
-        ),
-      )
-      .sort((a, b) =>
-        (a.movie_name_cn || "").localeCompare(b.movie_name_cn || ""),
-      );
-
-    // TV Shows
-    const mtv = tvShowResults
-      .filter((t) =>
-        [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some((n) =>
-          cleanString(n).includes(qClean),
-        ),
-      )
-      .sort((a, b) => (a.tv_name_cn || "").localeCompare(b.tv_name_cn || ""));
-
-    // Cartoons
-    const mc = cartoonResults
-      .filter((c) =>
-        [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some((n) =>
-          cleanString(n).includes(qClean),
-        ),
-      )
-      .sort((a, b) =>
-        (a.cartoon_name_cn || "").localeCompare(b.cartoon_name_cn || ""),
-      );
-
-    // Manga
-    const mm = mangaResults
-      .filter((m) =>
-        [
-          m.manga_name_cn,
-          m.manga_name_en,
-          m.manga_name_roman,
-          m.manga_name_jp,
-          m.manga_name_alt,
-        ].some((n) => cleanString(n).includes(qClean)),
-      )
-      .sort((a, b) =>
-        (a.manga_name_cn || "").localeCompare(b.manga_name_cn || ""),
-      );
-
-    // Novel
-    const mnv = novelResults
-      .filter((n) =>
-        [
-          n.novel_name_cn,
-          n.novel_name_en,
-          n.novel_name_roman,
-          n.novel_name_jp,
-          n.novel_name_alt,
-        ].some((v) => cleanString(v).includes(qClean)),
-      )
-      .sort((a, b) =>
-        (a.novel_name_cn || "").localeCompare(b.novel_name_cn || ""),
-      );
-
-    // Comic. Sorted on the English title, not the Chinese one every other
-    // section sorts by: comic's display name falls back EN -> CN -> Alt, so
-    // sorting on CN would order the list by a name most rows do not show.
-    const mcm = comicResults
-      .filter((c) =>
-        [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some((n) =>
-          cleanString(n).includes(qClean),
-        ),
-      )
-      .sort((a, b) =>
-        (a.comic_name_en || "").localeCompare(b.comic_name_en || ""),
-      );
-
-    setMatchedSeasonal(msea);
-    setMatchedCollections(mcol);
-    setMatchedFranchises(mf);
-    setFilterPillFranchises(pillFranchises);
-    setMatchedAnime(ma);
-    setMatchedSeries(ms);
-    setMatchedAnimeMovies(mam);
-    setMatchedMovies(mmv);
-    setMatchedTvShows(mtv);
-    setMatchedCartoons(mc);
-    setMatchedMangas(mm);
-    setMatchedNovels(mnv);
-    setMatchedComics(mcm);
-  }, [
-    comicQuery.data,
-    animeMovieQuery.data,
-    animeQuery.data,
-    cartoonQuery.data,
-    collectionQuery.data,
-    error,
-    franchiseQuery.data,
-    loading,
-    mangaQuery.data,
-    movieQuery.data,
-    novelQuery.data,
-    query,
-    scope,
-    seasonalQuery.data,
-    seriesQuery.data,
-    tvQuery.data,
-  ]);
+    setMatchedCollections(results.collection);
+    setMatchedSeasonal(results.seasonal);
+    setMatchedFranchises(results.franchise);
+    setMatchedSeries(results.series);
+    setMatchedAnime(results.anime);
+    setMatchedAnimeMovies(results["anime-movie"]);
+    setMatchedMovies(results.movie);
+    setMatchedTvShows(results["tv-show"]);
+    setMatchedCartoons(results.cartoon);
+    setMatchedMangas(results.manga);
+    setMatchedNovels(results.novel);
+    setMatchedComics(results.comic);
+    // Pills are the franchises the anime results belong to, which is not the
+    // same set as the franchises whose own name matched.
+    setFilterPillFranchises(searchQuery.data.related_franchises);
+  }, [searchQuery.data, hasQuery]);
 
   const handleAnimeUpdated = useCallback((updated) => {
     setMatchedAnime((prev) =>
-      prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
-    );
-    setAllAnime((prev) =>
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
   }, []);
@@ -460,16 +170,10 @@ export default function Search() {
     setMatchedAnimeMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
-    setAllAnimeMovies((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
-    );
   }, []);
 
   const handleLiveMovieUpdated = useCallback((updated) => {
     setMatchedMovies((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
-    );
-    setAllMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
   }, []);
@@ -478,16 +182,10 @@ export default function Search() {
     setMatchedTvShows((prev) =>
       prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
     );
-    setAllTvShows((prev) =>
-      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
-    );
   }, []);
 
   const handleCartoonUpdated = useCallback((updated) => {
     setMatchedCartoons((prev) =>
-      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
-    );
-    setAllCartoons((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
   }, []);
@@ -496,25 +194,16 @@ export default function Search() {
     setMatchedMangas((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
-    setAllMangas((prev) =>
-      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
-    );
   }, []);
 
   const handleNovelUpdated = useCallback((updated) => {
     setMatchedNovels((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );
-    setAllNovels((prev) =>
-      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
-    );
   }, []);
 
   const handleComicUpdated = useCallback((updated) => {
     setMatchedComics((prev) =>
-      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
-    );
-    setAllComics((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
   }, []);

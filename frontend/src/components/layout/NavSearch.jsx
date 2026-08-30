@@ -1,9 +1,8 @@
 // Frontend: the universal search field that sits in the nav's ink row.
 //
-// Split out of Nav so the nav shell stays about navigation. The search
-// behaviour is unchanged: debounced server-side lookup per media type, a
-// client-side pass for seasonal, exact matches floated to the top, Enter to
-// open the full results page.
+// Split out of Nav so the nav shell stays about navigation. One debounced
+// request to /api/search returns a bucket per media type; this file decides how
+// many rows of each to show. Enter opens the full results page.
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cleanString } from "../../utils/media";
@@ -157,15 +156,13 @@ export default function NavSearch() {
   const searchRef = useRef(null);
   const searchDebounceRef = useRef(null);
   const searchReqIdRef = useRef(0);
-  // Seasonal has no server-side search and is a tiny table, so it is fetched
-  // once and filtered client-side. All other types are searched server-side.
-  const seasonalCacheRef = useRef({ loaded: false, seasonal: [] });
 
-  // Universal search — server-side substring search, one request per type.
-  // Each type carries a quota so a large table (e.g. anime) can never crowd out
-  // the smaller ones, but the quota is a floor, not a ceiling: slots no type
-  // claims go back to the types that still have matches waiting, so a query
-  // that hits only one or two tables still fills the list.
+  // Universal search. The backend matches; this effect only decides how many
+  // rows of each type reach the dropdown. Each type carries a quota so a large
+  // table (e.g. anime) can never crowd out the smaller ones, but the quota is a
+  // floor, not a ceiling: slots no type claims go back to the types that still
+  // have matches waiting, so a query that hits only one or two tables still
+  // fills the list.
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -177,147 +174,68 @@ export default function NavSearch() {
       const reqId = ++searchReqIdRef.current;
       const q = searchQuery.trim();
       const qClean = cleanString(q);
-      const qParam = encodeURIComponent(q);
       const scope = searchScope;
 
-      // [endpoint, type, guaranteed slots when scope === "all"]
-      const TYPE_JOBS = [
-        ["/api/collection", "collection", 3],
-        ["/api/franchise", "franchise", 3],
-        ["/api/series", "series", 3],
-        ["/api/anime", "anime", 10],
-        ["/api/anime-movie", "anime-movie", 3],
-        ["/api/movies", "movie", 3],
-        ["/api/tv-shows", "tv-show", 3],
-        ["/api/cartoon", "cartoon", 5],
-        ["/api/manga", "manga", 5],
-        ["/api/novel", "novel", 5],
-        ["/api/comic", "comic", 5],
+      // [bucket key, guaranteed slots when scope === "all"]
+      const TYPE_QUOTAS = [
+        ["collection", 3],
+        ["franchise", 3],
+        ["series", 3],
+        ["anime", 10],
+        ["anime-movie", 3],
+        ["movie", 3],
+        ["tv-show", 3],
+        ["cartoon", 5],
+        ["manga", 5],
+        ["novel", 5],
+        ["comic", 5],
+        ["seasonal", 3],
       ];
 
-      const fetchType = async (endpoint, type) => {
-        try {
-          const res = await fetch(
-            `${endpoint}/?search_query=${qParam}&limit=${MAX_RESULTS}`,
-            { credentials: "include" },
-          );
-          if (!res.ok) return [];
-          const rows = await res.json();
-          return rows.map((r) => ({ ...r, type }));
-        } catch {
-          return [];
-        }
-      };
-
+      let payload;
       try {
-        const activeJobs = TYPE_JOBS.filter(
-          ([, type]) => scope === "all" || scope === type,
-        );
-        const buckets = await Promise.all(
-          activeJobs.map(([endpoint, type]) => fetchType(endpoint, type)),
-        );
-        const quotas = activeJobs.map(([, , quota]) =>
-          scope === "all" ? quota : MAX_RESULTS,
-        );
-
-        // Seasonal: no server-side search; fetch the small table once, cache it,
-        // and filter client-side.
-        if (scope === "all" || scope === "seasonal") {
-          if (!seasonalCacheRef.current.loaded) {
-            try {
-              const res = await fetch("/api/seasonal/", {
-                credentials: "include",
-              });
-              seasonalCacheRef.current.seasonal = res.ok ? await res.json() : [];
-            } catch {
-              seasonalCacheRef.current.seasonal = [];
-            }
-            seasonalCacheRef.current.loaded = true;
-          }
-          const seasonalHits = seasonalCacheRef.current.seasonal
-            .filter((s) => cleanString(s.seasonal).includes(qClean))
-            .map((s) => ({ ...s, type: "seasonal" }));
-          buckets.push(seasonalHits);
-          quotas.push(scope === "all" ? 3 : MAX_RESULTS);
-        }
-
-        const results = mergeBuckets(buckets, quotas);
-
-        // A newer keystroke superseded this request while it was in flight.
-        if (reqId !== searchReqIdRef.current) return;
-
-        // Exact match floats to top
-        results.sort((a, b) => {
-          const names = (item) => {
-            if (item.type === "franchise")
-              return [
-                item.franchise_name_cn,
-                item.franchise_name_en,
-                item.franchise_name_roman,
-              ];
-            if (item.type === "series")
-              return [
-                item.series_name_cn,
-                item.series_name_en,
-                item.series_name_alt,
-              ];
-            if (item.type === "cartoon")
-              return [
-                item.cartoon_name_cn,
-                item.cartoon_name_en,
-                item.cartoon_name_alt,
-              ];
-            if (item.type === "manga")
-              return [
-                item.manga_name_cn,
-                item.manga_name_en,
-                item.manga_name_roman,
-              ];
-            if (item.type === "novel")
-              return [
-                item.novel_name_cn,
-                item.novel_name_en,
-                item.novel_name_roman,
-              ];
-            if (item.type === "comic")
-              return [
-                item.comic_name_en,
-                item.comic_name_cn,
-                item.comic_name_alt,
-              ];
-            if (item.type === "anime-movie")
-              return [
-                item.anime_movie_name_cn,
-                item.anime_movie_name_en,
-                item.anime_movie_name_roman,
-              ];
-            if (item.type === "movie")
-              return [
-                item.movie_name_cn,
-                item.movie_name_en,
-                item.movie_name_alt,
-              ];
-            if (item.type === "tv-show")
-              return [item.tv_name_cn, item.tv_name_en, item.tv_name_alt];
-            if (item.type === "seasonal") return [item.seasonal];
-            return [
-              item.anime_name_cn,
-              item.anime_name_en,
-              item.anime_name_roman,
-            ];
-          };
-          const aExact = names(a).some((n) => n && cleanString(n) === qClean);
-          const bExact = names(b).some((n) => n && cleanString(n) === qClean);
-          if (aExact && !bExact) return -1;
-          if (!aExact && bExact) return 1;
-          return 0;
+        const params = new URLSearchParams({ q, limit: String(MAX_RESULTS) });
+        if (scope !== "all") params.set("scope", scope);
+        const res = await fetch(`/api/search/?${params.toString()}`, {
+          credentials: "include",
         });
-
-        setSearchResults(results);
-        setShowResults(true);
+        if (!res.ok) return;
+        payload = await res.json();
       } catch {
-        // ignore search errors
+        return; // ignore search errors
       }
+
+      // A newer keystroke superseded this request while it was in flight.
+      if (reqId !== searchReqIdRef.current) return;
+
+      const active = TYPE_QUOTAS.filter(
+        ([type]) => scope === "all" || scope === type,
+      );
+      const buckets = active.map(([type]) =>
+        (payload.results[type] || []).map((r) => ({ ...r, type })),
+      );
+      const quotas = active.map(([, quota]) =>
+        scope === "all" ? quota : MAX_RESULTS,
+      );
+
+      const results = mergeBuckets(buckets, quotas);
+
+      // Each bucket already arrives with its own exact matches first, but the
+      // merge interleaves the buckets, so the whole-title matches have to be
+      // lifted again across types.
+      // Every title column is named *_name_*, and seasonal's is the row's only
+      // string, so the check needs no per-type table of name columns.
+      const isExact = (item) =>
+        Object.entries(item).some(
+          ([field, value]) =>
+            (field.includes("_name_") || field === "seasonal") &&
+            typeof value === "string" &&
+            cleanString(value) === qClean,
+        );
+      results.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
+
+      setSearchResults(results);
+      setShowResults(true);
     }, 250);
   }, [searchQuery, searchScope]);
 

@@ -150,3 +150,21 @@ def test_a_search_cannot_surface_a_hidden_entry(client, hidden_anime):
     response = client.get("/api/anime/", params={"search_query": "Zvornik"})
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
+
+
+def test_the_cross_type_search_cannot_surface_a_hidden_entry(client, hidden_anime):
+    """/api/search fans out over every table; each fan-out arm needs the gate."""
+    response = client.get("/api/search/", params={"q": "Zvornik"})
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text
+
+
+def test_franchise_expansion_cannot_surface_a_hidden_entry(client, hidden_anime):
+    """
+    A franchise-name match pulls in the franchise's anime. That second query is
+    a separate one, so it needs its own visibility filter - otherwise searching
+    the franchise name is a way around the label.
+    """
+    response = client.get("/api/search/", params={"q": "Test Franchise"})
+    assert response.status_code == 200
+    assert HIDDEN_NAME not in response.text

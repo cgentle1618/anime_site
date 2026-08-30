@@ -74,7 +74,7 @@ Shell rendered for every route. Contains:
   - Cartoon → Cartoon Library
   - More → Plan, Statistics, Completions, Future Release, Seasonal
   - Admin dropdown (admin only) → Control Center (/system), Data History, Review Queue (/review-queue), System Options (/options), Add Entry, Modify Entry, Delete Entry, Form Defaults (/defaults), Relations (/relations), Watch Orders (/watch-orders)
-- **Universal search bar** — debounced, client-side filtering; caches full DB on first query; scope selector: All, Collection, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
+- **Universal search bar** (`NavSearch.jsx`) — debounced; one `GET /api/search/` per query, with per-type quotas deciding how many rows of each bucket reach the dropdown; scope selector: All, Collection, Franchise, Series, Anime, Anime Movie, Movie, TV Show, Cartoon, Seasonal. Results grouped by kind and shown as suggestion entries.
 - **Backup button** (admin only) — triggers `POST /api/data-control/backup`
 - **Login / Logout button**
 
@@ -1217,22 +1217,17 @@ Upcoming entries by release timeline. No future release page planned for Manga o
 
 **File:** `frontend/src/pages/public/Search.jsx`
 
-Reads `?q` and `?scope` query params. Client-side filtering over full data fetched upfront.
+Reads `?q` and `?scope` query params and passes both to `GET /api/search/`.
 
-**Data loaded (conditional on scope):**
+**Data loaded:** one request. The backend matches and returns one bucket per
+type plus `related_franchises` for the filter pills; the page renders the
+buckets as-is. Matching, ordering, and franchise expansion are all described
+under [Search — `/api/search`](api.md#search--apisearch).
 
-| Scope         | Fetches                                                                         |
-| ------------- | ------------------------------------------------------------------------------- |
-| `all`         | franchise, anime, anime-movie, movie, tv-show, cartoon, novel, series, seasonal |
-| `franchise`   | franchise only                                                                  |
-| `anime`       | franchise + anime                                                               |
-| `anime-movie` | anime-movie only                                                                |
-| `movie`       | movies only                                                                     |
-| `tv-show`     | tv-shows only                                                                   |
-| `cartoon`     | cartoon only                                                                    |
-| `novel`       | novel only                                                                      |
-| `series`      | series only                                                                     |
-| `seasonal`    | seasonal only                                                                   |
+Until August 2026 this page fetched up to 2000 rows from each of twelve tables
+and filtered them in the browser with `cleanString`. The normalisation rule
+survived the move — it now runs in SQL — but the whole collection no longer
+crosses the wire to answer a question about a handful of rows.
 
 **Layout:**
 

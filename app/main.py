@@ -42,6 +42,7 @@ from app.routers import (
     quote,
     meme,
     seasonal,
+    search,
     data_control,
     system,
     announcements,
@@ -184,6 +185,7 @@ app.include_router(plan_next.router)
 app.include_router(quote.router)
 app.include_router(meme.router)
 app.include_router(seasonal.router)
+app.include_router(search.router)
 
 app.include_router(announcements.router)
 app.include_router(form_defaults.router)

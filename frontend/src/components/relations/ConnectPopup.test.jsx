@@ -56,13 +56,11 @@ describe("ConnectPopup", () => {
   });
 
   it("writes nothing when picking a search result on empty canvas", async () => {
-    // Stub all seven media-list fetch calls
+    // Stub the one /api/search call the hook makes, buckets and all.
     const fetchStub = vi.fn();
     fetchStub.mockResolvedValue({
       ok: true,
-      json: async () => [
-        { system_id: "xyz" },
-      ],
+      json: async () => ({ results: { anime: [{ system_id: "xyz" }] } }),
     });
     const originalFetch = globalThis.fetch;
     globalThis.fetch = fetchStub;
