@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
@@ -176,9 +177,7 @@ def patch_franchise(
         raise HTTPException(status_code=404, detail="Franchise not found.")
 
     payload, remark, has_remark = pop_remark(payload)
-    for key, value in payload.items():
-        if hasattr(db_franchise, key):
-            setattr(db_franchise, key, value)
+    apply_column_patch(db_franchise, payload)
     if has_remark:
         upsert_remark(db, "franchise", db_franchise.system_id, remark)
 

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain.watch_order import (
     ITEM_IMPORTANCE,
     MEDIA_TYPE_MODELS,
@@ -981,9 +982,7 @@ def patch_watch_order_list(
     """Partially updates a watch order (used for quick inline edits)."""
     db_list = _get_list_or_404(db, system_id)
 
-    for key, value in payload.items():
-        if hasattr(db_list, key):
-            setattr(db_list, key, value)
+    apply_column_patch(db_list, payload)
 
     _validate_owner(db_list.franchise_id, db_list.collection_id, db_list.series_id)
     _enforce_single_winners(db, db_list)
@@ -1207,9 +1206,7 @@ def patch_watch_order_item(
     db_item = _get_item_or_404(db, item_id)
     _reject_if_generated(db_item.parent_list)
 
-    for key, value in payload.items():
-        if hasattr(db_item, key):
-            setattr(db_item, key, value)
+    apply_column_patch(db_item, payload)
 
     _validate_entry(db, db_item.media_type, db_item.entry_id)
     _validate_importance(db_item.importance)
@@ -1409,9 +1406,7 @@ def patch_watch_order_section(
     db_section = _get_section_or_404(db, section_id)
     _reject_if_generated(db_section.parent_list)
 
-    for key, value in payload.items():
-        if hasattr(db_section, key):
-            setattr(db_section, key, value)
+    apply_column_patch(db_section, payload)
 
     db_section.updated_at = get_taipei_now()
     db.commit()

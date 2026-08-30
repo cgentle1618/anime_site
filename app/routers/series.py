@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
@@ -162,9 +163,7 @@ def patch_series(
         raise HTTPException(status_code=404, detail="Series not found.")
 
     payload, remark, has_remark = pop_remark(payload)
-    for key, value in payload.items():
-        if hasattr(db_series, key):
-            setattr(db_series, key, value)
+    apply_column_patch(db_series, payload)
     if has_remark:
         upsert_remark(db, "series", db_series.system_id, remark)
 

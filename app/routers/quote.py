@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -319,9 +320,7 @@ def patch_quote(
     db_quote = _get_or_404(db, quote_id)
     _validate_media_type(payload.get("media_type"))
     try:
-        for key, value in payload.items():
-            if hasattr(db_quote, key):
-                setattr(db_quote, key, value)
+        apply_column_patch(db_quote, payload)
         db_quote.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_quote)

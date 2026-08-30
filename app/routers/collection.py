@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
 from app.utils.data_control_utils import log_deleted_record
 
@@ -178,9 +179,7 @@ def patch_collection(
         raise HTTPException(status_code=404, detail="Collection not found.")
 
     payload, remark, has_remark = pop_remark(payload)
-    for key, value in payload.items():
-        if hasattr(db_collection, key):
-            setattr(db_collection, key, value)
+    apply_column_patch(db_collection, payload)
     if has_remark:
         upsert_remark(db, "collection", db_collection.system_id, remark)
 

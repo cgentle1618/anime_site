@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.rbac.enforcement import drop_hidden_rows
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -321,9 +322,7 @@ def patch_meme(
     if "quote_id" in payload:
         _quote_conflict(db, payload["quote_id"], exclude_meme_id=meme_id)
     try:
-        for key, value in payload.items():
-            if hasattr(db_meme, key):
-                setattr(db_meme, key, value)
+        apply_column_patch(db_meme, payload)
         db_meme.updated_at = get_taipei_now()
         db.commit()
         db.refresh(db_meme)

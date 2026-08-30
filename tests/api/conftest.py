@@ -90,13 +90,21 @@ def db_session(test_engine):
     """
     connection = test_engine.connect()
     transaction = connection.begin()
-    TestingSessionLocal = sessionmaker(bind=connection)
+    # create_savepoint: session.commit()/rollback() inside the app act on a
+    # SAVEPOINT, exactly as they act on a real transaction in production,
+    # while the outer transaction still discards everything at teardown.
+    # Without it a rollback in the code under test unwinds the whole outer
+    # transaction and every row the test set up disappears mid-request.
+    TestingSessionLocal = sessionmaker(
+        bind=connection, join_transaction_mode="create_savepoint"
+    )
     session = TestingSessionLocal()
 
     yield session
 
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
 
 

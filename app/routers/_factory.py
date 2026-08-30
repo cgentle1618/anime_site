@@ -5,6 +5,7 @@ Replaces the five near-identical hand-written routers (movie, tv_show, cartoon,
 manga, novel). See app/registry.py for the per-type specs.
 """
 
+import logging
 import uuid
 from typing import List, Optional
 
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
 from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.domain.plan_next import (
@@ -30,10 +32,22 @@ from app.services.rbac.field_gate import gate
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 
+logger = logging.getLogger(__name__)
+
 
 def make_media_router(spec) -> APIRouter:
     router = APIRouter(prefix=f"/api/{spec.route}", tags=spec.tags)
     not_found = f"{spec.label} entry not found."
+
+    async def _run_write_hook(db: Session, entry) -> None:
+        """Enrich after commit; the row is already saved, so a hook failure is
+        logged, never surfaced as a 500 (which made the SPA retry and create
+        duplicates)."""
+        try:
+            await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
+        except Exception:
+            db.rollback()
+            logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
 
     def _get_or_404(db: Session, entry_id: str, viewer=None):
         entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
@@ -117,7 +131,7 @@ def make_media_router(spec) -> APIRouter:
                 set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
             db.commit()
 
-        await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
+        await _run_write_hook(db, entry)
         db.refresh(entry)
 
         if has_remark:
@@ -153,7 +167,7 @@ def make_media_router(spec) -> APIRouter:
         db.commit()
         db.refresh(entry)
 
-        await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
+        await _run_write_hook(db, entry)
         db.refresh(entry)
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
@@ -169,9 +183,7 @@ def make_media_router(spec) -> APIRouter:
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
-        for key, value in payload.items():
-            if hasattr(entry, key):
-                setattr(entry, key, value)
+        apply_column_patch(entry, payload)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:

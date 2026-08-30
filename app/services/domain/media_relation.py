@@ -361,9 +361,14 @@ def graph_for_scope(
     db: Session,
     franchise_ids: List[UUID],
     series_ids: Optional[List[UUID]] = None,
+    viewer=None,
 ) -> Dict[str, Any]:
     """
     Every node and edge one relations canvas draws.
+
+    `viewer` narrows the canvas to what that viewer may see: a hidden entry is
+    neither a node nor a ghost, and every edge touching it is dropped, so the
+    payload can never name it. None (or a superuser) draws everything.
 
     Entries with no relations are included on purpose: you cannot drag a line
     from a node that is not drawn, and connecting an unconnected entry is the
@@ -379,7 +384,15 @@ def graph_for_scope(
     normal case rather than the exception: a sibling series in the same
     franchise is out of scope, so a link into it arrives as a ghost node.
     """
+    # Imported here: enforcement sits above the domain layer and pulls in the
+    # RBAC resolver, which must not be a hard dependency of relation logic.
+    from app.services.rbac.enforcement import filter_visible_pairs
+
     candidates = list_candidate_entries(db, franchise_ids, series_ids=series_ids)
+    visible = filter_visible_pairs(
+        db, viewer, [(c["media_type"], c["entry_id"]) for c in candidates]
+    )
+    candidates = [c for c in candidates if (c["media_type"], c["entry_id"]) in visible]
 
     nodes: List[Dict[str, Any]] = []
     in_scope: set = set()
@@ -437,6 +450,23 @@ def graph_for_scope(
         for endpoint in ((row.from_type, row.from_id), (row.to_type, row.to_id)):
             if endpoint not in in_scope and endpoint not in outside:
                 outside.append(endpoint)
+
+    # A ghost the viewer may not see is not drawn either, and its edges go
+    # with it - otherwise the edge label alone would reveal the hidden entry.
+    visible_outside = filter_visible_pairs(db, viewer, outside)
+    outside = [endpoint for endpoint in outside if endpoint in visible_outside]
+    rows = [
+        row
+        for row in rows
+        if (row.from_type, row.from_id) in in_scope
+        or (row.from_type, row.from_id) in visible_outside
+    ]
+    rows = [
+        row
+        for row in rows
+        if (row.to_type, row.to_id) in in_scope
+        or (row.to_type, row.to_id) in visible_outside
+    ]
 
     resolved = resolve_entries(db, outside)
     for media_type, entry_id in outside:

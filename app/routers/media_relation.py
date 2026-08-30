@@ -27,7 +27,7 @@ from app.services.domain.media_relation import (
     relations_for_entry,
 )
 from app.services.domain.watch_order import list_candidate_entries
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES
@@ -207,6 +207,7 @@ def list_relations_in_scope(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Every relation with at least one endpoint among a scope's entries.
@@ -237,7 +238,7 @@ def list_relations_in_scope(
     if not entry_ids:
         return []
 
-    return (
+    rows = (
         db.query(models.MediaRelation)
         .filter(
             or_(
@@ -247,6 +248,15 @@ def list_relations_in_scope(
         )
         .all()
     )
+    # A relation naming a hidden entry is dropped whole: even its id pair
+    # confirms that entry exists.
+    endpoints = {(r.from_type, r.from_id) for r in rows} | {(r.to_type, r.to_id) for r in rows}
+    visible = filter_visible_pairs(db, viewer, endpoints)
+    return [
+        r
+        for r in rows
+        if (r.from_type, r.from_id) in visible and (r.to_type, r.to_id) in visible
+    ]
 
 
 @router.get(
@@ -259,6 +269,7 @@ def get_relation_graph(
     collection_id: Optional[str] = None,
     series_id: Optional[str] = None,
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Everything the relations canvas draws for one group, at any of the three
@@ -283,7 +294,7 @@ def get_relation_graph(
         )
 
     if series_id:
-        return graph_for_scope(db, [], series_ids=[series_id])
+        return graph_for_scope(db, [], series_ids=[series_id], viewer=viewer)
 
     if franchise_id:
         franchise_ids = [franchise_id]
@@ -295,7 +306,7 @@ def get_relation_graph(
             .all()
         ]
 
-    return graph_for_scope(db, franchise_ids)
+    return graph_for_scope(db, franchise_ids, viewer=viewer)
 
 
 # ==========================================

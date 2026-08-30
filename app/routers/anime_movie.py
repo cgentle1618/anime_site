@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.routers._patching import apply_column_patch
 from app.services.domain import (
     apply_completion_timestamp,
     mark_movie_completed,
@@ -217,9 +218,7 @@ def patch_anime_movie(
 
     payload, remark, has_remark = pop_remark(payload)
     payload, plan_flags = pop_plan_flag("anime-movie", payload)
-    for key, value in payload.items():
-        if hasattr(entry, key):
-            setattr(entry, key, value)
+    apply_column_patch(entry, payload)
     for kind, planned in plan_flags:
         set_entry_flag(db, "anime-movie", entry.system_id, bool(planned), kind=kind)
     if has_remark:
