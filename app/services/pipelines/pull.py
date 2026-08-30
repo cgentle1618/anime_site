@@ -12,28 +12,16 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Collection,
-    Comic,
     Franchise,
     Manga,
-    MediaRelation,
     Meme,
     Movies,
     Note,
-    Novel,
-    Person,
-    PersonRole,
-    PlanNext,
     Quote,
-    Seasonal,
     Series,
-    Studio,
     SystemConfigs,
-    SystemOption,
-    SystemOptionScope,
     TVShows,
-    WatchOrderItem,
     WatchOrderList,
-    WatchOrderSection,
 )
 from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
@@ -53,36 +41,18 @@ from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
 )
+from app.services.pipelines.tabs import (
+    MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
+)
+from app.services.pipelines.tabs import (
+    TAB_MODELS,
+    TAB_NAMES,
+    TAB_PARSERS,
+)
 from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
-    parse_anime_from_sheet,
-    parse_anime_movie_from_sheet,
-    parse_cartoon_from_sheet,
-    parse_collection_from_sheet,
-    parse_comic_from_sheet,
-    parse_franchise_from_sheet,
-    parse_manga_from_sheet,
-    parse_media_relation_from_sheet,
-    parse_meme_from_sheet,
-    parse_movie_from_sheet,
-    parse_note_from_sheet,
-    parse_novel_from_sheet,
-    parse_person_from_sheet,
-    parse_person_role_from_sheet,
-    parse_plan_next_from_sheet,
-    parse_quote_from_sheet,
     parse_row_to_dict,
-    parse_seasonal_from_sheet,
-    parse_series_from_sheet,
-    parse_studio_from_sheet,
-    parse_system_config_from_sheet,
-    parse_system_option_from_sheet,
-    parse_system_option_scope_from_sheet,
-    parse_tv_show_from_sheet,
-    parse_watch_order_item_from_sheet,
-    parse_watch_order_list_from_sheet,
-    parse_watch_order_section_from_sheet,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,67 +60,11 @@ logger = logging.getLogger(__name__)
 # Hyphenated media_type key (app/utils/media_resolver.py's MEDIA_TABLES) for
 # every entry tab that carries credit/tag link columns. Drives the pop-and-
 # apply step below: a tab absent here has no link columns to restore.
-MEDIA_TYPE_FOR_TAB = {
-    "Anime": "anime",
-    "Anime Movie": "anime-movie",
-    "Movies": "movie",
-    "TV Shows": "tv-show",
-    "Cartoons": "cartoon",
-    "Manga": "manga",
-    "Novel": "novel",
-    "Comic": "comic",
-}
+MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 
 
 # Restore order for Pull All. STRICT: parents before children (FK constraints).
-TABS_IN_ORDER = [
-    "System Options",
-    # Scopes point at System Options rows via option_id, so they restore
-    # right after the vocabulary they scope.
-    "System Option Scope",
-    # Person and Studio restore before every media tab: entry credits
-    # resolve against a person_id/studio_id that must already exist.
-    "Person",
-    # Roles point at Person rows via person_id, so they restore right
-    # after the people they describe.
-    "Person Role",
-    "Studio",
-    # Key/value rows (announcements, admin form defaults) that nothing
-    # else references, so they restore alongside the other option data.
-    "System Configs",
-    "Collection",
-    "Franchise",
-    "Series",
-    "Anime",
-    "Anime Movie",
-    "Movies",
-    "TV Shows",
-    "Cartoons",
-    "Manga",
-    "Novel",
-    "Comic",
-    # Lists before Items (FK parent first), and both after every media tab
-    # so a freshly restored guide points at rows that already exist.
-    "Watch Order List",
-    # Sections between the two: they belong to a List and are pointed at
-    # by Items, so both FK ends resolve only in this order.
-    "Watch Order Section",
-    "Watch Order Item",
-    # Relations join two media rows through FK-less (media_type, entry_id)
-    # pairs, so both endpoints must already exist.
-    "Media Relation",
-    # Plan Next rows are FK-less (media_type, target_id) pairs too, so
-    # they restore after every media tab for the same reason.
-    "Plan Next",
-    # Quotes point at media rows the same FK-less way items do.
-    "Quote",
-    # Memes name quotes, so they restore after them.
-    "Meme",
-    # Notes point at owners the same FK-less way memes do, so they restore
-    # after the media tabs their owners live in.
-    "Note",
-    "Seasonal",
-]
+TABS_IN_ORDER = TAB_NAMES
 
 
 def execute_pull_specific(
@@ -160,63 +74,8 @@ def execute_pull_specific(
     Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
     Tracks exact rows added vs updated for logging.
     """
-    MODEL_MAP = {
-        "Collection": Collection,
-        "Franchise": Franchise,
-        "Series": Series,
-        "Anime": Anime,
-        "Anime Movie": AnimeMovies,
-        "Cartoons": Cartoon,
-        "Manga": Manga,
-        "Novel": Novel,
-        "Comic": Comic,
-        "Movies": Movies,
-        "TV Shows": TVShows,
-        "Person": Person,
-        "Person Role": PersonRole,
-        "Studio": Studio,
-        "System Options": SystemOption,
-        "System Option Scope": SystemOptionScope,
-        "System Configs": SystemConfigs,
-        "Seasonal": Seasonal,
-        "Watch Order List": WatchOrderList,
-        "Watch Order Section": WatchOrderSection,
-        "Watch Order Item": WatchOrderItem,
-        "Media Relation": MediaRelation,
-        "Plan Next": PlanNext,
-        "Quote": Quote,
-        "Meme": Meme,
-        "Note": Note,
-    }
-
-    PARSER_MAP = {
-        "Collection": parse_collection_from_sheet,
-        "Franchise": parse_franchise_from_sheet,
-        "Series": parse_series_from_sheet,
-        "Anime": parse_anime_from_sheet,
-        "Anime Movie": parse_anime_movie_from_sheet,
-        "Cartoons": parse_cartoon_from_sheet,
-        "Manga": parse_manga_from_sheet,
-        "Novel": parse_novel_from_sheet,
-        "Comic": parse_comic_from_sheet,
-        "Movies": parse_movie_from_sheet,
-        "TV Shows": parse_tv_show_from_sheet,
-        "Person": parse_person_from_sheet,
-        "Person Role": parse_person_role_from_sheet,
-        "Studio": parse_studio_from_sheet,
-        "System Options": parse_system_option_from_sheet,
-        "System Option Scope": parse_system_option_scope_from_sheet,
-        "System Configs": parse_system_config_from_sheet,
-        "Seasonal": parse_seasonal_from_sheet,
-        "Watch Order List": parse_watch_order_list_from_sheet,
-        "Watch Order Section": parse_watch_order_section_from_sheet,
-        "Watch Order Item": parse_watch_order_item_from_sheet,
-        "Media Relation": parse_media_relation_from_sheet,
-        "Plan Next": parse_plan_next_from_sheet,
-        "Quote": parse_quote_from_sheet,
-        "Meme": parse_meme_from_sheet,
-        "Note": parse_note_from_sheet,
-    }
+    MODEL_MAP = TAB_MODELS
+    PARSER_MAP = TAB_PARSERS
 
     if tab_name not in MODEL_MAP:
         return {"status": "error", "message": f"Unknown tab: {tab_name}"}

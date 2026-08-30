@@ -275,6 +275,24 @@ def tags_to_sheet_value(
     return ", ".join(tag_values(db, media_type, entry_id, field))
 
 
+def sheet_link_rows(db: Session, media_type: str, entries) -> list[list[str]]:
+    """
+    `sheet_link_values` for many entries at once, aligned with
+    `sheet_link_headers`, in the fixed number of queries
+    `link_values_for_entries` needs. Backup used the per-row form, which was
+    one query per role/field per row - thousands of round trips on Anime.
+    """
+    entries = list(entries)
+    links = link_values_for_entries(db, media_type, [e.system_id for e in entries])
+    keys = [role.key for role in credit_roles_for(media_type)] + [
+        field.key for field in tag_fields_for(media_type)
+    ]
+    return [
+        [", ".join(links.get(e.system_id, {}).get(key, [])) for key in keys]
+        for e in entries
+    ]
+
+
 def names_from_sheet_value(raw: Optional[str]) -> list[str]:
     """Split one comma-joined sheet cell back into names."""
     return split_names(raw)

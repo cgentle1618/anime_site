@@ -107,13 +107,13 @@ def test_backup_appends_credit_columns_after_the_plain_anime_columns(
 
 
 def test_person_studio_and_scope_get_their_own_tabs():
-    import inspect
+    from app.services.pipelines.tabs import TAB_NAMES
 
-    source = inspect.getsource(backup)
-    assert '"Person"' in source
-    assert '"Person Role"' in source
-    assert '"Studio"' in source
-    assert '"System Option Scope"' in source
+    # Backup and Pull both iterate this registry, so a tab listed here is
+    # written and restored; entity tabs must precede the media tabs.
+    for tab in ("Person", "Person Role", "Studio", "System Option Scope"):
+        assert tab in TAB_NAMES
+        assert TAB_NAMES.index(tab) < TAB_NAMES.index("Anime")
 
 
 # ---------------------------------------------------------------------------
