@@ -110,7 +110,7 @@ The application serves two audiences:
 **Backend & Core**
 
 - [![FastAPI][FastAPI-badge]][FastAPI-url] — High-performance ASGI web framework
-- [![Python][Python-badge]][Python-url] — Python 3.11 runtime
+- [![Python][Python-badge]][Python-url] — Python 3.13 runtime
 - [![PostgreSQL][PostgreSQL-badge]][PostgreSQL-url] — Primary relational database (PostgreSQL 15)
 - [![SQLAlchemy][SQLAlchemy-badge]][SQLAlchemy-url] — ORM and session management
 - [![Alembic][Alembic-badge]][Alembic-url] — Database schema migration tooling
@@ -343,7 +343,7 @@ All non-API paths are served by a FastAPI catch-all route (`/{full_path:path}`) 
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - Node.js (v20+ recommended) and npm — required for the React/Vite frontend dev server and production build
 - Docker & Docker Compose — used for the local PostgreSQL database container
 - A Google Cloud Platform project with the following APIs enabled:
@@ -500,8 +500,8 @@ The `Dockerfile` uses a **3-stage multi-stage build** to produce an ultra-lightw
 | Stage                              | Base Image         | Purpose                                                                                                                                                                                                                                |
 | ---------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Stage 1: Frontend Builder**      | `node:20-slim`     | Installs Node.js deps (`npm install`), then runs `npm run build` to compile the React SPA via Vite into `frontend_dist/` (hashed JS/CSS bundles + `index.html`). `node_modules` never proceeds past this stage.                        |
-| **Stage 2: Python Wheels Builder** | `python:3.11-slim` | Installs `gcc`, `libpq-dev`, `libffi-dev` build headers; compiles C-extension wheels (`psycopg2`, `bcrypt`, `cryptography`) into `/app/wheels`. Compilers never reach the final image.                                                 |
-| **Stage 3: Final Runtime**         | `python:3.11-slim` | Installs only `libpq-dev` (runtime PostgreSQL client); copies pre-built wheels from Stage 2 (offline install); copies application source from repo and the compiled `frontend_dist/` from Stage 1. Executes `entrypoint.sh` → Uvicorn. |
+| **Stage 2: Python Wheels Builder** | `python:3.13-slim` | Installs `gcc`, `libpq-dev`, `libffi-dev` build headers; compiles C-extension wheels (`psycopg2`, `bcrypt`, `cryptography`) into `/app/wheels`. Compilers never reach the final image.                                                 |
+| **Stage 3: Final Runtime**         | `python:3.13-slim` | Installs only `libpq-dev` (runtime PostgreSQL client); copies pre-built wheels from Stage 2 (offline install); copies application source from repo and the compiled `frontend_dist/` from Stage 1. Executes `entrypoint.sh` → Uvicorn. |
 
 **Build and tag the image locally:**
 
@@ -707,7 +707,7 @@ Project Link: [https://github.com/cgentle1618/anime_site/tree/cloud](https://git
 [license-url]: https://github.com/cgentle1618/anime_site/blob/cloud/LICENSE.txt
 [FastAPI-badge]: https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi
 [FastAPI-url]: https://fastapi.tiangolo.com/
-[Python-badge]: https://img.shields.io/badge/Python_3.11-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
+[Python-badge]: https://img.shields.io/badge/Python_3.13-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
 [Python-url]: https://python.org/
 [PostgreSQL-badge]: https://img.shields.io/badge/PostgreSQL_15-316192?style=for-the-badge&logo=postgresql&logoColor=white
 [PostgreSQL-url]: https://www.postgresql.org/

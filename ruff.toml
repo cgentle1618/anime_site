@@ -1,6 +1,6 @@
 # Lint + format for the backend. Run: ruff check . && ruff format --check .
 line-length = 100
-target-version = "py311"
+target-version = "py313"
 extend-exclude = ["alembic/versions", "venv", "frontend", "frontend_dist", "node_modules"]
 
 [lint]

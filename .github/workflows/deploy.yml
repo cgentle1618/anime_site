@@ -38,8 +38,8 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          # Same interpreter as the runtime image (dockerfile: python:3.11-slim).
-          python-version: "3.11"
+          # Same interpreter as the runtime image (dockerfile: python:3.13-slim).
+          python-version: "3.13"
           cache: pip
 
       - name: Install backend dependencies
