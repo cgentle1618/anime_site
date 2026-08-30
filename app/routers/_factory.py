@@ -1,8 +1,9 @@
 """
 routers/_factory.py
-Builds a complete CRUD router for a "regular" media type from its MediaTypeSpec.
-Replaces the five near-identical hand-written routers (movie, tv_show, cartoon,
-manga, novel). See app/registry.py for the per-type specs.
+Builds a complete CRUD router for a media type from its MediaTypeSpec.
+Every media type - the six regular ones, anime and anime movie - is served by
+this one router shape; what differs per type is declared in app/registry.py
+(hooks, filters, whether the type has a series).
 """
 
 import logging
@@ -39,16 +40,6 @@ def make_media_router(spec) -> APIRouter:
     router = APIRouter(prefix=f"/api/{spec.route}", tags=spec.tags)
     not_found = f"{spec.label} entry not found."
 
-    async def _run_write_hook(db: Session, entry) -> None:
-        """Enrich after commit; the row is already saved, so a hook failure is
-        logged, never surfaced as a 500 (which made the SPA retry and create
-        duplicates)."""
-        try:
-            await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
-        except Exception:
-            db.rollback()
-            logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
-
     def _get_or_404(db: Session, entry_id: str, viewer=None):
         entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
         if not entry:
@@ -61,6 +52,32 @@ def make_media_router(spec) -> APIRouter:
 
     def _names(entry) -> dict:
         return {k: getattr(entry, col) for k, col in spec.hierarchy_names.items()}
+
+    def _resolve_parents(db: Session, entry) -> None:
+        series_id = getattr(entry, "series_id", None) if spec.has_series else None
+        franchise_id, series_id = spec.resolve_hierarchy(
+            db, entry.franchise_id, series_id, _names(entry)
+        )
+        entry.franchise_id = franchise_id
+        if spec.has_series:
+            entry.series_id = series_id
+
+    async def _run_write_hook(db: Session, entry) -> None:
+        """Enrich after commit; the row is already saved, so a hook failure is
+        logged, never surfaced as a 500 (which made the SPA retry and create
+        duplicates)."""
+        if spec.write_hook is None:
+            return
+        try:
+            await spec.write_hook(db, str(entry.system_id), action_type="Auto", log_action=False)
+        except Exception:
+            db.rollback()
+            logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
+
+    def _finish(db: Session, entry):
+        attach_plan_flag(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry)
+        return entry
 
     # ------------------------------------------------------------------
     # Public read
@@ -84,6 +101,8 @@ def make_media_router(spec) -> APIRouter:
                 continue
             value = raw.lower() in ("true", "1", "yes") if isinstance(columns[field].type, Boolean) else raw
             query = query.filter(getattr(spec.model, field) == value)
+        if spec.extra_filters:
+            query = spec.extra_filters(query, request.query_params)
         if search_query and spec.search_fields:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
@@ -102,9 +121,7 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        attach_plan_flag(db, spec.owner_type, entry)
-        attach_link_fields(db, spec.owner_type, entry)
-        return gate(viewer, spec.owner_type, entry, spec.response_schema)
+        return gate(viewer, spec.owner_type, _finish(db, entry), spec.response_schema)
 
     # ------------------------------------------------------------------
     # Protected write (admin only)
@@ -119,10 +136,10 @@ def make_media_router(spec) -> APIRouter:
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
-        entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
-            db, entry.franchise_id, entry.series_id, _names(entry)
-        )
+        _resolve_parents(db, entry)
         db.add(entry)
+        if spec.pre_commit_hook:
+            spec.pre_commit_hook(db, entry)
         db.commit()
         db.refresh(entry)
 
@@ -138,9 +155,7 @@ def make_media_router(spec) -> APIRouter:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
             db.commit()
             db.refresh(entry)
-        attach_plan_flag(db, spec.owner_type, entry)
-        attach_link_fields(db, spec.owner_type, entry)
-        return entry
+        return _finish(db, entry)
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
     async def update(
@@ -159,19 +174,17 @@ def make_media_router(spec) -> APIRouter:
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
-        apply_completion_timestamp(entry, getattr(data, spec.status_field, None))
-        entry.franchise_id, entry.series_id = spec.resolve_hierarchy(
-            db, entry.franchise_id, entry.series_id, _names(entry)
-        )
+        apply_completion_timestamp(entry, payload.get(spec.status_field))
+        _resolve_parents(db, entry)
+        if spec.pre_commit_hook:
+            spec.pre_commit_hook(db, entry)
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
 
         await _run_write_hook(db, entry)
         db.refresh(entry)
-        attach_plan_flag(db, spec.owner_type, entry)
-        attach_link_fields(db, spec.owner_type, entry)
-        return entry
+        return _finish(db, entry)
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
     async def patch(
@@ -193,9 +206,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        attach_plan_flag(db, spec.owner_type, entry)
-        attach_link_fields(db, spec.owner_type, entry)
-        return entry
+        return _finish(db, entry)
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
                  summary=f"Mark {spec.label} Entry as Completed")
@@ -211,9 +222,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        attach_plan_flag(db, spec.owner_type, entry)
-        attach_link_fields(db, spec.owner_type, entry)
-        return entry
+        return _finish(db, entry)
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")
     def delete(

@@ -1,17 +1,20 @@
 """
 registry.py
-Central binding table for the "regular" media types whose CRUD routers share
-an identical shape. Each MediaTypeSpec holds the per-type facts (model, schemas,
-name fields, filters, and the domain/pipeline callables) that the router factory
-(`app/routers/_factory.py`) uses to build a full router.
+Central binding table for every media type. Each MediaTypeSpec holds the
+per-type facts (model, schemas, name fields, filters, and the domain/pipeline
+callables) that the router factory (`app/routers/_factory.py`) turns into a
+full CRUD router.
 
-Only the six uniform types live here. `anime` and `anime_movie` are genuinely
-different (anime runs a synchronous ep-previous derivation; anime_movie has no
-series and no write hook), so they remain hand-written routers by design.
+Anime and anime movie differ from the six regular types only in the hooks they
+declare: anime runs a synchronous autofill + ep_previous derivation before
+commit (`pre_commit_hook`) instead of a post-commit `write_hook`, and anime
+movie has no series and no hook at all.
 """
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Optional
+
+from sqlalchemy import func
 
 from app import models, schemas
 from app.services.domain import (
@@ -20,6 +23,8 @@ from app.services.domain import (
     mark_novel_completed,
     mark_reading_completed,
     mark_tv_completed,
+    resolve_anime_movie_parent_hierarchy,
+    resolve_anime_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
     resolve_manga_parent_hierarchy,
@@ -27,6 +32,7 @@ from app.services.domain import (
     resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
+from app.services.domain.anime_write import prepare_anime_write
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
@@ -60,14 +66,70 @@ class MediaTypeSpec:
     search_fields: tuple[str, ...]
     resolve_hierarchy: Callable    # (db, franchise_id, series_id, names) -> (fid, sid)
     mark_completed: Callable       # (entry) -> None
-    write_hook: Callable           # async (db, id_str, action_type, log_action) -> ...
+    write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
+    pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
+    has_series: bool = True                     # anime_movies carries no series_id column
+    # (query, query_params) -> query, for filters that are not plain equality.
+    extra_filters: Optional[Callable] = None
 
     @property
     def tags(self) -> list[str]:
         return [f"{self.label} Management"]
 
 
+def _anime_airing_season(query, params):
+    """?airing_season=SPR 2024 -> release_season + year prefix of release_date."""
+    raw = params.get("airing_season")
+    if not raw:
+        return query
+    parts = raw.strip().split(" ", 1)
+    if len(parts) != 2:
+        return query
+    return query.filter(
+        models.Anime.release_season == parts[0],
+        func.substr(models.Anime.release_date, 1, 4) == parts[1],
+    )
+
+
 MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
+    "anime": MediaTypeSpec(
+        key="anime",
+        owner_type="anime",
+        label="Anime",
+        route="anime",
+        model=models.Anime,
+        create_schema=schemas.AnimeCreate,
+        update_schema=schemas.AnimeUpdate,
+        response_schema=schemas.AnimeResponse,
+        status_field="watching_status",
+        list_filters=("franchise_id", "series_id"),
+        hierarchy_names={"en": "anime_name_en", "cn": "anime_name_cn", "roman": "anime_name_roman",
+                         "jp": "anime_name_jp", "alt": "anime_name_alt"},
+        search_fields=("anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
+        resolve_hierarchy=resolve_anime_parent_hierarchy,
+        mark_completed=mark_tv_completed,
+        pre_commit_hook=prepare_anime_write,
+        extra_filters=_anime_airing_season,
+    ),
+    "anime_movie": MediaTypeSpec(
+        key="anime_movie",
+        owner_type="anime-movie",
+        label="Anime Movie",
+        route="anime-movie",
+        model=models.AnimeMovies,
+        create_schema=schemas.AnimeMovieCreate,
+        update_schema=schemas.AnimeMovieUpdate,
+        response_schema=schemas.AnimeMovieResponse,
+        status_field="watching_status",
+        list_filters=("franchise_id", "watching_status"),
+        hierarchy_names={"en": "anime_movie_name_en", "cn": "anime_movie_name_cn", "roman": "anime_movie_name_roman",
+                         "jp": "anime_movie_name_jp", "alt": "anime_movie_name_alt"},
+        search_fields=("anime_movie_name_en", "anime_movie_name_cn", "anime_movie_name_roman",
+                       "anime_movie_name_jp", "anime_movie_name_alt"),
+        resolve_hierarchy=lambda db, fid, sid, names: (resolve_anime_movie_parent_hierarchy(db, fid, names), None),
+        mark_completed=mark_movie_completed,
+        has_series=False,
+    ),
     "movie": MediaTypeSpec(
         key="movie",
         owner_type="movie",

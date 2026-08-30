@@ -1,3 +1,12 @@
+"""
+routers/data_control.py - the admin Data Control actions.
+
+Fill / Replace / Pull routes are generated from the pipeline registry
+(app/services/pipelines/specs.py), one literal route per media type, so a new
+type gets its endpoints by being added there. Backup, Calculate and Check are
+single actions and stay hand-written below.
+"""
+
 import logging
 from typing import Optional
 
@@ -15,36 +24,11 @@ from app.services.calculation import (
     run_calculate_all,
 )
 from app.services.domain import find_all_duplicates, find_all_remarks
-from app.services.pipelines import (
-    execute_backup,
-    execute_fill_all,
-    execute_fill_anime,
-    execute_fill_anime_movie,
-    execute_fill_cartoon,
-    execute_fill_comic,
-    execute_fill_manga,
-    execute_fill_movie,
-    execute_fill_novel,
-    execute_fill_tv_show,
-    execute_pull_all,
-    execute_pull_specific,
-    execute_replace_all,
-    execute_replace_anime,
-    execute_replace_anime_movie,
-    execute_replace_cartoon,
-    execute_replace_manga,
-    execute_replace_movie,
-    execute_replace_novel,
-    execute_replace_single_anime,
-    execute_replace_single_anime_movie,
-    execute_replace_single_cartoon,
-    execute_replace_single_comic,
-    execute_replace_single_manga,
-    execute_replace_single_movie,
-    execute_replace_single_novel,
-    execute_replace_single_tv_show,
-    execute_replace_tv_show,
-)
+from app.services.pipelines import fill, replace
+from app.services.pipelines.backup import execute_backup
+from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
+from app.services.pipelines.specs import PIPELINES
+from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
 
 logger = logging.getLogger(__name__)
 
@@ -60,704 +44,143 @@ router = APIRouter(
 )
 
 
-@router.post("/fill/anime")
-async def trigger_fill_anime(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for Anime entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_anime(
-                db,
-                request,
-                action_specific="Fill Anime",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
+def _stream(generator) -> StreamingResponse:
+    return StreamingResponse(generator, media_type="text/event-stream")
+
+
+def _json(result: dict) -> JSONResponse:
+    """A pipeline reports failure as a status dict; map it to the HTTP error
+    it names (404 for a missing entry, 400 for a bad request) instead of 200."""
+    if result.get("status") == "error":
+        raise HTTPException(
+            status_code=result.get("status_code", 400), detail=result.get("message")
         )
-    except Exception as e:
-        logger.error(f"Error in fill anime: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=result)
 
 
-@router.post("/fill/anime-movie")
-async def trigger_fill_anime_movie(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for Anime Movie entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_anime_movie(
-                db,
-                request,
-                action_specific="Fill Anime Movie",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill anime movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+def _attr(module, prefix: str, key: str):
+    return getattr(module, f"{prefix}{key.replace('-', '_')}")
 
 
-@router.post("/fill/movie")
-async def trigger_fill_movie(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for Movie entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_movie(
-                db,
-                request,
-                action_specific="Fill Movie",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# ---------------------------------------------------------------------------
+# Fill / Replace / Pull per media type
+# ---------------------------------------------------------------------------
+
+# Literal routes come first so "/fill/all" and "/pull" can never be caught by
+# a parameterised sibling declared below.
 
 
-@router.post("/fill/all")
+@router.post("/fill/all", summary="Fill every type, then Backup (SSE)")
 async def trigger_fill_all(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the master Fill Pipeline for ALL data types and automatically triggers a backup.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_all(db, request, action_type="Manual"),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill all: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return _stream(fill.execute_fill_all(db, request, action_type="Manual"))
 
 
-@router.post("/replace/anime")
-async def trigger_replace_anime(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for Anime entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_anime(
-                db,
-                request,
-                action_specific="Replace Anime",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace anime: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/anime/{anime_id}")
-async def trigger_replace_single_anime(anime_id: str, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline for a single anime entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_anime(
-            db, anime_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single anime: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/anime-movie")
-async def trigger_replace_anime_movie(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for Anime Movie entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_anime_movie(
-                db,
-                request,
-                action_specific="Replace Anime Movie",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace anime movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/anime-movie/{anime_movie_id}")
-async def trigger_replace_single_anime_movie(
-    anime_movie_id: str, db: Session = Depends(get_db)
-):
-    """
-    Triggers the Replace Pipeline for a single anime movie entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_anime_movie(
-            db, anime_movie_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single anime movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/movie")
-async def trigger_replace_movie(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for Movie entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_movie(
-                db,
-                request,
-                action_specific="Replace Movie",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/movie/{movie_id}")
-async def trigger_replace_single_movie(movie_id: str, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline for a single movie entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_movie(
-            db, movie_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single movie: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fill/tv-show")
-async def trigger_fill_tv_show(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for TV Show entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_tv_show(
-                db,
-                request,
-                action_specific="Fill TV Show",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill tv show: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/tv-show")
-async def trigger_replace_tv_show(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for TV Show entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_tv_show(
-                db,
-                request,
-                action_specific="Replace TV Show",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace tv show: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/tv-show/{tv_show_id}")
-async def trigger_replace_single_tv_show(
-    tv_show_id: str, db: Session = Depends(get_db)
-):
-    """
-    Triggers the Replace Pipeline for a single TV show entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_tv_show(
-            db, tv_show_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single tv show: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fill/cartoon")
-async def trigger_fill_cartoon(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for Cartoon entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_cartoon(
-                db,
-                request,
-                action_specific="Fill Cartoon",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill cartoon: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/cartoon")
-async def trigger_replace_cartoon(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for Cartoon entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_cartoon(
-                db,
-                request,
-                action_specific="Replace Cartoon",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace cartoon: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/cartoon/{cartoon_id}")
-async def trigger_replace_single_cartoon(
-    cartoon_id: str, db: Session = Depends(get_db)
-):
-    """
-    Triggers the Replace Pipeline for a single cartoon entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_cartoon(
-            db, cartoon_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single cartoon: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fill/manga")
-async def trigger_fill_manga(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Fill Pipeline specifically for Manga entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_fill_manga(
-                db,
-                request,
-                action_specific="Fill Manga",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill manga: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/manga")
-async def trigger_replace_manga(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline specifically for Manga entries.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_manga(
-                db,
-                request,
-                action_specific="Replace Manga",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace manga: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/manga/{manga_id}")
-async def trigger_replace_single_manga(manga_id: str, db: Session = Depends(get_db)):
-    """
-    Triggers the Replace Pipeline for a single manga entry (Autofill & Update).
-    Returns standard JSON response.
-    """
-    try:
-        result = await execute_replace_single_manga(
-            db, manga_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single manga: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/pull/manga")
-def trigger_pull_manga(db: Session = Depends(get_db)):
-    """Triggers a pull from the Manga Google Sheets tab."""
-    try:
-        result = execute_pull_specific(
-            db, "Manga", action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pull manga: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fill/novel")
-async def trigger_fill_novel(request: Request, db: Session = Depends(get_db)):
-    """Triggers the Fill Pipeline specifically for Novel entries. SSE streaming."""
-    try:
-        return StreamingResponse(
-            execute_fill_novel(
-                db,
-                request,
-                action_specific="Fill Novel",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill novel: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/novel")
-async def trigger_replace_novel(request: Request, db: Session = Depends(get_db)):
-    """Triggers the Replace Pipeline specifically for Novel entries. SSE streaming."""
-    try:
-        return StreamingResponse(
-            execute_replace_novel(
-                db,
-                request,
-                action_specific="Replace Novel",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace novel: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/novel/{novel_id}")
-async def trigger_replace_single_novel(novel_id: str, db: Session = Depends(get_db)):
-    """Triggers the Replace Pipeline for a single novel entry (Autofill & Update)."""
-    try:
-        result = await execute_replace_single_novel(
-            db, novel_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            status_code = result.get("status_code", 400)
-            raise HTTPException(status_code=status_code, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single novel: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/fill/comic")
-async def trigger_fill_comic(request: Request, db: Session = Depends(get_db)):
-    """Triggers the Fill Pipeline specifically for Comic entries. SSE streaming."""
-    try:
-        return StreamingResponse(
-            execute_fill_comic(
-                db,
-                request,
-                action_specific="Fill Comic",
-                action_type="Manual",
-                log_action=True,
-            ),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in fill comic: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/comic/{comic_id}")
-async def trigger_replace_single_comic(comic_id: str, db: Session = Depends(get_db)):
-    """Triggers the Replace Pipeline for a single comic entry."""
-    try:
-        result = await execute_replace_single_comic(
-            db, comic_id, action_type="Manual", log_action=False
-        )
-        if result.get("status") == "error":
-            raise HTTPException(
-                status_code=result.get("status_code", 400), detail=result.get("message")
-            )
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in replace single comic: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/pull/novel")
-def trigger_pull_novel(db: Session = Depends(get_db)):
-    """Triggers a pull from the Novel Google Sheets tab."""
-    try:
-        result = execute_pull_specific(
-            db, "Novel", action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pull novel: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/pull/comic")
-def trigger_pull_comic(db: Session = Depends(get_db)):
-    """Pulls the Comic tab from Google Sheets into PostgreSQL."""
-    try:
-        result = execute_pull_specific(
-            db, "Comic", action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pull comic: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/pull/cartoon")
-def trigger_pull_cartoon(db: Session = Depends(get_db)):
-    """Triggers a pull from the Cartoon Google Sheets tab."""
-    try:
-        result = execute_pull_specific(
-            db, "Cartoon", action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pull cartoon: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/replace/all")
+@router.post("/replace/all", summary="Replace every type, then Backup (SSE)")
 async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
-    """
-    Triggers the master Replace Pipeline for ALL data types and automatically triggers a backup.
-    Streams progress back to the client using Server-Sent Events (SSE).
-    """
-    try:
-        return StreamingResponse(
-            execute_replace_all(db, request, action_type="Manual"),
-            media_type="text/event-stream",
-        )
-    except Exception as e:
-        logger.error(f"Error in replace all: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return _stream(replace.execute_replace_all(db, request, action_type="Manual"))
 
 
-@router.post("/backup")
+def _register_media_routes(spec) -> None:
+    key, label = spec.key, spec.label
+    run_fill = _attr(fill, "execute_fill_", key)
+    run_single = _attr(replace, "execute_replace_single_", key)
+
+    @router.post(f"/fill/{key}", summary=f"Fill {label} (SSE)", name=f"fill_{key}")
+    async def trigger_fill(request: Request, db: Session = Depends(get_db)):
+        return _stream(run_fill(db, request, action_type="Manual", log_action=True))
+
+    if spec.replace_select is not None:
+        run_bulk = _attr(replace, "execute_replace_", key)
+
+        @router.post(f"/replace/{key}", summary=f"Replace {label} (SSE)", name=f"replace_{key}")
+        async def trigger_replace(request: Request, db: Session = Depends(get_db)):
+            return _stream(run_bulk(db, request, action_type="Manual", log_action=True))
+
+    @router.post(
+        f"/replace/{key}/{{entry_id}}",
+        summary=f"Replace one {label} entry",
+        name=f"replace_single_{key}",
+    )
+    async def trigger_replace_single(entry_id: str, db: Session = Depends(get_db)):
+        return _json(await run_single(db, entry_id, action_type="Manual", log_action=False))
+
+
+for _spec in PIPELINES.values():
+    _register_media_routes(_spec)
+
+
+# ---------------------------------------------------------------------------
+# Backup / Pull
+# ---------------------------------------------------------------------------
+
+
+@router.post("/backup", summary="Back up every table to Google Sheets")
 def trigger_backup_all(db: Session = Depends(get_db)):
-    """
-    Triggers full database backup to Google Sheets.
-    Runs synchronously to ensure the frontend receives accurate success/failure feedback.
-    """
-    try:
-        result = execute_backup(db, action_type="Manual")
-        return JSONResponse(content=result)
-    except Exception as e:
-        logger.error(f"Error in backup all: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=execute_backup(db, action_type="Manual"))
 
 
-@router.post("/pull")
+@router.post("/pull", summary="Restore every tab from Google Sheets")
 def trigger_pull_all(db: Session = Depends(get_db)):
-    """Triggers full pull from Google Sheets to overwrite the database."""
-    try:
-        result = execute_pull_all(db, action_type="Manual")
-        return JSONResponse(content=result)
-    except Exception as e:
-        logger.error(f"Error in pull all: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=execute_pull_all(db, action_type="Manual"))
 
 
-@router.post("/pull/{tab_name}")
+def _register_pull_route(key: str, tab_name: str) -> None:
+    @router.post(f"/pull/{key}", summary=f"Restore the {tab_name} tab", name=f"pull_{key}")
+    def trigger_pull(db: Session = Depends(get_db)):
+        return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+
+
+# Per-type shortcuts the admin page links to; every other tab goes through
+# /pull/{tab_name}.
+for _tab, _media in MEDIA_TYPE_FOR_TAB.items():
+    if _media in ("manga", "novel", "comic", "cartoon"):
+        _register_pull_route(_media, _tab)
+
+
+@router.post("/pull/{tab_name}", summary="Restore one sheet tab by name")
 def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
-    """Triggers a pull from a specific Google Sheets tab."""
-    try:
-        result = execute_pull_specific(
-            db, tab_name, action_type="Manual", log_action=True
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return JSONResponse(content=result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pull {tab_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+
+
+# ---------------------------------------------------------------------------
+# Calculate / Check
+# ---------------------------------------------------------------------------
 
 
 @router.post("/calculate/all")
 def trigger_calculate_all(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=run_calculate_all(db))
-    except Exception as e:
-        logger.error(f"Error in calculate all: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=run_calculate_all(db))
 
 
 @router.get("/calculate/check-cover-image")
 def trigger_check_cover_image(
-    db: Session = Depends(get_db),
-    entry_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db), entry_type: Optional[str] = Query(None)
 ):
-    try:
-        return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
-    except Exception as e:
-        logger.error(f"Error in check cover image: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=bulk_check_cover_image(db, entry_type=entry_type))
 
 
 @router.delete("/calculate/delete-orphaned-covers")
 def trigger_delete_orphaned_covers(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_delete_orphaned_cover_images(db))
-    except Exception as e:
-        logger.error(f"Error in delete orphaned covers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=bulk_delete_orphaned_cover_images(db))
 
 
 @router.post("/calculate/set-cover-image-fields")
 def trigger_set_cover_image_fields(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=bulk_set_cover_image_fields(db))
-    except Exception as e:
-        logger.error(f"Error in set cover image fields: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=bulk_set_cover_image_fields(db))
 
 
 @router.post("/calculate/download-missing-covers")
 def trigger_download_missing_covers(
-    body: DownloadCoversBody = DownloadCoversBody(),
-    db: Session = Depends(get_db),
+    body: DownloadCoversBody = DownloadCoversBody(), db: Session = Depends(get_db)
 ):
-    try:
-        return JSONResponse(
-            content=bulk_download_missing_covers(db, system_ids=body.system_ids)
-        )
-    except Exception as e:
-        logger.error(f"Error in download missing covers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=bulk_download_missing_covers(db, system_ids=body.system_ids))
 
 
 @router.get("/check/duplicates")
 def check_duplicates(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=find_all_duplicates(db))
-    except Exception as e:
-        logger.error(f"Error in check duplicates: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=find_all_duplicates(db))
 
 
 @router.get("/check/remarks")
 def check_remarks(db: Session = Depends(get_db)):
-    try:
-        return JSONResponse(content=find_all_remarks(db))
-    except Exception as e:
-        logger.error(f"Error in check remarks: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=find_all_remarks(db))
