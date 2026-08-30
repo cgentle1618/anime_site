@@ -12,6 +12,19 @@
       content="anime tracker, CG1618, anime library, franchise hub, ACG database, anime progress"
     />
     <title>CG1618 Tracker</title>
+    <script>
+      // Stamp the theme before any CSS paints so a dark-mode user never sees
+      // a white flash. Mirrors ThemeProvider's rule: stored choice, else OS.
+      try {
+        var t = localStorage.getItem("cg1618:theme");
+        if (t !== "light" && t !== "dark") {
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"

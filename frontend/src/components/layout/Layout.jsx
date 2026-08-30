@@ -55,14 +55,14 @@ function ScrollButtons() {
 
 export default function Layout() {
   return (
-    <div className="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+    <div className="bg-canvas text-text min-h-screen flex flex-col font-sans">
       <Nav />
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="bg-white border-t border-gray-200 mt-auto shrink-0">
+      <footer className="bg-surface border-t border-border mt-auto shrink-0">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm font-medium text-gray-400 flex items-center justify-center gap-2">
+          <p className="text-center text-sm font-medium text-text-faint flex items-center justify-center gap-2">
             © 2026 CG1618 Tracker. All rights reserved.
             <i className="fas fa-bolt text-brand/50"></i>
           </p>

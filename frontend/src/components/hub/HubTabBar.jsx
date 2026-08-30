@@ -15,14 +15,14 @@ export default function HubTabBar({ groups, activeTab, onSelect, getCount }) {
   const filled = groups.filter((g) => g.tabs.length > 0);
 
   return (
-    <div className="flex items-stretch gap-3 border-b border-gray-200 overflow-x-auto">
+    <div className="flex items-stretch gap-3 border-b border-border overflow-x-auto">
       {filled.map((group, i) => (
         <div key={group.label} className="flex items-stretch gap-3">
           {i > 0 && (
-            <div className="w-px bg-gray-200 shrink-0 my-2" aria-hidden="true" />
+            <div className="w-px bg-surface-3 shrink-0 my-2" aria-hidden="true" />
           )}
           <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap pr-1">
+            <span className="text-[10px] font-black text-text-faint uppercase tracking-widest whitespace-nowrap pr-1">
               {group.label}
             </span>
             {group.tabs.map((tab) => (

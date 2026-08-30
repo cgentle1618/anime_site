@@ -34,7 +34,7 @@ export function HubShell({ children }) {
 export function HubBreadcrumb({ trail = [], current, editId, isAdmin }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <nav className="text-sm text-gray-500 flex items-center gap-1.5 flex-wrap min-w-0">
+      <nav className="text-sm text-text-faint flex items-center gap-1.5 flex-wrap min-w-0">
         {trail.map((crumb) => (
           <span key={crumb.to} className="flex items-center gap-1.5">
             <Link to={crumb.to} className="hover:text-brand font-medium">
@@ -44,12 +44,12 @@ export function HubBreadcrumb({ trail = [], current, editId, isAdmin }) {
             <span>/</span>
           </span>
         ))}
-        <span className="font-bold text-gray-800 truncate">{current}</span>
+        <span className="font-bold text-text truncate">{current}</span>
       </nav>
       {isAdmin && editId && (
         <Link
           to={`/modify?id=${editId}`}
-          className="shrink-0 text-xs font-bold text-gray-500 hover:text-brand transition flex items-center gap-1.5 border border-gray-200 bg-white rounded-lg px-3 py-1.5"
+          className="shrink-0 text-xs font-bold text-text-faint hover:text-brand transition flex items-center gap-1.5 border border-border bg-surface rounded-lg px-3 py-1.5"
         >
           <i className="fas fa-pen text-[10px]"></i>
           Quick Edit
@@ -67,7 +67,7 @@ export function HubBreadcrumb({ trail = [], current, editId, isAdmin }) {
 export function HubCard({ tier, children }) {
   return (
     <div
-      className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ${tierAccent(tier)}`}
+      className={`bg-surface rounded-2xl border border-border shadow-sm p-6 ${tierAccent(tier)}`}
     >
       {children}
     </div>
@@ -87,7 +87,7 @@ export function HubHeroRow({ children }) {
 export function HubCover({ src }) {
   return (
     <div className="w-28 sm:w-36 lg:w-40 shrink-0">
-      <div className="w-full aspect-[2/3] bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+      <div className="w-full aspect-[2/3] bg-surface-2 rounded-xl overflow-hidden border border-border">
         <img
           src={src}
           alt="Cover"

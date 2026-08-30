@@ -20,7 +20,7 @@ function FilterTag({ filters, toggleFilter, group, value, label }) {
       className={`px-3 py-1 rounded-full border text-xs font-bold transition-colors ${
         active
           ? "bg-brand text-white border-brand"
-          : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+          : "bg-surface text-text-faint border-border hover:bg-surface-2"
       }`}
     >
       {label}
@@ -40,9 +40,9 @@ function FilterPanel({
   dynamicFilterOptions,
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 space-y-3">
+    <div className="bg-surface border border-border rounded-xl p-4 mb-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+        <span className="text-xs font-black text-text-faint uppercase tracking-widest">
           Filters
         </span>
         {activeFilterCount > 0 && (
@@ -65,7 +65,7 @@ function FilterPanel({
                 onChange={() => toggleFilter(fd.key, null)}
                 className="rounded"
               />
-              <span className="text-xs font-bold text-gray-600">{fd.label}</span>
+              <span className="text-xs font-bold text-text-muted">{fd.label}</span>
             </label>
           );
         }
@@ -83,7 +83,7 @@ function FilterPanel({
 
         return (
           <div key={fd.key}>
-            <div className="text-xs font-bold text-gray-400 mb-1.5">{fd.label}</div>
+            <div className="text-xs font-bold text-text-faint mb-1.5">{fd.label}</div>
             <div className="flex flex-wrap gap-1.5">
               {options.map((v) => (
                 <FilterTag
@@ -219,18 +219,18 @@ export default function LibraryLayout({
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Search */}
         <div className="relative flex-1 min-w-48">
-          <i className="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" />
+          <i className="fas fa-search absolute left-3 top-2.5 text-text-faint text-sm pointer-events-none" />
           <input
             type="text"
             placeholder={config.searchPlaceholder ?? "Search..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+            className="w-full pl-9 pr-9 py-2 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-2.5 text-text-faint hover:text-text-muted"
             >
               <i className="fas fa-times text-sm" />
             </button>
@@ -241,7 +241,7 @@ export default function LibraryLayout({
         <select
           value={currentSort}
           onChange={(e) => setCurrentSort(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-white"
+          className="border border-border rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
         >
           {config.sortDefs.map((s) => (
             <option key={s.key} value={s.key}>
@@ -255,8 +255,8 @@ export default function LibraryLayout({
           onClick={() => setShowFilters((o) => !o)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-bold transition-colors ${
             showFilters
-              ? "bg-gray-100 border-gray-300"
-              : "bg-white border-gray-200 hover:bg-gray-50"
+              ? "bg-surface-2 border-border-strong"
+              : "bg-surface border-border hover:bg-surface-2"
           }`}
         >
           <i className="fas fa-filter" /> Filters
@@ -268,13 +268,13 @@ export default function LibraryLayout({
         </button>
 
         {/* View toggle */}
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex rounded-xl border border-border overflow-hidden">
           <button
             onClick={() => setCurrentView("grid")}
             className={`px-3 py-2 text-sm transition-colors ${
               currentView === "grid"
                 ? "bg-brand text-white"
-                : "bg-white text-gray-400 hover:text-gray-600"
+                : "bg-surface text-text-faint hover:text-text-muted"
             }`}
           >
             <i className="fas fa-th-large" />
@@ -284,14 +284,14 @@ export default function LibraryLayout({
             className={`px-3 py-2 text-sm transition-colors ${
               currentView === "table"
                 ? "bg-brand text-white"
-                : "bg-white text-gray-400 hover:text-gray-600"
+                : "bg-surface text-text-faint hover:text-text-muted"
             }`}
           >
             <i className="fas fa-list" />
           </button>
         </div>
 
-        <span className="text-sm font-bold text-gray-500">
+        <span className="text-sm font-bold text-text-faint">
           {filteredAndSorted.length} results
         </span>
       </div>
@@ -311,8 +311,8 @@ export default function LibraryLayout({
       {/* Content */}
       {filteredAndSorted.length === 0 ? (
         <div className="text-center py-20">
-          <i className="fas fa-ghost text-4xl text-gray-300 mb-4" />
-          <p className="text-gray-500 font-medium">
+          <i className="fas fa-ghost text-4xl text-text-faint/60 mb-4" />
+          <p className="text-text-faint font-medium">
             No items match the current filters.
           </p>
         </div>
@@ -330,16 +330,16 @@ export default function LibraryLayout({
         </div>
       ) : (
         /* Table view */
-        <div className="bg-white rounded-xl border border-gray-200 overflow-auto max-h-[75vh]">
+        <div className="bg-surface rounded-xl border border-border overflow-auto max-h-[75vh]">
           <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+            <thead className="bg-surface-2 border-b border-border sticky top-0 z-10">
               <tr>
                 {config.tableColumns.map((col, i) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-3 text-xs font-black text-gray-500 uppercase tracking-wider text-center ${
+                    className={`px-4 py-3 text-xs font-black text-text-faint uppercase tracking-wider text-center ${
                       i < config.tableColumns.length - 1
-                        ? "border-r border-gray-100"
+                        ? "border-r border-border"
                         : ""
                     } ${col.thClass ?? ""}`}
                   >
@@ -348,7 +348,7 @@ export default function LibraryLayout({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {filteredAndSorted.map((item) => (
                 <tr
                   key={item.system_id}
@@ -360,7 +360,7 @@ export default function LibraryLayout({
                       key={col.key}
                       className={`px-4 py-2 ${
                         i < config.tableColumns.length - 1
-                          ? "border-r border-gray-100"
+                          ? "border-r border-border"
                           : ""
                       } ${col.tdClass ?? ""}`}
                       onClick={col.stopPropagation ? (e) => e.stopPropagation() : undefined}

@@ -9,7 +9,7 @@ import MediaLoadingState from "./MediaLoadingState";
 import { getCoverUrl } from "../../lib/covers";
 
 export const controlCls =
-  "bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-medium px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand/30";
+  "bg-surface border border-border text-text-muted rounded-lg text-xs font-medium px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand/30";
 
 // Media type values as stored in the media_type column (hyphenated, matching
 // watch_order_item and MEDIA_CONFIG).
@@ -34,7 +34,7 @@ export const MEDIA_TYPE_FILTERS = [
 
 export function Pill({ children, tone = "gray" }) {
   const tones = {
-    gray: "bg-gray-100 text-gray-600",
+    gray: "bg-surface-2 text-text-muted",
     brand: "bg-brand/10 text-brand",
     amber: "bg-amber-100 text-amber-700",
     violet: "bg-violet-100 text-violet-700",
@@ -56,7 +56,7 @@ export function Toggle({ active, onClick, children }) {
       className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
         active
           ? "bg-brand/10 text-brand"
-          : "bg-white border border-gray-200 text-gray-500 hover:text-gray-700"
+          : "bg-surface border border-border text-text-faint hover:text-text-muted"
       }`}
     >
       {children}
@@ -97,10 +97,10 @@ export default function GroupedEntryPage({
           <i className={`fas ${icon} text-brand text-lg`}></i>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
             {title}
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-0.5">{subtitle}</p>
+          <p className="text-xs text-text-faint font-medium mt-0.5">{subtitle}</p>
         </div>
       </div>
 
@@ -115,14 +115,14 @@ export default function GroupedEntryPage({
         />
       ) : (
         <>
-          <p className="text-xs text-gray-400 font-medium">
+          <p className="text-xs text-text-faint font-medium">
             {total} {plural(total)} across {groups.length} entr
             {groups.length === 1 ? "y" : "ies"}
           </p>
 
           {!groups.length && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
-              <p className="text-sm text-gray-400 italic">
+            <div className="bg-surface rounded-xl border border-border shadow-sm p-8 text-center">
+              <p className="text-sm text-text-faint italic">
                 No {noun}s match these filters.
               </p>
             </div>
@@ -142,20 +142,20 @@ export default function GroupedEntryPage({
               return (
               <div
                 key={`${ownerType}-${ownerId}`}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+                className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden"
               >
                 {/* Owner header */}
-                <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
+                <div className="flex items-center gap-3 border-b border-border px-4 py-3">
                   {group.missing ? (
                     <>
-                      <div className="w-9 h-12 rounded bg-gray-100 flex items-center justify-center shrink-0">
-                        <i className="fas fa-unlink text-gray-300 text-xs" />
+                      <div className="w-9 h-12 rounded bg-surface-2 flex items-center justify-center shrink-0">
+                        <i className="fas fa-unlink text-text-faint/60 text-xs" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-400 italic">
+                        <p className="text-sm font-bold text-text-faint italic">
                           Unlinked / deleted owner
                         </p>
-                        <p className="text-[10px] text-gray-300 font-mono truncate">
+                        <p className="text-[10px] text-text-faint/60 font-mono truncate">
                           {ownerType} · {ownerId}
                         </p>
                       </div>
@@ -166,7 +166,7 @@ export default function GroupedEntryPage({
                         // Tiers have no cover column — a franchise's cover is
                         // derived from its entries on the frontend, which is
                         // more work than a group header is worth.
-                        <div className="w-9 h-12 rounded bg-brand/5 flex items-center justify-center shrink-0 border border-brand/10">
+                        <div className="w-9 h-12 rounded bg-brand-soft flex items-center justify-center shrink-0 border border-brand/10">
                           <i
                             className={`fas ${TIER_ICONS[ownerType] || "fa-layer-group"} text-brand/60 text-sm`}
                           />
@@ -175,7 +175,7 @@ export default function GroupedEntryPage({
                         <img
                           src={getCoverUrl(group.cover_image_file)}
                           alt=""
-                          className="w-9 h-12 rounded object-cover shrink-0 border border-gray-100"
+                          className="w-9 h-12 rounded object-cover shrink-0 border border-border"
                         />
                       )}
                       <div className="min-w-0">
@@ -183,13 +183,13 @@ export default function GroupedEntryPage({
                           {navPath ? (
                             <Link
                               to={navPath}
-                              className="text-sm font-bold text-gray-900 hover:text-brand truncate"
+                              className="text-sm font-bold text-text hover:text-brand truncate"
                             >
                               {name}
                             </Link>
                           ) : (
                             // Series has no page of its own.
-                            <span className="text-sm font-bold text-gray-900 truncate">
+                            <span className="text-sm font-bold text-text truncate">
                               {name}
                             </span>
                           )}
@@ -197,7 +197,7 @@ export default function GroupedEntryPage({
                             <Pill tone="brand">{group.owner_label}</Pill>
                           )}
                         </div>
-                        <p className="text-[10px] text-gray-400 font-medium">
+                        <p className="text-[10px] text-text-faint font-medium">
                           {count} {plural(count)}
                         </p>
                       </div>

@@ -45,7 +45,7 @@ export default function CollapsibleCardGrid({ items, renderItem, rows = 2 }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-500 hover:text-brand hover:border-brand/40 transition-colors"
+          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-border bg-surface text-xs font-bold text-text-faint hover:text-brand hover:border-brand/40 transition-colors"
         >
           <i className={`fas fa-chevron-${expanded ? "up" : "down"}`}></i>
           {expanded ? "Show less" : `Show all ${items.length}`}

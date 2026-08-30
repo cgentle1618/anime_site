@@ -2,6 +2,7 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
@@ -72,7 +73,7 @@ export default function App() {
   return (
     // The QueryClientProvider lives in main.jsx (one cache for the app);
     // provider order below: auth, then UI helpers, then routing.
-    <>
+    <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
           <BrowserRouter
@@ -147,7 +148,7 @@ export default function App() {
           </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
-    </>
+    </ThemeProvider>
   );
 }
 

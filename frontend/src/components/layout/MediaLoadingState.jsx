@@ -9,7 +9,7 @@ export default function MediaLoadingState({
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <i className="fas fa-circle-notch fa-spin text-4xl text-brand mb-4"></i>
-        <p className="text-gray-500 font-medium">{loadingText}</p>
+        <p className="text-text-faint font-medium">{loadingText}</p>
       </div>
     );
   }

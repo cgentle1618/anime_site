@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
 import {
   NAV_SECTIONS,
@@ -93,6 +94,7 @@ function SectionPanel({ section, currentItem, onNavigate }) {
 }
 
 export default function Nav() {
+  const { theme, toggle: toggleTheme } = useTheme();
   const { isAdmin, has, refetchAuth } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -232,6 +234,17 @@ export default function Nav() {
 
               <button
                 type="button"
+                onClick={toggleTheme}
+                title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                aria-pressed={theme === "dark"}
+                className="rounded-md px-2 py-1.5 text-slate-400 hover:text-white hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} text-sm`}></i>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setMobileOpen((o) => !o)}
                 aria-expanded={mobileOpen}
                 aria-label="Toggle navigation"
@@ -346,6 +359,14 @@ export default function Nav() {
             <div className="border-t border-slate-100 pt-3">
               {isAdmin ? (
                 <>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} w-4 text-center text-xs text-slate-400`}></i>
+                    {theme === "dark" ? "Light mode" : "Dark mode"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

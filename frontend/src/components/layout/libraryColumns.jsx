@@ -21,13 +21,13 @@ export function franchiseColumn() {
   return {
     key: "franchise",
     header: "Franchise",
-    tdClass: "text-xs text-gray-600 font-medium truncate max-w-[12rem]",
+    tdClass: "text-xs text-text-muted font-medium truncate max-w-[12rem]",
     render: (item, { franchiseDict }) => {
       const f = franchiseDict[item.franchise_id];
       return f ? (
         f.franchise_name_cn || f.franchise_name_en || f.franchise_name_roman || "Unknown"
       ) : (
-        <span className="text-gray-300 italic">None</span>
+        <span className="text-text-faint/60 italic">None</span>
       );
     },
   };
@@ -124,7 +124,7 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
         );
       }
       return status ? (
-        <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">
+        <div className="text-[9px] font-bold text-text-faint bg-surface-2 border border-border rounded px-1 py-0.5 mx-auto max-w-full truncate">
           {status}
         </div>
       ) : (

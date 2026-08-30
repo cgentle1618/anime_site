@@ -12,7 +12,7 @@ export function HubLoading({ label = "Loading..." }) {
     <div className="flex items-center justify-center py-24">
       <div className="text-center">
         <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-        <p className="text-gray-500 font-medium">{label}</p>
+        <p className="text-text-faint font-medium">{label}</p>
       </div>
     </div>
   );
@@ -49,10 +49,10 @@ export function HubError({ title, message, backTo, backLabel }) {
  */
 export function HubEmpty({ icon, message, hint, children }) {
   return (
-    <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-      <i className={`fas ${icon} text-gray-300 text-3xl mb-3`}></i>
-      <p className="text-gray-500 font-medium">{message}</p>
-      {hint && <p className="text-sm text-gray-400 mt-1">{hint}</p>}
+    <div className="text-center py-16 bg-surface rounded-xl border border-border">
+      <i className={`fas ${icon} text-text-faint/60 text-3xl mb-3`}></i>
+      <p className="text-text-faint font-medium">{message}</p>
+      {hint && <p className="text-sm text-text-faint mt-1">{hint}</p>}
       {children}
     </div>
   );
@@ -64,7 +64,7 @@ export function HubEmpty({ icon, message, hint, children }) {
  */
 export function FilterEmpty() {
   return (
-    <div className="text-center py-16 text-gray-400">
+    <div className="text-center py-16 text-text-faint">
       <i className="fas fa-ghost text-3xl mb-3"></i>
       <p className="font-medium">No entries match the current filters.</p>
     </div>

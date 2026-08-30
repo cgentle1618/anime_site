@@ -16,12 +16,12 @@ export default function Toast() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="pointer-events-auto flex items-center gap-3 bg-white border border-gray-200 rounded-xl shadow-xl px-4 py-3 min-w-64 max-w-sm animate-slide-in"
+          className="pointer-events-auto flex items-center gap-3 bg-surface border border-border rounded-xl shadow-xl px-4 py-3 min-w-64 max-w-sm animate-slide-in"
         >
           <i
             className={`fas ${iconMap[toast.type] || iconMap.info} text-lg shrink-0`}
           ></i>
-          <span className="text-sm font-medium text-gray-800">
+          <span className="text-sm font-medium text-text">
             {toast.message}
           </span>
         </div>

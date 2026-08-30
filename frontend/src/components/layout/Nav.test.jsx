@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ThemeProvider } from "../../contexts/ThemeContext";
 import Nav from "./Nav";
 
 // Nav pulls the session from context and fires search requests on typing;
@@ -34,9 +35,11 @@ afterEach(() => {
 
 function renderNav(route = "/") {
   return render(
-    <MemoryRouter initialEntries={[route]}>
-      <Nav />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <Nav />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
