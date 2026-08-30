@@ -128,3 +128,22 @@ def test_link_fields_are_read_only_on_the_write_path(admin_client, client, db_se
 
     body = client.get(f"/api/anime/{r.json()['system_id']}").json()
     assert body["studio"] is None
+
+
+def test_anime_carries_the_label_tag_and_its_sheet_column(client, db_session):
+    """
+    標籤 Label is scoped to anime and never had a legacy string column, so it
+    is served - and backed up - under its own key.
+    """
+    a = _anime(db_session, "標籤測試")
+    credits_service.replace_tags(
+        db_session, "anime", a.system_id, "label", ["會跳OP", "很多福利"]
+    )
+    db_session.commit()
+
+    body = client.get(f"/api/anime/{a.system_id}").json()
+    assert body["label"] == "會跳OP, 很多福利"
+
+    headers = credits_service.sheet_link_headers("anime")
+    values = credits_service.sheet_link_values(db_session, "anime", a)
+    assert values[headers.index("label")] == "會跳OP, 很多福利"

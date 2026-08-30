@@ -82,3 +82,20 @@ def test_official_source_is_one_category_across_three_media_types():
     field = cr.TAG_FIELDS["source_official"]
     assert field.category == "Official Source"
     assert set(field.media_types) == {"tv-show", "cartoon", "movie"}
+
+
+def test_label_is_an_anime_only_tag_field():
+    field = cr.TAG_FIELDS["label"]
+    assert field.category == "Label"
+    assert field.media_types == ("anime",)
+    assert "label" in {f.key for f in cr.tag_fields_for("anime")}
+
+
+def test_label_has_no_legacy_sheet_header():
+    """It never had a string column, so the sheet header is the key itself."""
+    assert ("anime", "label") not in cr.LEGACY_SHEET_COLUMN
+    assert cr.sheet_column_for("anime", "label") == "label"
+
+
+def test_label_is_an_offered_option_category():
+    assert "Label" in cr.OPTION_CATEGORIES

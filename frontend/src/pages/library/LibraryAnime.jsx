@@ -51,6 +51,7 @@ const ANIME_LIBRARY_CONFIG = {
       item.release_season,  fullSeason, item.release_date,
       seasonYear,           fullSeasonYear,
       item.genre_main,      item.genre_sub,      item.studio,
+      item.label,
     ]
       .filter(Boolean)
       .join(" ");

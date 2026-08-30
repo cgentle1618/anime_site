@@ -1475,8 +1475,8 @@ became a UUID `system_id` to match every other table.
 | `created_at` | DateTime | No       | —       | Auto-set on create                                        |
 | `updated_at` | DateTime | No       | —       | Auto-updated on save                                      |
 
-**The ten Tier 2 categories** (see `docs/options.md` for their scopes and
-which old categories merged into each): `Genre Main`, `Genre Sub`,
+**The eleven Tier 2 categories** (see `docs/options.md` for their scopes and
+which old categories merged into each): `Genre Main`, `Genre Sub`, `Label`,
 `Official Source`, `Franchise for Filter`, `Publisher / Distributor TW`,
 `Comic Publisher`, `Comic Imprint`, `Comic Continuity`, `Comic Era`,
 `Comic Event`.

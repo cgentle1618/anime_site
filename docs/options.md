@@ -110,6 +110,7 @@ neither can narrow: the one-time `backfill_credits` seeding, and
 |---|---|---|
 | `Genre Main` | — (anime only field) | `Genre Main` |
 | `Genre Sub` | — (anime only field) | `Genre Sub` |
+| `Label` | `anime` | new in 2026-08 — 標籤 Label, viewing-experience tags (會跳OP, 吃飯不宜觀看, 很多福利); seeded by `l1a2b3e4l5o6`, extended through the Options Add page |
 | `Official Source` | `tv-show`, `cartoon`, `movie` | `TV Show Official Source` + `Cartoon Official Source` + the mismatched `TV Official Source` the code actually wrote — all one vocabulary now |
 | `Franchise for Filter` | `movie`, `tv-show` | `Movie Franchise for Filter` + a TV show equivalent |
 | `Publisher / Distributor TW` | `anime`, `manga`, `novel`, `comic` | `Distributor TW` + `Manga Publisher TW` + `Novel Publisher TW` |

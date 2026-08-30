@@ -256,6 +256,12 @@ export const TYPE_FIELD_META = {
       source: { kind: "option", category: "Genre Sub" },
       group: "Classification",
     },
+    label: {
+      label: "標籤 Label",
+      control: "tags",
+      source: { kind: "option", category: "Label" },
+      group: "Classification",
+    },
     ep_previous: {
       label: "Previous Episodes",
       control: "number",

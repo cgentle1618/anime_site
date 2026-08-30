@@ -202,7 +202,7 @@ to be a `notes` JSONB field on the entry payload; they are now rows in the
 
 **Prefill from existing entry**
 
-- A search box allows typing to find an existing anime entry. Selecting one prefills: Franchise, Series, all Anime Name fields, Airing Type, Main / Spinoff, Genre Main, Genre Sub, Studio.
+- A search box allows typing to find an existing anime entry. Selecting one prefills: Franchise, Series, all Anime Name fields, Airing Type, Main / Spinoff, Genre Main, Genre Sub, Studio. (標籤 Label is not prefilled - no external source supplies it.)
 
 **Franchise field**
 

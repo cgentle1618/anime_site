@@ -454,6 +454,7 @@ export default function Anime() {
                 ],
                 { label: "Genre (Main)", value: anime.genre_main },
                 { label: "Genre (Sub)", value: anime.genre_sub },
+                { label: "標籤 Label", value: anime.label },
               ]}
             />
             <InfoCard

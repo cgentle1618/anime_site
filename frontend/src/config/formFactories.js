@@ -41,6 +41,7 @@ export const defaultAnime = () => ({
   my_watch_day: "",
   genre_main: "",
   genre_sub: "",
+  label: "",
   studio: "",
   director: "",
   producer: "",

@@ -31,6 +31,7 @@ class AnimeLinkFields(BaseModel):
     distributor_tw: Optional[str] = None
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
+    label: Optional[str] = None
 
 
 class AnimeMovieLinkFields(BaseModel):

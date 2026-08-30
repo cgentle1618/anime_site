@@ -443,6 +443,18 @@ export default function AnimeAddTab({
             limit={null}
           />
         </Field>
+        <Field label="標籤 Label">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Label",
+            })}
+            value={af.label}
+            onChange={(v) => ua("label", v)}
+            placeholder="Select labels..."
+            limit={null}
+          />
+        </Field>
       </div>
 
       <SectionHeader icon="fa-industry" title="Production" />

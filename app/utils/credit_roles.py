@@ -104,6 +104,9 @@ TAG_FIELDS: dict[str, TagField] = {
         "genre_main", "Genre Main", "Genre Main", ("anime",)
     ),
     "genre_sub": TagField("genre_sub", "Genre Sub", "Genre Sub", ("anime",)),
+    # Viewing-experience tags (會跳OP, 很多福利, ...). No legacy column ever
+    # held these, so no LEGACY_SHEET_COLUMN entry: the sheet header is the key.
+    "label": TagField("label", "標籤 Label", "Label", ("anime",)),
     "source_official": TagField(
         "source_official", "Official Source", "Official Source",
         ("tv-show", "cartoon", "movie"),

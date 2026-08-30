@@ -739,6 +739,7 @@ Anime Information Card
 - Airing Type, Airing Status, Release Season (Seasonal Year), Release Date (Month Year)
 - Genre Main
 - Genre Sub
+- 標籤 Label
 
 Anime Movie Information Card
 

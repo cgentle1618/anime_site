@@ -210,7 +210,7 @@ Full detail page for a single anime entry.
 **Detail cards:**
 
 - **Naming Card** (reusable): Alt Name, JP Name, Roman Name
-- **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Release Season, Release Date, Total Ep (+ cumulative), Genre Main, Genre Sub
+- **Information Card** (reusable): Season/Part, Airing Type, Airing Status, Release Season, Release Date, Total Ep (+ cumulative), Genre Main, Genre Sub, 標籤 Label
 - **Production Card** (reusable): Studio, Distributor TW, Director, Producer, Music/Composer
 - Characters & Cast Card (TBD)
 - Remarks — shown when not null
@@ -710,7 +710,7 @@ Full anime library with client-side filtering via `useMemo`.
 
 **Library bar (always visible):**
 
-- Filter search: by anime title, franchise title, series title, release season (e.g. WIN 2026), release date, release year, genre_main/genre_sub. Case/punctuation/space insensitive.
+- Filter search: by anime title, franchise title, series title, release season (e.g. WIN 2026), release date, release year, genre_main/genre_sub, label. Case/punctuation/space insensitive.
 - Sort by: Title (default) / My Rating / MAL Rating / Release Date (new to old, TBD first)
 - Advanced filters (collapsible): Airing Type, Airing Status, Watching Status, 巴哈
 - Grid/Table view toggle
@@ -1474,7 +1474,7 @@ Includes auto-fill from existing entry search bar (searches all languages includ
 
 - **Titles & Naming:** Franchise (ComboBox + auto-create modal), Series (ComboBox + auto-create modal), Anime Name EN/CN/Roman/JP/Alt, Season, Part
 - **Status & Progress:** Airing Status (default: Not Yet Aired), Watching Status (default: Might Watch), My Rating, Total Ep of Previous Entries, Total Ep, Episode Finished, Ep Special Number, MAL Rating/Rank, AniList Rating
-- **Classification:** Airing Type, Main/Spinoff (default: 本傳), Genre Main (multi-select, show all on click), Genre Sub (multi-select, show all on click)
+- **Classification:** Airing Type, Main/Spinoff (default: 本傳), Genre Main (multi-select, show all on click), Genre Sub (multi-select, show all on click), 標籤 Label (multi-select, show all on click)
 - **Production:** Release Season/Month/Year, Studio, Distributor TW, Director, Producer, Music/Composer (all multi-selectable)
 - **Relational & Timeline:** Prequel ID, Sequel ID, Alternative IDs (comma-separated), Is Main Entry checkbox, Watch Order, Derive Related dropdown
 - **Source & Links:** MAL ID/Link, AniList Link, Official Website, Twitter
