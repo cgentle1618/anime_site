@@ -1,988 +1,517 @@
-# Options & Enum Values
+# Options and Vocabularies
 
-Valid values for enumerated fields across the application. These drive frontend dropdowns, backend filtering, and business logic.
+Last verified: 2026-08-30 (commit 4339702)
 
-Fields marked _(future)_ are planned but not yet in the database schema.
+## What this is for
 
-## Table of Contents
+Every dropdown, status, kind and category in the app draws from a fixed list
+of values somewhere. This page is the one place that lists them all and says
+where each list lives. Lists sit in one of three tiers, chosen by a single
+question: **does code branch on the exact value?** If yes, the list is a Python
+constant (Tier 1) and an admin cannot rename it. If no, it is a row in
+`system_option` (Tier 2) that an admin edits freely. If the "value" is really a
+person or a studio with a name, a rating and a photo, it is an entity table
+(Tier 3). A final section lists fixed numbers and field lists that are not
+vocabularies but are equally hard-coded. Column types and nullability are in
+[data-model.md](data-model.md); the rules that consume these values are in
+[business-rules.md](business-rules.md). Values below are quoted verbatim from
+code.
 
-- [The Three Tiers](#the-three-tiers)
-- [Value Discrepancies (Preserved, Not Resolved)](#value-discrepancies-preserved-not-resolved)
-- [Watching Status](#watching-status)
-- [Watching Status Filter Options](#watching-status-filter-options)
-- [Reading Status](#reading-status)
-- [Airing Type](#airing-type)
-- [Airing Status](#airing-status)
-- [Day of Week](#day-of-week)
-- [Franchise Type](#franchise-type)
-- [My Rating](#my-rating)
-- [Franchise Expectation](#franchise-expectation)
-- [Music Status](#music-status)
-- [Seiyuu Status](#seiyuu-status)
-- [Movie Type](#movie-type)
-- [Comic Type](#comic-type)
-- [Main / Spinoff](#main--spinoff)
-- [Region (TV Show)](#region-tv-show)
-- [Region (Manga)](#region-manga)
-- [Serialization Status](#serialization-status)
-- [Watch Order Step Importance](#watch-order-step-importance)
-- [Media Relation Kinds](#media-relation-kinds)
-- [Size Groups](#size-groups)
-- [Note Section Kinds](#note-section-kinds)
-- [Became Entities (Tier 3)](#became-entities-tier-3)
-- [Franchise — Special Entries](#franchise--special-entries)
-- [Franchise for Filter — Example Values](#franchise-for-filter--example-values)
-- [Fields to Fill by Entry Type](#fields-to-fill-by-entry-type)
+## Table of contents
+
+- [The three tiers](#the-three-tiers)
+- [Tier 1: closed enums in code](#tier-1-closed-enums-in-code)
+  - [`app/utils/constants.py`](#apputilsconstantspy)
+  - [Relation kinds](#relation-kinds-apputilsrelation_kindspy)
+  - [Note sections](#note-sections-apputilsnote_sectionspy)
+  - [Plan-next vocabulary](#plan-next-vocabulary-apputilsplan_next_kindspy)
+  - [Credit roles and tag fields](#credit-roles-and-tag-fields-apputilscredit_rolespy)
+  - [Watch-order built-ins](#watch-order-built-ins-appservicesdomainwatch_orderpy)
+  - [RBAC permissions and field groups](#rbac-permissions-and-field-groups)
+  - [Media type and owner keys](#media-type-and-owner-keys-apputilsmedia_resolverpy)
+- [Tier 2: system options](#tier-2-system-options)
+- [Tier 3: people and studios](#tier-3-people-and-studios)
+- [Fixed constants](#fixed-constants)
+- [Frontend copies of backend vocabulary](#frontend-copies-of-backend-vocabulary)
+- [Known discrepancies](#known-discrepancies)
 
 ---
 
-## The Three Tiers
+## The three tiers
 
-Every dynamic choice list used to be one row in a single `system_options`
-table — a dropdown suggestion list, not a constraint. The 2026-08-29 options
-redesign replaced it with three homes, sorted by one question: **does code
-branch on the exact value?**
+| Tier | Lives in | Who changes it | Read by the frontend via | Examples |
+|---|---|---|---|---|
+| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.credits` |
+| 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Official Source` = `Disney+` |
+| 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
-### Tier 1 — Closed enums (code, not database)
+The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
+`"完結"` gates the novel volume checks, `Completed (解說)` must count as
+completed everywhere `Completed` does. If an admin could rename any of these,
+the logic would break silently and no migration would notice. Tier 2 values
+are only ever read by humans, so renaming one is a content edit and nothing
+more. `content_label` looks like Tier 2 but is deliberately its own table,
+because its values decide **who may see** an entry rather than describe one;
+see [authorization.md](authorization.md).
 
-Values the business logic compares against. `Not Yet Aired` makes Fill skip
-`mal_rating`/`mal_rank`; the watching-status filter groups `Completed` with
-`Completed (解說)`; `完結` gates the novel volume/chapter checks. If an admin
-could rename or delete these, logic would break silently and no migration
-would catch it.
+---
 
-**They are Python constants in `app/utils/constants.py`, served read-only by
-`GET /api/constants`** (see `docs/api.md`) so the frontend stops keeping a
-second copy of each list. This document remains their canonical reference —
-every section below a Tier 1 enum documents its real, current values.
+## Tier 1: closed enums in code
 
-| Enum | Note |
+### `app/utils/constants.py`
+
+Served by `GET /api/constants` under the key in the last column. Two
+`Enum` classes (`FranchiseType`, `AnimeAiringType`) are **not** what the
+endpoint serves; the tuples beside them are, because the frontend dropdown
+diverged from the Enum long ago and reconciling them is out of scope (the
+file's own comment calls this Ruling R10). See
+[Known discrepancies](#known-discrepancies).
+
+| Name | Values (in order) | Used by | `/api/constants` key |
+|---|---|---|---|
+| `WatchStatus` (Enum) | `Might Watch`, `Plan to Watch`, `Watch When Airs`, `Active Watching`, `Passive Watching`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Watch` | `watching_status` on anime, anime_movies, movies, tv_shows, cartoons | `watching_status` |
+| `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic | `reading_status` |
+| `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
+| `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
+| `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled`, `Rumored` | `airing_status` (business logic compares string literals, the Enum itself is only served) | `airing_status` |
+| `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
+| `ANIME_AIRING_TYPES` | `TV`, `Movie`, `ONA`, `OVA`, `OAD`, `Special`, `Other` | `anime.airing_type` dropdown | `anime_airing_type` |
+| `CARTOON_AIRING_TYPES` | `TV`, `Movie`, `OVA`, `Special` | `cartoons.airing_type` dropdown (Fill only handles `TV` and `Movie`, see business-rules.md section 17) | `cartoon_airing_type` |
+| `FranchiseType` (Enum) | `Anime`, `Movie`, `TV`, `Cartoon`, `Comic`, `ACG`, `Novel` | backend-internal only | not served |
+| `FRANCHISE_TYPES` | `ACG`, `Anime Movie`, `TV`, `Movie`, `Cartoon`, `Comic`, `Novel` | `franchise.franchise_type` dropdown | `franchise_type` |
+| `FRANCHISE_EXPECTATIONS` | `Highest`, `High`, `Medium`, `Low` | `franchise.franchise_expectation` | `franchise_expectation` |
+| `MY_RATINGS` | `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` | `my_rating` on entries, franchise, seasonal, person, studio | `my_rating` |
+| `IS_MAIN` | `本傳`, `外傳`, `前傳`, `後傳`, `總集篇` | `is_main` on anime, movies, tv_shows, cartoons, manga, novel (formerly the `Main / Spinoff` system-option category; `comic.is_main_entry` is a Boolean, not this) | `is_main` |
+| `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
+| `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
+| `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
+| `NOVEL_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `novel.region` | `novel_region` |
+| `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
+| `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
+| `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status` | `manga_serialization_status` |
+| `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
+| `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
+| `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
+| `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
+
+`/api/constants` also serves three keys from other modules:
+`watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
+`person_role` ([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
+`media_type` ([below](#media-type-and-owner-keys-apputilsmedia_resolverpy)).
+
+Retired: `Dub Preference` (never existed in code) and the old `Main / Spinoff`,
+`Region (TV Show)`, `Region (Manga)` option categories (now `IS_MAIN`,
+`TV_REGIONS`, `MANGA_REGIONS`).
+
+### Relation kinds (`app/utils/relation_kinds.py`)
+
+The vocabulary of `media_relation.relation_type`, served at
+`GET /api/media-relation/kinds`. Ten stored kinds; `prequel` is accepted on
+write (`INPUT_ONLY_KINDS = {"prequel": "sequel"}`) and stored as a `sequel`
+row with the endpoints swapped. How chains and inverses are read is in
+[business-rules.md section 13](business-rules.md#13-media-relations-media_relationpy-apputilsrelation_kindspy)
+and [systems/relations.md](systems/relations.md).
+
+`RELATION_FAMILIES`: `timeline`, `equivalence`, `branch`, `derivation`.
+
+| Key | Label | Inverse label | Family | Symmetric | Transitive |
+|---|---|---|---|:-:|:-:|
+| `sequel` | Sequel | Prequel | `timeline` | | |
+| `alternative` | Alternative | Alternative | `equivalence` | yes | yes |
+| `corresponding` | Corresponding | Corresponding | `equivalence` | yes | yes |
+| `renew` | Renew | Original | `equivalence` | | |
+| `directors_cut` | Director's Cut | Original | `equivalence` | | |
+| `extended` | Extended | Original | `equivalence` | | |
+| `side_story` | Side Story | Parent Story | `branch` | | |
+| `spin_off` | Spin-off | Main Story | `branch` | | |
+| `setting` | Setting | Main Story | `branch` | | |
+| `adaptation` | Adaptation | Source | `derivation` | | |
+
+### Note sections (`app/utils/note_sections.py`)
+
+The registry of what a `note` row may be. Full behaviour is in
+[systems/notes.md](systems/notes.md); this lists only the vocabularies.
+
+**Shapes**: `text`, `text_links`, `text_or_link`, `episode_text`,
+`name_links`, `episode_name_links`, `music_track` (the seven `STORED_SHAPES`)
+plus `external` (quotes and memes, which live in their own tables).
+
+**Groups** (`NOTE_GROUPS`, the collapsible cards):
+
+| Key | Label |
 |---|---|
-| Watching Status / Reading Status | |
-| Airing Status | |
-| Airing Type (anime, cartoon) | |
-| Franchise Type | |
-| My Rating | Reused by `person.my_rating` and `studio.my_rating` |
-| Franchise Expectation | |
-| Movie Type | |
-| Serialization Status | Manga and Novel now have **separate** value lists — see below |
-| Music Status / Seiyuu Status | |
-| Day of Week | |
-| Watch Order Step Importance | |
-| Note Section Kinds | |
-| Media Relation Kinds | Already code-side in `app/utils/relation_kinds.py` |
-| **Main / Spinoff** | Moved here from `system_options` |
-| **Region** (TV Show, Manga) | Moved here from `system_options` |
+| `reviews` | 評論 Reviews and Comments |
+| `analysis_group` | 解析 Analysis and Cinematography |
+| `music` | 音樂 Music |
+| `quotes_memes` | 名言/梗 Quotes and Memes |
 
-`Dub Preference` is **dropped entirely** — it was used nowhere (no service,
-no form, no column ever read it) and existed only in this document. It is
-not in `system_options`, not a Tier 1 constant, and not a column anywhere.
+**Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
+type plus `series`, `franchise`, `collection`; "Entries" means the eight
+media types only.
 
-### Tier 2 — Open vocabularies (`system_option`)
+| Key | Shape | Label | Owners | Group | Kinds / statuses |
+|---|---|---|---|---|---|
+| `remark` | text | 備註 Remark | All | | singleton |
+| `advantages` | text | 優點 Advantages | All | reviews | |
+| `disadvantages` | text | 缺點 Disadvantages | All | reviews | |
+| `double_edged` | text | 優缺點 | All | reviews | |
+| `public_reviews` | text_or_link | 大眾評價 Public Reviews | All | reviews | |
+| `personal_reviews` | text | 我的評價 Personal Reviews | All | reviews | gated by field group `personal_notes` |
+| `episode_comments` | text_links | 各集評論 Episode Comments | anime, tv-show, cartoon | reviews | locator required |
+| `highlights` | episode_text | 神回/神片段 Highlights | anime | | kinds `HIGHLIGHT_KINDS` |
+| `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
+| `highlight_passages` | text | 神片段 | novel | | |
+| `analysis` | text_links | 解析 Analysis | All | analysis_group | |
+| `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
+| `craft` | text_links | 巧思 | novel | analysis_group | |
+| `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
+| `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
+| `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
+| `ed` | music_track | ED | anime | music | same as `op` |
+| `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
+| `ost` | music_track | OST | anime | music | same as `op` |
+| `op_ed_changes` | episode_text | OP/ED 變動 | anime, tv-show, cartoon | music | kinds `OP_ED_KINDS` |
+| `extended_episodes` | episode_text | 加長 | anime, tv-show, cartoon | | |
+| `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, novel, series, franchise | | description required on anime, anime-movie, novel |
+| `resources` | name_links | Resources | All | standalone | |
+| `questions` | episode_text | Questions | All | standalone | description required everywhere |
+| `quotes` | external | 名言 Quotes | Entries | quotes_memes | |
+| `memes` | external | 梗/迷因 Memes | All | quotes_memes | |
 
-Values only humans read. Nothing in the code compares against them, so they
-are safe to add, rename and reorder at will. They live in the `system_option`
-/ `system_option_scope` tables — see `docs/database-schema.md`.
+Kind vocabularies:
 
-Old per-consumer duplication (`TV Show Official Source` / `Cartoon Official
-Source`, `Region (TV Show)` / `Region (Manga)`, TW distributors split three
-ways) is replaced by **one vocabulary per category, with each value carrying
-the scopes it is offered in**. A value with no scope rows is offered
-everywhere. A dropdown asks the `/api/options` endpoint for
-`?category=Official Source&scope=cartoon`.
+| Constant | Values |
+|---|---|
+| `OP_ED_KINDS` | `變化OP`, `變化ED`, `無OP`, `無ED`, `特殊OP`, `特殊ED` |
+| `MUSIC_TYPES` | `normal`, `different version`, `all inclusive version` |
+| `MUSIC_STATUSES` | `Need`, `Pending`, `Done` (same values as `constants.MUSIC_STATUSES`) |
+| `HIGHLIGHT_KINDS` | `神回`, `神片段`, `神篇章` |
 
-**Scopes are admin-managed data, never derived from usage (Ruling R27).**
-Writing a tag used to stamp the entry's media type onto the value as a scope.
-That meant assigning an unscoped value to one entry silently narrowed it to
-that media type everywhere else — add `Disney+` under `Official Source`, use
-it on one TV show, and it disappears from the Cartoon dropdown with nothing to
-explain why. `replace_tags` no longer does this, for the same reason person
-`director` scope is explicit rather than derived from credits: a value must be
-offerable before its first use, and one save must not be able to un-offer it.
+The API rejects a kind the section does not list. The old `特殊變動` values
+`回顧` and `其他` belong to no section and cannot be entered.
 
-Scopes are therefore set and repaired by hand, in the Options tab of the Add
-and Modify admin pages (`ScopePicker`), and validated against the hyphenated
-media type keys on write. Two passes still touch them, both ADDITIVE so
-neither can narrow: the one-time `backfill_credits` seeding, and
-`extract_system_options`, the deliberate reconcile action Calculate runs.
+### Plan-next vocabulary (`app/utils/plan_next_kinds.py`)
 
-| Category | Scopes | Replaces |
+The vocabulary of `plan_next.kind` / `plan_next.scope` and the size buckets
+stored in `franchise.size_group_*` / `series.size_group_*`. Served at
+`GET /api/plan-next/kinds` (which the frontend does not call, see
+[Frontend copies](#frontend-copies-of-backend-vocabulary)). Thresholds and
+derivation are in
+[business-rules.md section 7](business-rules.md#7-size-groups-size_grouppy-plan_nextpy-plan_next_kindspy);
+the page is in [systems/plan-next.md](systems/plan-next.md).
+
+`KINDS`: `next`, `rewatch`. `SCOPES`: `entry`, `series`, `franchise`.
+
+`ALLOWED_SCOPES`, keyed by kind then media type:
+
+| Media type | `next` | `rewatch` |
 |---|---|---|
-| `Genre Main` | — (anime only field) | `Genre Main` |
-| `Genre Sub` | — (anime only field) | `Genre Sub` |
-| `Label` | `anime` | new in 2026-08 — 標籤 Label, viewing-experience tags (會跳OP, 吃飯不宜觀看, 很多福利); seeded by `l1a2b3e4l5o6`, extended through the Options Add page |
-| `Official Source` | `tv-show`, `cartoon`, `movie` | `TV Show Official Source` + `Cartoon Official Source` + the mismatched `TV Official Source` the code actually wrote — all one vocabulary now |
-| `Franchise for Filter` | `movie`, `tv-show` | `Movie Franchise for Filter` + a TV show equivalent |
-| `Publisher / Distributor TW` | `anime`, `manga`, `novel`, `comic` | `Distributor TW` + `Manga Publisher TW` + `Novel Publisher TW` |
-| `Comic Publisher` | `comic` | `Comic Publisher` |
-| `Comic Imprint` | `comic` | `Comic Imprint` |
-| `Comic Continuity` | `comic` | `Comic Continuity` |
-| `Comic Era` | `comic` | `Comic Era` |
-| `Comic Event` | `comic` | `Comic Event` |
+| `anime` | entry, series, franchise | franchise |
+| `anime-movie` | entry | entry |
+| `movie` | entry, series, franchise | entry, series, franchise |
+| `tv-show` | entry, series, franchise | entry, series, franchise |
+| `cartoon` | entry, series, franchise | franchise |
+| `manga` | entry | entry |
+| `novel` | entry | entry, series, franchise |
+| `comic` | entry, series | entry, series |
 
-**`Franchise for Filter` has no frontend consumer today** — same gap the old
-`Movie Franchise for Filter` / TV show equivalent had (nothing in
-`fieldMeta.js` reads it). It exists as a vocabulary and is filter-only (see
-`FILTER_ONLY_CATEGORIES` in `app/utils/credit_roles.py`), not a
-`media_tag`-backed entry field.
+`PLAN_FLAG_FIELDS` (the virtual API fields that front `plan_next` at entry
+scope): `watch_next` on anime, anime-movie, movie, tv-show, cartoon;
+`to_rewatch` on anime-movie, movie, tv-show; `read_next` and `to_reread` on
+manga, novel, comic. Anime and cartoon have no entry-level rewatch field.
 
-Comic Era, Continuity and Event carry more structure in principle (a date
-range, an ordering) but are treated as plain vocabularies for now. If they
-earn columns later they graduate to Tier 3 the way `person`/`studio` did.
+`SIZE_GROUPS` (key and label, from `SIZE_THRESHOLDS` and `_LABELS`):
 
-### Tier 3 — Entities (`person`, `studio`)
+| Media type | Keys |
+|---|---|
+| `anime` | `12ep` "12 EP", `24ep` "24 EP", `30ep_plus` "30+ EP" |
+| `tv-show`, `cartoon` | `1season` "1 Season", `2season` "2 Seasons", `3season_plus` "3+ Seasons" |
+| `movie` | `standalone` "Standalone", `2_3movies` "2-3 Movies", `4movies_plus` "4+ Movies" |
+| `comic` | `1_3` "1-3 Issues", `4_10` "4-10 Issues", `11_plus` "11+ Issues" |
 
-Categories that named a person or a studio became real entity tables instead
-of vocabulary rows — directors and seiyuu need multilingual names, a rating,
-a photo and a remark; a flat `(category, value)` string could not hold any
-of it. See [Became Entities](#became-entities-tier-3) below for the mapping
-from old category to new role, and `docs/database-schema.md` for the
-`person` / `person_role` / `studio` / `media_credit` schema.
+`anime-movie`, `manga` and `novel` have no bucket vocabulary.
 
-**`character` and `character_voice` were designed but not built.** The
-design spec lays out both tables (franchise-scoped cast profiles, and
-seiyuu casting with a language dimension for dubs), but neither exists yet —
-they touch no existing column and are deferred to a follow-up spec.
-`anime.seiyuu` is unrelated either way: it always was, and still is, a
-`Need`/`Done` status column tracking whether the seiyuu work has been done
-for an entry, never a cast list.
+### Credit roles and tag fields (`app/utils/credit_roles.py`)
 
----
+`CREDIT_ROLES` is the vocabulary of `media_credit.role`. Credit roles and
+person roles are two lists on purpose: 原作 and 作画 are two credits that both
+imply the single `manga_author` person role.
 
-## Value Discrepancies (Preserved, Not Resolved)
+| Key | Label | Target | Person role | Media types |
+|---|---|---|---|---|
+| `studio` | Studio | studio | | anime, anime-movie |
+| `director` | Director | person | `director` | anime, anime-movie, movie |
+| `producer` | Producer | person | `producer` | anime |
+| `composer` | Music / Composer | person | `composer` | anime |
+| `manga_author_plot` | 原作 | person | `manga_author` | manga |
+| `manga_author_draw` | 作画 | person | `manga_author` | manga |
+| `novel_author` | Author | person | `novel_author` | novel |
+| `novel_illustrator` | Illustrator | person | `novel_illustrator` | novel |
+| `comic_writer` | Writer | person | `comic_writer` | comic |
+| `comic_artist` | Artist | person | `comic_artist` | comic |
 
-The redesign's plan forbade changing any enum's values while moving it
-between homes, so a few disagreements already present in the code were
-carried over rather than silently "fixed" by picking a side. Two of them are
-genuine two-sided splits — the app itself is inconsistent — and are recorded
-here rather than resolved:
+`PERSON_ROLES` (derived, in first-seen order, served as `/api/constants`
+`person_role`): `director`, `producer`, `composer`, `manga_author`,
+`novel_author`, `novel_illustrator`, `comic_writer`, `comic_artist`.
+`SCOPED_PERSON_ROLES = {"director"}`: a director's `person_role` carries a
+scope of `anime` (credited on anime or anime-movie, `DIRECTOR_ANIME_MEDIA_TYPES`)
+or `non_anime`. These scopes are **not** the hyphenated media-type keys.
 
-- **`franchise_type`.** `app/utils/constants.py`'s `FranchiseType` Enum class
-  has `Anime` and lacks `Anime Movie`. The `FRANCHISE_TYPES` tuple —
-  what `GET /api/constants` actually serves, because it matches what the
-  frontend dropdown shows — has `Anime Movie` and lacks `Anime`. Both
-  include `ACG`. See the [Franchise Type](#franchise-type) table below for
-  the tuple's real values; the `Enum` class stays backend-internal.
-- **`anime_airing_type`.** `AnimeAiringType` (the Enum class) has six values
-  (`TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie`); `ANIME_AIRING_TYPES` (what
-  `/api/constants` serves) carries a trailing `Other` the Enum class lacks.
+`TAG_FIELDS` is the vocabulary of `media_tag.field`; each field reads one
+Tier 2 category:
 
-Two more were simple documentation gaps — a single ground truth in code that
-this file had drifted from — and **are** fixed below to match the code:
+| Key | Label | Tier 2 category | Media types |
+|---|---|---|---|
+| `genre_main` | Genre Main | `Genre Main` | anime |
+| `genre_sub` | Genre Sub | `Genre Sub` | anime |
+| `label` | 標籤 Label | `Label` | anime |
+| `source_official` | Official Source | `Official Source` | tv-show, cartoon, movie |
+| `publisher_tw` | Publisher / Distributor TW | `Publisher / Distributor TW` | anime, manga, novel, comic |
+| `comic_publisher` | Publisher | `Comic Publisher` | comic |
+| `comic_imprint` | Imprint | `Comic Imprint` | comic |
+| `comic_continuity` | Continuity | `Comic Continuity` | comic |
+| `comic_era` | Era | `Comic Era` | comic |
+| `comic_event` | Events | `Comic Event` | comic |
 
-- **Serialization Status.** This file previously listed one shared 5-value
-  table (including `未出`, labelled "novel only"). In code, Manga and Novel
-  have always had **separate, different-length** tuples:
-  `MANGA_SERIALIZATION_STATUSES` (4 values, no `未出`) and
-  `NOVEL_SERIALIZATION_STATUSES` (8 values). See the
-  [Serialization Status](#serialization-status) section below, now split in
-  two.
-- **Franchise Expectation.** `FRANCHISE_EXPECTATIONS` in code has always
-  included `Highest` above `High`/`Medium`/`Low`; this file listed only the
-  three lower values. See the updated table below.
+`FILTER_ONLY_CATEGORIES`: `Franchise for Filter` (a Tier 2 category with no
+tag field behind it). `OPTION_CATEGORIES` = the ten categories above plus
+that one. `LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
+Sheets header it has always used (e.g. `("anime", "composer")` -> `music`,
+`("anime", "publisher_tw")` -> `distributor_tw`).
 
----
+### Watch-order built-ins (`app/services/domain/watch_order.py`)
 
-## Watching Status
+| Name | Values |
+|---|---|
+| `ITEM_IMPORTANCE` | `Essential`, `Recommended`, `Normal`, `Optional` (served as `/api/constants` `watch_order_importance`) |
+| `DEFAULT_IMPORTANCE` | `Normal`; `normalize_importance` coerces anything unrecognised (NULL, a bad Sheets cell) to it |
+| `MEDIA_TYPE_MODELS` / `VALID_WATCH_ORDER_MEDIA_TYPES` | the eight hyphenated media types |
+| `_STATUS_FIELDS` | `watching_status` for anime, anime-movie, movie, tv-show, cartoon; `reading_status` for manga, novel, comic |
+| `_TOTAL_FIELDS` | `ep_total` (anime, tv-show, cartoon), `ch_total` (manga, novel), `issue_total` (comic); movies and anime movies have none |
 
-Field: `anime.watching_status` — Default: `Might Watch`
+Generated release orders have no `watch_order_item` rows, so every step of
+one is `Normal`. See [systems/watch-orders.md](systems/watch-orders.md).
 
-| Value              | Default |
-| ------------------ | ------- |
-| `Might Watch`      | Yes     |
-| `Plan to Watch`    |         |
-| `Watch When Airs`  |         |
-| `Active Watching`  |         |
-| `Passive Watching` |         |
-| `Paused`           |         |
-| `Completed`        |         |
-| `Completed (解說)` |         |
-| `Temp Dropped`     |         |
-| `Dropped`          |         |
-| `Won't Watch`      |         |
+### RBAC permissions and field groups
 
----
+`app/services/rbac/permissions.py` declares the permission vocabulary; only
+grants (`role_permission` rows) are stored. A name is `<family>.<key>`, except
+the bare `admin`, which implies everything.
 
-## Watching Status Filter Options
+| Constant | Value |
+|---|---|
+| `PERM_ADMIN` | `admin` |
+| `PERMISSION_FAMILIES` | `media_type`, `field_group`, `label` |
+| `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
+| `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
+| `label.<key>` | one per `content_label.key` row; the only family computed from the database at request time |
 
-Used in UI filters only — not a database field.
+`app/services/rbac/field_groups.py` (`FIELD_GROUPS`):
 
-| Filter Value  | Includes                                  |
-| ------------- | ----------------------------------------- |
-| `Might Watch` | Might Watch                               |
-| `Planned`     | Plan to Watch, Watch When Airs            |
-| `Watching`    | Active Watching, Passive Watching, Paused |
-| `Completed`   | Completed, Completed (解說)               |
-| `Dropped`     | Temp Dropped, Dropped, Won't Watch        |
+| Key | Label | Gates |
+|---|---|---|
+| `sources_other` | Other Sources | column `source_other` on every media type; UI block `info.SourcesCard.other` |
+| `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
+| `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
+| `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; UI block `info.CreditsCard` |
 
----
+See [authorization.md](authorization.md) for roles, enforcement and content
+labels.
 
-## Reading Status
+### Media type and owner keys (`app/utils/media_resolver.py`)
 
-Field: `reading_status` _(future)_ — Default: `Might Read`
-
-| Value             | Default |
-| ----------------- | ------- |
-| `Might Read`      | Yes     |
-| `Plan to Read`    |         |
-| `Active Reading`  |         |
-| `Passive Reading` |         |
-| `Paused`          |         |
-| `Completed`       |         |
-| `Completed (解說)`|         |
-| `Temp Dropped`    |         |
-| `Dropped`         |         |
-| `Won't Read`      |         |
+`MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `watch_order_item`,
+`plan_next`, `media_credit`, `media_tag`, `system_option_scope`; served as
+`/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
+`cartoon`, `manga`, `novel`, `comic`. `OWNER_TYPE_KEYS` adds the grouping
+tiers `series`, `franchise`, `collection` for note and meme owners.
 
 ---
 
-## Airing Type
+## Tier 2: system options
 
-### Anime Airing Type
+An open vocabulary: values only humans read. Tables `system_option` and
+`system_option_scope` are described in
+[data-model.md](data-model.md#vocabulary-and-configuration); models are in
+`app/models/system.py`; the router is `app/routers/options.py`.
 
-Field: `anime.airing_type` — Default: `null`
+**Categories.** The category string is free text on the API
+(`SystemOptionCreate.category: str`), but the ones anything reads are the
+eleven in `OPTION_CATEGORIES`:
 
-| Value     | Default |
-| --------- | ------- |
-| `null`    | Yes     |
-| `TV`      |         |
-| `Movie`   |         |
-| `ONA`     |         |
-| `OVA`     |         |
-| `OAD`     |         |
-| `Special` |         |
-| `Other`   | Served by `/api/constants` (`ANIME_AIRING_TYPES`); absent from the `AnimeAiringType` Enum class — see [Value Discrepancies](#value-discrepancies-preserved-not-resolved) |
+| Category | Offered in (scopes) | Read by |
+|---|---|---|
+| `Genre Main` | anime | tag field `genre_main` |
+| `Genre Sub` | anime | tag field `genre_sub` |
+| `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
+| `Official Source` | tv-show, cartoon, movie | tag field `source_official` (merged the old `TV Show Official Source` / `Cartoon Official Source`) |
+| `Publisher / Distributor TW` | anime, manga, novel, comic | tag field `publisher_tw` (merged `Distributor TW`, `Manga Publisher TW`, `Novel Publisher TW`) |
+| `Comic Publisher` | comic | tag field `comic_publisher` |
+| `Comic Imprint` | comic | tag field `comic_imprint` |
+| `Comic Continuity` | comic | tag field `comic_continuity` |
+| `Comic Era` | comic | tag field `comic_era` |
+| `Comic Event` | comic | tag field `comic_event` |
+| `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 
----
+**How scopes work.** One vocabulary per category; each value carries the
+media types it is offered in as `system_option_scope` rows. A value with
+**no** scope rows is offered everywhere. Reads filter with
+`GET /api/options?scope=cartoon` or `GET /api/options/{category}?scope=cartoon`,
+which returns values that are unscoped *or* scoped to that key. Results are
+ordered by `category`, `sort_order`, `value`. Scopes must be one of
+`MEDIA_TYPE_KEYS` (validated in `app/schemas/system.py`, duplicates dropped).
 
-### Cartoon Airing Type
+**Writes.** `POST /api/options/`, `PUT /api/options/{id}`,
+`DELETE /api/options/{id}` are admin-only. Add and update reject an exact
+`(category, value)` duplicate (`uq_system_option_value`); update replaces the
+scope list wholesale with the one in the payload; delete logs a tombstone to
+`deleted_record` under type `System Options` and cascades to the scope rows.
+Admins edit scopes in the Options tab of Add / Modify
+(`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`).
 
-Field: `cartoon.airing_type` — Default: `TV`
-
-| Value   | Default |
-| ------- | ------- |
-| `null`  |         |
-| `TV`    | Yes     |
-| `Movie` |         |
-| `Other` |         |
-
----
-
-## Airing Status
-
-Field: `anime.airing_status` — Default: `Not Yet Aired`
-
-| Value             | Default |
-| ----------------- | ------- |
-| `Not Yet Aired`   | Yes     |
-| `Airing`          |         |
-| `Finished Airing` |         |
-| `Canceled`        |         |
-| `Rumored`         |         |
-
----
-
-## Day of Week
-
-Fields: `anime.broadcast_day`, `anime.my_watch_day` — Default: `null`
-
-Stored as plain strings; the closed value list lives in `WEEKDAYS`
-(`app/utils/constants.py`, served at `/api/constants` as `day_of_week`) and
-drives both dropdowns in the Anime Add/Modify forms. There is no backend
-enum or validator.
-
-| Value       | Default |
-| ----------- | ------- |
-| `null`      | Yes     |
-| `Monday`    |         |
-| `Tuesday`   |         |
-| `Wednesday` |         |
-| `Thursday`  |         |
-| `Friday`    |         |
-| `Saturday`  |         |
-| `Sunday`    |         |
-
-Related field `anime.broadcast_time` is a Postgres `TIME` column (no timezone), exchanged over the API as `"HH:MM:SS"`.
+**Scopes are admin data, never derived from usage.** Saving a tag no longer
+stamps the entry's media type onto the value: doing so meant using an unscoped
+`Disney+` on one TV show silently removed it from the Cartoon dropdown. The
+only automated pass that touches scopes is `extract_system_options`
+(`app/services/domain/options_extraction.py`), and it is **purely additive**:
+it walks every `media_tag`, and for each `(option_id, media_type)` pair with no
+scope row it inserts one. It never removes a row, skips tags whose `field` is
+not in `TAG_FIELDS` or whose option no longer exists, and reads the existing
+pairs once up front so two entries sharing a genre cannot insert a duplicate.
+It runs at the end of every `run_sync_<type>` in `app/services/calculation.py`
+(so Calculate All calls it seven times) and after credit backfill.
 
 ---
 
-## Franchise Type
+## Tier 3: people and studios
 
-Field: `franchise.franchise_type` — Default: `null`
+Categories that named a person or a studio are entity rows, not vocabulary
+strings, because a director needs multilingual names, a rating, a photo and
+a remark. See [systems/credits-and-tags.md](systems/credits-and-tags.md) for
+the full system and [data-model.md](data-model.md#people-studios-and-links)
+for the `person`, `person_role`, `studio`, `media_credit` tables.
 
-The values below are `FRANCHISE_TYPES` — what `/api/constants` actually
-serves and what the frontend dropdown shows. See
-[Value Discrepancies](#value-discrepancies-preserved-not-resolved): the
-backend-internal `FranchiseType` Enum class differs (`Anime` instead of
-`Anime Movie`).
+| Old option category | New home |
+|---|---|
+| `Studio` | `studio` rows, credited via `media_credit` role `studio` |
+| `Director` | `person` with `person_role` `director` (scope `anime` / `non_anime`) |
+| `Producer` | `person` with `person_role` `producer` |
+| `Music / Composer` | `person` with `person_role` `composer` |
+| `Manga Author` | `person` with `person_role` `manga_author` (implied by `manga_author_plot` or `manga_author_draw`) |
+| `Novel Author` | `person` with `person_role` `novel_author` |
+| `Novel Illustrator` | `person` with `person_role` `novel_illustrator` |
+| `Comic Writer` | `person` with `person_role` `comic_writer` |
+| `Comic Artist` | `person` with `person_role` `comic_artist` |
 
-| Value         | Default |
-| ------------- | ------- |
-| `null`        | Yes     |
-| `ACG`         |         |
-| `Anime Movie` |         |
-| `Movie`       |         |
-| `TV`          |         |
-| `Cartoon`     |         |
-| `Comic`       |         |
-| `Novel`       |         |
-
----
-
-## My Rating
-
-Field: `anime.my_rating`, `franchise.my_rating`, `seasonal.my_rating`,
-**`person.my_rating`, `studio.my_rating`** — Default: `null`
-
-The Tier 3 entity tables reuse this same enum rather than defining their own.
-
-| Value  | Default |
-| ------ | ------- |
-| `null` | Yes     |
-| `S`    |         |
-| `A+`   |         |
-| `A`    |         |
-| `B`    |         |
-| `C`    |         |
-| `D`    |         |
-| `E`    |         |
-| `F`    |         |
+`person.my_rating` and `studio.my_rating` reuse `MY_RATINGS`. `character` /
+`character_voice` tables were designed but not built; `anime.seiyuu` is a
+`Need`/`Done` to-do status and unrelated.
 
 ---
 
-## Franchise Expectation
+## Fixed constants
 
-Field: `franchise.franchise_expectation` — Default: `Low`
+Numbers and field lists that are hard-coded but are not dropdown vocabularies.
 
-`FRANCHISE_EXPECTATIONS` in code has always included `Highest`; this table
-previously omitted it — see
-[Value Discrepancies](#value-discrepancies-preserved-not-resolved).
+**Fields Fill considers "missing"** (`app/utils/utils.py`; used by the
+`has_missing_values_<type>` checks in
+[business-rules.md section 5](business-rules.md#5-missing-value-checks-that-drive-fill-checkingpy-utilspy)).
+Column fields and link fields are listed separately because credits and tags
+are no longer columns.
 
-| Value     | Default |
-| --------- | ------- |
-| `Highest` |         |
-| `High`    |         |
-| `Medium`  |         |
-| `Low`     | Yes     |
+| Constant | Fields |
+|---|---|
+| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file` |
+| `ANIME_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `official_link`, `twitter_link`, `cover_image_file` |
+| `MOVIE_FIELDS_TO_FILL` | `length_min`, `airing_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
+| `MOVIE_LINK_FIELDS_TO_FILL` | `("credit", "director")` |
+| `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` |
+| `CARTOON_TV_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` |
+| `CARTOON_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `cover_image_file` |
+| `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
+| `NOVEL_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
+| `COMIC_FIELDS_TO_FILL` | `release_date`, `issue_total`, `cover_image_file` |
+| `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "comic_writer")`, `("credit", "comic_artist")`, `("tag", "comic_publisher")` |
 
----
+`MONTH_MAP` (`JAN` -> `01` ... `DEC` -> `12`) is also in `utils.py` but is
+unused (business-rules.md section 17).
 
-## Music Status
+**Release-date column priority** (`RELEASE_PRIORITY`, `app/utils/release_date.py`;
+first column with a value represents the entry):
 
-Field: `note.status` — Default: `null`
+| Media type | Columns, in order |
+|---|---|
+| `anime-movie` | `release_date_jp`, `release_date_tw` |
+| `movie` | `release_date_tw`, `release_date_usa` |
+| all others | `release_date` |
 
-The `op`, `ed`, `insert_songs` and `ost` note sections (anime only). These
-were the `anime.op` / `anime.ed` / `anime.insert_ost` columns until revision
-`m1u2s3i4c5t6` moved them onto note rows, so the status is now per song rather
-than per entry. `insert_songs` is `episode_name_links`-shaped rather than
-`music_track`-shaped, but it tracks a song the same way, so it offers the same
-values. `note.status` exists for this dropdown alone.
+**Size thresholds** (`SIZE_THRESHOLDS` / `SIZE_MEASURE`, `plan_next_kinds.py`;
+upper bound inclusive, `None` = everything above):
 
-| Value     | Default |
-| --------- | ------- |
-| `null`    | Yes     |
-| `Need`    |         |
-| `Pending` |         |
-| `Done`    |         |
+| Media type | Measure | Bands |
+|---|---|---|
+| `anime` | `sum_ep_total` | 12 -> `12ep`, 24 -> `24ep`, None -> `30ep_plus` |
+| `tv-show`, `cartoon` | `count` | 1 -> `1season`, 2 -> `2season`, None -> `3season_plus` |
+| `movie` | `count` | 1 -> `standalone`, 3 -> `2_3movies`, None -> `4movies_plus` |
+| `comic` | `sum_issue_total` | 3 -> `1_3`, 10 -> `4_10`, None -> `11_plus` |
 
----
+**Weekdays.** `WEEKDAYS` above (Monday-first) is the dropdown list;
+`frontend/src/config/weekdays.js` also exports `SCHEDULE_DAYS` (Sunday-first,
+so the index matches `Date.prototype.getDay()`) for the dashboard schedule.
 
-## Seiyuu Status
+**Expectation sort weight.** `EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 }`
+exists only in the frontend, defined three times: in
+`frontend/src/pages/library/CollectionLibrary.jsx` and
+`frontend/src/pages/library/FranchiseLibrary.jsx` (unknown -> 4) and in the
+Plan page sort described in [systems/plan-next.md](systems/plan-next.md)
+(unknown -> 99). There is no Python equivalent.
 
-Field: `anime.seiyuu` — Default: `null`
+**External API rate limits** (sliding-window limiters in
+`app/services/integrations/`; details in [external-apis.md](external-apis.md)):
 
-**Untouched by the options redesign.** This is a `Need`/`Done` status column
-tracking whether the seiyuu casting work has been done for an entry — not a
-cast list, and not related to the `seiyuu` `person_role` / `media_credit`
-concept the redesign did not build (see
-[Became Entities](#became-entities-tier-3)).
+| Service | Limiter | Limit |
+|---|---|---|
+| Tenrai (MAL) | `TenraiRateLimiter.DEFAULT_LIMITS = ((4, 1), (120, 60))` | 4 requests / 1 s **and** 120 requests / 60 s |
+| TMDB | `TMDbRateLimiter(max_requests=40, time_window=10)` | 40 / 10 s |
+| OMDb | `OMDbRateLimiter(max_requests=1000, time_window=86400)` | 1000 / day |
+| Comic Vine | `ComicVineRateLimiter(max_requests=200, time_window=3600)` | 200 / hour |
 
-| Value  | Default |
-| ------ | ------- |
-| `null` | Yes     |
-| `Need` |         |
-| `Done` |         |
-
----
-
-## Movie Type
-
-Field: `movie_type` _(future)_ — Default: `null`
-
-| Value       | Default |
-| ----------- | ------- |
-| `null`      | Yes     |
-| `Reality`   |         |
-| `Animation` |         |
-
----
-
-## Comic Type
-
-Field: `comic.comic_type` — Default: `null`
-
-| Value      | Default |
-| ---------- | ------- |
-| `null`     | Yes     |
-| `Ongoing`  |         |
-| `Limited`  |         |
-| `One-Shot` |         |
-| `Annual`   |         |
+**Pipeline pauses** (`app/services/pipelines/specs.py`): `MAL_PAUSE = 1` and
+`COMICVINE_PAUSE = 1` seconds, used as `fill_sleep` / `replace_sleep` between
+entries in bulk Fill and Replace for the Tenrai-backed types (anime,
+anime-movie, manga, novel) and comic.
 
 ---
 
-## Main / Spinoff
+## Frontend copies of backend vocabulary
 
-Fields: `anime.is_main`, `movies.is_main`, `tv_shows.is_main`,
-`cartoons.is_main`, `manga.is_main`, `novel.is_main` — Default: `null`
+| Frontend file | What it copies | Kept in sync how |
+|---|---|---|
+| `frontend/src/config/fieldOptions.js` | every `/api/constants` list (`WATCHING_STATUSES`, `FRANCHISE_TYPES`, `PERSON_ROLES`, `MEDIA_TYPES`, ...) plus `CONSTANTS_FALLBACK` | a pre-fetch **fallback only**. `frontend/src/config/useConstants.js` fetches `/api/constants` once and `applyConstants()` overwrites each array's contents in place, so every Add/Modify `<select>` shows API values after the first paint. `App.jsx` calls the hook at the root to force that re-render. |
+| `frontend/src/config/weekdays.js` | `WEEKDAYS` | same in-place overwrite via `day_of_week` |
+| `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS` from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`/`KINDS` against drift; `SIZE_GROUPS` has no guard. It also adds two frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`) and novel by `novel_type` (`Web` relabelled "Web Novel", then `Light Novel`, `Novel`, `Other`). |
+| `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
+| `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`) | hand-maintained; the grouping exists only in the frontend |
+| `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
+| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` (`""`, `ch`, `vol_tw`, `vol_original`, `arc_ch`), `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
-**Moved into Tier 1** from the old `Main / Spinoff` `system_options`
-category — code elsewhere (duplicate detection, listing display) treats this
-as a closed set, so it now lives in `IS_MAIN` (`app/utils/constants.py`,
-served at `/api/constants` as `is_main`) rather than an editable vocabulary.
-`comic.is_main_entry` is a separate `Boolean` column, not this string enum.
-
-| Value    | Default |
-| -------- | ------- |
-| `null`   | Yes     |
-| `本傳`   |         |
-| `外傳`   |         |
-| `前傳`   |         |
-| `後傳`   |         |
-| `總集篇` |         |
+Relation kinds and note sections are **not** copied: the frontend fetches
+`/api/media-relation/kinds` and the note registry over HTTP.
 
 ---
 
-## Region (TV Show)
-
-Field: `tv_shows.region` — Default: `null`
-
-**Moved into Tier 1** from the old `system_options` category of the same
-name — now `TV_REGIONS` in `app/utils/constants.py`, served at
-`/api/constants` as `tv_region`.
-
-| Value    | Default |
-| -------- | ------- |
-| `null`   | Yes     |
-| `歐美劇` |         |
-| `韓劇`   |         |
-| `日劇`   |         |
-| `陸劇`   |         |
-| `台劇`   |         |
-| `動畫`   |         |
-
----
-
-## Region (Manga)
-
-Field: `manga.region` — Default: `null`
-
-**Moved into Tier 1** from the old `system_options` category of the same
-name — now `MANGA_REGIONS` in `app/utils/constants.py`, served at
-`/api/constants` as `manga_region`.
-
-| Value  | Default |
-| ------ | ------- |
-| `null` | Yes     |
-| `日漫` |         |
-| `韓漫` |         |
-| `國漫` |         |
-| `台漫` |         |
-| `其他` |         |
-
-`novel.region` has its own tuple, `NOVEL_REGIONS` (`"JP"`, `"CN"`, `"TW"`,
-`"KR"`, `"Western"`, served as `novel_region`) — it was never a
-`system_options` category and so was not part of this move; it is documented
-under the `novel` table in `docs/database-schema.md`.
-
----
-
-## Serialization Status
-
-Manga and Novel have **separate, different-length** value lists — a single
-shared table here previously undercounted the Novel side; see
-[Value Discrepancies](#value-discrepancies-preserved-not-resolved).
-
-### Manga
-
-Field: `manga.serialization_status` — Default: `null`. `MANGA_SERIALIZATION_STATUSES`.
-
-| Value    | Default | Notes                          |
-| -------- | ------- | ------------------------------- |
-| `null`   | Yes     |                                 |
-| `連載中` |         | Currently serializing           |
-| `停更`   |         | On hiatus                       |
-| `腰斬`   |         | Cancelled / axed                |
-| `完結`   |         | Completed                       |
-
-### Novel
-
-Field: `novel.serialization_status` — Default: `null`. `NOVEL_SERIALIZATION_STATUSES`.
-
-| Value                  | Default | Notes                           |
-| ----------------------- | ------- | -------------------------------- |
-| `null`                  | Yes     |                                  |
-| `連載中`                |         | Currently serializing            |
-| `連載中 (不穩定)`       |         | Serializing, irregular schedule  |
-| `連載中 (有生之年)`     |         | Serializing, "in my lifetime" (very irregular) |
-| `停更`                  |         | On hiatus                        |
-| `完結`                  |         | Completed                        |
-| `腰斬`                  |         | Cancelled / axed                 |
-| `可能更多`               |         | Nominally complete but may continue |
-| `未出`                  |         | Not yet published                |
-
-`comic.serialization_status` reuses the Manga/Novel idiom but has no
-dedicated tuple of its own in `app/utils/constants.py` — see
-`docs/database-schema.md`.
-
----
-
-## Watch Order Step Importance
-
-Field: `watch_order_item.importance` — Default: `Normal`
-
-One rung per step, never two — which is why this is a single column rather than
-a set of booleans. Unrelated to `watch_order_list.list_type`, which also has a
-`Recommended` value: that ranks whole orders, this ranks steps within one. The API rejects any other value; the Google Sheets parser
-instead coerces an unrecognized cell to `Normal`, so one bad cell cannot fail a
-whole restore.
-
-| Value         | Default | Notes                                                                      |
-| ------------- | ------- | --------------------------------------------------------------------------- |
-| `Essential`   |         | Carries the story; the guide badges it and can show these alone            |
-| `Recommended` |         | Worth watching but not load-bearing; badged, and kept by "Hide optional"   |
-| `Normal`      | Yes     | An ordinary step — no badge                                                |
-| `Optional`    |         | Skippable / filler; the guide dims the row and can hide it                 |
-
-Generated (built-in) orders have no `watch_order_item` rows behind them, so
-every step of one is `Normal`.
-
----
-
-## Media Relation Kinds
-
-The vocabulary of `media_relation.relation_type`, defined in
-`app/utils/relation_kinds.py` and served at `GET /api/media-relation/kinds`.
-
-Eleven labels appear in the admin dropdown; ten are stored. `Prequel` is
-accepted on write and recorded as a `sequel` row with the endpoints swapped, so
-one fact is always one row.
-
-| Label          | Stored as       | Inverse label | Family      |
-| -------------- | --------------- | ------------- | ----------- |
-| Sequel         | `sequel`        | Prequel       | timeline    |
-| Prequel        | `sequel` (swapped) | Sequel     | timeline    |
-| Alternative    | `alternative`   | Alternative   | equivalence |
-| Corresponding  | `corresponding` | Corresponding | equivalence |
-| Renew          | `renew`         | Original      | equivalence |
-| Director's Cut | `directors_cut` | Original      | equivalence |
-| Extended       | `extended`      | Original      | equivalence |
-| Side Story     | `side_story`    | Parent Story  | branch      |
-| Spin-off       | `spin_off`      | Main Story    | branch      |
-| Setting        | `setting`       | Main Story    | branch      |
-| Adaptation     | `adaptation`    | Source        | derivation  |
-
-Families group the rows on the admin page and on each detail page's Related
-Entries card: `timeline`, `equivalence`, `branch`, `derivation`.
-
-Only `alternative` and `corresponding` are symmetric. Every other kind is
-directional, and the label shown always describes the entry at the *far* end of
-the link.
-
-`Alternative` and `Corresponding` differ by how far the work moved. An
-alternative is *essentially* the same entry — a dub, a re-release, the same
-story told again. A corresponding entry is *fundamentally* the same story told
-differently: the Fate/stay night routes, where Unlimited Blade Works and
-Heaven's Feel cover one war from another perspective. Neither is the origin of
-the other, so three routes are three peer rows rather than a hub.
-
-Both are also **transitive**: with `A-corresponding-B` and `B-corresponding-C`
-stored, A, B and C all correspond to each other.
-
-Chains cross the two kinds, and a chain is only as strong as its **weakest
-link**. `A-alternative-B` with `B-corresponding-C` makes A and C
-*corresponding*, never alternative — the Corresponding hop cannot carry the
-stronger claim that A and C are essentially the same work. Alternative is the
-stronger of the two, and where more than one route reaches an entry the
-strongest one it can support is the one reported. Taking the weakest link
-rather than, say, the first hop is also what makes the pair read the same from
-both ends.
-
-The closure is expanded on the **media entry page only**. `GET /for-entry`
-returns the inferred rows with `derived: true`, a null `system_id` and a `via`
-naming the neighbour the chain arrived through; the card renders that as
-"· via <name>". `GET /graph` keeps returning stored rows alone, so the
-relations canvas stays a few lines rather than a mesh of n(n-1)/2 saying one
-thing.
-
----
-
-## Size Groups
-
-The vocabulary of `franchise.size_group_derived` / `size_group_manual` /
-`series.size_group_derived` / `size_group_manual` (bucket keys) and of
-`plan_next.scope` (planning scopes), defined in
-`app/utils/plan_next_kinds.py` and served at `GET /api/plan-next/kinds`, so the
-admin dropdowns and the Plan page tabs keep no second copy. Mirrored for the
-frontend in `frontend/src/config/planNextGroups.js`.
-
-A bucket is a standing property of a franchise or series — "2 Seasons" whether
-or not anything is currently queued — not a property of a `plan_next` row. See
-business-logic.md for how a bucket is derived and how an entry inherits one.
-
-**Scopes** (`plan_next.scope`): `entry`, `series`, `franchise`.
-
-**Plan Kind** (`plan_next.kind`): `next` | `rewatch`. `plan_next` holds two
-independent Plan-page queues distinguished by this column — "Watch Next" (what
-is queued to watch or read) and "To Rewatch" (what is marked to watch or read
-again). A row's scope permissions depend on **both** its kind and its media
-type: `ALLOWED_SCOPES` in `app/utils/plan_next_kinds.py` is keyed by kind
-first, then media type, because which tiers a type may be planned at is not
-the same question as which tiers it may be rewatched at — anime and cartoon
-are queued one season/entry at a time but rewatched as a whole franchise, and
-novels are reread at every tier though only ever queued one book at a time.
-
-**Scope permissions — kind `next` ("Watch Next").** Entry is universal; the
-two grouping tiers are opt-in because anime movies, manga and novels are
-tracked one entry at a time, and comic has no franchise-level planning:
-
-| Media type    | Entry | Series | Franchise |
-| ------------- | :---: | :----: | :-------: |
-| `anime`       | yes   | yes    | yes       |
-| `movie`       | yes   | yes    | yes       |
-| `tv-show`     | yes   | yes    | yes       |
-| `cartoon`     | yes   | yes    | yes       |
-| `comic`       | yes   | yes    | —         |
-| `anime-movie` | yes   | —      | —         |
-| `manga`       | yes   | —      | —         |
-| `novel`       | yes   | —      | —         |
-
-**Scope permissions — kind `rewatch` ("To Rewatch" / "To Reread").** Deliberately
-different from the `next` map above: anime and cartoon are rewatched at
-franchise scope only (they have **no** entry-level rewatch field at all), and
-novel gains series and franchise scope that it does not have for `next`.
-Franchise and series have no schema field for this — group-level marks are
-read and written directly through `/api/plan-next/` with `scope=franchise` /
-`scope=series`, not through an entry-style boolean:
-
-| Media type    | Entry | Series | Franchise |
-| ------------- | :---: | :----: | :-------: |
-| `anime`       | —     | —      | yes       |
-| `movie`       | yes   | yes    | yes       |
-| `tv-show`     | yes   | yes    | yes       |
-| `cartoon`     | —     | —      | yes       |
-| `comic`       | yes   | yes    | —         |
-| `anime-movie` | yes   | —      | —         |
-| `manga`       | yes   | —      | —         |
-| `novel`       | yes   | yes    | yes       |
-
-The six entry-level `yes` cells above (`anime-movie`, `movie`, `tv-show`,
-`manga`, `novel`, `comic`) are backed by virtual `to_rewatch` (movie types) /
-`to_reread` (reading types) API fields over `plan_next`; see
-database-schema.md. `anime` and `cartoon` have no such field — they are
-rewatched at franchise scope only.
-
-**Bucket vocabularies.** Keys are hyphenated media types, matching
-`app/utils/media_resolver.py`. `anime-movie`, `manga` and `novel` have **no**
-vocabulary — entry scope only, so no bucket ever applies to them.
-
-| Media type          | Key            | Label          |
-| ------------------- | -------------- | -------------- |
-| `anime`              | `12ep`         | 12 EP          |
-| `anime`              | `24ep`         | 24 EP          |
-| `anime`              | `30ep_plus`    | 30+ EP         |
-| `tv-show`, `cartoon` | `1season`      | 1 Season       |
-| `tv-show`, `cartoon` | `2season`      | 2 Seasons      |
-| `tv-show`, `cartoon` | `3season_plus` | 3+ Seasons     |
-| `movie`              | `standalone`   | Standalone     |
-| `movie`              | `2_3movies`    | 2-3 Movies     |
-| `movie`              | `4movies_plus` | 4+ Movies      |
-| `comic`              | `1_3`          | 1-3 Issues     |
-| `comic`              | `4_10`         | 4-10 Issues    |
-| `comic`              | `11_plus`      | 11+ Issues     |
-
-The `anime` vocabulary existed before this table (as the now-removed
-`franchise.watch_next_group` string) but was hardcoded across three frontend
-files and undocumented; all four vocabularies now live in one backend module
-and one frontend module, and here.
-
----
-
-## Note Section Kinds
-
-Field: `note.kind` — Default: `null`
-
-A dropdown only where the section declares one. `kinds` is a property of the
-section in `app/utils/note_sections.py`, and the API rejects a value the
-section does not list, so this vocabulary is enforced rather than advisory.
-
-### `op_ed_changes` (OP/ED 變動)
-
-Anime, TV Show and Cartoon. Which OP/ED a given episode did something unusual with.
-
-| Value     | Default | Notes                          |
-| --------- | ------- | ------------------------------ |
-| `變化OP`  |         | The OP changed for this episode |
-| `變化ED`  |         | The ED changed for this episode |
-| `無OP`    |         | No OP this episode              |
-| `無ED`    |         | No ED this episode              |
-| `特殊OP`  |         | A one-off special OP            |
-| `特殊ED`  |         | A one-off special ED            |
-
-### `op` / `ed` / `ost` (音樂 Music)
-
-Anime only. Which cut of a theme song a row is about. The one dropdown with a
-default: a new row starts on `normal`, so the type alone never makes a row
-worth storing — it needs a name, a status, a link or a remark as well.
-
-`insert_songs` deliberately has **no** type: an insert song is whatever cut
-plays in that episode, so "which version" has no answer separate from the
-episode itself.
-
-| Value                   | Default | Notes                                    |
-| ----------------------- | ------- | ----------------------------------------- |
-| `normal`                | Yes     | The standard version                     |
-| `different version`     |         | A reworked cut of the same song          |
-| `all inclusive version` |         | The full version covering every variant  |
-
-### `highlights` / `highlight_episodes` (神回/神片段)
-
-Anime (`highlights`), plus TV Show and Cartoon (`highlight_episodes`). The
-stored data distinguishes a great episode from a great moment inside one and a
-great arc across several, so these sections carry a dropdown.
-
-| Value    | Default | Notes                                  |
-| -------- | ------- | --------------------------------------- |
-| `神回`   |         | A standout single episode              |
-| `神片段` |         | A standout moment within an episode     |
-| `神篇章` |         | A standout arc spanning several episodes |
-
-Manga also uses `highlight_episodes`, but with **no** dropdown: its highlights
-are always 神回, which is why the section is labelled that on manga. `novel`'s
-`highlight_passages` has no kind either.
-
-### Retired: `回顧` and `其他`
-
-The old `特殊變動` list mixed several unrelated ideas under one "type" field.
-The notes restructure split it into `op_ed_changes` and `extended_episodes`
-(加長). `回顧` (recap) and `其他` (other) belong to neither, so they are **not**
-in either vocabulary and cannot be entered.
-
-They were not silently dropped: the `note_backfill_rows` migration logs every
-row carrying one, with its owner id and content, and leaves it for manual
-placement.
-
----
-
-## Became Entities (Tier 3)
-
-These old `system_options` categories named a person or a studio and are now
-rows in the `person` / `studio` tables instead — see `docs/database-schema.md`
-for `person`, `person_role`, `studio` and `media_credit`, and
-`docs/api.md` for `/api/person` and `/api/studio`.
-
-| Old category(ies)                                       | New home                                                                 |
-| --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `Studio`                                                   | `studio` rows, credited via `media_credit` role `studio`                    |
-| `Director`                                                 | `person` rows holding `person_role` `director` (scoped `anime` / `non_anime`) |
-| `Producer`                                                  | `person` rows holding `person_role` `producer`                              |
-| `Music / Composer`                                          | `person` rows holding `person_role` `composer`                              |
-| `Manga Author`                                              | `person` rows holding `person_role` `manga_author` — two credit roles (`manga_author_plot` 原作, `manga_author_draw` 作画) can both imply it |
-| `Novel Author`                                              | `person` rows holding `person_role` `novel_author`                          |
-| `Novel Illustrator`                                         | `person` rows holding `person_role` `novel_illustrator`                     |
-| `Comic Writer`                                              | `person` rows holding `person_role` `comic_writer`                          |
-| `Comic Artist`                                              | `person` rows holding `person_role` `comic_artist`                          |
-
-**No role extension tables were built.** With `gender` living on the `person`
-base table (a fact about the person, not the role), no role has a column of
-its own today. If a role later earns several columns genuinely meaningless
-elsewhere (e.g. seiyuu gaining an agency and a debut year), a
-`person_seiyuu`-style extension table is added then.
-
-**`character` and `character_voice` were designed but not built** — see
-[Tier 3](#tier-3--entities-person-studio) above.
-
----
-
-## Franchise — Special Entries
-
-Predefined franchise names used as grouping hubs within each `franchise_type`. These are not enum values — they are specific database entries.
-
-### ACG
-
-| Franchise Name |
-| -------------- |
-| 藤本樹         |
-
-### Anime Movie
-
-| Franchise Name |
-| -------------- |
-| 原創動畫電影   |
-| 改編動畫電影   |
-| 新海誠         |
-| 吉卜力         |
-
-## Movie
-
-| Franchise Name    |
-| ----------------- |
-| 獨立電影          |
-| Marvel            |
-| Disney            |
-| Christopher Nolan |
-| 周星馳            |
-
-### TV
-
-| Franchise Name |
-| -------------- |
-| 獨立影集       |
-| Marvel         |
-| Disney         |
-
----
-
-## Franchise for Filter — Example Values
-
-Seed values for the merged Tier 2 `Franchise for Filter` vocabulary (see
-[The Three Tiers](#the-three-tiers)), which replaces the old separate `Movie
-Franchise for Filter` / TV show equivalent lists below. As before, nothing in
-`fieldMeta.js` currently reads this category — it is filter-only and has no
-Add/Modify form field.
-
-### Movie (`scope=movie`)
-
-| 獨立電影 / 影集 |
-| Disney |
-| Marvel |
-| Christopher Nolan |
-
-### TV Show (`scope=tv-show`)
-
-| 獨立電影 / 影集 |
-| Disney |
-| Marvel |
-| The Game of Thrones |
-
----
-
-## Fields to Fill by Entry Type
-
-Required metadata fields that should be populated for each entry type. Used by `has_missing_values_anime()` to determine Fill eligibility.
-
-### Anime (TV / Movie / ONA / OVA / Special)
-
-| Field              | Notes                                         |
-| ------------------ | --------------------------------------------- |
-| `airing_type`      |                                               |
-| `airing_status`    |                                               |
-| `release_date`     |                                               |
-| `release_season`   |                                               |
-| `mal_rating`       | Skipped if `airing_status` is `Not Yet Aired` |
-| `mal_rank`         | Skipped if `airing_status` is `Not Yet Aired` |
-| `ep_total`         |                                               |
-| `official_link`    |                                               |
-| `twitter_link`     |                                               |
-| `cover_image_file` |                                               |
-
-### Anime Movie
-
-| Field              | Notes |
-| ------------------ | ----- |
-| `airing_status`    |       |
-| `release_date_jp`  |       |
-| `mal_rating`       |       |
-| `mal_rank`         |       |
-| `ep_total`         |       |
-| `official_link`    |       |
-| `twitter_link`     |       |
-| `cover_image_file` |       |
-
-### Movie
-
-| Field              | Notes |
-| ------------------ | ----- |
-| `length_min`       |       |
-| `director`         |       |
-| `airing_status`    |       |
-| `release_date_usa` |       |
-| `imdb_rating`      |       |
-| `ep_total`         |       |
-| `cover_image_file` |       |
-
-### TV Show
-
-| Field              | Notes |
-| ------------------ | ----- |
-| `airing_status`    |       |
-| `release_date`     |       |
-| `imdb_rating`      |       |
-| `ep_total`         |       |
-| `cover_image_file` |       |
-
-### Cartoon (Movie airing type)
-
-| Field              | Notes                                               |
-| ------------------ | --------------------------------------------------- |
-| `airing_status`    |                                                     |
-| `release_date`     | Mapped from `release_date_usa` in TMDB movie output |
-| `imdb_rating`      |                                                     |
-| `cover_image_file` |                                                     |
-
-### Cartoon (TV airing type)
-
-| Field              | Notes |
-| ------------------ | ----- |
-| `airing_status`    |       |
-| `release_date`     |       |
-| `imdb_rating`      |       |
-| `ep_total`         |       |
-| `cover_image_file` |       |
-
-### Manga
-
-| Field                  | Notes |
-| ---------------------- | ----- |
-| `serialization_status` |       |
-| `release_date`         |       |
-| `end_date`             |       |
-| `mal_rating`           |       |
-| `mal_rank`             |       |
-| `cover_image_file`     |       |
-
-### Novel
-
-| Field                  | Notes                                           |
-| ---------------------- | ----------------------------------------------- |
-| `serialization_status` |                                                 |
-| `release_date`         |                                                 |
-| `end_date`             |                                                 |
-| `mal_rating`           |                                                 |
-| `mal_rank`             |                                                 |
-| `vol_total_original`   | Skipped if `serialization_status` is not `完結` |
-| `ch_total`             | Skipped if `serialization_status` is not `完結` |
-| `cover_image_file`     |                                                 |
-
----
-
-## `content_label` is not a fourth tier
-
-`content_label` looks like a Tier 2 open vocabulary — admin-managed rows, a key
-and a display label — and it is deliberately a separate table rather than a
-`system_option` category.
-
-`system_option` values describe a work. `content_label` values decide **who may
-see** one. Two consequences follow:
-
-- The Fill and backfill pipelines write `system_option` and `media_tag`. If
-  access control lived there, a pipeline run could silently change who can see
-  an entry, and a tag cleanup could open one up.
-- Renaming a `system_option` value is a content edit. Renaming a
-  `content_label` key would void every `label.<key>` grant that names it, which
-  is why `PATCH /api/content-labels/{id}` deliberately does not accept `key`.
-
-The permission a label produces (`label.<key>`) is the one *dynamic* member of
-the permission catalog — see `docs/database-schema.md`. Everything else in that
-catalog is a Python constant, for exactly the reason this document gives for
-Tier 1.
+## Known discrepancies
+
+Carried over on purpose; do not "fix" one side without reconciling both.
+
+- **Franchise type.** `FranchiseType` Enum has `Anime` and no `Anime Movie`;
+  `FRANCHISE_TYPES` (served, shown in the dropdown) has `Anime Movie` and no
+  `Anime`.
+- **Anime airing type.** `AnimeAiringType` Enum lacks the trailing `Other`
+  that `ANIME_AIRING_TYPES` (served) carries.
+- **Cartoon airing type.** The dropdown offers `TV`, `Movie`, `OVA`, `Special`,
+  but Fill only fetches `TV` and `Movie` (business-rules.md section 17).
+- **`MUSIC_STATUSES`** is defined twice with identical values, in
+  `constants.py` and `note_sections.py`.
+- **`EXPECTATION_WEIGHT`** is defined three times in the frontend with two
+  different unknown-value fallbacks (4 vs 99).

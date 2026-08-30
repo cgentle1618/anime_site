@@ -1,425 +1,296 @@
 # Architecture
 
----
+Last verified: 2026-08-30 (commit 4339702)
 
-## Request Flow
+**What this is for.** A map of the backend: how a request travels through the
+`app/` package, where each kind of code lives, and the two generator patterns
+(the media-type registry and the pipeline runner) that produce most of the API
+surface. Read this before adding a media type, a router, or a pipeline.
+Authentication (login, JWT cookie) is in `authentication.md`; permissions,
+roles and content labels are in `authorization.md`; this page only says where
+those hook in.
+
+## Request flow
 
 ```
-Initial Page Load:
-  Browser → FastAPI catch-all (/{full_path:path}) → frontend_dist/index.html → React app boot
-
-Data & Interaction:
-  User Action → React Component → fetch() in useEffect → FastAPI API Router
-                                                              ↓
-                                                       Service Layer
-                                                              ↓
-                                                        SQLAlchemy ORM
-                                                              ↓
-                                                         PostgreSQL
-                                                              ↓
-                                                       JSON Response
-                                                              ↓
-                                                    React state update → re-render
+browser (React SPA, fetch /api/...)
+  -> Cloud Run / uvicorn  (or Vite dev proxy 5173 -> 8000)
+  -> FastAPI app (app/main.py)
+       global exception handler (500 -> {"detail": "An unexpected server error occurred."})
+       /static/*   -> StaticFiles("static")            local covers, quote images
+       /assets/*   -> StaticFiles("frontend_dist/assets") Vite bundle
+       /api/*      -> routers (app/routers/*)
+            Depends(get_db)              one SQLAlchemy session per request
+            Depends(get_viewer)          who is asking (cookie -> user -> role -> permissions)
+            Depends(get_current_admin)   401 unless the viewer holds the admin permission
+            -> services (domain / pipelines / integrations / rbac)
+            -> models (SQLAlchemy) -> PostgreSQL
+       /{path}     -> SPA catch-all (last route) serves frontend_dist/index.html
 ```
 
-API responses are plain JSON. TanStack Query is wired up (`staleTime: 30s`, `retry: 1`) but not actively used for queries — all data fetching uses native `fetch()` in `useEffect` hooks.
+Routers are thin: validation via Pydantic schemas (`app/schemas`), DB access via
+the session, business rules delegated to `app/services`. Responses are
+Pydantic response models; errors are `HTTPException` with a `detail` string,
+which is the one error shape the SPA understands.
 
-Long-running pipelines (Fill, Replace) stream progress back as **Server-Sent Events (SSE)** — the router returns a `StreamingResponse` and the frontend reads it via the `EventSource` API.
-
----
-
-## Project Structure
-
-All backend code lives in the **`app/` package**; the repo root holds only infra,
-tests, docs, and the frontend. Run with `uvicorn app.main:app`.
+## Package map
 
 ```
 app/
-├── main.py              FastAPI app: lifespan, router registration, SPA catch-all
-├── config.py            pydantic-settings — single source of truth for all env vars
-├── database.py          engine / SessionLocal / Base / get_taipei_now
-├── dependencies.py      get_db, get_current_admin (RBAC)
-├── registry.py          MediaTypeSpec + MEDIA_REGISTRY (drives the media router factory)
-├── models/              ORM models, one module per domain (re-exported from __init__)
-├── schemas/             Pydantic schemas, one module per domain
-├── routers/             API routers (+ _factory.py for the 5 regular media types)
-├── services/
-│   ├── domain/          business logic by concern (hierarchy, checking, completion,
-│   │                    derivation, autofill, duplicates, remarks, seasonal,
-│   │                    options_extraction, post_processing)
-│   ├── pipelines/       fill / replace / pull / backup
-│   ├── integrations/    external API clients (tenrai, tmdb, omdb, imdb, sheets, image_manager)
-│   ├── calculation.py
-│   └── security.py
-└── utils/               formatters, parsers, gcp/id helpers, constants
+  main.py          app factory, boot sequence, router registration, SPA catch-all
+  config.py        Settings (pydantic-settings); the only place env vars are read
+  database.py      engine, SessionLocal, Base, get_taipei_now()
+  dependencies.py  get_db, get_current_admin
+  registry.py      MEDIA_REGISTRY: one MediaTypeSpec per media type
+  schema_guard.py  ensure_schema(): decides whether to create_all on boot
+  models/          SQLAlchemy models (one module per table group)
+  schemas/         Pydantic request/response models
+  routers/         one APIRouter per resource; _factory.py and _patching.py are shared
+  services/
+    domain/        pure business rules: hierarchy, derivation, checking, completion,
+                   credits, duplicates, plan_next, remarks, search, seasonal, watch_order ...
+    pipelines/     Fill / Replace / Pull / Backup: runner.py, specs.py, tabs.py + per-op modules
+    integrations/  outbound HTTP: tenrai, tmdb, omdb, imdb, comicvine, sheets, image_manager
+    rbac/          permissions, resolver (Viewer), enforcement, field_gate, cache, seed
+    calculation.py cover-image bookkeeping used by Data Control "Calculate"
+    security.py    bcrypt hashing, JWT create/decode
+  utils/           stateless helpers: formatter (sheet row <-> model), parsers for each
+                   external API, media_resolver (type key -> model), constants, release_date ...
+alembic/           migrations (env.py reuses app.database.SQLALCHEMY_DATABASE_URL)
+frontend/          React + Vite SPA; builds to frontend_dist/
+tests/             unit (no DB) and api (PostgreSQL) tiers, see testing.md
 ```
 
-Each `models/`, `schemas/`, `services/domain/`, and `services/pipelines/` package
-re-exports its public names from `__init__.py`, so callers import from the package
-root (e.g. `from app.services.domain import mark_tv_completed`).
+### Routers and prefixes
 
----
+All routers are registered in `app/main.py` in this order (order matters only
+for the catch-all, which is last).
 
-## Application Entry Point (`app/main.py`)
+| Module | Prefix | Notes |
+| --- | --- | --- |
+| `auth` | `/api/auth` | login / logout / me |
+| `options` | `/api/options` | system options (three tiers) |
+| `constants` | `/api/constants` | enum vocabularies for the SPA |
+| `collection` | `/api/collection` | |
+| `franchise` | `/api/franchise` | |
+| `series` | `/api/series` | |
+| `anime` | `/api/anime` | registry entry (factory) |
+| `anime_movie` | `/api/anime-movie` | registry entry (factory), no series |
+| `cartoon` | `/api/cartoon` | factory |
+| `movie` | `/api/movies` | factory |
+| `tv_show` | `/api/tv-show` | factory |
+| `manga` | `/api/manga` | factory |
+| `note` | `/api/notes` | |
+| `novel` | `/api/novel` | factory |
+| `comic` | `/api/comic` | factory router nested in a prefix-less router that adds `GET /api/comic/search-comicvine` |
+| `watch_order` | `/api/watch-order` | |
+| `media_relation` | `/api/media-relation` | |
+| `plan_next` | `/api/plan-next` | |
+| `quote` | `/api/quote` | |
+| `meme` | `/api/meme` | |
+| `seasonal` | `/api/seasonal` | |
+| `search` | `/api/search` | server-side search endpoint |
+| `announcements` | `/api/announcements` | |
+| `form_defaults` | `/api/form-defaults` | |
+| `data_control` | `/api/data-control` | Fill / Replace / Pull / Backup / Calculate / Check |
+| `system` | `/api/system` | |
+| `person` | `/api/person` | |
+| `studio` | `/api/studio` | |
+| `credits` | `/api/credits` | |
+| `roles` | `/api/roles` | RBAC admin |
+| `users` | `/api/users` | RBAC admin |
+| `content_labels` | `/api/content-labels` | visibility labels |
 
-```
-FastAPI app created with:
-  - title, version metadata
-  - lifespan event manager (startup seeding)
+To print the live route table:
 
-On startup (lifespan):
-  1. settings.validate_production()  — abort boot on Cloud Run if JWT_SECRET_KEY /
-     ADMIN_PASSWORD are left at insecure defaults (no-op locally)
-  2. Query for "admin" user
-  3. If missing: hash ADMIN_PASSWORD, insert User record
-
-(models.Base.metadata.create_all runs at import; Alembic owns the real schema.)
-
-Static file mounts:
-  - /static/covers  →  static/covers/  (local cover images)
-  - /assets         →  frontend_dist/assets/  (Vite build output)
-
-Router registration order:
-  auth → options → franchise → series → anime → anime_movie → cartoon → movie → tv_show → manga → novel → seasonal → data_control → system
-
-Catch-all route (must be last):
-  GET /{full_path:path} → serves frontend_dist/index.html
-```
-
-No CORS middleware is configured — the Vite dev server proxy handles cross-origin requests during development; in production, the SPA and API share the same origin.
-
----
-
-## Configuration (`app/config.py`)
-
-All environment variables are read in one place via **pydantic-settings**
-(`Settings`), exposed as a cached singleton `settings`. Modules import
-`from app.config import settings` instead of calling `os.getenv` directly.
-
-`Settings` also owns:
-- `sqlalchemy_database_url` — the environment-aware connection routing (below).
-- `is_cloud_run` / `bucket_name` — derived runtime values.
-- `validate_production()` — the startup fail-fast check for insecure prod defaults.
-
-Values are loaded from the process environment, falling back to a local `.env`
-file (see `.env.example`). Environment variables take precedence over `.env`.
-
----
-
-## Database Layer (`app/database.py`)
-
-### Connection Routing
-
-The database URL is built by `config.Settings.sqlalchemy_database_url`, selected based on environment variables:
-
-```
-1. INSTANCE_CONNECTION_NAME set?
-   → postgresql+psycopg2://{USER}:{PASSWORD}@/{DB}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}
-   (Cloud SQL Unix socket for Cloud Run)
-
-2. DATABASE_URL set AND does not contain "localhost"?
-   → Use DATABASE_URL as-is
-   (External cloud database via TCP)
-
-3. Otherwise:
-   → postgresql://{USER}:{PASSWORD}@localhost:5432/{DB}
-   (Local development)
+```powershell
+venv\Scripts\python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes if hasattr(r,'methods')]"
 ```
 
-### SQLAlchemy Engine Config
-
-| Setting         | Value | Purpose                                                      |
-| --------------- | ----- | ------------------------------------------------------------ |
-| `pool_size`     | 10    | Connections kept alive in the pool                           |
-| `max_overflow`  | 20    | Additional connections allowed above pool_size               |
-| `pool_pre_ping` | True  | Test connection before use (detects dropped connections)     |
-| `pool_recycle`  | 1800  | Recycle connections after 30 minutes (prevents idle timeout) |
-| `autocommit`    | False | Manual commit required                                       |
-| `autoflush`     | False | Manual flush required                                        |
-
-### Timezone Utility
-
-`get_taipei_now()` — returns a naive `datetime` in Asia/Taipei timezone. Used as the default for all `created_at` / `updated_at` / `deleted_at` timestamps.
-
----
-
-## Dependency Injection (`app/dependencies.py`)
-
-Two shared FastAPI dependencies injected via `Depends()`:
-
-**`get_db()`** — yields a `SessionLocal` for the lifetime of one request, then closes it.
-
-**`get_current_admin(request)`** — RBAC guard for admin-only endpoints:
-
-1. Read `access_token` cookie from the request.
-2. Strip `"Bearer "` prefix if present.
-3. Decode JWT with `JWT_SECRET_KEY` + `HS256`.
-4. Verify `role == "admin"` claim.
-5. Return payload dict, or raise `HTTP 401`.
-
-### JWT Configuration
-
-| Setting     | Value                                                                  |
-| ----------- | ---------------------------------------------------------------------- |
-| Algorithm   | HS256                                                                  |
-| Expiry      | 1440 minutes (24 hours), set via `ACCESS_TOKEN_EXPIRE_MINUTES` env var |
-| Secret      | `JWT_SECRET_KEY` env var                                               |
-| Cookie name | `access_token` (HTTP-Only, `Secure=True` only on Cloud Run)            |
-
----
-
-## Services Layer (`services/`)
-
-### `pipelines/` — Data Pipeline Orchestrators
-
-Split into `app/services/pipelines/`: `backup.py`, `fill.py`, `replace.py`, `pull.py`
-(re-exported from the package root).
-
-Entry points for the five admin-triggered pipelines, supporting all media types (Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel):
-
-| Function Prefix / Name                        | Pipeline             | Target Type(s)                                            | Returns          |
-| --------------------------------------------- | -------------------- | --------------------------------------------------------- | ---------------- |
-| `execute_backup(db)`                          | Backup (DB → Sheets) | System Options, Franchise, Series, Anime                  | dict with counts |
-| `execute_fill_{type}(db, request)`            | Fill missing data    | anime, anime_movie, movie, tv_show, cartoon, manga, novel | SSE generator    |
-| `execute_fill_all(db, request)`               | Fill → Backup        | All media types                                           | SSE generator    |
-| `execute_replace_single_{type}(db, entry_id)` | Replace one entry    | anime, anime_movie, movie, tv_show, cartoon, manga, novel | dict             |
-| `execute_replace_{type}(db, request)`         | Replace metadata     | anime, anime_movie, movie, tv_show, cartoon, manga, novel | SSE generator    |
-| `execute_replace_all(db, request)`            | Replace → Backup     | All media types                                           | SSE generator    |
-| `execute_pull_specific(db, tab_name)`         | Pull one Sheets tab  | System Options, Franchise, Series, Anime                  | dict with counts |
-| `execute_pull_all(db)`                        | Pull all Sheets tabs | System Options, Franchise, Series, Anime                  | dict with counts |
-
-SSE generators yield `data: {json}\n\n` messages and check `request.is_disconnected()` for graceful client abort. All pipelines log to `DataControlLog` via `log_data_control()`.
-
-### `domain/` — Domain Business Logic
-
-Split by concern into `app/services/domain/`: `hierarchy.py`, `checking.py`,
-`completion.py`, `derivation.py`, `autofill.py`, `duplicates.py`, `remarks.py`,
-`seasonal.py`, `options_extraction.py`, and `post_processing.py` (orchestration).
-The package `__init__` re-exports every public function, so callers can
-`from app.services.domain import <function>` regardless of its module.
-
-Key functions:
-
-**Episode & Reading math:**
-
-- `apply_validate_episode_math(entry)` — sanitizes `ep_total`/`ep_fin`; ensures `ep_fin ≤ ep_total` (supports Anime, TVShows, Cartoon)
-- `apply_validate_vol_math(manga)` / `apply_validate_ch_math(manga)` — validates manga volumes and chapters
-- `derive_ep_previous_anime(db, franchise_id)` — computes cumulative episode offset for sequential TV/ONA entries within a series
-
-**Master derive:** `derive_ep_previous_all_anime(db)` — runs
-`derive_ep_previous_anime` for every ACG franchise. Anime is the only media
-type with a franchise-wide derived field left.
-
-Neither watch order nor prequel/sequel is derived any more. Relations live in
-`media_relation` and ordering in `watch_order_list`, both hand-curated on
-`/relations` and `/watch-orders`. See `business-logic.md`.
-
-**Watch order guides (`domain/watch_order.py`)** — the only ordering there is,
-since the per-entry `watch_order` Float column was dropped:
-
-- `MEDIA_TYPE_MODELS` — media-type slug → model, mirroring `frontend/src/config/mediaRegistry.js`
-- `resolve_items(db, items)` — enriches `watch_order_item` rows with the referenced entry's display data; one query per media type present, never one per item. Items whose `entry_id` no longer resolves come back `missing=True` instead of being dropped
-- `list_candidate_entries(db, franchise_ids)` — every entry of those franchises flattened across the seven media tables; backs the admin editor's entry picker
-- `entry_exists(db, media_type, entry_id)` / `get_entry_franchise_id(...)` — single-entry lookups used to validate items on write
-
-**External API fill:**
-
-- `autofill_{anime|anime_movie|manga|novel}_from_mal(...)` — fetch MAL data via Tenrai, fill missing fields, and download cover images.
-- `autofill_{movie|tv_show|cartoon}_from_imdb(...)` — fetch IMDb details via TMDB/OMDb, fill missing fields, and download cover images.
-
-**Season inference:**
-
-- `apply_calculate_seasonal_from_month()` — map the month component of `release_date` → `release_season`
-- `derive_season_1_{anime|tv_show|cartoon}()` — if a franchise has exactly one TV entry of this type with no `season_part`, set "Season 1"
-
-**Source flags:** `apply_check_baha()` — sets `source_baha=True` if `baha_link` is present (supports Anime, AnimeMovies).
-
-**Duplicate detection:** `find_duplicate_{franchises|series|anime|anime_movie|movie|tv_show|cartoon|manga|novel|system_options}(db)` — union-find clustering by name similarity.
-
-**Post-processing:** `{type}_post_processing(entry, db)` — applies specific validation math, baha check, and season/status derivations.
-
-**Hierarchy resolution:** `resolve_{type}_parent_hierarchy(...)` — find or create parent Franchise (and optionally Series) by name during Pull.
-
-### `calculation.py` — Bulk Maintenance
-
-Called by `run_calculate_all(db)` (triggered from Admin page):
-
-1. `run_post_processing(db)` — post-process all media entries (Anime, TV Shows, Cartoons, Manga, Novels, etc.)
-2. `run_derive_ep_previous(db)` — derive ep_previous across all ACG franchises
-3. `run_sync(db)` — triggers type-specific sync functions (`run_sync_anime`, `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_tv_show`, `run_sync_manga`, `run_sync_novel`) to build seasonal configs, counts, and extract system options
-4. Cover image utilities: `bulk_check_cover_image`, `bulk_set_cover_image_fields`, `bulk_delete_orphaned_cover_images`, and `bulk_download_missing_covers`
-
-### `security.py` — Auth Utilities
-
-- `get_password_hash(password)` — bcrypt hash; input truncated to 72 bytes (bcrypt hard limit); salt via `bcrypt.gensalt()` (default rounds ≈ 12)
-- `verify_password(plain, hashed)` — constant-time comparison via `bcrypt.checkpw()`
-- `create_access_token(data, expires_delta)` — encodes JWT with `exp` claim; signs with `JWT_SECRET_KEY` + HS256
-
-### `tenrai.py` — Tenrai API Client
-
-See [integrations.md](integrations.md).
-
-### `sheets.py` — Google Sheets Client
-
-See [integrations.md](integrations.md).
-
-### `image_manager.py` — Cover Image Manager
-
-See [integrations.md](integrations.md).
-
----
-
-## Utils Layer (`utils/`)
-
-| File                    | Purpose                                                                                      |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| `tenrai_utils.py`        | Parse Tenrai JSON → DB field dict; date/season/link extraction logic                          |
-| `gcp_utils.py`          | Initialize GCS client; branch between Cloud Run IAM and local service account credentials    |
-| `utils.py`              | Regex patterns, episode math helpers, MAL ID extraction, season/month inference              |
-| `data_control_utils.py` | Write `DataControlLog` entries; stage `deleted_record` entries                               |
-| `formatter.py`          | Serialize SQLAlchemy models → Sheets matrix rows; parse Sheets rows → typed dicts for upsert |
-
----
-
-## Routers (`routers/`)
-
-All routers follow the **thin router** pattern: validate input, call a service or ORM operation, return the result. No business logic lives in routers.
-
-The five "regular" media routers (`movie`, `tv_show`, `cartoon`, `manga`, `novel`)
-are **generated by a shared factory**: each file just calls
-`make_media_router(MEDIA_REGISTRY["<type>"])`. The per-type facts (model, schemas,
-name fields, filters, hierarchy resolver, completion fn, write hook) live in
-`app/registry.py`; the endpoint logic lives once in `app/routers/_factory.py`.
-`anime` and `anime_movie` remain hand-written — they differ enough (anime runs a
-synchronous ep-previous derivation; anime_movie has no series) that the factory
-would only obscure them.
-
-| Router file       | Prefix              | Notes                                                        |
-| ----------------- | ------------------- | ------------------------------------------------------------ |
-| `auth.py`         | `/api/auth`         | Login, logout, `/me` status check                            |
-| `options.py`      | `/api/options`      | System option CRUD                                           |
-| `franchise.py`    | `/api/franchise`    | CRUD; `DELETE` cascades FK nulls and writes `deleted_record` |
-| `series.py`       | `/api/series`       | CRUD                                                         |
-| `anime.py`        | `/api/anime`        | CRUD; supports `franchise_id` query param for filtered list  |
-| `anime_movie.py`  | `/api/anime-movie`  | CRUD                                                         |
-| `cartoon.py`      | `/api/cartoon`      | CRUD                                                         |
-| `movie.py`        | `/api/movies`       | CRUD                                                         |
-| `tv_show.py`      | `/api/tv-shows`     | CRUD                                                         |
-| `manga.py`        | `/api/manga`        | CRUD                                                         |
-| `novel.py`        | `/api/novel`        | CRUD                                                         |
-| `watch_order.py`  | `/api/watch-order`  | Order + item CRUD, reorder, entry candidates; public reads   |
-| `seasonal.py`     | `/api/seasonal`     | Read + partial update; `/current-season` shortcut            |
-| `data_control.py` | `/api/data-control` | Pipeline triggers; SSE streaming routes                      |
-| `system.py`       | `/api/system`       | Config, logs, deleted records                                |
-
----
-
-## Deployment
-
-### Docker Multi-Stage Build
-
-**Stage 1 — Frontend builder (Node 20):**
-
-1. `npm install` (from `frontend/package.json`)
-2. `npm run build` → outputs to `frontend_dist/`
-
-**Stage 2 — Python wheels builder (Python 3.11):**
-
-1. Install build tools: gcc, libpq-dev, python3-dev, libffi-dev
-2. `pip wheel -r requirements.txt` → `/app/wheels/`
-
-**Stage 3 — Final runtime (Python 3.11-slim):**
-
-1. Install runtime system deps: libpq-dev
-2. Install Python packages from local wheels (no network access at runtime)
-3. Copy application source
-4. Copy `frontend_dist/` from Stage 1
-5. `ENTRYPOINT ["/app/entrypoint.sh"]`
-
-### Startup Sequence (`entrypoint.sh`)
-
-```sh
-set -e
-alembic upgrade head     # apply all pending migrations
-exec uvicorn app.main:app \
-  --host 0.0.0.0 \
-  --port ${PORT:-8080} \
-  --proxy-headers \
-  --forwarded-allow-ips='*'
-```
-
-`exec` replaces the shell process so uvicorn receives SIGTERM directly from the container runtime. `--proxy-headers` is required for correct client IP handling behind Cloud Run's load balancer.
-
-### Cloud Run Configuration
-
-| Env var                    | Set by           | Used for                                                                |
-| -------------------------- | ---------------- | ----------------------------------------------------------------------- |
-| `K_SERVICE`                | Cloud Run (auto) | Signals production mode: secure cookies, IAM GCS auth, Cloud SQL socket |
-| `INSTANCE_CONNECTION_NAME` | GCP config       | Cloud SQL Unix socket path                                              |
-| `PORT`                     | Cloud Run (auto) | uvicorn listen port (default 8080)                                      |
-| `GCP_BUCKET_NAME`          | GCP config       | GCS bucket for cover images                                             |
-
-### Local Development
-
-```
-docker-compose up -d       # PostgreSQL on port 5432
-cd frontend && npm run dev  # Vite dev server on port 5173 (proxies /api → :8000)
-uvicorn app.main:app --reload --reload-dir app   # FastAPI on port 8000
-```
-
-`docker-compose.yml` defines a single `postgres:15` service with a named volume (`postgres_anime_data`). The FastAPI server runs outside Docker locally.
-
-`--reload-dir app` scopes the watcher to the package the server actually
-imports. Bare `--reload` watches every `*.py` under the working directory, so
-editing a test or a migration restarts the app for nothing - and the restart is
-not free: the next request waits on re-import, a fresh Postgres connection and
-the admin-verification startup hook. On Windows the reloader stops its child
-with a `KeyboardInterrupt`, so a shutdown prints a `multiprocessing` traceback
-after "Application shutdown complete" - noise, not a failure.
-
----
-
-## Database Migrations (Alembic)
-
-- Config: `alembic.ini` — `script_location = alembic/`
-- `alembic/env.py` reads the SQLAlchemy engine from `app/database.py` and supports both online (connected) and offline (SQL file) migration modes.
-- Migrations run automatically at container startup via `entrypoint.sh`.
-- To generate a migration: `alembic revision --autogenerate -m "description"`
-
-## View authorization
-
-Two axes, one core. **Write** permission is still `get_current_admin`; **view**
-permission is the RBAC system in `app/services/rbac/`. They share one source of
-truth: `get_current_admin` is now a wrapper over the same viewer resolution,
-so the ~130 mutation gates are unchanged while there is one place that decides
-who anyone is.
-
-**Permissions are code; grants are data.** This follows the rule
-`SystemOption`'s docstring already sets — anything the business logic compares
-against is a Python constant, so it cannot be renamed out from under the logic.
-A permission names a column, a `MEDIA_TABLES` key or a field group; all three
-are code. The one dynamic family, `label.<key>`, is *derived* from the
-`content_label` table, so `catalog(db)` is the static half plus one permission
-per label. Cross-reference the three-tier options design in `options.md`: this
-is the same argument, applied to access control.
-
-**Entries carry labels; labels never name roles.** Adding a role touches zero
-entries; labelling an entry touches zero roles.
-
-**Enforcement is server-side and in SQL.** `apply_entry_visibility` wires the
-media-type gate and the label anti-join together so no caller can apply one and
-forget the other, and the anti-join stays in the query — filtering in Python
-after `.limit()/.offset()` would silently shrink pages.
-
-**Field gating has two seams, because fields have two storages.** Link fields
-(studio, director, …) are derived Python attributes since the 26 comma-joined
-columns were dropped, so they are blanked in place. Real columns like
-`source_other` are stripped from a *copy*: nulling one on a live ORM instance
-would be flushed to disk on the next autoflush and gating would become silent
-data loss. `tests/api/test_field_gating.py` asserts the stored row survives.
-
-**Permissions resolve per request, not from the JWT.** The token carries only
-`sub`. Putting permissions in it would delay revocation until the cookie
-expired — up to `access_token_expire_minutes`, default 24 hours — and there is
-no refresh flow or blacklist to bolt on. A process-local cache keyed by
-`role_id` pays for it; every grant-changing write bumps it.
+Endpoint-level detail (parameters, bodies) is in `api.md`.
+
+## The media-type registry and router factory
+
+Eight media types share one router shape. What differs per type is declared
+once in `app/registry.py` as a frozen `MediaTypeSpec`; `app/routers/_factory.py`
+(`make_media_router(spec)`) turns it into an `APIRouter`. Anime and anime
+movie used to be hand-written routers; they are now ordinary registry entries
+that differ only in the hooks they declare.
+
+### `MediaTypeSpec` fields
+
+| Field | Meaning |
+| --- | --- |
+| `key` | internal key, e.g. `tv_show`; the `MEDIA_REGISTRY` dict key |
+| `owner_type` | hyphenated key used by notes, remarks, credits, plan-next and visibility (`OWNER_TABLES`), e.g. `tv-show`. Never use `key` for those. |
+| `label` | human label for messages and OpenAPI tags (`"<label> Management"`) |
+| `route` | URL segment: `/api/<route>` (`movies`, `anime-movie`, ...) |
+| `model`, `create_schema`, `update_schema`, `response_schema` | SQLAlchemy model and the three Pydantic schemas |
+| `status_field` | `watching_status` or `reading_status`; used by the complete endpoint |
+| `list_filters` | column names accepted as equality query params on the list endpoint |
+| `hierarchy_names` | semantic key (`en`, `cn`, `roman`, `jp`, `alt`) -> name column, passed to the hierarchy resolver |
+| `search_fields` | columns matched by `?search_query=`; empty tuple disables search |
+| `resolve_hierarchy` | `(db, franchise_id, series_id, names) -> (franchise_id, series_id)`; creates or finds parents |
+| `mark_completed` | `(entry) -> None`, sets status/timestamps on `POST /{id}/complete` |
+| `write_hook` | optional `async (db, id_str, action_type, log_action)` run **after commit** (the six regular types run their single-entry Replace pipeline here) |
+| `pre_commit_hook` | optional `(db, entry)` run **inside** the create/update transaction (anime: synchronous Tenrai autofill + `ep_previous` derivation, `app/services/domain/anime_write.py`) |
+| `has_series` | `False` for anime movie, whose table has no `series_id` |
+| `extra_filters` | optional `(query, query_params) -> query` for non-equality filters (anime: `?airing_season=SPR 2024`) |
+
+### Routes the factory generates per type
+
+| Method | Path | Auth | Behaviour |
+| --- | --- | --- | --- |
+| GET | `/api/<route>/` | viewer | list; `list_filters`, `extra_filters`, `search_query`; visibility applied via `apply_entry_visibility`; link fields and plan flags attached |
+| GET | `/api/<route>/{id}` | viewer | 404 for missing **and** for hidden entries (indistinguishable by design) |
+| POST | `/api/<route>/` | admin | resolve parents, pop remark/plan flag, `pre_commit_hook`, commit, `write_hook` |
+| PUT | `/api/<route>/{id}` | admin | full update, same hook sequence |
+| PATCH | `/api/<route>/{id}` | admin | column patch through `_patching.apply_column_patch` (whitelisted columns) |
+| POST | `/api/<route>/{id}/complete` | admin | `mark_completed` + `apply_completion_timestamp` |
+| DELETE | `/api/<route>/{id}` | admin | deletes credits links, plans, cover image; logs to the deleted-record table |
+
+Field-level gating (`app/services/rbac/field_gate.gate`) is applied to
+responses so viewers without a permission do not receive the gated columns;
+see `authorization.md`.
+
+### Adding a media type
+
+1. Model in `app/models`, schemas in `app/schemas`, Alembic migration.
+2. Hierarchy resolver and `mark_*_completed` in `app/services/domain`.
+3. A `MediaTypeSpec` in `MEDIA_REGISTRY`; a two-line `app/routers/<type>.py`
+   calling `make_media_router`; `include_router` in `main.py`.
+4. Register the type in `app/utils/media_resolver.MEDIA_TABLES` (and
+   `OWNER_TABLES`) so notes, credits and visibility can address it.
+5. A `PipelineSpec` in `app/services/pipelines/specs.py` and a `SheetTab` in
+   `tabs.py` if it has Fill/Replace/Backup.
+6. Tests: see `testing.md`, "Writing a test for a new media type".
+
+## The pipeline runner
+
+`app/services/pipelines/runner.py` is the single Fill/Replace loop. It
+replaced ~20 hand-copied SSE loops that had drifted. Per-type facts live in
+`specs.py` as a frozen `PipelineSpec`:
+
+| Field | Meaning |
+| --- | --- |
+| `key`, `label`, `model` | hyphenated type key (`anime-movie`), label, model |
+| `extract_id` | per entry, before queueing (e.g. parse a MAL/TMDB/Comic Vine id from a link) |
+| `fill_eligible(db, entry)` / `fill(db, entry)` | which entries to fetch, and the fetch+write |
+| `fill_sleep` | pause between fetches (`MAL_PAUSE = 1`, `COMICVINE_PAUSE = 1`) |
+| `post_process(entry, db)` | every entry after the queue (derivations) |
+| `fill_after`, `replace_after` | `(progress message, fn(db))` steps run after the loop |
+| `budget()` | `False` stops early and reports the rest (OMDb daily quota) |
+| `in_fill_all`, `in_replace_all` | whether "Fill All"/"Replace All" include this type |
+| `replace_select(db)` / `replace(db, entry, bulk)` | bulk Replace; `None` means no bulk Replace |
+| `single_after` | steps after a single-entry Replace |
+
+`run_fill`, `run_replace`, `run_replace_single` and `run_all` are async
+generators yielding `data: {json}\n\n` SSE frames
+(`status=processing|complete|error`, `current_entry`, `processed`, `total`).
+External fetches are synchronous `requests` calls, so each one runs in
+`run_in_threadpool`; the `await` keeps the SSE stream and every other request
+alive. `request.is_disconnected()` is checked between entries and raises
+`CancelledError` so a closed tab stops the run. One row is written to the
+data-control log per run the user actually started (`log_action=False` for
+sub-pipelines under Fill All / Replace All).
+
+`tabs.py` is the matching registry for Google Sheets: `SHEET_TABS` declares
+each tab's name, model, parser and **restore order** once; Backup writes and
+Pull restores from that list.
+
+### How `/api/data-control` routes are generated
+
+`app/routers/data_control.py` declares literal routes first (`/fill/all`,
+`/replace/all`, `/backup`, `/pull`, the Calculate and Check endpoints), then
+loops:
+
+- `for spec in PIPELINES.values()`: `POST /fill/<key>`, `POST /replace/<key>`
+  (only if `replace_select` is set), `POST /replace/<key>/{entry_id}`.
+- `for tab, media in MEDIA_TYPE_FOR_TAB.items()`: `POST /pull/<key>` per
+  entry tab, then a generic `POST /pull/{tab_name}` for the remaining tabs.
+
+Fill/Replace return `StreamingResponse` (SSE); Backup/Pull/Calculate return
+JSON, with a 404/400 mapped from the result dict. Adding a type to
+`PIPELINES` therefore adds its routes with no router edit.
+
+## Boot sequence (`app/main.py`)
+
+At import time:
+
+1. `os.makedirs("static/covers")` and `static/quotes` (quote images are local-only).
+2. `ensure_schema(engine)` (`app/schema_guard.py`): `migrated` -> nothing;
+   `empty` -> `create_all` + warning to stamp Alembic; `unmanaged` (tables
+   but no `alembic_version`) -> warning, nothing created. Alembic owns the
+   schema; this only stops a dropped database from silently reappearing.
+3. `FastAPI(...)` is created with the `lifespan` below, `/static` and (if
+   `frontend_dist/` exists) `/assets` are mounted, routers included, catch-all
+   added last.
+
+In the lifespan (before the first request):
+
+1. `settings.validate_production()` -- on Cloud Run, abort on default secrets.
+2. `ensure_rbac_seed(db)` -- idempotent role/permission seed
+   (`app/services/rbac/seed.py`).
+3. Admin user: create `admin` with `ADMIN_PASSWORD` if missing; attach the
+   admin role to a pre-RBAC `admin` row that has `role_id IS NULL`.
+   Exceptions here are printed, not raised.
+
+## Configuration
+
+`app/config.py` defines `Settings(BaseSettings)` reading `.env` (encoding
+utf-8, case-insensitive, unknown keys ignored) and exposes a cached module
+singleton `settings`. Derived properties: `is_cloud_run` (`K_SERVICE` set),
+`bucket_name` (explicit, else prod default on Cloud Run, else `None`),
+`sqlalchemy_database_url` (Cloud SQL socket > `DATABASE_URL` unless it says
+localhost > local). Never call `os.getenv` elsewhere. Full variable table:
+`setup-local.md`.
+
+## Database engine and sessions
+
+`app/database.py`: `create_engine(url, pool_size=10, max_overflow=20,
+pool_pre_ping=True, pool_recycle=1800)`, `SessionLocal =
+sessionmaker(autocommit=False, autoflush=False)`, `Base = declarative_base()`.
+`get_taipei_now()` returns a naive Asia/Taipei datetime used as the default
+for timestamp columns. All ids are UUID `system_id` columns.
+
+## Dependency injection (`app/dependencies.py`, `app/services/rbac/resolver.py`)
+
+| Dependency | Returns | Use |
+| --- | --- | --- |
+| `get_db` | one `Session` per request, closed in `finally` | every DB route |
+| `get_viewer` | `Viewer` (username, role, permission set, token payload); anonymous viewer if no/invalid cookie. Cached per request by FastAPI's dependency cache. | read routes that filter by visibility |
+| `get_current_admin` | the JWT payload dict; raises **401** (never 403) unless `viewer.has(PERM_ADMIN)`. Consults the user row, so a deleted user or a role that lost admin is rejected even with a valid token. | every write route |
+| `require_permission(perm)` | dependency factory for a single permission, same 401 shape | finer gates |
+
+Permission sets per role are cached in-process (`rbac/cache.py`) and bumped on
+every grant change; the cache assumes one process (see `deployment-gcp.md`).
+
+## SPA catch-all
+
+`GET /{full_path:path}` is the last route and is excluded from the schema.
+If `frontend_dist/index.html` is missing it returns a JSON hint to run
+`npm run build`. Otherwise it resolves `frontend_dist/<full_path>` and serves
+it **only if** the resolved path is inside the dist directory, is not the
+directory itself, and is a regular file; everything else (client-side routes,
+`..%2F` traversal attempts) gets `index.html`. Unit test:
+`tests/unit/test_spa_catch_all.py`.
+
+## Logging
+
+Standard `logging`; each module uses `logging.getLogger(__name__)`.
+`app/routers/auth.py` calls `logging.basicConfig(level=logging.INFO)` at
+import, which is currently what configures the root logger for the whole app.
+Several boot messages still use `print`. The global exception handler logs
+unhandled exceptions with a traceback and returns a generic 500 so stack
+traces never reach the client. On Cloud Run stdout/stderr go to Cloud
+Logging.
+
+## Frontend in one paragraph
+
+`frontend/src` is a React 18 SPA (react-router 6, TanStack Query for data
+fetching, Tailwind v4 with semantic colour tokens, `@xyflow/react` for the
+relation graph). Pages call `/api/...` with native `fetch` through
+`src/api/endpoints.js`; auth state comes from the `me` endpoint
+(`contexts/AuthContext`). Vite proxies `/api` and `/static` to :8000 in dev
+and builds to `frontend_dist/` for uvicorn. Page and component detail:
+`frontend/pages.md`, `frontend/components.md`, `frontend/admin-pages.md`.
