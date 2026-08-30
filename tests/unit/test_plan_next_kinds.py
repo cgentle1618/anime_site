@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from app.utils import plan_next_kinds as k
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 
 def test_scopes_are_the_three_tiers():
@@ -82,7 +82,6 @@ def test_every_size_group_has_a_display_label():
 
 import pytest
 
-from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from app.utils.plan_next_kinds import (
     ALLOWED_SCOPES,
     KINDS,

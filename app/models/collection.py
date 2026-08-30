@@ -1,6 +1,7 @@
 """Collection ORM model — the optional umbrella tier above Franchise."""
 
 import uuid
+
 from sqlalchemy import (
     Boolean,
     Column,

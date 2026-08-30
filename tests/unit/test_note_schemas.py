@@ -1,6 +1,7 @@
 """Unit tests for note schema validation against the registry."""
 
 import uuid
+
 import pytest
 
 from app.schemas.note import NoteCreate, section_out, validate_note_payload

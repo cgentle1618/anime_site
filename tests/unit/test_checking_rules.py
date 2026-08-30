@@ -5,11 +5,11 @@ Uses SimpleNamespace to create mock Anime objects — no DB required.
 """
 
 import types
-import pytest
+
 from app.services.domain import (
-    has_missing_values_anime,
-    check_is_tv_completed,
     apply_check_baha,
+    check_is_tv_completed,
+    has_missing_values_anime,
 )
 
 

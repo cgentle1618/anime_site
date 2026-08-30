@@ -5,9 +5,10 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 """
 
 import uuid
-import pytest
-from app import models
 
+import pytest
+
+from app import models
 
 # ---------------------------------------------------------------------------
 # Additional fixtures (not in conftest — only needed here)

@@ -6,6 +6,7 @@ Entries are created with only a name (no imdb/mal link), so the create/update
 write hook (execute_replace_single_*) is a no-op and no network call is made.
 """
 import uuid
+
 import pytest
 
 import app.models as models

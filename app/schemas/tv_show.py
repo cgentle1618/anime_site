@@ -1,13 +1,13 @@
 """TV Show request/response schemas."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.release_date_field import release_date_validator
 from app.schemas.link_fields import TvShowLinkFields
+from app.schemas.release_date_field import release_date_validator
 
 
 class TVShowBase(BaseModel):

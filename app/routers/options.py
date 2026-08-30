@@ -8,13 +8,13 @@ Strictly handles database updates. Backups to Google Sheets are handled manually
 import logging
 from typing import List, Optional
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
-from app.dependencies import get_db, get_current_admin
+from app import models, schemas
+from app.dependencies import get_current_admin, get_db
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)

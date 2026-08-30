@@ -1,6 +1,7 @@
 """Quote ORM model - memorable lines and memes drawn from media entries."""
 
 import uuid
+
 from sqlalchemy import (
     Boolean,
     Column,

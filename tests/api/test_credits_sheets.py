@@ -25,7 +25,6 @@ from app.services.domain.credits import (
 from app.services.pipelines import backup, pull
 from app.utils.formatter import format_model_for_sheet, parse_anime_from_sheet
 
-
 # ---------------------------------------------------------------------------
 # credits.sheet_link_headers / sheet_link_values
 # ---------------------------------------------------------------------------

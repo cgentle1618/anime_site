@@ -8,6 +8,7 @@ Setup: createdb -U postgres anime_site_test  (run once)
 """
 
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
@@ -15,11 +16,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
-from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.dependencies import get_db
+from app.main import app
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.seed import ensure_rbac_seed
-from app.services.security import get_password_hash, create_access_token
-from app.main import app
+from app.services.security import create_access_token, get_password_hash
 
 
 def role_id_for(db, name):

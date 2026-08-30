@@ -1,10 +1,11 @@
 """Schema tests for Comic — defaults, and the EN-first display_name."""
 
+from uuid import uuid4
+
 import pytest
 from pydantic import ValidationError
 
 from app.schemas.comic import ComicCreate, ComicResponse
-from uuid import uuid4
 
 
 class TestComicCreateDefaults:

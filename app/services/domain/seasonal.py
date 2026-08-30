@@ -1,52 +1,17 @@
 """Seasonal record creation and count syncing."""
 
 import logging
-import uuid
-from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database import get_taipei_now
 from app.models import (
     Anime,
-    AnimeMovies,
-    Cartoon,
-    Manga,
-    Novel,
-    Movies,
-    TVShows,
-    Franchise,
-    Series,
     Seasonal,
-    SystemOption,
-)
-
-from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
-    ANIME_FIELDS_TO_FILL,
-    ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
-    CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    MOVIE_FIELDS_TO_FILL,
-    TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-    validate_episode_math,
-    validate_vol_math,
-    validate_ch_math,
 )
 from app.utils.constants import (
     COMPLETED_WATCH_STATUSES,
     AnimeAiringType,
-    FranchiseType,
     WatchStatus,
 )
 

@@ -30,7 +30,6 @@ from app.utils.relation_kinds import (
     TRANSITIVE_KEYS,
 )
 
-
 Endpoint = Tuple[str, UUID]
 
 

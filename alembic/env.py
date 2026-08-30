@@ -1,7 +1,9 @@
 import os
 import sys
 from logging.config import fileConfig
+
 from sqlalchemy import create_engine, pool
+
 from alembic import context
 
 # Add the root directory to the python path

@@ -13,7 +13,7 @@ import pytest
 
 from app import models
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.permissions import label_perm, media_type_perm
+from app.services.rbac.permissions import label_perm
 from app.services.rbac.seed import default_guest_permissions
 from app.services.security import create_access_token, get_password_hash
 

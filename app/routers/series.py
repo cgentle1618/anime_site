@@ -5,22 +5,18 @@ Includes public lookups with multi-language search, franchise filtering,
 and secure administrative CRUD lifecycle.
 """
 
-import uuid
-import json
 import logging
+import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
-from sqlalchemy.orm import Session
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
-from app.database import get_taipei_now
-from app.dependencies import get_db, get_current_admin
-
+from app import models, schemas
+from app.dependencies import get_current_admin, get_db
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
-
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)

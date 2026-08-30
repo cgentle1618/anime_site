@@ -8,9 +8,6 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
-from app.utils.data_control_utils import log_data_control
-
 from app.models import (
     Anime,
     AnimeMovies,
@@ -21,28 +18,29 @@ from app.models import (
     Novel,
     TVShows,
 )
-
-from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
-from app.services.domain.plan_next import derive_size_groups
 from app.services.domain import (
-    sync_seasonal_counts,
-    create_missing_seasonal,
-    extract_system_options,
+    anime_movie_post_processing,
+    anime_post_processing,
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
-    autofill_manga_from_mal,
-    autofill_novel_from_mal,
-    autofill_movie_from_imdb,
-    autofill_tv_show_from_imdb,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
-    anime_post_processing,
-    anime_movie_post_processing,
+    autofill_manga_from_mal,
+    autofill_movie_from_imdb,
+    autofill_novel_from_mal,
+    autofill_tv_show_from_imdb,
     cartoon_post_processing,
-    tv_show_post_processing,
-    manga_post_processing,
+    create_missing_seasonal,
     derive_ep_previous_all_anime,
+    extract_system_options,
+    manga_post_processing,
+    sync_seasonal_counts,
+    tv_show_post_processing,
 )
+from app.services.domain.plan_next import derive_size_groups
+from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
+from app.utils.data_control_utils import log_data_control
+from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 
 # ==========================================
 # BULK ACTIONS

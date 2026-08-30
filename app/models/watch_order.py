@@ -1,6 +1,7 @@
 """Watch Order ORM models — named, ordered, cross-media-type viewing guides."""
 
 import uuid
+
 from sqlalchemy import (
     Boolean,
     CheckConstraint,

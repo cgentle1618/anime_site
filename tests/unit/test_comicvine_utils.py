@@ -4,15 +4,13 @@ Unit tests for utils/comicvine_utils.py
 Tests the Comic Vine volume JSON → Comic dict transformation logic.
 """
 
-import pytest
 from app.utils.comicvine_utils import (
-    map_comicvine_to_comic_data,
-    extract_comicvine_id,
-    _extract_credits_by_role,
     _build_volume_label,
+    _extract_credits_by_role,
     _pick_cover_url,
+    extract_comicvine_id,
+    map_comicvine_to_comic_data,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

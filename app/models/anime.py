@@ -1,6 +1,7 @@
 """Anime ORM model."""
 
 import uuid
+
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -12,7 +13,7 @@ from sqlalchemy import (
     String,
     Time,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now

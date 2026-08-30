@@ -1,6 +1,7 @@
 """Media Relation ORM model — typed, cross-media-type links between two entries."""
 
 import uuid
+
 from sqlalchemy import (
     CheckConstraint,
     Column,

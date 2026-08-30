@@ -15,8 +15,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.utils import release_date
-
 from app.models import (
     Anime,
     AnimeMovies,
@@ -27,6 +25,7 @@ from app.models import (
     Novel,
     TVShows,
 )
+from app.utils import release_date
 
 # Slug -> model. Slugs mirror frontend/src/config/mediaRegistry.js and the
 # VALID_MEDIA_TYPES set in app/routers/form_defaults.py.

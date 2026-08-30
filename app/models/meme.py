@@ -1,6 +1,7 @@
 """Meme ORM model - jokes, catchphrases and running gags from media entries."""
 
 import uuid
+
 from sqlalchemy import (
     Boolean,
     Column,

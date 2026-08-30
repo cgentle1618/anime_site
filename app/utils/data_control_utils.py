@@ -5,9 +5,10 @@ Contains utility functions for the Data Control Logs.
 
 import logging
 from typing import Any
+
 from sqlalchemy.orm import Session
 
-from app.models import Collection, Franchise, Series, DataControlLog, DeletedRecord
+from app.models import Collection, DataControlLog, DeletedRecord, Franchise, Series
 
 logger = logging.getLogger(__name__)
 

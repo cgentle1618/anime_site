@@ -9,14 +9,11 @@ import types
 import uuid
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.domain import (
     apply_calculate_seasonal_from_month,
     derive_ep_previous_anime,
     derive_season_1_anime,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -69,7 +66,7 @@ def mock_db_returns(anime_list, series_list=None):
         q.first.return_value = return_val[0] if return_val else None
         return q
 
-    from app.models import Anime, Series
+    from app.models import Series
 
     def query_side_effect(model):
         if model is Series:

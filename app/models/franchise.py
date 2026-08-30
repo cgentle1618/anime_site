@@ -1,16 +1,14 @@
 """Franchise and Series ORM models."""
 
 import uuid
+
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
-    Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now

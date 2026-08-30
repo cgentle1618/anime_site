@@ -17,9 +17,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_admin, get_db
-from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain import credits as credits_service
+from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.credit_roles import credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
 

@@ -1,58 +1,27 @@
 """Per-entry post-processing, single-entry replace, and franchise-wide derive-related orchestration."""
 
 import logging
-import uuid
-from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.database import get_taipei_now
 from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
     Manga,
-    Novel,
     Movies,
+    Novel,
     TVShows,
-    Franchise,
-    Series,
-    Seasonal,
-    SystemOption,
 )
-
-from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
-    ANIME_FIELDS_TO_FILL,
-    ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
-    CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    MOVIE_FIELDS_TO_FILL,
-    TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-    validate_episode_math,
-    validate_vol_math,
-    validate_ch_math,
+from app.services.domain.autofill import (
+    autofill_anime_from_mal,
+    autofill_anime_movie_from_mal,
+    autofill_cartoon_from_imdb,
+    autofill_manga_from_mal,
+    autofill_movie_from_imdb,
+    autofill_novel_from_mal,
+    autofill_tv_show_from_imdb,
 )
-from app.utils.constants import (
-    COMPLETED_READ_STATUSES,
-    COMPLETED_WATCH_STATUSES,
-    AnimeAiringType,
-    FranchiseType,
-    WatchStatus,
-)
-
-logger = logging.getLogger(__name__)
-
 from app.services.domain.checking import (
     apply_check_baha,
     apply_validate_ch_math,
@@ -78,15 +47,12 @@ from app.services.domain.derivation import (
     derive_season_1_cartoon,
     derive_season_1_tv_show,
 )
-from app.services.domain.autofill import (
-    autofill_anime_from_mal,
-    autofill_anime_movie_from_mal,
-    autofill_cartoon_from_imdb,
-    autofill_manga_from_mal,
-    autofill_movie_from_imdb,
-    autofill_novel_from_mal,
-    autofill_tv_show_from_imdb,
+from app.utils.constants import (
+    COMPLETED_READ_STATUSES,
+    COMPLETED_WATCH_STATUSES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def apply_single_replace_anime(

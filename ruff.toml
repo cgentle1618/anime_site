@@ -1,0 +1,24 @@
+# Lint + format for the backend. Run: ruff check . && ruff format --check .
+line-length = 100
+target-version = "py311"
+extend-exclude = ["alembic/versions", "venv", "frontend", "frontend_dist", "node_modules"]
+
+[lint]
+select = ["E", "F", "I", "B"]
+ignore = [
+    "E501",  # line length is advisory; formatter handles it
+    "B008",  # FastAPI's Depends()/Query() in defaults is the framework idiom
+    "B904",  # `raise HTTPException(...)` inside except without `from` is the FastAPI idiom here
+    "B905",  # zip(strict=) - all call sites pair equal-length lists deliberately
+    "E721",  # formatter.py compares type() on purpose (bool is not int for the sheet)
+    "E741",  # single-letter `l` in short comprehensions
+]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]  # re-export barrels
+"app/models/__init__.py" = ["E402"]
+"tests/**" = ["F811"]  # pytest fixtures imported into a module are "redefined" by design
+"tests/unit/test_plan_next_kinds.py" = ["E402"]
+
+[lint.isort]
+known-first-party = ["app", "tests"]

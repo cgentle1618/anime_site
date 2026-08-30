@@ -13,7 +13,7 @@ import sys
 import uuid
 
 from app.database import SessionLocal, get_taipei_now
-from app.models import Comic, WatchOrderList, WatchOrderItem, WatchOrderSection
+from app.models import Comic, WatchOrderItem, WatchOrderList, WatchOrderSection
 
 FRANCHISE_ID = uuid.UUID("502071de-e004-460d-8e9e-ea223a179fe2")
 

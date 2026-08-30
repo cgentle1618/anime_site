@@ -5,14 +5,13 @@ and patching the my_rating field for admin users.
 """
 
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db, get_current_admin
-from app import models
-from app import schemas
-
-from sqlalchemy import text
+from app import models, schemas
+from app.dependencies import get_current_admin, get_db
 
 router = APIRouter(prefix="/api/seasonal", tags=["Seasonal"])
 

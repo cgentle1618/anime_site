@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.utils.media_resolver import MEDIA_TYPE_KEYS
 from app.utils import credit_roles as cr
+from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 
 def test_every_credit_role_targets_person_or_studio():

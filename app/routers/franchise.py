@@ -4,18 +4,17 @@ Handles all operations for Franchises (the top-level V2 database entity).
 Includes public lookups with multi-language search and secure administrative CRUD lifecycle.
 """
 
-import uuid
-import json
 import logging
+import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
-from app import models
-from app import schemas
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_db, get_current_admin
+from app.dependencies import get_current_admin, get_db
 from app.services.domain import pop_remark, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record

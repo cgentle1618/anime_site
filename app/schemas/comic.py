@@ -6,8 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.release_date_field import release_date_validator
 from app.schemas.link_fields import ComicLinkFields
+from app.schemas.release_date_field import release_date_validator
 
 
 class ComicBase(BaseModel):

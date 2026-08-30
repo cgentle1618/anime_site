@@ -17,11 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
+from app import models, schemas
 from app.dependencies import get_current_admin, get_db
-from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.media_relation import (
     entry_exists,
     find_duplicate,
@@ -30,13 +27,15 @@ from app.services.domain.media_relation import (
     relations_for_entry,
 )
 from app.services.domain.watch_order import list_candidate_entries
+from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer
+from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.relation_kinds import (
     ACCEPTED_INPUT_KINDS,
     INPUT_ONLY_KINDS,
     RELATION_KINDS,
 )
-from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
 

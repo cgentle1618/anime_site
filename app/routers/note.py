@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_db, get_current_admin
+from app.dependencies import get_current_admin, get_db
 from app.schemas.note import sections_out, validate_note_payload
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.field_gate import gated_note_sections

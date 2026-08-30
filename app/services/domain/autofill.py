@@ -1,70 +1,40 @@
 """External-source enrichment (MAL / IMDb / Comic Vine) for single entries."""
 
 import logging
-import uuid
 from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.database import get_taipei_now
 from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
     Comic,
     Manga,
-    Novel,
     Movies,
+    Novel,
     TVShows,
-    Franchise,
-    Series,
-    Seasonal,
-    SystemOption,
 )
-
-from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
-    ANIME_FIELDS_TO_FILL,
-    ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
-    CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    MOVIE_FIELDS_TO_FILL,
-    TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-    validate_episode_math,
-    validate_vol_math,
-    validate_ch_math,
-)
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
-from app.utils.name_normalize import split_names
-from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
-from app.services.integrations.imdb import fetch_imdb_data
-from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.image_manager import download_cover_image
+from app.services.integrations.imdb import fetch_imdb_data
+from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
+from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
+from app.utils.imdb_utils import (
+    _derive_tv_season_airing_status,
+    _parse_season_number,
+    map_imdb_to_cartoon_data,
+    map_imdb_to_movie_data,
+    map_imdb_to_tv_show_data,
+)
+from app.utils.name_normalize import split_names
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
-)
-from app.utils.imdb_utils import (
-    _parse_season_number,
-    _derive_tv_season_airing_status,
-    map_imdb_to_cartoon_data,
-    map_imdb_to_movie_data,
-    map_imdb_to_tv_show_data,
 )
 
 logger = logging.getLogger(__name__)

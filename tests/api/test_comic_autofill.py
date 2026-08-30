@@ -9,13 +9,13 @@ SimpleNamespace fake.
 """
 
 import uuid
+
 import pytest
 
 from app import models
 from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import autofill_comic_from_comicvine
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
-
 
 VOLUME_RESULT = {
     "id": 2127,

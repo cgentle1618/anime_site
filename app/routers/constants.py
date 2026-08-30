@@ -9,10 +9,10 @@ second copy of each list; see docs/options.md for the canonical documentation.
 
 from fastapi import APIRouter
 
+from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.utils import constants as c
 from app.utils.credit_roles import PERSON_ROLES
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
-from app.services.domain.watch_order import ITEM_IMPORTANCE
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
 

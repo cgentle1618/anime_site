@@ -19,8 +19,7 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
+from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import planned_entry_ids

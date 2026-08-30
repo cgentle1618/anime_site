@@ -12,22 +12,22 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy import Boolean, or_
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db, get_current_admin
-from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
-from app.services.rbac.field_gate import gate
-from app.services.rbac.resolver import Viewer, get_viewer
 from app.database import get_taipei_now
+from app.dependencies import get_current_admin, get_db
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
+from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.domain.plan_next import (
+    PLAN_FLAG_FIELDS,
     attach_plan_flag,
     delete_plans_for,
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
-    PLAN_FLAG_FIELDS,
 )
-from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.integrations.image_manager import delete_cover_image
+from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
+from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 
 

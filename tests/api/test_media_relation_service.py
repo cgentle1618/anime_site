@@ -13,7 +13,6 @@ from app.services.domain.media_relation import (
     relations_for_entry,
 )
 
-
 # ---------------------------------------------------------------------------
 # normalize_relation — pure
 # ---------------------------------------------------------------------------

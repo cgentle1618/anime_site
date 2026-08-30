@@ -11,13 +11,13 @@ or an inverted fill-only gate would fail here.
 """
 
 import uuid
+
 import pytest
 
 from app import models
 from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import autofill_movie_from_imdb
 from app.services.domain.credits import credit_names, replace_credits
-
 
 TMDB_RAW = {
     "id": 550,

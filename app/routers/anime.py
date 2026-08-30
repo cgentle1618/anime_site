@@ -5,24 +5,17 @@ Strictly acts as a Controller layer: handles routing, schema validation, and HTT
 All heavy business logic is delegated to services.domain.
 """
 
-import uuid
-import json
 import logging
+import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, BackgroundTasks, Query
-from sqlalchemy.orm import Session
+
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 
-from app.dependencies import get_db, get_current_admin
-from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
-from app.services.rbac.field_gate import gate
-from app.services.rbac.resolver import Viewer, get_viewer
+from app import models, schemas
 from app.database import get_taipei_now
-from app import models
-from app import schemas
-
-from app.services.domain.credits import attach_link_fields, delete_links_for
-from app.services.integrations.image_manager import delete_cover_image
+from app.dependencies import get_current_admin, get_db
 from app.services.domain import (
     apply_completion_timestamp,
     apply_single_replace_anime,
@@ -33,15 +26,19 @@ from app.services.domain import (
     resolve_anime_parent_hierarchy,
     upsert_remark,
 )
+from app.services.domain.credits import attach_link_fields, delete_links_for
 from app.services.domain.plan_next import (
+    PLAN_FLAG_FIELDS,
     attach_plan_flag,
     delete_plans_for,
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
-    PLAN_FLAG_FIELDS,
 )
-
+from app.services.integrations.image_manager import delete_cover_image
+from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
+from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)

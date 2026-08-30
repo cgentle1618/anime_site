@@ -15,9 +15,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
-from app.dependencies import get_db, get_current_admin
+from app import models, schemas
+from app.dependencies import get_current_admin, get_db
 
 logger = logging.getLogger(__name__)
 

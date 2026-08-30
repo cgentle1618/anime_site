@@ -5,8 +5,8 @@ SQLAlchemy models and Google Sheets.
 """
 
 import json
-from typing import Any, List, Dict
 from datetime import datetime, time
+from typing import Any, Dict, List
 from uuid import UUID
 
 # Imported rather than duplicated so the Sheets tab and the API agree on what

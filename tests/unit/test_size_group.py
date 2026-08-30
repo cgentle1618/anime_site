@@ -8,7 +8,6 @@ from app.services.domain.size_group import (
     entry_bucket,
 )
 
-
 # --- bucket_for: boundaries ------------------------------------------------
 
 

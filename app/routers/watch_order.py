@@ -10,30 +10,28 @@ which is untouched by this router.
 """
 
 import logging
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
+from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
-from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.domain.watch_order import (
-    MEDIA_TYPE_MODELS,
     ITEM_IMPORTANCE,
-    build_release_items,
+    MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
+    build_release_items,
     entry_exists,
-    list_candidate_entries,
     first_section_break,
+    list_candidate_entries,
     resolve_items,
-    sort_items_by_reading_order,
 )
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)

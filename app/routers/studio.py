@@ -17,9 +17,9 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.domain.credits import find_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
-from app.services.domain.credits import find_studio
 
 logger = logging.getLogger(__name__)
 

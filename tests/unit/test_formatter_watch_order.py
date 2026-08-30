@@ -10,8 +10,8 @@ from datetime import datetime
 
 from app.utils.formatter import (
     parse_watch_order_item_from_sheet,
-    parse_watch_order_section_from_sheet,
     parse_watch_order_list_from_sheet,
+    parse_watch_order_section_from_sheet,
 )
 
 

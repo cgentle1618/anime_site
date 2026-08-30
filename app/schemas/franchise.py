@@ -1,10 +1,10 @@
 """Franchise and Series request/response schemas."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict
 
 
 class FranchiseBase(BaseModel):

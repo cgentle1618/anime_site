@@ -5,17 +5,17 @@ Tests the Tenrai API JSON → Anime dict transformation logic.
 """
 
 import pytest
+
 from app.utils.tenrai_utils import (
+    _convert_airing_status,
+    _convert_airing_type,
+    _convert_season,
+    _extract_external_links,
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
-    _convert_airing_type,
-    _convert_airing_status,
-    _convert_season,
-    _extract_external_links,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -26,9 +26,8 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import models
-from app import schemas
-from app.dependencies import get_db, get_current_admin
+from app import models, schemas
+from app.dependencies import get_current_admin, get_db
 
 logger = logging.getLogger(__name__)
 

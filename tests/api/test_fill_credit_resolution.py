@@ -50,8 +50,8 @@ def test_no_pipeline_or_autofill_module_still_assigns_a_dropped_column():
     import inspect
     import re
 
-    from app.services.pipelines import fill, pull
     from app.services.domain import autofill
+    from app.services.pipelines import fill, pull
 
     dropped_columns = (
         "studio",

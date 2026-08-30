@@ -9,8 +9,6 @@ admin removes a grant.
 
 import uuid
 
-import pytest
-
 from app import models
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (

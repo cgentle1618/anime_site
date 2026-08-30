@@ -8,52 +8,31 @@ where both are curated by hand.
 """
 
 import logging
-import uuid
-from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Union
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.database import get_taipei_now
 from app.models import (
     Anime,
-    AnimeMovies,
     Cartoon,
     Comic,
     Manga,
-    Novel,
     Movies,
+    Novel,
     TVShows,
-    Franchise,
-    Series,
-    Seasonal,
-    SystemOption,
-)
-
-from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
-    ANIME_FIELDS_TO_FILL,
-    ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
-    CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    MOVIE_FIELDS_TO_FILL,
-    TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-    validate_episode_math,
-    validate_vol_math,
-    validate_ch_math,
 )
 from app.utils import release_date
 from app.utils.comicvine_utils import extract_comicvine_id
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.constants import AnimeAiringType
+from app.utils.utils import (
+    PART_PATTERN,
+    SEASON_PATTERN,
+    calculate_seasonal_from_month,
+    extract_imdb_id,
+    extract_mal_id_anime,
+    extract_mal_id_manga_novel,
+    extract_season_from_title,
+)
 
 logger = logging.getLogger(__name__)
 

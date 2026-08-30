@@ -1,8 +1,8 @@
 """Movie ORM model."""
 
 import uuid
+
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -10,8 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin

@@ -10,30 +10,30 @@ different (anime runs a synchronous ep-previous derivation; anime_movie has no
 series and no write hook), so they remain hand-written routers by design.
 """
 
-from dataclasses import dataclass, field
-from typing import Callable, Optional
+from dataclasses import dataclass
+from typing import Callable
 
 from app import models, schemas
 from app.services.domain import (
-    resolve_movie_parent_hierarchy,
-    resolve_tv_show_parent_hierarchy,
-    resolve_cartoon_parent_hierarchy,
-    resolve_manga_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
-    resolve_comic_parent_hierarchy,
-    mark_movie_completed,
-    mark_tv_completed,
-    mark_reading_completed,
-    mark_novel_completed,
     mark_comic_completed,
+    mark_movie_completed,
+    mark_novel_completed,
+    mark_reading_completed,
+    mark_tv_completed,
+    resolve_cartoon_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
+    resolve_manga_parent_hierarchy,
+    resolve_movie_parent_hierarchy,
+    resolve_novel_parent_hierarchy,
+    resolve_tv_show_parent_hierarchy,
 )
 from app.services.pipelines import (
-    execute_replace_single_movie,
-    execute_replace_single_tv_show,
     execute_replace_single_cartoon,
-    execute_replace_single_manga,
-    execute_replace_single_novel,
     execute_replace_single_comic,
+    execute_replace_single_manga,
+    execute_replace_single_movie,
+    execute_replace_single_novel,
+    execute_replace_single_tv_show,
 )
 
 

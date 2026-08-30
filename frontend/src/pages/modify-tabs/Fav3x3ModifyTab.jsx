@@ -38,7 +38,7 @@ function computeOriginal(franchises, typeKey) {
 
 function cleanStr(s) {
   if (!s) return "";
-  return s.toLowerCase().replace(/[\s\-:;,.'"!?()\[\]{}<>~`+*&^%$#@!\\/|]/g, "");
+  return s.toLowerCase().replace(/[\s\-:;,.'"!?()[\]{}<>~`+*&^%$#@!\\/|]/g, "");
 }
 
 function FranchisePickerModal({

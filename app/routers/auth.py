@@ -6,20 +6,20 @@ Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app import models
 from app.config import settings
-from app.dependencies import get_db, SECRET_KEY, ALGORITHM
+from app.dependencies import get_db
 from app.services.rbac.permissions import PERM_ADMIN
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
-    verify_password,
-    create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    verify_password,
 )
 
 logging.basicConfig(level=logging.INFO)

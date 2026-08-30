@@ -1,52 +1,105 @@
-name: Deploy to Cloud Run
+name: Test and Deploy to Cloud Run
 
-# This tells GitHub to run this script whenever you push to the 'main' branch
 on:
   push:
     branches:
       - main
+  pull_request:
 
-# Define variables for the workflow
 env:
   PROJECT_ID: Anime-Site-Sync
   REGION: asia-east1
   REPO_NAME: asia-east1-docker.pkg.dev/anime-site-sync/anime-repo/cg1618-tracker
   SERVICE_NAME: cg1618-tracker
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anime_site_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: anime_site_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Same interpreter as the runtime image (dockerfile: python:3.11-slim).
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint backend
+        run: ruff check .
+
+      - name: Backend tests
+        run: pytest -q -p no:cacheprovider
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint frontend
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Frontend tests
+        run: npm run test:run
+        working-directory: frontend
+
+      - name: Frontend build
+        run: npm run build
+        working-directory: frontend
+
   build-and-deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download your code from the repository
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Log into Google Cloud using the Secret we stored in GitHub
       - name: Google Auth
         id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      # 3. Setup Docker to use Google Artifact Registry
       - name: Setup Docker Auth
         run: |-
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      # 4. Build the Docker Image
-      # We use $GITHUB_SHA to tag the image with the unique commit hash
       - name: Build Docker Image
         run: |-
           docker build -t ${{ env.REPO_NAME }}:${{ github.sha }} .
 
-      # 5. Push the Image to Artifact Registry
       - name: Push Docker Image
         run: |-
           docker push ${{ env.REPO_NAME }}:${{ github.sha }}
 
-      # 6. Deploy to Cloud Run
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:

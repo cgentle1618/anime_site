@@ -6,8 +6,6 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 
 import uuid
 
-from app import models
-
 
 def _payload(scope, target_id, media_type="anime", remark=None):
     return {

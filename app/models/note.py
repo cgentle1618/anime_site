@@ -1,6 +1,7 @@
 """Note ORM model - one item of structured notes on any owner."""
 
 import uuid
+
 from sqlalchemy import Column, DateTime, Float, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 

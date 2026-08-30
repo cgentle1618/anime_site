@@ -18,7 +18,6 @@ import pytest
 from app import models
 from app.services.pipelines import pull
 
-
 NOTE_HEADERS = [
     "system_id",
     "owner_type",

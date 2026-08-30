@@ -9,8 +9,6 @@ batching guarantee be asserted directly.
 import uuid
 from types import SimpleNamespace
 
-import pytest
-
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,

@@ -1,9 +1,8 @@
 """Unit tests for the notes section registry."""
 
-import pytest
 
-from app.utils.media_resolver import OWNER_TABLES
 from app.utils import note_sections as ns
+from app.utils.media_resolver import OWNER_TABLES
 
 
 def test_every_section_has_a_known_shape():

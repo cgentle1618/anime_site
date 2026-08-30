@@ -1,18 +1,17 @@
-from datetime import date
 import logging
 import re
+from datetime import date
 from typing import Any, Dict, Optional
 
 from app.utils.omdb_utils import (
-    map_omdb_to_tv_data,
     map_omdb_to_movie_data,
     map_omdb_to_tv_data,
 )
 from app.utils.tmdb_utils import (
+    _build_poster_url,
     map_tmdb_to_cartoon_data,
     map_tmdb_to_movie_data,
     map_tmdb_to_tv_show_data,
-    _build_poster_url,
 )
 
 logger = logging.getLogger(__name__)

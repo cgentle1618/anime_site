@@ -4,129 +4,118 @@ Re-exports every public function so callers can import from the package
 root regardless of which concern module a function lives in.
 """
 
-from app.services.domain.hierarchy import (
-    resolve_series_parent_hierarchy,
-    resolve_anime_parent_hierarchy,
-    resolve_anime_movie_parent_hierarchy,
-    resolve_movie_parent_hierarchy,
-    resolve_tv_show_parent_hierarchy,
-    resolve_cartoon_parent_hierarchy,
-    resolve_manga_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
-    resolve_comic_parent_hierarchy,
+from app.services.domain.autofill import (
+    autofill_anime_from_mal,
+    autofill_anime_movie_from_mal,
+    autofill_cartoon_from_imdb,
+    autofill_comic_from_comicvine,
+    autofill_manga_from_mal,
+    autofill_movie_from_imdb,
+    autofill_novel_from_mal,
+    autofill_tv_show_from_imdb,
 )
-
-from app.services.domain.watch_order import (
-    MEDIA_TYPE_MODELS,
-    VALID_WATCH_ORDER_MEDIA_TYPES,
-    resolve_items,
-    first_section_break,
-    sort_items_by_reading_order,
-    list_candidate_entries,
-    entry_exists,
-    get_entry_franchise_id,
-)
-
 from app.services.domain.checking import (
+    apply_check_baha,
+    apply_validate_ch_math,
     apply_validate_episode_math,
     apply_validate_vol_math,
-    apply_validate_ch_math,
+    find_duplicate_entities,
     has_missing_values_anime,
     has_missing_values_anime_movie,
-    has_missing_values_movie,
-    has_missing_values_tv_show,
     has_missing_values_cartoon,
-    has_missing_values_manga,
     has_missing_values_comic,
+    has_missing_values_manga,
+    has_missing_values_movie,
     has_missing_values_novel,
-    apply_check_baha,
-    find_duplicate_entities,
+    has_missing_values_tv_show,
 )
-
 from app.services.domain.completion import (
-    check_is_tv_completed,
+    apply_completion_timestamp,
     check_is_movie_completed,
     check_is_reading_completed,
-    mark_tv_completed,
-    mark_movie_completed,
-    mark_reading_completed,
-    mark_novel_completed,
+    check_is_tv_completed,
     mark_comic_completed,
-    apply_completion_timestamp,
+    mark_movie_completed,
+    mark_novel_completed,
+    mark_reading_completed,
+    mark_tv_completed,
 )
-
-from app.services.domain.remarks import (
-    find_all_remarks,
+from app.services.domain.derivation import (
+    apply_calculate_seasonal_from_month,
+    apply_extract_comicvine_id,
+    apply_extract_imdb_id,
+    apply_extract_mal_id_anime,
+    apply_extract_mal_id_manga_novel,
+    apply_extract_season_from_title,
+    derive_ep_previous_anime,
+    derive_season_1_anime,
+    derive_season_1_cartoon,
+    derive_season_1_tv_show,
 )
-
+from app.services.domain.duplicates import (
+    find_all_duplicates,
+    find_duplicate_anime,
+    find_duplicate_anime_movie,
+    find_duplicate_cartoon,
+    find_duplicate_comic,
+    find_duplicate_franchises,
+    find_duplicate_manga,
+    find_duplicate_movie,
+    find_duplicate_novel,
+    find_duplicate_series,
+    find_duplicate_system_options,
+    find_duplicate_tv_show,
+)
+from app.services.domain.hierarchy import (
+    resolve_anime_movie_parent_hierarchy,
+    resolve_anime_parent_hierarchy,
+    resolve_cartoon_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
+    resolve_manga_parent_hierarchy,
+    resolve_movie_parent_hierarchy,
+    resolve_novel_parent_hierarchy,
+    resolve_series_parent_hierarchy,
+    resolve_tv_show_parent_hierarchy,
+)
+from app.services.domain.options_extraction import (
+    extract_system_options,
+)
+from app.services.domain.post_processing import (
+    anime_movie_post_processing,
+    anime_post_processing,
+    apply_single_replace_anime,
+    apply_single_replace_anime_movie,
+    apply_single_replace_cartoon,
+    apply_single_replace_manga,
+    apply_single_replace_movie,
+    apply_single_replace_novel,
+    apply_single_replace_tv_show,
+    cartoon_post_processing,
+    derive_ep_previous_all_anime,
+    manga_post_processing,
+    tv_show_post_processing,
+)
 from app.services.domain.remark_field import (
     REMARK_SECTION,
     pop_remark,
     upsert_remark,
 )
-
-from app.services.domain.duplicates import (
-    find_duplicate_franchises,
-    find_duplicate_series,
-    find_duplicate_anime,
-    find_duplicate_system_options,
-    find_duplicate_anime_movie,
-    find_duplicate_movie,
-    find_duplicate_tv_show,
-    find_duplicate_cartoon,
-    find_duplicate_manga,
-    find_duplicate_novel,
-    find_duplicate_comic,
-    find_all_duplicates,
+from app.services.domain.remarks import (
+    find_all_remarks,
 )
-
-from app.services.domain.derivation import (
-    apply_extract_mal_id_anime,
-    apply_extract_mal_id_manga_novel,
-    apply_extract_comicvine_id,
-    apply_extract_imdb_id,
-    apply_extract_season_from_title,
-    apply_calculate_seasonal_from_month,
-    derive_ep_previous_anime,
-    derive_season_1_anime,
-    derive_season_1_tv_show,
-    derive_season_1_cartoon,
-)
-
-from app.services.domain.autofill import (
-    autofill_anime_from_mal,
-    autofill_anime_movie_from_mal,
-    autofill_manga_from_mal,
-    autofill_comic_from_comicvine,
-    autofill_novel_from_mal,
-    autofill_movie_from_imdb,
-    autofill_tv_show_from_imdb,
-    autofill_cartoon_from_imdb,
-)
-
 from app.services.domain.seasonal import (
     create_missing_seasonal,
     sync_seasonal_counts,
 )
-
-from app.services.domain.options_extraction import (
-    extract_system_options,
-)
-
-from app.services.domain.post_processing import (
-    apply_single_replace_anime,
-    apply_single_replace_anime_movie,
-    apply_single_replace_movie,
-    apply_single_replace_tv_show,
-    apply_single_replace_cartoon,
-    apply_single_replace_manga,
-    apply_single_replace_novel,
-    anime_post_processing,
-    anime_movie_post_processing,
-    tv_show_post_processing,
-    cartoon_post_processing,
-    manga_post_processing,
-    derive_ep_previous_all_anime,
+from app.services.domain.watch_order import (
+    MEDIA_TYPE_MODELS,
+    VALID_WATCH_ORDER_MEDIA_TYPES,
+    entry_exists,
+    first_section_break,
+    get_entry_franchise_id,
+    list_candidate_entries,
+    resolve_items,
+    sort_items_by_reading_order,
 )
 
 __all__ = [

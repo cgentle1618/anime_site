@@ -1,6 +1,5 @@
 import logging
 
-
 from app.services.integrations.omdb import fetch_omdb_data
 from app.services.integrations.tmdb import fetch_tmdb_data
 

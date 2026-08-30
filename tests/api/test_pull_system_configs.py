@@ -13,7 +13,6 @@ import pytest
 from app import models
 from app.services.pipelines import pull
 
-
 HEADERS = ["id", "config_key", "config_value"]
 
 

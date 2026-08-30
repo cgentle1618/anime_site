@@ -6,7 +6,6 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 """
 
 import uuid
-import pytest
 
 
 class TestGetAllFranchises:
@@ -83,7 +82,6 @@ class TestUpdateFranchise:
 
 class TestDeleteFranchise:
     def test_admin_can_delete(self, admin_client, sample_franchise, db_session):
-        from app import models
         response = admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
         assert response.status_code in (200, 204)
 
@@ -94,7 +92,7 @@ class TestDeleteFranchise:
     def test_delete_creates_deleted_record(self, admin_client, sample_franchise, db_session):
         from app import models
         admin_client.delete(f"/api/franchise/{sample_franchise.system_id}")
-        log = db_session.query(models.DeletedRecord).filter(
+        db_session.query(models.DeletedRecord).filter(
             models.DeletedRecord.franchise_cn == sample_franchise.franchise_name_cn
         ).first()
         # Deleted record may or may not exist depending on implementation details

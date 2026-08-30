@@ -34,7 +34,7 @@ Write-Host ''
 if (-not $dbReady) { throw "PostgreSQL ($dbContainer) did not become ready within 30s." }
 
 Write-Host '==> Opening dev window: uvicorn | vite' -ForegroundColor Cyan
-$uvicorn = "& '$root\venv\Scripts\uvicorn.exe' app.main:app --reload"
+$uvicorn = "& '$root\venv\Scripts\uvicorn.exe' app.main:app --reload --reload-dir app"
 
 wt.exe new-tab -d "$root" --title uvicorn powershell -NoExit -Command $uvicorn `; split-pane -V -d "$root\frontend" --title frontend powershell -NoExit -Command "npm run dev"
 

@@ -5,8 +5,8 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 """
 
 import uuid
+
 import pytest
-from fastapi.testclient import TestClient
 
 from app import models
 from app.services.security import get_password_hash

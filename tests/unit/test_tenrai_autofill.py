@@ -6,6 +6,7 @@ semantics (never overwrite what the admin typed) rather than the network layer.
 """
 
 import types
+
 import pytest
 
 from app.services.domain import autofill as autofill_module
@@ -14,7 +15,6 @@ from app.services.domain.autofill import (
     autofill_manga_from_mal,
     autofill_novel_from_mal,
 )
-
 
 ANIME_RESULT = {
     "type": "TV",
