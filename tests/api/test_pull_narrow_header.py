@@ -145,7 +145,7 @@ def test_insert_still_gets_its_defaults(db_session, sheet):
         .filter(models.Anime.anime_name_en == "Bocchi the Rock!")
         .one()
     )
-    assert fresh.watching_status == "Haven't Started"
+    assert fresh.watching_status == "Might Watch"
 
 
 def test_movie_insert_still_gets_its_timestamps(db_session, sheet):
@@ -176,4 +176,4 @@ def test_row_with_a_uuid_missing_locally_still_inserts_with_defaults(
     assert result["status"] == "success"
     assert result["rows_added"] == 1
     fresh = db_session.query(models.Anime).filter_by(system_id=orphan_id).one()
-    assert fresh.watching_status == "Haven't Started"
+    assert fresh.watching_status == "Might Watch"

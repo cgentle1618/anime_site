@@ -757,14 +757,9 @@ def execute_pull_specific(
         # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors).
         # INSERT-only: an UPDATE keeps whatever the row already holds.
         if existing is None:
-            if tab_name == "Anime":
-                if clean_header_dict.get("watching_status") is None:
-                    clean_header_dict["watching_status"] = "Haven't Started"
-                if clean_header_dict.get("airing_status") is None:
-                    clean_header_dict["airing_status"] = ""
-                if clean_header_dict.get("airing_type") is None:
-                    clean_header_dict["airing_type"] = ""
-            elif tab_name in ("Movies", "Anime Movie", "TV Shows", "Cartoons"):
+            # Blank airing_status / airing_type stay NULL: "" is in no
+            # vocabulary and defeats every `airing_type in {...}` check.
+            if tab_name in ("Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons"):
                 if clean_header_dict.get("watching_status") is None:
                     clean_header_dict["watching_status"] = "Might Watch"
                 if clean_header_dict.get("created_at") is None:

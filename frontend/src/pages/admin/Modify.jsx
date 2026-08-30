@@ -42,6 +42,7 @@ import {
   resolveDefaults,
 } from "../../hooks/useFormDefaults";
 import { endpoints } from "../../api/endpoints";
+import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
   saveEntryLabels,
 } from "../../components/forms/ContentLabelPicker";
@@ -342,13 +343,18 @@ export default function Modify() {
   // `undefined` (never merged in) - buildCreditsPayload skips `undefined`
   // fields, so a save made before this resolves (or after it fails) can't
   // wipe credits it never saw, it just leaves them untouched.
+  const creditsRequest = useRef(0);
   async function loadCreditsIntoForm(mediaType, entryId, setForm) {
+    // Opening entry A then B quickly: A's late response must not merge
+    // into B's form, or the next Save PUTs A's credits onto B.
+    const seq = ++creditsRequest.current;
     try {
       const res = await fetch(endpoints.credits.get(mediaType, entryId), {
         credentials: "include",
       });
       if (!res.ok) throw new Error("credits fetch failed");
       const data = await res.json();
+      if (seq !== creditsRequest.current) return;
       setForm((prev) => ({ ...prev, ...creditsResponseToForm(mediaType, data) }));
     } catch {
       showToast(
@@ -877,6 +883,8 @@ export default function Modify() {
       else if (editingType === "novel") await saveNovel();
       else if (editingType === "comic") await saveComic();
       else if (editingType === "options") await saveOption();
+    } catch (e) {
+      showToast("error", e?.message || "Request failed");
     } finally {
       setSubmitting(false);
     }
@@ -982,15 +990,15 @@ export default function Modify() {
     setAllAnime((prev) =>
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
-    setEditingItem(updated);
-    setAf(animeToForm(updated, allFranchises, allSeries, md("anime")));
-    loadCreditsIntoForm("anime", updated.system_id, setAf);
-    await fetch(`/api/data-control/replace/anime/${updated.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("anime", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setAf(animeToForm(item, allFranchises, allSeries, md("anime")));
+    loadCreditsIntoForm("anime", item.system_id, setAf);
     window.scrollTo(0, 0);
-    showToast("success", "Update and enrichment successful.");
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
   async function saveCollection() {
@@ -1214,15 +1222,15 @@ export default function Modify() {
     setAllAnimeMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
-    setEditingItem(updated);
-    setAmf(movieToForm(updated, allFranchises, md("anime-movie")));
-    loadCreditsIntoForm("anime-movie", updated.system_id, setAmf);
-    await fetch(`/api/data-control/replace/anime-movie/${updated.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("anime-movie", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setAmf(movieToForm(item, allFranchises, md("anime-movie")));
+    loadCreditsIntoForm("anime-movie", item.system_id, setAmf);
     window.scrollTo(0, 0);
-    showToast("success", "Update and enrichment successful.");
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
   async function saveMovie() {
@@ -1351,7 +1359,7 @@ export default function Modify() {
     setMmf(liveMovieToForm(updated, allFranchises, allSeries));
     loadCreditsIntoForm("movie", updated.system_id, setMmf);
     window.scrollTo(0, 0);
-    showToast("success", "Movie updated and enriched successfully.");
+    showToast("success", "Movie updated successfully.");
   }
 
   async function saveTvShow() {
@@ -1610,15 +1618,15 @@ export default function Modify() {
     setAllCartoons((prev) =>
       prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
     );
-    setEditingItem(updated);
-    setCmf(cartoonToForm(updated, allFranchises, allSeries));
-    loadCreditsIntoForm("cartoon", updated.system_id, setCmf);
-    await fetch(`/api/data-control/replace/cartoon/${updated.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("cartoon", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setCmf(cartoonToForm(item, allFranchises, allSeries));
+    loadCreditsIntoForm("cartoon", item.system_id, setCmf);
     window.scrollTo(0, 0);
-    showToast("success", "Update and enrichment successful.");
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
   async function saveManga() {
@@ -1759,15 +1767,15 @@ export default function Modify() {
     setAllMangas((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
-    setEditingItem(updated);
-    setCmgf(mangaToForm(updated, allFranchises, allSeries));
-    loadCreditsIntoForm("manga", updated.system_id, setCmgf);
-    await fetch(`/api/data-control/replace/manga/${updated.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("manga", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setCmgf(mangaToForm(item, allFranchises, allSeries));
+    loadCreditsIntoForm("manga", item.system_id, setCmgf);
     window.scrollTo(0, 0);
-    showToast("success", "Update and enrichment successful.");
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
   }
 
   async function saveNovel() {

@@ -1447,6 +1447,9 @@ export default function Admin() {
 
   // Streaming state (global: only one stream at a time)
   const abortRef = useRef(null);
+  // Leaving the page must stop the SSE reader; otherwise it keeps calling
+  // setStatus/showToast on an unmounted component.
+  useEffect(() => () => abortRef.current?.abort(), []);
   const [streamRunning, setStreamRunning] = useState(null); // 'fill' | 'replace' | null
   const [fillStatus, setFillStatus] = useState("");
   const [replaceStatus, setReplaceStatus] = useState("");

@@ -99,6 +99,7 @@ export default function usePlanData(reloadKey = 0) {
     if (reloadKey > 0) {
       // When the plan page triggers a refresh, invalidate every media list query at once.
       queryClient.invalidateQueries({ queryKey: ["media-list"] });
+      queryClient.invalidateQueries({ queryKey: ["plan-next"] });
     }
   }, [queryClient, reloadKey]);
 
@@ -114,10 +115,11 @@ export default function usePlanData(reloadKey = 0) {
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
 
   // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
-  // useQuery rather than useMediaList. Nested under the "media-list" key so
-  // the reloadKey invalidation above still reaches it.
+  // useQuery under its own key: the media-list cache writers
+  // (useStatusToggle, useMediaCacheUpdate) map over every ["media-list", *]
+  // entry and must never see this non-list payload.
   const planNextQuery = useQuery({
-    queryKey: ["media-list", "plan-next"],
+    queryKey: ["plan-next"],
     queryFn: () => fetchJson("/api/plan-next/"),
     staleTime: 30_000,
   });

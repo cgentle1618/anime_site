@@ -38,9 +38,12 @@ export default function ContentLabelPicker({
   useEffect(() => {
     if (!mediaType || !entryId) return undefined;
     let alive = true;
+    // Clear the previous entry's selection first: a failed fetch must not
+    // leave those labels behind to be saved onto this entry.
+    onChange([]);
     fetchJson(endpoints.contentLabels.forEntry(mediaType, entryId))
       .then((keys) => alive && onChange(keys))
-      .catch(() => {});
+      .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };

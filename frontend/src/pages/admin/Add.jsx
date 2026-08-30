@@ -45,6 +45,7 @@ import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
+import { enrichEntry } from "../../lib/enrich";
 
 export default function Add() {
   const { showToast } = useToast();
@@ -583,10 +584,10 @@ export default function Add() {
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
+    } catch (e) {
+      showToast("error", e?.message || "Request failed");
     } finally {
       setSubmitting(false);
-      // The next entry starts unlabelled, like every other field on the form.
-      setContentLabels([]);
     }
   }
 
@@ -734,15 +735,16 @@ export default function Add() {
     await saveCredits("anime", created.system_id, af);
 
     // Replace (enrich from MAL)
-    await fetch(`/api/data-control/replace/anime/${created.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    const enriched = await enrichEntry("anime", created.system_id);
 
     window.scrollTo(0, 0);
-    showToast("success", "Entry appended and enriched successfully.");
+
+    if (enriched) showToast("success", "Entry appended and enriched successfully.");
+
+    else showToast("warning", "Entry appended successfully. Enrichment failed - run Replace later.");
     setLastAdded(created.anime_name_en || created.anime_name_cn || "New Entry");
     setAf(freshForm("anime"));
+    setContentLabels([]);
     setAllAnime((prev) => [...prev, created]);
   }
 
@@ -782,6 +784,7 @@ export default function Add() {
           "New Collection",
       );
       setColf(freshForm("collection"));
+      setContentLabels([]);
       setAllCollections((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create collection");
@@ -826,6 +829,7 @@ export default function Add() {
           "New Franchise",
       );
       setFf(freshForm("franchise"));
+      setContentLabels([]);
       setAllFranchises((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create franchise");
@@ -872,6 +876,7 @@ export default function Add() {
         created.series_name_cn || created.series_name_en || "New Series",
       );
       setSf(freshForm("series"));
+      setContentLabels([]);
       setAllSeries((prev) => [...prev, created]);
     } else {
       showToast("error", "Failed to create series");
@@ -1138,19 +1143,20 @@ export default function Add() {
     const created = await res.json();
     await saveCredits("anime-movie", created.system_id, amf);
 
-    await fetch(`/api/data-control/replace/anime-movie/${created.system_id}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    const enriched = await enrichEntry("anime-movie", created.system_id);
 
     window.scrollTo(0, 0);
-    showToast("success", "Anime movie appended and enriched successfully.");
+
+    if (enriched) showToast("success", "Anime movie appended and enriched successfully.");
+
+    else showToast("warning", "Anime movie appended successfully. Enrichment failed - run Replace later.");
     setLastAdded(
       created.anime_movie_name_en ||
         created.anime_movie_name_cn ||
         "New Anime Movie",
     );
     setAmf(freshForm("anime-movie"));
+    setContentLabels([]);
     setAllAnimeMovies((prev) => [...prev, created]);
   }
 
@@ -1305,9 +1311,10 @@ export default function Add() {
     const created = await res.json();
     await saveCredits("movie", created.system_id, mf);
     window.scrollTo(0, 0);
-    showToast("success", "Movie appended and enriched successfully.");
+    showToast("success", "Movie appended successfully.");
     setLastAdded(created.movie_name_en || created.movie_name_cn || "New Movie");
     setMf(freshForm("movie"));
+    setContentLabels([]);
     setAllMovies((prev) => [...prev, created]);
   }
 
@@ -1465,9 +1472,10 @@ export default function Add() {
     const created = await res.json();
     await saveCredits("tv-show", created.system_id, tvf);
     window.scrollTo(0, 0);
-    showToast("success", "TV Show appended and enriched successfully.");
+    showToast("success", "TV Show appended successfully.");
     setLastAdded(created.tv_name_cn || created.tv_name_en || "New TV Show");
     setTvf(freshForm("tv-show"));
+    setContentLabels([]);
     setAllTvShows((prev) => [...prev, created]);
   }
 
@@ -1612,6 +1620,7 @@ export default function Add() {
       created.cartoon_name_cn || created.cartoon_name_en || "New Cartoon",
     );
     setCf(freshForm("cartoon"));
+    setContentLabels([]);
     setAllCartoons((prev) => [...prev, created]);
   }
 
@@ -1765,6 +1774,7 @@ export default function Add() {
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
     setMgf(freshForm("manga"));
+    setContentLabels([]);
     setAllMangas((prev) => [...prev, created]);
   }
 
@@ -1967,6 +1977,7 @@ export default function Add() {
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
     setNvf(freshForm("novel"));
+    setContentLabels([]);
     setAllNovels((prev) => [...prev, created]);
   }
 
@@ -2148,6 +2159,7 @@ export default function Add() {
     showToast("success", "Comic appended successfully.");
     setLastAdded(created.comic_name_en || created.comic_name_cn || "New Comic");
     setCmf(freshForm("comic"));
+    setContentLabels([]);
     setAllComics((prev) => [...prev, created]);
   }
 
