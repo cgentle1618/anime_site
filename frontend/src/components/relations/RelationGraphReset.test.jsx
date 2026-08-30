@@ -5,7 +5,7 @@
 // a canvas with no relations, and does nothing at all if the confirm is
 // declined. The deletion itself is one server call, tested in
 // tests/api/test_media_relation.py.
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import RelationGraph from "./RelationGraph";
@@ -132,6 +132,11 @@ describe("RelationGraph Reset", () => {
 });
 
 describe("RelationGraph selection", () => {
+  // Node clicks use fireEvent.click, not userEvent: userEvent also fires
+  // mousedown, and React Flow's d3-drag handler reads `event.view.document`,
+  // which jsdom leaves null - an uncaught TypeError that failed the whole run
+  // even though every assertion passed. A bare click is all the handler under
+  // test listens for.
   const ONE = {
     nodes: [
       {
@@ -163,9 +168,9 @@ describe("RelationGraph selection", () => {
       expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1),
     );
 
-    await userEvent.click(container.querySelector(".react-flow__node"));
+    fireEvent.click(container.querySelector(".react-flow__node"));
 
-    expect(onSelectNode).toHaveBeenCalledWith("anime:a");
+    await waitFor(() => expect(onSelectNode).toHaveBeenCalledWith("anime:a"));
   });
 
   it("does not report a ghost, which is not one of the scope's entries", async () => {
@@ -190,9 +195,9 @@ describe("RelationGraph selection", () => {
       expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1),
     );
 
-    await userEvent.click(container.querySelector(".react-flow__node"));
+    fireEvent.click(container.querySelector(".react-flow__node"));
 
-    expect(onPickGhostFranchise).toHaveBeenCalledWith("f2");
+    await waitFor(() => expect(onPickGhostFranchise).toHaveBeenCalledWith("f2"));
     expect(onSelectNode).not.toHaveBeenCalled();
   });
 });

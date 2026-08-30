@@ -1,14 +1,10 @@
 """Missing-value checks and episode/volume/chapter math validation."""
 
 import logging
-import uuid
-from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Union
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.database import get_taipei_now
 from app.models import (
     Anime,
     AnimeMovies,
@@ -16,38 +12,26 @@ from app.models import (
     Comic,
     Manga,
     Novel,
-    Movies,
-    TVShows,
-    Franchise,
     Person,
-    Series,
-    Seasonal,
     Studio,
-    SystemOption,
+    TVShows,
 )
-
 from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
     ANIME_FIELDS_TO_FILL,
     ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
     CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
+    CARTOON_TV_FIELDS_TO_FILL,
     COMIC_FIELDS_TO_FILL,
+    COMIC_LINK_FIELDS_TO_FILL,
+    MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
+    MOVIE_LINK_FIELDS_TO_FILL,
+    NOVEL_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
+    validate_ch_math,
     validate_episode_math,
     validate_vol_math,
-    validate_ch_math,
 )
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
 
 logger = logging.getLogger(__name__)
 
@@ -140,13 +124,28 @@ def has_missing_values_anime_movie(anime_movie: AnimeMovies) -> bool:
     return len(missing) > 0
 
 
-def has_missing_values_movie(movie) -> bool:
-    """Returns True if any required Movies field is missing."""
+def _link_missing(db, media_type, entry_id, link_fields) -> bool:
+    """True if any (kind, key) link pair has no rows for this entry."""
+    from app.services.domain.credits import credit_names, tag_values
+
+    for kind, key in link_fields:
+        values = (
+            credit_names(db, media_type, entry_id, key)
+            if kind == "credit"
+            else tag_values(db, media_type, entry_id, key)
+        )
+        if not values:
+            return True
+    return False
+
+
+def has_missing_values_movie(db, movie) -> bool:
+    """Returns True if any required Movies column or link (director) is missing."""
     for field in MOVIE_FIELDS_TO_FILL:
         val = getattr(movie, field, None)
         if val is None or str(val).strip() == "":
             return True
-    return False
+    return _link_missing(db, "movie", movie.system_id, MOVIE_LINK_FIELDS_TO_FILL)
 
 
 def has_missing_values_tv_show(tv_show: TVShows) -> bool:
@@ -210,18 +209,19 @@ def has_missing_values_novel(novel: Novel) -> bool:
     return False
 
 
-def has_missing_values_comic(comic: Comic) -> bool:
+def has_missing_values_comic(db, comic: Comic) -> bool:
     """
-    Returns True if any Comic Vine-fillable field is blank.
-    Only COMIC_FIELDS_TO_FILL are considered — imprint, continuity, era, events,
-    end_date and publisher_tw are manual classifications Comic Vine does not model.
+    Returns True if any Comic Vine-fillable column or link is blank.
+    Columns come from COMIC_FIELDS_TO_FILL; writer/artist credits and the
+    publisher tag from COMIC_LINK_FIELDS_TO_FILL. Imprint, continuity, era,
+    events, end_date and publisher_tw are manual classifications Comic Vine
+    does not model and are never required.
     """
     for field in COMIC_FIELDS_TO_FILL:
         val = getattr(comic, field, None)
         if val is None or str(val).strip() == "":
             return True
-
-    return False
+    return _link_missing(db, "comic", comic.system_id, COMIC_LINK_FIELDS_TO_FILL)
 
 
 
@@ -264,7 +264,7 @@ def find_duplicate_entities(db: Session) -> list[dict]:
 
         parent: dict[str, str] = {}
 
-        def find(x: str) -> str:
+        def find(x: str, parent: dict[str, str] = parent) -> str:
             root = x
             while parent.get(root, root) != root:
                 root = parent[root]
@@ -274,7 +274,7 @@ def find_duplicate_entities(db: Session) -> list[dict]:
                 x = nxt
             return root
 
-        def union(x: str, y: str) -> None:
+        def union(x: str, y: str, parent: dict[str, str] = parent) -> None:
             px, py = find(x), find(y)
             if px != py:
                 parent[px] = py

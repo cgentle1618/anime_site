@@ -54,8 +54,10 @@ function BelongingNovelsCard({ novel, isAdmin, onSave }) {
   }
 
   function handleCancel() {
-    setCnItems(objToItems(novel.novel_name_each_cn));
-    setEnItems(objToItems(novel.novel_name_each_en));
+    // Mirror the reset effect above; `objToItems` never existed, so Cancel
+    // threw a ReferenceError before this was caught by ESLint's no-undef.
+    setCnItems(novel.novel_name_each_cn || []);
+    setEnItems(novel.novel_name_each_en || []);
     setDirty(false);
   }
 

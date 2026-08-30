@@ -2,49 +2,17 @@
 
 import logging
 import uuid
-from datetime import date
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Tuple
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
 from app.models import (
-    Anime,
-    AnimeMovies,
-    Cartoon,
-    Comic,
-    Manga,
-    Novel,
-    Movies,
-    TVShows,
     Franchise,
     Series,
-    Seasonal,
-    SystemOption,
 )
-
-from app.utils.utils import (
-    SEASON_PATTERN,
-    PART_PATTERN,
-    ANIME_FIELDS_TO_FILL,
-    ANIME_MOVIE_FIELDS_TO_FILL,
-    CARTOON_TV_FIELDS_TO_FILL,
-    CARTOON_MOVIE_FIELDS_TO_FILL,
-    MANGA_FIELDS_TO_FILL,
-    NOVEL_FIELDS_TO_FILL,
-    MOVIE_FIELDS_TO_FILL,
-    TV_SHOW_FIELDS_TO_FILL,
-    extract_mal_id_anime,
-    extract_mal_id_manga_novel,
-    extract_imdb_id,
-    extract_season_from_title,
-    calculate_seasonal_from_month,
-    validate_episode_math,
-    validate_vol_math,
-    validate_ch_math,
-)
-from app.utils.constants import AnimeAiringType, FranchiseType, WatchStatus
+from app.utils.constants import FranchiseType
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +149,11 @@ def resolve_anime_movie_parent_hierarchy(
     """
     if franchise_id and not isinstance(franchise_id, str):
         return franchise_id
+
+    # A name in the franchise_id cell names the franchise itself and wins over
+    # the entry's own titles, which are only a fallback for a blank cell.
+    if isinstance(franchise_id, str) and franchise_id.strip():
+        names = {"en": franchise_id.strip()}
 
     valid_names = set()
     for lang_key in ["en", "cn", "roman", "jp", "alt"]:

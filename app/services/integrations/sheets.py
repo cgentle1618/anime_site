@@ -12,8 +12,8 @@ import time
 from typing import Any, Callable, List, Optional
 
 import gspread
-from gspread.exceptions import APIError, WorksheetNotFound
 from google.oauth2.service_account import Credentials
+from gspread.exceptions import APIError, WorksheetNotFound
 
 from app.config import settings
 
@@ -225,27 +225,33 @@ def get_all_raw_rows(tab_name: str) -> List[List[str]]:
 
 def bulk_overwrite_sheet(tab_name: str, data_matrix: List[List[Any]]) -> bool:
     """
-    Permanently overwrites a tab with the provided matrix.
-    Includes headers as the first row. Uses USER_ENTERED to preserve data types.
+    Overwrites a tab with the provided matrix (headers as the first row).
+
+    Writes the new data FIRST and only then clears the cells beyond it, so a
+    failed write leaves the previous backup intact instead of an empty tab.
+    Failures propagate: Backup must report them, never log Success over a
+    blank tab (the next Pull would read that blank tab as "no data").
     """
     if not data_matrix:
-        logger.warning(
-            f"No data provided for tab '{tab_name}'. Aborting bulk overwrite."
-        )
-        return False
+        raise ValueError(f"No data provided for tab '{tab_name}'; refusing to overwrite.")
 
-    try:
-        worksheet = get_google_sheet_tab(tab_name)
+    worksheet = get_google_sheet_tab(tab_name)
+    rows, cols = len(data_matrix), max(len(r) for r in data_matrix)
 
-        _execute_with_retry(worksheet.clear)
+    _execute_with_retry(
+        worksheet.update, "A1", data_matrix, value_input_option="USER_ENTERED"
+    )
 
-        _execute_with_retry(
-            worksheet.update, "A1", data_matrix, value_input_option="USER_ENTERED"
-        )
+    def col(n: int) -> str:
+        return gspread.utils.rowcol_to_a1(1, n)[:-1]
 
-        logger.info(f"Successfully backed up {len(data_matrix)} rows to '{tab_name}'.")
-        return True
+    leftovers = []
+    if worksheet.row_count > rows:
+        leftovers.append(f"A{rows + 1}:{col(worksheet.col_count)}{worksheet.row_count}")
+    if worksheet.col_count > cols:
+        leftovers.append(f"{col(cols + 1)}1:{col(worksheet.col_count)}{rows}")
+    if leftovers:
+        _execute_with_retry(worksheet.batch_clear, leftovers)
 
-    except Exception as e:
-        logger.error(f"Failed to perform bulk overwrite on tab '{tab_name}': {e}")
-        return False
+    logger.info(f"Successfully backed up {rows} rows to '{tab_name}'.")
+    return True

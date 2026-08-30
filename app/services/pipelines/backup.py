@@ -1,106 +1,42 @@
 """Backup pipeline: dump the database to Google Sheets."""
 
-import json
 import logging
-import asyncio
-from fastapi import Request
-from app.database import get_taipei_now
+
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
 
 from app.models import (
+    Anime,
+    AnimeMovies,
     Cartoon,
     Collection,
     Comic,
     Franchise,
     Manga,
+    MediaRelation,
+    Meme,
+    Movies,
+    Note,
     Novel,
     Person,
     PersonRole,
-    Series,
-    Anime,
-    AnimeMovies,
-    Movies,
-    TVShows,
-    Studio,
-    SystemOption,
-    SystemOptionScope,
-    SystemConfigs,
-    Seasonal,
-    WatchOrderList,
-    WatchOrderItem,
-    WatchOrderSection,
-    MediaRelation,
     PlanNext,
     Quote,
-    Meme,
-    Note,
+    Seasonal,
+    Series,
+    Studio,
+    SystemConfigs,
+    SystemOption,
+    SystemOptionScope,
+    TVShows,
+    WatchOrderItem,
+    WatchOrderList,
+    WatchOrderSection,
 )
-
+from app.services.domain.credits import sheet_link_headers, sheet_link_values
+from app.services.integrations.sheets import bulk_overwrite_sheet
+from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
     format_model_for_sheet,
-    parse_row_to_dict,
-    parse_collection_from_sheet,
-    parse_franchise_from_sheet,
-    parse_series_from_sheet,
-    parse_anime_from_sheet,
-    parse_anime_movie_from_sheet,
-    parse_cartoon_from_sheet,
-    parse_manga_from_sheet,
-    parse_novel_from_sheet,
-    parse_movie_from_sheet,
-    parse_tv_show_from_sheet,
-    parse_system_option_from_sheet,
-    parse_seasonal_from_sheet,
-)
-from app.utils.data_control_utils import log_data_control
-from app.services.domain.credits import sheet_link_headers, sheet_link_values
-
-from app.services.integrations.sheets import bulk_overwrite_sheet, get_all_raw_rows
-from app.services.domain import (
-    has_missing_values_anime,
-    has_missing_values_anime_movie,
-    has_missing_values_cartoon,
-    has_missing_values_manga,
-    has_missing_values_novel,
-    has_missing_values_movie,
-    has_missing_values_tv_show,
-    autofill_anime_from_mal,
-    autofill_anime_movie_from_mal,
-    autofill_cartoon_from_imdb,
-    autofill_manga_from_mal,
-    autofill_novel_from_mal,
-    autofill_movie_from_imdb,
-    autofill_tv_show_from_imdb,
-    apply_single_replace_anime,
-    apply_single_replace_anime_movie,
-    apply_single_replace_cartoon,
-    apply_single_replace_manga,
-    apply_single_replace_novel,
-    apply_single_replace_movie,
-    apply_single_replace_tv_show,
-    apply_extract_mal_id_anime,
-    apply_extract_mal_id_manga_novel,
-    apply_extract_imdb_id,
-    anime_post_processing,
-    anime_movie_post_processing,
-    cartoon_post_processing,
-    manga_post_processing,
-    tv_show_post_processing,
-    resolve_anime_movie_parent_hierarchy,
-    resolve_cartoon_parent_hierarchy,
-    resolve_manga_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
-    resolve_movie_parent_hierarchy,
-    resolve_tv_show_parent_hierarchy,
-)
-from app.services.calculation import (
-    run_sync_anime,
-    run_sync_anime_movie,
-    run_sync_cartoon,
-    run_sync_manga,
-    run_sync_novel,
-    run_sync_tv_show,
 )
 
 logger = logging.getLogger(__name__)
@@ -211,7 +147,7 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
             format_model_for_sheet(m) + sheet_link_values(db, "anime-movie", m)
             for m in anime_movies
         ]
-        bulk_overwrite_sheet("Anime Movies", anime_movie_matrix)
+        bulk_overwrite_sheet("Anime Movie", anime_movie_matrix)
 
         movie_entries = db.query(Movies).all()
         movie_headers = [c.name for c in Movies.__table__.columns] + sheet_link_headers(

@@ -34,6 +34,7 @@ from app.services.rbac.permissions import (
     label_perm,
     media_type_perm,
 )
+from app.services.rbac.seed import GUEST_ROLE
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,13 @@ def replace_permissions(
             detail="A superuser role holds every permission; grants do not apply.",
         )
     _validate(db, payload.permissions)
+    if role.name == GUEST_ROLE and PERM_ADMIN in payload.permissions:
+        # Anonymous requests resolve to the guest role's grants, so this
+        # would make every visitor an administrator.
+        raise HTTPException(
+            status_code=409,
+            detail="The guest role can never hold the admin permission.",
+        )
 
     db.query(models.RolePermission).filter(
         models.RolePermission.role_id == role.system_id

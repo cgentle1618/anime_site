@@ -60,9 +60,11 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# Column fields only. Credit/tag links (director) are checked separately via
+# MOVIE_LINK_FIELDS_TO_FILL - naming a dropped column here made every movie
+# "missing" on every Fill run.
 MOVIE_FIELDS_TO_FILL = [
     "length_min",
-    "director",
     "airing_status",
     "release_date_usa",
     "imdb_rating",
@@ -114,10 +116,15 @@ NOVEL_FIELDS_TO_FILL = [
 # era, events, end_date and publisher_tw are deliberately excluded: Comic Vine
 # models none of them, so listing them here would leave every entry permanently
 # "needs filling" and re-request it on every run.
+# (kind, key) pairs resolved through media_credit / media_tag.
+MOVIE_LINK_FIELDS_TO_FILL = [("credit", "director")]
+COMIC_LINK_FIELDS_TO_FILL = [
+    ("credit", "comic_writer"),
+    ("credit", "comic_artist"),
+    ("tag", "comic_publisher"),
+]
+
 COMIC_FIELDS_TO_FILL = [
-    "publisher",
-    "writer",
-    "artist",
     "release_date",
     "issue_total",
     "cover_image_file",

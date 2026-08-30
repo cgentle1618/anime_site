@@ -132,7 +132,7 @@ def test_revoking_a_permission_is_felt_without_re_login(
     The whole reason permissions are resolved per request instead of carried in
     the JWT. If this fails, the cache is not being bumped on write.
     """
-    from app.services.security import create_access_token, get_password_hash
+    from app.services.security import create_access_token
 
     role_id = admin_client.post(
         ROLES,
@@ -273,3 +273,15 @@ def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_a
     )
 
     assert str(sample_anime.system_id) not in client.get("/api/anime/").text
+
+
+def test_the_guest_role_can_never_be_granted_admin(admin_client):
+    """An anonymous request resolves to the guest role's grants, so admin on
+    guest would make every visitor an administrator with one misclick."""
+    guest_id = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_ADMIN]}
+    )
+    assert response.status_code == 409
+    after = admin_client.get(f"{ROLES}{guest_id}").json()
+    assert PERM_ADMIN not in after["permissions"]

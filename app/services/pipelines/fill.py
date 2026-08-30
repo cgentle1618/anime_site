@@ -1,98 +1,62 @@
 """Fill pipeline: populate missing metadata from external sources."""
 
+import asyncio
 import json
 import logging
-import asyncio
+
 from fastapi import Request
-from app.database import get_taipei_now
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
 
 from app.models import (
-    Cartoon,
-    Comic,
-    Franchise,
-    Manga,
-    Novel,
-    Series,
     Anime,
     AnimeMovies,
+    Cartoon,
+    Comic,
+    Manga,
     Movies,
+    Novel,
     TVShows,
-    SystemOption,
-    Seasonal,
-)
-
-from app.utils.formatter import (
-    format_model_for_sheet,
-    parse_row_to_dict,
-    parse_franchise_from_sheet,
-    parse_series_from_sheet,
-    parse_anime_from_sheet,
-    parse_anime_movie_from_sheet,
-    parse_cartoon_from_sheet,
-    parse_manga_from_sheet,
-    parse_novel_from_sheet,
-    parse_movie_from_sheet,
-    parse_tv_show_from_sheet,
-    parse_system_option_from_sheet,
-    parse_seasonal_from_sheet,
-)
-from app.utils.data_control_utils import log_data_control
-
-from app.services.integrations.sheets import bulk_overwrite_sheet, get_all_raw_rows
-from app.services.domain import (
-    has_missing_values_anime,
-    has_missing_values_anime_movie,
-    has_missing_values_cartoon,
-    has_missing_values_manga,
-    has_missing_values_comic,
-    has_missing_values_novel,
-    has_missing_values_movie,
-    has_missing_values_tv_show,
-    autofill_anime_from_mal,
-    autofill_anime_movie_from_mal,
-    autofill_cartoon_from_imdb,
-    autofill_manga_from_mal,
-    autofill_comic_from_comicvine,
-    autofill_novel_from_mal,
-    autofill_movie_from_imdb,
-    autofill_tv_show_from_imdb,
-    apply_single_replace_anime,
-    apply_single_replace_anime_movie,
-    apply_single_replace_cartoon,
-    apply_single_replace_manga,
-    apply_single_replace_novel,
-    apply_single_replace_movie,
-    apply_single_replace_tv_show,
-    apply_extract_mal_id_anime,
-    apply_extract_mal_id_manga_novel,
-    apply_extract_comicvine_id,
-    apply_extract_imdb_id,
-    anime_post_processing,
-    anime_movie_post_processing,
-    cartoon_post_processing,
-    manga_post_processing,
-    tv_show_post_processing,
-    derive_ep_previous_all_anime,
-    resolve_anime_movie_parent_hierarchy,
-    resolve_cartoon_parent_hierarchy,
-    resolve_manga_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
-    resolve_movie_parent_hierarchy,
-    resolve_tv_show_parent_hierarchy,
 )
 from app.services.calculation import (
     run_sync_anime,
     run_sync_anime_movie,
     run_sync_cartoon,
+    run_sync_comic,
     run_sync_manga,
     run_sync_novel,
-    run_sync_comic,
     run_sync_tv_show,
+)
+from app.services.domain import (
+    anime_movie_post_processing,
+    anime_post_processing,
+    apply_extract_comicvine_id,
+    apply_extract_imdb_id,
+    apply_extract_mal_id_anime,
+    apply_extract_mal_id_manga_novel,
+    autofill_anime_from_mal,
+    autofill_anime_movie_from_mal,
+    autofill_cartoon_from_imdb,
+    autofill_comic_from_comicvine,
+    autofill_manga_from_mal,
+    autofill_movie_from_imdb,
+    autofill_novel_from_mal,
+    autofill_tv_show_from_imdb,
+    cartoon_post_processing,
+    derive_ep_previous_all_anime,
+    has_missing_values_anime,
+    has_missing_values_anime_movie,
+    has_missing_values_cartoon,
+    has_missing_values_comic,
+    has_missing_values_manga,
+    has_missing_values_movie,
+    has_missing_values_novel,
+    has_missing_values_tv_show,
+    manga_post_processing,
+    tv_show_post_processing,
 )
 from app.services.integrations.comicvine import comicvine_rate_limiter
 from app.services.pipelines.backup import execute_backup
+from app.utils.data_control_utils import log_data_control
 
 logger = logging.getLogger(__name__)
 
@@ -332,7 +296,7 @@ async def execute_fill_movie(
             apply_extract_imdb_id(movie)
         db.commit()
 
-        queue_to_process = [m for m in all_movies if has_missing_values_movie(m)]
+        queue_to_process = [m for m in all_movies if has_missing_values_movie(db, m)]
         total_in_queue = len(queue_to_process)
 
         if total_in_queue > 0:
@@ -816,7 +780,7 @@ async def execute_fill_comic(
         queue_to_process = [
             c
             for c in all_comics
-            if c.comicvine_id is not None and has_missing_values_comic(c)
+            if c.comicvine_id is not None and has_missing_values_comic(db, c)
         ]
         total_in_queue = len(queue_to_process)
 

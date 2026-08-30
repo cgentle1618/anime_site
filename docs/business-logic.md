@@ -463,7 +463,7 @@ A **blank cell is not** an absent column: the column is present, parses to `None
 
 #### Pull Specific — `execute_pull_specific(db, tab_name, action_type, log_action)`
 
-Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movies"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Comic"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Option Scope"`, `"Person"`, `"Person Role"`, `"Studio"`, `"System Configs"`.
+Pulls and upserts one tab. Supported: `"Collection"`, `"Franchise"`, `"Series"`, `"Anime"`, `"Anime Movie"`, `"Movies"`, `"TV Shows"`, `"Cartoons"`, `"Manga"`, `"Novel"`, `"Comic"`, `"Watch Order List"`, `"Watch Order Item"`, `"Media Relation"`, `"Quote"`, `"Meme"`, `"Note"`, `"Seasonal"`, `"System Options"`, `"System Option Scope"`, `"Person"`, `"Person Role"`, `"Studio"`, `"System Configs"`.
 
 **Steps:**
 

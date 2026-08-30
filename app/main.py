@@ -11,49 +11,47 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from app import database
+from app import database, models
 from app.config import settings
 from app.database import engine
-from app import models
-from app.schema_guard import ensure_schema
-
 from app.routers import (
-    auth,
-    options,
-    constants,
-    collection,
-    franchise,
-    series,
     anime,
     anime_movie,
+    announcements,
+    auth,
     cartoon,
-    movie,
-    tv_show,
+    collection,
+    comic,
+    constants,
+    content_labels,
+    credits,
+    data_control,
+    form_defaults,
+    franchise,
     manga,
+    media_relation,
+    meme,
+    movie,
     note,
     novel,
-    comic,
-    watch_order,
-    media_relation,
+    options,
+    person,
     plan_next,
     quote,
-    meme,
-    seasonal,
-    search,
-    data_control,
-    system,
-    announcements,
-    form_defaults,
-    person,
-    studio,
-    credits,
     roles,
+    search,
+    seasonal,
+    series,
+    studio,
+    system,
+    tv_show,
     users,
-    content_labels,
+    watch_order,
 )
+from app.schema_guard import ensure_schema
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.security import get_password_hash
 
@@ -211,7 +209,15 @@ async def serve_spa(full_path: str):
     index = FRONTEND_DIST / "index.html"
     if not index.exists():
         return {"detail": "Frontend not built. Run: cd frontend && npm run build"}
-    candidate = FRONTEND_DIST / full_path
-    if candidate.exists() and candidate.is_file():
+    # Resolve and confine to the dist directory: ``full_path`` is
+    # user-controlled and ``..%2F`` segments would otherwise read any file
+    # on the server (e.g. /..%2F.env).
+    dist_root = FRONTEND_DIST.resolve()
+    candidate = (dist_root / full_path).resolve()
+    if (
+        candidate != dist_root
+        and candidate.is_relative_to(dist_root)
+        and candidate.is_file()
+    ):
         return FileResponse(candidate)
     return FileResponse(index)

@@ -2,129 +2,87 @@
 
 import json
 import logging
-import asyncio
-from fastapi import Request
-from app.database import get_taipei_now
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
 
+from sqlalchemy import or_, text
+from sqlalchemy.orm import Session
+
+from app.database import get_taipei_now
 from app.models import (
+    Anime,
+    AnimeMovies,
     Cartoon,
     Collection,
     Comic,
     Franchise,
     Manga,
+    MediaRelation,
+    Meme,
+    Movies,
+    Note,
     Novel,
     Person,
     PersonRole,
-    Series,
-    Anime,
-    AnimeMovies,
-    Movies,
-    TVShows,
-    Studio,
-    SystemOption,
-    SystemOptionScope,
-    SystemConfigs,
-    Seasonal,
-    WatchOrderList,
-    WatchOrderItem,
-    WatchOrderSection,
-    MediaRelation,
     PlanNext,
     Quote,
-    Meme,
-    Note,
+    Seasonal,
+    Series,
+    Studio,
+    SystemConfigs,
+    SystemOption,
+    SystemOptionScope,
+    TVShows,
+    WatchOrderItem,
+    WatchOrderList,
+    WatchOrderSection,
 )
-
-from app.utils.formatter import (
-    format_model_for_sheet,
-    parse_row_to_dict,
-    parse_collection_from_sheet,
-    parse_franchise_from_sheet,
-    parse_series_from_sheet,
-    parse_anime_from_sheet,
-    parse_anime_movie_from_sheet,
-    parse_cartoon_from_sheet,
-    parse_manga_from_sheet,
-    parse_novel_from_sheet,
-    parse_comic_from_sheet,
-    parse_movie_from_sheet,
-    parse_tv_show_from_sheet,
-    parse_person_from_sheet,
-    parse_person_role_from_sheet,
-    parse_studio_from_sheet,
-    parse_system_option_from_sheet,
-    parse_system_option_scope_from_sheet,
-    parse_system_config_from_sheet,
-    parse_seasonal_from_sheet,
-    parse_watch_order_list_from_sheet,
-    parse_watch_order_item_from_sheet,
-    parse_watch_order_section_from_sheet,
-    parse_media_relation_from_sheet,
-    parse_plan_next_from_sheet,
-    parse_quote_from_sheet,
-    parse_meme_from_sheet,
-    parse_note_from_sheet,
+from app.services.domain import (
+    resolve_anime_movie_parent_hierarchy,
+    resolve_cartoon_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
+    resolve_manga_parent_hierarchy,
+    resolve_movie_parent_hierarchy,
+    resolve_novel_parent_hierarchy,
+    resolve_tv_show_parent_hierarchy,
 )
-from app.utils.data_control_utils import log_data_control
-from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
 from app.services.domain.credits import (
     names_from_sheet_value,
     replace_credits,
     replace_tags,
 )
-
 from app.services.integrations.sheets import (
-    bulk_overwrite_sheet,
-    get_all_raw_rows,
     SheetsUnavailableError,
+    get_all_raw_rows,
 )
-from app.services.domain import (
-    has_missing_values_anime,
-    has_missing_values_anime_movie,
-    has_missing_values_cartoon,
-    has_missing_values_manga,
-    has_missing_values_novel,
-    has_missing_values_movie,
-    has_missing_values_tv_show,
-    autofill_anime_from_mal,
-    autofill_anime_movie_from_mal,
-    autofill_cartoon_from_imdb,
-    autofill_manga_from_mal,
-    autofill_novel_from_mal,
-    autofill_movie_from_imdb,
-    autofill_tv_show_from_imdb,
-    apply_single_replace_anime,
-    apply_single_replace_anime_movie,
-    apply_single_replace_cartoon,
-    apply_single_replace_manga,
-    apply_single_replace_novel,
-    apply_single_replace_movie,
-    apply_single_replace_tv_show,
-    apply_extract_mal_id_anime,
-    apply_extract_mal_id_manga_novel,
-    apply_extract_imdb_id,
-    anime_post_processing,
-    anime_movie_post_processing,
-    cartoon_post_processing,
-    manga_post_processing,
-    tv_show_post_processing,
-    resolve_anime_movie_parent_hierarchy,
-    resolve_cartoon_parent_hierarchy,
-    resolve_manga_parent_hierarchy,
-    resolve_novel_parent_hierarchy,
-    resolve_comic_parent_hierarchy,
-    resolve_movie_parent_hierarchy,
-    resolve_tv_show_parent_hierarchy,
-)
-from app.services.calculation import (
-    run_sync_anime,
-    run_sync_anime_movie,
-    run_sync_cartoon,
-    run_sync_manga,
-    run_sync_novel,
-    run_sync_tv_show,
+from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
+from app.utils.data_control_utils import log_data_control
+from app.utils.formatter import (
+    parse_anime_from_sheet,
+    parse_anime_movie_from_sheet,
+    parse_cartoon_from_sheet,
+    parse_collection_from_sheet,
+    parse_comic_from_sheet,
+    parse_franchise_from_sheet,
+    parse_manga_from_sheet,
+    parse_media_relation_from_sheet,
+    parse_meme_from_sheet,
+    parse_movie_from_sheet,
+    parse_note_from_sheet,
+    parse_novel_from_sheet,
+    parse_person_from_sheet,
+    parse_person_role_from_sheet,
+    parse_plan_next_from_sheet,
+    parse_quote_from_sheet,
+    parse_row_to_dict,
+    parse_seasonal_from_sheet,
+    parse_series_from_sheet,
+    parse_studio_from_sheet,
+    parse_system_config_from_sheet,
+    parse_system_option_from_sheet,
+    parse_system_option_scope_from_sheet,
+    parse_tv_show_from_sheet,
+    parse_watch_order_item_from_sheet,
+    parse_watch_order_list_from_sheet,
+    parse_watch_order_section_from_sheet,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +92,7 @@ logger = logging.getLogger(__name__)
 # apply step below: a tab absent here has no link columns to restore.
 MEDIA_TYPE_FOR_TAB = {
     "Anime": "anime",
-    "Anime Movies": "anime-movie",
+    "Anime Movie": "anime-movie",
     "Movies": "movie",
     "TV Shows": "tv-show",
     "Cartoons": "cartoon",
@@ -142,6 +100,57 @@ MEDIA_TYPE_FOR_TAB = {
     "Novel": "novel",
     "Comic": "comic",
 }
+
+
+# Restore order for Pull All. STRICT: parents before children (FK constraints).
+TABS_IN_ORDER = [
+    "System Options",
+    # Scopes point at System Options rows via option_id, so they restore
+    # right after the vocabulary they scope.
+    "System Option Scope",
+    # Person and Studio restore before every media tab: entry credits
+    # resolve against a person_id/studio_id that must already exist.
+    "Person",
+    # Roles point at Person rows via person_id, so they restore right
+    # after the people they describe.
+    "Person Role",
+    "Studio",
+    # Key/value rows (announcements, admin form defaults) that nothing
+    # else references, so they restore alongside the other option data.
+    "System Configs",
+    "Collection",
+    "Franchise",
+    "Series",
+    "Anime",
+    "Anime Movie",
+    "Movies",
+    "TV Shows",
+    "Cartoons",
+    "Manga",
+    "Novel",
+    "Comic",
+    # Lists before Items (FK parent first), and both after every media tab
+    # so a freshly restored guide points at rows that already exist.
+    "Watch Order List",
+    # Sections between the two: they belong to a List and are pointed at
+    # by Items, so both FK ends resolve only in this order.
+    "Watch Order Section",
+    "Watch Order Item",
+    # Relations join two media rows through FK-less (media_type, entry_id)
+    # pairs, so both endpoints must already exist.
+    "Media Relation",
+    # Plan Next rows are FK-less (media_type, target_id) pairs too, so
+    # they restore after every media tab for the same reason.
+    "Plan Next",
+    # Quotes point at media rows the same FK-less way items do.
+    "Quote",
+    # Memes name quotes, so they restore after them.
+    "Meme",
+    # Notes point at owners the same FK-less way memes do, so they restore
+    # after the media tabs their owners live in.
+    "Note",
+    "Seasonal",
+]
 
 
 def execute_pull_specific(
@@ -156,7 +165,7 @@ def execute_pull_specific(
         "Franchise": Franchise,
         "Series": Series,
         "Anime": Anime,
-        "Anime Movies": AnimeMovies,
+        "Anime Movie": AnimeMovies,
         "Cartoons": Cartoon,
         "Manga": Manga,
         "Novel": Novel,
@@ -185,7 +194,7 @@ def execute_pull_specific(
         "Franchise": parse_franchise_from_sheet,
         "Series": parse_series_from_sheet,
         "Anime": parse_anime_from_sheet,
-        "Anime Movies": parse_anime_movie_from_sheet,
+        "Anime Movie": parse_anime_movie_from_sheet,
         "Cartoons": parse_cartoon_from_sheet,
         "Manga": parse_manga_from_sheet,
         "Novel": parse_novel_from_sheet,
@@ -755,7 +764,7 @@ def execute_pull_specific(
                     clean_header_dict["airing_status"] = ""
                 if clean_header_dict.get("airing_type") is None:
                     clean_header_dict["airing_type"] = ""
-            elif tab_name in ("Movies", "Anime Movies", "TV Shows", "Cartoons"):
+            elif tab_name in ("Movies", "Anime Movie", "TV Shows", "Cartoons"):
                 if clean_header_dict.get("watching_status") is None:
                     clean_header_dict["watching_status"] = "Might Watch"
                 if clean_header_dict.get("created_at") is None:
@@ -885,54 +894,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
-    tabs_in_order = [
-        "System Options",
-        # Scopes point at System Options rows via option_id, so they restore
-        # right after the vocabulary they scope.
-        "System Option Scope",
-        # Person and Studio restore before every media tab: entry credits
-        # resolve against a person_id/studio_id that must already exist.
-        "Person",
-        # Roles point at Person rows via person_id, so they restore right
-        # after the people they describe.
-        "Person Role",
-        "Studio",
-        # Key/value rows (announcements, admin form defaults) that nothing
-        # else references, so they restore alongside the other option data.
-        "System Configs",
-        "Collection",
-        "Franchise",
-        "Series",
-        "Anime",
-        "Anime Movies",
-        "Movies",
-        "TV Shows",
-        "Cartoons",
-        "Manga",
-        "Novel",
-        "Comic",
-        # Lists before Items (FK parent first), and both after every media tab
-        # so a freshly restored guide points at rows that already exist.
-        "Watch Order List",
-        # Sections between the two: they belong to a List and are pointed at
-        # by Items, so both FK ends resolve only in this order.
-        "Watch Order Section",
-        "Watch Order Item",
-        # Relations join two media rows through FK-less (media_type, entry_id)
-        # pairs, so both endpoints must already exist.
-        "Media Relation",
-        # Plan Next rows are FK-less (media_type, target_id) pairs too, so
-        # they restore after every media tab for the same reason.
-        "Plan Next",
-        # Quotes point at media rows the same FK-less way items do.
-        "Quote",
-        # Memes name quotes, so they restore after them.
-        "Meme",
-        # Notes point at owners the same FK-less way memes do, so they restore
-        # after the media tabs their owners live in.
-        "Note",
-        "Seasonal",
-    ]
+    tabs_in_order = TABS_IN_ORDER
 
     results = {}
     unread_tabs = {}

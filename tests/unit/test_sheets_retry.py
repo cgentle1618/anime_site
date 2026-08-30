@@ -70,10 +70,9 @@ class _Flaky:
 # Status extraction
 # ---------------------------------------------------------------------------
 #
-# gspread 5.12.0 -- the pinned version -- builds APIError from the raw
-# `requests.Response` and stores nothing but `.response`. It has no `.code`
-# attribute at all; that arrived in gspread 6. So the status has to come off
-# the response, and `.code` is kept only so an upgrade to 6.x keeps working.
+# gspread 5.12.0 builds APIError from the raw `requests.Response` and stores
+# nothing but `.response`; gspread 6 adds a `.code` attribute. The status must
+# come off the response in both, so these tests must not assume either shape.
 
 
 def test_status_comes_from_the_response():
@@ -84,7 +83,6 @@ def test_status_is_found_even_when_the_body_is_not_json():
     # An HTML 503 from a proxy: gspread falls back to `response.text`, so the
     # parsed error dict is gone, but the response still carries the status.
     error = api_error(503, parseable=False)
-    assert not hasattr(error, "code")
     assert sheets._status_code(error) == 503
 
 
