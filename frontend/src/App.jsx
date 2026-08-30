@@ -1,6 +1,5 @@
 // Frontend: root React component that wires providers and routes together.
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./hooks/useToast";
 import Layout from "./components/layout/Layout";
@@ -59,16 +58,6 @@ import Roles from "./pages/admin/Roles";
 import Users from "./pages/admin/Users";
 import ContentLabels from "./pages/admin/ContentLabels";
 
-// One shared QueryClient keeps cache behavior consistent across the whole app.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
-});
-
 export default function App() {
   // Fetches /api/constants once on mount and, when it resolves, overwrites
   // the bundled fieldOptions.js arrays in place (see applyConstants) and
@@ -78,8 +67,9 @@ export default function App() {
   useConstants();
 
   return (
-    // Provider order matters: query cache first, then auth, then UI helpers, then routing.
-    <QueryClientProvider client={queryClient}>
+    // The QueryClientProvider lives in main.jsx (one cache for the app);
+    // provider order below: auth, then UI helpers, then routing.
+    <>
       <AuthProvider>
         <ToastProvider>
           <BrowserRouter
@@ -162,7 +152,7 @@ export default function App() {
           </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </>
   );
 }
 

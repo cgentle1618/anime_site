@@ -73,6 +73,9 @@ export default function CollectionPage() {
   }, [remarkDraft, loading]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
     async function load() {
       try {
         const responses = await Promise.all([
@@ -123,6 +126,7 @@ export default function CollectionPage() {
           ...comics,
         ];
 
+        if (cancelled) return;
         setCollection(collectionData);
         setRemarkDraft(collectionData.remark || "");
         setMembers(franchises);
@@ -138,12 +142,15 @@ export default function CollectionPage() {
         }
         setAllEntriesByFranchise(byFranchise);
       } catch (e) {
-        setError(e.message);
+        if (!cancelled) setError(e.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [system_id]);
 
   const sortedMembers = useMemo(

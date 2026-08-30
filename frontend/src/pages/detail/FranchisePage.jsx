@@ -179,6 +179,12 @@ export default function FranchisePage() {
 
   // ── fetch ─────────────────────────────────────────────────────────────────
   useEffect(() => {
+    // Navigating hub -> hub reuses this component: reset the view and drop
+    // any response that lands after the id has already changed.
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setActiveTab(null);
     async function load() {
       try {
         const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
@@ -227,6 +233,7 @@ export default function FranchisePage() {
           cmRes.json(),
           pnRes.ok ? pnRes.json() : [],
         ]);
+        if (cancelled) return;
         setFranchise(f);
         setSeriesList(s);
         setAnimeList(a);
@@ -262,12 +269,15 @@ export default function FranchisePage() {
         setExpectation(f.franchise_expectation || "");
         setRemark(f.remark || "");
       } catch (e) {
-        setError(e.message);
+        if (!cancelled) setError(e.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [system_id]);
 
   // ── type flags ────────────────────────────────────────────────────────────

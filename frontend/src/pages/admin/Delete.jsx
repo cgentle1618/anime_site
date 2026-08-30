@@ -1,5 +1,6 @@
 // Frontend: page component file for Delete.
 import { useState, useEffect, useRef, useCallback } from "react";
+import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
@@ -174,6 +175,29 @@ export default function Delete() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
+  // Every media type that can hang off a franchise or series. Cascade and
+  // orphan checks count all of them: the old anime-only counts offered to
+  // delete franchises that still held movies/comics and cascaded past
+  // non-anime children, leaving them with franchise_id = NULL.
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"];
+  const entriesIn = (field, id) =>
+    MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
+  const standaloneEntriesIn = (franchiseId) =>
+    MEDIA_KEYS.reduce(
+      (n, k) => n + db[k].filter((e) => e.franchise_id === franchiseId && !e.series_id).length,
+      0,
+    );
+  async function deleteChildren(field, id) {
+    for (const key of MEDIA_KEYS) {
+      for (const e of db[key].filter((x) => x[field] === id)) {
+        await fetch(endpoints.resource(key).detail(e.system_id), {
+          method: "DELETE",
+          credentials: "include",
+        });
+      }
+    }
+  }
+
   const [selectedAnime, setSelectedAnime] = useState(null);
   const [selectedAnimeMovie, setSelectedAnimeMovie] = useState(null);
   const [selectedMovie, setSelectedMovie] = useState(null);
@@ -209,18 +233,18 @@ export default function Delete() {
         cmRes,
       ] =
         await Promise.all([
-          fetch("/api/anime/", { credentials: "include" }),
-          fetch("/api/collection/", { credentials: "include" }),
-          fetch("/api/franchise/", { credentials: "include" }),
-          fetch("/api/series/", { credentials: "include" }),
+          fetch("/api/anime/?limit=2000", { credentials: "include" }),
+          fetch("/api/collection/?limit=2000", { credentials: "include" }),
+          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+          fetch("/api/series/?limit=2000", { credentials: "include" }),
           fetch("/api/options/", { credentials: "include" }),
-          fetch("/api/anime-movie/", { credentials: "include" }),
-          fetch("/api/movies/", { credentials: "include" }),
-          fetch("/api/tv-shows/", { credentials: "include" }),
-          fetch("/api/cartoon/", { credentials: "include" }),
-          fetch("/api/manga/", { credentials: "include" }),
-          fetch("/api/novel/", { credentials: "include" }),
-          fetch("/api/comic/", { credentials: "include" }),
+          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+          fetch("/api/movies/?limit=2000", { credentials: "include" }),
+          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+          fetch("/api/manga/?limit=2000", { credentials: "include" }),
+          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
       const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm] = await Promise.all([
         aRes.json(),
@@ -284,22 +308,7 @@ export default function Delete() {
     setDeleting(true);
     try {
       if (type === "franchise") {
-        for (const a of db.anime.filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/anime/${a.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
-        for (const m of db["anime-movie"].filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/anime-movie/${m.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
+        await deleteChildren("franchise_id", item.system_id);
         for (const s of db.series.filter(
           (x) => x.franchise_id === item.system_id,
         )) {
@@ -309,14 +318,7 @@ export default function Delete() {
           });
         }
       } else if (type === "series") {
-        for (const a of db.anime.filter(
-          (x) => x.series_id === item.system_id,
-        )) {
-          await fetch(`/api/anime/${a.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
+        await deleteChildren("series_id", item.system_id);
       }
       const res = await fetch(`/api/${type}/${item.system_id}`, {
         method: "DELETE",
@@ -505,22 +507,7 @@ export default function Delete() {
 
       // Cascade deletions
       if (type === "franchise" && cascadeChecked) {
-        for (const a of db.anime.filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/anime/${a.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
-        for (const m of db["anime-movie"].filter(
-          (x) => x.franchise_id === item.system_id,
-        )) {
-          await fetch(`/api/anime-movie/${m.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
+        await deleteChildren("franchise_id", item.system_id);
         for (const s of db.series.filter(
           (x) => x.franchise_id === item.system_id,
         )) {
@@ -530,14 +517,7 @@ export default function Delete() {
           });
         }
       } else if (type === "series" && cascadeChecked) {
-        for (const a of db.anime.filter(
-          (x) => x.series_id === item.system_id,
-        )) {
-          await fetch(`/api/anime/${a.system_id}`, {
-            method: "DELETE",
-            credentials: "include",
-          });
-        }
+        await deleteChildren("series_id", item.system_id);
       }
 
       // Primary deletion
@@ -1722,9 +1702,7 @@ export default function Delete() {
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.system_id,
                 ).length > 0 ||
-                  db.anime.filter(
-                    (a) => a.franchise_id === modal.item.system_id,
-                  ).length > 0) && (
+                  entriesIn("franchise_id", modal.item.system_id) > 0) && (
                   <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1744,19 +1722,9 @@ export default function Delete() {
                             (s) => s.franchise_id === modal.item.system_id,
                           ).length
                         }{" "}
-                        series,{" "}
-                        {
-                          db.anime.filter(
-                            (a) => a.franchise_id === modal.item.system_id,
-                          ).length
-                        }{" "}
-                        anime, and{" "}
-                        {
-                          db["anime-movie"].filter(
-                            (m) => m.franchise_id === modal.item.system_id,
-                          ).length
-                        }{" "}
-                        anime movie entries.
+                        series and{" "}
+                        {entriesIn("franchise_id", modal.item.system_id)}{" "}
+                        media entries of every type.
                       </div>
                     </div>
                   </label>
@@ -1764,8 +1732,7 @@ export default function Delete() {
 
               {/* Cascade option for series */}
               {modal.type === "series" &&
-                db.anime.filter((a) => a.series_id === modal.item.system_id)
-                  .length > 0 && (
+                entriesIn("series_id", modal.item.system_id) > 0 && (
                   <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1780,12 +1747,8 @@ export default function Delete() {
                       </div>
                       <div className="text-xs text-red-700 mt-0.5">
                         Also delete{" "}
-                        {
-                          db.anime.filter(
-                            (a) => a.series_id === modal.item.system_id,
-                          ).length
-                        }{" "}
-                        anime entries.
+                        {entriesIn("series_id", modal.item.system_id)}{" "}
+                        media entries of every type.
                       </div>
                     </div>
                   </label>
@@ -1794,8 +1757,7 @@ export default function Delete() {
               {/* Orphan series warning */}
               {modal.type === "anime" &&
                 modal.item.series_id &&
-                db.anime.filter((a) => a.series_id === modal.item.series_id)
-                  .length === 1 && (
+                entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1819,9 +1781,7 @@ export default function Delete() {
               {modal.type === "anime" &&
                 !modal.item.series_id &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
@@ -1852,10 +1812,7 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 1 &&
-                db.anime.filter(
-                  (a) =>
-                    a.franchise_id === modal.item.franchise_id && !a.series_id,
-                ).length === 0 && (
+                standaloneEntriesIn(modal.item.franchise_id) === 0 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1880,15 +1837,7 @@ export default function Delete() {
               {/* Orphan franchise warning (movie) */}
               {modal.type === "movie" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.movie.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
@@ -1916,18 +1865,7 @@ export default function Delete() {
               {/* Orphan franchise warning (tv-show) */}
               {modal.type === "tv-show" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.movie.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["tv-show"].filter(
-                  (t) => t.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
@@ -1955,21 +1893,7 @@ export default function Delete() {
               {/* Orphan franchise warning (cartoon) */}
               {modal.type === "cartoon" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.movie.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["tv-show"].filter(
-                  (t) => t.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.cartoon.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
@@ -1997,13 +1921,7 @@ export default function Delete() {
               {/* Orphan series warning (manga) */}
               {modal.type === "manga" &&
                 modal.item.series_id &&
-                db.anime.filter((a) => a.series_id === modal.item.series_id)
-                  .length +
-                  db.manga.filter((m) => m.series_id === modal.item.series_id)
-                    .length +
-                  db.comic.filter((c) => c.series_id === modal.item.series_id)
-                    .length ===
-                  1 && (
+                entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -2026,24 +1944,7 @@ export default function Delete() {
               {/* Orphan franchise warning (manga) */}
               {modal.type === "manga" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["tv-show"].filter(
-                  (t) => t.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.cartoon.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.comic.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.manga.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
@@ -2072,15 +1973,7 @@ export default function Delete() {
               {/* Orphan series warning (novel) */}
               {modal.type === "novel" &&
                 modal.item.series_id &&
-                db.anime.filter((a) => a.series_id === modal.item.series_id)
-                  .length +
-                  db.manga.filter((m) => m.series_id === modal.item.series_id)
-                    .length +
-                  db.novel.filter((n) => n.series_id === modal.item.series_id)
-                    .length +
-                  db.comic.filter((c) => c.series_id === modal.item.series_id)
-                    .length ===
-                  1 && (
+                entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -2103,27 +1996,7 @@ export default function Delete() {
               {/* Orphan franchise warning (novel) */}
               {modal.type === "novel" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["tv-show"].filter(
-                  (t) => t.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.cartoon.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.manga.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.comic.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.novel.filter(
-                  (n) => n.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
@@ -2152,15 +2025,7 @@ export default function Delete() {
               {/* Orphan series warning (comic) */}
               {modal.type === "comic" &&
                 modal.item.series_id &&
-                db.anime.filter((a) => a.series_id === modal.item.series_id)
-                  .length +
-                  db.manga.filter((m) => m.series_id === modal.item.series_id)
-                    .length +
-                  db.novel.filter((n) => n.series_id === modal.item.series_id)
-                    .length +
-                  db.comic.filter((c) => c.series_id === modal.item.series_id)
-                    .length ===
-                  1 && (
+                entriesIn("series_id", modal.item.series_id) === 1 && (
                   <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -2183,30 +2048,7 @@ export default function Delete() {
               {/* Orphan franchise warning (comic) */}
               {modal.type === "comic" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.movie.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["tv-show"].filter(
-                  (t) => t.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.cartoon.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.manga.filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.novel.filter(
-                  (n) => n.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db.comic.filter(
-                  (c) => c.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 (db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
@@ -2235,12 +2077,7 @@ export default function Delete() {
               {/* Orphan franchise warning (anime-movie) */}
               {modal.type === "anime-movie" &&
                 modal.item.franchise_id &&
-                db.anime.filter(
-                  (a) => a.franchise_id === modal.item.franchise_id,
-                ).length === 0 &&
-                db["anime-movie"].filter(
-                  (m) => m.franchise_id === modal.item.franchise_id,
-                ).length === 1 &&
+                entriesIn("franchise_id", modal.item.franchise_id) === 1 &&
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (

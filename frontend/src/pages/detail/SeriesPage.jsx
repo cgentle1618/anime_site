@@ -170,6 +170,9 @@ export default function SeriesPage() {
   // Seven entry lists, not eight: anime_movies has no series_id column, so an
   // anime movie can only ever be reached through its franchise.
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
     async function load() {
       try {
         const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
@@ -212,6 +215,7 @@ export default function SeriesPage() {
           [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes].map(asList),
         );
         const pn = pnRes.ok ? await pnRes.json() : [];
+        if (cancelled) return;
         setSeries(s);
         setAnimeList(a);
         setMovieList(m);
@@ -231,12 +235,15 @@ export default function SeriesPage() {
         setExpectation(s.series_expectation || "");
         setRemark(s.remark || "");
       } catch (e) {
-        setError(e.message);
+        if (!cancelled) setError(e.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [system_id]);
 
   // Media types this series actually holds entries for. PlanKindToggles

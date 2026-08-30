@@ -124,7 +124,7 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
                 inputText={
                   linkedQuote ? (linkedQuote.text || "").slice(0, 60) : ""
                 }
-                onSelect={(item) => set("quote_id", item?.id ?? null)}
+                onSelect={(id) => set("quote_id", id ?? null)}
                 onClear={() => set("quote_id", null)}
                 placeholder="Not a quote — search to link one..."
               />

@@ -72,7 +72,7 @@ export default function QuoteEntryPicker({
           items={items}
           selectedId={entryId}
           inputText={selectedLabel}
-          onSelect={(item) => onChange(mediaType, item?.id ?? null)}
+          onSelect={(id) => onChange(mediaType, id ?? null)}
           onClear={() => onChange(mediaType, null)}
           placeholder={
             !mediaType

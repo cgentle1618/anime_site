@@ -80,7 +80,7 @@ export default function MemeOwnerPicker({ ownerType, ownerId, onChange }) {
           items={items}
           selectedId={ownerId}
           inputText={selectedLabel}
-          onSelect={(item) => onChange(ownerType, item?.id ?? null)}
+          onSelect={(id) => onChange(ownerType, id ?? null)}
           onClear={() => onChange(ownerType, null)}
           placeholder={
             !ownerType
