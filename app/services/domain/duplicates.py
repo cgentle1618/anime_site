@@ -1,6 +1,15 @@
-"""Duplicate-entry detection across all tables."""
+"""
+Duplicate-entry detection across all tables.
+
+Every finder is the same rule with different parameters: rows that agree
+exactly on a grouping key (same franchise, same season...) and share at least
+one name (case-insensitive, via `get_all_names`) are duplicates, transitively.
+`app.utils.clustering.cluster` does the grouping; each finder below only says
+which rows, which key, and which columns to report.
+"""
 
 import logging
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -18,781 +27,191 @@ from app.models import (
     TVShows,
 )
 from app.services.domain.checking import find_duplicate_entities
+from app.utils.clustering import cluster
 
 logger = logging.getLogger(__name__)
 
 
+def _ref(value) -> Optional[str]:
+    return str(value) if value else None
+
+
+def _season(value) -> Optional[str]:
+    return (value or "").strip().lower() or None
+
+
+def _share_a_name(a, b) -> bool:
+    return bool(a.get_all_names() & b.get_all_names())
+
+
+def _report(clusters: list[list], fields: tuple[str, ...]) -> list[list[dict]]:
+    """Serialize clusters: system_id/franchise_id/series_id as str-or-None,
+    every other column as stored."""
+    def row(entry) -> dict:
+        out = {"system_id": str(entry.system_id)}
+        for name in fields:
+            value = getattr(entry, name)
+            out[name] = _ref(value) if name in ("franchise_id", "series_id") else value
+        return out
+
+    return [[row(entry) for entry in members] for members in clusters]
+
+
+def _find(
+    rows: list,
+    key: Callable,
+    fields: tuple[str, ...],
+    match: Callable = _share_a_name,
+) -> list[list[dict]]:
+    return _report(cluster(rows, match=match, key=key), fields)
+
+
+def _with_franchise(db: Session, model):
+    return db.query(model).filter(model.franchise_id.isnot(None)).all()
+
+
 def find_duplicate_franchises(db: Session) -> list[list[dict]]:
-    """
-    Finds Franchise entries that share the same franchise_type and at least one
-    identical name field (case-insensitive). Uses union-find so transitive matches
-    (A=B, B=C) collapse into the same group.
-    Returns a list of duplicate clusters; each cluster is a list of franchise dicts.
-    """
-    franchises = db.query(Franchise).all()
+    """Same franchise_type + a shared name. A comma-separated type list buckets
+    the franchise under each of its types."""
+    rows = []
+    for f in db.query(Franchise).all():
+        raw = (f.franchise_type or "").strip()
+        tokens = [t.strip() for t in raw.split(",") if t.strip()] or ([raw] if raw else [])
+        rows.extend((token, f) for token in tokens)
 
-    by_type: dict[str, list] = {}
-    for f in franchises:
-        ft_raw = (f.franchise_type or "").strip()
-        tokens = [t.strip() for t in ft_raw.split(",") if t.strip()]
-        for token in tokens if tokens else ([ft_raw] if ft_raw else []):
-            by_type.setdefault(token, []).append(f)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    franchise_map = {str(f.system_id): f for f in franchises}
-
-    for group in by_type.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for fid in franchise_map:
-        clusters.setdefault(find(fid), []).append(fid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": fid,
-                        "franchise_type": franchise_map[fid].franchise_type,
-                        "franchise_name_en": franchise_map[fid].franchise_name_en,
-                        "franchise_name_cn": franchise_map[fid].franchise_name_cn,
-                        "franchise_name_roman": franchise_map[fid].franchise_name_roman,
-                        "franchise_name_jp": franchise_map[fid].franchise_name_jp,
-                        "franchise_name_alt": franchise_map[fid].franchise_name_alt,
-                    }
-                    for fid in members
-                ]
-            )
-
-    return result
+    clusters = cluster(rows, key=lambda r: r[0], match=lambda a, b: _share_a_name(a[1], b[1]))
+    # A franchise listed under two types can appear in two clusters; collapse
+    # back to distinct franchises per cluster.
+    unique = []
+    for members in clusters:
+        seen, entries = set(), []
+        for _, f in members:
+            if f.system_id not in seen:
+                seen.add(f.system_id)
+                entries.append(f)
+        if len(entries) > 1:
+            unique.append(entries)
+    return _report(unique, (
+        "franchise_type", "franchise_name_en", "franchise_name_cn",
+        "franchise_name_roman", "franchise_name_jp", "franchise_name_alt",
+    ))
 
 
 def find_duplicate_series(db: Session) -> list[list[dict]]:
-    """
-    Finds Series entries that share the same franchise_id and at least one
-    identical name field (case-insensitive). Uses union-find so transitive matches
-    collapse into the same group.
-    Returns a list of duplicate clusters; each cluster is a list of series dicts.
-    """
-    series_list = db.query(Series).filter(Series.franchise_id.isnot(None)).all()
-
-    by_franchise: dict[str, list] = {}
-    for s in series_list:
-        by_franchise.setdefault(str(s.franchise_id), []).append(s)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    series_map = {str(s.system_id): s for s in series_list}
-
-    for group in by_franchise.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for sid in series_map:
-        clusters.setdefault(find(sid), []).append(sid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": sid,
-                        "franchise_id": str(series_map[sid].franchise_id),
-                        "series_name_en": series_map[sid].series_name_en,
-                        "series_name_cn": series_map[sid].series_name_cn,
-                        "series_name_alt": series_map[sid].series_name_alt,
-                    }
-                    for sid in members
-                ]
-            )
-
-    return result
-
-
-def _anime_duplicate_key(a: Anime) -> tuple:
-    season = (a.season_part or "").strip().lower() or None
-    return (
-        str(a.franchise_id) if a.franchise_id else None,
-        str(a.series_id) if a.series_id else None,
-        a.airing_type,
-        season,
-        a.is_main,
-        a.ep_special,
+    """Same franchise + a shared name."""
+    return _find(
+        _with_franchise(db, Series),
+        key=lambda s: str(s.franchise_id),
+        fields=("franchise_id", "series_name_en", "series_name_cn", "series_name_alt"),
     )
 
 
+def _anime_duplicate_key(a: Anime) -> tuple:
+    return (_ref(a.franchise_id), _ref(a.series_id), a.airing_type,
+            _season(a.season_part), a.is_main, a.ep_special)
+
+
 def find_duplicate_anime(db: Session) -> list[list[dict]]:
-    """
-    Finds Anime entries that share the same franchise_id, series_id, airing_type,
-    season_part, is_main, and ep_special, AND at least one identical name field
-    (case-insensitive). Uses union-find so transitive matches collapse into one group.
-    Returns a list of duplicate clusters; each cluster is a list of anime dicts.
-    """
-    animes = db.query(Anime).all()
-
-    by_key: dict[tuple, list] = {}
-    for a in animes:
-        by_key.setdefault(_anime_duplicate_key(a), []).append(a)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    anime_map = {str(a.system_id): a for a in animes}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for aid in anime_map:
-        clusters.setdefault(find(aid), []).append(aid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            a = anime_map[members[0]]
-            result.append(
-                [
-                    {
-                        "system_id": aid,
-                        "franchise_id": (
-                            str(anime_map[aid].franchise_id)
-                            if anime_map[aid].franchise_id
-                            else None
-                        ),
-                        "series_id": (
-                            str(anime_map[aid].series_id)
-                            if anime_map[aid].series_id
-                            else None
-                        ),
-                        "airing_type": anime_map[aid].airing_type,
-                        "season_part": anime_map[aid].season_part,
-                        "is_main": anime_map[aid].is_main,
-                        "ep_special": anime_map[aid].ep_special,
-                        "anime_name_en": anime_map[aid].anime_name_en,
-                        "anime_name_cn": anime_map[aid].anime_name_cn,
-                        "anime_name_roman": anime_map[aid].anime_name_roman,
-                        "anime_name_jp": anime_map[aid].anime_name_jp,
-                        "anime_name_alt": anime_map[aid].anime_name_alt,
-                    }
-                    for aid in members
-                ]
-            )
-
-    return result
-
-
-def find_duplicate_system_options(db: Session) -> list[list[dict]]:
-    """
-    Finds SystemOption entries that share the same category and value
-    (case-insensitive). Returns a list of duplicate clusters; each cluster is
-    a list of system option dicts. Case-insensitive matching still finds
-    duplicates the new exact-match UNIQUE constraint on (category, value)
-    cannot (e.g. "Netflix" vs "netflix").
-    """
-    options = db.query(SystemOption).all()
-
-    groups: dict[tuple, list] = {}
-    for opt in options:
-        key = (
-            (opt.category or "").strip().lower(),
-            (opt.value or "").strip().lower(),
-        )
-        groups.setdefault(key, []).append(opt)
-
-    return [
-        [
-            {
-                "id": str(opt.system_id),
-                "category": opt.category,
-                "option_value": opt.value,
-            }
-            for opt in members
-        ]
-        for members in groups.values()
-        if len(members) > 1
-    ]
+    """Same franchise, series, airing type, season, main flag, special flag + a shared name."""
+    return _find(
+        db.query(Anime).all(),
+        key=_anime_duplicate_key,
+        fields=("franchise_id", "series_id", "airing_type", "season_part", "is_main", "ep_special",
+                "anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
+    )
 
 
 def find_duplicate_anime_movie(db: Session) -> list[list[dict]]:
-    """
-    Finds AnimeMovies entries that share the same franchise_id and at least one
-    identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    movies = db.query(AnimeMovies).filter(AnimeMovies.franchise_id.isnot(None)).all()
-
-    by_franchise: dict[str, list] = {}
-    for m in movies:
-        by_franchise.setdefault(str(m.franchise_id), []).append(m)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    movie_map = {str(m.system_id): m for m in movies}
-
-    for group in by_franchise.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for mid in movie_map:
-        clusters.setdefault(find(mid), []).append(mid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": mid,
-                        "franchise_id": str(movie_map[mid].franchise_id),
-                        "anime_movie_name_en": movie_map[mid].anime_movie_name_en,
-                        "anime_movie_name_cn": movie_map[mid].anime_movie_name_cn,
-                        "anime_movie_name_roman": movie_map[mid].anime_movie_name_roman,
-                        "anime_movie_name_jp": movie_map[mid].anime_movie_name_jp,
-                        "anime_movie_name_alt": movie_map[mid].anime_movie_name_alt,
-                    }
-                    for mid in members
-                ]
-            )
-
-    return result
+    """Same franchise + a shared name."""
+    return _find(
+        _with_franchise(db, AnimeMovies),
+        key=lambda m: str(m.franchise_id),
+        fields=("franchise_id", "anime_movie_name_en", "anime_movie_name_cn",
+                "anime_movie_name_roman", "anime_movie_name_jp", "anime_movie_name_alt"),
+    )
 
 
 def find_duplicate_movie(db: Session) -> list[list[dict]]:
-    """
-    Finds Movies entries that share the same (franchise_id, series_id) and at least one
-    identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    movies = db.query(Movies).filter(Movies.franchise_id.isnot(None)).all()
-
-    by_key: dict[tuple, list] = {}
-    for m in movies:
-        key = (
-            str(m.franchise_id),
-            str(m.series_id) if m.series_id else None,
-        )
-        by_key.setdefault(key, []).append(m)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    movie_map = {str(m.system_id): m for m in movies}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for mid in movie_map:
-        clusters.setdefault(find(mid), []).append(mid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": mid,
-                        "franchise_id": str(movie_map[mid].franchise_id),
-                        "series_id": (
-                            str(movie_map[mid].series_id)
-                            if movie_map[mid].series_id
-                            else None
-                        ),
-                        "movie_name_en": movie_map[mid].movie_name_en,
-                        "movie_name_cn": movie_map[mid].movie_name_cn,
-                        "movie_name_alt": movie_map[mid].movie_name_alt,
-                    }
-                    for mid in members
-                ]
-            )
-
-    return result
+    """Same franchise and series + a shared name."""
+    return _find(
+        _with_franchise(db, Movies),
+        key=lambda m: (str(m.franchise_id), _ref(m.series_id)),
+        fields=("franchise_id", "series_id", "movie_name_en", "movie_name_cn", "movie_name_alt"),
+    )
 
 
 def find_duplicate_tv_show(db: Session) -> list[list[dict]]:
-    """
-    Finds TVShows entries that share the same (franchise_id, series_id, season_part, is_main)
-    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    shows = db.query(TVShows).filter(TVShows.franchise_id.isnot(None)).all()
-
-    def _key(t: TVShows) -> tuple:
-        season = (t.season_part or "").strip().lower() or None
-        return (
-            str(t.franchise_id),
-            str(t.series_id) if t.series_id else None,
-            season,
-            t.is_main,
-        )
-
-    by_key: dict[tuple, list] = {}
-    for t in shows:
-        by_key.setdefault(_key(t), []).append(t)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    show_map = {str(t.system_id): t for t in shows}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for tid in show_map:
-        clusters.setdefault(find(tid), []).append(tid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": tid,
-                        "franchise_id": str(show_map[tid].franchise_id),
-                        "series_id": (
-                            str(show_map[tid].series_id)
-                            if show_map[tid].series_id
-                            else None
-                        ),
-                        "season_part": show_map[tid].season_part,
-                        "is_main": show_map[tid].is_main,
-                        "tv_name_en": show_map[tid].tv_name_en,
-                        "tv_name_cn": show_map[tid].tv_name_cn,
-                        "tv_name_alt": show_map[tid].tv_name_alt,
-                    }
-                    for tid in members
-                ]
-            )
-
-    return result
+    """Same franchise, series, season, main flag + a shared name."""
+    return _find(
+        _with_franchise(db, TVShows),
+        key=lambda t: (str(t.franchise_id), _ref(t.series_id), _season(t.season_part), t.is_main),
+        fields=("franchise_id", "series_id", "season_part", "is_main",
+                "tv_name_en", "tv_name_cn", "tv_name_alt"),
+    )
 
 
 def find_duplicate_cartoon(db: Session) -> list[list[dict]]:
-    """
-    Finds Cartoon entries that share the same (franchise_id, series_id, season_part, is_main)
-    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    cartoons = db.query(Cartoon).filter(Cartoon.franchise_id.isnot(None)).all()
-
-    def _key(c: Cartoon) -> tuple:
-        season = (c.season_part or "").strip().lower() or None
-        return (
-            str(c.franchise_id),
-            str(c.series_id) if c.series_id else None,
-            season,
-            c.is_main,
-        )
-
-    by_key: dict[tuple, list] = {}
-    for c in cartoons:
-        by_key.setdefault(_key(c), []).append(c)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    cartoon_map = {str(c.system_id): c for c in cartoons}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for cid in cartoon_map:
-        clusters.setdefault(find(cid), []).append(cid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": cid,
-                        "franchise_id": str(cartoon_map[cid].franchise_id),
-                        "series_id": (
-                            str(cartoon_map[cid].series_id)
-                            if cartoon_map[cid].series_id
-                            else None
-                        ),
-                        "season_part": cartoon_map[cid].season_part,
-                        "is_main": cartoon_map[cid].is_main,
-                        "cartoon_name_en": cartoon_map[cid].cartoon_name_en,
-                        "cartoon_name_cn": cartoon_map[cid].cartoon_name_cn,
-                        "cartoon_name_alt": cartoon_map[cid].cartoon_name_alt,
-                    }
-                    for cid in members
-                ]
-            )
-
-    return result
+    """Same franchise, series, season, main flag + a shared name."""
+    return _find(
+        _with_franchise(db, Cartoon),
+        key=lambda c: (str(c.franchise_id), _ref(c.series_id), _season(c.season_part), c.is_main),
+        fields=("franchise_id", "series_id", "season_part", "is_main",
+                "cartoon_name_en", "cartoon_name_cn", "cartoon_name_alt"),
+    )
 
 
 def find_duplicate_manga(db: Session) -> list[list[dict]]:
-    """
-    Finds Manga entries that share the same (franchise_id, series_id, is_main)
-    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    mangas = db.query(Manga).filter(Manga.franchise_id.isnot(None)).all()
-
-    def _key(m: Manga) -> tuple:
-        return (
-            str(m.franchise_id),
-            str(m.series_id) if m.series_id else None,
-            m.is_main,
-        )
-
-    by_key: dict[tuple, list] = {}
-    for m in mangas:
-        by_key.setdefault(_key(m), []).append(m)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    manga_map = {str(m.system_id): m for m in mangas}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for mid in manga_map:
-        clusters.setdefault(find(mid), []).append(mid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": mid,
-                        "franchise_id": str(manga_map[mid].franchise_id),
-                        "series_id": (
-                            str(manga_map[mid].series_id)
-                            if manga_map[mid].series_id
-                            else None
-                        ),
-                        "is_main": manga_map[mid].is_main,
-                        "manga_name_cn": manga_map[mid].manga_name_cn,
-                        "manga_name_en": manga_map[mid].manga_name_en,
-                        "manga_name_roman": manga_map[mid].manga_name_roman,
-                        "manga_name_jp": manga_map[mid].manga_name_jp,
-                        "manga_name_alt": manga_map[mid].manga_name_alt,
-                    }
-                    for mid in members
-                ]
-            )
-
-    return result
+    """Same franchise, series, main flag + a shared name."""
+    return _find(
+        _with_franchise(db, Manga),
+        key=lambda m: (str(m.franchise_id), _ref(m.series_id), m.is_main),
+        fields=("franchise_id", "series_id", "is_main", "manga_name_cn", "manga_name_en",
+                "manga_name_roman", "manga_name_jp", "manga_name_alt"),
+    )
 
 
 def find_duplicate_novel(db: Session) -> list[list[dict]]:
-    """
-    Finds Novel entries that share the same (franchise_id, series_id, is_main)
-    and at least one identical name field (case-insensitive). Uses union-find for transitive closure.
-    """
-    novels = db.query(Novel).filter(Novel.franchise_id.isnot(None)).all()
+    """Same franchise, series, main flag + a shared name."""
+    return _find(
+        _with_franchise(db, Novel),
+        key=lambda n: (str(n.franchise_id), _ref(n.series_id), n.is_main),
+        fields=("franchise_id", "series_id", "is_main", "novel_name_cn", "novel_name_en",
+                "novel_name_roman", "novel_name_jp", "novel_name_alt"),
+    )
 
-    def _key(n: Novel) -> tuple:
-        return (
-            str(n.franchise_id),
-            str(n.series_id) if n.series_id else None,
-            n.is_main,
-        )
 
-    by_key: dict[tuple, list] = {}
-    for n in novels:
-        by_key.setdefault(_key(n), []).append(n)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    novel_map = {str(n.system_id): n for n in novels}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            for j in range(i + 1, len(group)):
-                if a_names & group[j].get_all_names():
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for nid in novel_map:
-        clusters.setdefault(find(nid), []).append(nid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": nid,
-                        "franchise_id": str(novel_map[nid].franchise_id),
-                        "series_id": (
-                            str(novel_map[nid].series_id)
-                            if novel_map[nid].series_id
-                            else None
-                        ),
-                        "is_main": novel_map[nid].is_main,
-                        "novel_name_cn": novel_map[nid].novel_name_cn,
-                        "novel_name_en": novel_map[nid].novel_name_en,
-                        "novel_name_roman": novel_map[nid].novel_name_roman,
-                        "novel_name_jp": novel_map[nid].novel_name_jp,
-                        "novel_name_alt": novel_map[nid].novel_name_alt,
-                    }
-                    for nid in members
-                ]
-            )
-
-    return result
+def _same_run(a: Comic, b: Comic) -> bool:
+    # A shared Comic Vine volume is conclusive whatever the titles say: Marvel
+    # volume titles collide constantly ("Avengers" names dozens of runs), so a
+    # shared name is weak evidence while a shared comicvine_id is not. Two
+    # unfilled rows share a NULL id, and that is absence of evidence.
+    same_volume = a.comicvine_id is not None and a.comicvine_id == b.comicvine_id
+    return same_volume or _share_a_name(a, b)
 
 
 def find_duplicate_comic(db: Session) -> list[list[dict]]:
-    """
-    Finds Comic entries that share the same (franchise_id, series_id,
-    is_main_entry) and either at least one identical name field
-    (case-insensitive) or the same Comic Vine volume ID. Uses union-find for
-    transitive closure.
+    """Same franchise, series, main-entry flag + (a shared name OR the same Comic Vine volume)."""
+    return _find(
+        _with_franchise(db, Comic),
+        key=lambda c: (str(c.franchise_id), _ref(c.series_id), c.is_main_entry),
+        fields=("franchise_id", "series_id", "is_main_entry", "comicvine_id",
+                "comic_name_en", "comic_name_cn", "comic_name_alt"),
+        match=_same_run,
+    )
 
-    The ID arm has no counterpart in the other types' checks, and it is the one
-    that matters most here: Marvel volume titles collide constantly - "Avengers"
-    names dozens of distinct runs - so a shared name is weak evidence on its own
-    while a shared comicvine_id is conclusive. Two rows pointing at one volume
-    are the same run entered twice, whatever they are titled.
-    """
-    comics = db.query(Comic).filter(Comic.franchise_id.isnot(None)).all()
 
-    def _key(c: Comic) -> tuple:
-        return (
-            str(c.franchise_id),
-            str(c.series_id) if c.series_id else None,
-            c.is_main_entry,
-        )
-
-    by_key: dict[tuple, list] = {}
-    for c in comics:
-        by_key.setdefault(_key(c), []).append(c)
-
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        root = x
-        while parent.get(root, root) != root:
-            root = parent[root]
-        while parent.get(x, x) != root:
-            nxt = parent.get(x, x)
-            parent[x] = root
-            x = nxt
-        return root
-
-    def union(x: str, y: str) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    comic_map = {str(c.system_id): c for c in comics}
-
-    for group in by_key.values():
-        for i in range(len(group)):
-            a_names = group[i].get_all_names()
-            a_cv = group[i].comicvine_id
-            for j in range(i + 1, len(group)):
-                same_name = bool(a_names & group[j].get_all_names())
-                # `is not None` on both sides: two unfilled rows share a NULL
-                # comicvine_id, and that is the absence of evidence, not a match.
-                same_volume = (
-                    a_cv is not None and a_cv == group[j].comicvine_id
-                )
-                if same_name or same_volume:
-                    union(str(group[i].system_id), str(group[j].system_id))
-
-    clusters: dict[str, list[str]] = {}
-    for cid in comic_map:
-        clusters.setdefault(find(cid), []).append(cid)
-
-    result = []
-    for members in clusters.values():
-        if len(members) > 1:
-            result.append(
-                [
-                    {
-                        "system_id": cid,
-                        "franchise_id": str(comic_map[cid].franchise_id),
-                        "series_id": (
-                            str(comic_map[cid].series_id)
-                            if comic_map[cid].series_id
-                            else None
-                        ),
-                        "is_main_entry": comic_map[cid].is_main_entry,
-                        "comicvine_id": comic_map[cid].comicvine_id,
-                        "comic_name_en": comic_map[cid].comic_name_en,
-                        "comic_name_cn": comic_map[cid].comic_name_cn,
-                        "comic_name_alt": comic_map[cid].comic_name_alt,
-                    }
-                    for cid in members
-                ]
-            )
-
-    return result
+def find_duplicate_system_options(db: Session) -> list[list[dict]]:
+    """Same category and value, case-insensitively - what the exact-match
+    UNIQUE(category, value) constraint cannot catch ("Netflix" vs "netflix")."""
+    groups = cluster(
+        db.query(SystemOption).all(),
+        key=lambda o: ((o.category or "").strip().lower(), (o.value or "").strip().lower()),
+        match=lambda a, b: True,
+    )
+    return [
+        [{"id": str(o.system_id), "category": o.category, "option_value": o.value} for o in members]
+        for members in groups
+    ]
 
 
 def find_all_duplicates(db: Session) -> dict:

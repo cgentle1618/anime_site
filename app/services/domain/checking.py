@@ -255,55 +255,26 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     guaranteed to share - a cluster formed through name_en transitivity can
     have no single key common to all of its rows.
     """
+    from app.utils.clustering import cluster
     from app.utils.name_normalize import normalize_name
+
+    def keys(row) -> set[str]:
+        out = {normalize_name(row.name_native)}
+        if row.name_en:
+            out.add(normalize_name(row.name_en))
+        return out
 
     found: list[dict] = []
     for kind, model in (("person", Person), ("studio", Studio)):
         rows = db.query(model).all()
-        row_map = {str(r.system_id): r for r in rows}
-
-        parent: dict[str, str] = {}
-
-        def find(x: str, parent: dict[str, str] = parent) -> str:
-            root = x
-            while parent.get(root, root) != root:
-                root = parent[root]
-            while parent.get(x, x) != root:
-                nxt = parent.get(x, x)
-                parent[x] = root
-                x = nxt
-            return root
-
-        def union(x: str, y: str, parent: dict[str, str] = parent) -> None:
-            px, py = find(x), find(y)
-            if px != py:
-                parent[px] = py
-
-        buckets: dict[str, list[str]] = {}
-        for row in rows:
-            keys = {normalize_name(row.name_native)}
-            if row.name_en:
-                keys.add(normalize_name(row.name_en))
-            for key in keys:
-                buckets.setdefault(key, []).append(str(row.system_id))
-
-        for ids in buckets.values():
-            for i in range(1, len(ids)):
-                union(ids[0], ids[i])
-
-        clusters: dict[str, list[str]] = {}
-        for rid in row_map:
-            clusters.setdefault(find(rid), []).append(rid)
-
-        for members in clusters.values():
-            if len(members) > 1:
-                found.append(
-                    {
-                        "kind": kind,
-                        "key": normalize_name(row_map[members[0]].name_native),
-                        "ids": members,
-                        "names": [row_map[m].name_native for m in members],
-                    }
-                )
+        for members in cluster(rows, match=lambda a, b: bool(keys(a) & keys(b))):
+            found.append(
+                {
+                    "kind": kind,
+                    "key": normalize_name(members[0].name_native),
+                    "ids": [str(r.system_id) for r in members],
+                    "names": [r.name_native for r in members],
+                }
+            )
 
     return found
