@@ -34,15 +34,8 @@ import Quotes from "./pages/public/Quotes";
 import Memes from "./pages/public/Memes";
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
+import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
-import LibraryAnime from "./pages/library/LibraryAnime";
-import LibraryAnimeMovie from "./pages/library/LibraryAnimeMovie";
-import LibraryMovie from "./pages/library/LibraryMovie";
-import LibraryTV from "./pages/library/LibraryTV";
-import LibraryCartoon from "./pages/library/LibraryCartoon";
-import LibraryManga from "./pages/library/LibraryManga";
-import LibraryNovel from "./pages/library/LibraryNovel";
-import LibraryComic from "./pages/library/LibraryComic";
 
 import Admin from "./pages/admin/Admin";
 import Add from "./pages/admin/Add";
@@ -81,11 +74,6 @@ export default function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/search" element={<Search />} />
-                <Route path="/library/anime" element={<LibraryAnime />} />
-                <Route
-                  path="/library/anime-movie"
-                  element={<LibraryAnimeMovie />}
-                />
                 <Route
                   path="/library/collection"
                   element={<CollectionLibrary />}
@@ -94,7 +82,7 @@ export default function App() {
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
-                <Route path="/library/movie" element={<LibraryMovie />} />
+                <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
                 <Route
@@ -103,15 +91,10 @@ export default function App() {
                 />
                 <Route path="/movie/:system_id" element={<Movie />} />
                 <Route path="/tv-show/:system_id" element={<TV />} />
-                <Route path="/library/tv-show" element={<LibraryTV />} />
                 <Route path="/cartoon/:system_id" element={<Cartoon />} />
-                <Route path="/library/cartoon" element={<LibraryCartoon />} />
                 <Route path="/manga/:system_id" element={<Manga />} />
-                <Route path="/library/manga" element={<LibraryManga />} />
                 <Route path="/novel/:system_id" element={<Novel />} />
-                <Route path="/library/novel" element={<LibraryNovel />} />
                 <Route path="/comic/:system_id" element={<Comic />} />
-                <Route path="/library/comic" element={<LibraryComic />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />

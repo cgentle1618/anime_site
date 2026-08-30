@@ -1,8 +1,16 @@
-// Frontend: page component file for LibraryAnime.
-import { useNavigate } from "react-router-dom";
-import { releaseScore, releaseYear } from "../../lib/releaseDate";
-import LibraryLayout from "../../components/layout/LibraryLayout";
-import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
+import {
+  airingStatusColumn,
+  franchiseColumn,
+  malRatingColumn,
+  malRatingSort,
+  myRatingColumn,
+  myRatingSort,
+  watchButtonColumn,
+} from "../../../components/layout/libraryColumns";
+import {
+  releaseScore,
+  releaseYear,
+} from "../../../lib/releaseDate";
 import {
   getDisplayName,
   getSortName,
@@ -12,7 +20,7 @@ import {
   getRatingWeight,
   getStatusButtonConfig,
   cleanString,
-} from "../../utils/media";
+} from "../../../utils/media";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: the ISO release date, first-of-period for the
@@ -26,6 +34,7 @@ function getReleaseSortScore(item) {
 // Anime library config
 // ---------------------------------------------------------------------------
 const ANIME_LIBRARY_CONFIG = {
+  usesSeries: true,
   navPath: "/anime",
   defaultSort: "title",
   searchPlaceholder: "Search anime, franchise, season, studio...",
@@ -93,33 +102,13 @@ const ANIME_LIBRARY_CONFIG = {
   sortDefs: [
     { key: "title",        label: "Title",        compare: titleCompare },
     { key: "release_date", label: "Release Date",  compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a) },
-    { key: "my_rating",    label: "My Rating",     compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating) },
-    {
-      key: "mal_rating",
-      label: "MAL Rating",
-      compare: (a, b) => {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
-        return wB - wA;
-      },
-    },
+    myRatingSort,
+    malRatingSort,
   ],
 
   // -- Table columns ---------------------------------------------------------
   tableColumns: [
-    {
-      key: "franchise",
-      header: "Franchise",
-      tdClass: "text-xs text-gray-600 font-medium truncate max-w-[12rem]",
-      render: (item, { franchiseDict }) => {
-        const f = franchiseDict[item.franchise_id];
-        return f ? (
-          getDisplayName(f, "franchise")
-        ) : (
-          <span className="text-gray-300 italic">None</span>
-        );
-      },
-    },
+    franchiseColumn(),
     {
       key: "title",
       header: "Title",
@@ -150,20 +139,7 @@ const ANIME_LIBRARY_CONFIG = {
       tdClass: "text-xs text-center text-gray-500 hidden lg:table-cell",
       render: (item) => item.season_part || "-",
     },
-    {
-      key: "status",
-      header: "Status",
-      tdClass: "text-center",
-      render: (item) => (
-        <span
-          className={`px-2 inline-flex text-[9px] leading-4 font-bold rounded-full ${
-            AIRING_STATUS_CLS[item.airing_status] ?? AIRING_STATUS_CLS._default
-          }`}
-        >
-          {item.airing_status || "-"}
-        </span>
-      ),
-    },
+    airingStatusColumn({ hidden: null }),
     {
       key: "ep",
       header: "EP",
@@ -175,28 +151,8 @@ const ANIME_LIBRARY_CONFIG = {
         return `${fin} / ${total}`;
       },
     },
-    {
-      key: "my",
-      header: "My",
-      thClass: "hidden lg:table-cell",
-      tdClass: "text-center hidden lg:table-cell",
-      render: (item) =>
-        item.my_rating ? (
-          <span className="bg-yellow-100 text-yellow-800 font-black px-2 py-0.5 rounded text-[10px]">
-            {item.my_rating}
-          </span>
-        ) : "-",
-    },
-    {
-      key: "mal",
-      header: "MAL",
-      thClass: "hidden xl:table-cell",
-      tdClass: "text-xs text-center hidden xl:table-cell",
-      render: (item) =>
-        item.mal_rating ? (
-          <span className="font-bold text-blue-600">{item.mal_rating}</span>
-        ) : "-",
-    },
+    myRatingColumn(),
+    malRatingColumn({ hidden: "xl" }),
     {
       key: "studio",
       header: "Studio",
@@ -231,28 +187,7 @@ const ANIME_LIBRARY_CONFIG = {
         ) : logo;
       },
     },
-    {
-      key: "watch",
-      header: "Watch",
-      tdClass: "text-center",
-      stopPropagation: true,
-      render: (item, { isAdmin, handleStatusToggle }) => {
-        const btn = getStatusButtonConfig(item.watching_status);
-        return isAdmin ? (
-          <button
-            onClick={(e) => handleStatusToggle(e, item, btn.target)}
-            className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btn.cls}`}
-            title={`${item.watching_status ?? "Might Watch"} → ${btn.target}`}
-          >
-            {btn.symbol}
-          </button>
-        ) : item.watching_status ? (
-          <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">
-            {item.watching_status}
-          </div>
-        ) : "-";
-      },
-    },
+    watchButtonColumn(),
   ],
 };
 
@@ -275,32 +210,4 @@ function titleCompare(a, b, franchiseDict, seriesDict) {
   return anameA.localeCompare(anameB);
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-export default function LibraryAnime() {
-  const animeQuery    = useMediaList("anime",     LIST_OPTIONS);
-  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
-  const seriesQuery   = useMediaList("series",    LIST_OPTIONS);
-
-  const isLoading =
-    animeQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
-  const error =
-    animeQuery.error?.message ||
-    franchiseQuery.error?.message ||
-    seriesQuery.error?.message ||
-    null;
-
-  return (
-    <LibraryLayout
-      type="anime"
-      config={ANIME_LIBRARY_CONFIG}
-      data={animeQuery.data ?? []}
-      franchises={franchiseQuery.data ?? []}
-      series={seriesQuery.data ?? []}
-      isLoading={isLoading}
-      error={error}
-    />
-  );
-}
-
+export default ANIME_LIBRARY_CONFIG;

@@ -1,13 +1,19 @@
-// Frontend: page component file for LibraryComic.
-import LibraryLayout from "../../components/layout/LibraryLayout";
-import { releaseScore } from "../../lib/releaseDate";
-import { useMediaList, LIST_OPTIONS } from "../../hooks/useMediaList";
+import {
+  franchiseColumn,
+  myRatingColumn,
+  myRatingSort,
+  planFlagColumn,
+  readButtonColumn,
+} from "../../../components/layout/libraryColumns";
+import {
+  releaseScore,
+} from "../../../lib/releaseDate";
 import {
   READING_STATUS_GROUP,
   getRatingWeight,
   getReadingButtonConfig,
   parseTypes,
-} from "../../utils/media";
+} from "../../../utils/media";
 
 // EN leads for comics, matching Comic.display_name on the backend and
 // NAMING_CONFIGS. Every other library type leads with CN.
@@ -19,6 +25,7 @@ function getTitle(c) {
 // Comic library config
 // ---------------------------------------------------------------------------
 const COMIC_LIBRARY_CONFIG = {
+  usesSeries: true,
   navPath: "/comic",
   defaultSort: "title",
   searchPlaceholder: "Search comics, franchise, series, writer...",
@@ -86,25 +93,11 @@ const COMIC_LIBRARY_CONFIG = {
       label: "Release Date",
       compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
-    {
-      key: "my_rating",
-      label: "My Rating",
-      compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating),
-    },
+    myRatingSort,
   ],
 
   tableColumns: [
-    {
-      key: "franchise",
-      header: "Franchise",
-      tdClass: "text-xs text-gray-600 font-medium truncate max-w-[12rem]",
-      render: (item, { franchiseDict }) => {
-        const f = franchiseDict[item.franchise_id];
-        return f
-          ? f.franchise_name_cn || f.franchise_name_en || f.franchise_name_roman || "Unknown"
-          : <span className="text-gray-300 italic">None</span>;
-      },
-    },
+    franchiseColumn(),
     {
       key: "title_en",
       header: "Title EN",
@@ -152,82 +145,10 @@ const COMIC_LIBRARY_CONFIG = {
       render: (item) =>
         `${item.issue_fin ?? 0} / ${item.issue_total ?? "?"} ISS`,
     },
-    {
-      key: "my",
-      header: "My",
-      thClass: "hidden lg:table-cell",
-      tdClass: "text-center hidden lg:table-cell",
-      render: (item) => item.my_rating
-        ? <span className="bg-yellow-100 text-yellow-800 font-black px-2 py-0.5 rounded text-[10px]">{item.my_rating}</span>
-        : "-",
-    },
-    {
-      key: "read",
-      header: "Read",
-      thClass: "hidden xl:table-cell",
-      tdClass: "text-center hidden xl:table-cell",
-      stopPropagation: true,
-      render: (item, { isAdmin, handleStatusToggle }) => {
-        const btn = getReadingButtonConfig(item.reading_status);
-        return isAdmin ? (
-          <button
-            onClick={(e) => handleStatusToggle(e, item, btn.target)}
-            className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btn.cls}`}
-            title={`${item.reading_status ?? "Might Read"} → ${btn.target}`}
-          >
-            {btn.symbol}
-          </button>
-        ) : item.reading_status ? (
-          <div className="text-[9px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 mx-auto max-w-full truncate">
-            {item.reading_status}
-          </div>
-        ) : "-";
-      },
-    },
-    {
-      key: "to_reread",
-      header: "To Reread",
-      thClass: "hidden xl:table-cell",
-      tdClass: "text-center hidden xl:table-cell",
-      stopPropagation: true,
-      render: (item, { isAdmin, handleStatusToggle }) => (
-        <input
-          type="checkbox"
-          checked={!!item.to_reread}
-          disabled={!isAdmin}
-          onChange={(e) => handleStatusToggle(e, item, e.target.checked, "to_reread")}
-          className="w-4 h-4 rounded accent-brand disabled:opacity-40"
-        />
-      ),
-    },
+    myRatingColumn(),
+    readButtonColumn(),
+    planFlagColumn("to_reread", "To Reread"),
   ],
 };
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-export default function LibraryComic() {
-  const comicsQuery    = useMediaList("comic",     LIST_OPTIONS);
-  const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
-  const seriesQuery    = useMediaList("series",    LIST_OPTIONS);
-
-  const isLoading =
-    comicsQuery.isLoading || franchiseQuery.isLoading || seriesQuery.isLoading;
-  const error =
-    comicsQuery.error?.message ||
-    franchiseQuery.error?.message ||
-    seriesQuery.error?.message ||
-    null;
-
-  return (
-    <LibraryLayout
-      type="comic"
-      config={COMIC_LIBRARY_CONFIG}
-      data={comicsQuery.data ?? []}
-      franchises={franchiseQuery.data ?? []}
-      series={seriesQuery.data ?? []}
-      isLoading={isLoading}
-      error={error}
-    />
-  );
-}
+export default COMIC_LIBRARY_CONFIG;
