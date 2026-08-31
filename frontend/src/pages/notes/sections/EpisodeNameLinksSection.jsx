@@ -19,7 +19,11 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  brandTagCls,
+  draftCls,
   inputCls,
+  rowCls,
+  tagCls,
 } from "./ui";
 
 const empty = () => ({
@@ -134,7 +138,7 @@ export default function EpisodeNameLinksSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-border rounded-lg p-2.5 bg-surface-2"
+          className={rowCls}
         >
           {editId === n.system_id ? (
             <div>
@@ -150,7 +154,7 @@ export default function EpisodeNameLinksSection({
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {n.locator && (
-                    <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
+                    <span className={brandTagCls}>
                       {n.locator}
                     </span>
                   )}
@@ -160,7 +164,7 @@ export default function EpisodeNameLinksSection({
                     </span>
                   )}
                   {n.status && (
-                    <span className="text-[11px] font-bold bg-surface-3 text-text-muted px-1.5 py-0.5 rounded">
+                    <span className={tagCls}>
                       {n.status}
                     </span>
                   )}
@@ -187,7 +191,7 @@ export default function EpisodeNameLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <EpisodeNameLinksForm
             val={draft}
             setVal={setDraft}

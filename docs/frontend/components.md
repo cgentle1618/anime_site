@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-08-31 (commit 4339702, plus uncommitted archive-look changes)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -123,7 +123,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount. |
 | `formFactories.js` | `freshForm(type)` defaults per form. |
 | `formFields/fieldMeta.js`, `formFields/index.js` | Field metadata (label, control, option source, coerce) for defaults and autofill. |
-| `mediaTypeColors.js`, `namingConfigs.js`, `adminTabs.js`, `weekdays.js`, `broadcastTimes.js` | Chip colours per type; name-field order per type; the Add/Modify tab bar; schedule constants. |
+| `mediaTypeColors.js`, `namingConfigs.js`, `adminTabs.js`, `weekdays.js`, `broadcastTimes.js` | Media-type chip classes (one ink chip for every type — colour never encodes a category); name-field order per type; the Add/Modify tab bar; schedule constants. |
 
 ## Shared components by folder
 
@@ -136,8 +136,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`),
   `GroupedEntryPage`, `CollapsibleCardGrid`, `CollapsiblePillRow`,
   `AdminTabBar`, `FittedName`, `TierBadge`.
-- **`components/hub`** — `HubChrome`, `HubTabBar`, `TabButton`,
-  `SectionHeader`, `HubStates`: the franchise/series/collection hub chrome.
+- **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs`,
+  `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
+  `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
+  the archive look.
 - **`components/cards`** — `MediaCard` (one card for all eight types,
   `variant="future"`), `FranchiseCard`, `CollectionCard`.
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
@@ -190,7 +192,7 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 ## Adding a media type on the frontend
 
 1. `config/mediaRegistry.js` — add the key (hyphenated), `apiEndpoint`, `navPath`, `statusField`.
-2. `config/namingConfigs.js`, `mediaTypeColors.js`, `statusGroups.js` if it needs its own name order, colour or status group.
+2. `config/namingConfigs.js`, `mediaTypeColors.js`, `statusGroups.js` if it needs its own name order, chip key or status group.
 3. `pages/library/configs/<type>.jsx` + register in `configs/index.js` — filters, sorts, columns (reuse `libraryColumns`).
 4. `pages/detail/<Type>.jsx` (+ `<Type>Notes.jsx`) and the two routes in `App.jsx`; note sections in `app/utils/note_sections.py`.
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`.

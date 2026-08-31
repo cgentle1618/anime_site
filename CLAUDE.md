@@ -15,7 +15,7 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Auth or visibility → `docs/authentication.md`, `docs/authorization.md`.
 - Pipelines (Backup/Pull/Fill/Replace/Calculate) → `docs/data-actions.md`, `docs/external-apis.md`.
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
-- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`. Tests → `docs/testing.md`. Deploy → `docs/deployment-gcp.md`.
+- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-gcp.md`.
 - Plan → `docs/roadmap.md`. Remind me to update it when we move to the next feature and I have not.
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.

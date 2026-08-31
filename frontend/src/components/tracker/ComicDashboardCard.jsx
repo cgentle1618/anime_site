@@ -6,6 +6,11 @@ import {
   getDisplayName,
   parseTypes,
 } from "../../utils/media";
+import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+
+const STEPPER_INPUT =
+  "font-mono text-[13px] text-text text-center w-16 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
+const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
 export default function ComicDashboardCard({
   comic,
@@ -51,64 +56,75 @@ export default function ComicDashboardCard({
 
   return (
     <div
-      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
+      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative"
       onClick={() => navigate(`/comic/${comic.system_id}`)}
     >
       <div className="flex p-3">
-        <div className="w-20 h-28 shrink-0 bg-surface-2 rounded-lg overflow-hidden border border-border relative">
-          {comic.my_rating && (
-            <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
-              <i className="fas fa-star text-[8px] mr-1"></i>
-              {comic.my_rating}
-            </div>
-          )}
-          {comic.comic_type && (
-            <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 rounded-tl text-[8px] font-bold z-10">
-              {comic.comic_type}
-            </div>
-          )}
-          <img
-            src={imageUrl}
-            alt="Cover"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.src = FALLBACK_SVG;
-            }}
-          />
+        <div className="flex shrink-0 h-28 border border-border">
+          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
+            <span
+              className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
+              style={{ writingMode: "vertical-rl" }}
+            >
+              Comic
+            </span>
+          </div>
+          <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
+            <RatingStamp
+              rating={comic.my_rating}
+              size="sm"
+              className="absolute top-1.5 right-1.5 z-10"
+            />
+            {comic.comic_type && (
+              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] z-10">
+                {comic.comic_type}
+              </div>
+            )}
+            <img
+              src={imageUrl}
+              alt="Cover"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = FALLBACK_SVG;
+              }}
+            />
+          </div>
         </div>
         <div className="ml-4 flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex items-baseline gap-1.5 min-w-0">
             <h3
-              className="font-bold text-text text-sm line-clamp-2 leading-tight min-w-0"
+              className="font-display font-bold text-text text-base line-clamp-2 leading-tight min-w-0"
               title={title}
             >
               {title}
             </h3>
             {comic.volume_label && (
-              <span className="shrink-0 font-mono text-[10px] font-bold text-text-faint">
+              <span className="shrink-0 font-mono text-[10px] text-text-faint">
                 {comic.volume_label}
               </span>
             )}
           </div>
-          <p className="text-xs text-text-faint truncate mt-1 mb-2">
-            From: {subTitle}
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mt-1 mb-2">
+            {subTitle}
+            {hasTotal ? ` · ${total} iss` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             {comic.era && (
-              <span className="bg-red-50 text-red-700 border-red-100 px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[110px] text-center">
+              <Chip tone="ink" className="truncate max-w-[110px]">
                 {comic.era}
-              </span>
+              </Chip>
             )}
             {events.length > 0 && (
-              <span
-                className="bg-surface-2 text-text-muted border-border px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[130px]"
+              <Chip
+                tone="ink"
+                className="truncate max-w-[130px]"
                 title={events.join(", ")}
               >
                 {events[0]}
                 {events.length > 1 && (
                   <span className="text-text-faint"> +{events.length - 1}</span>
                 )}
-              </span>
+              </Chip>
             )}
           </div>
         </div>
@@ -118,8 +134,8 @@ export default function ComicDashboardCard({
               e.stopPropagation();
               navigate(`/modify?id=${comic.system_id}&type=comic`);
             }}
-            className="absolute top-2 right-2 bg-surface/90 text-text-faint hover:text-brand hover:bg-surface rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-border"
-            title="Quick Edit"
+            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
+            title="Quick edit"
           >
             <i className="fas fa-pencil-alt text-xs"></i>
           </button>
@@ -127,70 +143,67 @@ export default function ComicDashboardCard({
       </div>
 
       <div
-        className="bg-surface-2 p-3 border-t border-border mt-auto"
+        className="p-3 border-t border-border mt-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-end mb-1.5">
-          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-            Progress
-          </span>
-          <span className="text-[10px] font-bold text-brand">
-            {hasTotal ? `${progressPercent}%` : "Ongoing"}
+        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <span>Progress</span>
+          <span className="text-text">
+            {fin} / {hasTotal ? total : "?"}
+            {hasTotal ? ` · ${progressPercent}%` : ""}
           </span>
         </div>
-        <div className="w-full bg-surface-3 rounded-full h-1.5 mb-3 overflow-hidden">
-          <div
-            className="bg-brand h-1.5 rounded-full transition-all duration-500"
-            style={{ width: hasTotal ? `${progressPercent}%` : "0%" }}
-          />
-        </div>
+        <ProgressRule
+          value={hasTotal ? progressPercent / 100 : 0}
+          className="mb-3"
+        />
 
         {isAdmin ? (
-          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
-            <button
+          <div className="flex items-center justify-between gap-2 relative z-20">
+            <Button
+              kind="outline"
+              size="sm"
               onClick={() => handleIssueChange(fin - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
               title="One issue back"
+              aria-label="One issue back"
             >
               <i className="fas fa-minus text-[10px]"></i>
-            </button>
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+            </Button>
+            <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className={STEPPER_INPUT}
                 value={fin}
                 onChange={(e) =>
                   handleIssueChange(parseInt(e.target.value, 10) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-text-faint mx-0.5 text-xs">/</span>
-              <span className="text-text-faint text-[13px] w-16 text-center">
+              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint w-12 text-center">
                 {hasTotal ? total : "?"}
               </span>
-              <span className="text-text-faint ml-1 text-[10px] font-sans">
-                ISS
-              </span>
+              <span className={`${UNIT} ml-1`}>iss</span>
             </div>
-            <button
+            <Button
+              kind="outline"
+              size="sm"
               onClick={() => handleIssueChange(fin + 1)}
-              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
               title="One issue forward"
+              aria-label="One issue forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
-            </button>
+            </Button>
           </div>
         ) : (
-          <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
+          <div className="flex items-center justify-center border border-border h-[36px]">
+            <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
               <span className="text-text w-14 text-center">{fin}</span>
               <span className="text-text-faint mx-0.5 text-xs">/</span>
-              <span className="text-text-faint text-[13px] w-14 text-center">
+              <span className="text-text-faint w-14 text-center">
                 {hasTotal ? total : "?"}
               </span>
-              <span className="text-text-faint ml-1 text-[10px] font-sans">
-                ISS
-              </span>
+              <span className={`${UNIT} ml-1`}>iss</span>
             </div>
           </div>
         )}

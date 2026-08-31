@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-08-31 (commit 4339702, plus uncommitted archive-look changes)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -253,9 +253,10 @@ Grid renders `FranchiseCard`.
 
 Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
-from `components/hub/` (`HubShell`, `HubBreadcrumb` — carries the admin-only
-**Quick Edit** link `/modify?id=…` —, `HubCard`, `HubCover`, `HubTabBar`,
-`SectionHeader`, `HubLoading/HubError/HubEmpty/FilterEmpty`).
+from `components/hub/` (`HubShell`, `Crumbs`, `AdminStrip` — the admin-only
+dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
+the spine strip and optional progress rule, `Field`, `HubTabs`, `Section`,
+`HubLoading/HubError/HubEmpty/FilterEmpty`).
 
 All three fetch with raw `fetch` in one effect keyed on `system_id` with a
 `cancelled` flag; Franchise and Series also `setActiveTab(null)` on id change

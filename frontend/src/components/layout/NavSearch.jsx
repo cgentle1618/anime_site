@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cleanString } from "../../utils/media";
+import { Chip } from "../ui/primitives";
 
 const SCOPES = [
   { key: "all", label: "All" },
@@ -23,19 +24,20 @@ const SCOPES = [
   { key: "seasonal", label: "Seasonal" },
 ];
 
-const TYPE_BADGE = {
-  collection: { label: "COLLECT", cls: "bg-fuchsia-50 text-fuchsia-600" },
-  franchise: { label: "FRAN", cls: "bg-brand/10 text-brand" },
-  series: { label: "SERIES", cls: "bg-purple-50 text-purple-600" },
-  anime: { label: "ANIME", cls: "bg-gray-100 text-gray-500" },
-  "anime-movie": { label: "A.MOVIE", cls: "bg-blue-50 text-blue-600" },
-  movie: { label: "MOVIE", cls: "bg-amber-50 text-amber-600" },
-  "tv-show": { label: "TV", cls: "bg-indigo-50 text-indigo-600" },
-  cartoon: { label: "CARTOON", cls: "bg-orange-50 text-orange-600" },
-  manga: { label: "MANGA", cls: "bg-rose-50 text-rose-600" },
-  novel: { label: "NOVEL", cls: "bg-teal-50 text-teal-600" },
-  comic: { label: "COMIC", cls: "bg-red-50 text-red-600" },
-  seasonal: { label: "SEASON", cls: "bg-emerald-50 text-emerald-600" },
+// Short mono labels for the result rows. Text, not colour, names the type.
+const TYPE_LABEL = {
+  collection: "COLLECT",
+  franchise: "FRAN",
+  series: "SERIES",
+  anime: "ANIME",
+  "anime-movie": "A.MOVIE",
+  movie: "MOVIE",
+  "tv-show": "TV",
+  cartoon: "CARTOON",
+  manga: "MANGA",
+  novel: "NOVEL",
+  comic: "COMIC",
+  seasonal: "SEASON",
 };
 
 function getDisplayName(item) {
@@ -292,10 +294,10 @@ export default function NavSearch() {
 
   return (
     // A slot recessed into the ink row: dark and inset at rest, lifting to
-    // white paper once focused.
+    // paper once focused.
     <div
       ref={searchRef}
-      className="relative hidden md:flex items-center w-56 lg:w-80 xl:w-96 rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/10 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand transition"
+      className="group relative hidden md:flex items-center w-56 lg:w-80 xl:w-96 bg-ink-text/[0.06] ring-1 ring-inset ring-ink-text/15 focus-within:bg-surface focus-within:ring-2 focus-within:ring-brand transition"
     >
       {/* Scope selector */}
       <div className="relative shrink-0">
@@ -304,17 +306,14 @@ export default function NavSearch() {
           onClick={() => setShowScopeMenu((s) => !s)}
           aria-haspopup="listbox"
           aria-expanded={showScopeMenu}
-          className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-l-lg transition whitespace-nowrap group-focus-within:text-slate-500"
+          className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-text/60 hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand transition whitespace-nowrap group-focus-within:text-text-muted"
         >
           {scopeLabel}
-          <i
-            className={`fas fa-chevron-down text-[8px] transition-transform ${showScopeMenu ? "rotate-180" : ""}`}
-          ></i>
         </button>
         {showScopeMenu && (
           <div
             role="listbox"
-            className="absolute left-0 top-full mt-2 bg-white rounded-lg shadow-xl ring-1 ring-slate-900/10 z-50 overflow-hidden min-w-[140px] py-1"
+            className="absolute left-0 top-full mt-2 bg-surface border border-border shadow-xl z-50 overflow-hidden min-w-[140px] py-1"
           >
             {SCOPES.map((s) => (
               <button
@@ -328,8 +327,8 @@ export default function NavSearch() {
                 }}
                 className={`w-full text-left px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition ${
                   searchScope === s.key
-                    ? "text-brand bg-brand/5"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                    ? "text-brand bg-brand-soft"
+                    : "text-text-muted hover:bg-surface-2 hover:text-text"
                 }`}
               >
                 {s.label}
@@ -339,9 +338,9 @@ export default function NavSearch() {
         )}
       </div>
 
-      <div className="w-px h-3.5 bg-white/15 shrink-0 mx-0.5"></div>
+      <div className="w-px h-3.5 bg-ink-text/20 group-focus-within:bg-border shrink-0 mx-0.5"></div>
 
-      <i className="fas fa-search pl-2 pr-1 text-slate-500 text-xs pointer-events-none shrink-0"></i>
+      <i className="fas fa-search pl-2 pr-1 text-ink-text/50 group-focus-within:text-text-faint text-xs pointer-events-none shrink-0"></i>
 
       <input
         type="text"
@@ -353,15 +352,14 @@ export default function NavSearch() {
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={handleSearchKey}
         onFocus={() => searchResults.length > 0 && setShowResults(true)}
-        className="flex-1 min-w-0 bg-transparent pr-3 py-1.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:text-slate-900 focus:placeholder:text-slate-400"
+        className="flex-1 min-w-0 bg-transparent pr-3 py-1.5 text-sm text-ink-text placeholder:text-ink-text/50 focus:outline-none focus:text-text focus:placeholder:text-text-faint"
         autoComplete="off"
       />
 
       {/* Results */}
       {showResults && searchResults.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl ring-1 ring-slate-900/10 overflow-hidden max-h-[80vh] overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border shadow-xl overflow-hidden max-h-[80vh] overflow-y-auto z-50">
           {searchResults.map((item, i) => {
-            const badge = TYPE_BADGE[item.type];
             const secondary =
               item.type === "franchise"
                 ? item.franchise_type
@@ -373,19 +371,15 @@ export default function NavSearch() {
                 key={i}
                 type="button"
                 onClick={() => handleResultClick(item)}
-                className="w-full text-left flex items-center px-3 py-2.5 hover:bg-slate-50 transition border-b border-slate-50 last:border-0"
+                className="w-full text-left flex items-center px-3 py-2.5 hover:bg-surface-2 transition border-b border-border last:border-0"
               >
-                <span
-                  className={`font-mono text-[10px] tracking-[0.06em] px-1.5 py-0.5 rounded mr-2 shrink-0 ${badge.cls}`}
-                >
-                  {badge.label}
-                </span>
+                <Chip className="mr-2">{TYPE_LABEL[item.type]}</Chip>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800 truncate">
+                  <div className="text-sm font-medium text-text truncate">
                     {getDisplayName(item)}
                   </div>
                   {secondary && (
-                    <div className="text-[10px] text-slate-400 truncate">
+                    <div className="font-mono text-[10px] text-text-faint truncate">
                       {secondary}
                     </div>
                   )}

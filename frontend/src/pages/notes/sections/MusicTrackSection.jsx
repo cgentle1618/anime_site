@@ -14,7 +14,11 @@ import {
   LinkPill,
   SaveCancel,
   SectionCard,
+  brandTagCls,
+  draftCls,
   inputCls,
+  rowCls,
+  tagCls,
 } from "./ui";
 
 const empty = (section) => ({
@@ -140,7 +144,7 @@ export default function MusicTrackSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-border rounded-lg p-2.5 bg-surface-2"
+          className={rowCls}
         >
           {editId === n.system_id ? (
             <div>
@@ -161,12 +165,12 @@ export default function MusicTrackSection({
                     </span>
                   )}
                   {n.kind && (
-                    <span className="text-[11px] font-bold bg-surface-3 text-text-muted px-1.5 py-0.5 rounded">
+                    <span className={tagCls}>
                       {n.kind}
                     </span>
                   )}
                   {n.status && (
-                    <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
+                    <span className={brandTagCls}>
                       {n.status}
                     </span>
                   )}
@@ -193,7 +197,7 @@ export default function MusicTrackSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <MusicTrackForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}

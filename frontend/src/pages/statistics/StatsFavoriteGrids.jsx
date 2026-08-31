@@ -2,19 +2,20 @@
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, parseTypes } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
+import { RatingStamp, Slip } from "../../components/ui/primitives";
 
 const GRID_CONFIGS = [
-  { title: "Favorite ACG Franchise", typeKey: "ACG", forType: null },
-  { title: "Favorite Novel Franchise", typeKey: "Novel", forType: "Novel" },
-  { title: "Favorite Movie Franchise", typeKey: "Movie", forType: "Movie" },
-  { title: "Favorite TV Show Franchise", typeKey: "TV", forType: "TV" },
+  { title: "Favourite ACG franchises", typeKey: "ACG", forType: null },
+  { title: "Favourite novel franchises", typeKey: "Novel", forType: "Novel" },
+  { title: "Favourite movie franchises", typeKey: "Movie", forType: "Movie" },
+  { title: "Favourite TV show franchises", typeKey: "TV", forType: "TV" },
   {
-    title: "Favorite Cartoon Franchise",
+    title: "Favourite cartoon franchises",
     typeKey: "Cartoon",
     forType: "Cartoon",
   },
   {
-    title: "Favorite Comic Franchise",
+    title: "Favourite comic franchises",
     typeKey: "Comic",
     forType: "Comic",
   },
@@ -40,13 +41,7 @@ function FavoriteGrid({
   });
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-th text-brand/70"></i>
-          {title}
-        </h2>
-      </div>
+    <Slip title={title}>
       <div className="grid grid-cols-3 gap-3 max-w-sm">
         {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
           const f = slotMap[slot];
@@ -56,7 +51,7 @@ function FavoriteGrid({
               <Link
                 key={slot}
                 to={`/franchise/${f.system_id}`}
-                className="group relative rounded-xl overflow-hidden shadow-sm border border-border hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                className="group relative overflow-hidden border border-border hover:border-text transition-colors"
               >
                 <div className="aspect-[3/4] bg-surface-2">
                   <img
@@ -68,38 +63,35 @@ function FavoriteGrid({
                     }}
                   />
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2 pt-6 pb-2">
-                  <p className="text-white text-xs font-bold leading-tight truncate">
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1.5">
+                  <p className="text-white text-xs font-display leading-tight truncate">
                     {getDisplayName(f)}
                   </p>
-                  {f.my_rating && (
-                    <span className="text-yellow-300 text-[10px] font-black">
-                      {f.my_rating}
-                    </span>
-                  )}
                 </div>
-                <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/50 rounded-md flex items-center justify-center">
-                  <span className="text-white text-[10px] font-black">
-                    {slot}
-                  </span>
-                </div>
+                <span className="absolute top-1.5 left-1.5 bg-ink text-ink-text font-mono text-[10px] px-1.5 py-0.5 leading-none">
+                  {slot}
+                </span>
+                <RatingStamp
+                  rating={f.my_rating}
+                  className="absolute top-1.5 right-1.5"
+                />
               </Link>
             );
           }
           return (
             <div
               key={slot}
-              className="aspect-[3/4] rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center bg-surface-2/50"
+              className="aspect-[3/4] border border-dashed border-border-strong flex flex-col items-center justify-center"
             >
-              <span className="text-2xl font-black text-text-faint/60">{slot}</span>
-              <span className="text-[10px] text-text-faint/60 font-medium mt-1">
+              <span className="font-display text-2xl text-text-faint">{slot}</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mt-1">
                 Empty
               </span>
             </div>
           );
         })}
       </div>
-    </section>
+    </Slip>
   );
 }
 
@@ -108,7 +100,7 @@ export default function StatsFavoriteGrids({
   allEntriesByFranchise,
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {GRID_CONFIGS.map(({ title, typeKey, forType }) => {
         const filtered = franchises.filter((f) =>
           parseTypes(f.franchise_type).includes(typeKey),
@@ -127,4 +119,3 @@ export default function StatsFavoriteGrids({
     </div>
   );
 }
-

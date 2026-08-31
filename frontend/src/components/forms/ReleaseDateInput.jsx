@@ -10,14 +10,14 @@ export default function ReleaseDateInput({ label, value, onChange }) {
     <Field label={label} hint="YYYY, YYYY-MM, or YYYY-MM-DD">
       <input
         className={
-          invalid ? `${inputCls} border-red-400 focus:ring-red-400` : inputCls
+          invalid ? `${inputCls} border-danger accent-danger focus:ring-danger` : inputCls
         }
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder="2024-05-17"
       />
       {invalid && (
-        <p className="text-[10px] font-bold text-red-500 mt-0.5">
+        <p className="text-[10px] font-bold text-danger mt-0.5">
           Use YYYY, YYYY-MM, or YYYY-MM-DD.
         </p>
       )}

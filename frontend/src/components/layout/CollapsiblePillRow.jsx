@@ -55,9 +55,8 @@ export default function CollapsiblePillRow({ children, rows = 2 }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-2 flex items-center gap-1.5 text-xs font-bold text-text-faint hover:text-brand transition-colors"
+          className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-brand transition-colors"
         >
-          <i className={`fas fa-chevron-${expanded ? "up" : "down"}`}></i>
           {expanded ? "Show fewer filters" : "Show all filters"}
         </button>
       )}

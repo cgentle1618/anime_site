@@ -1,22 +1,29 @@
-// Frontend: one colour per media type, for anywhere eight types share a view.
+// Frontend: media-type chip styling for anywhere eight types share a view.
 //
 // The relations canvas is the first such place: a graph can hold anime, movies
-// and manga side by side, and the type has to be readable at a glance without
-// reading the badge text. Keys match MEDIA_TYPE keys used across the app.
-export const MEDIA_TYPE_COLORS = {
-  anime: { chip: "bg-indigo-100 text-indigo-700", dot: "bg-indigo-500" },
-  "anime-movie": { chip: "bg-violet-100 text-violet-700", dot: "bg-violet-500" },
-  movie: { chip: "bg-rose-100 text-rose-700", dot: "bg-rose-500" },
-  "tv-show": { chip: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  cartoon: { chip: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  manga: { chip: "bg-sky-100 text-sky-700", dot: "bg-sky-500" },
-  novel: { chip: "bg-stone-200 text-stone-700", dot: "bg-stone-500" },
-  comic: { chip: "bg-red-100 text-red-700", dot: "bg-red-500" },
-};
+// and manga side by side. Colour does not encode the category (design rule 5,
+// docs/frontend/design-system.md) - the type is read from the chip text, so
+// every type gets the same ink chip. The keys stay because the legend derives
+// its stable ordering from them; they match MEDIA_TYPE keys used across the app.
+const CHIP = "border border-border-strong bg-surface text-text-muted";
+const DOT = "bg-text-faint";
 
-const FALLBACK = { chip: "bg-surface-2 text-text-muted", dot: "bg-text-faint" };
+export const MEDIA_TYPE_COLORS = Object.fromEntries(
+  [
+    "anime",
+    "anime-movie",
+    "movie",
+    "tv-show",
+    "cartoon",
+    "manga",
+    "novel",
+    "comic",
+  ].map((k) => [k, { chip: CHIP, dot: DOT }]),
+);
 
-/** Chip classes for a media type, neutral for a type we do not know yet. */
+const FALLBACK = { chip: CHIP, dot: DOT };
+
+/** Chip classes for a media type; every type is the same ink chip. */
 export function mediaTypeChip(mediaType) {
   return (MEDIA_TYPE_COLORS[mediaType] || FALLBACK).chip;
 }

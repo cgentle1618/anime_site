@@ -12,6 +12,13 @@ import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import MangaNotes from "./MangaNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import {
+  Button,
+  Eyebrow,
+  ProgressRule,
+  RatingStamp,
+  Slip,
+} from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -30,16 +37,14 @@ const READING_STATUSES = [
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
-function serializationStatusColor(status) {
-  if (status === "連載中")
-    return "bg-green-100 text-green-700 border border-green-200";
-  if (status === "完結")
-    return "bg-blue-100 text-blue-700 border border-blue-200";
-  if (status === "腰斬") return "bg-red-100 text-red-700 border border-red-200";
-  if (status === "停更")
-    return "bg-yellow-100 text-yellow-700 border border-yellow-200";
-  return "bg-surface-2 text-text-muted border border-border";
-}
+const selectCls =
+  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
+const lineageLinkCls =
+  "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
+const stepBtnCls =
+  "w-8 h-8 shrink-0 text-text-muted hover:text-text hover:bg-surface-2 transition flex items-center justify-center disabled:opacity-40";
+const counterInputCls =
+  "text-text w-12 text-right bg-transparent border-b border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60";
 
 function MangaTrackerBlock({
   manga,
@@ -52,10 +57,6 @@ function MangaTrackerBlock({
   onWatchNextChange,
   onToRewatchChange,
 }) {
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
-
   const chFin = manga.ch_fin ?? 0;
   const chTotal = manga.ch_total != null ? manga.ch_total : null;
   const volFin = manga.vol_fin ?? 0;
@@ -81,27 +82,21 @@ function MangaTrackerBlock({
   }
 
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-surface-2 border-b border-border px-5 py-3.5">
-        <h3 className="font-bold text-text text-lg flex items-center">
-          <i className="fas fa-book-reader text-brand mr-2"></i>My Tracker
-        </h3>
-      </div>
-      <div className="p-5 space-y-5">
+    <Slip title="My tracker">
+      <div className="space-y-5">
         {/* Chapter progress */}
         <div>
-          <div className="text-[11px] font-bold text-text-faint uppercase tracking-wider mb-2">
-            Chapters
-          </div>
-          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
+          <Eyebrow className="mb-2">Chapters</Eyebrow>
+          <div className="flex items-center border border-border-strong w-fit">
             <button
               onClick={() => stepCh(-1)}
               disabled={!isAdmin}
-              className="w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center disabled:opacity-40"
+              aria-label="Previous chapter"
+              className={stepBtnCls}
             >
               <i className="fas fa-minus text-xs"></i>
             </button>
-            <div className="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap">
+            <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
               <input
                 type="number"
                 value={chFin}
@@ -112,20 +107,21 @@ function MangaTrackerBlock({
                   if (chTotal !== null && v > chTotal) return;
                   onChChange(Math.max(0, v));
                 }}
-                className="text-text w-12 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
+                className={counterInputCls}
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint text-sm leading-none">
                 {chTotal ?? "?"}
               </span>
-              <span className="text-[9px] text-text-faint font-sans ml-1.5">
-                CH
+              <span className="text-[9px] text-text-faint ml-1.5 uppercase">
+                ch
               </span>
             </div>
             <button
               onClick={() => stepCh(1)}
               disabled={!isAdmin}
-              className="w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center disabled:opacity-40"
+              aria-label="Next chapter"
+              className={`${stepBtnCls} text-brand`}
             >
               <i className="fas fa-plus text-xs"></i>
             </button>
@@ -134,19 +130,18 @@ function MangaTrackerBlock({
 
         {/* Volume progress */}
         <div>
-          <div className="text-[11px] font-bold text-text-faint uppercase tracking-wider mb-2">
-            Volumes
-          </div>
+          <Eyebrow className="mb-2">Volumes</Eyebrow>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm">
+            <div className="flex items-center border border-border-strong">
               <button
                 onClick={() => stepVol(-1)}
                 disabled={!isAdmin}
-                className="w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center disabled:opacity-40"
+                aria-label="Previous volume"
+                className={stepBtnCls}
               >
                 <i className="fas fa-minus text-xs"></i>
               </button>
-              <div className="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap">
+              <div className="font-mono text-sm flex items-baseline justify-center px-2 min-w-[90px] whitespace-nowrap border-l border-r border-border">
                 <input
                   type="number"
                   value={volFin}
@@ -157,29 +152,28 @@ function MangaTrackerBlock({
                     if (volTotal !== null && v > volTotal) return;
                     onVolChange(Math.max(0, v));
                   }}
-                  className="text-text w-12 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
+                  className={counterInputCls}
                 />
                 <span className="text-text-faint mx-1 text-xs">/</span>
                 <span className="text-text-faint text-sm leading-none">
                   {volTotal ?? "?"}
                 </span>
-                <span className="text-[9px] text-text-faint font-sans ml-1.5">
-                  VOL
+                <span className="text-[9px] text-text-faint ml-1.5 uppercase">
+                  vol
                 </span>
               </div>
               <button
                 onClick={() => stepVol(1)}
                 disabled={!isAdmin}
-                className="w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center disabled:opacity-40"
+                aria-label="Next volume"
+                className={`${stepBtnCls} text-brand`}
               >
                 <i className="fas fa-plus text-xs"></i>
               </button>
             </div>
             {/* Pages input */}
-            <div className="flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 shadow-sm">
-              <span className="text-[11px] text-text-faint font-bold uppercase tracking-wider">
-                Page
-              </span>
+            <div className="flex items-center gap-1.5 border border-border-strong px-3 py-2">
+              <Eyebrow>Page</Eyebrow>
               <input
                 type="number"
                 value={volFinPage}
@@ -189,12 +183,12 @@ function MangaTrackerBlock({
                   const v = parseInt(e.target.value, 10) || 0;
                   onPageChange(Math.max(0, v));
                 }}
-                className="w-14 text-right font-mono font-bold text-sm bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
+                className="w-14 text-right font-mono text-sm text-text bg-transparent border-b border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
               />
             </div>
           </div>
           {(volFin > 0 || volFinPage > 0) && (
-            <div className="text-xs text-text-faint mt-1.5 font-medium">
+            <div className="font-mono text-[11px] text-text-faint mt-1.5">
               Vol. {volFin}
               {volFinPage > 0 ? ` Page ${volFinPage}` : ""}{" "}
               {volTotal != null ? `/ Vol. ${volTotal}` : ""}
@@ -202,17 +196,15 @@ function MangaTrackerBlock({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
           {/* Reading Status */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Reading Status
-            </label>
+            <Eyebrow as="label">Reading status</Eyebrow>
             <select
               value={manga.reading_status || ""}
               disabled={!isAdmin}
               onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-              className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+              className={selectCls}
             >
               {READING_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -223,14 +215,12 @@ function MangaTrackerBlock({
           </div>
           {/* My Rating */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Rating
-            </label>
+            <Eyebrow as="label">Rating</Eyebrow>
             <select
               value={manga.my_rating || ""}
               disabled={!isAdmin}
               onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-              className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+              className={selectCls}
             >
               <option value="">Unrated</option>
               {MY_RATINGS.map((r) => (
@@ -242,9 +232,7 @@ function MangaTrackerBlock({
           </div>
           {/* Read Next */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Read Next
-            </label>
+            <Eyebrow>Read next</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -261,18 +249,14 @@ function MangaTrackerBlock({
                       : "Removed from Read Next",
                   )
                 }
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">
-                Read Next
-              </span>
+              <span className="text-sm text-text-muted">Read next</span>
             </label>
           </div>
           {/* To Reread */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              To Reread
-            </label>
+            <Eyebrow>To reread</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -289,16 +273,14 @@ function MangaTrackerBlock({
                       : "Removed from rewatch",
                   )
                 }
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">
-                To Reread
-              </span>
+              <span className="text-sm text-text-muted">To reread</span>
             </label>
           </div>
         </div>
       </div>
-    </div>
+    </Slip>
   );
 }
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -431,48 +413,47 @@ export default function Manga() {
     ),
   );
 
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
-
   const authorSame =
     manga.author_plot &&
     manga.author_draw &&
     manga.author_plot === manga.author_draw;
 
+  const chFin = manga.ch_fin ?? 0;
+  const chTotal = manga.ch_total != null ? manga.ch_total : null;
+  const progress = chTotal ? chFin / chTotal : chFin > 0 ? 1 : 0;
+  const progressPct = chTotal ? Math.round(progress * 100) : null;
+
+  const eyebrow = ["Manga", manga.region, manga.serialization_status]
+    .filter(Boolean)
+    .join("  ·  ");
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb */}
-      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-2">
-          <li>
-            <Link to="/library/manga" className="hover:text-brand transition">
-              <i className="fas fa-book mr-1.5"></i>Manga
-            </Link>
-          </li>
-          <li>
-            <i className="fas fa-chevron-right text-[10px]"></i>
-          </li>
-          <li className="font-medium text-text truncate max-w-xs">
-            {titleMain}
-          </li>
-        </ol>
+      {/* Breadcrumb: a catalogue path, set in mono */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
+        aria-label="Breadcrumb"
+      >
+        <Link to="/library/manga" className="hover:text-brand transition">
+          Manga
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {titleMain}
+        </span>
       </nav>
 
-      {/* Admin Toolbar */}
+      {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-8 shadow-sm">
-          <div className="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-            <i className="fas fa-shield-alt mr-2"></i> Admin Tools
-          </div>
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+            Admin
+          </Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/modify?id=${system_id}&type=manga`)}
-              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
-            >
-              <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
-            </button>
-            <button
+            <Button onClick={() => navigate(`/modify?id=${system_id}&type=manga`)}>
+              Quick edit
+            </Button>
+            <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
@@ -488,21 +469,12 @@ export default function Manga() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
-              Completed
-            </button>
-            <button
-              onClick={handleAutofill}
-              disabled={autofilling}
-              className="bg-brand hover:bg-brand-hover text-white px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center disabled:opacity-50"
-            >
-              <i
-                className={`fas ${autofilling ? "fa-circle-notch fa-spin" : "fa-magic"} mr-2`}
-              ></i>
-              {autofilling ? "Autofilling..." : "Autofill & Update"}
-            </button>
+              Mark completed
+            </Button>
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}
@@ -511,23 +483,48 @@ export default function Manga() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster */}
-          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative overflow-hidden">
-            {manga.my_rating && (
-              <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
-                <i className="fas fa-star text-[9px] mr-1"></i>
-                {manga.my_rating}
-              </div>
-            )}
-            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border">
-              <img
-                src={imageUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
+          {/* Poster: cover with a spine strip and the rating stamp */}
+          <div className="flex border border-border bg-surface">
+            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                Manga{manga.region ? ` · ${manga.region}` : ""}
+              </span>
+              <span
+                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {manga.system_id}
+              </span>
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <RatingStamp
+                rating={manga.my_rating}
+                size="md"
+                tilt
+                className="absolute top-2 right-2 z-10"
               />
+              <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                />
+              </div>
+              {/* Progress rule along the bottom edge of the cover */}
+              <ProgressRule value={progress} />
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span>Chapters</span>
+                <span className="text-text">
+                  {chFin} / {chTotal ?? "?"}
+                  {progressPct != null ? ` · ${progressPct}%` : ""}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -546,85 +543,48 @@ export default function Manga() {
 
           {/* Related Entries */}
           <RelationsSection mediaType="manga" entryId={manga.system_id} />
-
-          {/* System Info — admin only */}
-          {isAdmin && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-                <i className="fas fa-microchip mr-1.5"></i>System Info
-              </h3>
-              <div>
-                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
-                  System ID
-                </div>
-                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
-                  {manga.system_id}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="lg:col-span-3 space-y-10">
           {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {manga.region && (
-                <span className="bg-surface-2 text-text-muted border border-border px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {manga.region}
-                </span>
-              )}
-              {manga.serialization_status && (
-                <span
-                  className={`${serializationStatusColor(manga.serialization_status)} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
-                >
-                  {manga.serialization_status}
-                </span>
-              )}
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
             {titleSub && (
-              <h2 className="text-lg text-text-faint font-medium mb-3">
+              <h2 className="text-lg text-text-muted font-normal mb-4">
                 {titleSub}
               </h2>
             )}
 
-            {/* Franchise / Series Bar */}
-            <div className="flex items-center gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border mb-6">
-              {franchise ? (
-                <span>
-                  <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
-                  <Link
-                    to={`/franchise/${franchise.system_id}`}
-                    className="text-brand hover:underline font-medium"
-                  >
+            {/* Franchise / Series lineage */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchise</Eyebrow>
+                {franchise ? (
+                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
-                </span>
-              ) : (
-                <span className="text-text-faint">
-                  <i className="fas fa-unlink mr-1.5"></i>No Franchise
-                </span>
-              )}
-              {series && (
-                <>
-                  <div className="hidden sm:block text-text-faint/60">|</div>
-                  <span>
-                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <Link
-                      to={`/series/${series.system_id}`}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
-                    >
-                      {series.series_name_cn ||
-                        series.series_name_en ||
-                        series.series_name_alt}
-                    </Link>
-                  </span>
-                </>
-              )}
+                ) : (
+                  <span className="text-text-faint">Independent</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Series</Eyebrow>
+                {series ? (
+                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                    {series.series_name_cn ||
+                      series.series_name_en ||
+                      series.series_name_alt}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
+              </div>
             </div>
 
             {/* Score Block */}
@@ -634,7 +594,7 @@ export default function Manga() {
               anilistScore={manga.anilist_rating}
               updatedAt={manga.updated_at}
             />
-          </div>
+          </header>
 
           {/* My Tracker Block */}
           <MangaTrackerBlock
@@ -664,7 +624,6 @@ export default function Manga() {
             <NamingCard type="manga" item={manga} />
             <InfoCard
               title="Information"
-              icon="fa-info-circle"
               fields={[
                 [
                   { label: "Region", value: manga.region },
@@ -711,7 +670,6 @@ export default function Manga() {
               manga.publisher_tw) && (
               <InfoCard
                 title="Production"
-                icon="fa-pen-nib"
                 fields={[
                   ...(authorSame
                     ? [{ label: "作者", value: manga.author_plot }]
@@ -734,30 +692,23 @@ export default function Manga() {
 
           {/* Remarks */}
           {(manga.remark || isAdmin) && manga.remark && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="bg-surface-2 border-b border-border px-4 py-3">
-                <h3 className="font-bold text-text">
-                  <i className="fas fa-sticky-note text-brand mr-2"></i>Remarks
-                </h3>
-              </div>
-              <div className="p-4">
-                <textarea
-                  key={manga.system_id}
-                  defaultValue={manga.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin &&
-                    performPatch(
-                      { remark: e.target.value || null },
-                      "Remark saved",
-                    )
-                  }
-                  rows={4}
-                  placeholder="Add remarks..."
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                ></textarea>
-              </div>
-            </div>
+            <Slip title="Remarks">
+              <textarea
+                key={manga.system_id}
+                defaultValue={manga.remark || ""}
+                disabled={!isAdmin}
+                onBlur={(e) =>
+                  isAdmin &&
+                  performPatch(
+                    { remark: e.target.value || null },
+                    "Remark saved",
+                  )
+                }
+                rows={4}
+                placeholder="Add remarks…"
+                className={selectCls}
+              ></textarea>
+            </Slip>
           )}
 
           {/* Structured Notes */}
@@ -772,8 +723,6 @@ export default function Manga() {
           />
         </div>
       </div>
-
     </div>
   );
 }
-

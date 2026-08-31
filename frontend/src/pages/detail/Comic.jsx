@@ -17,6 +17,14 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import ComicNotes from "./ComicNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import {
+  Button,
+  Chip,
+  Eyebrow,
+  ProgressRule,
+  RatingStamp,
+  Slip,
+} from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -37,16 +45,10 @@ const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
-function serializationStatusColor(status) {
-  if (status === "連載中")
-    return "bg-green-100 text-green-700 border border-green-200";
-  if (status === "完結")
-    return "bg-blue-100 text-blue-700 border border-blue-200";
-  if (status === "腰斬") return "bg-red-100 text-red-700 border border-red-200";
-  if (status === "停更")
-    return "bg-yellow-100 text-yellow-700 border border-yellow-200";
-  return "bg-surface-2 text-text-muted border border-border";
-}
+const textareaCls =
+  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
+const lineageLinkCls =
+  "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 /**
  * events is a comma-joined multi-select. Chips rather than a comma string:
@@ -55,23 +57,13 @@ function serializationStatusColor(status) {
  */
 function EventsCard({ events }) {
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="bg-surface-2 border-b border-border px-4 py-3">
-        <h3 className="font-bold text-text">
-          <i className="fas fa-bolt text-brand mr-2"></i>Events
-        </h3>
-      </div>
-      <div className="p-4 flex flex-wrap gap-2">
+    <Slip title="Events">
+      <div className="flex flex-wrap gap-2">
         {events.map((ev) => (
-          <span
-            key={ev}
-            className="bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm"
-          >
-            {ev}
-          </span>
+          <Chip key={ev}>{ev}</Chip>
         ))}
       </div>
-    </div>
+    </Slip>
   );
 }
 
@@ -168,65 +160,67 @@ export default function Comic() {
 
   const sourceOther = comic.source_other || {};
 
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
-
   const startYear = releaseYear(comic.release_date);
   const endYear = releaseYear(comic.end_date);
   const yearRange = startYear
     ? `${startYear}${endYear && endYear !== startYear ? ` – ${endYear}` : ""}`
     : null;
 
+  const issueFin = comic.issue_fin ?? 0;
+  const issueTotal = comic.issue_total != null ? comic.issue_total : null;
+  const progress = issueTotal ? issueFin / issueTotal : issueFin > 0 ? 1 : 0;
+  const progressPct = issueTotal ? Math.round(progress * 100) : null;
+
+  const eyebrow = [
+    "Comic",
+    comic.comic_type,
+    comic.era,
+    comic.serialization_status,
+    comic.is_main_entry ? "Main line" : null,
+    yearRange,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb */}
-      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-2">
-          <li>
-            <Link to="/library/comic" className="hover:text-brand transition">
-              <i className="fas fa-book-open mr-1.5"></i>Comic
+      {/* Breadcrumb: a catalogue path, set in mono */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
+        aria-label="Breadcrumb"
+      >
+        <Link to="/library/comic" className="hover:text-brand transition">
+          Comic
+        </Link>
+        {franchise && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link
+              to={`/franchise/${franchise.system_id}`}
+              className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
+            >
+              {franchiseName}
             </Link>
-          </li>
-          {franchise && (
-            <>
-              <li>
-                <i className="fas fa-chevron-right text-[10px]"></i>
-              </li>
-              <li>
-                <Link
-                  to={`/franchise/${franchise.system_id}`}
-                  className="hover:text-brand transition"
-                >
-                  {franchiseName}
-                </Link>
-              </li>
-            </>
-          )}
-          <li>
-            <i className="fas fa-chevron-right text-[10px]"></i>
-          </li>
-          <li className="font-medium text-text truncate max-w-xs">
-            {titleMain}
-          </li>
-        </ol>
+          </>
+        )}
+        <span aria-hidden="true">/</span>
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {titleMain}
+        </span>
       </nav>
 
-      {/* Admin Toolbar — no Autofill: comics are manual-entry, with no
+      {/* Admin toolbar — no Autofill: comics are manual-entry, with no
           external metadata source to pull from. */}
       {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-8 shadow-sm">
-          <div className="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-            <i className="fas fa-shield-alt mr-2"></i> Admin Tools
-          </div>
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+            Admin
+          </Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/modify?id=${system_id}&type=comic`)}
-              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
-            >
-              <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
-            </button>
-            <button
+            <Button onClick={() => navigate(`/modify?id=${system_id}&type=comic`)}>
+              Quick edit
+            </Button>
+            <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
@@ -242,11 +236,9 @@ export default function Comic() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
-              Completed
-            </button>
+              Mark completed
+            </Button>
           </div>
         </div>
       )}
@@ -255,125 +247,103 @@ export default function Comic() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster */}
-          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative overflow-hidden">
-            {comic.my_rating && (
-              <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
-                <i className="fas fa-star text-[9px] mr-1"></i>
-                {comic.my_rating}
-              </div>
-            )}
-            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border">
-              <img
-                src={imageUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
+          {/* Poster: cover with a spine strip and the rating stamp */}
+          <div className="flex border border-border bg-surface">
+            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                Comic{comic.comic_type ? ` · ${comic.comic_type}` : ""}
+              </span>
+              <span
+                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {comic.system_id}
+              </span>
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <RatingStamp
+                rating={comic.my_rating}
+                size="md"
+                tilt
+                className="absolute top-2 right-2 z-10"
               />
+              <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                />
+              </div>
+              {/* Progress rule along the bottom edge of the cover */}
+              <ProgressRule value={progress} />
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span>Issues</span>
+                <span className="text-text">
+                  {issueFin} / {issueTotal ?? "?"}
+                  {progressPct != null ? ` · ${progressPct}%` : ""}
+                </span>
+              </div>
             </div>
           </div>
 
           <SourcesCard
             sourceOther={Object.keys(sourceOther).length > 0 ? sourceOther : null}
           />
-
-          {/* System Info — admin only */}
-          {isAdmin && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-                <i className="fas fa-microchip mr-1.5"></i>System Info
-              </h3>
-              <div>
-                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
-                  System ID
-                </div>
-                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
-                  {comic.system_id}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="lg:col-span-3 space-y-10">
           {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {comic.is_main_entry && (
-                <span className="bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider flex items-center">
-                  <i className="fas fa-star text-[9px] mr-1.5"></i>Main Line
-                </span>
-              )}
-              {comic.comic_type && (
-                <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {comic.comic_type}
-                </span>
-              )}
-              {comic.era && (
-                <span className="bg-red-50 text-red-700 border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {comic.era}
-                </span>
-              )}
-              {comic.serialization_status && (
-                <span
-                  className={`${serializationStatusColor(comic.serialization_status)} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
-                >
-                  {comic.serialization_status}
-                </span>
-              )}
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <div className="flex items-baseline gap-3 flex-wrap mb-1">
-              <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight">
+            <div className="flex items-baseline gap-4 flex-wrap mb-2">
+              <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95]">
                 {titleMain}
               </h1>
               {comic.volume_label && (
-                <span className="font-mono text-xl text-text-faint font-bold">
+                <span className="font-mono text-xl text-text-faint">
                   {comic.volume_label}
                 </span>
               )}
             </div>
             {titleSub && (
-              <h2 className="text-lg text-text-faint font-medium mb-3">
+              <h2 className="text-lg text-text-muted font-normal mb-4">
                 {titleSub}
               </h2>
             )}
 
-            {/* Franchise / Series Bar */}
-            <div className="flex items-center gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border mb-6">
-              {franchise ? (
-                <span>
-                  <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
-                  <Link
-                    to={`/franchise/${franchise.system_id}`}
-                    className="text-brand hover:underline font-medium"
-                  >
+            {/* Franchise / Series lineage */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchise</Eyebrow>
+                {franchise ? (
+                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
-                </span>
-              ) : (
-                <span className="text-text-faint">
-                  <i className="fas fa-unlink mr-1.5"></i>No Franchise
-                </span>
-              )}
-              {series && (
-                <>
-                  <div className="hidden sm:block text-text-faint/60">|</div>
-                  <span>
-                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <Link
-                      to={`/series/${series.system_id}`}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
-                    >
-                      {getDisplayName(series, "series")}
-                    </Link>
-                  </span>
-                </>
-              )}
+                ) : (
+                  <span className="text-text-faint">Independent</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Series</Eyebrow>
+                {series ? (
+                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                    {getDisplayName(series, "series")}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
+              </div>
             </div>
-          </div>
+          </header>
 
           {/* My Tracker — comic tracks issues only, so the shared single-counter
               card fits without a comic-specific tracker block. */}
@@ -410,7 +380,6 @@ export default function Comic() {
             <NamingCard type="comic" item={comic} />
             <InfoCard
               title="Information"
-              icon="fa-info-circle"
               fields={[
                 [
                   { label: "Type", value: comic.comic_type },
@@ -456,7 +425,6 @@ export default function Comic() {
               comic.publisher_tw) && (
               <InfoCard
                 title="Production"
-                icon="fa-pen-nib"
                 fields={[
                   ...(comic.writer
                     ? [{ label: "Writer", value: comic.writer }]
@@ -480,30 +448,23 @@ export default function Comic() {
 
           {/* Remarks */}
           {comic.remark && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="bg-surface-2 border-b border-border px-4 py-3">
-                <h3 className="font-bold text-text">
-                  <i className="fas fa-sticky-note text-brand mr-2"></i>Remarks
-                </h3>
-              </div>
-              <div className="p-4">
-                <textarea
-                  key={comic.system_id}
-                  defaultValue={comic.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin &&
-                    performPatch(
-                      { remark: e.target.value || null },
-                      "Remark saved",
-                    )
-                  }
-                  rows={4}
-                  placeholder="Add remarks..."
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                ></textarea>
-              </div>
-            </div>
+            <Slip title="Remarks">
+              <textarea
+                key={comic.system_id}
+                defaultValue={comic.remark || ""}
+                disabled={!isAdmin}
+                onBlur={(e) =>
+                  isAdmin &&
+                  performPatch(
+                    { remark: e.target.value || null },
+                    "Remark saved",
+                  )
+                }
+                rows={4}
+                placeholder="Add remarks…"
+                className={textareaCls}
+              ></textarea>
+            </Slip>
           )}
 
           {/* Structured Notes — the remark textarea above renders only when a

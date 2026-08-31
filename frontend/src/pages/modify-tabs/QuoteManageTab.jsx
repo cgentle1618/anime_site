@@ -116,7 +116,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
           <div
             key={q.system_id}
             className={`bg-surface rounded-2xl border shadow-sm p-4 ${
-              isDelete ? "border-red-100" : "border-border"
+              isDelete ? "border-danger/30" : "border-border"
             }`}
           >
             {editId === q.system_id ? (
@@ -126,7 +126,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                   <button
                     onClick={saveEdit}
                     disabled={busy}
-                    className="rounded-lg bg-brand px-4 py-2 text-xs font-black text-white hover:bg-brand-hover disabled:opacity-50"
+                    className="rounded-lg bg-brand px-4 py-2 text-xs font-black text-on-brand hover:bg-brand-hover disabled:opacity-50"
                   >
                     Save Changes
                   </button>
@@ -152,10 +152,10 @@ export default function QuoteManageTab({ mode = "modify" }) {
                     )}
                     {q.episode && <span>{q.episode}</span>}
                     {q.needs_review && (
-                      <span className="text-amber-600">needs review</span>
+                      <span className="text-warning">needs review</span>
                     )}
                     <span className="text-text-faint/60">·</span>
-                    <span className={q.missing ? "text-red-400 italic" : ""}>
+                    <span className={q.missing ? "text-danger/70 italic" : ""}>
                       {q.missing
                         ? "unlinked entry"
                         : q.entry_display_name || "-"}
@@ -179,7 +179,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                       <button
                         onClick={() => remove(q.system_id)}
                         disabled={busy}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white hover:bg-red-700 disabled:opacity-50"
+                        className="rounded-lg bg-danger px-3 py-1.5 text-xs font-black text-white hover:bg-danger-hover disabled:opacity-50"
                       >
                         Confirm
                       </button>
@@ -193,7 +193,7 @@ export default function QuoteManageTab({ mode = "modify" }) {
                   ) : (
                     <button
                       onClick={() => setConfirmId(q.system_id)}
-                      className="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 hover:bg-red-100"
+                      className="shrink-0 rounded-lg bg-danger/10 px-3 py-1.5 text-xs font-black text-danger hover:bg-danger/15"
                     >
                       <i className="fas fa-trash mr-1" />
                       Delete

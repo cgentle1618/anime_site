@@ -163,7 +163,7 @@ function FranchisePickerModal({
             <button
               type="button"
               onClick={onClear}
-              className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-700 transition"
+              className="flex items-center gap-1.5 text-xs font-bold text-danger hover:text-danger transition"
             >
               <i className="fas fa-times-circle text-xs"></i>
               Clear slot
@@ -301,7 +301,6 @@ function GridEditor({
     <section className="bg-surface rounded-2xl border border-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-black text-text flex items-center gap-2">
-          <i className="fas fa-th text-brand/70 text-sm"></i>
           {title}
         </h2>
         {isDirty && (
@@ -309,7 +308,7 @@ function GridEditor({
             type="button"
             onClick={onSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-black hover:bg-brand/90 transition disabled:opacity-60"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-black hover:bg-brand/90 transition disabled:opacity-60"
           >
             {saving ? (
               <i className="fas fa-spinner fa-spin text-xs"></i>

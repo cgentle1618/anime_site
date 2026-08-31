@@ -1,4 +1,7 @@
 // Frontend: tracker component file for NovelTrackerBlock.
+import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
+import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
+
 const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (VOL Original) —" },
   { value: "ch", label: "CH (Chapters)" },
@@ -28,25 +31,33 @@ function stepDown(v) {
   return Math.ceil(v) - 1;
 }
 
-const inputCls =
-  "text-text w-12 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60";
-const minusBtnCls =
-  "w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center";
-const plusBtnCls =
-  "w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center";
+const UNIT_CLS =
+  "font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint ml-1.5";
 
+function StepButton({ onClick, label, children }) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      onClick={onClick}
+      aria-label={label}
+      className="font-mono w-7 px-0"
+    >
+      {children}
+    </Button>
+  );
+}
+
+// The row for the progress mode in use gets the brand rule on its left;
+// the others sit on a hairline.
 function TrackerRow({ isHighlighted, label, children }) {
   return (
     <div
-      className={`pl-3 pr-2 py-2.5 rounded-r-lg transition-colors ${
-        isHighlighted
-          ? "border-l-4 border-brand bg-brand-soft"
-          : "border-l-4 border-transparent"
+      className={`pl-3 pr-2 py-2.5 border-l-2 transition-colors ${
+        isHighlighted ? "border-brand bg-brand-soft" : "border-border"
       }`}
     >
-      <div className="text-[11px] font-bold text-text-faint uppercase tracking-wider mb-2">
-        {label}
-      </div>
+      <Eyebrow className="mb-2">{label}</Eyebrow>
       {children}
     </div>
   );
@@ -104,61 +115,63 @@ export default function NovelTrackerBlock({
     onChChange(bounded);
   }
 
-  const selectCls = `block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${
-    !isAdmin ? "bg-surface-2 text-text-faint cursor-not-allowed" : ""
-  }`;
-
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-surface-2 border-b border-border px-5 py-3.5">
-        <h3 className="font-bold text-text text-lg flex items-center">
-          <i className="fas fa-book-reader text-brand mr-2"></i>My Tracker
-        </h3>
-      </div>
-      <div className="p-5 space-y-4">
-
+    <Slip title="My tracker">
+      <div className="space-y-4">
         {/* Status, Rating & Progress Display */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Reading Status
-            </label>
-            <select
-              value={novel.reading_status || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-              className={selectCls}
-            >
-              {READING_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+          <div className="space-y-1.5">
+            <Eyebrow as="label" className="block">
+              Reading status
+            </Eyebrow>
+            {isAdmin ? (
+              <select
+                value={novel.reading_status || ""}
+                disabled={!isAdmin}
+                onChange={(e) => isAdmin && onStatusChange(e.target.value)}
+                className={SELECT_CLS}
+              >
+                {READING_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <Chip>{novel.reading_status || "—"}</Chip>
+              </div>
+            )}
           </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
+          <div className="space-y-1.5">
+            <Eyebrow as="label" className="block">
               Rating
-            </label>
-            <select
-              value={novel.my_rating || ""}
-              disabled={!isAdmin}
-              onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-              className={selectCls}
-            >
-              <option value="">Unrated</option>
-              {MY_RATINGS.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+            </Eyebrow>
+            {isAdmin ? (
+              <select
+                value={novel.my_rating || ""}
+                disabled={!isAdmin}
+                onChange={(e) => isAdmin && onRatingChange(e.target.value)}
+                className={SELECT_CLS}
+              >
+                <option value="">Unrated</option>
+                {MY_RATINGS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <Chip>{novel.my_rating || "Unrated"}</Chip>
+              </div>
+            )}
           </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Progress Display
-            </label>
+          <div className="space-y-1.5">
+            <Eyebrow as="label" className="block">
+              Progress display
+            </Eyebrow>
             <select
               value={novel.progress_display || ""}
               disabled={!isAdmin}
               onChange={(e) => isAdmin && onProgressDisplayChange(e.target.value)}
-              className={selectCls}
+              className={SELECT_CLS}
             >
               {PROGRESS_DISPLAY_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -169,13 +182,11 @@ export default function NovelTrackerBlock({
 
         {/* Vol tracker */}
         <TrackerRow isHighlighted={volHighlighted} label="Volumes">
-          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
+          <div className="flex items-center gap-1.5 w-fit">
             {isAdmin && (
-              <button type="button" onClick={() => handleVolStep(-1)} className={minusBtnCls}>
-                <i className="fas fa-minus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleVolStep(-1)} label="Previous volume">−</StepButton>
             )}
-            <div className="font-mono text-sm font-bold tracking-wide flex items-baseline px-2 whitespace-nowrap">
+            <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
               <input
                 type="number"
                 value={volFin}
@@ -187,48 +198,45 @@ export default function NovelTrackerBlock({
                   if (primaryVolTotal !== null && v > primaryVolTotal) return;
                   onVolChange(Math.max(0, v));
                 }}
-                className={inputCls}
+                className={STEP_INPUT_CLS}
+                aria-label="Volumes finished"
               />
-              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint text-xs">/</span>
               {/* TW total — always first when present */}
               {volTotalTw !== null && (
-                <span className={`text-sm leading-none ${primaryIsTw ? "text-text font-bold" : "text-text-faint font-normal"}`}>
+                <span className={primaryIsTw ? "text-text" : "text-text-faint"}>
                   {volTotalTw}
                 </span>
               )}
               {/* Separator only when both totals present */}
               {volTotalTw !== null && volTotalOrig !== null && (
-                <span className="text-text-faint/60 mx-1.5 text-xs">;</span>
+                <span className="text-text-faint/60 text-xs">;</span>
               )}
               {/* Orig total — always second when present */}
               {volTotalOrig !== null && (
-                <span className={`text-sm leading-none ${!primaryIsTw ? "text-text font-bold" : "text-text-faint font-normal"}`}>
+                <span className={!primaryIsTw ? "text-text" : "text-text-faint"}>
                   {volTotalOrig}
                 </span>
               )}
               {/* Fallback when neither total is set */}
               {volTotalTw === null && volTotalOrig === null && (
-                <span className="text-text-faint text-sm leading-none">?</span>
+                <span className="text-text-faint">?</span>
               )}
-              <span className="text-[9px] text-text-faint font-sans ml-1.5">VOL</span>
+              <span className={UNIT_CLS}>vol</span>
             </div>
             {isAdmin && (
-              <button type="button" onClick={() => handleVolStep(1)} className={plusBtnCls}>
-                <i className="fas fa-plus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleVolStep(1)} label="Next volume">+</StepButton>
             )}
           </div>
         </TrackerRow>
 
         {/* Arc tracker */}
         <TrackerRow isHighlighted={arcHighlighted} label="Arcs">
-          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
+          <div className="flex items-center gap-1.5 w-fit">
             {isAdmin && (
-              <button type="button" onClick={() => handleArcStep(-1)} className={minusBtnCls}>
-                <i className="fas fa-minus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleArcStep(-1)} label="Previous arc">−</StepButton>
             )}
-            <div className="font-mono font-bold text-sm tracking-wide flex items-baseline px-2 min-w-[90px] whitespace-nowrap">
+            <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
               <input
                 type="number"
                 value={arcFin}
@@ -240,29 +248,26 @@ export default function NovelTrackerBlock({
                   if (arcTotal !== null && v > arcTotal) return;
                   onArcChange(Math.max(0, v));
                 }}
-                className={inputCls}
+                className={STEP_INPUT_CLS}
+                aria-label="Arcs finished"
               />
-              <span className="text-text-faint mx-1 text-xs">/</span>
-              <span className="text-text-faint text-sm leading-none">{arcTotal ?? "?"}</span>
-              <span className="text-[9px] text-text-faint font-sans ml-1.5">ARC</span>
+              <span className="text-text-faint text-xs">/</span>
+              <span className="text-text-muted">{arcTotal ?? "?"}</span>
+              <span className={UNIT_CLS}>arc</span>
             </div>
             {isAdmin && (
-              <button type="button" onClick={() => handleArcStep(1)} className={plusBtnCls}>
-                <i className="fas fa-plus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleArcStep(1)} label="Next arc">+</StepButton>
             )}
           </div>
         </TrackerRow>
 
         {/* Ch tracker */}
         <TrackerRow isHighlighted={chHighlighted} label="Chapters">
-          <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm w-fit">
+          <div className="flex items-center gap-1.5 w-fit">
             {isAdmin && (
-              <button type="button" onClick={() => handleChStep(-1)} className={minusBtnCls}>
-                <i className="fas fa-minus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleChStep(-1)} label="Previous chapter">−</StepButton>
             )}
-            <div className="font-mono font-bold text-sm tracking-wide flex items-baseline px-2 min-w-[90px] whitespace-nowrap">
+            <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
               <input
                 type="number"
                 value={chFin}
@@ -274,26 +279,23 @@ export default function NovelTrackerBlock({
                   if (chTotal !== null && v > chTotal) return;
                   onChChange(Math.max(0, v));
                 }}
-                className={inputCls}
+                className={STEP_INPUT_CLS}
+                aria-label="Chapters finished"
               />
-              <span className="text-text-faint mx-1 text-xs">/</span>
-              <span className="text-text-faint text-sm leading-none">{chTotal ?? "?"}</span>
-              <span className="text-[9px] text-text-faint font-sans ml-1.5">CH</span>
+              <span className="text-text-faint text-xs">/</span>
+              <span className="text-text-muted">{chTotal ?? "?"}</span>
+              <span className={UNIT_CLS}>ch</span>
             </div>
             {isAdmin && (
-              <button type="button" onClick={() => handleChStep(1)} className={plusBtnCls}>
-                <i className="fas fa-plus text-xs"></i>
-              </button>
+              <StepButton onClick={() => handleChStep(1)} label="Next chapter">+</StepButton>
             )}
           </div>
         </TrackerRow>
 
         {/* Flags */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Read Next
-            </label>
+          <div className="space-y-1.5">
+            <Eyebrow className="block">Read next</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -308,15 +310,13 @@ export default function NovelTrackerBlock({
                     e.target.checked ? "Added to Read Next" : "Removed from Read Next",
                   )
                 }
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">Read Next</span>
+              <span className="text-sm text-text-muted">Read next</span>
             </label>
           </div>
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              To Reread
-            </label>
+          <div className="space-y-1.5">
+            <Eyebrow className="block">To reread</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -331,15 +331,13 @@ export default function NovelTrackerBlock({
                     e.target.checked ? "Marked for reread" : "Removed from reread",
                   )
                 }
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">To Reread</span>
+              <span className="text-sm text-text-muted">To reread</span>
             </label>
           </div>
         </div>
-
       </div>
-    </div>
+    </Slip>
   );
 }
-

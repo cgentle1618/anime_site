@@ -29,7 +29,7 @@ export default function NodePanel({
             {node.display_name || "Missing entry"}
           </p>
           <span
-            className={`mt-1 inline-block rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
+            className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
               node.media_type,
             )}`}
           >

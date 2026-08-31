@@ -1,20 +1,14 @@
 // Frontend: modal component file for MarkAiringModal.
+//
+// The three choices are plain outlined buttons: colour would otherwise be
+// naming a watching status, which the design system forbids. The first one
+// is the suggested answer, so it takes the brand fill.
+import { Button } from "../ui/primitives";
+
 const CHOICES = [
-  {
-    value: "Active Watching",
-    label: "Active Watching",
-    cls: "bg-brand text-white hover:bg-brand-hover border-brand",
-  },
-  {
-    value: "Passive Watching",
-    label: "Passive Watching",
-    cls: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
-  },
-  {
-    value: null,
-    label: "No Change",
-    cls: "bg-surface text-text-muted border-border hover:bg-surface-2",
-  },
+  { value: "Active Watching", label: "Active watching", kind: "primary" },
+  { value: "Passive Watching", label: "Passive watching", kind: "outline" },
+  { value: null, label: "No change", kind: "outline" },
 ];
 
 export default function MarkAiringModal({
@@ -26,47 +20,48 @@ export default function MarkAiringModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
       onClick={(e) => {
         e.stopPropagation();
         onCancel();
       }}
     >
       <div
-        className="bg-surface rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        className="bg-surface border border-border shadow-xl max-w-md w-full mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center gap-3">
-          <i className="fas fa-bolt text-amber-500 text-xl"></i>
-          <h3 className="font-black text-text">Mark as {airingStatus}</h3>
+        <div className="px-6 py-3 border-b border-border">
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            Mark as {airingStatus}
+          </h3>
         </div>
         <div className="px-6 py-5">
           <p className="text-sm text-text-muted">
-            "<span className="font-bold text-text">{title}</span>" will be
+            "<span className="font-semibold text-text">{title}</span>" will be
             set to{" "}
-            <span className="font-bold text-text">{airingStatus}</span>.
+            <span className="font-semibold text-text">{airingStatus}</span>.
           </p>
           <p className="text-sm text-text-faint mt-2">
             Watching status is currently{" "}
-            <span className="font-bold">{currentStatus}</span>. Set it to:
+            <span className="font-semibold text-text">{currentStatus}</span>.
+            Set it to:
           </p>
         </div>
         <div className="px-6 pb-5 flex flex-col gap-2">
           {CHOICES.map((choice) => (
-            <button
+            <Button
               key={choice.label}
+              kind={choice.kind}
               onClick={() => onSelect(choice.value)}
-              className={`px-4 py-2 border rounded-lg text-sm font-bold transition ${choice.cls}`}
             >
               {choice.label}
-            </button>
+            </Button>
           ))}
-          <button
-            onClick={onCancel}
-            className="mt-1 text-xs font-bold text-text-faint hover:text-text-muted transition"
-          >
+          <Button kind="ghost" size="sm" className="mt-1" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>

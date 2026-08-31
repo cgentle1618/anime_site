@@ -78,7 +78,7 @@ function StreamBox({
         {streamRunning && (
           <button
             onClick={onStop}
-            className="w-full bg-red-600 text-white border border-red-700 py-2 rounded-lg text-xs font-bold transition"
+            className="w-full bg-danger text-white border border-danger-hover py-2 rounded-lg text-xs font-bold transition"
           >
             Force Stop
           </button>
@@ -90,7 +90,7 @@ function StreamBox({
             status.startsWith("Error") ||
             status.startsWith("Pipeline stopped") ||
             status.startsWith("Stream Error")
-              ? "text-red-600"
+              ? "text-danger"
               : statusColor
           }`}
         >
@@ -150,12 +150,12 @@ function LogsTable({ logs, onRefresh }) {
     <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
       <div className="bg-surface-2 border-b border-border px-6 py-4 flex items-center justify-between">
         <h2 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
-          <i className="fas fa-terminal text-brand mr-2"></i> Data Control Log
+          Data Control Log
         </h2>
         <div className="flex items-center gap-3">
           <button
             onClick={handleClearAll}
-            className="text-xs font-bold text-red-400 hover:text-red-600 transition"
+            className="text-xs font-bold text-danger/70 hover:text-danger transition"
             title="Delete old logs, keep 10 most recent"
           >
             <i className="fas fa-trash mr-1"></i>Clear Old
@@ -185,20 +185,20 @@ function LogsTable({ logs, onRefresh }) {
               let statusEl;
               if (log.status === "Success") {
                 statusEl = (
-                  <span className="text-emerald-500 font-bold">
+                  <span className="text-success font-bold">
                     <i className="fas fa-check-circle mr-1"></i>Success
                   </span>
                 );
               } else if (log.status === "Aborted") {
                 statusEl = (
-                  <span className="text-amber-500 font-bold">
+                  <span className="text-warning font-bold">
                     <i className="fas fa-exclamation-triangle mr-1"></i>Aborted
                   </span>
                 );
               } else {
                 statusEl = (
                   <span
-                    className="text-red-500 font-bold"
+                    className="text-danger font-bold"
                     title={log.error_message || "Unknown error"}
                   >
                     <i className="fas fa-times-circle mr-1"></i>Failed
@@ -207,8 +207,8 @@ function LogsTable({ logs, onRefresh }) {
               }
               const triggerCls =
                 log.type === "Auto"
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-blue-100 text-blue-700";
+                  ? "bg-surface-2 text-text-muted"
+                  : "bg-brand-soft text-brand";
               return (
                 <tr
                   key={i}
@@ -234,22 +234,22 @@ function LogsTable({ logs, onRefresh }) {
                   </td>
                   <td className="px-6 py-3">{statusEl}</td>
                   <td className="px-6 py-3 font-mono text-xs whitespace-nowrap">
-                    <span className="text-emerald-600">
+                    <span className="text-text">
                       +{log.rows_added || 0}
                     </span>{" "}
                     /&nbsp;
-                    <span className="text-blue-600">
+                    <span className="text-text">
                       ~{log.rows_updated || 0}
                     </span>{" "}
                     /&nbsp;
-                    <span className="text-red-600">
+                    <span className="text-danger">
                       -{log.rows_deleted || 0}
                     </span>
                   </td>
                   <td className="px-3 py-3">
                     <button
                       onClick={() => handleDeleteLog(log.id)}
-                      className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-red-500 transition"
+                      className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-danger transition"
                       title="Delete this log entry"
                     >
                       <i className="fas fa-times text-xs"></i>
@@ -347,15 +347,15 @@ function CoverImageModal({
 
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
           {result.should_use_count > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-sm font-bold text-amber-800 mb-2">
+            <div className="bg-warning/15 border border-warning/40 rounded-xl p-4">
+              <p className="text-sm font-bold text-warning mb-2">
                 {result.should_use_count} image
                 {result.should_use_count !== 1 ? "s" : ""} in storage not linked
                 to any entry
               </p>
               <div className="max-h-32 overflow-y-auto space-y-0.5 mb-3">
                 {result.should_use.map((m, i) => (
-                  <div key={i} className="text-xs text-amber-700 truncate">
+                  <div key={i} className="text-xs text-text-muted truncate">
                     {m.name}
                   </div>
                 ))}
@@ -363,7 +363,7 @@ function CoverImageModal({
               <button
                 onClick={onSetFields}
                 disabled={setting}
-                className="w-full px-3 py-1.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full px-3 py-1.5 text-xs font-bold text-on-brand bg-brand hover:bg-brand-hover rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {setting && <i className="fas fa-circle-notch fa-spin"></i>}
                 {setting ? "Setting..." : "Set All Cover Image Fields"}
@@ -390,7 +390,7 @@ function CoverImageModal({
               <button
                 onClick={onDeleteOrphaned}
                 disabled={deleting}
-                className="w-full px-3 py-1.5 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full px-3 py-1.5 text-xs font-bold text-white bg-danger hover:bg-danger rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {deleting && <i className="fas fa-circle-notch fa-spin"></i>}
                 {deleting ? "Deleting..." : "Delete All Orphaned Files"}
@@ -408,21 +408,21 @@ function CoverImageModal({
 
           {result.missing_count === 0 ? (
             <div className="text-center py-6">
-              <i className="fas fa-check-circle text-4xl text-emerald-400 block mb-3"></i>
+              <i className="fas fa-check-circle text-4xl text-success block mb-3"></i>
               <p className="font-bold text-text-muted">
                 All cover images are present.
               </p>
             </div>
           ) : (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <div className="bg-surface-2 border border-border rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-orange-800">
+                <p className="text-sm font-bold text-text">
                   {result.missing_count} missing cover image
                   {result.missing_count !== 1 ? "s" : ""}
                 </p>
                 <button
                   onClick={toggleAll}
-                  className="text-xs text-orange-600 hover:underline"
+                  className="text-xs text-brand hover:underline"
                 >
                   {allSelected ? "Deselect All" : "Select All"}
                 </button>
@@ -431,15 +431,15 @@ function CoverImageModal({
                 {result.missing.map((m) => (
                   <label
                     key={m.system_id}
-                    className="flex items-center gap-2 text-xs text-orange-700 cursor-pointer truncate"
+                    className="flex items-center gap-2 text-xs text-text-muted cursor-pointer truncate"
                   >
                     <input
                       type="checkbox"
                       checked={selected.has(m.system_id)}
                       onChange={() => toggleOne(m.system_id)}
-                      className="accent-orange-500 shrink-0"
+                      className="accent-brand shrink-0"
                     />
-                    <span className="font-mono bg-orange-100 px-1 rounded shrink-0">
+                    <span className="font-mono bg-surface-3 px-1 rounded shrink-0">
                       {m.airing_type || "?"}
                     </span>
                     <span className="truncate">{m.name}</span>
@@ -469,7 +469,7 @@ function CoverImageModal({
               <button
                 onClick={() => onDownload(null)}
                 disabled={downloading}
-                className="px-4 py-2 text-sm font-bold text-white bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-bold text-on-brand bg-brand hover:opacity-90 rounded-lg transition disabled:opacity-60 flex items-center gap-2"
               >
                 {downloading && <i className="fas fa-circle-notch fa-spin"></i>}
                 {downloading ? "Downloading..." : "Download All"}
@@ -504,7 +504,7 @@ function RemarksModal({ results, onClose }) {
     if (entries.length === 0) {
       return (
         <div className="text-center py-12 text-text-faint">
-          <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
+          <i className="fas fa-check-circle text-3xl text-success block mb-3"></i>
           <p className="font-bold">No remarks found</p>
         </div>
       );
@@ -529,7 +529,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/anime/${e.system_id}`)}
               >
                 <td
@@ -575,7 +575,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
                   (window.location.href = `/anime-movie/${e.system_id}`)
                 }
@@ -619,7 +619,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/movie/${e.system_id}`)}
               >
                 <td
@@ -662,7 +662,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/tv/${e.system_id}`)}
               >
                 <td
@@ -705,7 +705,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
                   (window.location.href = `/cartoon/${e.system_id}`)
                 }
@@ -754,7 +754,7 @@ function RemarksModal({ results, onClose }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/manga/${e.system_id}`)}
               >
                 <td
@@ -797,7 +797,7 @@ function RemarksModal({ results, onClose }) {
           {entries.map((e, i) => (
             <tr
               key={i}
-              className="hover:bg-amber-50/40 transition cursor-pointer"
+              className="hover:bg-surface-2 transition cursor-pointer"
               onClick={() => (window.location.href = `/novel/${e.system_id}`)}
             >
               <td
@@ -862,7 +862,7 @@ function RemarksModal({ results, onClose }) {
             >
               {t.label}
               {t.entries.length > 0 && (
-                <span className="ml-1.5 bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full text-[10px]">
+                <span className="ml-1.5 bg-brand-soft text-brand px-1.5 py-0.5 rounded-full text-[10px]">
                   {t.entries.length}
                 </span>
               )}
@@ -904,10 +904,10 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase">
+            <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded uppercase">
               {group[0].franchise_type || "—"}
             </span>
             <span className="text-xs text-text-faint">
@@ -922,7 +922,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((f, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -944,7 +944,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -963,7 +963,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((s, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -989,10 +989,10 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+            <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
               {a0.airing_type || "—"}
             </span>
             {a0.season_part && (
@@ -1017,7 +1017,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((a, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1040,7 +1040,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1058,7 +1058,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((m, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1081,7 +1081,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1105,7 +1105,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((m, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1131,7 +1131,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1148,7 +1148,7 @@ function DuplicatesModal({ results, onClose }) {
               </span>
             )}
             {t0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {t0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -1165,7 +1165,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((t, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1187,7 +1187,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1204,7 +1204,7 @@ function DuplicatesModal({ results, onClose }) {
               </span>
             )}
             {c0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {c0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -1221,7 +1221,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((c, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1247,7 +1247,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1259,7 +1259,7 @@ function DuplicatesModal({ results, onClose }) {
               </span>
             )}
             {mg0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {mg0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -1275,7 +1275,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((mg, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1298,7 +1298,7 @@ function DuplicatesModal({ results, onClose }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -1310,7 +1310,7 @@ function DuplicatesModal({ results, onClose }) {
               </span>
             )}
             {nv0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {nv0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -1326,7 +1326,7 @@ function DuplicatesModal({ results, onClose }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((nv, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -1348,7 +1348,7 @@ function DuplicatesModal({ results, onClose }) {
     return (
       <div
         key={idx}
-        className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        className="border border-border bg-surface rounded-xl p-4 mb-3"
       >
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded">
@@ -1408,7 +1408,7 @@ function DuplicatesModal({ results, onClose }) {
             >
               {t.label}
               {t.groups.length > 0 && (
-                <span className="ml-1.5 bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full text-[10px]">
+                <span className="ml-1.5 bg-brand-soft text-brand px-1.5 py-0.5 rounded-full text-[10px]">
                   {t.groups.length}
                 </span>
               )}
@@ -1419,7 +1419,7 @@ function DuplicatesModal({ results, onClose }) {
         <div className="overflow-y-auto flex-1 p-6">
           {activeTab.groups.length === 0 ? (
             <div className="text-center py-12 text-text-faint">
-              <i className="fas fa-check-circle text-3xl text-emerald-400 block mb-3"></i>
+              <i className="fas fa-check-circle text-3xl text-success block mb-3"></i>
               <p className="font-bold">No duplicates found</p>
             </div>
           ) : (
@@ -1882,40 +1882,40 @@ export default function Admin() {
         <div className="flex flex-wrap gap-3">
           <Link
             to="/options"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
-            <i className="fas fa-list-check mr-2 text-amber-500"></i> System
+            System
             Options
           </Link>
           <Link
             to="/data-history"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
-            <i className="fas fa-history mr-2 text-violet-500"></i> Data History
+            Data History
           </Link>
           <Link
             to="/review-queue"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
-            <i className="fas fa-tasks mr-2 text-rose-500"></i> Review Queue
+            Review Queue
           </Link>
           <Link
             to="/add"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
-            <i className="fas fa-plus mr-2 text-emerald-500"></i> New Entry
+            New Entry
           </Link>
           <Link
             to="/modify"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
-            <i className="fas fa-edit mr-2 text-blue-500"></i> Edit Entry
+            Edit Entry
           </Link>
           <Link
             to="/delete"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition shadow-sm flex items-center"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-danger hover:border-danger transition shadow-sm flex items-center"
           >
-            <i className="fas fa-trash-alt mr-2 text-red-500"></i> Delete Entry
+            Delete Entry
           </Link>
         </div>
       </div>
@@ -1925,7 +1925,7 @@ export default function Admin() {
         {/* Current Season Block */}
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 flex flex-col">
           <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-            <i className="fas fa-calendar-alt text-brand mr-2"></i> Current
+            Current
             Season
           </h2>
           <div className="text-center mb-6">
@@ -1957,7 +1957,7 @@ export default function Admin() {
             <button
               onClick={handleSetSeason}
               disabled={settingSeason}
-              className="w-full bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition shadow-sm disabled:opacity-60"
+              className="w-full bg-brand hover:bg-brand-hover text-on-brand rounded-lg py-2.5 text-sm font-bold transition shadow-sm disabled:opacity-60"
             >
               {settingSeason ? "Processing..." : "Confirm Set"}
             </button>
@@ -1967,16 +1967,16 @@ export default function Admin() {
         {/* Data Control Action Buttons */}
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 xl:col-span-2 flex flex-col">
           <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-            <i className="fas fa-database text-brand mr-2"></i> Data Control
+            Data Control
             Actions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
             {/* Fill */}
             <StreamBox
-              color="bg-blue-50/50"
-              borderColor="border border-blue-100"
-              titleColor="text-blue-800"
-              statusColor="text-blue-800"
+              color="bg-surface"
+              borderColor="border border-border"
+              titleColor="text-text"
+              statusColor="text-text-muted"
               title="Fill"
               icon="fa-magic"
               allLabel="Fill All"
@@ -2005,10 +2005,10 @@ export default function Admin() {
 
             {/* Replace */}
             <StreamBox
-              color="bg-amber-50/50"
-              borderColor="border border-amber-100"
-              titleColor="text-amber-800"
-              statusColor="text-amber-800"
+              color="bg-surface"
+              borderColor="border border-border"
+              titleColor="text-text"
+              statusColor="text-text-muted"
               title="Replace"
               icon="fa-bolt"
               allLabel="Replace All"
@@ -2033,10 +2033,10 @@ export default function Admin() {
 
             {/* Pull */}
             <SyncBox
-              color="bg-emerald-50/50"
-              borderColor="border border-emerald-100"
-              titleColor="text-emerald-800"
-              statusColor="text-emerald-500"
+              color="bg-surface"
+              borderColor="border border-border"
+              titleColor="text-text"
+              statusColor="text-text-muted"
               title="Pull"
               icon="fa-cloud-download-alt"
             >
@@ -2045,7 +2045,7 @@ export default function Admin() {
                   executeSync("/api/data-control/pull", setPullLoading)
                 }
                 disabled={pullLoading}
-                className="w-full bg-surface hover:bg-emerald-50 border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
+                className="w-full bg-surface hover:border-text border border-border-strong text-text py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pullLoading ? (
                   <i className="fas fa-circle-notch fa-spin"></i>
@@ -2057,7 +2057,7 @@ export default function Admin() {
                 <select
                   value={pullTab}
                   onChange={(e) => setPullTab(e.target.value)}
-                  className="w-full bg-surface border border-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold px-1 py-2"
+                  className="w-full bg-surface border border-border-strong text-text rounded-lg text-[10px] font-bold px-1 py-2"
                 >
                   <option value="Anime">Anime</option>
                   <option value="Anime Movie">Anime Movie</option>
@@ -2088,7 +2088,7 @@ export default function Admin() {
                     )
                   }
                   disabled={pullLoading}
-                  className="bg-surface hover:bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-60"
+                  className="bg-surface hover:border-text border border-border-strong text-text px-2.5 rounded-lg text-[10px] font-bold disabled:opacity-60"
                 >
                   <i className="fas fa-play"></i>
                 </button>
@@ -2097,10 +2097,10 @@ export default function Admin() {
 
             {/* Push */}
             <SyncBox
-              color="bg-purple-50/50"
-              borderColor="border border-purple-100"
-              titleColor="text-purple-800"
-              statusColor="text-purple-500"
+              color="bg-surface"
+              borderColor="border border-border"
+              titleColor="text-text"
+              statusColor="text-text-muted"
               title="Push"
               icon="fa-cloud-upload-alt"
             >
@@ -2109,7 +2109,7 @@ export default function Admin() {
                   executeSync("/api/data-control/backup", setPushLoading)
                 }
                 disabled={pushLoading}
-                className="w-full bg-surface hover:bg-purple-50 border border-purple-200 text-purple-700 py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
+                className="w-full bg-surface hover:border-text border border-border-strong text-text py-2 rounded-lg text-xs font-bold shadow-sm transition disabled:opacity-60"
               >
                 {pushLoading ? (
                   <i className="fas fa-circle-notch fa-spin"></i>
@@ -2125,7 +2125,7 @@ export default function Admin() {
       {/* 3. Calculate & Fix */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
         <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-          <i className="fas fa-calculator text-brand mr-2"></i> Calculate &amp;
+          Calculate &amp;
           Fix
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2146,7 +2146,7 @@ export default function Admin() {
           <button
             onClick={runFindDuplicates}
             disabled={!!calcLoading.duplicates}
-            className="flex flex-col items-center gap-2 p-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-300 rounded-xl text-xs font-bold text-orange-700 transition disabled:opacity-60"
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-clone text-lg"></i>
             {calcLoading.duplicates ? (
@@ -2158,7 +2158,7 @@ export default function Admin() {
           <button
             onClick={runFindRemarks}
             disabled={!!calcLoading.remarks}
-            className="flex flex-col items-center gap-2 p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 rounded-xl text-xs font-bold text-amber-700 transition disabled:opacity-60"
+            className="flex flex-col items-center gap-2 p-3 bg-surface-2 hover:bg-brand-soft border border-border hover:border-brand/30 rounded-xl text-xs font-bold text-text-muted hover:text-brand transition disabled:opacity-60"
           >
             <i className="fas fa-comment-alt text-lg"></i>
             {calcLoading.remarks ? (
@@ -2185,7 +2185,7 @@ export default function Admin() {
       {/* 4. Announcement & Notes */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
         <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
-          <i className="fas fa-bullhorn text-brand mr-2"></i> Announcement &amp;
+          Announcement &amp;
           Notes
         </h2>
 
@@ -2228,8 +2228,8 @@ export default function Admin() {
                           onBlur={() => setAnnConfirmDelete(null)}
                           className={`text-xs font-bold rounded-lg px-2 py-1 border transition ${
                             annConfirmDelete === item.title
-                              ? "bg-red-600 text-white border-red-600"
-                              : "bg-surface text-text-faint hover:text-red-600 border-border"
+                              ? "bg-danger text-white border-danger"
+                              : "bg-surface text-text-faint hover:text-danger border-border"
                           }`}
                         >
                           {annConfirmDelete === item.title ? (
@@ -2273,7 +2273,7 @@ export default function Admin() {
               <button
                 onClick={handleSaveAnnouncement}
                 disabled={annSaving}
-                className="flex-1 bg-gray-900 hover:bg-black text-white rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
+                className="flex-1 bg-brand hover:bg-brand-hover text-on-brand rounded-lg py-2.5 text-sm font-bold transition disabled:opacity-60"
               >
                 {annSaving ? (
                   <i className="fas fa-circle-notch fa-spin"></i>

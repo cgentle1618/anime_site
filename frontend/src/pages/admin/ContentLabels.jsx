@@ -120,7 +120,7 @@ export default function ContentLabels() {
         </label>
         <button
           type="submit"
-          className="bg-brand text-white rounded px-4 py-2 text-sm font-semibold"
+          className="bg-brand text-on-brand rounded px-4 py-2 text-sm font-semibold"
         >
           Add label
         </button>
@@ -153,7 +153,7 @@ export default function ContentLabels() {
                 <td className="px-4 py-2 text-right">
                   <button
                     onClick={() => remove(row)}
-                    className="text-red-600 text-xs"
+                    className="text-danger text-xs"
                   >
                     Delete
                   </button>

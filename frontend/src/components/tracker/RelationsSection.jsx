@@ -20,19 +20,11 @@ import { Link } from "react-router-dom";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import { Chip, Slip } from "../ui/primitives";
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Order only - the
 // labels themselves arrive already resolved for the side being viewed.
 const FAMILY_ORDER = ["timeline", "equivalence", "branch", "derivation"];
-
-// One accent per family rather than per kind: nine colours would be noise, and
-// the family is what tells you how to read the link.
-const FAMILY_COLOR = {
-  timeline: "text-orange-500",
-  equivalence: "text-blue-500",
-  branch: "text-purple-500",
-  derivation: "text-green-500",
-};
 
 // A derived row stands for no stored row, so system_id is null on it and the
 // pair plus the kind is the only identity it has.
@@ -72,87 +64,77 @@ export default function RelationsSection({ mediaType, entryId }) {
   );
 
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-      <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-        <i className="fas fa-project-diagram mr-1.5"></i>Related Entries
-      </h3>
-      <div className="flex flex-col gap-3">
-        {ordered.map((row) => {
-          const other = row.other;
+    <Slip title="Related entries" padded={false}>
+      {ordered.map((row) => {
+        const other = row.other;
 
-          // A dangling endpoint stays visible rather than vanishing: entries
-          // are FK-less, and a silently dropped row is one nobody ever fixes.
-          if (other.missing) {
-            return (
-              <div
-                key={rowKey(row)}
-                className="bg-red-50 rounded-lg border border-red-200 p-2"
-              >
-                <div className="text-[9px] font-bold uppercase tracking-wider text-red-500 mb-0.5">
-                  {row.label}
-                </div>
-                <div className="text-xs font-medium text-red-700 break-all">
-                  Missing entry {other.entry_id}
-                </div>
-              </div>
-            );
-          }
-
-          // nav_path is null only for Series, which media relations never
-          // point at, but guard anyway rather than emit a dead link.
-          const body = (
-            <>
-              <img
-                src={getCoverUrl(other.cover_image_file)}
-                className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-                alt=""
-              />
-              <div className="min-w-0 flex-1">
-                <div
-                  className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${
-                    FAMILY_COLOR[row.family] || "text-text-faint"
-                  }`}
-                >
-                  {row.label}
-                </div>
-                <div className="text-sm font-bold text-text truncate">
-                  {other.display_name}
-                </div>
-                <div className="text-[11px] text-text-faint">
-                  {other.label}
-                  {row.remark ? ` · ${row.remark}` : ""}
-                  {/* A derived row has no relation of its own behind it - it
-                      is implied by a chain of peers - so it says which link it
-                      came through. Without that, an entry appears here that
-                      the relations canvas draws no line to, and the graph
-                      looks broken rather than deliberately uncluttered. */}
-                  {row.derived && row.via ? ` · via ${row.via}` : ""}
-                </div>
-              </div>
-            </>
-          );
-
-          const className =
-            "bg-surface-2 rounded-lg border border-border p-2 flex items-center gap-3 transition";
-
-          return other.nav_path ? (
-            <Link
+        // A dangling endpoint stays visible rather than vanishing: entries
+        // are FK-less, and a silently dropped row is one nobody ever fixes.
+        if (other.missing) {
+          return (
+            <div
               key={rowKey(row)}
-              to={other.nav_path}
-              className={`${className} cursor-pointer hover:bg-brand-soft hover:border-brand/30`}
+              className="px-4 py-2.5 border-b border-border last:border-b-0"
             >
-              {body}
-            </Link>
-          ) : (
-            <div key={rowKey(row)} className={className}>
-              {body}
+              <Chip tone="danger" className="mb-1">
+                {row.label}
+              </Chip>
+              <div className="text-xs text-danger break-all">
+                Missing entry {other.entry_id}
+              </div>
             </div>
           );
-        })}
-      </div>
-    </div>
+        }
+
+        // nav_path is null only for Series, which media relations never
+        // point at, but guard anyway rather than emit a dead link.
+        const body = (
+          <>
+            <img
+              src={getCoverUrl(other.cover_image_file)}
+              className="w-10 h-14 object-cover shrink-0 border border-border"
+              onError={(e) => {
+                e.target.src = FALLBACK_SVG;
+              }}
+              alt=""
+            />
+            <div className="min-w-0 flex-1">
+              {/* The kind is a chip, not a colour: nine hues would be noise. */}
+              <Chip className="mb-1">{row.label}</Chip>
+              <div className="text-sm font-medium text-text truncate">
+                {other.display_name}
+              </div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+                {other.label}
+                {row.remark ? ` · ${row.remark}` : ""}
+                {/* A derived row has no relation of its own behind it - it
+                    is implied by a chain of peers - so it says which link it
+                    came through. Without that, an entry appears here that
+                    the relations canvas draws no line to, and the graph
+                    looks broken rather than deliberately uncluttered. */}
+                {row.derived && row.via ? ` · via ${row.via}` : ""}
+              </div>
+            </div>
+          </>
+        );
+
+        const className =
+          "px-4 py-2.5 border-b border-border last:border-b-0 flex items-center gap-3 transition";
+
+        return other.nav_path ? (
+          <Link
+            key={rowKey(row)}
+            to={other.nav_path}
+            className={`${className} cursor-pointer hover:bg-brand-soft`}
+          >
+            {body}
+          </Link>
+        ) : (
+          <div key={rowKey(row)} className={className}>
+            {body}
+          </div>
+        );
+      })}
+    </Slip>
   );
 }

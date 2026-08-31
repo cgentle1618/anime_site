@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { SCHEDULE_DAYS } from "../../config/weekdays";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getDisplayName } from "../../utils/media";
+import { Chip, Slip } from "../ui/primitives";
 
 /** Sunday-first, so getDay() indexes straight into SCHEDULE_DAYS. */
 function getTodayName() {
@@ -17,7 +18,7 @@ function formatTime(value) {
 }
 
 /**
- * A single entry chip. Entries carry `_media_type` (a MEDIA_CONFIG key), which
+ * A single entry row. Entries carry `_media_type` (a MEDIA_CONFIG key), which
  * resolves both the display-name prefix and the detail route — so new media
  * types work here as soon as they are added to the schedule source list.
  */
@@ -26,12 +27,12 @@ function ScheduleEntry({ item, timeField }) {
   const navPath = MEDIA_CONFIG[item._media_type]?.navPath;
   const time = timeField ? formatTime(item[timeField]) : "";
   const cls =
-    "block px-2.5 py-1.5 rounded-lg text-sm font-bold text-text-muted bg-surface-2 border border-border leading-tight";
+    "block py-1.5 border-b border-border text-sm text-text leading-tight";
 
   const body = (
     <>
       {time && (
-        <span className="block text-[11px] font-black text-brand/80 tabular-nums">
+        <span className="block font-mono text-[10px] tracking-[0.14em] text-text-faint tabular-nums">
           {time}
         </span>
       )}
@@ -46,7 +47,7 @@ function ScheduleEntry({ item, timeField }) {
       <Link
         to={`${navPath}/${item.system_id}`}
         title={time ? `${time} · ${name}` : name}
-        className={`${cls} hover:bg-brand/10 hover:border-brand/30 hover:text-brand transition-colors`}
+        className={`${cls} hover:text-brand transition-colors`}
       >
         {body}
       </Link>
@@ -65,6 +66,8 @@ function ScheduleEntry({ item, timeField }) {
 export default function WeeklySchedule({
   id,
   title,
+  // Kept for API compatibility; the archive style draws no decorative icons.
+  // eslint-disable-next-line no-unused-vars
   icon,
   subtitle,
   dayField,
@@ -100,76 +103,77 @@ export default function WeeklySchedule({
 
   const total = SCHEDULE_DAYS.reduce((sum, d) => sum + byDay[d].length, 0);
 
-  return (
-    <div id={id}>
-      <div
-        className={`flex items-center justify-between pb-3 mb-2 border-b-2 border-border ${
-          collapsible ? "cursor-pointer select-none" : ""
-        }`}
-        onClick={collapsible ? () => setCollapsed((v) => !v) : undefined}
-      >
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className={`fas ${icon} text-brand/70`}></i>
-          {title}
-        </h2>
-        <div className="flex items-center gap-3">
-          {subtitle && (
-            <span className="hidden sm:inline text-xs text-text-faint font-medium">
-              {subtitle}
-            </span>
-          )}
-          <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-            {total}
-          </span>
-          {collapsible && (
-            <i
-              className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-sm`}
-            ></i>
-          )}
-        </div>
-      </div>
+  const actions = (
+    <>
+      {subtitle && (
+        <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          {subtitle}
+        </span>
+      )}
+      <Chip tone="ink">{total}</Chip>
+      {collapsible && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCollapsed((v) => !v);
+          }}
+          className="text-text-faint hover:text-text text-sm px-1"
+          aria-label={collapsed ? "Expand" : "Collapse"}
+          aria-expanded={!collapsed}
+        >
+          <i className={`fas fa-chevron-${collapsed ? "down" : "up"}`}></i>
+        </button>
+      )}
+    </>
+  );
 
+  return (
+    <Slip
+      id={id}
+      title={title}
+      actions={actions}
+      padded={false}
+      className={collapsible ? "select-none" : ""}
+      onClick={collapsible ? () => setCollapsed((v) => !v) : undefined}
+    >
       {collapsed ? null : total === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
-          <p className="text-text-faint font-medium italic">
-            <i className="fas fa-ghost mr-2"></i>
-            {emptyText}
-          </p>
-        </div>
+        <p className="px-4 py-8 text-center text-sm text-text-faint">
+          {emptyText}
+        </p>
       ) : (
         // Day columns scroll horizontally so titles get a readable width
         // instead of being squeezed into a 7-across grid.
-        <div className="pt-4 flex gap-3 overflow-x-auto pb-3 -mx-1 px-1">
+        <div
+          className="flex overflow-x-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           {SCHEDULE_DAYS.map((day) => {
             const dayItems = byDay[day];
             const isToday = day === today;
             return (
               <div
                 key={day}
-                className={`w-64 shrink-0 rounded-xl border p-3 ${
-                  isToday
-                    ? "bg-brand-soft border-brand/30"
-                    : "bg-surface border-border"
+                className={`w-64 shrink-0 p-3 border-r border-border last:border-r-0 ${
+                  isToday ? "bg-brand-soft" : ""
                 }`}
               >
                 <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-border">
-                  <h3
-                    className={`text-xs font-black uppercase tracking-widest ${
-                      isToday ? "text-brand" : "text-text-faint"
+                  <h4
+                    className={`font-mono text-[11px] uppercase tracking-[0.16em] ${
+                      isToday ? "text-brand" : "text-text-muted"
                     }`}
                   >
                     {day.slice(0, 3)}
-                  </h3>
-                  <span className="text-[10px] font-bold text-text-faint">
+                  </h4>
+                  <span className="font-mono text-[10px] text-text-faint">
                     {dayItems.length}
                   </span>
                 </div>
                 {dayItems.length === 0 ? (
-                  <p className="text-xs text-text-faint/60 font-medium italic py-1">
-                    —
-                  </p>
+                  <p className="font-mono text-xs text-text-faint py-1">—</p>
                 ) : (
-                  <ul className="space-y-1.5">
+                  <ul>
                     {dayItems.map((item) => (
                       <ScheduleEntry
                         key={item.system_id}
@@ -184,6 +188,6 @@ export default function WeeklySchedule({
           })}
         </div>
       )}
-    </div>
+    </Slip>
   );
 }

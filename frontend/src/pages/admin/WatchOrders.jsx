@@ -33,9 +33,9 @@ const TIER_LABELS = {
 };
 
 const TIER_STYLES = {
-  franchise: "bg-brand/10 text-brand border-brand/20",
-  series: "bg-violet-50 text-violet-600 border-violet-200",
-  collection: "bg-amber-50 text-amber-600 border-amber-200",
+  franchise: "text-text-muted border-border-strong",
+  series: "text-text-muted border-border-strong",
+  collection: "text-text-muted border-border-strong",
   order: "bg-surface-2 text-text-muted border-border",
 };
 
@@ -127,7 +127,7 @@ function NewOrderForm({ owner, onCreate, onCancel, busy }) {
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="flex-1 bg-brand text-white rounded-lg px-3 py-2 text-xs font-black disabled:opacity-40"
+          className="flex-1 bg-brand text-on-brand rounded-lg px-3 py-2 text-xs font-black disabled:opacity-40"
         >
           <i className="fas fa-plus mr-1"></i>Create
         </button>
@@ -197,7 +197,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
           {list.auto_source && (
             <span
               title="Built in: steps generated from release dates"
-              className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200"
+              className="text-[9px] font-black px-1.5 py-0.5 rounded-full text-text-muted border border-border-strong"
             >
               <i className="fas fa-wand-magic-sparkles mr-1"></i>
               Built-in
@@ -212,7 +212,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
           )}
           <span className="text-[10px] font-bold text-text-faint">
             {list.is_most_recommended && (
-              <i className="fas fa-star text-amber-400 mr-1"></i>
+              <i className="fas fa-star text-brand mr-1"></i>
             )}
             {list.item_count} steps
             {list.is_default ? " · default" : ""}
@@ -242,7 +242,7 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
         type="button"
         onClick={() => onDelete(list.system_id)}
         title="Delete order"
-        className="text-text-faint/60 hover:text-red-600"
+        className="text-text-faint/60 hover:text-danger"
       >
         <i className="fas fa-trash text-xs"></i>
       </button>
@@ -675,7 +675,7 @@ export default function WatchOrders() {
                   <button
                     type="button"
                     onClick={() => setCreating(true)}
-                    className="shrink-0 bg-brand text-white rounded-lg px-2.5 py-1.5 text-[11px] font-black"
+                    className="shrink-0 bg-brand text-on-brand rounded-lg px-2.5 py-1.5 text-[11px] font-black"
                   >
                     <i className="fas fa-plus mr-1"></i>New order
                   </button>

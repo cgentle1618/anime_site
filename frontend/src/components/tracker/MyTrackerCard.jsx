@@ -1,4 +1,16 @@
 // Frontend: tracker component file for MyTrackerCard.
+//
+// A slip: mono title on a dotted rule, the episode stepper as outline
+// buttons around a mono input, selects on hairlines. Status is text, never
+// a coloured background.
+import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
+
+export const SELECT_CLS =
+  "block w-full bg-surface border border-border-strong text-text text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
+
+export const STEP_INPUT_CLS =
+  "font-mono text-text text-sm w-12 text-right bg-surface border border-border-strong px-1 py-1 focus:outline-none focus:ring-2 focus:ring-brand appearance-none disabled:opacity-60";
+
 export default function MyTrackerCard({
   epFin,
   epTotal,
@@ -17,13 +29,9 @@ export default function MyTrackerCard({
   onToRewatchChange,
   statusOptions,
   ratingOptions,
-  statusLabel = "Watching Status",
-  rewatchLabel = "To Rewatch",
+  statusLabel = "Watching status",
+  rewatchLabel = "To rewatch",
 }) {
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
-
   function stepEp(delta) {
     if (!isAdmin) return;
     const cur = epFin || 0;
@@ -43,96 +51,101 @@ export default function MyTrackerCard({
     onEpChange(Math.max(0, v));
   }
 
+  const stepper = (
+    <div className="flex items-center gap-1.5">
+      {hasCum && (
+        <Chip tone="muted" title="Cumulative episodes" className="mr-1">
+          Cum {cumFin}/{cumTotal}
+        </Chip>
+      )}
+      <Button
+        size="sm"
+        onClick={() => stepEp(-1)}
+        disabled={!isAdmin}
+        aria-label="Previous episode"
+        className="font-mono w-7 px-0"
+      >
+        −
+      </Button>
+      <div className="font-mono text-sm flex items-center gap-1 whitespace-nowrap">
+        <input
+          type="number"
+          value={epFin}
+          disabled={!isAdmin}
+          onChange={handleInputChange}
+          className={STEP_INPUT_CLS}
+          aria-label="Episodes finished"
+        />
+        <span className="text-text-faint text-xs">/</span>
+        <span className="text-text-muted">{epTotal}</span>
+      </div>
+      <Button
+        size="sm"
+        onClick={() => stepEp(1)}
+        disabled={!isAdmin}
+        aria-label="Next episode"
+        className="font-mono w-7 px-0"
+      >
+        +
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
-      <div className="bg-surface-2 border-b border-border px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h3 className="font-bold text-text text-lg flex items-center">
-            <i className="fas fa-chart-line text-brand mr-2"></i>My Tracker
-          </h3>
-          {hasCum && (
-            <div
-              className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-bold border border-indigo-200 shadow-sm"
-              title="Cumulative Episodes"
+    <Slip title="My tracker" actions={stepper}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Status */}
+        <div className="space-y-1.5">
+          <Eyebrow as="label" className="block">
+            {statusLabel}
+          </Eyebrow>
+          {isAdmin ? (
+            <select
+              value={watchingStatus || ""}
+              disabled={!isAdmin}
+              onChange={(e) => isAdmin && onStatusChange(e.target.value)}
+              className={SELECT_CLS}
             >
-              Cum: {cumFin}/{cumTotal}
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div>
+              <Chip>{watchingStatus || "—"}</Chip>
             </div>
           )}
         </div>
-        {/* Episode Editor */}
-        <div className="flex items-center bg-surface rounded-lg p-1 border border-border shadow-sm">
-          <button
-            onClick={() => stepEp(-1)}
-            disabled={!isAdmin}
-            className="w-8 h-8 shrink-0 rounded hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center disabled:opacity-40"
-          >
-            <i className="fas fa-minus text-xs"></i>
-          </button>
-          <div className="font-mono font-bold text-sm tracking-wide flex items-baseline justify-center select-none px-2 min-w-[80px] whitespace-nowrap">
-            <input
-              type="number"
-              value={epFin}
-              disabled={!isAdmin}
-              onChange={handleInputChange}
-              className="text-text w-10 text-right bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0 leading-none disabled:opacity-60"
-            />
-            <span className="text-text-faint mx-1 text-xs">/</span>
-            <span className="text-text-faint text-sm leading-none">
-              {epTotal}
-            </span>
-          </div>
-          <button
-            onClick={() => stepEp(1)}
-            disabled={!isAdmin}
-            className="w-8 h-8 shrink-0 rounded bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center disabled:opacity-40"
-          >
-            <i className="fas fa-plus text-xs"></i>
-          </button>
-        </div>
-      </div>
-      <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Status */}
-        <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-            {statusLabel}
-          </label>
-          <select
-            value={watchingStatus || ""}
-            disabled={!isAdmin}
-            onChange={(e) => isAdmin && onStatusChange(e.target.value)}
-            className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-          >
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
         {/* Rating */}
-        <div className="space-y-1">
-          <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
+        <div className="space-y-1.5">
+          <Eyebrow as="label" className="block">
             Rating
-          </label>
-          <select
-            value={myRating || ""}
-            disabled={!isAdmin}
-            onChange={(e) => isAdmin && onRatingChange(e.target.value)}
-            className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-          >
-            <option value="">Unrated</option>
-            {ratingOptions.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
+          </Eyebrow>
+          {isAdmin ? (
+            <select
+              value={myRating || ""}
+              disabled={!isAdmin}
+              onChange={(e) => isAdmin && onRatingChange(e.target.value)}
+              className={SELECT_CLS}
+            >
+              <option value="">Unrated</option>
+              {ratingOptions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div>
+              <Chip>{myRating || "Unrated"}</Chip>
+            </div>
+          )}
         </div>
         {onWatchNextChange !== undefined && (
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              Watch Next
-            </label>
+          <div className="space-y-1.5">
+            <Eyebrow className="block">Watch next</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -141,19 +154,15 @@ export default function MyTrackerCard({
                 checked={!!watchNext}
                 disabled={!isAdmin}
                 onChange={(e) => isAdmin && onWatchNextChange(e.target.checked)}
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">
-                Watch Next
-              </span>
+              <span className="text-sm text-text-muted">Watch next</span>
             </label>
           </div>
         )}
         {onToRewatchChange !== undefined && (
-          <div className="space-y-1">
-            <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-              {rewatchLabel}
-            </label>
+          <div className="space-y-1.5">
+            <Eyebrow className="block">{rewatchLabel}</Eyebrow>
             <label
               className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
             >
@@ -162,16 +171,13 @@ export default function MyTrackerCard({
                 checked={!!toRewatch}
                 disabled={!isAdmin}
                 onChange={(e) => isAdmin && onToRewatchChange(e.target.checked)}
-                className="w-4 h-4 rounded accent-brand"
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-medium text-text-muted">
-                {rewatchLabel}
-              </span>
+              <span className="text-sm text-text-muted">{rewatchLabel}</span>
             </label>
           </div>
         )}
       </div>
-    </div>
+    </Slip>
   );
 }
-

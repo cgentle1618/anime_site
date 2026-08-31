@@ -174,7 +174,7 @@ export default function RelationForm({
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-black text-text">{entry.display_name}</h2>
         <span
-          className={`rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
+          className={`px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
             entry.media_type,
           )}`}
         >
@@ -285,7 +285,7 @@ export default function RelationForm({
           <button
             type="submit"
             disabled={writing || !picked || !kind}
-            className="rounded-lg bg-brand px-3 py-2 text-[11px] font-black text-white disabled:opacity-40"
+            className="rounded-lg bg-brand px-3 py-2 text-[11px] font-black text-on-brand disabled:opacity-40"
           >
             Add relation
           </button>
@@ -410,7 +410,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
           type="button"
           disabled={busy}
           onClick={remove}
-          className="rounded-lg border border-red-200 px-2 py-2 text-[10px] font-black uppercase text-red-500 disabled:opacity-40"
+          className="rounded-lg border border-danger/40 px-2 py-2 text-[10px] font-black uppercase text-danger disabled:opacity-40"
         >
           Remove
         </button>

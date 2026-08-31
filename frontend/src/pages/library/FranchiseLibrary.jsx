@@ -8,6 +8,7 @@ import {
 } from "../../utils/media";
 import { getFranchiseCover } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
+import { Eyebrow } from "../../components/ui/primitives";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -186,10 +187,10 @@ export default function FranchiseLibrary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-2">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-text-faint font-medium">Loading franchises...</p>
+          <p className="text-text-faint">Loading franchises...</p>
         </div>
       </div>
     );
@@ -197,21 +198,24 @@ export default function FranchiseLibrary() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-2">
-        <div className="text-center text-red-500">
-          <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
-          <p className="font-medium">{error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center border border-danger bg-danger/10 px-6 py-4 text-danger">
+          <p className="font-bold">{error}</p>
         </div>
       </div>
     );
   }
+
+  const PILL_ON = "bg-brand text-on-brand border-brand";
+  const PILL_OFF =
+    "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text";
 
   const FilterTag = ({ value, label }) => {
     const active = filters.franchiseType.has(value);
     return (
       <button
         onClick={() => toggleFilter(value)}
-        className={`px-3 py-1 rounded-full border text-xs font-bold transition-colors ${active ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+        className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
       >
         {label}
       </button>
@@ -219,16 +223,17 @@ export default function FranchiseLibrary() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-2">
-      {/* Sticky toolbar */}
-      <div className="bg-surface border-b border-border sticky top-16 z-30 shadow-sm">
+    <div className="min-h-screen">
+      {/* Filter strip: flat on the canvas */}
+      <div className="border-b border-border sticky top-16 z-30 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-black text-text leading-none">
-                Franchise Library
+              <Eyebrow className="mb-1">Library</Eyebrow>
+              <h1 className="font-display text-3xl font-semibold text-text leading-none">
+                Franchises
               </h1>
-              <p className="text-xs text-text-faint mt-0.5">
+              <p className="font-mono text-[11px] text-text-faint mt-1.5">
                 {filteredAndSorted.length} franchise
                 {filteredAndSorted.length !== 1 ? "s" : ""}
                 {searchQuery && ` matching "${searchQuery}"`}
@@ -238,17 +243,17 @@ export default function FranchiseLibrary() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search */}
               <div className="relative">
-                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-xs pointer-events-none"></i>
                 <input
                   type="text"
                   placeholder="Search franchises..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-surface-2 border border-transparent rounded-full text-sm focus:outline-none focus:bg-surface focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
+                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
                   >
                     <i className="fas fa-times text-xs"></i>
@@ -257,43 +262,47 @@ export default function FranchiseLibrary() {
               </div>
 
               {/* Sort */}
-              <select
-                value={currentSort}
-                onChange={(e) => setCurrentSort(e.target.value)}
-                className="bg-surface-2 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
-              >
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="franchise_expectation">Sort: Expectation</option>
-              </select>
+              <label className="flex items-center gap-2">
+                <Eyebrow>Sort</Eyebrow>
+                <select
+                  value={currentSort}
+                  onChange={(e) => setCurrentSort(e.target.value)}
+                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
+                >
+                  <option value="title">Title</option>
+                  <option value="my_rating">My rating</option>
+                  <option value="franchise_expectation">Expectation</option>
+                </select>
+              </label>
 
               {/* Filters button */}
               <button
                 onClick={() => setShowFilters((o) => !o)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold transition-colors ${showFilters ? "bg-surface-2 border-border-strong text-text-muted" : "bg-surface border-border text-text-faint hover:bg-surface-2"}`}
+                className={`px-3 py-1.5 border text-sm font-medium transition-colors ${showFilters ? PILL_ON : PILL_OFF}`}
               >
-                <i className="fas fa-filter text-xs"></i>
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="bg-brand text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                  <span className="ml-1.5 font-mono text-[10px] tabular-nums">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
 
               {/* View toggle */}
-              <div className="flex bg-surface-2 rounded-lg p-0.5 gap-0.5">
+              <div className="flex gap-1">
                 <button
                   onClick={() => setCurrentView("grid")}
                   title="Grid view"
-                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "grid" ? "bg-surface text-brand shadow-sm" : "text-text-faint hover:text-text-muted"}`}
+                  aria-label="Grid view"
+                  className={`px-3 py-1.5 border text-sm transition-colors ${currentView === "grid" ? PILL_ON : PILL_OFF}`}
                 >
                   <i className="fas fa-th-large"></i>
                 </button>
                 <button
                   onClick={() => setCurrentView("table")}
                   title="Table view"
-                  className={`px-3 py-1.5 rounded-md text-sm font-bold transition ${currentView === "table" ? "bg-surface text-brand shadow-sm" : "text-text-faint hover:text-text-muted"}`}
+                  aria-label="Table view"
+                  className={`px-3 py-1.5 border text-sm transition-colors ${currentView === "table" ? PILL_ON : PILL_OFF}`}
                 >
                   <i className="fas fa-list"></i>
                 </button>
@@ -304,14 +313,12 @@ export default function FranchiseLibrary() {
           {/* Filter panel */}
           {showFilters && (
             <div className="border-t border-border mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="text-xs font-bold text-text-faint uppercase tracking-wider shrink-0">
-                Type
-              </span>
+              <Eyebrow className="shrink-0">Type</Eyebrow>
               <div className="flex flex-wrap gap-1.5">
                 <FilterTag value="Anime" label="Anime" />
                 <FilterTag value="Manga" label="Manga" />
                 <FilterTag value="Novel" label="Novel" />
-                <FilterTag value="Anime Movie" label="Anime Movie" />
+                <FilterTag value="Anime Movie" label="Anime movie" />
                 <FilterTag value="Movie" label="Movie" />
                 <FilterTag value="TV" label="TV" />
                 <FilterTag value="Cartoon" label="Cartoon" />
@@ -321,9 +328,9 @@ export default function FranchiseLibrary() {
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="ml-auto text-xs font-bold text-text-faint hover:text-red-500 transition flex items-center gap-1"
+                  className="ml-auto font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint hover:text-text transition"
                 >
-                  <i className="fas fa-times"></i> Clear
+                  Clear
                 </button>
               )}
             </div>
@@ -334,21 +341,16 @@ export default function FranchiseLibrary() {
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentView === "table" ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-surface-2 rounded-full flex items-center justify-center mb-4">
-              <i className="fas fa-tools text-text-faint text-2xl"></i>
-            </div>
-            <h2 className="text-lg font-bold text-text-muted mb-1">
-              Table View Under Development
-            </h2>
-            <p className="text-sm text-text-faint">
-              Switch to grid view to browse franchises.
+          <div className="text-center py-16 border border-dashed border-border-strong">
+            <Eyebrow className="mb-1">Table view</Eyebrow>
+            <p className="text-text-muted text-sm">
+              Not built yet — switch to grid view to browse franchises.
             </p>
           </div>
         ) : filteredAndSorted.length === 0 ? (
-          <div className="text-center py-24">
-            <i className="fas fa-search text-text-faint/60 text-4xl mb-4"></i>
-            <p className="text-text-faint font-medium">No franchises found</p>
+          <div className="text-center py-16 border border-dashed border-border-strong">
+            <Eyebrow className="mb-1">Empty</Eyebrow>
+            <p className="text-text-muted text-sm">No franchises found</p>
             <p className="text-sm text-text-faint mt-1">
               {activeFilterCount > 0 || searchQuery ? (
                 <>

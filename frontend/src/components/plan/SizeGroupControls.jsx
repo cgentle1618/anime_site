@@ -25,20 +25,21 @@ export default function SizeGroupControls({
           groups.find((g) => g.key === derivedKey)?.label ?? "none";
         return (
           <div key={mediaType} className="flex items-center gap-3">
-            <label className="flex items-center gap-2 w-40">
+            <label className="flex items-center gap-2 w-40 cursor-pointer">
               <input
                 type="checkbox"
                 checked={planned.has(mediaType)}
                 onChange={(e) => onTogglePlan(mediaType, e.target.checked)}
+                className="w-4 h-4 accent-brand"
               />
-              <span className="text-sm font-semibold capitalize">
+              <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
                 {mediaType.replace("-", " ")}
               </span>
             </label>
 
             {groups.length > 0 && (
               <select
-                className="border rounded px-2 py-1 text-sm"
+                className="bg-surface border border-border-strong px-2 py-1 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand"
                 value={manual?.[mediaType] ?? ""}
                 onChange={(e) => onOverride(mediaType, e.target.value || null)}
               >

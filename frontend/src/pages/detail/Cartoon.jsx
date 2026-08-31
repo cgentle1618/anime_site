@@ -12,6 +12,13 @@ import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
 import CartoonNotes from "./CartoonNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import {
+  Button,
+  Eyebrow,
+  ProgressRule,
+  RatingStamp,
+  Slip,
+} from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -31,6 +38,11 @@ const WATCHING_STATUSES = [
 ];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
+
+const textareaCls =
+  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
+const lineageLinkCls =
+  "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 export default function Cartoon() {
   const { system_id } = useParams();
@@ -143,20 +155,6 @@ export default function Cartoon() {
 
   const imageUrl = getCoverUrl(cartoon.cover_image_file);
 
-  let airingStatusColor = "bg-surface-2 text-text-muted border border-border";
-  if (cartoon.airing_status === "Airing")
-    airingStatusColor = "bg-green-100 text-green-700 border border-green-200";
-  else if (cartoon.airing_status === "Finished Airing")
-    airingStatusColor = "bg-blue-100 text-blue-700 border border-blue-200";
-  else if (cartoon.airing_status === "Not Yet Aired")
-    airingStatusColor =
-      "bg-orange-100 text-orange-700 border border-orange-200";
-  else if (cartoon.airing_status === "Canceled")
-    airingStatusColor = "bg-red-100 text-red-700 border border-red-200";
-  else if (cartoon.airing_status === "Rumored")
-    airingStatusColor =
-      "bg-purple-100 text-purple-700 border border-purple-200";
-
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -168,44 +166,50 @@ export default function Cartoon() {
     cartoon.ep_total !== null && cartoon.ep_total !== undefined
       ? cartoon.ep_total
       : null;
+  const progress = epTotal ? epFin / epTotal : epFin > 0 ? 1 : 0;
+  const progressPct = epTotal ? Math.round(progress * 100) : null;
 
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
+  const eyebrow = [
+    "Cartoon",
+    cartoon.airing_type,
+    cartoon.airing_status,
+    cartoon.season_part,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+
+  const imdbScore =
+    cartoon.imdb_rating && cartoon.imdb_rating !== "N/A"
+      ? cartoon.imdb_rating
+      : "—";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb */}
-      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-2">
-          <li>
-            <Link to="/library/cartoon" className="hover:text-brand transition">
-              <i className="fas fa-tv mr-1.5"></i>Cartoons
-            </Link>
-          </li>
-          <li>
-            <i className="fas fa-chevron-right text-[10px]"></i>
-          </li>
-          <li className="font-medium text-text truncate max-w-xs">
-            {titleMain}
-          </li>
-        </ol>
+      {/* Breadcrumb: a catalogue path, set in mono */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
+        aria-label="Breadcrumb"
+      >
+        <Link to="/library/cartoon" className="hover:text-brand transition">
+          Cartoons
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {titleMain}
+        </span>
       </nav>
 
-      {/* Admin Toolbar */}
+      {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-8 shadow-sm">
-          <div className="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-            <i className="fas fa-shield-alt mr-2"></i> Admin Tools
-          </div>
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+            Admin
+          </Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/modify?id=${system_id}&type=cartoon`)}
-              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
-            >
-              <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
-            </button>
-            <button
+            <Button onClick={() => navigate(`/modify?id=${system_id}&type=cartoon`)}>
+              Quick edit
+            </Button>
+            <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
@@ -224,21 +228,12 @@ export default function Cartoon() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
-              Completed
-            </button>
-            <button
-              onClick={handleAutofill}
-              disabled={autofilling}
-              className="bg-brand hover:bg-brand-hover text-white px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center disabled:opacity-50"
-            >
-              <i
-                className={`fas ${autofilling ? "fa-circle-notch fa-spin" : "fa-magic"} mr-2`}
-              ></i>
-              {autofilling ? "Autofilling..." : "Autofill & Update"}
-            </button>
+              Mark completed
+            </Button>
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}
@@ -247,23 +242,48 @@ export default function Cartoon() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster */}
-          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative overflow-hidden">
-            {cartoon.my_rating && (
-              <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
-                <i className="fas fa-star text-[9px] mr-1"></i>
-                {cartoon.my_rating}
-              </div>
-            )}
-            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border">
-              <img
-                src={imageUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
+          {/* Poster: cover with a spine strip and the rating stamp */}
+          <div className="flex border border-border bg-surface">
+            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                Cartoon{cartoon.airing_type ? ` · ${cartoon.airing_type}` : ""}
+              </span>
+              <span
+                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {cartoon.system_id}
+              </span>
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <RatingStamp
+                rating={cartoon.my_rating}
+                size="md"
+                tilt
+                className="absolute top-2 right-2 z-10"
               />
+              <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                />
+              </div>
+              {/* Progress rule along the bottom edge of the cover */}
+              <ProgressRule value={progress} />
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span>Progress</span>
+                <span className="text-text">
+                  {epFin} / {epTotal ?? "?"}
+                  {progressPct != null ? ` · ${progressPct}%` : ""}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -276,114 +296,68 @@ export default function Cartoon() {
 
           {/* Related Entries */}
           <RelationsSection mediaType="cartoon" entryId={cartoon.system_id} />
-
-          {/* System Info — admin only */}
-          {isAdmin && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-                <i className="fas fa-microchip mr-1.5"></i>System Info
-              </h3>
-              <div>
-                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
-                  System ID
-                </div>
-                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
-                  {cartoon.system_id}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="lg:col-span-3 space-y-10">
           {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {cartoon.airing_type && (
-                <span className="bg-surface-2 text-text-muted border border-border px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {cartoon.airing_type}
-                </span>
-              )}
-              {cartoon.airing_status && (
-                <span
-                  className={`${airingStatusColor} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
-                >
-                  {cartoon.airing_status}
-                </span>
-              )}
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
             {titleSub && (
-              <h2 className="text-lg text-text-faint font-medium mb-3">
+              <h2 className="text-lg text-text-muted font-normal mb-4">
                 {titleSub}
               </h2>
             )}
 
-            {/* Franchise / Series Bar */}
-            <div className="flex items-center gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border mb-6">
-              {franchise ? (
-                <span>
-                  <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
-                  <Link
-                    to={`/franchise/${franchise.system_id}`}
-                    className="text-brand hover:underline font-medium"
-                  >
+            {/* Franchise / Series lineage */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchise</Eyebrow>
+                {franchise ? (
+                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
-                </span>
-              ) : (
-                <span className="text-text-faint">
-                  <i className="fas fa-unlink mr-1.5"></i>No Franchise
-                </span>
-              )}
-              {series && (
-                <>
-                  <div className="hidden sm:block text-text-faint/60">|</div>
-                  <span>
-                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <Link
-                      to={`/series/${series.system_id}`}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
-                    >
-                      {series.series_name_cn ||
-                        series.series_name_en ||
-                        series.series_name_alt}
-                    </Link>
-                  </span>
-                </>
-              )}
+                ) : (
+                  <span className="text-text-faint">Independent</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Series</Eyebrow>
+                {series ? (
+                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                    {series.series_name_cn ||
+                      series.series_name_en ||
+                      series.series_name_alt}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
+              </div>
             </div>
 
-            {/* IMDb Score + Updated */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="bg-yellow-50 text-yellow-800 border border-yellow-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-                <i className="fas fa-star text-yellow-500 mr-2 text-lg"></i>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-                    IMDb Score
-                  </div>
-                  <div className="font-black text-base leading-none">
-                    {cartoon.imdb_rating && cartoon.imdb_rating !== "N/A"
-                      ? cartoon.imdb_rating
-                      : "-"}
-                  </div>
+            {/* IMDb score: display figures on a hairline */}
+            <div className="flex flex-wrap items-end gap-8 border-t border-b border-border py-3">
+              <div>
+                <Eyebrow>IMDb score</Eyebrow>
+                <div className="font-display text-3xl font-semibold text-text leading-none mt-1">
+                  {imdbScore}
                 </div>
               </div>
               <div className="ml-auto text-right">
-                <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-                  Last Updated
-                </div>
-                <div className="text-sm font-mono text-text-muted">
+                <Eyebrow>Last updated</Eyebrow>
+                <div className="font-mono text-xs text-text-muted mt-1">
                   {cartoon.updated_at
                     ? new Date(cartoon.updated_at).toLocaleString()
-                    : "-"}
+                    : "—"}
                 </div>
               </div>
             </div>
-          </div>
+          </header>
 
           {/* My Tracker Block */}
           <MyTrackerCard
@@ -417,7 +391,6 @@ export default function Cartoon() {
             <NamingCard type="cartoon" item={cartoon} />
             <InfoCard
               title="Information"
-              icon="fa-info-circle"
               fields={[
                 [
                   { label: "本傳 / 外傳", value: cartoon.is_main },
@@ -453,27 +426,20 @@ export default function Cartoon() {
 
           {/* Remarks */}
           {cartoon.remark && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="bg-surface-2 border-b border-border px-4 py-3">
-                <h3 className="font-bold text-text">
-                  <i className="fas fa-sticky-note text-brand mr-2"></i>Remarks
-                </h3>
-              </div>
-              <div className="p-4">
-                <textarea
-                  key={cartoon.system_id}
-                  defaultValue={cartoon.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin &&
-                    performPatch({ remark: e.target.value }, "Remark saved")
-                  }
-                  rows={4}
-                  placeholder="Add remarks..."
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                ></textarea>
-              </div>
-            </div>
+            <Slip title="Remarks">
+              <textarea
+                key={cartoon.system_id}
+                defaultValue={cartoon.remark || ""}
+                disabled={!isAdmin}
+                onBlur={(e) =>
+                  isAdmin &&
+                  performPatch({ remark: e.target.value }, "Remark saved")
+                }
+                rows={4}
+                placeholder="Add remarks…"
+                className={textareaCls}
+              ></textarea>
+            </Slip>
           )}
 
           {/* Structured Notes */}
@@ -488,8 +454,6 @@ export default function Cartoon() {
           />
         </div>
       </div>
-
     </div>
   );
 }
-

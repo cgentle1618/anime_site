@@ -6,6 +6,7 @@ import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
+import { Chip, Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
 const SEASONS = ["WIN", "SPR", "SUM", "FAL"];
 const SEASON_LABELS = {
@@ -19,31 +20,26 @@ const SECTIONS = [
   {
     key: "completed",
     label: "Completed",
-    icon: "fa-check-circle",
     statuses: ["Completed", "Completed (解說)"],
   },
   {
     key: "watching",
     label: "Watching",
-    icon: "fa-play-circle",
     statuses: ["Active Watching", "Passive Watching", "Paused"],
   },
   {
     key: "planned",
     label: "Planned",
-    icon: "fa-bookmark",
     statuses: ["Plan to Watch", "Watch When Airs"],
   },
   {
     key: "might",
     label: "Might Watch",
-    icon: "fa-question-circle",
     statuses: ["Might Watch"],
   },
   {
     key: "dropped",
     label: "Dropped",
-    icon: "fa-times-circle",
     statuses: ["Dropped", "Temp Dropped", "Won't Watch"],
   },
 ];
@@ -52,25 +48,21 @@ const NEXT_SECTIONS = [
   {
     key: "when_airs",
     label: "Watch When Airs",
-    icon: "fa-clock",
     statuses: ["Watch When Airs"],
   },
   {
     key: "planned",
     label: "Plan to Watch",
-    icon: "fa-bookmark",
     statuses: ["Plan to Watch"],
   },
   {
     key: "might",
     label: "Might Watch",
-    icon: "fa-question-circle",
     statuses: ["Might Watch"],
   },
   {
     key: "other",
     label: "Other",
-    icon: "fa-ellipsis-h",
     statuses: [
       "Active Watching",
       "Passive Watching",
@@ -83,7 +75,6 @@ const NEXT_SECTIONS = [
   {
     key: "wont",
     label: "Won't Watch",
-    icon: "fa-ban",
     statuses: ["Won't Watch", "Dropped"],
   },
 ];
@@ -116,6 +107,16 @@ function sortAnime(items, franchiseMap) {
       99;
     return eA - eB;
   });
+}
+
+// A count as a display figure under a mono label (the ScoreBlock pattern).
+function StatFigure({ label, value }) {
+  return (
+    <div className="pr-6 border-r border-border last:border-r-0 last:pr-0">
+      <Eyebrow className="mb-1">{label}</Eyebrow>
+      <div className="font-display text-2xl leading-none tabular-nums text-text">{value}</div>
+    </div>
+  );
 }
 
 // ─── Seasonal Block ───────────────────────────────────────────────────────────
@@ -152,81 +153,54 @@ function SeasonalBlock({
   return (
     <div className="space-y-6">
       {/* Block header card */}
-      <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
+      <Slip title={blockTitle}>
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-text-faint uppercase tracking-[0.15em] mb-1">
-              {blockTitle}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-2xl font-black text-text">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="font-display text-3xl font-semibold text-text leading-none">
                 {seasonalId}
               </h2>
-              {seasonal?.my_rating && (
-                <span className="bg-yellow-400 text-yellow-900 text-sm font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
-                  <i className="fas fa-star text-xs"></i>
-                  {seasonal.my_rating}
-                </span>
-              )}
+              <RatingStamp rating={seasonal?.my_rating} size="sm" />
               <Link
                 to={`/seasonal/${encodeURIComponent(seasonalId)}`}
-                className="text-xs text-brand font-bold hover:underline"
+                className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
               >
-                View Detail →
+                View detail →
               </Link>
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold border border-border">
-                {totalEntries} Total
-              </span>
-              <span className="bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full text-xs font-bold border border-violet-200">
-                {plannedCount} Planned
-              </span>
-              <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold border border-green-200">
-                {watchingCount} Watching
-              </span>
-              <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold border border-blue-200">
-                {completedCount} Completed
-              </span>
-              {droppedCount > 0 && (
-                <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold border border-red-200">
-                  {droppedCount} Dropped
-                </span>
-              )}
+            <div className="flex flex-wrap gap-x-6 gap-y-3 mt-4">
+              <StatFigure label="Total" value={totalEntries} />
+              <StatFigure label="Planned" value={plannedCount} />
+              <StatFigure label="Watching" value={watchingCount} />
+              <StatFigure label="Completed" value={completedCount} />
+              {droppedCount > 0 && <StatFigure label="Dropped" value={droppedCount} />}
             </div>
 
             {totalEntries > 0 && (
               <div className="mt-4">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-                    Completion
-                  </span>
-                  <span className="text-[10px] font-bold text-brand">
+                  <Eyebrow>Completion</Eyebrow>
+                  <span className="font-mono text-[10px] text-text tabular-nums">
                     {completionPct}%
                   </span>
                 </div>
-                <div className="w-full bg-surface-3 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-brand h-1.5 rounded-full transition-all duration-700"
-                    style={{ width: `${completionPct}%` }}
-                  />
-                </div>
+                <ProgressRule value={completionPct / 100} />
               </div>
             )}
           </div>
 
           {isAdmin && seasonal && (
             <div className="shrink-0">
-              <label className="block text-[10px] font-black text-text-faint uppercase tracking-[0.15em] mb-1.5">
-                Seasonal Rating
-              </label>
+              <Eyebrow as="label" className="block mb-1.5">
+                Seasonal rating
+              </Eyebrow>
               <div className="flex items-center gap-2">
                 <select
                   value={seasonal.my_rating || ""}
                   onChange={(e) => handleRating(e.target.value)}
                   disabled={saving}
-                  className="bg-surface border border-border-strong text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
+                  className="bg-surface border border-border-strong text-text text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
                 >
                   <option value="">—</option>
                   {RATING_OPTIONS.map((r) => (
@@ -242,7 +216,7 @@ function SeasonalBlock({
             </div>
           )}
         </div>
-      </div>
+      </Slip>
 
       {/* Rating Distribution */}
       {showRatingDistribution && (
@@ -251,9 +225,8 @@ function SeasonalBlock({
 
       {/* Anime sections */}
       {totalEntries === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 bg-surface rounded-xl border border-border border-dashed">
-          <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
-          <p className="text-text-faint font-medium">
+        <div className="flex flex-col items-center justify-center py-10 border border-dashed border-border-strong">
+          <p className="text-text-faint text-sm">
             No anime entries for this season yet.
           </p>
         </div>
@@ -267,12 +240,11 @@ function SeasonalBlock({
             const sorted = sortAnime(items, franchiseMap);
             return (
               <div key={section.key}>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-                  <h3 className="text-base font-black text-text-muted flex items-center gap-2">
-                    <i className={`fas ${section.icon} text-brand/60`}></i>
+                <div className="flex items-center gap-3 mb-4 pb-2 border-b border-border">
+                  <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted font-normal">
                     {section.label}
                   </h3>
-                  <span className="bg-surface-2 text-text-faint px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
+                  <span className="font-mono text-[11px] text-text-faint tabular-nums">
                     {sorted.length}
                   </span>
                 </div>
@@ -443,7 +415,7 @@ export default function SeasonalOverall() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-text-faint font-medium">
+          <p className="text-text-faint text-sm">
             Loading seasonal overview...
           </p>
         </div>
@@ -454,8 +426,7 @@ export default function SeasonalOverall() {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+        <div className="text-center border border-danger text-danger p-6">
           <p className="font-bold">Error loading seasonal overview.</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
@@ -466,54 +437,38 @@ export default function SeasonalOverall() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-          <i className="fas fa-calendar text-brand text-lg"></i>
-        </div>
-        <div>
-          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-            Seasonal
-          </h1>
-          {currentSeason && (
-            <p className="text-xs text-text-faint font-medium mt-0.5">
-              Current Season:{" "}
-              <span className="text-brand font-bold">{currentSeason}</span>
-            </p>
-          )}
-        </div>
-      </div>
+      <header>
+        <Eyebrow className="mb-2">Calendar</Eyebrow>
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
+          Seasonal
+        </h1>
+        {currentSeason && (
+          <p className="text-sm text-text-muted mt-2">
+            Current season <span className="font-mono text-text">{currentSeason}</span>
+          </p>
+        )}
+      </header>
 
       {/* Tab bar */}
-      <div className="border-b border-border">
-        <nav className="flex gap-1">
-          {[
-            {
-              key: "current",
-              label: "Current Season",
-              icon: "fa-calendar-day",
-            },
-            {
-              key: "next",
-              label: "Next Season",
-              icon: "fa-calendar-week",
-            },
-            { key: "all", label: "All Seasons", icon: "fa-calendar-alt" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? "border-brand text-brand"
-                  : "border-transparent text-text-faint hover:text-text-muted"
-              }`}
-            >
-              <i className={`fas ${tab.icon}`}></i>
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <nav className="flex flex-wrap gap-2">
+        {[
+          { key: "current", label: "Current season" },
+          { key: "next", label: "Next season" },
+          { key: "all", label: "All seasons" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-3 py-1.5 border text-sm font-medium transition ${
+              activeTab === tab.key
+                ? "bg-brand text-on-brand border-brand"
+                : "bg-surface text-text-muted border-border-strong hover:border-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
       {/* ── Current Season Tab ── */}
       {activeTab === "current" && (
@@ -531,14 +486,13 @@ export default function SeasonalOverall() {
               showRatingDistribution
             />
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
-              <i className="fas fa-calendar-times text-3xl text-text-faint/60 mb-3"></i>
-              <p className="text-text-faint font-medium">
+            <div className="flex flex-col items-center justify-center py-16 border border-dashed border-border-strong">
+              <p className="text-text-faint text-sm">
                 No current season configured.
               </p>
               {isAdmin && (
                 <p className="text-xs text-text-faint mt-1">
-                  Set one in the Admin → System Config panel.
+                  Set one in Admin → System config.
                 </p>
               )}
             </div>
@@ -562,9 +516,8 @@ export default function SeasonalOverall() {
               sections={NEXT_SECTIONS}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
-              <i className="fas fa-calendar-times text-3xl text-text-faint/60 mb-3"></i>
-              <p className="text-text-faint font-medium">
+            <div className="flex flex-col items-center justify-center py-16 border border-dashed border-border-strong">
+              <p className="text-text-faint text-sm">
                 Could not determine next season.
               </p>
             </div>
@@ -574,28 +527,27 @@ export default function SeasonalOverall() {
 
       {/* ── All Seasons Tab ── */}
       {activeTab === "all" && (
-        <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
+        <Slip title="All seasons" padded={false}>
           {allYears.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No seasonal data available.
               </p>
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-surface-2 border-b border-border">
-                  <th className="px-6 py-3 text-left text-xs font-black text-text-faint uppercase tracking-wider w-20">
+                <tr className="border-b border-border">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] w-20">
                     Year
                   </th>
                   {SEASONS.map((s) => (
                     <th
                       key={s}
-                      className="px-4 py-3 text-center text-xs font-black text-text-faint uppercase tracking-wider"
+                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em]"
                     >
                       {SEASON_LABELS[s]}
-                      <span className="block text-[10px] font-bold text-text-faint normal-case tracking-normal mt-0.5">
+                      <span className="block text-[10px] text-text-faint/70 mt-0.5">
                         {s}
                       </span>
                     </th>
@@ -606,9 +558,9 @@ export default function SeasonalOverall() {
                 {allYears.map((year) => (
                   <tr
                     key={year}
-                    className="hover:bg-surface-2/50 transition-colors"
+                    className="hover:bg-surface-2 transition-colors"
                   >
-                    <td className="px-6 py-4 font-black text-text text-base">
+                    <td className="px-6 py-4 font-display text-xl text-text">
                       {year}
                     </td>
                     {SEASONS.map((season) => {
@@ -622,23 +574,18 @@ export default function SeasonalOverall() {
                           {hasEntries ? (
                             <Link
                               to={`/seasonal/${encodeURIComponent(id)}`}
-                              className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                              className={`inline-flex items-center justify-center px-3 py-1.5 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
                                 isCurrent
-                                  ? "bg-brand text-white shadow-sm hover:shadow-md hover:scale-105"
+                                  ? "bg-brand text-on-brand border-brand"
                                   : isNext
-                                    ? "bg-brand/10 text-brand border border-brand/30 hover:bg-brand/20"
-                                    : "bg-surface-2 text-text-muted border border-border hover:bg-surface-3"
+                                    ? "border-brand text-brand hover:bg-brand-soft"
+                                    : "bg-surface text-text-muted border-border-strong hover:border-text"
                               }`}
                             >
-                              {isCurrent && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-surface/80 animate-pulse shrink-0" />
-                              )}
                               {id}
                             </Link>
                           ) : (
-                            <span className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-text-faint/60 border border-dashed border-border cursor-default select-none">
-                              {id}
-                            </span>
+                            <Chip tone="muted" className="border-dashed">{id}</Chip>
                           )}
                         </td>
                       );
@@ -648,7 +595,7 @@ export default function SeasonalOverall() {
               </tbody>
             </table>
           )}
-        </div>
+        </Slip>
       )}
     </div>
   );

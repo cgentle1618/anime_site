@@ -1,4 +1,8 @@
 // Frontend: card component file for MediaCard.
+//
+// An archive card: the cover carries a thin ink spine on the left with the
+// media type, the rating stamp top-right, then the title in the display face
+// and one mono line of metadata. Flat, no hover zoom - the border darkens.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -18,12 +22,17 @@ import {
   parseTypes,
   MEDIA_CONFIG,
 } from "../../utils/media";
+import { Chip, RatingStamp } from "../ui/primitives";
 
-const EXPECTATION_COLOR = {
-  Highest: "bg-purple-500/80",
-  High: "bg-amber-500/80",
-  Medium: "bg-sky-500/80",
-  Low: "bg-text-faint/70",
+const SPINE_LABEL = {
+  anime: "Anime",
+  "anime-movie": "Anime movie",
+  movie: "Movie",
+  "tv-show": "TV show",
+  cartoon: "Cartoon",
+  manga: "Manga",
+  novel: "Novel",
+  comic: "Comic",
 };
 
 const FUTURE_WATCHING_OPTIONS = [
@@ -40,14 +49,27 @@ const BOLT_AIRING_STATUS = {
   cartoon: "Airing",
 };
 
-function serializationStatusCls(status) {
-  if (status === "連載中")
-    return "bg-green-100 text-green-700 border-green-200";
-  if (status === "完結") return "bg-blue-100 text-blue-700 border-blue-200";
-  if (status === "連載中 (不穩定)" || status === "連載中 (有生之年)")
-    return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  if (status === "停更") return "bg-red-100 text-red-700 border-red-200";
-  return "bg-surface-2 text-text-faint border-border";
+// Small ink label laid over cover art.
+const OVERLAY_CLS =
+  "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
+
+// Score figure on a mono meta line (MAL / IMDb).
+function Score({ value }) {
+  return (
+    <span className="shrink-0 text-text-muted tabular-nums" title="Score">
+      {value}
+    </span>
+  );
+}
+
+function MetaLine({ children, className = "" }) {
+  return (
+    <div
+      className={`font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mb-3 flex items-center justify-between gap-1 ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function PosterBadges({ type, variant, data, franchiseDict }) {
@@ -60,15 +82,12 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
     return (
       <>
         {expectation && (type === "anime" || type === "cartoon") && (
-          <div
-            className={`absolute top-1 left-1 ${EXPECTATION_COLOR[expectation] || "bg-text-faint/70"} text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20`}
-          >
+          <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
             {expectation}
           </div>
         )}
         {(type === "anime" || type === "cartoon") && data.airing_type && (
-          <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
-            {type === "anime" && <i className="fas fa-tv mr-1 text-brand"></i>}
+          <div className={`absolute top-1 right-1 ${OVERLAY_CLS}`}>
             {data.airing_type}
           </div>
         )}
@@ -79,7 +98,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
               title="Watch on Bahamut"
             >
               <img
@@ -90,7 +109,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
             </a>
           ) : (
             <div
-              className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+              className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
               title="Available on Bahamut (no link)"
             >
               <img
@@ -106,58 +125,54 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
 
   return (
     <>
-      {data.my_rating && (
-        <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
-          <i className="fas fa-star text-[8px] mr-1"></i>
-          {data.my_rating}
-        </div>
-      )}
+      <RatingStamp
+        rating={data.my_rating}
+        size="sm"
+        className="absolute top-1.5 right-1.5 z-10"
+      />
       {(type === "anime" || type === "cartoon") && data.airing_type && (
-        <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
-          {type === "anime" && <i className="fas fa-tv mr-1 text-brand"></i>}
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.airing_type}
         </div>
       )}
       {type === "anime-movie" && data.mal_rating && (
-        <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center shadow-sm">
-          <i className="fas fa-star text-[8px] mr-1"></i>
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`} title="MAL score">
           {data.mal_rating}
         </div>
       )}
       {(type === "movie" || type === "tv-show") &&
         data.imdb_rating &&
         data.imdb_rating !== "N/A" && (
-          <div className="absolute top-0 right-0 bg-yellow-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center shadow-sm">
-            <i className="fas fa-star text-[8px] mr-1"></i>
+          <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`} title="IMDb score">
             {data.imdb_rating}
           </div>
         )}
       {type === "tv-show" && data.region && (
-        <div className="absolute bottom-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+        <div className={`absolute bottom-1 right-1 ${OVERLAY_CLS}`}>
           {data.region}
         </div>
       )}
       {(type === "manga" || type === "novel") && data.region && (
-        <div className="absolute top-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.region}
         </div>
       )}
       {type === "comic" && data.is_main_entry && (
         <div
-          className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-amber-400/90 text-amber-950 backdrop-blur-sm shadow-sm z-10 border border-white/30"
+          className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
           title="On the main line"
         >
-          <i className="fas fa-star text-[8px]"></i>
+          Main
         </div>
       )}
       {type === "comic" && data.comic_type && (
-        <div className="absolute bottom-1 right-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[9px] font-bold backdrop-blur-sm shadow-sm z-10 border border-white/20">
+        <div className={`absolute bottom-1 right-1 ${OVERLAY_CLS}`}>
           {data.comic_type}
         </div>
       )}
       {bahaFlag && (
         <div
-          className="absolute bottom-1 left-1 bg-surface/95 backdrop-blur-sm px-1.5 py-0.5 rounded-md shadow-md z-10 border border-white/50 flex items-center justify-center"
+          className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
           title="Available on Bahamut"
         >
           <img
@@ -171,50 +186,43 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
   );
 }
 
+function yearRange(data) {
+  const start = releaseYear(data.release_date) || "?";
+  const end = releaseYear(data.end_date);
+  return end && end !== releaseYear(data.release_date) ? `${start} – ${end}` : start;
+}
+
 function LibraryMeta({ type, data }) {
   if (type === "anime") {
-    const malText = data.mal_rating ? (
-      <>
-        <i className="fas fa-star text-blue-500 mr-0.5"></i>
-        {data.mal_rating}
-      </>
-    ) : (
-      <>
-        <i className="fas fa-star text-text-faint/60 mr-0.5"></i>-
-      </>
-    );
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between">
+      <MetaLine>
         <span className="truncate pr-1">{getReleaseFallback(data)}</span>
-        <span className="shrink-0 flex items-center">{malText}</span>
-      </div>
+        <Score value={data.mal_rating || "—"} />
+      </MetaLine>
     );
   }
 
   if (type === "tv-show") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
+      <MetaLine>
         {data.season_part && (
           <span className="truncate pr-1">{data.season_part}</span>
         )}
         {data.airing_status && (
           <span className="shrink-0 truncate">{data.airing_status}</span>
         )}
-      </div>
+      </MetaLine>
     );
   }
 
   if (type === "cartoon") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
+      <MetaLine>
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
         {data.imdb_rating && data.imdb_rating !== "N/A" && (
-          <span className="shrink-0 flex items-center gap-0.5 text-yellow-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>
-            {data.imdb_rating}
-          </span>
+          <Score value={data.imdb_rating} />
         )}
-      </div>
+      </MetaLine>
     );
   }
 
@@ -222,93 +230,55 @@ function LibraryMeta({ type, data }) {
     const length = formatLength(data.length_min);
     const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
-        {length && (
-          <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-text-faint"></i>
-            {length}
-          </span>
-        )}
+      <MetaLine>
+        {length && <span className="shrink-0">{length}</span>}
         {year ? <span className="truncate">{year}</span> : null}
-      </div>
+      </MetaLine>
     );
   }
 
   if (type === "movie") {
     const length = formatLength(data.length_min);
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-3 flex items-center justify-between gap-1">
-        {length && (
-          <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-text-faint"></i>
-            {length}
-          </span>
-        )}
+      <MetaLine>
+        {length && <span className="shrink-0">{length}</span>}
         {(data.release_date_tw || data.release_date_usa) && (
           <span className="truncate">
             {data.release_date_tw || data.release_date_usa}
           </span>
         )}
-      </div>
+      </MetaLine>
     );
   }
 
   if (type === "manga") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-1 flex items-center justify-between gap-1">
-        <span className="truncate pr-1">
-          {releaseYear(data.release_date) || "?"}
-          {releaseYear(data.end_date) &&
-          releaseYear(data.end_date) !== releaseYear(data.release_date)
-            ? ` – ${releaseYear(data.end_date)}`
-            : ""}
-        </span>
-        {data.mal_rating && (
-          <span className="shrink-0 flex items-center gap-0.5 text-blue-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>
-            {data.mal_rating}
-          </span>
-        )}
-      </div>
+      <MetaLine className="mb-1">
+        <span className="truncate pr-1">{yearRange(data)}</span>
+        {data.mal_rating && <Score value={data.mal_rating} />}
+      </MetaLine>
     );
   }
 
   if (type === "novel") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-1 flex items-end justify-between gap-1">
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+      <div className="mb-1 flex items-end justify-between gap-1">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
           {(data.type || data.serialization_status || data.version) && (
-            <div className="flex items-center gap-1">
-              {data.type && (
-                <span className="shrink-0 text-[9px] font-black px-1 py-0.5 rounded bg-surface-2 text-text-faint">
-                  {data.type}
-                </span>
-              )}
+            <div className="flex items-center gap-1 flex-wrap">
+              {data.type && <Chip>{data.type}</Chip>}
               {data.serialization_status && (
-                <span
-                  className={`shrink-0 text-[9px] font-bold px-1 py-0.5 rounded border ${serializationStatusCls(data.serialization_status)}`}
-                >
-                  {data.serialization_status}
-                </span>
+                <Chip>{data.serialization_status}</Chip>
               )}
-              {data.version && (
-                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-surface-2 text-text-faint border border-border">
-                  {data.version}
-                </span>
-              )}
+              {data.version && <Chip tone="muted">{data.version}</Chip>}
             </div>
           )}
-          <span className="truncate">
-            {releaseYear(data.release_date) || "?"}
-            {releaseYear(data.end_date) &&
-            releaseYear(data.end_date) !== releaseYear(data.release_date)
-              ? ` – ${releaseYear(data.end_date)}`
-              : ""}
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
+            {yearRange(data)}
           </span>
         </div>
         {data.mal_rating && (
-          <span className="shrink-0 flex items-center gap-0.5 text-blue-600 font-bold">
-            <i className="fas fa-star text-[8px]"></i>
+          <span className="font-mono text-[10px] text-text-muted tabular-nums shrink-0">
             {data.mal_rating}
           </span>
         )}
@@ -321,31 +291,20 @@ function LibraryMeta({ type, data }) {
     // show the first and count the rest.
     const events = parseTypes(data.events);
     return (
-      <div className="text-[10px] text-text-faint font-medium mb-1 flex flex-col gap-0.5 min-w-0">
+      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1 flex flex-col gap-1 min-w-0">
         {data.comic_name_cn && (
-          <span className="truncate text-text-faint" title={data.comic_name_cn}>
+          <span
+            className="truncate font-sans normal-case tracking-normal"
+            title={data.comic_name_cn}
+          >
             {data.comic_name_cn}
           </span>
         )}
         <div className="flex items-center justify-between gap-1">
-          {data.volume_label && (
-            <span className="shrink-0 font-mono text-[9px] font-bold px-1 py-0.5 rounded bg-surface-2 text-text-muted border border-border">
-              {data.volume_label}
-            </span>
-          )}
-          <span className="truncate">
-            {releaseYear(data.release_date) || "?"}
-            {releaseYear(data.end_date) &&
-            releaseYear(data.end_date) !== releaseYear(data.release_date)
-              ? ` – ${releaseYear(data.end_date)}`
-              : ""}
-          </span>
+          {data.volume_label && <Chip>{data.volume_label}</Chip>}
+          <span className="truncate">{yearRange(data)}</span>
         </div>
-        {data.era && (
-          <span className="self-start shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-red-50 text-red-700 border border-red-100">
-            {data.era}
-          </span>
-        )}
+        {data.era && <Chip className="self-start">{data.era}</Chip>}
         {events.length > 0 && (
           <div
             className="flex items-center gap-1 min-w-0"
@@ -353,9 +312,7 @@ function LibraryMeta({ type, data }) {
           >
             <span className="truncate">{events[0]}</span>
             {events.length > 1 && (
-              <span className="shrink-0 text-text-faint">
-                +{events.length - 1}
-              </span>
+              <span className="shrink-0">+{events.length - 1}</span>
             )}
           </div>
         )}
@@ -366,6 +323,18 @@ function LibraryMeta({ type, data }) {
   return null;
 }
 
+const COUNT_CLS = "font-mono text-[11px] text-text-muted tabular-nums";
+const UNIT_CLS = "text-[9px] text-text-faint uppercase tracking-[0.12em] ml-1";
+
+function Count({ fin, total, unit }) {
+  return (
+    <div className={COUNT_CLS}>
+      {fin} <span className="text-text-faint">/</span> {total}
+      <span className={UNIT_CLS}>{unit}</span>
+    </div>
+  );
+}
+
 function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   if (type === "anime") {
     const localFin = data.ep_fin || 0;
@@ -373,14 +342,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
       data.ep_total != null && data.ep_total !== ""
         ? parseInt(data.ep_total, 10)
         : "?";
-    return (
-      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
-        {localFin} <span className="text-text-faint">/</span> {localTotal}
-        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
-          EP
-        </span>
-      </div>
-    );
+    return <Count fin={localFin} total={localTotal} unit="ep" />;
   }
 
   if (type === "tv-show" || type === "cartoon") {
@@ -389,14 +351,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
       data.ep_total != null && data.ep_total !== ""
         ? parseInt(data.ep_total, 10)
         : "?";
-    return (
-      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
-        {epFin} <span className="text-text-faint">/</span> {epTotal}
-        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
-          EP
-        </span>
-      </div>
-    );
+    return <Count fin={epFin} total={epTotal} unit="ep" />;
   }
 
   if (type === "manga") {
@@ -412,31 +367,24 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
             e.stopPropagation();
             onToggleVol();
           }}
-          className="text-[9px] text-text-faint hover:text-brand border border-border rounded px-1 py-0.5 transition-colors shrink-0"
+          className="font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint hover:text-brand border border-border-strong px-1 py-0.5 transition-colors shrink-0"
           title="Toggle Ch/Vol"
         >
-          {showVol ? "CH" : "VOL"}
+          {showVol ? "Ch" : "Vol"}
         </button>
         {showVol ? (
-          <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
+          <div className={COUNT_CLS}>
             {volFin}
             {volFinPage > 0 && (
-              <span className="text-[9px] text-text-faint font-sans ml-0.5">
+              <span className="text-[9px] text-text-faint ml-0.5">
                 p{volFinPage}
               </span>
             )}{" "}
             <span className="text-text-faint">/</span> {volTotal}
-            <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
-              VOL
-            </span>
+            <span className={UNIT_CLS}>vol</span>
           </div>
         ) : (
-          <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
-            {chFin} <span className="text-text-faint">/</span> {chTotal}
-            <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
-              CH
-            </span>
-          </div>
+          <Count fin={chFin} total={chTotal} unit="ch" />
         )}
       </div>
     );
@@ -446,55 +394,45 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     const pd = data.progress_display;
     if (pd === "vol_tw") {
       return (
-        <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
-          <span className="font-mono">
-            {data.vol_fin ?? 0} /{" "}
-            {data.vol_total_tw != null ? data.vol_total_tw : "?"}
-          </span>
-          <span className="text-[9px] text-text-faint">VOL TW</span>
-        </div>
+        <Count
+          fin={data.vol_fin ?? 0}
+          total={data.vol_total_tw != null ? data.vol_total_tw : "?"}
+          unit="vol tw"
+        />
       );
     }
     if (pd === "arc_ch") {
       return (
-        <span className="font-mono text-[10px] font-bold text-text-muted">
-          {data.arc_fin ?? 0}/{data.arc_total ?? "?"} ARC &nbsp;
-          {data.ch_fin ?? 0}/{data.ch_total ?? "?"} CH
+        <span className="font-mono text-[10px] text-text-muted tabular-nums">
+          {data.arc_fin ?? 0}/{data.arc_total ?? "?"}
+          <span className={UNIT_CLS}>arc</span> &nbsp;
+          {data.ch_fin ?? 0}/{data.ch_total ?? "?"}
+          <span className={UNIT_CLS}>ch</span>
         </span>
       );
     }
     if (pd === "ch") {
       return (
-        <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
-          <span className="font-mono">
-            {data.ch_fin ?? 0} / {data.ch_total != null ? data.ch_total : "?"}
-          </span>
-          <span className="text-[9px] text-text-faint">CH</span>
-        </div>
+        <Count
+          fin={data.ch_fin ?? 0}
+          total={data.ch_total != null ? data.ch_total : "?"}
+          unit="ch"
+        />
       );
     }
     return (
-      <div className="flex items-center gap-1 text-[11px] font-bold text-text-muted tracking-tight">
-        <span className="font-mono">
-          {data.vol_fin ?? 0} /{" "}
-          {data.vol_total_original != null ? data.vol_total_original : "?"}
-        </span>
-        <span className="text-[9px] text-text-faint">VOL</span>
-      </div>
+      <Count
+        fin={data.vol_fin ?? 0}
+        total={data.vol_total_original != null ? data.vol_total_original : "?"}
+        unit="vol"
+      />
     );
   }
 
   if (type === "comic") {
     const issFin = data.issue_fin ?? 0;
     const issTotal = data.issue_total != null ? data.issue_total : "?";
-    return (
-      <div className="font-mono text-[11px] font-bold text-text-muted tracking-tight">
-        {issFin} <span className="text-text-faint">/</span> {issTotal}
-        <span className="text-[9px] text-text-faint font-sans tracking-normal ml-0.5">
-          ISS
-        </span>
-      </div>
-    );
+    return <Count fin={issFin} total={issTotal} unit="iss" />;
   }
 
   return null;
@@ -503,22 +441,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
 function FutureMeta({ type, data }) {
   if (type === "anime") {
     return data.studio ? (
-      <p className="text-[10px] text-text-faint truncate mt-0.5">{data.studio}</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate mt-0.5">
+        {data.studio}
+      </p>
     ) : null;
   }
   if (type === "anime-movie") {
     const length = formatLength(data.length_min);
     const year = releaseYear(data.release_date_jp || data.release_date_tw);
     return (
-      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
-        {length && (
-          <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-text-faint"></i>
-            {length}
-          </span>
-        )}
+      <MetaLine className="mt-1 mb-0">
+        {length && <span className="shrink-0">{length}</span>}
         {year ? <span className="truncate">{year}</span> : null}
-      </div>
+      </MetaLine>
     );
   }
   if (type === "movie") {
@@ -527,28 +462,23 @@ function FutureMeta({ type, data }) {
     const year = releaseYear(d);
     const shownYear = year || "TBD";
     return (
-      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
-        {length && (
-          <span className="flex items-center gap-0.5 shrink-0">
-            <i className="fas fa-clock text-text-faint"></i>
-            {length}
-          </span>
-        )}
+      <MetaLine className="mt-1 mb-0">
+        {length && <span className="shrink-0">{length}</span>}
         <span className="truncate">{shownYear}</span>
-      </div>
+      </MetaLine>
     );
   }
   if (type === "tv-show") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mt-1 flex items-center justify-between gap-1">
+      <MetaLine className="mt-1 mb-0">
         {data.region && <span className="shrink-0">{data.region}</span>}
         <span className="truncate">{data.release_date || "TBD"}</span>
-      </div>
+      </MetaLine>
     );
   }
   if (type === "cartoon") {
     return (
-      <div className="text-[10px] text-text-faint font-medium mt-1 truncate">
+      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mt-1 truncate">
         {data.release_date || "TBD"}
       </div>
     );
@@ -664,49 +594,58 @@ export default function MediaCard({
     applyBoltAction(null);
   }
 
+  // The status button is an ink outline: the status is in the tooltip and
+  // the symbol, not in a colour.
   const statusBtn = showAdmin ? (
     <button
       onClick={handleStatusToggle}
-      className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors font-bold text-[13px] leading-none ${btnConfig.cls}`}
+      className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-text hover:text-text transition-colors font-mono text-[13px] leading-none"
       title={`${currentStatus} → ${btnConfig.target}`}
     >
       {btnConfig.symbol}
     </button>
   ) : !ADMIN_ONLY_STATUS.has(type) && currentStatus ? (
-    <div
-      className="text-[9px] font-bold text-text-faint bg-surface-2 border border-border rounded px-1.5 py-0.5 max-w-[65px] truncate"
-      title={currentStatus}
-    >
+    <Chip className="max-w-[80px] truncate" title={currentStatus}>
       {currentStatus}
-    </div>
+    </Chip>
   ) : null;
 
   return (
     <div
-      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative group"
       onClick={() => navPath && navigate(`${navPath}/${data.system_id}`)}
     >
-      <div className="w-full aspect-[3/4] bg-surface-2 relative overflow-hidden">
-        <PosterBadges
-          type={type}
-          variant={variant}
-          data={data}
-          franchiseDict={franchiseDict}
-        />
-        <img
-          src={imageUrl}
-          alt={title}
-          loading="lazy"
-          className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
-          onError={(e) => {
-            e.target.src = FALLBACK_SVG;
-          }}
-        />
+      <div className="flex">
+        <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
+          <span
+            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            {SPINE_LABEL[type] || type}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0 aspect-[3/4] bg-surface-2 relative overflow-hidden">
+          <PosterBadges
+            type={type}
+            variant={variant}
+            data={data}
+            franchiseDict={franchiseDict}
+          />
+          <img
+            src={imageUrl}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.src = FALLBACK_SVG;
+            }}
+          />
+        </div>
       </div>
 
-      <div className="p-3 flex flex-col flex-1 relative z-20 bg-surface">
+      <div className="p-3 flex flex-col flex-1 relative z-20 bg-surface border-t border-border">
         <h3
-          className="font-bold text-text text-xs line-clamp-2 leading-tight mb-1.5"
+          className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight mb-1.5"
           title={title}
         >
           {title}
@@ -722,7 +661,7 @@ export default function MediaCard({
                     value={currentStatus}
                     onChange={handleStatusChange}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] font-bold rounded border border-border px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:border-brand w-full"
+                    className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
                     title="Watching status"
                   >
                     {needsExtra && (
@@ -738,7 +677,7 @@ export default function MediaCard({
                   </select>
                   <button
                     onClick={handleBoltAction}
-                    className="w-6 h-6 flex items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 transition text-[10px] shrink-0"
+                    className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"
                     title={`Mark as ${BOLT_AIRING_STATUS[type]}`}
                   >
                     <i className="fas fa-bolt"></i>
@@ -782,4 +721,3 @@ export default function MediaCard({
     </div>
   );
 }
-

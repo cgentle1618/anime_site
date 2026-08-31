@@ -5,6 +5,7 @@ import PlanWatchNext from "../plan/PlanWatchNext";
 import PlanToRewatch from "../plan/PlanToRewatch";
 import PlanToWatchFuture from "../plan/PlanToWatchFuture";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { Eyebrow } from "../../components/ui/primitives";
 
 export default function Plan() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -33,19 +34,15 @@ export default function Plan() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-          <i className="fas fa-clipboard-list text-brand text-lg"></i>
-        </div>
-        <div>
-          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-            Plan
-          </h1>
-          <p className="text-xs text-text-faint font-medium mt-0.5">
-            Watch Next, To Rewatch &amp; Future Plans
-          </p>
-        </div>
-      </div>
+      <header>
+        <Eyebrow className="mb-3">Plan</Eyebrow>
+        <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
+          Plan
+        </h1>
+        <p className="text-text-muted">
+          Watch next, to rewatch and future releases.
+        </p>
+      </header>
 
       {/* Watch Next */}
       <PlanWatchNext planRows={planRows} />

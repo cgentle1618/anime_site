@@ -6,12 +6,12 @@
 // renders as a single textarea with no "Add" affordance.
 import { useEffect, useState } from "react";
 
+import { Button } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   ItemActions,
   SaveCancel,
   SectionCard,
-  btnCls,
   inputCls,
 } from "./ui";
 
@@ -52,28 +52,26 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
     inputCls + (isAdmin ? "" : " bg-surface-2 text-text-muted cursor-default");
 
   const saveBtn = (
-    <button
-      type="button"
-      onClick={save}
-      disabled={!dirty}
-      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-    >
+    <Button type="button" kind="primary" size="sm" onClick={save} disabled={!dirty}>
       Save
-    </button>
+    </Button>
   );
 
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between">
-        <h4 className="font-bold text-sm text-text">{section.label}</h4>
-        <button
+    <div className="bg-surface border border-border">
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-border">
+        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
+          {section.label}
+        </h4>
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
+        <Button
           type="button"
+          size="sm"
           onClick={() => setFullscreen(true)}
           title="Open fullscreen"
-          className={btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"}
         >
-          <i className="fas fa-expand text-[10px]"></i> Fullscreen
-        </button>
+          Fullscreen
+        </Button>
       </div>
       <div className="p-3 flex flex-col gap-2">
         <textarea
@@ -93,23 +91,22 @@ function SingletonText({ section, note, isAdmin, onCreate, onUpdate, onDelete })
           onClick={() => setFullscreen(false)}
         >
           <div
-            className="bg-surface rounded-xl shadow-xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden"
+            className="bg-surface border border-border shadow-xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0">
-              <h4 className="font-bold text-sm text-text">
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
+              <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
                 {section.label}
               </h4>
-              <button
+              <span className="flex-1 border-t border-dotted border-border-strong/60" />
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => setFullscreen(false)}
                 title="Exit fullscreen"
-                className={
-                  btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"
-                }
               >
-                <i className="fas fa-compress text-[10px]"></i> Close
-              </button>
+                Close
+              </Button>
             </div>
             <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
               <textarea

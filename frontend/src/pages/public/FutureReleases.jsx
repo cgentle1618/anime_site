@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
+import { Chip, Eyebrow } from "../../components/ui/primitives";
 
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
 const SEASON_LABEL = {
@@ -311,7 +312,7 @@ export default function FutureReleases() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-text-faint font-medium">
+          <p className="text-text-faint text-sm">
             Loading future releases...
           </p>
         </div>
@@ -322,8 +323,7 @@ export default function FutureReleases() {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+        <div className="text-center border border-danger text-danger p-6">
           <p className="font-bold">Failed to load releases</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
@@ -334,31 +334,32 @@ export default function FutureReleases() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-calendar-plus text-brand"></i>
-          Future Releases
+      <header className="mb-8">
+        <Eyebrow className="mb-2">Calendar</Eyebrow>
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
+          Future releases
         </h1>
-        <p className="text-text-faint mt-1 text-sm font-medium">
-          Upcoming titles yet to release
-        </p>
-      </div>
+        <p className="text-text-muted mt-2 text-sm">Upcoming titles yet to release</p>
+      </header>
 
       {/* Main tabs */}
-      <div className="flex gap-1 bg-surface-2 rounded-xl p-1 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {[
-          { key: "anime", icon: "fa-tv", label: "Anime" },
-          { key: "anime-movie", icon: "fa-film", label: "Anime Movies" },
-          { key: "movie", icon: "fa-ticket-alt", label: "Movies" },
-          { key: "tv-show", icon: "fa-video", label: "TV Shows" },
-          { key: "cartoon", icon: "fa-paint-brush", label: "Cartoons" },
+          { key: "anime", label: "Anime" },
+          { key: "anime-movie", label: "Anime movies" },
+          { key: "movie", label: "Movies" },
+          { key: "tv-show", label: "TV shows" },
+          { key: "cartoon", label: "Cartoons" },
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => setMainTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-black whitespace-nowrap transition-all ${mainTab === t.key ? "bg-surface text-brand shadow-sm" : "text-text-faint hover:text-text-muted"}`}
+            className={`px-3 py-1.5 border text-sm font-medium whitespace-nowrap transition ${
+              mainTab === t.key
+                ? "bg-brand text-on-brand border-brand"
+                : "bg-surface text-text-muted border-border-strong hover:border-text"
+            }`}
           >
-            <i className={`fas ${t.icon}`}></i>
             {t.label}
           </button>
         ))}
@@ -373,10 +374,10 @@ export default function FutureReleases() {
               <button
                 key={key}
                 onClick={() => setActiveTypeFilter(key)}
-                className={`px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${
+                className={`px-3 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
                   activeTypeFilter === key
-                    ? "bg-brand text-white border-brand"
-                    : "bg-surface text-text-muted border-border hover:bg-surface-2"
+                    ? "bg-brand text-on-brand border-brand"
+                    : "bg-surface text-text-muted border-border-strong hover:border-text"
                 }`}
               >
                 {label}
@@ -386,8 +387,7 @@ export default function FutureReleases() {
 
           {sortedKeys.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <i className="fas fa-calendar-times text-4xl text-text-faint/60 mb-4"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No upcoming releases found.
               </p>
             </div>
@@ -398,30 +398,22 @@ export default function FutureReleases() {
                 const sorted = sortGroup(groups[key], franchiseDict);
                 let badge = null;
                 if (key === currentSeasonKey) {
-                  badge = (
-                    <span className="text-[10px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded">
-                      Current
-                    </span>
-                  );
+                  badge = <Chip tone="brand">Current</Chip>;
                 } else if (key === nextSeasonKey) {
-                  badge = (
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                      Next
-                    </span>
-                  );
+                  badge = <Chip>Next</Chip>;
                 }
 
                 return (
                   <section key={key}>
                     <div className="flex items-center gap-3 mb-4">
-                      <h2 className="text-base font-black text-text">
+                      <h2 className="font-display text-2xl font-semibold text-text leading-none">
                         {label}
                       </h2>
                       {badge}
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {sorted.length}
                       </span>
-                      <div className="flex-1 border-t border-border"></div>
+                      <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((anime) => (
@@ -451,21 +443,19 @@ export default function FutureReleases() {
             <div className="flex items-center justify-center py-24">
               <div className="text-center">
                 <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-                <p className="text-text-faint font-medium">
+                <p className="text-text-faint text-sm">
                   Loading anime movies...
                 </p>
               </div>
             </div>
           ) : movieError ? (
-            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+            <div className="text-center border border-danger text-danger p-6">
               <p className="font-bold">Failed to load anime movies</p>
               <p className="text-sm mt-1">{movieError}</p>
             </div>
           ) : movieYears.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <i className="fas fa-calendar-times text-4xl text-text-faint/60 mb-4"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No upcoming anime movies found.
               </p>
             </div>
@@ -476,13 +466,13 @@ export default function FutureReleases() {
                 return (
                   <section key={year}>
                     <div className="flex items-center gap-3 mb-4">
-                      <h2 className="text-base font-black text-text">
+                      <h2 className="font-display text-2xl font-semibold text-text leading-none">
                         {year}
                       </h2>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {sorted.length}
                       </span>
-                      <div className="flex-1 border-t border-border"></div>
+                      <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                       {sorted.map((movie) => (
@@ -510,19 +500,17 @@ export default function FutureReleases() {
             <div className="flex items-center justify-center py-24">
               <div className="text-center">
                 <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-                <p className="text-text-faint font-medium">Loading movies...</p>
+                <p className="text-text-faint text-sm">Loading movies...</p>
               </div>
             </div>
           ) : liveMovieError ? (
-            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+            <div className="text-center border border-danger text-danger p-6">
               <p className="font-bold">Failed to load movies</p>
               <p className="text-sm mt-1">{liveMovieError}</p>
             </div>
           ) : liveMovieYears.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <i className="fas fa-calendar-times text-4xl text-text-faint/60 mb-4"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No upcoming movies found.
               </p>
             </div>
@@ -531,13 +519,13 @@ export default function FutureReleases() {
               {liveMovieYears.map((year) => (
                 <section key={year}>
                   <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-base font-black text-text">
+                    <h2 className="font-display text-2xl font-semibold text-text leading-none">
                       {year}
                     </h2>
-                    <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
+                    <span className="font-mono text-[11px] text-text-faint tabular-nums">
                       {liveMovieGroups[year].length}
                     </span>
-                    <div className="flex-1 border-t border-border"></div>
+                    <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {liveMovieGroups[year].map((movie) => (
@@ -565,19 +553,17 @@ export default function FutureReleases() {
             <div className="flex items-center justify-center py-24">
               <div className="text-center">
                 <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-                <p className="text-text-faint font-medium">Loading cartoons...</p>
+                <p className="text-text-faint text-sm">Loading cartoons...</p>
               </div>
             </div>
           ) : cartoonError ? (
-            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+            <div className="text-center border border-danger text-danger p-6">
               <p className="font-bold">Failed to load cartoons</p>
               <p className="text-sm mt-1">{cartoonError}</p>
             </div>
           ) : cartoonYears.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <i className="fas fa-calendar-times text-4xl text-text-faint/60 mb-4"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No upcoming cartoons found.
               </p>
             </div>
@@ -586,13 +572,13 @@ export default function FutureReleases() {
               {cartoonYears.map((year) => (
                 <section key={year}>
                   <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-base font-black text-text">
+                    <h2 className="font-display text-2xl font-semibold text-text leading-none">
                       {year}
                     </h2>
-                    <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
+                    <span className="font-mono text-[11px] text-text-faint tabular-nums">
                       {cartoonGroups[year].length}
                     </span>
-                    <div className="flex-1 border-t border-border"></div>
+                    <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {cartoonGroups[year].map((cartoon) => (
@@ -621,19 +607,17 @@ export default function FutureReleases() {
             <div className="flex items-center justify-center py-24">
               <div className="text-center">
                 <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-                <p className="text-text-faint font-medium">Loading TV shows...</p>
+                <p className="text-text-faint text-sm">Loading TV shows...</p>
               </div>
             </div>
           ) : tvShowError ? (
-            <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-              <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+            <div className="text-center border border-danger text-danger p-6">
               <p className="font-bold">Failed to load TV shows</p>
               <p className="text-sm mt-1">{tvShowError}</p>
             </div>
           ) : allTvShows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <i className="fas fa-calendar-times text-4xl text-text-faint/60 mb-4"></i>
-              <p className="text-text-faint font-medium">
+              <p className="text-text-faint text-sm">
                 No upcoming TV shows found.
               </p>
             </div>

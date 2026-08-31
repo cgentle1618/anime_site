@@ -143,22 +143,21 @@ function DeletedTable({ records, onRefresh }) {
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
-      <div className="bg-red-50/50 border-b border-red-100 px-5 py-3 flex items-center justify-between">
-        <span className="font-bold text-red-900">
-          <i className="fas fa-trash-alt mr-2 text-red-500"></i> Recently
-          Deleted Records
+      <div className="border-b border-border px-5 py-3 flex items-center justify-between">
+        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          Recently deleted records
         </span>
         <div className="flex items-center gap-3">
           <button
             onClick={handleClearOld}
-            className="text-xs font-bold text-red-400 hover:text-red-600 transition"
+            className="text-xs font-bold text-danger/70 hover:text-danger transition"
             title="Delete old records, keep 5 most recent"
           >
             <i className="fas fa-trash mr-1"></i>Clear Old
           </button>
           <button
             onClick={onRefresh}
-            className="text-text-faint hover:text-red-500 transition"
+            className="text-text-faint hover:text-danger transition"
           >
             <i className="fas fa-redo"></i>
           </button>
@@ -178,12 +177,12 @@ function DeletedTable({ records, onRefresh }) {
           </thead>
           <tbody className="divide-y divide-border">
             {slice.map((d, i) => (
-              <tr key={i} className="hover:bg-red-50/30 transition group">
+              <tr key={i} className="hover:bg-danger/10 transition group">
                 <td className="px-5 py-2.5 text-text-faint whitespace-nowrap text-xs">
                   {formatDate(d.timestamp)}
                 </td>
                 <td className="px-5 py-2.5">
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-danger/10 text-danger border-danger/40">
                     {d.type}
                   </span>
                 </td>
@@ -205,7 +204,7 @@ function DeletedTable({ records, onRefresh }) {
                 <td className="px-3 py-2.5">
                   <button
                     onClick={() => handleDeleteRecord(d.id)}
-                    className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-red-500 transition"
+                    className="opacity-0 group-hover:opacity-100 text-text-faint/60 hover:text-danger transition"
                     title="Delete this record"
                   >
                     <i className="fas fa-times text-xs"></i>
@@ -234,7 +233,7 @@ function DeletedTable({ records, onRefresh }) {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="p-2 text-text-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-danger disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-left"></i>
           </button>
@@ -244,7 +243,7 @@ function DeletedTable({ records, onRefresh }) {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="p-2 text-text-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2 text-text-faint hover:text-danger disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <i className="fas fa-chevron-right"></i>
           </button>
@@ -255,12 +254,12 @@ function DeletedTable({ records, onRefresh }) {
 }
 
 function airingBadgeCls(status) {
-  if (status === "Airing") return "text-green-700 bg-green-100";
-  if (status === "Finished Airing") return "text-blue-700 bg-blue-100";
-  if (status === "Not Yet Aired") return "text-orange-700 bg-orange-100";
-  if (status === "Canceled") return "text-red-700 bg-red-100";
-  if (status === "Rumored") return "text-purple-700 bg-purple-100";
-  return "text-text-faint bg-surface-2";
+  if (status === "Airing") return "text-text border border-border-strong";
+  if (status === "Finished Airing") return "text-text-muted border border-border-strong";
+  if (status === "Not Yet Aired") return "text-text-muted border border-border-strong";
+  if (status === "Canceled") return "text-danger border border-danger";
+  if (status === "Rumored") return "text-text-faint border border-border";
+  return "text-text-faint border border-border";
 }
 
 export default function DataHistory() {
@@ -396,8 +395,8 @@ export default function DataHistory() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Modified Franchise */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="bg-purple-50/50 border-b border-purple-100 px-5 py-3 font-bold text-purple-900">
-              <i className="fas fa-sitemap mr-2 text-purple-500"></i> Modified
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              Modified
               Franchise
             </div>
             <div className="overflow-x-auto flex-1">
@@ -416,7 +415,7 @@ export default function DataHistory() {
                   {modFranchise.map((f, i) => (
                     <tr
                       key={i}
-                      className="hover:bg-purple-50/30 transition cursor-pointer"
+                      className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
                         (window.location.href = `/franchise/${f.system_id}`)
                       }
@@ -444,8 +443,8 @@ export default function DataHistory() {
 
           {/* Added Franchise */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="bg-emerald-50/50 border-b border-emerald-100 px-5 py-3 font-bold text-emerald-900">
-              <i className="fas fa-plus-circle mr-2 text-emerald-500"></i> Added
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              Added
               Franchise
             </div>
             <div className="overflow-x-auto flex-1">
@@ -464,7 +463,7 @@ export default function DataHistory() {
                   {addFranchise.map((f, i) => (
                     <tr
                       key={i}
-                      className="hover:bg-emerald-50/30 transition cursor-pointer"
+                      className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
                         (window.location.href = `/franchise/${f.system_id}`)
                       }
@@ -492,8 +491,8 @@ export default function DataHistory() {
 
           {/* Modified Anime */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="bg-blue-50/50 border-b border-blue-100 px-5 py-3 font-bold text-blue-900">
-              <i className="fas fa-tv mr-2 text-blue-500"></i> Modified Anime
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              Modified Anime
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
@@ -511,7 +510,7 @@ export default function DataHistory() {
                   {modAnime.map((a, i) => (
                     <tr
                       key={i}
-                      className="hover:bg-blue-50/30 transition cursor-pointer"
+                      className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
                         (window.location.href = `/anime/${a.system_id}`)
                       }
@@ -549,8 +548,8 @@ export default function DataHistory() {
 
           {/* Added Entry */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="bg-indigo-50/50 border-b border-indigo-100 px-5 py-3 font-bold text-indigo-900">
-              <i className="fas fa-star mr-2 text-indigo-500"></i> Added Entry
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              Added Entry
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left">
@@ -568,14 +567,14 @@ export default function DataHistory() {
                   {addedEntries.map((item, i) => {
                     const badgeCls =
                       item.__type === "Anime"
-                        ? "bg-blue-50 text-blue-600 border-blue-200"
+                        ? "text-text-muted border-border-strong"
                         : item.__type === "Novel"
-                          ? "bg-teal-50 text-teal-600 border-teal-200"
-                          : "bg-indigo-50 text-indigo-600 border-indigo-200";
+                          ? "text-text-muted border-border-strong"
+                          : "text-text-muted border-border-strong";
                     return (
                       <tr
                         key={i}
-                        className="hover:bg-indigo-50/30 transition cursor-pointer"
+                        className="hover:bg-surface-2 transition cursor-pointer"
                         onClick={() => (window.location.href = item.__link)}
                       >
                         <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">

@@ -45,7 +45,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
   // is red - visible so it can be found and deleted, rather than silently
   // absent.
   const tone = data.missing
-    ? "border-red-300 bg-red-50"
+    ? "border-danger/40 bg-danger/10"
     : data.in_scope
       ? "border-border bg-surface"
       : "border-dashed border-border-strong bg-surface-2";
@@ -87,8 +87,8 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
       />
 
       {data.missing ? (
-        <div className="flex h-12 w-9 shrink-0 items-center justify-center rounded-md bg-red-100">
-          <i className="fas fa-link-slash text-xs text-red-500"></i>
+        <div className="flex h-12 w-9 shrink-0 items-center justify-center rounded-md bg-danger/10">
+          <i className="fas fa-link-slash text-xs text-danger"></i>
         </div>
       ) : (
         <img
@@ -105,7 +105,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
           className="line-clamp-2 text-xs font-black leading-tight text-text"
         />
         <span
-          className={`mt-1 inline-block rounded-full px-1.5 text-[9px] font-black uppercase tracking-wide ${mediaTypeChip(
+          className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
             media_type,
           )}`}
         >

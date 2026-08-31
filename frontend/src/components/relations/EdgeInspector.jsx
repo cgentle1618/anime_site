@@ -129,7 +129,7 @@ export default function EdgeInspector({
             type="button"
             disabled={busy}
             onClick={onDelete}
-            className="mt-3 w-full rounded-lg border border-red-200 px-2 py-1.5 text-[11px] font-black uppercase text-red-500 disabled:opacity-40"
+            className="mt-3 w-full rounded-lg border border-danger/40 px-2 py-1.5 text-[11px] font-black uppercase text-danger disabled:opacity-40"
           >
             Remove relation
           </button>

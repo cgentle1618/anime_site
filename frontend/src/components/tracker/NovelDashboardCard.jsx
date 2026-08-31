@@ -1,20 +1,23 @@
-﻿import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
 } from "../../utils/media";
+import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 
-const SERIALIZATION_COLORS = {
-  完結: "bg-blue-100 text-blue-700 border-blue-200",
-  連載中: "bg-green-100 text-green-700 border-green-200",
-  "連載中 (不穩定)": "bg-yellow-100 text-yellow-700 border-yellow-200",
-  "連載中 (有生之年)": "bg-orange-100 text-orange-700 border-orange-200",
-  停更: "bg-red-100 text-red-600 border-red-200",
-  可能更多: "bg-surface-2 text-text-muted border-border",
-  未出: "bg-surface-2 text-text-faint border-border",
-};
+const STEPPER_INPUT =
+  "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
+const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
+
+function StepButton({ onClick, label, children }) {
+  return (
+    <Button kind="outline" size="sm" onClick={onClick} aria-label={label}>
+      {children}
+    </Button>
+  );
+}
 
 export default function NovelDashboardCard({
   novel,
@@ -60,10 +63,6 @@ export default function NovelDashboardCard({
     progressLabel = `${progressPercent}%`;
   }
 
-  const serializationColor =
-    SERIALIZATION_COLORS[novel.serialization_status] ||
-    "bg-surface-2 text-text-muted border-border";
-
   // ── Admin change handlers ────────────────────────────────────────
   function handleVolChange(newVal) {
     const target = Math.max(0, newVal);
@@ -108,55 +107,47 @@ export default function NovelDashboardCard({
         pd === "vol_tw"
           ? (novel.vol_total_tw ?? "?")
           : (novel.vol_total_original ?? "?");
-      const unit = pd === "vol_tw" ? "VOL TW" : "VOL";
+      const unit = pd === "vol_tw" ? "vol tw" : "vol";
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
-            <button
+          <div className="flex items-center justify-between gap-2 relative z-20">
+            <StepButton
               onClick={() => handleVolChange(Math.round(fin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
+              label="One volume back"
             >
               <i className="fas fa-minus text-[10px]"></i>
-            </button>
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+            </StepButton>
+            <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className={`${STEPPER_INPUT} w-16`}
                 value={fin}
                 onChange={(e) =>
                   handleVolChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-text-faint mx-0.5 text-xs">/</span>
-              <span className="text-text-faint text-[13px] w-16 text-center">
-                {total}
-              </span>
-              <span className="text-text-faint ml-1 text-[10px] font-sans">
-                {unit}
-              </span>
+              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint w-12 text-center">{total}</span>
+              <span className={`${UNIT} ml-1`}>{unit}</span>
             </div>
-            <button
+            <StepButton
               onClick={() => handleVolChange(Math.round(fin) + 1)}
-              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+              label="One volume forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
-            </button>
+            </StepButton>
           </div>
         );
       }
       return (
-        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
-          <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
+        <div className="flex items-center justify-center border border-border h-[36px]">
+          <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
             <span className="text-text w-12 text-center">{fin}</span>
             <span className="text-text-faint mx-0.5 text-xs">/</span>
-            <span className="text-text-faint text-[13px] w-12 text-center">
-              {total}
-            </span>
-            <span className="text-text-faint ml-1 text-[10px] font-sans">
-              {unit}
-            </span>
+            <span className="text-text-faint w-12 text-center">{total}</span>
+            <span className={`${UNIT} ml-1`}>{unit}</span>
           </div>
         </div>
       );
@@ -170,18 +161,18 @@ export default function NovelDashboardCard({
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20 gap-1">
-            <button
+          <div className="flex items-center justify-between gap-2 relative z-20">
+            <StepButton
               onClick={() => handleChChange(Math.round(chFin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
+              label="One chapter back"
             >
               <i className="fas fa-minus text-[10px]"></i>
-            </button>
-            <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none flex-1 whitespace-nowrap gap-1">
-              <span className="text-[9px] text-text-faint font-sans">ARC</span>
+            </StepButton>
+            <div className="font-mono text-[11px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap gap-1">
+              <span className={UNIT}>arc</span>
               <input
                 type="number"
-                className="text-text w-10 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className={`${STEPPER_INPUT} w-10 text-[11px]`}
                 value={arcFin}
                 onChange={(e) =>
                   handleArcChange(parseFloat(e.target.value) || 0)
@@ -189,11 +180,11 @@ export default function NovelDashboardCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint text-[9px]">/{arcTotal}</span>
-              <span className="text-text-faint/60 mx-0.5">·</span>
-              <span className="text-[9px] text-text-faint font-sans">CH</span>
+              <span className="text-text-faint mx-0.5">·</span>
+              <span className={UNIT}>ch</span>
               <input
                 type="number"
-                className="text-text w-10 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className={`${STEPPER_INPUT} w-10 text-[11px]`}
                 value={chFin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
@@ -202,24 +193,24 @@ export default function NovelDashboardCard({
               />
               <span className="text-text-faint text-[9px]">/{chTotal}</span>
             </div>
-            <button
+            <StepButton
               onClick={() => handleChChange(Math.round(chFin) + 1)}
-              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+              label="One chapter forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
-            </button>
+            </StepButton>
           </div>
         );
       }
       return (
-        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
-          <div className="font-mono font-bold text-[11px] tracking-wide flex items-baseline justify-center select-none w-full px-1 gap-1">
-            <span className="text-[9px] text-text-faint font-sans">ARC</span>
+        <div className="flex items-center justify-center border border-border h-[36px]">
+          <div className="font-mono text-[11px] flex items-baseline justify-center select-none w-full px-1 gap-1">
+            <span className={UNIT}>arc</span>
             <span className="text-text">
               {arcFin}/{arcTotal}
             </span>
-            <span className="text-text-faint/60 mx-1">·</span>
-            <span className="text-[9px] text-text-faint font-sans">CH</span>
+            <span className="text-text-faint mx-1">·</span>
+            <span className={UNIT}>ch</span>
             <span className="text-text">
               {chFin}/{chTotal}
             </span>
@@ -234,49 +225,43 @@ export default function NovelDashboardCard({
 
       if (isAdmin) {
         return (
-          <div className="flex items-center justify-between bg-surface rounded-lg p-1.5 border border-border shadow-sm relative z-20">
-            <button
+          <div className="flex items-center justify-between gap-2 relative z-20">
+            <StepButton
               onClick={() => handleChChange(Math.round(fin) - 1)}
-              className="w-7 h-7 shrink-0 rounded-md hover:bg-surface-2 text-text-faint hover:text-text transition flex items-center justify-center"
+              label="One chapter back"
             >
               <i className="fas fa-minus text-[10px]"></i>
-            </button>
-            <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1 whitespace-nowrap">
+            </StepButton>
+            <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
               <input
                 type="number"
-                className="text-text w-16 text-center bg-transparent border-b-2 border-transparent hover:border-border-strong focus:border-brand focus:outline-none transition-colors appearance-none p-0 m-0"
+                className={`${STEPPER_INPUT} w-16`}
                 value={fin}
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-text-faint mx-0.5 text-xs">/</span>
-              <span className="text-text-faint text-[13px] w-16 text-center">
-                {total}
-              </span>
-              <span className="text-text-faint ml-1 text-[10px] font-sans">
-                CH
-              </span>
+              <span className="text-text-faint mx-1 text-xs">/</span>
+              <span className="text-text-faint w-12 text-center">{total}</span>
+              <span className={`${UNIT} ml-1`}>ch</span>
             </div>
-            <button
+            <StepButton
               onClick={() => handleChChange(Math.round(fin) + 1)}
-              className="w-7 h-7 shrink-0 rounded-md bg-brand/10 hover:bg-brand text-brand hover:text-white transition flex items-center justify-center"
+              label="One chapter forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
-            </button>
+            </StepButton>
           </div>
         );
       }
       return (
-        <div className="flex items-center justify-center bg-surface-2 rounded-lg p-1.5 border border-border shadow-inner h-[40px]">
-          <div className="font-mono font-bold text-[13px] tracking-wide flex items-baseline justify-center select-none w-full px-1">
+        <div className="flex items-center justify-center border border-border h-[36px]">
+          <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
             <span className="text-text w-14 text-center">{fin}</span>
             <span className="text-text-faint mx-0.5 text-xs">/</span>
-            <span className="text-text-faint text-[13px] w-14 text-center">
-              {total}
-            </span>
-            <span className="text-text-faint ml-1 text-[10px] font-sans">CH</span>
+            <span className="text-text-faint w-14 text-center">{total}</span>
+            <span className={`${UNIT} ml-1`}>ch</span>
           </div>
         </div>
       );
@@ -285,48 +270,55 @@ export default function NovelDashboardCard({
 
   return (
     <div
-      className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-full cursor-pointer relative hover:shadow-md transition-shadow"
+      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative"
       onClick={() => navigate(`/novel/${novel.system_id}`)}
     >
       <div className="flex p-3">
-        <div className="w-20 h-28 shrink-0 bg-surface-2 rounded-lg overflow-hidden border border-border relative">
-          {novel.my_rating && (
-            <div className="absolute top-0 left-0 bg-yellow-400 text-yellow-900 text-[10px] font-black px-1.5 py-0.5 rounded-br-lg z-10 flex items-center shadow-sm">
-              <i className="fas fa-star text-[8px] mr-1"></i>
-              {novel.my_rating}
-            </div>
-          )}
-          {novel.region && (
-            <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 rounded-tl text-[8px] font-bold z-10">
-              {novel.region}
-            </div>
-          )}
-          <img
-            src={imageUrl}
-            alt="Cover"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.src = FALLBACK_SVG;
-            }}
-          />
+        <div className="flex shrink-0 h-28 border border-border">
+          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
+            <span
+              className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
+              style={{ writingMode: "vertical-rl" }}
+            >
+              Novel
+            </span>
+          </div>
+          <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
+            <RatingStamp
+              rating={novel.my_rating}
+              size="sm"
+              className="absolute top-1.5 right-1.5 z-10"
+            />
+            {novel.region && (
+              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] z-10">
+                {novel.region}
+              </div>
+            )}
+            <img
+              src={imageUrl}
+              alt="Cover"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = FALLBACK_SVG;
+              }}
+            />
+          </div>
         </div>
         <div className="ml-4 flex-1 min-w-0 flex flex-col justify-center">
           <h3
-            className="font-bold text-text text-sm line-clamp-2 leading-tight mb-1"
+            className="font-display font-bold text-text text-base line-clamp-2 leading-tight mb-1"
             title={title}
           >
             {title}
           </h3>
-          <p className="text-xs text-text-faint truncate mb-2">
-            From: {subTitle}
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
+            {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             {novel.serialization_status && (
-              <span
-                className={`${serializationColor} px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm truncate max-w-[110px] text-center`}
-              >
+              <Chip tone="ink" className="truncate max-w-[130px]">
                 {novel.serialization_status}
-              </span>
+              </Chip>
             )}
           </div>
         </div>
@@ -336,8 +328,8 @@ export default function NovelDashboardCard({
               e.stopPropagation();
               navigate(`/modify?id=${novel.system_id}&type=novel`);
             }}
-            className="absolute top-2 right-2 bg-surface/90 text-text-faint hover:text-brand hover:bg-surface rounded-md w-7 h-7 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors z-10 border border-border"
-            title="Quick Edit"
+            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
+            title="Quick edit"
           >
             <i className="fas fa-pencil-alt text-xs"></i>
           </button>
@@ -345,25 +337,17 @@ export default function NovelDashboardCard({
       </div>
 
       <div
-        className="bg-surface-2 p-3 border-t border-border mt-auto"
+        className="p-3 border-t border-border mt-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-end mb-1.5">
-          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-            Progress
-          </span>
-          <span className="text-[10px] font-bold text-brand">
-            {progressLabel}
-          </span>
+        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <span>Progress</span>
+          <span className="text-text">{progressLabel}</span>
         </div>
-        <div className="w-full bg-surface-3 rounded-full h-1.5 mb-3 overflow-hidden">
-          <div
-            className="bg-brand h-1.5 rounded-full transition-all duration-500"
-            style={{
-              width: progressLabel !== "Ongoing" ? `${progressPercent}%` : "0%",
-            }}
-          />
-        </div>
+        <ProgressRule
+          value={progressLabel !== "Ongoing" ? progressPercent / 100 : 0}
+          className="mb-3"
+        />
         {renderTracker()}
       </div>
     </div>

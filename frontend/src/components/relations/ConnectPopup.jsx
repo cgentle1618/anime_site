@@ -154,7 +154,7 @@ export default function ConnectPopup({
             onClick={() => setChosenKind(k.key)}
             className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
               kind === k.key
-                ? "bg-brand text-white"
+                ? "bg-brand text-on-brand"
                 : "bg-surface-2 text-text-muted hover:bg-surface-3"
             }`}
           >
@@ -172,7 +172,7 @@ export default function ConnectPopup({
       />
 
       {error ? (
-        <p className="mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-bold text-red-600">
+        <p className="mt-2 rounded-lg bg-danger/10 px-2 py-1.5 text-[11px] font-bold text-danger">
           {error}
         </p>
       ) : null}
@@ -195,7 +195,7 @@ export default function ConnectPopup({
         <button
           type="submit"
           disabled={busy || !far || !kind}
-          className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-40"
+          className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-[11px] font-black text-on-brand disabled:opacity-40"
         >
           Add relation
         </button>

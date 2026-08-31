@@ -3,10 +3,11 @@ import { useState, useEffect, useMemo } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
+import { Eyebrow } from "../../components/ui/primitives";
 
 const MAIN_TABS = [
-  { key: "Watch When Airs", label: "Watch When Airs", icon: "fa-broadcast-tower" },
-  { key: "Plan to Watch", label: "Plan to Watch", icon: "fa-calendar-alt" },
+  { key: "Watch When Airs", label: "Watch when airs" },
+  { key: "Plan to Watch", label: "Plan to watch" },
 ];
 
 const TYPE_ORDER = ["anime", "anime_movie", "movie", "tv_show", "cartoon"];
@@ -160,38 +161,32 @@ export default function PlanToWatchFuture({
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-calendar-alt text-brand/70"></i>
-          Plan to Watch for Future Releases
-        </h2>
-      </div>
+      <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
+        Plan to watch for future releases
+      </h2>
 
       {/* Tab bar */}
-      <div className="border-b border-border mb-6 overflow-x-auto">
-        <nav className="flex gap-1 min-w-max">
-          {MAIN_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.key
-                  ? "border-brand text-brand"
-                  : "border-transparent text-text-faint hover:text-text-muted"
-              }`}
-            >
-              <i className={`fas ${tab.icon} text-xs`}></i>
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+      <div className="flex flex-wrap gap-1.5 mb-6">
+        {MAIN_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap ${
+              activeTab === tab.key
+                ? "bg-brand text-on-brand border-brand"
+                : "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Content */}
       {totalCount === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-          <i className="fas fa-calendar-alt text-3xl text-text-faint/60 mb-3"></i>
-          <p className="text-text-faint font-medium">
+        <div className="text-center py-12 border border-dashed border-border-strong">
+          <Eyebrow className="mb-1">Empty</Eyebrow>
+          <p className="text-text-muted text-sm">
             No entries with &ldquo;{activeTab}&rdquo; status.
           </p>
           <p className="text-text-faint text-xs mt-1">
@@ -202,14 +197,13 @@ export default function PlanToWatchFuture({
         <div className="space-y-8">
           {grouped.map(({ year, entries }) => (
             <div key={year}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm font-black text-text-muted uppercase tracking-wider">
+              <div className="flex items-baseline gap-3 mb-3 pb-1 border-b border-border">
+                <span className="font-display text-xl text-text leading-none tabular-nums">
                   {year}
                 </span>
-                <span className="text-xs text-text-faint font-medium">
-                  ({entries.length})
+                <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                  {entries.length}
                 </span>
-                <div className="flex-1 h-px bg-surface-2 ml-1"></div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {entries.map((entry) => renderCard(entry))}

@@ -2315,14 +2315,14 @@ export default function Add() {
 
       {/* Last added notification */}
       {lastAdded && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <i className="fas fa-check-circle text-green-500"></i>
-          <span className="text-sm font-bold text-green-700">
+        <div className="mb-4 bg-success/15 border border-success/40 rounded-xl px-4 py-3 flex items-center gap-3">
+          <i className="fas fa-check-circle text-success"></i>
+          <span className="text-sm font-bold text-success">
             Added: {lastAdded}
           </span>
           <button
             onClick={() => setLastAdded(null)}
-            className="ml-auto text-green-400 hover:text-green-600"
+            className="ml-auto text-success/70 hover:text-success"
           >
             <i className="fas fa-times text-xs"></i>
           </button>
@@ -2544,7 +2544,7 @@ export default function Add() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
+            className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
           >
             {submitting ? (
               <i className="fas fa-spinner fa-spin"></i>
@@ -2560,8 +2560,8 @@ export default function Add() {
       {duplicateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-surface rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center gap-3">
-              <i className="fas fa-exclamation-triangle text-amber-500 text-xl"></i>
+            <div className="bg-warning/15 border-b border-warning/40 px-6 py-4 flex items-center gap-3">
+              <i className="fas fa-exclamation-triangle text-warning text-xl"></i>
               <h3 className="font-black text-text">Potential Duplicate</h3>
             </div>
             <div className="px-6 py-5">
@@ -2585,7 +2585,7 @@ export default function Add() {
               </button>
               <button
                 onClick={duplicateModal.onProceed}
-                className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 transition"
+                className="px-4 py-2 bg-brand text-on-brand rounded-lg text-sm font-bold hover:bg-brand-hover transition"
               >
                 Proceed Anyway
               </button>

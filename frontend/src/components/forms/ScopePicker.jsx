@@ -41,7 +41,7 @@ export default function ScopePicker({ scopes, setScopes, mediaTypes }) {
             onClick={() => toggle(key)}
             className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
               selected.has(key)
-                ? "bg-brand text-white border-brand"
+                ? "bg-brand text-on-brand border-brand"
                 : "bg-surface text-text-faint border-border hover:border-border-strong"
             }`}
           >

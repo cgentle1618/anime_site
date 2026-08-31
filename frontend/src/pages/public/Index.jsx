@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import { getRatingWeight } from "../../utils/media";
 import { getSortName } from "../../lib/naming";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
@@ -14,6 +13,7 @@ import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { endpoints } from "../../api/endpoints";
+import { Eyebrow } from "../../components/ui/primitives";
 
 const RATING_WEIGHT = {
   S: 0,
@@ -46,23 +46,18 @@ function readingSortName(item) {
 }
 
 const TOC_ITEMS = [
-  { id: "announcements", label: "Announcements", icon: "fa-bullhorn", level: 1 },
-  { id: "schedule", label: "Schedule", icon: "fa-calendar-week", level: 1 },
-  { id: "schedule-watch", label: "My Watch", icon: "fa-user-clock", level: 2 },
-  {
-    id: "schedule-broadcast",
-    label: "Broadcast",
-    icon: "fa-satellite-dish",
-    level: 2,
-  },
-  { id: "watching", label: "Watching", icon: "fa-eye", level: 1 },
-  { id: "watching-active", label: "Active", icon: "fa-play-circle", level: 2 },
-  { id: "watching-passive", label: "Passive", icon: "fa-headphones", level: 2 },
-  { id: "watching-paused", label: "Paused", icon: "fa-pause-circle", level: 2 },
-  { id: "reading", label: "Reading", icon: "fa-book-open", level: 1 },
-  { id: "reading-active", label: "Active", icon: "fa-book-reader", level: 2 },
-  { id: "reading-passive", label: "Passive", icon: "fa-glasses", level: 2 },
-  { id: "reading-paused", label: "Paused", icon: "fa-pause-circle", level: 2 },
+  { id: "announcements", label: "Announcements", level: 1 },
+  { id: "schedule", label: "Schedule", level: 1 },
+  { id: "schedule-watch", label: "My Watch", level: 2 },
+  { id: "schedule-broadcast", label: "Broadcast", level: 2 },
+  { id: "watching", label: "Watching", level: 1 },
+  { id: "watching-active", label: "Active", level: 2 },
+  { id: "watching-passive", label: "Passive", level: 2 },
+  { id: "watching-paused", label: "Paused", level: 2 },
+  { id: "reading", label: "Reading", level: 1 },
+  { id: "reading-active", label: "Active", level: 2 },
+  { id: "reading-passive", label: "Passive", level: 2 },
+  { id: "reading-paused", label: "Paused", level: 2 },
 ];
 
 function DashboardTOC({ activeId }) {
@@ -77,28 +72,23 @@ function DashboardTOC({ activeId }) {
 
   return (
     <nav className="sticky top-20 space-y-0.5">
-      <p className="text-[10px] font-black text-text-faint uppercase tracking-widest px-2 mb-3">
-        Contents
-      </p>
-      {TOC_ITEMS.map(({ id, label, icon, level }) => {
+      <Eyebrow className="px-2 mb-3">Contents</Eyebrow>
+      {TOC_ITEMS.map(({ id, label, level }) => {
         const isActive = activeId === id;
         return (
           <button
             key={id}
             onClick={() => scrollTo(id)}
-            className={`w-full text-left flex items-center gap-2 rounded-lg text-sm transition-all py-1.5 ${
-              level === 2 ? "pl-6 pr-2" : "px-2"
+            className={`w-full text-left flex items-center gap-2 border-l-2 transition-colors py-1 ${
+              level === 2
+                ? "pl-5 pr-2 font-mono text-[11px] uppercase tracking-[0.12em]"
+                : "pl-3 pr-2 font-display text-sm"
             } ${
               isActive
-                ? "bg-brand/10 text-brand font-bold"
-                : "text-text-faint hover:text-text hover:bg-surface-2 font-medium"
+                ? "border-brand text-brand"
+                : "border-transparent text-text-faint hover:text-text"
             }`}
           >
-            <i
-              className={`fas ${icon} text-xs w-3 ${
-                isActive ? "text-brand" : "text-text-faint"
-              }`}
-            ></i>
             <span className="truncate">{label}</span>
           </button>
         );
@@ -110,7 +100,6 @@ function DashboardTOC({ activeId }) {
 function Section({
   id,
   title,
-  icon,
   count,
   items,
   franchiseData,
@@ -124,31 +113,21 @@ function Section({
     else typeGroups[type] = [item];
   });
 
-  const typeIcons = {
-    Anime: "fa-tv",
-    "TV Show": "fa-video",
-    Cartoon: "fa-laugh-squint",
-  };
-
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-canvas flex items-center justify-between pb-3 mb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className={`fas ${icon} text-brand/70`}></i>
+      <div className="sticky top-[116px] z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong">
+        <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
-        <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-          {count}
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          {count} entries
         </span>
       </div>
 
       {items.length === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
-          <p className="text-text-faint font-medium italic">
-            <i className="fas fa-ghost mr-2"></i>Nothing in this category right
-            now.
-          </p>
+        <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
+          <p className="text-sm text-text-faint">Nothing filed here right now.</p>
         </div>
       ) : (
         <div className="pt-4 space-y-6">
@@ -162,16 +141,11 @@ function Section({
             );
             return (
               <div key={type} className="space-y-6">
-                <div className="border-b-2 border-border pb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
-                    <i
-                      className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
-                    ></i>
-                    {type}
-                  </h3>
-                  <span className="bg-surface-2 text-text-muted px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
-                    {sorted.length} Entries
-                  </span>
+                <div className="flex items-center gap-3">
+                  <Eyebrow as="h3">
+                    {type} · {sorted.length}
+                  </Eyebrow>
+                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {sorted.map((anime) => (
@@ -198,7 +172,6 @@ function Section({
 function ReadingSection({
   id,
   title,
-  icon,
   count,
   items,
   franchiseData,
@@ -207,26 +180,20 @@ function ReadingSection({
   onNovelProgressChange,
   onComicProgressChange,
 }) {
-  const typeIcons = { Manga: "fa-book", Novel: "fa-scroll", Comic: "fa-book-open" };
-
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-canvas flex items-center justify-between pb-3 mb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className={`fas ${icon} text-brand/70`}></i>
+      <div className="sticky top-[116px] z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong">
+        <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
-        <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-          {count}
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          {count} entries
         </span>
       </div>
       {items.length === 0 ? (
-        <div className="pt-2 flex flex-col items-center justify-center py-8 px-4 bg-surface/50 rounded-xl border border-border border-dashed">
-          <p className="text-text-faint font-medium italic">
-            <i className="fas fa-ghost mr-2"></i>Nothing in this category right
-            now.
-          </p>
+        <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
+          <p className="text-sm text-text-faint">Nothing filed here right now.</p>
         </div>
       ) : (
         <div className="pt-4 space-y-6">
@@ -242,16 +209,11 @@ function ReadingSection({
             });
             return (
               <div key={type} className="space-y-6">
-                <div className="border-b-2 border-border pb-2 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
-                    <i
-                      className={`fas ${typeIcons[type]} text-brand/70 mr-2`}
-                    ></i>
-                    {type}
-                  </h3>
-                  <span className="bg-surface-2 text-text-muted px-2.5 py-0.5 rounded-full text-xs font-bold border border-border">
-                    {sorted.length} Entries
-                  </span>
+                <div className="flex items-center gap-3">
+                  <Eyebrow as="h3">
+                    {type} · {sorted.length}
+                  </Eyebrow>
+                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {sorted.map((item) =>
@@ -619,22 +581,52 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
+          {/* Hero: the archive's thesis - what is on the shelf right now */}
+          <header className="pb-8 border-b border-border">
+            <Eyebrow className="mb-3">
+              CG1618 media archive ·{" "}
+              {new Date().toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}
+            </Eyebrow>
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-6">
+              {active.length + passive.length + paused.length} on the watching shelf,{" "}
+              {activeReading.length + passiveReading.length + pausedReading.length} on the
+              reading shelf.
+            </h1>
+            <div className="flex flex-wrap items-end gap-y-4">
+              {[
+                ["Active watching", active.length],
+                ["Active reading", activeReading.length],
+                ["Watch days this week", watchSchedule.length],
+                ["Airing this week", broadcastSchedule.length],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="pr-6 mr-6 border-r border-border last:border-r-0 last:mr-0 last:pr-0"
+                >
+                  <Eyebrow className="mb-1">{label}</Eyebrow>
+                  <div className="font-display text-3xl leading-none tabular-nums text-text">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </header>
+
           {/* Announcement Division */}
           <div id="announcements">
-            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-bullhorn text-brand text-lg"></i>
-              </div>
+            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
               <div>
-                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-                  Announcement &amp; Notes
-                </h1>
-                <p className="text-xs text-text-faint font-medium mt-0.5">
-                  Pinned to the top of the dashboard
-                </p>
+                <Eyebrow className="mb-1">Pinned to the top of the dashboard</Eyebrow>
+                <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                  Announcements &amp; notes
+                </h2>
               </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-                {announcements.length} Posted
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {announcements.length} posted
               </span>
             </div>
             <AnnouncementBoard announcements={announcements} />
@@ -642,26 +634,21 @@ export default function Index() {
 
           {/* Schedule Division */}
           <div id="schedule">
-            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-calendar-week text-brand text-lg"></i>
-              </div>
+            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
               <div>
-                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-                  Weekly Schedule
-                </h1>
-                <p className="text-xs text-text-faint font-medium mt-0.5">
-                  Sunday · Saturday
-                </p>
+                <Eyebrow className="mb-1">Sunday · Saturday</Eyebrow>
+                <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                  Weekly schedule
+                </h2>
               </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-                {broadcastSchedule.length + watchSchedule.length} Scheduled
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {broadcastSchedule.length + watchSchedule.length} scheduled
               </span>
             </div>
             <div className="pt-8 space-y-12">
               <WeeklySchedule
                 id="schedule-watch"
-                title="My Watch Schedule"
+                title="My watch schedule"
                 icon="fa-user-clock"
                 subtitle="Airing · by my watch day"
                 dayField="my_watch_day"
@@ -670,7 +657,7 @@ export default function Index() {
               />
               <WeeklySchedule
                 id="schedule-broadcast"
-                title="Broadcast Schedule"
+                title="Broadcast schedule"
                 icon="fa-satellite-dish"
                 subtitle="Airing · by broadcast day"
                 dayField="broadcast_day"
@@ -685,27 +672,21 @@ export default function Index() {
 
           {/* Watching Division */}
           <div id="watching">
-            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-eye text-brand text-lg"></i>
-              </div>
+            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
               <div>
-                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
+                <Eyebrow className="mb-1">Anime · TV Show · Cartoon</Eyebrow>
+                <h2 className="font-display text-3xl font-semibold text-text leading-none">
                   Watching
-                </h1>
-                <p className="text-xs text-text-faint font-medium mt-0.5">
-                  Anime · TV Show · Cartoon
-                </p>
+                </h2>
               </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-                {active.length + passive.length + paused.length} Active
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {active.length + passive.length + paused.length} in progress
               </span>
             </div>
             <div className="pt-8 space-y-12">
               <Section
                 id="watching-active"
-                title="Active Watching"
-                icon="fa-play-circle"
+                title="Active watching"
                 count={active.length}
                 items={active}
                 franchiseData={franchiseData}
@@ -714,8 +695,7 @@ export default function Index() {
               />
               <Section
                 id="watching-passive"
-                title="Passive Watching"
-                icon="fa-headphones"
+                title="Passive watching"
                 count={passive.length}
                 items={passive}
                 franchiseData={franchiseData}
@@ -725,7 +705,6 @@ export default function Index() {
               <Section
                 id="watching-paused"
                 title="Paused"
-                icon="fa-pause-circle"
                 count={paused.length}
                 items={paused}
                 franchiseData={franchiseData}
@@ -737,30 +716,24 @@ export default function Index() {
 
           {/* Reading Division */}
           <div id="reading">
-            <div className="sticky top-16 z-30 bg-canvas flex items-center gap-3 pb-3 border-b-2 border-border">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-book-open text-brand text-lg"></i>
-              </div>
+            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
               <div>
-                <h1 className="text-2xl font-black text-text tracking-tight leading-none">
+                <Eyebrow className="mb-1">Manga · Novel · Comic</Eyebrow>
+                <h2 className="font-display text-3xl font-semibold text-text leading-none">
                   Reading
-                </h1>
-                <p className="text-xs text-text-faint font-medium mt-0.5">
-                  Manga · Novel · Comics
-                </p>
+                </h2>
               </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {activeReading.length +
-                  passiveReading.length +
-                  pausedReading.length}{" "}
-                Active
+  passiveReading.length +
+  pausedReading.length}{" "}
+in progress
               </span>
             </div>
             <div className="pt-8 space-y-12">
               <ReadingSection
                 id="reading-active"
-                title="Active Reading"
-                icon="fa-book-reader"
+                title="Active reading"
                 count={activeReading.length}
                 items={activeReading}
                 franchiseData={franchiseData}
@@ -771,8 +744,7 @@ export default function Index() {
               />
               <ReadingSection
                 id="reading-passive"
-                title="Passive Reading"
-                icon="fa-glasses"
+                title="Passive reading"
                 count={passiveReading.length}
                 items={passiveReading}
                 franchiseData={franchiseData}
@@ -784,7 +756,6 @@ export default function Index() {
               <ReadingSection
                 id="reading-paused"
                 title="Paused"
-                icon="fa-pause-circle"
                 count={pausedReading.length}
                 items={pausedReading}
                 franchiseData={franchiseData}

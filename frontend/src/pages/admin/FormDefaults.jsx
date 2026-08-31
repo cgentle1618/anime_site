@@ -253,7 +253,7 @@ export default function FormDefaults() {
         onSelect={setActiveTab}
         renderBadge={(t) =>
           dirtyTabs.includes(t.key) ? (
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
           ) : null
         }
       />
@@ -275,7 +275,7 @@ export default function FormDefaults() {
           {autofillCount} auto-filled
         </span>
         {isDirty && (
-          <span className="text-xs font-bold text-amber-600">
+          <span className="text-xs font-bold text-warning">
             <i className="fas fa-circle text-[6px] mr-1 align-middle"></i>
             Unsaved changes
           </span>
@@ -294,7 +294,7 @@ export default function FormDefaults() {
             type="button"
             onClick={handleSave}
             disabled={saving || !isDirty}
-            className="px-5 py-2 bg-brand text-white rounded-lg text-xs font-black hover:opacity-90 transition disabled:opacity-40"
+            className="px-5 py-2 bg-brand text-on-brand rounded-lg text-xs font-black hover:opacity-90 transition disabled:opacity-40"
           >
             {saving ? (
               <i className="fas fa-spinner fa-spin"></i>

@@ -17,39 +17,39 @@ const STATUS_CYCLE = [
 
 const STATUS_STYLES = {
   "Active Watching": {
-    cls: "bg-green-50 text-green-600 border-green-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-play",
   },
   "Passive Watching": {
-    cls: "bg-teal-50 text-teal-600 border-teal-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-headphones",
   },
   Paused: {
-    cls: "bg-yellow-50 text-yellow-600 border-yellow-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-pause",
   },
   Completed: {
-    cls: "bg-blue-50 text-blue-600 border-blue-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-check",
   },
   "Completed (解說)": {
-    cls: "bg-indigo-50 text-indigo-600 border-indigo-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-comment-dots",
   },
   "Plan to Watch": {
-    cls: "bg-purple-50 text-purple-600 border-purple-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-bookmark",
   },
   "Watch When Airs": {
-    cls: "bg-orange-50 text-orange-600 border-orange-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     icon: "fa-clock",
   },
   "Temp Dropped": {
-    cls: "bg-red-50 text-red-400 border-red-200",
+    cls: "bg-surface text-text-faint border-border-strong",
     icon: "fa-pause-circle",
   },
   Dropped: {
-    cls: "bg-red-50 text-red-600 border-red-200",
+    cls: "bg-surface text-text-faint border-border-strong",
     icon: "fa-times-circle",
   },
   "Won't Watch": {
@@ -70,52 +70,52 @@ const STATUS_BUTTON_CONFIG = {
   },
   "Plan to Watch": {
     symbol: "…",
-    cls: "bg-purple-50 text-purple-600 border-purple-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   "Watch When Airs": {
     symbol: "…",
-    cls: "bg-purple-50 text-purple-600 border-purple-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   "Active Watching": {
     symbol: "~",
-    cls: "bg-green-50 text-green-600 border-green-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   "Passive Watching": {
     symbol: "~",
-    cls: "bg-green-50 text-green-600 border-green-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   Paused: {
     symbol: "~",
-    cls: "bg-yellow-50 text-yellow-600 border-yellow-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   Completed: {
     symbol: "✓",
-    cls: "bg-blue-50 text-blue-600 border-blue-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   "Completed (解說)": {
     symbol: "✓",
-    cls: "bg-indigo-50 text-indigo-600 border-indigo-200",
+    cls: "bg-surface text-text-muted border-border-strong",
     target: "Might Watch",
   },
   "Temp Dropped": {
     symbol: "✕",
-    cls: "bg-red-50 text-red-500 border-red-200",
+    cls: "bg-surface text-text-faint border-border-strong",
     target: "Might Watch",
   },
   Dropped: {
     symbol: "✕",
-    cls: "bg-red-50 text-red-600 border-red-200",
+    cls: "bg-surface text-text-faint border-border-strong",
     target: "Might Watch",
   },
   "Won't Watch": {
     symbol: "✕",
-    cls: "bg-red-50 text-red-400 border-red-200",
+    cls: "bg-surface text-text-faint border-border-strong",
     target: "Might Watch",
   },
 };
@@ -136,15 +136,15 @@ export function getNextStatus(current) {
 
 const READING_BUTTON_CONFIG = {
   "Might Read": { symbol: "+", cls: "bg-surface-2 text-text-faint border-border", target: "Plan to Read" },
-  "Plan to Read": { symbol: "…", cls: "bg-purple-50 text-purple-600 border-purple-200", target: "Might Read" },
-  "Active Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
-  "Passive Reading": { symbol: "~", cls: "bg-green-50 text-green-600 border-green-200", target: "Might Read" },
-  Paused: { symbol: "~", cls: "bg-yellow-50 text-yellow-600 border-yellow-200", target: "Might Read" },
-  Completed: { symbol: "✓", cls: "bg-blue-50 text-blue-600 border-blue-200", target: "Might Read" },
-  "Completed (解說)": { symbol: "✓", cls: "bg-indigo-50 text-indigo-600 border-indigo-200", target: "Might Read" },
-  "Temp Dropped": { symbol: "✕", cls: "bg-red-50 text-red-500 border-red-200", target: "Might Read" },
-  Dropped: { symbol: "✕", cls: "bg-red-50 text-red-600 border-red-200", target: "Might Read" },
-  "Won't Read": { symbol: "✕", cls: "bg-red-50 text-red-400 border-red-200", target: "Might Read" },
+  "Plan to Read": { symbol: "…", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  "Active Reading": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  "Passive Reading": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  Paused: { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  Completed: { symbol: "✓", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  "Completed (解說)": { symbol: "✓", cls: "bg-surface text-text-muted border-border-strong", target: "Might Read" },
+  "Temp Dropped": { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Read" },
+  Dropped: { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Read" },
+  "Won't Read": { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Read" },
 };
 
 export function getReadingButtonConfig(status) {

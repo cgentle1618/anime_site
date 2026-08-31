@@ -1,4 +1,25 @@
 // Frontend: info component file for ScoreBlock.
+//
+// A row of figures, not a row of coloured chips: each score is a large
+// display numeral under a mono label, separated by hairlines.
+function Figure({ label, value }) {
+  const empty = value == null || value === "";
+  return (
+    <div className="pr-6 mr-6 border-r border-border last:border-r-0 last:mr-0 last:pr-0">
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
+        {label}
+      </div>
+      <div
+        className={`font-display text-3xl leading-none tabular-nums ${
+          empty ? "text-text-faint" : "text-text"
+        }`}
+      >
+        {empty ? "—" : value}
+      </div>
+    </div>
+  );
+}
+
 export default function ScoreBlock({
   malScore,
   malRank,
@@ -6,49 +27,18 @@ export default function ScoreBlock({
   updatedAt,
 }) {
   return (
-    <div className="flex flex-wrap gap-4 items-center">
-      <div className="bg-blue-50 text-blue-800 border border-blue-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-        <i className="fas fa-star text-blue-500 mr-2 text-lg"></i>
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-            MAL Score
-          </div>
-          <div className="font-black text-base leading-none">
-            {malScore || "-"}
-          </div>
-        </div>
-      </div>
-      <div className="bg-blue-50 text-blue-800 border border-blue-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-        <i className="fas fa-trophy text-blue-500 mr-2 text-lg"></i>
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-            MAL Rank
-          </div>
-          <div className="font-black text-base leading-none">
-            {malRank ? `#${malRank}` : "-"}
-          </div>
-        </div>
-      </div>
-      <div className="bg-indigo-50 text-indigo-800 border border-indigo-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-        <i className="fas fa-star-half-alt text-indigo-500 mr-2 text-lg"></i>
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-            AniList Score
-          </div>
-          <div className="font-black text-base leading-none">
-            {anilistScore || "-"}
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-wrap items-end gap-y-4">
+      <Figure label="MAL score" value={malScore} />
+      <Figure label="MAL rank" value={malRank ? `#${malRank}` : null} />
+      <Figure label="AniList" value={anilistScore} />
       <div className="ml-auto text-right">
-        <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-          Last Updated
+        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
+          Last updated
         </div>
-        <div className="text-sm font-mono text-text-muted">
-          {updatedAt ? new Date(updatedAt).toLocaleString() : "-"}
+        <div className="font-mono text-xs text-text-muted">
+          {updatedAt ? new Date(updatedAt).toLocaleString() : "—"}
         </div>
       </div>
     </div>
   );
 }
-

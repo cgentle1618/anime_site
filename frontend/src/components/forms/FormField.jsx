@@ -9,7 +9,7 @@ export function Field({ label, required, half, hint, children }) {
     <div className={half ? "" : ""}>
       <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-danger ml-0.5">*</span>}
       </label>
       {children}
       {hint && <p className="text-[10px] text-text-faint mt-0.5">{hint}</p>}
@@ -25,8 +25,8 @@ export function CollectionNote({ franchiseId, franchiseCollections }) {
   const name = franchiseId ? franchiseCollections?.[franchiseId] : null;
   if (!name) return null;
   return (
-    <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
-      <i className="fas fa-box-open text-purple-400"></i>
+    <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold text-text-muted bg-surface-2 border border-border rounded-full px-2 py-0.5">
+      <i className="fas fa-box-open text-text-faint"></i>
       Collection: {name}
     </p>
   );

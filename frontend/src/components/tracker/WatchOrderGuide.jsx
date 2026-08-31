@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
-import { getCardStatusConfig } from "../../lib/status";
+import { Chip, Eyebrow } from "../ui/primitives";
 
 const TYPE_LABELS = {
   anime: "Anime",
@@ -101,32 +101,19 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
   const scope = mediaScope(mediaTypes);
   if (!scope) return null;
 
-  const tone = scope.cross ? "text-sky-600" : "text-text-faint";
-
   // Compact form for a row subtitle, where the per-type chips would not fit.
   if (short) {
-    return (
-      <span
-        className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ${tone} ${className}`}
-      >
-        <i className={`fas ${scope.icon}`}></i>
-        {scope.short}
-      </span>
-    );
+    return <Eyebrow as="span" className={className}>{scope.short}</Eyebrow>;
   }
 
   return (
-    <p
-      className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${tone} ${className}`}
-    >
-      <i className={`fas ${scope.icon}`}></i>
+    <Eyebrow as="p" className={`flex flex-wrap items-center gap-1.5 ${className}`}>
       {scope.cross ? (
         <>
           Cross-type
-          <span className="text-text-faint/60">·</span>
+          <span aria-hidden="true">·</span>
           {scope.chips.map((c) => (
-            <span key={c.slug} className="flex items-center gap-1 text-text-faint">
-              <i className={`fas ${c.icon} text-[10px]`}></i>
+            <span key={c.slug} className="text-text-muted">
               {c.label}
             </span>
           ))}
@@ -134,7 +121,7 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
       ) : (
         scope.full
       )}
-    </p>
+    </Eyebrow>
   );
 }
 
@@ -249,25 +236,16 @@ function StepRow({ item, index, roomy }) {
   const label = rangeLabel(item);
   const special = specialLabel(item);
   const path = entryPath(item);
-  // getCardStatusConfig, not getStatusStyle: reading statuses ("Active
-  // Reading", "Might Read") have no entry in the watching style map and would
-  // all fall back to the same grey.
-  const statusStyle = item.status
-    ? getCardStatusConfig(item.media_type, item.status)
-    : null;
 
   // A deleted entry leaves the step behind on purpose, so it stays visible and
   // can be removed rather than silently vanishing from the guide.
   if (item.missing) {
     return (
-      <li className="flex items-center gap-3 py-3 px-3 rounded-xl border border-dashed border-border bg-surface-2">
-        <span className="w-7 h-7 shrink-0 rounded-full bg-surface-3 text-text-faint text-xs font-black flex items-center justify-center">
+      <li className="flex items-center gap-3 py-3 px-3 border border-dashed border-border-strong bg-surface-2">
+        <span className="w-7 h-7 shrink-0 border border-border-strong text-text-faint font-mono text-xs flex items-center justify-center">
           {index}
         </span>
-        <i className="fas fa-triangle-exclamation text-text-faint"></i>
-        <span className="text-sm font-medium text-text-faint">
-          Entry no longer exists
-        </span>
+        <span className="text-sm text-text-muted">Entry no longer exists</span>
       </li>
     );
   }
@@ -275,8 +253,8 @@ function StepRow({ item, index, roomy }) {
   const body = (
     <>
       <span
-        className={`shrink-0 rounded-full bg-brand/10 text-brand font-black flex items-center justify-center ${
-          roomy ? "w-9 h-9 text-sm" : "w-7 h-7 text-xs"
+        className={`shrink-0 border border-brand text-brand font-display font-bold flex items-center justify-center ${
+          roomy ? "w-9 h-9 text-base" : "w-7 h-7 text-sm"
         }`}
       >
         {index}
@@ -289,7 +267,7 @@ function StepRow({ item, index, roomy }) {
         onError={(e) => {
           e.currentTarget.src = FALLBACK_SVG;
         }}
-        className={`shrink-0 rounded-lg object-cover bg-surface-2 ${
+        className={`shrink-0 object-cover bg-surface-2 border border-border ${
           roomy ? "w-14 h-20" : "w-10 h-14"
         }`}
       />
@@ -297,65 +275,31 @@ function StepRow({ item, index, roomy }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span
-            className={`font-bold text-text truncate ${
+            className={`font-display font-bold text-text truncate ${
               roomy ? "text-base" : "text-sm"
             }`}
           >
             {item.display_name}
           </span>
-          {label && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 whitespace-nowrap">
-              {label}
-            </span>
-          )}
-          {item.importance === "Essential" && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 whitespace-nowrap">
-              Essential
-            </span>
-          )}
-          {item.importance === "Recommended" && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200 whitespace-nowrap">
-              Recommended
-            </span>
-          )}
-          {item.importance === "Optional" && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
-              Optional
-            </span>
-          )}
+          {label && <Chip>{label}</Chip>}
+          {item.importance === "Essential" && <Chip>Essential</Chip>}
+          {item.importance === "Recommended" && <Chip>Recommended</Chip>}
+          {item.importance === "Optional" && <Chip tone="muted">Optional</Chip>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-1">
-          <span className="text-[11px] font-bold text-text-faint">
-            {TYPE_LABELS[item.media_type] || item.media_type}
-          </span>
-          {item.release_display && (
-            <span className="text-[11px] font-medium text-text-faint">
-              {item.release_display}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-[11px] text-text-faint">
+          <span>{TYPE_LABELS[item.media_type] || item.media_type}</span>
+          {item.release_display && <span>{item.release_display}</span>}
           {item.total_episodes != null && (
-            <span className="text-[11px] font-medium text-text-faint">
-              {item.total_episodes} total
-            </span>
+            <span>{item.total_episodes} total</span>
           )}
-          {special && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
-              {special}
-            </span>
-          )}
-          {statusStyle && (
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${statusStyle.cls}`}
-            >
-              {item.status}
-            </span>
-          )}
+          {special && <Chip>{special}</Chip>}
+          {item.status && <Chip>{item.status}</Chip>}
         </div>
 
         {item.note && (
           <p
-            className={`text-text-faint font-medium mt-1 ${
+            className={`text-text-muted mt-1 ${
               roomy ? "text-sm" : "text-xs"
             }`}
           >
@@ -366,12 +310,12 @@ function StepRow({ item, index, roomy }) {
     </>
   );
 
-  const rowClass = `flex items-center gap-3 rounded-xl border transition-colors ${
+  const rowClass = `flex items-center gap-3 border transition-colors ${
     roomy ? "py-3 px-4" : "py-2.5 px-3"
   } ${
     item.importance === "Optional"
-      ? "border-border bg-surface-2/60 opacity-75 hover:opacity-100"
-      : "border-border bg-surface hover:border-brand/40"
+      ? "border-border bg-surface-2 opacity-75 hover:opacity-100 hover:border-border-strong"
+      : "border-border bg-surface hover:border-border-strong"
   }`;
 
   return (
@@ -444,9 +388,8 @@ export default function WatchOrderGuide({
 
   if (!items.length) {
     return (
-      <div className="text-center py-10 text-text-faint">
-        <i className="fas fa-list-ol text-2xl mb-2"></i>
-        <p className="font-medium text-sm">This watch order has no steps yet.</p>
+      <div className="text-center py-10 border border-dashed border-border-strong">
+        <p className="text-sm text-text-muted">This watch order has no steps yet.</p>
       </div>
     );
   }
@@ -462,7 +405,7 @@ export default function WatchOrderGuide({
       */}
       {list.remark && (
         <p
-          className={`text-text-muted font-medium pt-3 mb-3 ${
+          className={`text-text-muted pt-3 mb-3 ${
             roomy ? "text-sm" : "text-xs"
           }`}
         >
@@ -475,7 +418,7 @@ export default function WatchOrderGuide({
         guide whose steps are all Normal has nothing to narrow to.
       */}
       {(optionalCount > 0 || essentialCount > 0) && (
-        <div className="inline-flex items-center gap-1 mb-3 p-0.5 rounded-lg bg-surface-2">
+        <div className="inline-flex items-center mb-3 border border-border-strong divide-x divide-border-strong">
           {FILTERS.map((f) => {
             // Each option is hidden unless it has something to act on, so a
             // guide with optional steps but no essential ones does not offer
@@ -492,11 +435,12 @@ export default function WatchOrderGuide({
               <button
                 key={f.key}
                 type="button"
+                aria-pressed={filter === f.key}
                 onClick={() => setFilter(f.key)}
-                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-colors ${
+                className={`font-mono text-[11px] uppercase tracking-[0.12em] px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   filter === f.key
-                    ? "bg-surface text-brand shadow-sm"
-                    : "text-text-faint hover:text-text-muted"
+                    ? "bg-brand-soft text-brand"
+                    : "text-text-muted hover:text-text"
                 }`}
               >
                 {f.label}
@@ -512,7 +456,7 @@ export default function WatchOrderGuide({
         says so rather than leaving a blank space under the controls.
       */}
       {!visible.length && (
-        <p className="text-sm font-medium text-text-faint py-6 text-center">
+        <p className="text-sm text-text-muted py-6 text-center">
           No steps match this filter.
         </p>
       )}
@@ -528,7 +472,7 @@ export default function WatchOrderGuide({
           block.kind === "part" ? (
             <section
               key={block.key}
-              className={`rounded-2xl border border-border bg-surface-2/60 overflow-hidden ${
+              className={`border border-border bg-surface ${
                 roomy ? "mt-2 first:mt-0" : "mt-1.5 first:mt-0"
               }`}
             >
@@ -538,22 +482,23 @@ export default function WatchOrderGuide({
                 part is shown by the container instead of being inferred from
                 where the next heading happens to start.
               */}
-              <header className="px-3 py-2 bg-surface/70 border-b border-border">
-                <div className="flex items-baseline gap-2">
+              <header className="px-3 py-2 border-b border-border">
+                <div className="flex items-center gap-3">
                   <h4
-                    className={`font-black text-text tracking-tight ${
-                      roomy ? "text-base" : "text-sm"
+                    className={`font-mono uppercase tracking-[0.16em] text-text-muted shrink-0 ${
+                      roomy ? "text-xs" : "text-[11px]"
                     }`}
                   >
                     {block.section.section_name || "Untitled Section"}
                   </h4>
-                  <span className="text-[10px] font-black text-text-faint whitespace-nowrap">
+                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
+                  <Eyebrow as="span" className="whitespace-nowrap">
                     {block.rows.length}
                     {block.rows.length === 1 ? " step" : " steps"}
-                  </span>
+                  </Eyebrow>
                 </div>
                 {block.section.remark && (
-                  <p className="text-xs text-text-faint font-medium mt-1">
+                  <p className="text-xs text-text-muted mt-1">
                     {block.section.remark}
                   </p>
                 )}
@@ -597,13 +542,13 @@ export default function WatchOrderGuide({
       */}
       {hiddenCount > 0 && (
         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-3">
-          <span className="text-xs font-bold text-text-faint">
+          <Eyebrow as="span">
             Showing {shown.length} of {visible.length} steps
-          </span>
+          </Eyebrow>
           {fullHref && (
             <Link
               to={fullHref}
-              className="text-xs font-bold text-brand hover:underline whitespace-nowrap"
+              className="text-xs font-medium text-text-muted hover:text-brand whitespace-nowrap"
             >
               See all {visible.length}
               <i className="fas fa-arrow-up-right-from-square ml-1"></i>

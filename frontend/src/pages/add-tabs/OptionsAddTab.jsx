@@ -96,7 +96,7 @@ function OptionsForm({
                 onClick={() =>
                   setOptValues((prev) => prev.filter((_, j) => j !== i))
                 }
-                className="px-3 py-2 text-red-400 hover:text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition shrink-0"
+                className="px-3 py-2 text-danger/70 hover:text-danger border border-danger/40 rounded-lg hover:bg-danger/10 transition shrink-0"
               >
                 <i className="fas fa-times text-xs"></i>
               </button>

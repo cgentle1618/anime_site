@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import GroupedEntryPage, {
-  Pill,
   Toggle,
   controlCls,
 } from "../../components/layout/GroupedEntryPage";
+import { Button, Chip } from "../../components/ui/primitives";
 import { OWNER_TYPE_OPTIONS } from "../../components/forms/MemeOwnerPicker";
 import MemeForm, { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
 import { useApiQuery } from "../../hooks/useApiQuery";
@@ -88,7 +88,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
 
   if (editing) {
     return (
-      <div className="border border-brand/30 rounded-lg p-3 bg-brand-soft">
+      <div className="border border-brand p-3 bg-surface">
         <MemeForm
           val={draft}
           setVal={setDraft}
@@ -96,26 +96,19 @@ function MemeRow({ meme, isAdmin, onChanged }) {
           ownerId={meme.owner_id}
         />
         <div className="flex gap-2 mt-3">
-          <button
-            onClick={saveEdit}
-            disabled={busy}
-            className="rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-hover disabled:opacity-50"
-          >
+          <Button kind="primary" size="sm" onClick={saveEdit} disabled={busy}>
             Save
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-bold text-text-muted hover:bg-surface-3"
-          >
+          </Button>
+          <Button size="sm" onClick={() => setEditing(false)}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="group border border-border rounded-lg p-3 bg-surface-2/70 hover:bg-surface-2 transition">
+    <div className="group border border-border p-3 bg-surface hover:border-border-strong transition">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {/* The image has no stored position — a meme has at most one, and it
@@ -124,7 +117,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <img
               src={imageUrl}
               alt=""
-              className="mb-2 max-h-64 rounded-lg border border-border"
+              className="mb-2 max-h-64 border border-border"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
@@ -138,21 +131,16 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                   quote simply unlinks — there is no dangling state to render. */}
               {meme.quote_id && (
                 <span className="ml-2 align-middle">
-                  <Pill tone="brand">
-                    <i className="fas fa-quote-left" />
-                    {meme.quote_speaker || "quote"}
-                  </Pill>
+                  <Chip tone="brand">{meme.quote_speaker || "quote"}</Chip>
                 </span>
               )}
             </p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-faint font-medium">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-text-faint">
             {meme.episode && <span>{meme.episode}</span>}
             {meme.is_favorite && (
-              <Pill tone="amber">
-                <i className="fas fa-star" />
-              </Pill>
+              <Chip tone="brand">Favorite</Chip>
             )}
             {meme.remark && <span className="italic">{meme.remark}</span>}
             {meme.link && (
@@ -162,8 +150,8 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                 rel="noreferrer"
                 className="text-brand hover:underline"
               >
-                <i className="fas fa-link mr-1" />
-                link
+                <i className="fas fa-external-link-alt mr-1" aria-hidden="true" />
+                Link
               </a>
             )}
           </div>
@@ -174,7 +162,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <button
               onClick={copyText}
               title="Copy text"
-              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+              className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
             >
               <i className="fas fa-copy text-xs" />
             </button>
@@ -183,7 +171,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
             <button
               onClick={copyImage}
               title="Copy image"
-              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+              className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
             >
               <i className="fas fa-image text-xs" />
             </button>
@@ -194,10 +182,8 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                 onClick={() => patch({ is_favorite: !meme.is_favorite })}
                 disabled={busy}
                 title="Toggle favorite"
-                className={`h-7 w-7 rounded-lg hover:bg-surface ${
-                  meme.is_favorite
-                    ? "text-amber-500"
-                    : "text-text-faint hover:text-amber-500"
+                className={`h-7 w-7 hover:bg-surface-2 ${
+                  meme.is_favorite ? "text-brand" : "text-text-faint hover:text-brand"
                 }`}
               >
                 <i className="fas fa-star text-xs" />
@@ -208,7 +194,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                   setEditing(true);
                 }}
                 title="Edit"
-                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+                className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
               >
                 <i className="fas fa-pen text-xs" />
               </button>
@@ -216,7 +202,7 @@ function MemeRow({ meme, isAdmin, onChanged }) {
                 onClick={remove}
                 disabled={busy}
                 title="Delete"
-                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-red-500"
+                className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-danger"
               >
                 <i className="fas fa-trash text-xs" />
               </button>
@@ -280,14 +266,14 @@ export default function Memes() {
             className={controlCls}
           >
             <option value="">All owners</option>
-            <optgroup label="Media Entry">
+            <optgroup label="Media entry">
               {OWNER_TYPE_OPTIONS.filter((o) => !o.tier).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Grouping Tier">
+            <optgroup label="Grouping tier">
               {OWNER_TYPE_OPTIONS.filter((o) => o.tier).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -299,7 +285,6 @@ export default function Memes() {
             active={favoritesOnly}
             onClick={() => setFavoritesOnly((v) => !v)}
           >
-            <i className="fas fa-star mr-1" />
             Favorites
           </Toggle>
           <input

@@ -35,7 +35,7 @@ function RemarksSection({ results, loading, onRefresh }) {
     if (!activeTab || activeTab.entries.length === 0) {
       return (
         <div className="text-center py-8 text-text-faint">
-          <i className="fas fa-check-circle text-2xl text-emerald-400 block mb-2"></i>
+          <i className="fas fa-check-circle text-2xl text-success block mb-2"></i>
           <p className="font-bold text-sm">No remarks in this category</p>
         </div>
       );
@@ -59,7 +59,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/anime/${e.system_id}`)}
               >
                 <td
@@ -105,7 +105,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
                   (window.location.href = `/anime-movie/${e.system_id}`)
                 }
@@ -149,7 +149,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/movie/${e.system_id}`)}
               >
                 <td
@@ -192,7 +192,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/tv/${e.system_id}`)}
               >
                 <td
@@ -235,7 +235,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
                   (window.location.href = `/cartoon/${e.system_id}`)
                 }
@@ -284,7 +284,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/manga/${e.system_id}`)}
               >
                 <td
@@ -329,7 +329,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             {entries.map((e, i) => (
               <tr
                 key={i}
-                className="hover:bg-amber-50/40 transition cursor-pointer"
+                className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() => (window.location.href = `/comic/${e.system_id}`)}
               >
                 <td
@@ -372,7 +372,7 @@ function RemarksSection({ results, loading, onRefresh }) {
           {entries.map((e, i) => (
             <tr
               key={i}
-              className="hover:bg-amber-50/40 transition cursor-pointer"
+              className="hover:bg-surface-2 transition cursor-pointer"
               onClick={() => (window.location.href = `/novel/${e.system_id}`)}
             >
               <td
@@ -417,7 +417,7 @@ function RemarksSection({ results, loading, onRefresh }) {
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm"
+          className="flex items-center gap-2 bg-brand hover:bg-brand-hover disabled:opacity-60 text-on-brand px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm"
         >
           {loading ? (
             <i className="fas fa-circle-notch fa-spin"></i>
@@ -431,14 +431,14 @@ function RemarksSection({ results, loading, onRefresh }) {
       {results === null ? (
         <div className="bg-surface rounded-2xl border border-border shadow-sm flex items-center justify-center py-16 text-text-faint">
           <div className="text-center">
-            <i className="fas fa-comment-alt text-3xl block mb-3 text-amber-300"></i>
+            <i className="fas fa-comment-alt text-3xl block mb-3 text-text-faint"></i>
             <p className="font-bold">Click "Find Remarks" to load</p>
           </div>
         </div>
       ) : totalEntries === 0 ? (
         <div className="bg-surface rounded-2xl border border-border shadow-sm flex items-center justify-center py-16 text-text-faint">
           <div className="text-center">
-            <i className="fas fa-check-circle text-3xl block mb-3 text-emerald-400"></i>
+            <i className="fas fa-check-circle text-3xl block mb-3 text-success"></i>
             <p className="font-bold">No remarks found</p>
           </div>
         </div>
@@ -451,13 +451,13 @@ function RemarksSection({ results, loading, onRefresh }) {
                 onClick={() => setTab(t.key)}
                 className={`px-4 py-2 text-xs font-black rounded-t-lg transition border-b-2 -mb-px ${
                   tab === t.key
-                    ? "border-amber-500 text-amber-700 bg-surface"
+                    ? "border-brand text-brand bg-surface"
                     : "border-transparent text-text-faint hover:text-text-muted hover:bg-surface-2"
                 }`}
               >
                 {t.label}
                 {t.entries.length > 0 && (
-                  <span className="ml-1.5 bg-amber-100 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  <span className="ml-1.5 bg-brand-soft text-brand text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                     {t.entries.length}
                   </span>
                 )}
@@ -507,10 +507,10 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase">
+            <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded uppercase">
               {group[0].franchise_type || "—"}
             </span>
             <span className="text-xs text-text-faint">
@@ -525,7 +525,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((f, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -547,7 +547,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -566,7 +566,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((s, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -592,10 +592,10 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+            <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
               {a0.airing_type || "—"}
             </span>
             {a0.season_part && (
@@ -620,7 +620,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((a, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -643,7 +643,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -661,7 +661,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((m, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -684,7 +684,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -708,7 +708,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((m, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -734,7 +734,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -751,7 +751,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
               </span>
             )}
             {t0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {t0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -768,7 +768,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((t, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -790,7 +790,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -807,7 +807,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
               </span>
             )}
             {c0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {c0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -824,7 +824,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">Alt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((c, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -850,7 +850,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -862,7 +862,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
               </span>
             )}
             {mg0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {mg0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -878,7 +878,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((mg, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -901,7 +901,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       return (
         <div
           key={idx}
-          className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+          className="border border-border bg-surface rounded-xl p-4 mb-3"
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-[10px] font-mono text-text-faint">
@@ -913,7 +913,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
               </span>
             )}
             {nv0.is_main != null && (
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase">
+              <span className="text-[10px] font-bold bg-brand-soft text-brand px-2 py-0.5 rounded uppercase">
                 {nv0.is_main ? "Main" : "Side"}
               </span>
             )}
@@ -929,7 +929,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 <th className="text-left pb-1">EN Name</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-orange-100">
+            <tbody className="divide-y divide-border">
               {group.map((nv, i) => (
                 <tr key={i}>
                   <td className="py-1 pr-3 font-mono text-[10px] text-text-faint">
@@ -950,7 +950,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
     return (
       <div
         key={idx}
-        className="border border-orange-200 bg-orange-50/30 rounded-xl p-4 mb-3"
+        className="border border-border bg-surface rounded-xl p-4 mb-3"
       >
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded">
@@ -990,7 +990,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm"
+          className="flex items-center gap-2 bg-brand hover:bg-brand-hover disabled:opacity-60 text-on-brand px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm"
         >
           {loading ? (
             <i className="fas fa-circle-notch fa-spin"></i>
@@ -1008,14 +1008,14 @@ function DuplicatesSection({ results, loading, onRefresh }) {
       {results === null ? (
         <div className="bg-surface rounded-2xl border border-border shadow-sm flex items-center justify-center py-16 text-text-faint">
           <div className="text-center">
-            <i className="fas fa-clone text-3xl block mb-3 text-orange-300"></i>
+            <i className="fas fa-clone text-3xl block mb-3 text-text-faint"></i>
             <p className="font-bold">Click "Find Duplicates" to load</p>
           </div>
         </div>
       ) : totalGroups === 0 ? (
         <div className="bg-surface rounded-2xl border border-border shadow-sm flex items-center justify-center py-16 text-text-faint">
           <div className="text-center">
-            <i className="fas fa-check-circle text-3xl block mb-3 text-emerald-400"></i>
+            <i className="fas fa-check-circle text-3xl block mb-3 text-success"></i>
             <p className="font-bold">No duplicates found</p>
           </div>
         </div>
@@ -1029,13 +1029,13 @@ function DuplicatesSection({ results, loading, onRefresh }) {
                 onClick={() => setTab(t.key)}
                 className={`px-4 py-2 text-xs font-black rounded-t-lg transition border-b-2 -mb-px ${
                   tab === t.key
-                    ? "border-orange-500 text-orange-700 bg-surface"
+                    ? "border-brand text-brand bg-surface"
                     : "border-transparent text-text-faint hover:text-text-muted hover:bg-surface-2"
                 }`}
               >
                 {t.label}
                 {t.groups.length > 0 && (
-                  <span className="ml-1.5 bg-orange-100 text-orange-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  <span className="ml-1.5 bg-brand-soft text-brand text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                     {t.groups.length}
                   </span>
                 )}
@@ -1047,7 +1047,7 @@ function DuplicatesSection({ results, loading, onRefresh }) {
           <div className="p-5 overflow-y-auto max-h-[600px]">
             {activeTab && activeTab.groups.length === 0 ? (
               <div className="text-center py-8 text-text-faint">
-                <i className="fas fa-check-circle text-2xl text-emerald-400 block mb-2"></i>
+                <i className="fas fa-check-circle text-2xl text-success block mb-2"></i>
                 <p className="font-bold text-sm">
                   No duplicates in this category
                 </p>

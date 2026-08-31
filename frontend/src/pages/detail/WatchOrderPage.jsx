@@ -13,6 +13,7 @@ import WatchOrderGuide, {
   MediaScopeLine,
 } from "../../components/tracker/WatchOrderGuide";
 import { getDisplayName } from "../../utils/media";
+import { Chip, Slip } from "../../components/ui/primitives";
 
 export default function WatchOrderPage() {
   const { system_id } = useParams();
@@ -81,101 +82,111 @@ export default function WatchOrderPage() {
 
   if (error) {
     return (
-      <div className="text-center py-24">
-        <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
-        <p className="font-bold text-text-faint">{error}</p>
-        <Link
-          to="/"
-          className="inline-block mt-4 text-sm font-bold text-brand hover:underline"
-        >
-          Back home
-        </Link>
+      <div className="max-w-4xl mx-auto px-4 py-24">
+        <section className="border border-dashed border-border-strong px-4 py-6 text-center">
+          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+            Watch order
+          </div>
+          <p className="text-sm text-text-faint">{error}</p>
+          <Link
+            to="/"
+            className="inline-block mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
+          >
+            Back home
+          </Link>
+        </section>
       </div>
     );
   }
 
   const ownerName = owner ? getDisplayName(owner.data, owner.type) : null;
+  const ownerLabel = owner?.type === "collection" ? "Collection" : "Franchise";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      {/* Breadcrumb: the owner, then this order */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3 flex-wrap"
+        aria-label="Breadcrumb"
+      >
         {owner && (
-          <Link
-            to={`/${owner.type}/${owner.id}`}
-            className="text-xs font-bold text-text-faint hover:text-brand"
-          >
-            <i className="fas fa-arrow-left mr-1.5"></i>
-            {ownerName}
-          </Link>
+          <>
+            <span>{ownerLabel}</span>
+            <span aria-hidden="true">/</span>
+            <Link
+              to={`/${owner.type}/${owner.id}`}
+              className="hover:text-brand transition normal-case tracking-normal truncate max-w-xs"
+            >
+              {ownerName}
+            </Link>
+            <span aria-hidden="true">/</span>
+          </>
         )}
+        <span className="text-text-muted">Watch order</span>
+      </nav>
 
+      {isAdmin && (
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            Admin
+          </div>
+          <Link
+            to="/watch-orders"
+            className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
+          >
+            Edit this order
+          </Link>
+        </div>
+      )}
+
+      <header className="mb-8">
         {/*
           Scope leads: it sits on its own line above the title, so what kind of
-          order this is registers before the name. The remaining badges drop
+          order this is registers before the name. The remaining marks drop
           below the title rather than competing with it.
         */}
-        <MediaScopeLine mediaTypes={list.media_types} className="mt-2" />
+        <MediaScopeLine mediaTypes={list.media_types} className="mb-3" />
 
-        <h1 className="text-3xl font-black text-text tracking-tight mt-0.5">
-          {list.list_name || "Untitled Order"}
+        <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-3">
+          {list.list_name || "Untitled order"}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-2 mt-1.5">
-          {list.list_type && (
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
-              {list.list_type}
-            </span>
-          )}
-          {list.is_most_recommended && (
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-              <i className="fas fa-star mr-1"></i>Most recommended
-            </span>
-          )}
-          {list.is_default && (
-            <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-surface-2 text-text-faint border border-border">
-              Default
-            </span>
-          )}
-          <span className="ml-auto text-xs font-bold text-text-faint">
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
+          {list.list_type && <Chip>{list.list_type}</Chip>}
+          {list.is_most_recommended && <Chip tone="brand">Most recommended</Chip>}
+          {list.is_default && <Chip tone="muted">Default</Chip>}
+          <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             {list.item_count} steps
           </span>
         </div>
-
-        {isAdmin && (
-          <Link
-            to="/watch-orders"
-            className="inline-block mt-2 text-xs font-bold text-text-faint hover:text-text-muted"
-          >
-            <i className="fas fa-pen mr-1"></i>Edit this order
-          </Link>
-        )}
-      </div>
+      </header>
 
       <WatchOrderGuide list={list} roomy />
 
       {siblings.length > 0 && (
-        <div className="mt-10 pt-5 border-t border-border">
-          <p className="text-xs font-black text-text-faint uppercase tracking-wide mb-3">
-            Other orders for {ownerName || "this title"}
-          </p>
-          <div className="flex flex-col gap-2">
+        <Slip
+          title={`Other orders for ${ownerName || "this title"}`}
+          padded={false}
+          className="mt-10"
+        >
+          <ul className="divide-y divide-border">
             {siblings.map((s) => (
-              <Link
-                key={s.system_id}
-                to={`/watch-order/${s.system_id}`}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-surface hover:border-brand/40 transition-colors"
-              >
-                <i className="fas fa-list-ol text-text-faint/60"></i>
-                <span className="text-sm font-bold text-text">
-                  {s.list_name || "Untitled Order"}
-                </span>
-                <span className="ml-auto text-xs font-bold text-text-faint">
-                  {s.item_count} steps
-                </span>
-              </Link>
+              <li key={s.system_id}>
+                <Link
+                  to={`/watch-order/${s.system_id}`}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-2 transition"
+                >
+                  <span className="text-sm text-text">
+                    {s.list_name || "Untitled order"}
+                  </span>
+                  <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                    {s.item_count} steps
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </Slip>
       )}
     </div>
   );

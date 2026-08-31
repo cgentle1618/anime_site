@@ -7,6 +7,14 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
+import { Chip, Eyebrow } from "../../components/ui/primitives";
+
+const GRID_CLS =
+  "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3";
+
+const PILL_ON = "bg-brand text-on-brand border-brand";
+const PILL_OFF = "bg-surface text-text-muted border-border-strong hover:border-text";
+const PILL_CLS = "shrink-0 px-3 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors";
 
 function getFranchiseTitles(f) {
   const raw = [
@@ -42,30 +50,22 @@ function getSeriesTitles(s) {
  * The plain text card the collection, franchise, and series sections share.
  * Entry types get MediaCard instead; these tiers have no cover of their own.
  */
-function TierCard({ icon, label, labelClass, titles, onClick }) {
+function TierCard({ label, titles, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-surface rounded-xl border border-border p-4 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between"
+      className="bg-surface border border-border p-4 cursor-pointer hover:border-text transition-colors flex flex-col justify-between"
     >
       <div>
-        <div
-          className={`text-[9px] font-bold uppercase tracking-widest mb-1.5 ${labelClass}`}
-        >
-          <i className={`fas ${icon} mr-1`}></i>
-          {label}
-        </div>
+        <Eyebrow className="mb-1.5">{label}</Eyebrow>
         <h3
-          className="font-black text-text text-base leading-tight mb-1 line-clamp-2"
+          className="font-display text-lg font-semibold text-text leading-tight mb-1 line-clamp-2"
           title={titles.main}
         >
           {titles.main}
         </h3>
         {titles.sub && (
-          <h4
-            className="text-xs font-medium text-text-faint truncate"
-            title={titles.sub}
-          >
+          <h4 className="text-xs text-text-faint truncate" title={titles.sub}>
             {titles.sub}
           </h4>
         )}
@@ -289,18 +289,19 @@ export default function Search() {
 
   if (!query.trim()) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <i className="fas fa-search text-4xl text-text-faint/60 mb-4"></i>
-        <p className="text-text-faint font-bold">No Search Query</p>
-        <p className="text-sm text-text-faint mt-1">
-          Please enter a term in the top search bar.
-        </p>
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto border border-dashed border-border-strong px-6 py-8 text-center">
+          <Eyebrow className="mb-1">Search</Eyebrow>
+          <p className="text-sm text-text-muted">
+            No search term yet. Enter one in the search bar at the top.
+          </p>
+        </div>
       </div>
     );
   }
 
   if (error) {
-    return <MediaLoadingState error={error} errorTitle="Search Error" />;
+    return <MediaLoadingState error={error} errorTitle="Search error" />;
   }
 
   const sectionHeaderTop = `${64 + stickyBarHeight}px`;
@@ -312,14 +313,13 @@ export default function Search() {
         ref={stickyBarRef}
         className="sticky top-16 z-30 bg-canvas pb-4 mb-8 border-b border-border"
       >
-        <h1 className="text-xl font-black text-text">
-          Search Results for "<span className="text-brand">{query}</span>"
+        <Eyebrow className="mb-1">Search results</Eyebrow>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none">
+          “{query}”
         </h1>
-        <p className="text-sm text-text-faint mt-1">
+        <p className="font-mono text-xs text-text-muted mt-2 flex items-center flex-wrap gap-x-1">
           {scope !== "all" && (
-            <span className="inline-flex items-center gap-1 bg-brand/10 text-brand text-xs font-bold px-2 py-0.5 rounded mr-2">
-              {SCOPE_LABELS[scope]}
-            </span>
+            <Chip className="mr-2">{SCOPE_LABELS[scope]}</Chip>
           )}
           {summaryCounts.length === 0 ? (
             <span>No results</span>
@@ -327,7 +327,7 @@ export default function Search() {
             summaryCounts.map(([label, count], i) => (
               <span key={label}>
                 {i > 0 && " · "}
-                <span className="font-bold">{count}</span> {label}
+                <span className="text-text">{count}</span> {label}
               </span>
             ))
           )}
@@ -336,27 +336,24 @@ export default function Search() {
 
       <div className="space-y-8">
         {summaryCounts.length === 0 && (
-          <div className="text-center py-16 text-text-faint">
-            <i className="fas fa-ghost text-4xl mb-3"></i>
-            <p className="font-bold text-text-faint">No results for "{query}"</p>
-            <p className="text-sm mt-1">Try a different term or scope.</p>
+          <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+            <Eyebrow className="mb-1">No results</Eyebrow>
+            <p className="text-sm text-text-muted">
+              Nothing matches “{query}”. Try a different term or scope.
+            </p>
           </div>
         )}
 
         {/* Collection cards */}
         {showCollection && matchedCollections.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
-              <i className="fas fa-boxes-stacked text-brand/70"></i> Collections
-            </h2>
+            <Eyebrow as="h2" className="mb-3">Collections</Eyebrow>
             <CollapsibleCardGrid
               items={matchedCollections}
               renderItem={(c) => (
                 <TierCard
                   key={c.system_id}
-                  icon="fa-boxes-stacked"
                   label="Collection"
-                  labelClass="text-fuchsia-600"
                   titles={getCollectionTitles(c)}
                   onClick={() => navigate(`/collection/${c.system_id}`)}
                 />
@@ -368,9 +365,7 @@ export default function Search() {
         {/* Seasonal entries */}
         {showSeasonal && matchedSeasonal.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
-              <i className="fas fa-calendar-alt text-brand/70"></i> Seasonal
-            </h2>
+            <Eyebrow as="h2" className="mb-3">Seasonal</Eyebrow>
             <div className="flex flex-wrap gap-2">
               {matchedSeasonal.map((s) => (
                 <button
@@ -378,7 +373,7 @@ export default function Search() {
                   onClick={() =>
                     navigate(`/seasonal/${encodeURIComponent(s.seasonal)}`)
                   }
-                  className="px-4 py-1.5 rounded-full border border-border bg-surface text-sm font-bold text-text-muted hover:bg-brand hover:text-white hover:border-brand transition-colors shadow-sm"
+                  className={`${PILL_CLS} ${PILL_OFF}`}
                 >
                   {s.seasonal}
                 </button>
@@ -392,9 +387,9 @@ export default function Search() {
           <CollapsiblePillRow>
             <button
               onClick={() => setSelectedFranchise("all")}
-              className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === "all" ? "bg-brand text-white border-brand" : "bg-surface text-text-muted border-border hover:bg-surface-2"}`}
+              className={`${PILL_CLS} ${selectedFranchise === "all" ? PILL_ON : PILL_OFF}`}
             >
-              All Results
+              All results
             </button>
             {filterPillFranchises.map((f) => {
               const titles = getFranchiseTitles(f);
@@ -403,7 +398,7 @@ export default function Search() {
                   key={f.system_id}
                   onClick={() => setSelectedFranchise(f.system_id)}
                   title={titles.main}
-                  className={`shrink-0 px-4 py-1.5 rounded-full border text-sm font-bold transition-colors ${selectedFranchise === f.system_id ? "bg-brand text-white border-brand" : "bg-surface text-text-muted border-border hover:bg-surface-2"}`}
+                  className={`${PILL_CLS} ${selectedFranchise === f.system_id ? PILL_ON : PILL_OFF}`}
                 >
                   {titles.main}
                 </button>
@@ -415,21 +410,17 @@ export default function Search() {
         {/* Franchise cards */}
         {showFranchise && displayFranchises.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
-              <i className="fas fa-sitemap text-brand/70"></i> Franchises
-            </h2>
+            <Eyebrow as="h2" className="mb-3">Franchises</Eyebrow>
             <CollapsibleCardGrid
               items={displayFranchises}
               renderItem={(f) => (
                 <TierCard
                   key={f.system_id}
-                  icon="fa-sitemap"
                   label={
                     f.franchise_type
                       ? `${f.franchise_type} Franchise`
                       : "Franchise"
                   }
-                  labelClass="text-brand"
                   titles={getFranchiseTitles(f)}
                   onClick={() => navigate(`/franchise/${f.system_id}`)}
                 />
@@ -441,17 +432,13 @@ export default function Search() {
         {/* Series cards */}
         {showSeries && displaySeries.length > 0 && (
           <div>
-            <h2 className="text-sm font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
-              <i className="fas fa-layer-group text-brand/70"></i> Series
-            </h2>
+            <Eyebrow as="h2" className="mb-3">Series</Eyebrow>
             <CollapsibleCardGrid
               items={displaySeries}
               renderItem={(s) => (
                 <TierCard
                   key={s.system_id}
-                  icon="fa-layer-group"
                   label="Series"
-                  labelClass="text-brand/70"
                   titles={getSeriesTitles(s)}
                   onClick={() => navigate(`/series/${s.system_id}`)}
                 />
@@ -464,41 +451,32 @@ export default function Search() {
         {showAnime && displayAnime.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-tv text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Anime
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Anime
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {displayAnime.length} results
               </span>
             </div>
 
             <div className="space-y-8">
               {[
-                { label: "TV / ONA", icon: "fa-tv", items: tvOna },
-                { label: "Movies", icon: "fa-film", items: movies },
-                { label: "Other", icon: "fa-shapes", items: others },
-              ].map(({ label, icon, items }) =>
+                { label: "TV / ONA", items: tvOna },
+                { label: "Movies", items: movies },
+                { label: "Other", items: others },
+              ].map(({ label, items }) =>
                 items.length > 0 ? (
                   <div key={label}>
                     <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5">
-                        <i className={`fas ${icon} text-brand/70`}></i>
-                        {label}
-                      </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                        {items.length}
-                      </span>
-                      <div className="flex-1 border-t border-border"></div>
+                      <Eyebrow as="h3">
+                        {label} · {items.length}
+                      </Eyebrow>
+                      <div className="flex-1 border-t border-dotted border-border-strong/60"></div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    <div className={GRID_CLS}>
                       {items.map((a) => (
                         <MediaCard
                           key={a.system_id}
@@ -519,22 +497,17 @@ export default function Search() {
         {showAnimeMovie && matchedAnimeMovies.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-film text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Anime Movies
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Anime movies
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedAnimeMovies.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedAnimeMovies.map((m) => (
                 <MediaCard
                   key={m.system_id}
@@ -551,22 +524,17 @@ export default function Search() {
         {showMovie && matchedMovies.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-ticket-alt text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Movies
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Movies
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedMovies.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedMovies.map((m) => (
                 <MediaCard
                   key={m.system_id}
@@ -583,22 +551,17 @@ export default function Search() {
         {showTvShow && matchedTvShows.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-video text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  TV Shows
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                TV shows
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedTvShows.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedTvShows.map((t) => (
                 <MediaCard
                   key={t.system_id}
@@ -615,22 +578,17 @@ export default function Search() {
         {showCartoon && matchedCartoons.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-paint-brush text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Cartoons
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Cartoons
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedCartoons.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedCartoons.map((c) => (
                 <MediaCard
                   key={c.system_id}
@@ -647,22 +605,17 @@ export default function Search() {
         {showManga && matchedMangas.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-book text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Manga
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Manga
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedMangas.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedMangas.map((m) => (
                 <MediaCard
                   key={m.system_id}
@@ -680,22 +633,17 @@ export default function Search() {
         {showNovel && matchedNovels.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-book-open text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Novel
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Novel
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedNovels.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedNovels.map((n) => (
                 <MediaCard
                   key={n.system_id}
@@ -712,22 +660,17 @@ export default function Search() {
         {showComic && matchedComics.length > 0 && (
           <div>
             <div
-              className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border sticky z-20 bg-canvas"
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
               style={{ top: sectionHeaderTop }}
             >
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-book-bookmark text-brand"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-text tracking-tight leading-none">
-                  Comic
-                </h2>
-              </div>
-              <span className="ml-auto bg-surface-2 text-text-muted px-3 py-1 rounded-full text-xs font-bold border border-border">
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Comic
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {matchedComics.length} results
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className={GRID_CLS}>
               {matchedComics.map((c) => (
                 <MediaCard
                   key={c.system_id}

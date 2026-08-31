@@ -60,13 +60,26 @@ const TYPE_ORDER = Object.keys(MEDIA_TYPE_COLORS);
 
 // Mirrors RELATION_FAMILIES in app/utils/relation_kinds.py. Only the styling
 // lives here; the kinds themselves come from the API.
+// Colour does not encode the family: the timeline is the one brand line and
+// every other family is ink, told apart by its dash pattern. `stroke` names a
+// CSS token (see index.css) that is resolved at render time so the canvas
+// follows the theme.
 export const FAMILY_STYLE = {
-  timeline: { stroke: "#4f46e5", dash: undefined, arrow: true, showLabel: false },
+  timeline: { stroke: "--c-brand", dash: undefined, arrow: true, showLabel: false },
   // Symmetric, so no arrowhead: neither end is the origin.
-  equivalence: { stroke: "#0ea5e9", dash: "6 4", arrow: false, showLabel: true },
-  branch: { stroke: "#10b981", dash: undefined, arrow: true, showLabel: true },
-  derivation: { stroke: "#f59e0b", dash: "2 4", arrow: true, showLabel: true },
+  equivalence: { stroke: "--c-text-muted", dash: "6 4", arrow: false, showLabel: true },
+  branch: { stroke: "--c-text-muted", dash: "10 3 2 3", arrow: true, showLabel: true },
+  derivation: { stroke: "--c-text-faint", dash: "2 4", arrow: true, showLabel: true },
 };
+
+// The hex behind a token, read off <html> so the current theme's value wins.
+// ReactFlow's arrowhead markers are SVG defs that cannot resolve `var(...)`,
+// which is why the value is looked up here rather than written as a variable.
+function tokenColor(name) {
+  if (typeof window === "undefined" || typeof getComputedStyle !== "function") return "#888";
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || "#888";
+}
 
 // Which query parameter the graph endpoint wants for this tier. All three are
 // mutually exclusive server-side, so exactly one key is ever sent.
@@ -109,7 +122,8 @@ function toFlowEdges(edges) {
   const fan = fanPositions(edges.filter((e) => familyGroup(e.family) === MIDDLE));
   return edges
     .map((e) => {
-      const style = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
+      const family = FAMILY_STYLE[e.family] || FAMILY_STYLE.derivation;
+      const style = { ...family, stroke: tokenColor(family.stroke) };
       // Which pair of handles the edge lands on, and so which way it reads.
       // Timeline runs across on left/right; the other three families hang
       // down on top/bottom, matching how layoutGraph now places them.
@@ -801,6 +815,8 @@ function GraphCanvas({
 
   const flowEdges = useMemo(() => {
     const hidden = (key) => hiddenTypes.has(typeOfNode.get(key));
+    // `theme` is read so the strokes are resolved again after a theme switch.
+    void theme;
     return toFlowEdges(graphEdges).map((e) => {
       // An edge is only as visible as the entries it joins: dimming a type
       // while its lines stay solid leaves the canvas as busy as before.
@@ -811,7 +827,7 @@ function GraphCanvas({
         labelStyle: { ...e.labelStyle, opacity: DIMMED_OPACITY },
       };
     });
-  }, [graphEdges, hiddenTypes, typeOfNode]);
+  }, [graphEdges, hiddenTypes, typeOfNode, theme]);
 
   function toggleType(mediaType) {
     setHiddenTypes((current) => {
@@ -912,7 +928,7 @@ function GraphCanvas({
             onClick={resetScope}
             disabled={writing || loading || graphEdges.length === 0}
             title={`Remove every relation in this ${scopeType}. The entries are not touched, and this cannot be undone`}
-            className="flex items-center gap-1.5 rounded-full border border-red-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-red-500 transition-opacity hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-danger/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-danger transition-opacity hover:bg-danger/10 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-trash"></i>
             Reset
@@ -1006,8 +1022,8 @@ function GraphCanvas({
             failed, a scope with nothing in it, and a scope still loading. */}
         {loadError ? (
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-6">
-            <div className="pointer-events-auto max-w-sm rounded-xl border border-red-200 bg-surface p-4 text-center shadow-lg">
-              <p className="text-sm font-black text-red-500">
+            <div className="pointer-events-auto max-w-sm rounded-xl border border-danger/40 bg-surface p-4 text-center shadow-lg">
+              <p className="text-sm font-black text-danger">
                 Could not load this {scopeType}&apos;s relations.
               </p>
               <p className="mt-1 text-xs font-medium text-text-faint">{loadError}</p>

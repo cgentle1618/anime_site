@@ -404,7 +404,7 @@ export default function TvShowAddTab({
                 />
                 <button
                   type="button"
-                  className="text-red-400 hover:text-red-600 px-1 shrink-0"
+                  className="text-danger/70 hover:text-danger px-1 shrink-0"
                   onClick={() =>
                     utf(
                       "source_other",

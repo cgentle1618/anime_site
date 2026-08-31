@@ -88,7 +88,6 @@ function splitBlocks(sections) {
       group = {
         key: section.group,
         label: section.group_label,
-        icon: section.group_icon,
         sections: [],
       };
       byKey.set(section.group, group);
@@ -283,7 +282,7 @@ export default function NotesTemplate({
           Notes card, so an error raised by a section in one would otherwise
           report itself in the other. */}
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+        <p className="text-sm text-danger border border-danger bg-danger/10 px-4 py-2">
           {error}
         </p>
       )}
@@ -298,16 +297,19 @@ export default function NotesTemplate({
           and a headed card with no body inside it reads as a bug beside the
           group cards that do have one. */}
       {loading ? (
-        <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="bg-surface-2 border-b border-border px-4 py-3">
-            <h3 className="font-bold text-text">
-              <i className="fas fa-book-open text-brand mr-2"></i>Notes
+        <div className="bg-surface border border-border">
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
+            <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+              Notes
             </h3>
+            <span className="flex-1 border-t border-dotted border-border-strong/60" />
           </div>
-          <div className="p-4 space-y-3">
+          <div className="p-4">
             <div className="py-10 text-center text-text-faint">
               <i className="fas fa-circle-notch fa-spin text-xl"></i>
-              <p className="text-xs mt-2">Loading notes...</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] mt-2">
+                Loading notes…
+              </p>
             </div>
           </div>
         </div>
@@ -315,7 +317,6 @@ export default function NotesTemplate({
         flat.length > 0 && (
           <GroupCard
             label="Notes"
-            icon="fa-book-open"
             count={blockCount(flat)}
             showCount={false}
           >
@@ -328,7 +329,6 @@ export default function NotesTemplate({
           <GroupCard
             key={group.key}
             label={group.label}
-            icon={group.icon}
             count={blockCount(group.sections)}
           >
             {group.sections.map(renderSection)}

@@ -3401,7 +3401,7 @@ export default function Modify() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 px-6 py-3 bg-brand text-white rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
+              className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
             >
               {submitting ? (
                 <i className="fas fa-spinner fa-spin"></i>

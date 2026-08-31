@@ -202,7 +202,7 @@ export default function Roles() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-brand text-white rounded px-2 py-1 text-xs font-semibold"
+                  className="flex-1 bg-brand text-on-brand rounded px-2 py-1 text-xs font-semibold"
                 >
                   Create
                 </button>
@@ -230,7 +230,7 @@ export default function Roles() {
           {!selected ? (
             <p className="text-text-faint text-sm">Pick a role.</p>
           ) : selected.is_superuser ? (
-            <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 text-sm text-amber-800">
+            <div className="border border-warning/40 bg-warning/15 rounded-lg p-4 text-sm text-warning">
               <strong>{selected.label}</strong> is a superuser role: it holds
               every permission implicitly, including ones that do not exist yet.
               That is why creating a new content label never hides anything from
@@ -249,7 +249,7 @@ export default function Roles() {
                   {!selected.is_system && selected.user_count === 0 && (
                     <button
                       onClick={() => removeRole(selected)}
-                      className="px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50"
+                      className="px-3 py-1.5 text-xs text-danger border border-danger/40 rounded hover:bg-danger/10"
                     >
                       Delete
                     </button>
@@ -257,7 +257,7 @@ export default function Roles() {
                   <button
                     onClick={save}
                     disabled={!dirty || saving}
-                    className="px-4 py-1.5 text-xs font-semibold rounded bg-brand text-white disabled:opacity-40"
+                    className="px-4 py-1.5 text-xs font-semibold rounded bg-brand text-on-brand disabled:opacity-40"
                   >
                     {saving ? "Saving..." : "Save"}
                   </button>

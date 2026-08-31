@@ -5,6 +5,7 @@
 // Series and Entries - the page never hardcodes a tier again.
 import { useState } from "react";
 import { REWATCH_TABS, scopesFor } from "../../config/planNextGroups";
+import { Eyebrow } from "../../components/ui/primitives";
 import PlanNextCard from "./PlanNextCard";
 
 const SCOPE_LABELS = {
@@ -23,36 +24,30 @@ export default function PlanToRewatch({ planRows }) {
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-redo text-brand/70"></i>
-          To Rewatch
-        </h2>
-      </div>
+      <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
+        To rewatch
+      </h2>
 
-      <div className="border-b border-border mb-6 overflow-x-auto">
-        <nav className="flex gap-1 min-w-max">
-          {REWATCH_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2.5 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap ${
-                tab === t.key
-                  ? "border-brand text-brand"
-                  : "border-transparent text-text-faint hover:text-text-muted"
-              }`}
-            >
-              <i className={`fas ${t.icon} text-xs`}></i>
-              {t.label}
-            </button>
-          ))}
-        </nav>
+      <div className="flex flex-wrap gap-1.5 mb-6">
+        {REWATCH_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap ${
+              tab === t.key
+                ? "bg-brand text-on-brand border-brand"
+                : "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-          <i className="fas fa-redo text-3xl text-text-faint/60 mb-3"></i>
-          <p className="text-text-faint font-medium">Nothing marked for rewatch.</p>
+        <div className="text-center py-12 border border-dashed border-border-strong">
+          <Eyebrow className="mb-1">Empty</Eyebrow>
+          <p className="text-text-muted text-sm">Nothing marked for rewatch.</p>
           <p className="text-text-faint text-xs mt-1">
             Toggle it on a detail page or in Modify.
           </p>
@@ -71,9 +66,14 @@ export default function PlanToRewatch({ planRows }) {
               if (inScope.length === 0) return null;
               return (
                 <div key={scope}>
-                  <h3 className="text-xs font-black text-text-faint uppercase tracking-wider mb-3">
-                    {SCOPE_LABELS[scope]}
-                  </h3>
+                  <div className="flex items-baseline justify-between mb-3 pb-1 border-b border-border">
+                    <Eyebrow as="h3" className="text-text-muted">
+                      {SCOPE_LABELS[scope]}
+                    </Eyebrow>
+                    <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                      {inScope.length}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {inScope.map((row) => (
                       <PlanNextCard key={row.system_id} row={row} />

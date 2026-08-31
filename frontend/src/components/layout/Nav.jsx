@@ -25,10 +25,10 @@ function itemHref(item) {
   return item.dev ? "/under-development" : item.to;
 }
 
-// One row inside an open panel.
+// One row inside an open panel. Text only - the label is the link.
 function PanelLink({ item, current, onNavigate }) {
   if (item.divider) {
-    return <div className="border-t border-slate-100 my-1.5" role="separator" />;
+    return <div className="border-t border-border my-1.5" role="separator" />;
   }
   return (
     <Link
@@ -36,19 +36,14 @@ function PanelLink({ item, current, onNavigate }) {
       onClick={onNavigate}
       aria-current={current ? "page" : undefined}
       title={item.dev ? "Under development" : undefined}
-      className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+      className={`flex items-center px-2.5 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
         item.dev
-          ? "text-slate-300 hover:bg-slate-50"
+          ? "text-text-faint hover:bg-surface-2"
           : current
-            ? "bg-brand/5 text-brand font-semibold"
-            : "text-slate-700 hover:bg-slate-50 hover:text-brand"
+            ? "bg-brand-soft text-brand font-semibold"
+            : "text-text hover:bg-surface-2 hover:text-brand"
       }`}
     >
-      <i
-        className={`${item.icon} w-4 text-center text-xs ${
-          item.dev ? "text-slate-300" : current ? "text-brand" : "text-slate-400"
-        }`}
-      ></i>
       {item.label}
     </Link>
   );
@@ -61,7 +56,7 @@ function SectionPanel({ section, currentItem, onNavigate }) {
       <div className="flex gap-6 p-3">
         {section.columns.map((col) => (
           <div key={col.heading} className="min-w-[9.5rem]">
-            <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-400">
+            <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
               {col.heading}
             </div>
             <div className="space-y-0.5">
@@ -92,6 +87,14 @@ function SectionPanel({ section, currentItem, onNavigate }) {
     </div>
   );
 }
+
+// Icon-only control on the ink row.
+const INK_ICON_BTN =
+  "px-2 py-1.5 text-ink-text/60 hover:text-ink-text hover:bg-ink-text/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
+
+// Text row in the mobile drawer.
+const DRAWER_ROW =
+  "flex w-full items-center px-2.5 py-2 text-sm text-text hover:bg-surface-2 transition";
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -158,7 +161,7 @@ export default function Nav() {
         credentials: "include",
       });
       if (res.ok) {
-        showToast("success", "Backup completed successfully");
+        showToast("success", "Backup completed");
       } else {
         showToast("error", "Backup failed");
       }
@@ -180,15 +183,14 @@ export default function Nav() {
   return (
     <nav className="sticky top-0 z-50">
       {/* Row 1 — the drawer front */}
-      <div className="bg-ink">
+      <div className="bg-ink text-ink-text">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 gap-4">
             <Link
               to="/"
-              className="flex items-center gap-2 shrink-0 group rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="flex items-center shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              <i className="fas fa-layer-group text-brand text-lg group-hover:scale-110 transition-transform"></i>
-              <span className="font-mono text-base tracking-[0.14em] text-white">
+              <span className="font-mono text-base tracking-[0.14em] text-ink-text">
                 CG1618
               </span>
             </Link>
@@ -198,19 +200,15 @@ export default function Nav() {
             <div className="flex items-center gap-2 shrink-0">
               {isAdmin ? (
                 <>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
                     Admin
                   </span>
                   <button
                     type="button"
                     onClick={handleBackup}
                     disabled={backingUp}
-                    className="hidden md:inline-flex items-center gap-1.5 rounded-md bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
                   >
-                    <i
-                      className={`fas fa-sync-alt ${backingUp ? "animate-spin" : ""}`}
-                    ></i>
                     {backingUp ? "Backing up…" : "Back up"}
                   </button>
                   <button
@@ -218,7 +216,7 @@ export default function Nav() {
                     onClick={handleLogout}
                     title="Log out"
                     aria-label="Log out"
-                    className="rounded-md px-2 py-1.5 text-slate-400 hover:text-red-400 hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    className={`${INK_ICON_BTN} hover:text-danger`}
                   >
                     <i className="fas fa-sign-out-alt text-sm"></i>
                   </button>
@@ -226,9 +224,9 @@ export default function Nav() {
               ) : (
                 <Link
                   to={loginHref}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/[0.16] px-3 py-1.5 text-xs font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className="inline-flex items-center border border-ink-text/40 hover:border-ink-text px-3 py-1.5 text-xs font-medium text-ink-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  <i className="fas fa-sign-in-alt"></i> Log in
+                  Log in
                 </Link>
               )}
 
@@ -238,7 +236,7 @@ export default function Nav() {
                 title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 aria-pressed={theme === "dark"}
-                className="rounded-md px-2 py-1.5 text-slate-400 hover:text-white hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                className={INK_ICON_BTN}
               >
                 <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} text-sm`}></i>
               </button>
@@ -248,7 +246,7 @@ export default function Nav() {
                 onClick={() => setMobileOpen((o) => !o)}
                 aria-expanded={mobileOpen}
                 aria-label="Toggle navigation"
-                className="lg:hidden rounded-md px-2 py-1.5 text-slate-300 hover:text-white hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                className={`lg:hidden ${INK_ICON_BTN}`}
               >
                 <i className={`fas ${mobileOpen ? "fa-xmark" : "fa-bars"}`}></i>
               </button>
@@ -258,11 +256,11 @@ export default function Nav() {
       </div>
 
       {/* Row 2 — the index tabs. The active tab drops its bottom edge and
-          merges into the page surface below. */}
+          merges into the page canvas below. */}
       <div
         ref={stripRef}
         onKeyDown={handleStripKeyDown}
-        className="hidden lg:block bg-white border-b border-slate-200"
+        className="hidden lg:block bg-surface border-b border-border"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end gap-1">
@@ -279,28 +277,25 @@ export default function Nav() {
                     }
                     aria-expanded={isOpen}
                     aria-current={isCurrent ? "page" : undefined}
-                    className={`relative -mb-px flex h-10 items-center gap-1.5 rounded-t-md border px-4 font-mono text-[11px] uppercase tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
+                    className={`relative -mb-px flex h-10 items-center border px-4 font-mono text-[11px] uppercase tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
                       isCurrent
-                        ? "border-slate-200 border-b-gray-50 bg-gray-50 text-slate-900"
-                        : "border-transparent text-slate-500 hover:text-slate-900"
+                        ? "border-border border-b-canvas bg-canvas text-text"
+                        : isOpen
+                          ? "border-transparent text-text"
+                          : "border-transparent text-text-muted hover:text-text"
                     }`}
                   >
-                    {/* The blue cap marks the drawer you have open. */}
+                    {/* The brand cap marks the drawer you have open. */}
                     {isCurrent && (
-                      <span className="absolute inset-x-0 top-0 h-0.5 bg-brand rounded-t"></span>
+                      <span className="absolute inset-x-0 top-0 h-0.5 bg-brand"></span>
                     )}
                     {section.label}
-                    <i
-                      className={`fas fa-chevron-down text-[8px] transition-transform ${
-                        isOpen ? "rotate-180" : ""
-                      } ${isCurrent ? "text-brand" : "text-slate-400"}`}
-                    ></i>
                   </button>
 
                   {isOpen && (
                     <div
                       data-nav-panel
-                      className="absolute left-0 top-full mt-px z-50 rounded-b-lg rounded-tr-lg bg-white shadow-xl ring-1 ring-slate-900/10"
+                      className="absolute left-0 top-full mt-px z-50 bg-surface border border-border shadow-xl"
                     >
                       <SectionPanel
                         section={section}
@@ -318,17 +313,17 @@ export default function Nav() {
 
       {/* Mobile drawer — same tree, stacked */}
       {mobileOpen && (
-        <div className="lg:hidden bg-white border-b border-slate-200 shadow-lg max-h-[80vh] overflow-y-auto">
+        <div className="lg:hidden bg-surface border-b border-border shadow-lg max-h-[80vh] overflow-y-auto">
           <div className="px-4 py-3 space-y-4">
             {sections.map((section) => (
               <div key={section.key}>
-                <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted">
                   {section.label}
                 </div>
                 {section.columns ? (
                   section.columns.map((col) => (
                     <div key={col.heading} className="pl-2">
-                      <div className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-slate-300">
+                      <div className="px-2.5 pt-1.5 pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-faint">
                         {col.heading}
                       </div>
                       {col.items.map((item) => (
@@ -356,15 +351,10 @@ export default function Nav() {
               </div>
             ))}
 
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-border pt-3">
               {isAdmin ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={toggleTheme}
-                    className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-                  >
-                    <i className={`fas ${theme === "dark" ? "fa-sun" : "fa-moon"} w-4 text-center text-xs text-slate-400`}></i>
+                  <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
                     {theme === "dark" ? "Light mode" : "Dark mode"}
                   </button>
                   <button
@@ -373,9 +363,8 @@ export default function Nav() {
                       setMobileOpen(false);
                       handleBackup();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                    className={DRAWER_ROW}
                   >
-                    <i className="fas fa-sync-alt w-4 text-center text-xs text-slate-400"></i>
                     Back up data
                   </button>
                   <button
@@ -384,9 +373,8 @@ export default function Nav() {
                       setMobileOpen(false);
                       handleLogout();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+                    className="flex w-full items-center px-2.5 py-2 text-sm text-danger hover:bg-danger/10 transition"
                   >
-                    <i className="fas fa-sign-out-alt w-4 text-center text-xs"></i>
                     Log out
                   </button>
                 </>
@@ -394,9 +382,8 @@ export default function Nav() {
                 <Link
                   to={loginHref}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm text-slate-900 hover:bg-slate-50 transition"
+                  className={DRAWER_ROW}
                 >
-                  <i className="fas fa-sign-in-alt w-4 text-center text-xs text-slate-400"></i>
                   Log in
                 </Link>
               )}

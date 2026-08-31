@@ -7,10 +7,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import GroupedEntryPage, {
   MEDIA_TYPE_FILTERS,
-  Pill,
   Toggle,
   controlCls,
 } from "../../components/layout/GroupedEntryPage";
+import { Button, Chip } from "../../components/ui/primitives";
 import QuoteForm, {
   emptyQuote,
   toQuotePayload,
@@ -93,29 +93,22 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
 
   if (editing) {
     return (
-      <div className="border border-brand/30 rounded-lg p-3 bg-brand-soft">
+      <div className="border border-brand p-3 bg-surface">
         <QuoteForm val={draft} setVal={setDraft} />
         <div className="flex gap-2 mt-3">
-          <button
-            onClick={saveEdit}
-            disabled={busy}
-            className="rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-hover disabled:opacity-50"
-          >
+          <Button kind="primary" size="sm" onClick={saveEdit} disabled={busy}>
             Save
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            className="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-bold text-text-muted hover:bg-surface-3"
-          >
+          </Button>
+          <Button size="sm" onClick={() => setEditing(false)}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="group border border-border rounded-lg p-3 bg-surface-2/70 hover:bg-surface-2 transition">
+    <div className="group border border-border p-3 bg-surface hover:border-border-strong transition">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {quote.text && (
@@ -129,7 +122,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
             </p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-faint font-medium">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-text-faint">
             {quote.speaker && (
               <span className="text-text-faint">— {quote.speaker}</span>
             )}
@@ -138,24 +131,19 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
             )}
             {quote.episode && <span>{quote.episode}</span>}
             {quote.language && <span>{quote.language}</span>}
-            {quote.is_general && <Pill tone="brand">general</Pill>}
+            {quote.is_general && <Chip>General</Chip>}
             {quote.is_favorite && (
-              <Pill tone="amber">
-                <i className="fas fa-star" />
-              </Pill>
+              <Chip tone="brand">Favorite</Chip>
             )}
-            {quote.needs_review && <Pill tone="amber">needs review</Pill>}
+            {quote.needs_review && <Chip>Needs review</Chip>}
             {/* Derived server-side: this quote is also a line of a meme. */}
             {quote.meme_id && (
               <Link to="/meme" className="hover:underline">
-                <Pill tone="violet">
-                  <i className="fas fa-face-grin-squint" />
-                  in a meme
-                </Pill>
+                <Chip>In a meme</Chip>
               </Link>
             )}
             {(quote.tags || []).map((t) => (
-              <Pill key={t}>{t}</Pill>
+              <Chip key={t}>{t}</Chip>
             ))}
             {quote.link && (
               <a
@@ -164,8 +152,8 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
                 rel="noreferrer"
                 className="text-brand hover:underline"
               >
-                <i className="fas fa-link mr-1" />
-                link
+                <i className="fas fa-external-link-alt mr-1" aria-hidden="true" />
+                Link
               </a>
             )}
           </div>
@@ -175,7 +163,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
               <img
                 src={imageUrl}
                 alt=""
-                className="max-h-56 rounded-lg border border-border"
+                className="max-h-56 border border-border"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
@@ -189,7 +177,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
             <button
               onClick={copyText}
               title="Copy text"
-              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+              className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
             >
               <i className="fas fa-copy text-xs" />
             </button>
@@ -198,7 +186,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
             <button
               onClick={copyImage}
               title="Copy image"
-              className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+              className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
             >
               <i className="fas fa-image text-xs" />
             </button>
@@ -209,10 +197,8 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
                 onClick={() => patch({ is_favorite: !quote.is_favorite })}
                 disabled={busy}
                 title="Toggle favorite"
-                className={`h-7 w-7 rounded-lg hover:bg-surface ${
-                  quote.is_favorite
-                    ? "text-amber-500"
-                    : "text-text-faint hover:text-amber-500"
+                className={`h-7 w-7 hover:bg-surface-2 ${
+                  quote.is_favorite ? "text-brand" : "text-text-faint hover:text-brand"
                 }`}
               >
                 <i className="fas fa-star text-xs" />
@@ -223,7 +209,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
                   setEditing(true);
                 }}
                 title="Edit"
-                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-brand"
+                className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-brand"
               >
                 <i className="fas fa-pen text-xs" />
               </button>
@@ -231,7 +217,7 @@ function QuoteRow({ quote, isAdmin, onChanged }) {
                 onClick={remove}
                 disabled={busy}
                 title="Delete"
-                className="h-7 w-7 rounded-lg text-text-faint hover:bg-surface hover:text-red-500"
+                className="h-7 w-7 text-text-faint hover:bg-surface-2 hover:text-danger"
               >
                 <i className="fas fa-trash text-xs" />
               </button>
@@ -312,7 +298,6 @@ export default function Quotes() {
             active={favoritesOnly}
             onClick={() => setFavoritesOnly((v) => !v)}
           >
-            <i className="fas fa-star mr-1" />
             Favorites
           </Toggle>
           {isAdmin && (

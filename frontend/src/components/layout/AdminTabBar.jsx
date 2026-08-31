@@ -3,7 +3,8 @@
 //
 // The top row picks a group (Entries / Structure); the row below shows only
 // that group's tabs. Both rows wrap instead of scrolling sideways, so no
-// option is ever hidden off-screen.
+// option is ever hidden off-screen. Tabs are mono labels underlined in the
+// brand hue, not pills.
 import { useEffect, useRef, useState } from "react";
 import { TAB_GROUPS, groupOf } from "../../config/adminTabs";
 
@@ -34,19 +35,19 @@ export default function AdminTabBar({
     <div className="mb-6 space-y-2">
       {/* Group row */}
       {groups.length > 1 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-4">
           {groups.map((g) => (
             <button
               key={g.key}
               type="button"
               onClick={() => setActiveGroup(g.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wide transition-all ${
+              aria-pressed={activeGroup === g.key}
+              className={`font-mono text-[10px] uppercase tracking-[0.14em] py-1 transition ${
                 activeGroup === g.key
-                  ? "bg-brand/10 text-brand"
+                  ? "text-brand"
                   : "text-text-faint hover:text-text-muted"
               }`}
             >
-              <i className={`fas ${g.icon}`}></i>
               {g.label}
             </button>
           ))}
@@ -54,19 +55,19 @@ export default function AdminTabBar({
       )}
 
       {/* Tab row */}
-      <div className="flex flex-wrap gap-1 bg-surface-2 rounded-xl p-1">
+      <div className="flex flex-wrap gap-x-1 border-b border-border">
         {visibleTabs.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => onSelect(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-all ${
+            aria-current={activeTab === t.key ? "page" : undefined}
+            className={`-mb-px flex items-center gap-1.5 px-3 py-2 border-b-2 font-mono text-[11px] uppercase tracking-[0.08em] whitespace-nowrap transition ${
               activeTab === t.key
-                ? "bg-surface text-brand shadow-sm"
-                : "text-text-faint hover:text-text-muted"
+                ? "border-brand text-text"
+                : "border-transparent text-text-muted hover:text-text"
             }`}
           >
-            <i className={`fas ${t.icon}`}></i>
             {t.label}
             {renderBadge?.(t)}
           </button>

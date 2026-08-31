@@ -1,33 +1,34 @@
 // Frontend: info component file for InfoCard.
+//
+// An index card: a mono eyebrow title on a rule, then label/value pairs
+// set like fields on a catalogue slip. Flat - no header tint, no shadow.
 export function InfoRow({ label, value }) {
   return (
-    <div>
-      <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
+    <div className="min-w-0">
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
         {label}
       </div>
-      <div className="text-sm font-medium text-text">
-        {value != null && value !== "" ? value : "-"}
+      <div className="text-sm text-text break-words">
+        {value != null && value !== "" ? value : <span className="text-text-faint">—</span>}
       </div>
     </div>
   );
 }
 
-export default function InfoCard({ title, icon, fields }) {
+export default function InfoCard({ title, fields }) {
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-      <div className="bg-surface-2 border-b border-border px-4 py-3 flex items-center justify-between">
-        <h3 className="font-bold text-text">
-          <i className={`fas ${icon} text-brand mr-2`}></i>
-          {title}
-        </h3>
-      </div>
-      <div className="p-4 space-y-3">
+    <section className="bg-surface border border-border">
+      <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+        {title}
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
+      </h3>
+      <div className="p-4 space-y-4">
         {fields.map((row, i) =>
           Array.isArray(row) ? (
             <div
               key={i}
-              className="grid gap-3"
-              style={{ gridTemplateColumns: `repeat(${row.length}, 1fr)` }}
+              className="grid gap-4"
+              style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}
             >
               {row.map(({ label, value }) => (
                 <InfoRow key={label} label={label} value={value} />
@@ -38,7 +39,6 @@ export default function InfoCard({ title, icon, fields }) {
           ),
         )}
       </div>
-    </div>
+    </section>
   );
 }
-

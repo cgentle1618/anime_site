@@ -6,6 +6,7 @@ import {
   FALLBACK_SVG,
   COMPLETED_STATUSES,
 } from "../../utils/media";
+import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
 
 export default function StatsCompletions({
   allAnime,
@@ -41,72 +42,37 @@ export default function StatsCompletions({
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-4 pb-2 border-b-2 border-border">
-        <h2 className="text-xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-history text-brand/70"></i>
-          Recent Completions
-        </h2>
-      </div>
+      <header className="mb-6">
+        <Eyebrow>Statistics</Eyebrow>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none mt-1">
+          Recent completions
+        </h1>
+      </header>
 
       {/* Tab bar */}
-      <div className="border-b border-border mb-6 overflow-x-auto">
-        <nav className="flex gap-1 min-w-max">
-          {[
-            { key: "anime", label: "Anime", icon: "fa-tv", dev: false },
-            {
-              key: "anime-movie",
-              label: "Anime Movie",
-              icon: "fa-film",
-              dev: false,
-            },
-            {
-              key: "movie",
-              label: "Movie",
-              icon: "fa-ticket-alt",
-              dev: false,
-            },
-            {
-              key: "tv-show",
-              label: "TV Show",
-              icon: "fa-broadcast-tower",
-              dev: false,
-            },
-            {
-              key: "cartoon",
-              label: "Cartoon",
-              icon: "fa-laugh-squint",
-              dev: false,
-            },
-            { key: "manga", label: "Manga", icon: "fa-book", dev: false },
-            { key: "novel", label: "Novel", icon: "fa-book-open", dev: false },
-            {
-              key: "comic",
-              label: "Comic",
-              icon: "fa-book-bookmark",
-              dev: false,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setCompletionsTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap ${
-                completionsTab === tab.key
-                  ? "border-brand text-brand"
-                  : tab.dev
-                    ? "border-transparent text-text-faint/60 hover:text-text-faint"
-                    : "border-transparent text-text-faint hover:text-text-muted"
-              }`}
-            >
-              <i className={`fas ${tab.icon} text-xs`}></i>
-              {tab.label}
-              {tab.dev && (
-                <span className="text-[9px] font-black text-text-faint/60 uppercase tracking-wide">
-                  DEV
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+      <div className="flex flex-wrap gap-1.5 mb-6">
+        {[
+          { key: "anime", label: "Anime" },
+          { key: "anime-movie", label: "Anime movie" },
+          { key: "movie", label: "Movie" },
+          { key: "tv-show", label: "TV show" },
+          { key: "cartoon", label: "Cartoon" },
+          { key: "manga", label: "Manga" },
+          { key: "novel", label: "Novel" },
+          { key: "comic", label: "Comic" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setCompletionsTab(tab.key)}
+            className={`px-3 py-1.5 text-xs font-medium border transition whitespace-nowrap ${
+              completionsTab === tab.key
+                ? "bg-brand border-brand text-on-brand"
+                : "border-border-strong text-text-muted hover:border-text hover:text-text bg-surface"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Anime tab */}
@@ -133,12 +99,11 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No completions recorded yet.
                 </p>
-                <p className="text-text-faint text-xs mt-1">
+                <p className="text-xs text-text-faint mt-1">
                   Completions are tracked when watching status is set to
                   Completed.
                 </p>
@@ -164,14 +129,14 @@ export default function StatsCompletions({
                 return (
                   <div key={type}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {type}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((anime, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const franchise =
@@ -205,10 +170,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={coverUrl}
                                 alt={name}
@@ -219,21 +184,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {franchiseName && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {franchiseName}
                                 </p>
                               )}
                             </div>
-                            {anime.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {anime.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={anime.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -242,25 +203,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -308,9 +267,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No anime movie completions recorded yet.
                 </p>
               </div>
@@ -335,14 +293,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((am, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const name =
@@ -367,10 +325,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(am.cover_image_file)}
                                 alt={name}
@@ -381,22 +339,18 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {am.anime_movie_name_cn &&
                                 am.anime_movie_name_en && (
-                                  <p className="text-xs text-text-faint font-medium truncate">
+                                  <p className="font-mono text-[11px] text-text-faint truncate">
                                     {am.anime_movie_name_en}
                                   </p>
                                 )}
                             </div>
-                            {am.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {am.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={am.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -405,25 +359,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -461,9 +413,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No movie completions recorded yet.
                 </p>
               </div>
@@ -491,14 +442,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((movie, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const name =
@@ -523,10 +474,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(movie.cover_image_file)}
                                 alt={name}
@@ -537,21 +488,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {movie.movie_name_cn && movie.movie_name_en && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {movie.movie_name_en}
                                 </p>
                               )}
                             </div>
-                            {movie.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {movie.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={movie.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -560,25 +507,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -616,9 +561,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No TV show completions recorded yet.
                 </p>
               </div>
@@ -646,14 +590,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((tv, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const name =
@@ -678,10 +622,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(tv.cover_image_file)}
                                 alt={name}
@@ -692,21 +636,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {tv.tv_name_cn && tv.tv_name_en && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {tv.tv_name_en}
                                 </p>
                               )}
                             </div>
-                            {tv.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {tv.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={tv.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -715,25 +655,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -787,9 +725,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No cartoon completions recorded yet.
                 </p>
               </div>
@@ -817,14 +754,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((cartoon, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const name =
@@ -849,10 +786,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(cartoon.cover_image_file)}
                                 alt={name}
@@ -863,27 +800,23 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {cartoon.cartoon_name_cn &&
                                 cartoon.cartoon_name_en && (
-                                  <p className="text-xs text-text-faint font-medium truncate">
+                                  <p className="font-mono text-[11px] text-text-faint truncate">
                                     {cartoon.cartoon_name_en}
                                   </p>
                                 )}
                             </div>
                             {cartoon.airing_type && (
-                              <span className="text-[10px] font-black text-text-faint bg-surface-2 px-1.5 py-0.5 rounded shrink-0">
+                              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint shrink-0">
                                 {cartoon.airing_type}
                               </span>
                             )}
-                            {cartoon.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {cartoon.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={cartoon.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -892,25 +825,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -953,9 +884,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No manga completions recorded yet.
                 </p>
               </div>
@@ -980,14 +910,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((m, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const franchise =
@@ -1019,10 +949,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(m.cover_image_file)}
                                 alt={name}
@@ -1033,21 +963,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {franchiseName && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {franchiseName}
                                 </p>
                               )}
                             </div>
-                            {m.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {m.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={m.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -1056,25 +982,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -1119,9 +1043,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No novel completions recorded yet.
                 </p>
               </div>
@@ -1146,14 +1069,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((n, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const franchise =
@@ -1185,10 +1108,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(n.cover_image_file)}
                                 alt={name}
@@ -1199,21 +1122,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {franchiseName && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {franchiseName}
                                 </p>
                               )}
                             </div>
-                            {n.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {n.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={n.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -1222,25 +1141,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -1284,9 +1201,8 @@ export default function StatsCompletions({
 
           if (completed.length === 0) {
             return (
-              <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-                <i className="fas fa-check-circle text-3xl text-text-faint/60 mb-3"></i>
-                <p className="text-text-faint font-medium">
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
                   No comic completions recorded yet.
                 </p>
               </div>
@@ -1311,14 +1227,14 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="text-sm font-black text-text-muted uppercase tracking-wider">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
                         {label}
                       </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
                         {items.length}
                       </span>
                     </div>
-                    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="bg-surface border border-border">
                       {pageItems.map((c, idx) => {
                         const globalIdx = page * PAGE_SIZE + idx;
                         const franchise = franchiseMap[String(c.franchise_id)];
@@ -1351,10 +1267,10 @@ export default function StatsCompletions({
                                 : ""
                             }`}
                           >
-                            <span className="text-xs font-black text-text-faint/60 w-6 text-center shrink-0">
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
                               {globalIdx + 1}
                             </span>
-                            <div className="w-9 h-12 rounded-md overflow-hidden bg-surface-2 shrink-0">
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
                               <img
                                 src={getCoverUrl(c.cover_image_file)}
                                 alt={name}
@@ -1365,21 +1281,17 @@ export default function StatsCompletions({
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-text truncate">
+                              <p className="font-display text-base leading-tight text-text truncate">
                                 {name}
                               </p>
                               {franchiseName && (
-                                <p className="text-xs text-text-faint font-medium truncate">
+                                <p className="font-mono text-[11px] text-text-faint truncate">
                                   {franchiseName}
                                 </p>
                               )}
                             </div>
-                            {c.my_rating && (
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded-md shrink-0">
-                                {c.my_rating}
-                              </span>
-                            )}
-                            <span className="text-xs text-text-faint font-medium shrink-0 hidden sm:block">
+                            <RatingStamp rating={c.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
                           </Link>
@@ -1388,25 +1300,23 @@ export default function StatsCompletions({
                     </div>
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between mt-3 px-1">
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page - 1)}
                           disabled={page === 0}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          <i className="fas fa-chevron-left text-[10px]"></i>
-                          Prev
-                        </button>
-                        <span className="text-xs text-text-faint font-medium">
+                          >
+                            Previous
+                          </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
                           Page {page + 1} of {totalPages}
                         </span>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => setPage(page + 1)}
                           disabled={page >= totalPages - 1}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-text-muted bg-surface border border-border rounded-lg hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                        >
-                          Next
-                          <i className="fas fa-chevron-right text-[10px]"></i>
-                        </button>
+                          >
+                            Next
+                          </Button>
                       </div>
                     )}
                   </div>
@@ -1427,14 +1337,9 @@ export default function StatsCompletions({
         "novel",
         "comic",
       ].includes(completionsTab) && (
-        <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-dashed border-border">
-          <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mb-4">
-            <i className="fas fa-history text-brand text-xl"></i>
-          </div>
-          <p className="text-text-muted font-bold">Under Development</p>
-          <p className="text-text-faint text-sm font-medium mt-1">
-            This section is coming soon.
-          </p>
+        <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+          <Eyebrow className="mb-1">Under development</Eyebrow>
+          <p className="text-sm text-text-faint">This section is not built yet.</p>
         </div>
       )}
     </section>

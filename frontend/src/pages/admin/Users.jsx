@@ -146,7 +146,7 @@ export default function Users() {
         </label>
         <button
           type="submit"
-          className="bg-brand text-white rounded px-4 py-2 text-sm font-semibold"
+          className="bg-brand text-on-brand rounded px-4 py-2 text-sm font-semibold"
         >
           Add user
         </button>
@@ -226,7 +226,7 @@ export default function Users() {
                     </button>
                     <button
                       onClick={() => remove(user)}
-                      className="text-red-600 text-xs"
+                      className="text-danger text-xs"
                     >
                       Delete
                     </button>

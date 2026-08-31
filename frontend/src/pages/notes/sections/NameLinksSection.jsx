@@ -9,6 +9,7 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  draftCls,
   inputCls,
 } from "./ui";
 
@@ -113,7 +114,7 @@ export default function NameLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <NameLinksForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}

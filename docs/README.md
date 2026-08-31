@@ -50,6 +50,7 @@ right and the doc needs the fix.
 |---|---|
 | [frontend/pages.md](frontend/pages.md) | every public route: what it loads and shows |
 | [frontend/admin-pages.md](frontend/admin-pages.md) | every admin route incl. Add / Modify / Delete behaviour |
+| [frontend/design-system.md](frontend/design-system.md) | the "archive" visual language: tokens, rules, primitives, page anatomy |
 | [frontend/components.md](frontend/components.md) | data layer, theming (light/dark tokens), config catalog, shared components, lib utilities |
 
 ## Ops and process

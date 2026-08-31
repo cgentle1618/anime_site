@@ -8,7 +8,7 @@ import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
-import InfoCard, { InfoRow } from "../../components/info/InfoCard";
+import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -17,6 +17,7 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
+import { Button, RatingStamp, ProgressRule, Eyebrow } from "../../components/ui/primitives";
 
 const WATCHING_STATUSES = [
   "Might Watch",
@@ -160,20 +161,6 @@ export default function Anime() {
   const progressPct =
     epTotal !== "?" ? Math.round((epFin / parseInt(epTotal)) * 100) : 0;
 
-  let airingStatusColor = "bg-surface-2 text-text-muted border border-border";
-  if (anime.airing_status === "Airing")
-    airingStatusColor = "bg-green-100 text-green-700 border border-green-200";
-  else if (anime.airing_status === "Finished Airing")
-    airingStatusColor = "bg-blue-100 text-blue-700 border border-blue-200";
-  else if (anime.airing_status === "Not Yet Aired")
-    airingStatusColor =
-      "bg-orange-100 text-orange-700 border border-orange-200";
-  else if (anime.airing_status === "Canceled")
-    airingStatusColor = "bg-red-100 text-red-700 border border-red-200";
-  else if (anime.airing_status === "Rumored")
-    airingStatusColor =
-      "bg-purple-100 text-purple-700 border border-purple-200";
-
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -190,39 +177,40 @@ export default function Anime() {
   // Shown verbatim: a year-only date must not be dressed up as a month.
   const releaseDate = anime.release_date || null;
 
+  const eyebrow = [
+    "Anime",
+    anime.airing_type,
+    anime.airing_status,
+    releaseSeasonYear,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb */}
-      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-2">
-          <li>
-            <Link to="/library/anime" className="hover:text-brand transition">
-              <i className="fas fa-tv mr-1.5"></i>Anime
-            </Link>
-          </li>
-          <li>
-            <i className="fas fa-chevron-right text-[10px]"></i>
-          </li>
-          <li className="font-medium text-text truncate max-w-xs">
-            {titleMain}
-          </li>
-        </ol>
+      {/* Breadcrumb: a catalogue path, set in mono */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
+        aria-label="Breadcrumb"
+      >
+        <Link to="/library/anime" className="hover:text-brand transition">
+          Anime
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {titleMain}
+        </span>
       </nav>
 
-      {/* Admin Toolbar */}
+      {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-8 shadow-sm">
-          <div className="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-            <i className="fas fa-shield-alt mr-2"></i> Admin Tools
-          </div>
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/modify?id=${system_id}`)}
-              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
-            >
-              <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
-            </button>
-            <button
+            <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
+              Quick edit
+            </Button>
+            <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
@@ -238,21 +226,12 @@ export default function Anime() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
-              Completed
-            </button>
-            <button
-              onClick={handleAutofill}
-              disabled={autofilling}
-              className="bg-brand hover:bg-brand-hover text-white px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center disabled:opacity-50"
-            >
-              <i
-                className={`fas ${autofilling ? "fa-circle-notch fa-spin" : "fa-magic"} mr-2`}
-              ></i>
-              {autofilling ? "Autofilling..." : "Autofill & Update"}
-            </button>
+              Mark completed
+            </Button>
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}
@@ -261,41 +240,49 @@ export default function Anime() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster */}
-          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative group overflow-hidden">
-            {anime.my_rating && (
-              <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
-                <i className="fas fa-star text-[9px] mr-1"></i>
-                {anime.my_rating}
-              </div>
-            )}
-            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border relative">
-              <img
-                src={imageUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
-              />
+          {/* Poster: cover with a spine strip and the rating stamp */}
+          <div className="flex border border-border bg-surface">
+            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                Anime · {anime.airing_type || "—"}
+              </span>
+              <span
+                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {anime.system_id}
+              </span>
             </div>
-            {/* Hover Progress Overlay */}
-            <div className="absolute bottom-2 left-2 right-2 bg-gray-900/80 backdrop-blur-sm rounded-lg p-3 shadow-xl transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
-              <div className="flex justify-between items-end mb-1">
-                <span className="text-[10px] font-bold text-text-faint/60 uppercase tracking-wider">
-                  Progress
-                </span>
-                <span className="text-[10px] font-bold text-white">
-                  {epTotal !== "?" ? `${progressPct}%` : `${epFin} ep`}
-                </span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="bg-brand h-1.5 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${epTotal !== "?" ? progressPct : epFin > 0 ? 100 : 0}%`,
+            <div className="relative flex-1 min-w-0">
+              <RatingStamp
+                rating={anime.my_rating}
+                size="md"
+                tilt
+                className="absolute top-2 right-2 z-10"
+              />
+              <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
                   }}
-                ></div>
+                />
+              </div>
+              {/* Progress rule along the bottom edge of the cover */}
+              <ProgressRule
+                value={epTotal !== "?" ? progressPct / 100 : epFin > 0 ? 1 : 0}
+              />
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span>Progress</span>
+                <span className="text-text">
+                  {epFin} / {epTotal}
+                  {epTotal !== "?" ? ` · ${progressPct}%` : ""}
+                </span>
               </div>
             </div>
           </div>
@@ -313,99 +300,65 @@ export default function Anime() {
           />
 
           <RelationsSection mediaType="anime" entryId={anime.system_id} />
-
-          {/* System Info — admin only */}
-          {isAdmin && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-                <i className="fas fa-microchip mr-1.5"></i>System Info
-              </h3>
-              <div>
-                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
-                  System ID
-                </div>
-                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
-                  {anime.system_id}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
-        <div className="lg:col-span-3 space-y-8">
-          {/* Header & Titles (no card wrapper) */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              {anime.airing_status && (
-                <span
-                  className={`${airingStatusColor} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
-                >
-                  {anime.airing_status}
-                </span>
-              )}
-              {anime.airing_type && (
-                <span className="bg-surface-2 text-text-muted border border-border px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {anime.airing_type}
-                </span>
-              )}
+        <div className="lg:col-span-3 space-y-10">
+          {/* Header & Titles */}
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
             {titleSub && (
-              <h2 className="text-lg text-text-faint font-medium mb-3">
+              <h2 className="text-lg text-text-muted font-normal mb-4">
                 {titleSub}
               </h2>
             )}
 
-            {/* Franchise / Series Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border inline-flex mb-6">
-              <div>
+            {/* Franchise / Series lineage */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                  Franchise
+                </span>
                 {franchise ? (
-                  <span>
-                    <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
-                    <Link
-                      to={`/franchise/${franchise.system_id}`}
-                      className="text-brand hover:underline font-medium"
-                    >
-                      {franchiseName}
-                    </Link>
-                  </span>
+                  <Link
+                    to={`/franchise/${franchise.system_id}`}
+                    className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
+                  >
+                    {franchiseName}
+                  </Link>
                 ) : (
-                  <span className="text-text-faint">
-                    <i className="fas fa-unlink mr-1.5"></i>Independent
-                  </span>
+                  <span className="text-text-faint">Independent</span>
                 )}
               </div>
-              <div className="hidden sm:block text-text-faint/60">|</div>
-              <div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                  Series
+                </span>
                 {series ? (
-                  <span>
-                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <Link
-                      to={`/series/${series.system_id}`}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
-                    >
-                      {seriesName}
-                    </Link>
-                  </span>
+                  <Link
+                    to={`/series/${series.system_id}`}
+                    className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
+                  >
+                    {seriesName}
+                  </Link>
                 ) : (
-                  <span className="text-text-faint">
-                    <i className="fas fa-minus mr-1.5"></i>No Series Hub
-                  </span>
+                  <span className="text-text-faint">None</span>
                 )}
               </div>
             </div>
 
-            {/* Quick Stats: Scores */}
             <ScoreBlock
               malScore={anime.mal_rating}
               malRank={anime.mal_rank}
               anilistScore={anime.anilist_rating}
               updatedAt={anime.updated_at}
             />
-          </div>
+          </header>
 
           {/* My Tracker Block */}
           <MyTrackerCard
@@ -432,13 +385,9 @@ export default function Anime() {
 
           {/* Naming / Information / Production (stacked) */}
           <div className="space-y-6">
-            <NamingCard
-              type="anime"
-              item={anime}
-            />
+            <NamingCard type="anime" item={anime} />
             <InfoCard
               title="Information"
-              icon="fa-info-circle"
               fields={[
                 [
                   { label: "本傳/外傳", value: anime.is_main },
@@ -459,7 +408,6 @@ export default function Anime() {
             />
             <InfoCard
               title="Production"
-              icon="fa-video"
               fields={[
                 [
                   { label: "Studio", value: anime.studio },
@@ -474,33 +422,17 @@ export default function Anime() {
             />
           </div>
 
-          {/* Notes Section: Cast & Characters */}
-          <div className="grid grid-cols-1 gap-6">
-            {/* Cast & Characters (Under Development) */}
-            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-              <div className="bg-surface-2 border-b border-border px-4 py-3 shrink-0">
-                <h3 className="font-bold text-text">
-                  <i className="fas fa-users text-brand mr-2"></i>Cast &
-                  Characters
-                </h3>
-              </div>
-              <div className="p-6 flex flex-col items-center justify-center text-center flex-1 bg-surface-2/50 min-h-[180px]">
-                <i className="fas fa-tools text-3xl text-brand/30 mb-3"></i>
-                <p className="text-sm font-bold text-text-muted">
-                  Under Development
-                </p>
-                <p className="text-xs text-text-faint mt-1 max-w-[200px]">
-                  Character & Staff tracking pipeline is currently being
-                  engineered.
-                </p>
-              </div>
+          {/* Cast & Characters (not built yet): an empty slip, not a mood */}
+          <section className="border border-dashed border-border-strong px-4 py-6 text-center">
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+              Cast & characters
             </div>
-
-          </div>
+            <p className="text-sm text-text-faint">
+              Not tracked yet — the character and staff pipeline is still being built.
+            </p>
+          </section>
 
           {/* Structured Notes */}
-          {/* No dedicated remark editor on this page: the remark is the first
-              section inside the Notes card, so there is nothing to suppress. */}
           <AnimeNotes key={anime.system_id} anime={anime} isAdmin={isAdmin} />
         </div>
       </div>
@@ -508,4 +440,3 @@ export default function Anime() {
     </div>
   );
 }
-

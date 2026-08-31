@@ -67,7 +67,7 @@ export default function ContentLabelPicker({
   return (
     <div className="border border-border rounded-lg p-3">
       <h4 className="text-xs font-bold text-text-muted uppercase mb-2">
-        <i className="fas fa-tags mr-1.5 text-text-faint"></i>Content Labels
+        Content Labels
       </h4>
       <div className="flex flex-wrap gap-3">
         {labels.map((row) => (

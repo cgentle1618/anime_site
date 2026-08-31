@@ -106,7 +106,7 @@ export default function ComboBox({
           <button
             type="button"
             onClick={handleClear}
-            className="text-text-faint hover:text-red-500 transition shrink-0"
+            className="text-text-faint hover:text-danger transition shrink-0"
           >
             <i className="fas fa-times text-xs"></i>
           </button>
@@ -164,7 +164,7 @@ export default function ComboBox({
 
       {/* "Will create new" hint */}
       {isNewValue && !open && (
-        <p className="text-[10px] text-amber-600 font-bold mt-0.5 flex items-center gap-1">
+        <p className="text-[10px] text-warning font-bold mt-0.5 flex items-center gap-1">
           <i className="fas fa-magic"></i> Will create new record on save
         </p>
       )}

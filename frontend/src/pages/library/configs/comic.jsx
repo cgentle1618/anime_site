@@ -125,7 +125,7 @@ const COMIC_LIBRARY_CONFIG = {
       tdClass: "text-xs text-center hidden lg:table-cell",
       render: (item) =>
         item.era ? (
-          <span className="bg-red-50 text-red-700 border border-red-100 font-bold px-2 py-0.5 rounded text-[10px]">
+          <span className="inline-flex border border-border-strong text-text-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none">
             {item.era}
           </span>
         ) : "-",

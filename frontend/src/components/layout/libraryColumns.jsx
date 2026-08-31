@@ -2,13 +2,16 @@
 //
 // Each library type declares its columns in pages/library/configs/*.jsx. The
 // columns below were copied into all eight of them; a change to how a rating
-// pill or the watch/read toggle looks now happens once, here.
+// chip or the watch/read toggle looks now happens once, here.
+//
+// Colour never encodes a category here: airing status and the toggle's
+// target are text in a chip, the rating figures are plain mono numerals.
 import {
   getRatingWeight,
   getReadingButtonConfig,
   getStatusButtonConfig,
 } from "../../utils/media";
-import { AIRING_STATUS_CLS } from "../../config/statusGroups";
+import { Chip } from "../ui/primitives";
 
 const HIDDEN = {
   md: "hidden md:table-cell",
@@ -33,7 +36,7 @@ export function franchiseColumn() {
   };
 }
 
-/** Airing status pill; `hidden` picks the breakpoint below which it collapses. */
+/** Airing status chip; `hidden` picks the breakpoint below which it collapses. */
 export function airingStatusColumn({ key = "status", header = "Status", hidden = "md" } = {}) {
   const cls = hidden ? HIDDEN[hidden] : "";
   return {
@@ -41,15 +44,8 @@ export function airingStatusColumn({ key = "status", header = "Status", hidden =
     header,
     thClass: cls,
     tdClass: `text-center ${cls}`.trim(),
-    render: (item) => (
-      <span
-        className={`px-2 inline-flex text-[9px] leading-4 font-bold rounded-full ${
-          AIRING_STATUS_CLS[item.airing_status] ?? AIRING_STATUS_CLS._default
-        }`}
-      >
-        {item.airing_status || "-"}
-      </span>
-    ),
+    render: (item) =>
+      item.airing_status ? <Chip className="text-[9px]">{item.airing_status}</Chip> : "-",
   };
 }
 
@@ -61,7 +57,7 @@ export function myRatingColumn() {
     tdClass: `text-center ${HIDDEN.lg}`,
     render: (item) =>
       item.my_rating ? (
-        <span className="bg-yellow-100 text-yellow-800 font-black px-2 py-0.5 rounded text-[10px]">
+        <span className="inline-flex items-center justify-center w-6 h-6 border border-brand text-brand font-display font-bold text-sm leading-none">
           {item.my_rating}
         </span>
       ) : (
@@ -78,7 +74,7 @@ export function malRatingColumn({ hidden = "lg" } = {}) {
     tdClass: `text-xs text-center ${HIDDEN[hidden]}`,
     render: (item) =>
       item.mal_rating != null && item.mal_rating !== "" ? (
-        <span className="font-bold text-blue-600">{item.mal_rating}</span>
+        <span className="font-mono text-text tabular-nums">{item.mal_rating}</span>
       ) : (
         "-"
       ),
@@ -93,7 +89,7 @@ export function imdbRatingColumn() {
     tdClass: `text-xs text-center ${HIDDEN.lg}`,
     render: (item) =>
       item.imdb_rating && item.imdb_rating !== "N/A" ? (
-        <span className="font-bold text-yellow-600">{item.imdb_rating}</span>
+        <span className="font-mono text-text tabular-nums">{item.imdb_rating}</span>
       ) : (
         "-"
       ),
@@ -116,7 +112,7 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
           <button
             type="button"
             onClick={(e) => handleStatusToggle(e, item, btn.target)}
-            className={`w-6 h-6 flex items-center justify-center rounded-md border shadow-sm transition-colors mx-auto font-bold text-[13px] leading-none ${btn.cls}`}
+            className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-text hover:text-text transition-colors mx-auto font-mono text-[13px] leading-none"
             title={`${status ?? fallback} → ${btn.target}`}
           >
             {btn.symbol}
@@ -124,9 +120,9 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
         );
       }
       return status ? (
-        <div className="text-[9px] font-bold text-text-faint bg-surface-2 border border-border rounded px-1 py-0.5 mx-auto max-w-full truncate">
+        <Chip tone="muted" className="text-[9px] max-w-full">
           {status}
-        </div>
+        </Chip>
       ) : (
         "-"
       );
@@ -171,7 +167,7 @@ export function planFlagColumn(field, header) {
         checked={!!item[field]}
         disabled={!isAdmin}
         onChange={(e) => handleStatusToggle(e, item, e.target.checked, field)}
-        className="w-4 h-4 rounded accent-brand disabled:opacity-40"
+        className="w-4 h-4 accent-brand disabled:opacity-40"
       />
     ),
   };

@@ -15,7 +15,16 @@ import MemeForm, {
 import { endpoints } from "../../../api/endpoints";
 import { fetchJson, jsonBody } from "../../../api/client";
 import { getQuoteImageUrl } from "../../../lib/covers";
-import { ItemActions, LinkPill, SaveCancel, SectionCard } from "./ui";
+import {
+  ItemActions,
+  LinkPill,
+  SaveCancel,
+  SectionCard,
+  brandTagCls,
+  draftCls,
+  rowCls,
+  tagCls,
+} from "./ui";
 
 export default function MemeSection({
   label,
@@ -114,7 +123,7 @@ export default function MemeSection({
         return (
           <div
             key={item.system_id}
-            className="border border-border rounded-lg p-2 bg-surface-2"
+            className={rowCls}
           >
             {editId === item.system_id ? (
               <div>
@@ -133,7 +142,7 @@ export default function MemeSection({
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mb-1 max-h-40 rounded-lg border border-border"
+                      className="mb-1 max-h-40 border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -143,18 +152,16 @@ export default function MemeSection({
                     <p className="text-sm text-text whitespace-pre-wrap">
                       {item.text}
                       {item.quote_id && (
-                        <span className="ml-1.5 rounded-full bg-brand/10 text-brand px-1.5 py-0.5 text-[10px] font-bold">
-                          quote
-                        </span>
+                        <span className={`${brandTagCls} ml-1.5`}>quote</span>
                       )}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-text-faint font-medium">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
                     {item.episode && <span>{item.episode}</span>}
                     {item.is_favorite && (
-                      <i className="fas fa-star text-amber-500" />
+                      <span className={tagCls}>favourite</span>
                     )}
-                    {item.remark && <span className="italic">{item.remark}</span>}
+                    {item.remark && <span>{item.remark}</span>}
                   </div>
                   {item.link && <LinkPill url={item.link} />}
                 </div>
@@ -172,7 +179,7 @@ export default function MemeSection({
         );
       })}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <MemeForm
             val={draft}
             setVal={setDraft}
@@ -189,7 +196,7 @@ export default function MemeSection({
         </div>
       )}
       {!items.length && !adding && (
-        <p className="text-xs text-text-faint italic">
+        <p className="text-xs text-text-faint">
           {isLoading ? "Loading..." : "No entries."}
         </p>
       )}

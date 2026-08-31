@@ -124,7 +124,7 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
       <div className="relative">
         <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
         <input
-          className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-400"
+          className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-danger"
           placeholder={placeholder}
           value={query}
           onChange={(e) => {
@@ -139,7 +139,7 @@ function SearchBox({ placeholder, onSelect, items, renderItem, type }) {
           {filtered.map((item) => (
             <div
               key={item.system_id || item.id}
-              className="px-4 py-2.5 hover:bg-red-50 cursor-pointer group"
+              className="px-4 py-2.5 hover:bg-danger/10 cursor-pointer group"
               onMouseDown={() => {
                 onSelect(item);
                 setOpen(false);
@@ -582,7 +582,7 @@ export default function Delete() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-text flex items-center gap-2">
-          <i className="fas fa-trash-alt text-red-500/70"></i> Delete Entry
+          <i className="fas fa-trash-alt text-danger/70"></i> Delete Entry
         </h1>
         <p className="text-sm text-text-faint mt-1">
           Permanently remove records from the database
@@ -639,7 +639,7 @@ export default function Delete() {
           </div>
 
           {selectedAnime && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedAnime.cover_image_file)}
@@ -693,7 +693,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("anime", selectedAnime)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -728,7 +728,7 @@ export default function Delete() {
           </div>
 
           {selectedAnimeMovie && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
@@ -783,7 +783,7 @@ export default function Delete() {
                     onClick={() =>
                       initDelete("anime-movie", selectedAnimeMovie)
                     }
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -818,7 +818,7 @@ export default function Delete() {
           </div>
 
           {selectedMovie && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedMovie.cover_image_file)}
@@ -876,7 +876,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("movie", selectedMovie)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -911,7 +911,7 @@ export default function Delete() {
           </div>
 
           {selectedTvShow && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedTvShow.cover_image_file)}
@@ -971,7 +971,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("tv-show", selectedTvShow)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -1006,7 +1006,7 @@ export default function Delete() {
           </div>
 
           {selectedCartoon && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedCartoon.cover_image_file)}
@@ -1061,7 +1061,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("cartoon", selectedCartoon)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -1096,7 +1096,7 @@ export default function Delete() {
           </div>
 
           {selectedManga && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedManga.cover_image_file)}
@@ -1158,7 +1158,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("manga", selectedManga)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -1194,7 +1194,7 @@ export default function Delete() {
           </div>
 
           {selectedNovel && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedNovel.cover_image_file)}
@@ -1261,7 +1261,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("novel", selectedNovel)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -1297,7 +1297,7 @@ export default function Delete() {
           </div>
 
           {selectedComic && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
                 <img
                   src={getCoverUrl(selectedComic.cover_image_file)}
@@ -1361,7 +1361,7 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("comic", selectedComic)}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete
                   </button>
@@ -1440,7 +1440,7 @@ export default function Delete() {
           </div>
 
           {selectedFranchise && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-black text-text text-base">
@@ -1491,7 +1491,7 @@ export default function Delete() {
                       executeDirectDelete("franchise", selectedFranchise)
                     }
                     disabled={deleting}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 disabled:opacity-50"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
                   >
                     <i
                       className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
@@ -1552,7 +1552,7 @@ export default function Delete() {
           </div>
 
           {selectedSeries && (
-            <div className="bg-surface rounded-2xl border border-red-200 shadow-sm p-4">
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-black text-text text-base">
@@ -1596,7 +1596,7 @@ export default function Delete() {
                       executeDirectDelete("series", selectedSeries)
                     }
                     disabled={deleting}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 disabled:opacity-50"
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
                   >
                     <i
                       className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
@@ -1634,14 +1634,14 @@ export default function Delete() {
                 filteredOptions.map((opt) => (
                   <div
                     key={opt.system_id}
-                    className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center group hover:bg-red-50 hover:border-red-200 transition shadow-sm"
+                    className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center group hover:bg-danger/10 hover:border-danger/40 transition shadow-sm"
                   >
                     <span className="font-bold text-text-muted text-sm truncate pr-2">
                       {opt.value}
                     </span>
                     <button
                       onClick={() => initDelete("options", opt)}
-                      className="text-text-faint hover:text-red-600 transition w-7 h-7 flex items-center justify-center rounded-md bg-surface shadow-sm border border-border shrink-0"
+                      className="text-text-faint hover:text-danger transition w-7 h-7 flex items-center justify-center rounded-md bg-surface shadow-sm border border-border shrink-0"
                     >
                       <i className="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -1662,8 +1662,8 @@ export default function Delete() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-surface rounded-2xl border border-border shadow-2xl w-full max-w-md p-6 scale-100 transition-transform">
             <div className="text-center mb-4">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <i className="fas fa-trash-alt text-red-600 text-xl"></i>
+              <div className="w-14 h-14 bg-danger/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i className="fas fa-trash-alt text-danger text-xl"></i>
               </div>
               <div className="text-xs font-bold text-text-faint uppercase tracking-widest">
                 {modal.type.toUpperCase()}
@@ -1680,12 +1680,12 @@ export default function Delete() {
             <div className="space-y-3 mb-5">
               {/* Collections never cascade: members simply become uncollected. */}
               {modal.type === "collection" && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                  <div className="text-xs font-bold text-blue-800">
+                <div className="bg-brand-soft border border-brand/30 rounded-xl p-3">
+                  <div className="text-xs font-bold text-text">
                     <i className="fas fa-info-circle mr-1"></i> Member
                     franchises are NOT deleted
                   </div>
-                  <div className="text-xs text-blue-700 mt-1">
+                  <div className="text-xs text-text-muted mt-1">
                     {
                       db.franchise.filter(
                         (f) => f.collection_id === modal.item.system_id,
@@ -1703,19 +1703,19 @@ export default function Delete() {
                   (s) => s.franchise_id === modal.item.system_id,
                 ).length > 0 ||
                   entriesIn("franchise_id", modal.item.system_id) > 0) && (
-                  <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-danger/10 border border-danger/40 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={cascadeChecked}
                       onChange={(e) => setCascadeChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-red-400 w-4 h-4"
+                      className="mt-0.5 rounded border-danger accent-danger w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-red-800">
+                      <div className="text-xs font-bold text-danger">
                         <i className="fas fa-trash-restore mr-1"></i> Cascade
                         Delete
                       </div>
-                      <div className="text-xs text-red-700 mt-0.5">
+                      <div className="text-xs text-danger mt-0.5">
                         Also delete{" "}
                         {
                           db.series.filter(
@@ -1733,19 +1733,19 @@ export default function Delete() {
               {/* Cascade option for series */}
               {modal.type === "series" &&
                 entriesIn("series_id", modal.item.system_id) > 0 && (
-                  <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-danger/10 border border-danger/40 rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={cascadeChecked}
                       onChange={(e) => setCascadeChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-red-400 w-4 h-4"
+                      className="mt-0.5 rounded border-danger accent-danger w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-red-800">
+                      <div className="text-xs font-bold text-danger">
                         <i className="fas fa-trash-restore mr-1"></i> Cascade
                         Delete
                       </div>
-                      <div className="text-xs text-red-700 mt-0.5">
+                      <div className="text-xs text-danger mt-0.5">
                         Also delete{" "}
                         {entriesIn("series_id", modal.item.system_id)}{" "}
                         media entries of every type.
@@ -1758,19 +1758,19 @@ export default function Delete() {
               {modal.type === "anime" &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanSeriesChecked}
                       onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Anime in
                         Series
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Series Hub too.
                       </div>
                     </div>
@@ -1785,21 +1785,21 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Anime in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1813,21 +1813,21 @@ export default function Delete() {
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 1 &&
                 standaloneEntriesIn(modal.item.franchise_id) === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Series in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1841,21 +1841,21 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1869,21 +1869,21 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1897,21 +1897,21 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1922,19 +1922,19 @@ export default function Delete() {
               {modal.type === "manga" &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanSeriesChecked}
                       onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Series
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Series Hub too.
                       </div>
                     </div>
@@ -1949,21 +1949,21 @@ export default function Delete() {
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
                   orphanSeriesChecked) && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -1974,19 +1974,19 @@ export default function Delete() {
               {modal.type === "novel" &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanSeriesChecked}
                       onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Series
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Series Hub too.
                       </div>
                     </div>
@@ -2001,21 +2001,21 @@ export default function Delete() {
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
                   orphanSeriesChecked) && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -2026,19 +2026,19 @@ export default function Delete() {
               {modal.type === "comic" &&
                 modal.item.series_id &&
                 entriesIn("series_id", modal.item.series_id) === 1 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanSeriesChecked}
                       onChange={(e) => setOrphanSeriesChecked(e.target.checked)}
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Series
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Series Hub too.
                       </div>
                     </div>
@@ -2053,21 +2053,21 @@ export default function Delete() {
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 ||
                   orphanSeriesChecked) && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -2081,21 +2081,21 @@ export default function Delete() {
                 db.series.filter(
                   (s) => s.franchise_id === modal.item.franchise_id,
                 ).length === 0 && (
-                  <label className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
+                  <label className="flex items-start gap-3 bg-surface-2 border border-border rounded-xl p-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={orphanFranchiseChecked}
                       onChange={(e) =>
                         setOrphanFranchiseChecked(e.target.checked)
                       }
-                      className="mt-0.5 rounded border-orange-400 w-4 h-4"
+                      className="mt-0.5 rounded border-border-strong accent-brand w-4 h-4"
                     />
                     <div>
-                      <div className="text-xs font-bold text-orange-800">
+                      <div className="text-xs font-bold text-text">
                         <i className="fas fa-link mr-1"></i> Last Entry in
                         Franchise
                       </div>
-                      <div className="text-xs text-orange-700 mt-0.5">
+                      <div className="text-xs text-text-muted mt-0.5">
                         Delete the orphaned Franchise Hub too.
                       </div>
                     </div>
@@ -2113,7 +2113,7 @@ export default function Delete() {
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-danger text-white rounded-xl text-sm font-bold hover:bg-danger-hover transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <i
                   className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}

@@ -10,14 +10,12 @@ import {
   getDisplayName,
   getSortName,
   isBaha,
+  FALLBACK_SVG,
   getRatingWeight,
   parseTypes,
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getFranchiseCover } from "../../lib/covers";
-import TierBadge from "../../components/layout/TierBadge";
-import SectionHeader from "../../components/hub/SectionHeader";
-import HubTabBar from "../../components/hub/HubTabBar";
 import {
   HubLoading,
   HubError,
@@ -25,12 +23,24 @@ import {
 } from "../../components/hub/HubStates";
 import {
   HubShell,
-  HubBreadcrumb,
-  HubCard,
-  HubHeroRow,
-  HubCover,
   GRID_CLS,
+  SELECT_CLS,
+  pillCls,
+  Crumbs,
+  AdminStrip,
+  HeroCover,
+  Field,
+  HubTabs,
+  Section,
 } from "../../components/hub/HubChrome";
+import {
+  Eyebrow,
+  Slip,
+  RatingStamp,
+  Chip,
+  ProgressRule,
+  Button,
+} from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
@@ -43,6 +53,18 @@ import PlanKindToggles, {
 } from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
+
+function GroupRail({ label, count }) {
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <Eyebrow as="h3" className="shrink-0">
+        {label}
+      </Eyebrow>
+      <span className="font-mono text-[10px] text-text-faint">{count}</span>
+      <span className="flex-1 border-t border-dotted border-border-strong/60" />
+    </div>
+  );
+}
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -1158,183 +1180,158 @@ export default function FranchisePage() {
 
   // A franchise sits under its collection when it has one.
   const trail = [
-    {
-      to: "/library/franchise",
-      icon: "fa-sitemap",
-      label: "Franchise Library",
-    },
+    { to: "/library/franchise", label: "Franchise" },
     ...(parentCollection
       ? [
           {
             to: `/collection/${parentCollection.system_id}`,
-            icon: "fa-boxes-stacked",
             label: getDisplayName(parentCollection, "collection"),
           },
         ]
       : []),
   ];
 
+  const eyebrow = [
+    "Franchise",
+    ...types,
+    `${totalEntries} ${totalEntries === 1 ? "entry" : "entries"}`,
+    `${completionPct}% completed`,
+  ].join("  ·  ");
+
   return (
     <HubShell>
-      <HubBreadcrumb
-        trail={trail}
-        current={mainTitle}
-        editId={system_id}
-        isAdmin={isAdmin}
-      />
+      <Crumbs trail={trail} current={mainTitle} />
 
-      {/* Hero */}
-      <HubCard tier="franchise">
-        <HubHeroRow>
-          <HubCover src={coverUrl} />
+      {isAdmin && <AdminStrip editId={system_id} />}
 
-          {/* Left: title + info */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-2">
-              <TierBadge tier="franchise" prefix={franchise.franchise_type} />
+      {/* Hero: cover with spine strip, then the identity block */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
+          <HeroCover
+            src={coverUrl}
+            spine={`Franchise · ${franchise.franchise_type || "—"}`}
+            id={franchise.system_id}
+            rating={franchise.my_rating}
+            done={completedCount}
+            total={totalEntries}
+            pct={completionPct}
+          />
+        </div>
+
+        <div className="lg:col-span-3 space-y-6">
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-2xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {mainTitle}
             </h1>
-            {subTitles.map(({ label, value }) => (
-              <p
-                key={label}
-                className="text-sm text-text-faint font-medium truncate flex items-center gap-1.5"
-              >
-                <span className="text-[10px] font-black text-text-faint bg-surface-2 px-1.5 py-0.5 rounded shrink-0">
-                  {label}
-                </span>
-                {value}
-              </p>
-            ))}
-
-            <div className="flex flex-wrap gap-2 mt-4">
-              {franchise.my_rating && (
-                <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-star mr-1"></i>
-                  {franchise.my_rating}
-                </span>
-              )}
-              {franchise.franchise_expectation && (
-                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  {franchise.franchise_expectation} Expectation
-                </span>
-              )}
-              {/*
-                A link rather than a status pill: the collection is somewhere to
-                go, so it carries an indigo tone for navigation instead of a
-                flat badge colour.
-              */}
-              {parentCollection && (
-                <Link
-                  to={`/collection/${parentCollection.system_id}`}
-                  className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full text-xs font-bold hover:bg-indigo-100 transition"
-                >
-                  <i className="fas fa-boxes-stacked mr-1"></i>
-                  {getDisplayName(parentCollection, "collection")}
-                </Link>
-              )}
-              {Array.from(plannedTypes).map((mediaType) => {
-                const bucket = effectiveBucket(
-                  franchise.size_group_derived,
-                  franchise.size_group_manual,
-                  mediaType,
-                );
-                const label = (SIZE_GROUPS[mediaType] || []).find(
-                  (g) => g.key === bucket,
-                )?.label;
-                return (
-                  <span
-                    key={mediaType}
-                    className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+            {subTitles.length > 0 && (
+              <div className="space-y-0.5 mb-4">
+                {subTitles.map(({ label, value }) => (
+                  <p
+                    key={label}
+                    className="text-lg text-text-muted truncate flex items-baseline gap-2"
                   >
-                    <i className="fas fa-list-ol mr-1"></i>
-                    Plan Next: {mediaType.replace("-", " ")}
-                    {label ? ` (${label})` : ""}
-                  </span>
-                );
-              })}
-              {Array.from(rewatchMarked).map((mediaType) => (
-                <span
-                  key={`rewatch-${mediaType}`}
-                  className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
-                >
-                  <i className="fas fa-redo mr-1"></i>
-                  {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
-                </span>
-              ))}
-              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
-                {totalEntries} Total Entries
-              </span>
-            </div>
-          </div>
+                    <Eyebrow className="shrink-0">{label}</Eyebrow>
+                    {value}
+                  </p>
+                ))}
+              </div>
+            )}
 
-          {/* Right: completion + admin controls */}
-          <div className="lg:w-52 shrink-0 space-y-3">
-            <div className="bg-surface-2 rounded-xl p-4 border border-border">
-              <div className="text-xs font-black text-text-faint uppercase tracking-wider mb-2">
-                Completion
+            {/* Lineage: the collection above, the series within */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Collection</Eyebrow>
+                {parentCollection ? (
+                  <Link
+                    to={`/collection/${parentCollection.system_id}`}
+                    className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
+                  >
+                    {getDisplayName(parentCollection, "collection")}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
               </div>
-              <div className="text-2xl font-black text-text mb-1">
-                {completionPct}%
-              </div>
-              <div className="w-full bg-surface-3 rounded-full h-2 mb-1.5">
-                <div
-                  className="bg-brand h-2 rounded-full transition-all"
-                  style={{ width: `${completionPct}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-text-faint font-medium">
-                {completedCount} / {totalEntries} completed
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Series</Eyebrow>
+                <span className="text-text">{seriesList.length}</span>
               </div>
             </div>
 
-            {isAdmin && (
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Overall Rating
-                  </label>
+            {(franchise.franchise_expectation ||
+              plannedTypes.size > 0 ||
+              rewatchMarked.size > 0) && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {franchise.franchise_expectation && (
+                  <Chip>Expectation · {franchise.franchise_expectation}</Chip>
+                )}
+                {Array.from(plannedTypes).map((mediaType) => {
+                  const bucket = effectiveBucket(
+                    franchise.size_group_derived,
+                    franchise.size_group_manual,
+                    mediaType,
+                  );
+                  const label = (SIZE_GROUPS[mediaType] || []).find(
+                    (g) => g.key === bucket,
+                  )?.label;
+                  return (
+                    <Chip key={mediaType}>
+                      Plan next · {mediaType.replace("-", " ")}
+                      {label ? ` (${label})` : ""}
+                    </Chip>
+                  );
+                })}
+                {Array.from(rewatchMarked).map((mediaType) => (
+                  <Chip key={`rewatch-${mediaType}`}>
+                    {kindLabel("rewatch", [mediaType])} ·{" "}
+                    {mediaType.replace("-", " ")}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </header>
+
+          {isAdmin && (
+            <Slip title="Curation">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Overall rating">
                   <select
                     value={rating}
                     onChange={(e) => {
                       setRating(e.target.value);
                       saveField("my_rating", e.target.value);
                     }}
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— Not Rated —</option>
+                    <option value="">Not rated</option>
                     {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Expectation
-                  </label>
+                </Field>
+                <Field label="Expectation">
                   <select
                     value={expectation}
                     onChange={(e) => {
                       setExpectation(e.target.value);
                       saveField("franchise_expectation", e.target.value);
                     }}
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— None —</option>
+                    <option value="">None</option>
                     {["Highest", "High", "Medium", "Low"].map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Plan Next
-                  </label>
+                </Field>
+                <Field label="Plan next" className="sm:col-span-2">
                   <SizeGroupControls
                     mediaTypes={sizeGroupMediaTypes}
                     planned={plannedTypes}
@@ -1343,12 +1340,12 @@ export default function FranchisePage() {
                     onTogglePlan={handleTogglePlan}
                     onOverride={handleOverride}
                   />
-                </div>
+                </Field>
                 {franchiseApplicableRewatchTypes.length > 0 && (
-                  <div>
-                    <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                      {kindLabel("rewatch", franchiseApplicableRewatchTypes)}
-                    </label>
+                  <Field
+                    label={kindLabel("rewatch", franchiseApplicableRewatchTypes)}
+                    className="sm:col-span-2"
+                  >
                     <PlanKindToggles
                       kind="rewatch"
                       scope="franchise"
@@ -1356,51 +1353,53 @@ export default function FranchisePage() {
                       marked={rewatchMarked}
                       onToggle={handleRewatchToggle}
                     />
-                  </div>
+                  </Field>
                 )}
               </div>
-            )}
-          </div>
-        </HubHeroRow>
+            </Slip>
+          )}
 
-        {/* Remark */}
-        {(isAdmin || franchise.remark) && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
-                Remark
-              </label>
-              {remarkClipped && (
-                <button
-                  type="button"
-                  onClick={() => setShowRemark(true)}
-                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
-                >
-                  <i className="fas fa-up-right-and-down-left-from-center text-[10px]"></i>
-                  Show all
-                </button>
-              )}
-            </div>
-            <textarea
-              ref={remarkRef}
-              value={remark}
-              disabled={!isAdmin}
-              onChange={(e) => setRemark(e.target.value)}
-              onBlur={() => saveRemark()}
-              rows={3}
-              placeholder="Add private overview notes, watch order guides, or specific remarks for the entire franchise..."
-              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
-            />
-          </div>
-        )}
-      </HubCard>
+          {(isAdmin || franchise.remark) && (
+            <Slip
+              title="Remark"
+              actions={
+                remarkClipped && (
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => setShowRemark(true)}
+                  >
+                    Show all
+                  </Button>
+                )
+              }
+            >
+              <textarea
+                ref={remarkRef}
+                value={remark}
+                disabled={!isAdmin}
+                onChange={(e) => setRemark(e.target.value)}
+                onBlur={() => saveRemark()}
+                rows={3}
+                placeholder="Private overview notes, watch order guides or remarks for the whole franchise"
+                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+              />
+            </Slip>
+          )}
+        </div>
+      </div>
 
       {/* Series list */}
       {seriesList.length > 0 && (
-        <div className="bg-surface rounded-xl border border-border shadow-sm p-5">
-          <div className="text-xs font-black text-text-faint uppercase tracking-widest mb-3 flex items-center gap-2">
-            <i className="fas fa-layer-group text-brand/60"></i> Series
-          </div>
+        <Slip
+          title="Series"
+          actions={
+            <span className="font-mono text-[11px] text-text-faint">
+              {seriesList.length}
+            </span>
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {seriesList.map((s) => {
               const name =
@@ -1412,15 +1411,14 @@ export default function FranchisePage() {
                 <Link
                   key={s.system_id}
                   to={`/series/${s.system_id}`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-bold transition"
+                  className="border border-border-strong px-2.5 py-1 text-sm text-text hover:border-brand hover:text-brand transition"
                 >
-                  <i className="fas fa-layer-group text-purple-400 text-xs"></i>
                   {name}
                 </Link>
               );
             })}
           </div>
-        </div>
+        </Slip>
       )}
 
       {/*
@@ -1428,7 +1426,7 @@ export default function FranchisePage() {
         below shows, "Extras" opens material that belongs to the franchise as a
         whole. The Media group disappears for a franchise with no entries yet.
       */}
-      <HubTabBar
+      <HubTabs
         groups={[
           { label: "Media", tabs: mediaTabs, counted: true },
           { label: "Extras", tabs: extraTabs },
@@ -1441,27 +1439,25 @@ export default function FranchisePage() {
       {/* ── Anime tab content ─────────────────────────────────────────────── */}
       {activeTab === "Anime" &&
         animeList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-tv"
-              title="Anime"
-              subtitle="TV · ONA · Movie · OVA · Special"
-              count={filteredAndSortedAnime.length}
-            />
+          <Section
+            title="Anime"
+            subtitle="TV · ONA · Movie · OVA · Special"
+            count={filteredAndSortedAnime.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={animeSort}
                 onChange={(e) => setAnimeSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="title">Sort: Title</option>
-                <option value="release_date">Sort: Release Date</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="mal_rating">Sort: MAL Rating</option>
+                <option value="title">Sort: title</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="mal_rating">Sort: MAL rating</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
                 <button
@@ -1469,13 +1465,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "airingType", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(animeFilters.airingType.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 ["Airing", "Airing"],
@@ -1487,13 +1483,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(animeFilters.airingStatus.has(val))}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 "Planned",
@@ -1507,15 +1503,15 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(animeFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
-              <label className="flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
+              <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted cursor-pointer">
                 <input
                   type="checkbox"
                   checked={animeFilters.bahaOnly}
@@ -1527,23 +1523,23 @@ export default function FranchisePage() {
                   }
                   className="rounded"
                 />
-                Baha Only
+                Baha only
               </label>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setAnimeGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(animeGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedAnime.length === 0 ? (
               <FilterEmpty />
             ) : animeGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {animeSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -1558,18 +1554,7 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <i
-                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                          ></i>
-                          {label}
-                        </h3>
-                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                          {group.anime.length}
-                        </span>
-                        <div className="flex-1 border-t border-border"></div>
-                      </div>
+                      <GroupRail label={label} count={group.anime.length} />
                       <div className={GRID_CLS}>
                         {group.anime.map((a) => (
                           <div
@@ -1577,10 +1562,8 @@ export default function FranchisePage() {
                             className="flex flex-col gap-1"
                           >
                             {a.is_main_entry && (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                                  main
-                                </span>
+                              <div className="flex justify-center">
+                                <Chip>Main</Chip>
                               </div>
                             )}
                             <MediaCard
@@ -1600,10 +1583,8 @@ export default function FranchisePage() {
                 {filteredAndSortedAnime.map((a) => (
                   <div key={a.system_id} className="flex flex-col gap-1">
                     {a.is_main_entry && (
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                          main
-                        </span>
+                      <div className="flex justify-center">
+                        <Chip>Main</Chip>
                       </div>
                     )}
                     <MediaCard type="anime" data={a} onUpdated={handleAnimeUpdated} />
@@ -1611,30 +1592,28 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── Anime Movies tab content ──────────────────────────────────────── */}
       {activeTab === "Anime Movies" &&
         animeMovieList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-film"
-              title="Anime Movies"
-              subtitle="Standalone theatrical films"
-              count={sortedAnimeMovies.length}
-            />
+          <Section
+            title="Anime Movies"
+            subtitle="Standalone theatrical films"
+            count={sortedAnimeMovies.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={animeMovieSort}
                 onChange={(e) => setAnimeMovieSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="release_date">Sort: Release Date</option>
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="mal_rating">Sort: MAL Rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="mal_rating">Sort: MAL rating</option>
               </select>
             </div>
 
@@ -1648,34 +1627,32 @@ export default function FranchisePage() {
                 />
               ))}
             </div>
-          </div>
+          </Section>
         )}
 
       {/* ── Manga tab content ─────────────────────────────────────────────── */}
       {activeTab === "Manga" &&
         mangaList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-book"
-              title="Manga"
-              subtitle="Manga · Manhwa · Manhua"
-              count={filteredAndSortedManga.length}
-            />
+          <Section
+            title="Manga"
+            subtitle="Manga · Manhwa · Manhua"
+            count={filteredAndSortedManga.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={mangaSort}
                 onChange={(e) => setMangaSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="mal_rating">Sort: MAL Rating</option>
-                <option value="release_date">Sort: Release Date</option>
-                <option value="end_date">Sort: End Date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="mal_rating">Sort: MAL rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="end_date">Sort: end date</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["連載中", "完結", "腰斬", "停更"].map((v) => (
                 <button
@@ -1683,13 +1660,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMangaFilters, "serializationStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(mangaFilters.serializationStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
                 (v) => (
@@ -1698,39 +1675,39 @@ export default function FranchisePage() {
                     onClick={() =>
                       toggleSetFilter(setMangaFilters, "readingStatus", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                    className={pillCls(mangaFilters.readingStatus.has(v))}
                   >
                     {v}
                   </button>
                 ),
               )}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
                 <button
                   key={v}
                   onClick={() => toggleSetFilter(setMangaFilters, "region", v)}
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(mangaFilters.region.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setMangaGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(mangaGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedManga.length === 0 ? (
               <FilterEmpty />
             ) : mangaGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {mangaSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -1745,18 +1722,7 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <i
-                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book"} text-brand/70`}
-                          ></i>
-                          {label}
-                        </h3>
-                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                          {group.manga.length}
-                        </span>
-                        <div className="flex-1 border-t border-border"></div>
-                      </div>
+                      <GroupRail label={label} count={group.manga.length} />
                       <div className={GRID_CLS}>
                         {group.manga.map((m) => (
                           <MediaCard
@@ -1785,34 +1751,32 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── Novel tab content ────────────────────────────────────────────── */}
       {activeTab === "Novel" &&
         novelList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-book-open"
-              title="Novel"
-              subtitle="Light Novel · Web Novel · Novel"
-              count={filteredAndSortedNovel.length}
-            />
+          <Section
+            title="Novel"
+            subtitle="Light Novel · Web Novel · Novel"
+            count={filteredAndSortedNovel.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={novelSort}
                 onChange={(e) => setNovelSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="mal_rating">Sort: MAL Rating</option>
-                <option value="release_date">Sort: Release Date</option>
-                <option value="end_date">Sort: End Date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="mal_rating">Sort: MAL rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="end_date">Sort: end date</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["連載中", "完結", "腰斬", "停更"].map((v) => (
                 <button
@@ -1820,13 +1784,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setNovelFilters, "serializationStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(novelFilters.serializationStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
                 (v) => (
@@ -1835,39 +1799,39 @@ export default function FranchisePage() {
                     onClick={() =>
                       toggleSetFilter(setNovelFilters, "readingStatus", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                    className={pillCls(novelFilters.readingStatus.has(v))}
                   >
                     {v}
                   </button>
                 ),
               )}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {["JP", "CN", "TW", "KR", "Western"].map((v) => (
                 <button
                   key={v}
                   onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(novelFilters.region.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setNovelGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(novelGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedNovel.length === 0 ? (
               <FilterEmpty />
             ) : novelGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {novelSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -1882,18 +1846,7 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <i
-                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
-                          ></i>
-                          {label}
-                        </h3>
-                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                          {group.novels.length}
-                        </span>
-                        <div className="flex-1 border-t border-border"></div>
-                      </div>
+                      <GroupRail label={label} count={group.novels.length} />
                       <div className={GRID_CLS}>
                         {group.novels.map((n) => (
                           <MediaCard
@@ -1920,31 +1873,29 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── Comic tab content ─────────────────────────────────────────────── */}
       {activeTab === "Comic" && comicList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-book-open"
-            title="Comic"
-            subtitle="Runs, limited series &amp; one-shots"
-            count={filteredAndSortedComic.length}
-          />
+        <Section
+          title="Comic"
+          subtitle="Runs, limited series &amp; one-shots"
+          count={filteredAndSortedComic.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={comicSort}
               onChange={(e) => setComicSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="release_date">Sort: Release Date</option>
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Ongoing", "Limited", "One-Shot", "Annual"].map((v) => (
               <button
@@ -1952,13 +1903,13 @@ export default function FranchisePage() {
                 onClick={() =>
                   toggleSetFilter(setComicFilters, "comicType", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.comicType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(comicFilters.comicType.has(v))}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1967,7 +1918,7 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setComicFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(comicFilters.readingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1976,12 +1927,12 @@ export default function FranchisePage() {
 
             {comicEras.length > 0 && (
               <>
-                <div className="w-px h-5 bg-surface-3"></div>
+                <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
                 {comicEras.map((v) => (
                   <button
                     key={v}
                     onClick={() => toggleSetFilter(setComicFilters, "era", v)}
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.era.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                    className={pillCls(comicFilters.era.has(v))}
                   >
                     {v}
                   </button>
@@ -1989,20 +1940,20 @@ export default function FranchisePage() {
               </>
             )}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             <button
               onClick={() => setComicGroupBySeries((v) => !v)}
-              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+              className={pillCls(comicGroupBySeries)}
             >
-              <i className="fas fa-layer-group mr-1"></i>Group by Series
+              Group by series
             </button>
           </div>
 
           {filteredAndSortedComic.length === 0 ? (
             <FilterEmpty />
           ) : comicGroupBySeries ? (
-            <div className="space-y-10">
+            <div className="space-y-8">
               {comicSeriesGroups.map((group) => {
                 const label =
                   group.type === "series"
@@ -2016,18 +1967,7 @@ export default function FranchisePage() {
                         : "standalone"
                     }
                   >
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                        <i
-                          className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-book-open"} text-brand/70`}
-                        ></i>
-                        {label}
-                      </h3>
-                      <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                        {group.comics.length}
-                      </span>
-                      <div className="flex-1 border-t border-border"></div>
-                    </div>
+                    <GroupRail label={label} count={group.comics.length} />
                     <div className={GRID_CLS}>
                       {group.comics.map((c) => (
                         <MediaCard
@@ -2054,33 +1994,31 @@ export default function FranchisePage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Movies tab content ────────────────────────────────────────────── */}
       {activeTab === "Movies" &&
         movieList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-film"
-              title="Movies"
-              subtitle="Live-action &amp; animated films"
-              count={filteredAndSortedMovies.length}
-            />
+          <Section
+            title="Movies"
+            subtitle="Live-action &amp; animated films"
+            count={filteredAndSortedMovies.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={movSort}
                 onChange={(e) => setMovSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="release_date">Sort: Release Date</option>
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="imdb_rating">Sort: IMDb Rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 ["Finished", "Finished Airing"],
@@ -2091,13 +2029,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(movFilters.airingStatus.has(val))}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 "Planned",
@@ -2111,26 +2049,26 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(movFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setMovGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(movGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedMovies.length === 0 ? (
               <FilterEmpty />
             ) : movGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {movieSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -2147,18 +2085,7 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <i
-                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-film"} text-brand/70`}
-                          ></i>
-                          {label}
-                        </h3>
-                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                          {group.movies.length}
-                        </span>
-                        <div className="flex-1 border-t border-border"></div>
-                      </div>
+                      <GroupRail label={label} count={group.movies.length} />
                       <div className={GRID_CLS}>
                         {group.movies.map((m) => (
                           <MediaCard
@@ -2185,33 +2112,31 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── TV Shows tab content ──────────────────────────────────────────── */}
       {activeTab === "TV Shows" &&
         tvShowList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-video"
-              title="TV Shows"
-              subtitle="Live-action series"
-              count={filteredAndSortedTvShows.length}
-            />
+          <Section
+            title="TV Shows"
+            subtitle="Live-action series"
+            count={filteredAndSortedTvShows.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={tvSort}
                 onChange={(e) => setTvSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="release_date">Sort: Release Date</option>
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="imdb_rating">Sort: IMDb Rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 ["Airing", "Airing"],
@@ -2223,13 +2148,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(tvFilters.airingStatus.has(val))}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 "Planned",
@@ -2243,26 +2168,26 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(tvFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setTvGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(tvGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedTvShows.length === 0 ? (
               <FilterEmpty />
             ) : tvGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {tvShowSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -2280,18 +2205,7 @@ export default function FranchisePage() {
                       }
                     >
                       {tvShowSeriesGroups.length > 1 && (
-                        <div className="flex items-center gap-3 mb-4">
-                          <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                            <i
-                              className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-video"} text-brand/70`}
-                            ></i>
-                            {label}
-                          </h3>
-                          <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                            {group.shows.length}
-                          </span>
-                          <div className="flex-1 border-t border-border"></div>
-                        </div>
+                        <GroupRail label={label} count={group.shows.length} />
                       )}
                       <div className={GRID_CLS}>
                         {group.shows.map((t) => (
@@ -2319,33 +2233,31 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── Cartoons tab content ──────────────────────────────────────────── */}
       {activeTab === "Cartoons" &&
         cartoonList.length > 0 && (
-          <div>
-            <SectionHeader
-              icon="fa-tv"
-              title="Cartoons"
-              subtitle="Cartoon entries"
-              count={filteredAndSortedCartoons.length}
-            />
+          <Section
+            title="Cartoons"
+            subtitle="Cartoon entries"
+            count={filteredAndSortedCartoons.length}
+          >
 
-            <div className="flex flex-wrap gap-2 mb-6 items-center">
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <select
                 value={cartoonSort}
                 onChange={(e) => setCartoonSort(e.target.value)}
-                className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                className={SELECT_CLS}
               >
-                <option value="release_date">Sort: Release Date</option>
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="imdb_rating">Sort: IMDb Rating</option>
+                <option value="release_date">Sort: release date</option>
+                <option value="title">Sort: title</option>
+                <option value="my_rating">Sort: my rating</option>
+                <option value="imdb_rating">Sort: IMDb rating</option>
               </select>
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {cartoonAiringTypeOptions.length > 0 && (
                 <>
@@ -2355,12 +2267,12 @@ export default function FranchisePage() {
                       onClick={() =>
                         toggleSetFilter(setCartoonFilters, "airingType", v)
                       }
-                      className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                      className={pillCls(cartoonFilters.airingType.has(v))}
                     >
                       {v}
                     </button>
                   ))}
-                  <div className="w-px h-5 bg-surface-3"></div>
+                  <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
                 </>
               )}
 
@@ -2374,13 +2286,13 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "airingStatus", val)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(cartoonFilters.airingStatus.has(val))}
                 >
                   {label}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               {[
                 "Planned",
@@ -2394,26 +2306,26 @@ export default function FranchisePage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(cartoonFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
               ))}
 
-              <div className="w-px h-5 bg-surface-3"></div>
+              <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
               <button
                 onClick={() => setCartoonGroupBySeries((v) => !v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonGroupBySeries ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(cartoonGroupBySeries)}
               >
-                <i className="fas fa-layer-group mr-1"></i>Group by Series
+                Group by series
               </button>
             </div>
 
             {filteredAndSortedCartoons.length === 0 ? (
               <FilterEmpty />
             ) : cartoonGroupBySeries ? (
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {cartoonSeriesGroups.map((group) => {
                   const label =
                     group.type === "series"
@@ -2430,18 +2342,7 @@ export default function FranchisePage() {
                           : "standalone"
                       }
                     >
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-sm font-black text-text-faint uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <i
-                            className={`fas ${group.type === "series" ? "fa-layer-group" : "fa-tv"} text-brand/70`}
-                          ></i>
-                          {label}
-                        </h3>
-                        <span className="text-xs font-bold text-text-faint bg-surface-2 px-2 py-0.5 rounded-full">
-                          {group.cartoons.length}
-                        </span>
-                        <div className="flex-1 border-t border-border"></div>
-                      </div>
+                      <GroupRail label={label} count={group.cartoons.length} />
                       <div className={GRID_CLS}>
                         {group.cartoons.map((c) => (
                           <MediaCard
@@ -2468,44 +2369,38 @@ export default function FranchisePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
         )}
 
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
       {activeTab === "Watch Order" && (
-        <div>
-          <SectionHeader
-            icon="fa-list-ol"
-            title="Watch Order"
-            subtitle="Ordered viewing guide across every media type"
-          />
+        <Section
+          title="Watch Order"
+          subtitle="Ordered viewing guide across every media type"
+        >
           <WatchOrderSection franchiseId={system_id} />
-        </div>
+        </Section>
       )}
 
       {/* ── Relations tab content ────────────────────────────────────────── */}
       {activeTab === "Relations" && (
-        <div>
-          <SectionHeader
-            icon="fa-diagram-project"
-            title="Relations"
-            subtitle="How this franchise's entries connect - prequels, alternatives, side stories and adaptations"
-          />
+        <Section
+          title="Relations"
+          subtitle="How this franchise's entries connect - prequels, alternatives, side stories and adaptations"
+        >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
               one place rather than scattered across every hub. */}
           <RelationGraph readOnly scopeType="franchise" scopeId={system_id} />
-        </div>
+        </Section>
       )}
 
       {/* ── Notes tab content ─────────────────────────────────────────────── */}
       {activeTab === "Notes" && (
-        <div>
-          <SectionHeader
-            icon="fa-sticky-note"
-            title="Notes"
-            subtitle="Structured notes belonging to the whole franchise"
-          />
+        <Section
+          title="Notes"
+          subtitle="Structured notes belonging to the whole franchise"
+        >
           {/* The hero remark editor above edits the same singleton note row, so
               hide the duplicate `remark` section wherever that editor renders. */}
           <FranchiseNotes
@@ -2513,15 +2408,19 @@ export default function FranchisePage() {
             isAdmin={isAdmin}
             hideSections={isAdmin || franchise.remark ? ["remark"] : []}
           />
-        </div>
+        </Section>
       )}
 
       {/* No content at all */}
       {tabs.length === 0 && !loading && (
-        <div className="text-center py-16 text-text-faint">
-          <i className="fas fa-box-open text-3xl mb-3"></i>
-          <p className="font-medium">No entries found for this franchise.</p>
-        </div>
+        <section className="border border-dashed border-border-strong px-4 py-6 text-center">
+          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+            No entries
+          </div>
+          <p className="text-sm text-text-faint">
+            Nothing is filed under this franchise yet. Assign entries to it from the Modify page.
+          </p>
+        </section>
       )}
 
       {showRemark && (

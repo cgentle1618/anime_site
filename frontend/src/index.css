@@ -24,9 +24,20 @@
   --color-border-strong: var(--c-border-strong);
   --color-brand-soft: var(--c-brand-soft);
 
-  /* Brand (vibrant blue) - the same on both grounds. */
-  --color-brand: #2563eb;
-  --color-brand-hover: #1d4ed8;
+  /* Brand: wisteria - the one saturated hue in the archive. */
+  --color-brand: var(--c-brand);
+  --color-brand-hover: var(--c-brand-hover);
+  --color-on-brand: var(--c-on-brand);          /* text on a brand-filled surface */
+
+  /* Archive geometry: flat surfaces. Corners are barely eased and the
+     resting shadow is none; elevation is reserved for menus and modals. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
 
   /* Nav "drawer front" - the ink surface the identity row is cut from. It
      stays dark in both themes; only its shade shifts. */
@@ -43,59 +54,70 @@
   /* Typography. Noto Sans TC + Roboto are loaded in index.html; without this
      override `font-sans` resolved to Tailwind's default stack and they were
      never used. */
-  --font-sans: "Noto Sans TC", "Roboto", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Narrow", "Noto Sans TC", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Light palette (default). */
 :root {
   color-scheme: light;
-  --c-canvas: #f9fafb;        /* gray-50  */
-  --c-surface: #ffffff;
-  --c-surface-2: #f3f4f6;     /* gray-100 */
-  --c-surface-3: #e5e7eb;     /* gray-200 */
-  --c-text: #111827;          /* gray-900 */
-  --c-text-muted: #4b5563;    /* gray-600 */
-  --c-text-faint: #9ca3af;    /* gray-400 */
-  --c-border: #e5e7eb;        /* gray-200 */
-  --c-border-strong: #d1d5db; /* gray-300 */
-  --c-brand-soft: rgb(37 99 235 / 0.06);
-  --c-ink: #0f172a;
-  --c-ink-text: #ffffff;
+  --c-canvas: #ece9e2;        /* bone paper */
+  --c-surface: #f8f6f1;
+  --c-surface-2: #e6e2d9;
+  --c-surface-3: #d9d4c9;
+  --c-text: #1c1a17;
+  --c-text-muted: #5b5750;
+  --c-text-faint: #8f8a80;
+  --c-border: #cfc9bd;
+  --c-border-strong: #9f9889;
+  --c-brand: #7a4c9e;
+  --c-brand-hover: #63397f;
+  --c-brand-soft: rgb(122 76 158 / 0.08);
+  --c-on-brand: #ffffff;
+  --c-ink: #1c1a17;
+  --c-ink-text: #f8f6f1;
 }
 
 /* Dark palette. Applied by the attribute, and by the OS preference when no
    attribute has been stamped (no-JS fallback). */
 [data-theme="dark"] {
   color-scheme: dark;
-  --c-canvas: #0b0f19;
-  --c-surface: #111827;
-  --c-surface-2: #1f2937;
-  --c-surface-3: #374151;
-  --c-text: #f3f4f6;
-  --c-text-muted: #9ca3af;
-  --c-text-faint: #6b7280;
-  --c-border: #1f2937;
-  --c-border-strong: #374151;
-  --c-brand-soft: rgb(96 165 250 / 0.12);
-  --c-ink: #020617;
-  --c-ink-text: #f8fafc;
+  --c-canvas: #17150f;
+  --c-surface: #211e18;
+  --c-surface-2: #2b2720;
+  --c-surface-3: #3a352c;
+  --c-text: #ece8df;
+  --c-text-muted: #aaa397;
+  --c-text-faint: #736d62;
+  --c-border: #3a352c;
+  --c-border-strong: #57503f;
+  --c-brand: #c2a0e6;
+  --c-brand-hover: #d4b8f0;
+  --c-brand-soft: rgb(194 160 230 / 0.14);
+  --c-on-brand: #17150f;
+  --c-ink: #0f0e0a;
+  --c-ink-text: #ece8df;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --c-canvas: #0b0f19;
-    --c-surface: #111827;
-    --c-surface-2: #1f2937;
-    --c-surface-3: #374151;
-    --c-text: #f3f4f6;
-    --c-text-muted: #9ca3af;
-    --c-text-faint: #6b7280;
-    --c-border: #1f2937;
-    --c-border-strong: #374151;
-    --c-brand-soft: rgb(96 165 250 / 0.12);
-    --c-ink: #020617;
-    --c-ink-text: #f8fafc;
+    --c-canvas: #17150f;
+    --c-surface: #211e18;
+    --c-surface-2: #2b2720;
+    --c-surface-3: #3a352c;
+    --c-text: #ece8df;
+    --c-text-muted: #aaa397;
+    --c-text-faint: #736d62;
+    --c-border: #3a352c;
+    --c-border-strong: #57503f;
+    --c-brand: #c2a0e6;
+    --c-brand-hover: #d4b8f0;
+    --c-brand-soft: rgb(194 160 230 / 0.14);
+    --c-on-brand: #17150f;
+  --c-on-brand: #17150f;
+    --c-ink: #0f0e0a;
+    --c-ink-text: #ece8df;
   }
 }
 
@@ -132,6 +154,10 @@ button:disabled,
   h3,
   h4 {
     font-weight: 700;
+  }
+  h1 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 }
 

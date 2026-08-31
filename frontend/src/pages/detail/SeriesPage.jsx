@@ -10,13 +10,11 @@ import {
   getDisplayName,
   getSortName,
   isBaha,
+  FALLBACK_SVG,
   getRatingWeight,
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
-import TierBadge from "../../components/layout/TierBadge";
-import SectionHeader from "../../components/hub/SectionHeader";
-import HubTabBar from "../../components/hub/HubTabBar";
 import {
   HubLoading,
   HubError,
@@ -24,12 +22,24 @@ import {
 } from "../../components/hub/HubStates";
 import {
   HubShell,
-  HubBreadcrumb,
-  HubCard,
-  HubHeroRow,
-  HubCover,
   GRID_CLS,
+  SELECT_CLS,
+  pillCls,
+  Crumbs,
+  AdminStrip,
+  HeroCover,
+  Field,
+  HubTabs,
+  Section,
 } from "../../components/hub/HubChrome";
+import {
+  Eyebrow,
+  Slip,
+  RatingStamp,
+  Chip,
+  ProgressRule,
+  Button,
+} from "../../components/ui/primitives";
 import MediaCard from "../../components/cards/MediaCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
@@ -858,164 +868,139 @@ export default function SeriesPage() {
   // A series always hangs off a franchise, so the franchise library is the
   // root of the trail even when the parent has not loaded.
   const trail = [
-    {
-      to: "/library/franchise",
-      icon: "fa-sitemap",
-      label: "Franchise Library",
-    },
+    { to: "/library/franchise", label: "Franchise" },
     ...(parentFranchise
       ? [
           {
             to: `/franchise/${parentFranchise.system_id}`,
-            icon: "fa-sitemap",
             label: getDisplayName(parentFranchise, "franchise"),
           },
         ]
       : []),
   ];
 
+  const eyebrow = [
+    "Series",
+    `${totalEntries} ${totalEntries === 1 ? "entry" : "entries"}`,
+    `${completionPct}% completed`,
+  ].join("  ·  ");
+
   return (
     <HubShell>
-      <HubBreadcrumb
-        trail={trail}
-        current={mainTitle}
-        editId={system_id}
-        isAdmin={isAdmin}
-      />
+      <Crumbs trail={trail} current={mainTitle} />
 
-      {/* Hero */}
-      <HubCard tier="series">
-        <HubHeroRow>
-          <HubCover src={coverUrl} />
+      {isAdmin && <AdminStrip editId={system_id} />}
 
-          {/* Left: title + info */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-2">
-              <TierBadge tier="series" />
+      {/* Hero: cover with spine strip, then the identity block */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
+          <HeroCover
+            src={coverUrl}
+            spine="Series"
+            id={series.system_id}
+            rating={series.my_rating}
+            done={completedCount}
+            total={totalEntries}
+            pct={completionPct}
+          />
+        </div>
+
+        <div className="lg:col-span-3 space-y-6">
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-2xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {mainTitle}
             </h1>
-            {subTitles.map(({ label, value }) => (
-              <p
-                key={label}
-                className="text-sm text-text-faint font-medium truncate flex items-center gap-1.5"
-              >
-                <span className="text-[10px] font-black text-text-faint bg-surface-2 px-1.5 py-0.5 rounded shrink-0">
-                  {label}
-                </span>
-                {value}
-              </p>
-            ))}
+            {subTitles.length > 0 && (
+              <div className="space-y-0.5 mb-4">
+                {subTitles.map(({ label, value }) => (
+                  <p
+                    key={label}
+                    className="text-lg text-text-muted truncate flex items-baseline gap-2"
+                  >
+                    <Eyebrow className="shrink-0">{label}</Eyebrow>
+                    {value}
+                  </p>
+                ))}
+              </div>
+            )}
 
-            <div className="flex flex-wrap gap-2 mt-4">
-              {series.my_rating && (
-                <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <i className="fas fa-star mr-1"></i>
-                  {series.my_rating}
-                </span>
-              )}
-              {series.series_expectation && (
-                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                  {series.series_expectation} Expectation
-                </span>
-              )}
-              {/*
-                A link rather than a status pill: the franchise is somewhere to
-                go, so it carries an indigo tone for navigation instead of a
-                flat badge colour.
-              */}
-              {parentFranchise && (
-                <Link
-                  to={`/franchise/${parentFranchise.system_id}`}
-                  className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full text-xs font-bold hover:bg-indigo-100 transition"
-                >
-                  <i className="fas fa-sitemap mr-1"></i>
-                  {getDisplayName(parentFranchise, "franchise")}
-                </Link>
-              )}
-              {Array.from(rewatchMarked).map((mediaType) => (
-                <span
-                  key={`rewatch-${mediaType}`}
-                  className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
-                >
-                  <i className="fas fa-redo mr-1"></i>
-                  {kindLabel("rewatch", [mediaType])}: {mediaType.replace("-", " ")}
-                </span>
-              ))}
-              <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
-                {totalEntries} Total Entries
-              </span>
-            </div>
-          </div>
-
-          {/* Right: completion + admin controls */}
-          <div className="lg:w-52 shrink-0 space-y-3">
-            <div className="bg-surface-2 rounded-xl p-4 border border-border">
-              <div className="text-xs font-black text-text-faint uppercase tracking-wider mb-2">
-                Completion
-              </div>
-              <div className="text-2xl font-black text-text mb-1">
-                {completionPct}%
-              </div>
-              <div className="w-full bg-surface-3 rounded-full h-2 mb-1.5">
-                <div
-                  className="bg-brand h-2 rounded-full transition-all"
-                  style={{ width: `${completionPct}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-text-faint font-medium">
-                {completedCount} / {totalEntries} completed
+            {/* Lineage: the franchise above */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchise</Eyebrow>
+                {parentFranchise ? (
+                  <Link
+                    to={`/franchise/${parentFranchise.system_id}`}
+                    className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
+                  >
+                    {getDisplayName(parentFranchise, "franchise")}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
               </div>
             </div>
 
-            {isAdmin && (
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Overall Rating
-                  </label>
+            {(series.series_expectation || rewatchMarked.size > 0) && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {series.series_expectation && (
+                  <Chip>Expectation · {series.series_expectation}</Chip>
+                )}
+                {Array.from(rewatchMarked).map((mediaType) => (
+                  <Chip key={`rewatch-${mediaType}`}>
+                    {kindLabel("rewatch", [mediaType])} ·{" "}
+                    {mediaType.replace("-", " ")}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </header>
+
+          {isAdmin && (
+            <Slip title="Curation">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Overall rating">
                   <select
                     value={rating}
                     onChange={(e) => {
                       setRating(e.target.value);
                       saveField("my_rating", e.target.value);
                     }}
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— Not Rated —</option>
+                    <option value="">Not rated</option>
                     {["S", "A+", "A", "B", "C", "D", "E", "F"].map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Expectation
-                  </label>
+                </Field>
+                <Field label="Expectation">
                   <select
                     value={expectation}
                     onChange={(e) => {
                       setExpectation(e.target.value);
                       saveField("series_expectation", e.target.value);
                     }}
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— None —</option>
+                    <option value="">None</option>
                     {["Highest", "High", "Medium", "Low"].map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
                   </select>
-                </div>
+                </Field>
                 {seriesApplicableRewatchTypes.length > 0 && (
-                  <div>
-                    <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                      {kindLabel("rewatch", seriesApplicableRewatchTypes)}
-                    </label>
+                  <Field
+                    label={kindLabel("rewatch", seriesApplicableRewatchTypes)}
+                    className="sm:col-span-2"
+                  >
                     <PlanKindToggles
                       kind="rewatch"
                       scope="series"
@@ -1023,51 +1008,49 @@ export default function SeriesPage() {
                       marked={rewatchMarked}
                       onToggle={handleRewatchToggle}
                     />
-                  </div>
+                  </Field>
                 )}
               </div>
-            )}
-          </div>
-        </HubHeroRow>
+            </Slip>
+          )}
 
-        {/* Remark */}
-        {(isAdmin || series.remark) && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
-                Remark
-              </label>
-              {remarkClipped && (
-                <button
-                  type="button"
-                  onClick={() => setShowRemark(true)}
-                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
-                >
-                  <i className="fas fa-up-right-and-down-left-from-center text-[10px]"></i>
-                  Show all
-                </button>
-              )}
-            </div>
-            <textarea
-              ref={remarkRef}
-              value={remark}
-              disabled={!isAdmin}
-              onChange={(e) => setRemark(e.target.value)}
-              onBlur={() => saveRemark()}
-              rows={3}
-              placeholder="Add private overview notes, watch order guides, or specific remarks for the entire series..."
-              className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
-            />
-          </div>
-        )}
-      </HubCard>
+          {(isAdmin || series.remark) && (
+            <Slip
+              title="Remark"
+              actions={
+                remarkClipped && (
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => setShowRemark(true)}
+                  >
+                    Show all
+                  </Button>
+                )
+              }
+            >
+              <textarea
+                ref={remarkRef}
+                value={remark}
+                disabled={!isAdmin}
+                onChange={(e) => setRemark(e.target.value)}
+                onBlur={() => saveRemark()}
+                rows={3}
+                placeholder="Private overview notes, watch order guides or remarks for the whole series"
+                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+              />
+            </Slip>
+          )}
+        </div>
+      </div>
 
       {/*
         Tab bar, in two labelled groups: "Media" picks which entries the list
         below shows, "Extras" opens material that belongs to the series as a
         whole. The Media group disappears for a series with no entries yet.
       */}
-      <HubTabBar
+      <HubTabs
         groups={[
           { label: "Media", tabs: mediaTabs, counted: true },
           { label: "Extras", tabs: extraTabs },
@@ -1079,39 +1062,37 @@ export default function SeriesPage() {
 
       {/* ── Anime tab content ─────────────────────────────────────────────── */}
       {activeTab === "Anime" && animeList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-tv"
-            title="Anime"
-            subtitle="TV · ONA · Movie · OVA · Special"
-            count={filteredAndSortedAnime.length}
-          />
+        <Section
+          title="Anime"
+          subtitle="TV · ONA · Movie · OVA · Special"
+          count={filteredAndSortedAnime.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={animeSort}
               onChange={(e) => setAnimeSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="title">Sort: Title</option>
-              <option value="release_date">Sort: Release Date</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="mal_rating">Sort: MAL Rating</option>
+              <option value="title">Sort: title</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="mal_rating">Sort: MAL rating</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setAnimeFilters, "airingType", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(animeFilters.airingType.has(v))}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {[
               ["Airing", "Airing"],
@@ -1123,13 +1104,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setAnimeFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(animeFilters.airingStatus.has(val))}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1138,16 +1119,16 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setAnimeFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${animeFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(animeFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
-            <label className="flex items-center gap-1.5 text-xs font-bold text-text-muted cursor-pointer">
+            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted cursor-pointer">
               <input
                 type="checkbox"
                 checked={animeFilters.bahaOnly}
@@ -1159,7 +1140,7 @@ export default function SeriesPage() {
                 }
                 className="rounded"
               />
-              Baha Only
+              Baha only
             </label>
           </div>
 
@@ -1170,10 +1151,8 @@ export default function SeriesPage() {
               {filteredAndSortedAnime.map((a) => (
                 <div key={a.system_id} className="flex flex-col gap-1">
                   {a.is_main_entry && (
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-[9px] font-bold bg-brand/10 text-brand border border-brand/30 rounded px-1 leading-tight uppercase tracking-wide">
-                        main
-                      </span>
+                    <div className="flex justify-center">
+                      <Chip>Main</Chip>
                     </div>
                   )}
                   <MediaCard
@@ -1185,33 +1164,31 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Manga tab content ─────────────────────────────────────────────── */}
       {activeTab === "Manga" && mangaList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-book"
-            title="Manga"
-            subtitle="Manga · Manhwa · Manhua"
-            count={filteredAndSortedManga.length}
-          />
+        <Section
+          title="Manga"
+          subtitle="Manga · Manhwa · Manhua"
+          count={filteredAndSortedManga.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={mangaSort}
               onChange={(e) => setMangaSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="mal_rating">Sort: MAL Rating</option>
-              <option value="release_date">Sort: Release Date</option>
-              <option value="end_date">Sort: End Date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="mal_rating">Sort: MAL rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="end_date">Sort: end date</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1219,13 +1196,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setMangaFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(mangaFilters.serializationStatus.has(v))}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1234,20 +1211,20 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setMangaFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(mangaFilters.readingStatus.has(v))}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setMangaFilters, "region", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${mangaFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(mangaFilters.region.has(v))}
               >
                 {v}
               </button>
@@ -1269,33 +1246,31 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Novel tab content ────────────────────────────────────────────── */}
       {activeTab === "Novel" && novelList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-book-open"
-            title="Novel"
-            subtitle="Light Novel · Web Novel · Novel"
-            count={filteredAndSortedNovel.length}
-          />
+        <Section
+          title="Novel"
+          subtitle="Light Novel · Web Novel · Novel"
+          count={filteredAndSortedNovel.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={novelSort}
               onChange={(e) => setNovelSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="mal_rating">Sort: MAL Rating</option>
-              <option value="release_date">Sort: Release Date</option>
-              <option value="end_date">Sort: End Date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="mal_rating">Sort: MAL rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="end_date">Sort: end date</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1303,13 +1278,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setNovelFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(novelFilters.serializationStatus.has(v))}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1318,20 +1293,20 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setNovelFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(novelFilters.readingStatus.has(v))}
                 >
                   {v}
                 </button>
               ),
             )}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["JP", "CN", "TW", "KR", "Western"].map((v) => (
               <button
                 key={v}
                 onClick={() => toggleSetFilter(setNovelFilters, "region", v)}
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${novelFilters.region.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(novelFilters.region.has(v))}
               >
                 {v}
               </button>
@@ -1352,32 +1327,30 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Comic tab content ─────────────────────────────────────────────── */}
       {activeTab === "Comic" && comicList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-book-bookmark"
-            title="Comic"
-            subtitle="Western comic runs"
-            count={filteredAndSortedComic.length}
-          />
+        <Section
+          title="Comic"
+          subtitle="Western comic runs"
+          count={filteredAndSortedComic.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={comicSort}
               onChange={(e) => setComicSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="release_date">Sort: Release Date</option>
-              <option value="end_date">Sort: End Date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="end_date">Sort: end date</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["連載中", "完結", "腰斬", "停更"].map((v) => (
               <button
@@ -1385,13 +1358,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setComicFilters, "serializationStatus", v)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.serializationStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(comicFilters.serializationStatus.has(v))}
               >
                 {v}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
               (v) => (
@@ -1400,7 +1373,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setComicFilters, "readingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${comicFilters.readingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(comicFilters.readingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1423,32 +1396,30 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Movies tab content ────────────────────────────────────────────── */}
       {activeTab === "Movies" && movieList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-film"
-            title="Movies"
-            subtitle="Live-action &amp; animated films"
-            count={filteredAndSortedMovies.length}
-          />
+        <Section
+          title="Movies"
+          subtitle="Live-action &amp; animated films"
+          count={filteredAndSortedMovies.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={movSort}
               onChange={(e) => setMovSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="release_date">Sort: Release Date</option>
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="imdb_rating">Sort: IMDb Rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {[
               ["Finished", "Finished Airing"],
@@ -1459,13 +1430,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setMovFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(movFilters.airingStatus.has(val))}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1474,7 +1445,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setMovFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${movFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(movFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1496,32 +1467,30 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── TV Shows tab content ──────────────────────────────────────────── */}
       {activeTab === "TV Shows" && tvShowList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-video"
-            title="TV Shows"
-            subtitle="Live-action series"
-            count={filteredAndSortedTvShows.length}
-          />
+        <Section
+          title="TV Shows"
+          subtitle="Live-action series"
+          count={filteredAndSortedTvShows.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={tvSort}
               onChange={(e) => setTvSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="release_date">Sort: Release Date</option>
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="imdb_rating">Sort: IMDb Rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {[
               ["Airing", "Airing"],
@@ -1533,13 +1502,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setTvFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(tvFilters.airingStatus.has(val))}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1548,7 +1517,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setTvFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${tvFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(tvFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1570,32 +1539,30 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Cartoons tab content ──────────────────────────────────────────── */}
       {activeTab === "Cartoons" && cartoonList.length > 0 && (
-        <div>
-          <SectionHeader
-            icon="fa-tv"
-            title="Cartoons"
-            subtitle="Cartoon entries"
-            count={filteredAndSortedCartoons.length}
-          />
+        <Section
+          title="Cartoons"
+          subtitle="Cartoon entries"
+          count={filteredAndSortedCartoons.length}
+        >
 
-          <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
             <select
               value={cartoonSort}
               onChange={(e) => setCartoonSort(e.target.value)}
-              className="border border-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+              className={SELECT_CLS}
             >
-              <option value="release_date">Sort: Release Date</option>
-              <option value="title">Sort: Title</option>
-              <option value="my_rating">Sort: My Rating</option>
-              <option value="imdb_rating">Sort: IMDb Rating</option>
+              <option value="release_date">Sort: release date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="imdb_rating">Sort: IMDb rating</option>
             </select>
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {cartoonAiringTypeOptions.length > 0 && (
               <>
@@ -1605,12 +1572,12 @@ export default function SeriesPage() {
                     onClick={() =>
                       toggleSetFilter(setCartoonFilters, "airingType", v)
                     }
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingType.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                    className={pillCls(cartoonFilters.airingType.has(v))}
                   >
                     {v}
                   </button>
                 ))}
-                <div className="w-px h-5 bg-surface-3"></div>
+                <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
               </>
             )}
 
@@ -1624,13 +1591,13 @@ export default function SeriesPage() {
                 onClick={() =>
                   toggleSetFilter(setCartoonFilters, "airingStatus", val)
                 }
-                className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.airingStatus.has(val) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                className={pillCls(cartoonFilters.airingStatus.has(val))}
               >
                 {label}
               </button>
             ))}
 
-            <div className="w-px h-5 bg-surface-3"></div>
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
 
             {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
               (v) => (
@@ -1639,7 +1606,7 @@ export default function SeriesPage() {
                   onClick={() =>
                     toggleSetFilter(setCartoonFilters, "watchingStatus", v)
                   }
-                  className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${cartoonFilters.watchingStatus.has(v) ? "bg-brand text-white border-brand" : "bg-surface text-text-faint border-border hover:bg-surface-2"}`}
+                  className={pillCls(cartoonFilters.watchingStatus.has(v))}
                 >
                   {v}
                 </button>
@@ -1661,44 +1628,38 @@ export default function SeriesPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {/* ── Watch Order tab content ──────────────────────────────────────── */}
       {activeTab === "Watch Order" && (
-        <div>
-          <SectionHeader
-            icon="fa-list-ol"
-            title="Watch Order"
-            subtitle="Ordered viewing guide across every media type"
-          />
+        <Section
+          title="Watch Order"
+          subtitle="Ordered viewing guide across every media type"
+        >
           <WatchOrderSection seriesId={system_id} />
-        </div>
+        </Section>
       )}
 
       {/* ── Relations tab content ────────────────────────────────────────── */}
       {activeTab === "Relations" && (
-        <div>
-          <SectionHeader
-            icon="fa-diagram-project"
-            title="Relations"
-            subtitle="How this series' entries connect - prequels, alternatives, side stories and adaptations"
-          />
+        <Section
+          title="Relations"
+          subtitle="How this series' entries connect - prequels, alternatives, side stories and adaptations"
+        >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
               one place rather than scattered across every hub. */}
           <RelationGraph readOnly scopeType="series" scopeId={system_id} />
-        </div>
+        </Section>
       )}
 
       {/* ── Notes tab content ─────────────────────────────────────────────── */}
       {activeTab === "Notes" && (
-        <div>
-          <SectionHeader
-            icon="fa-sticky-note"
-            title="Notes"
-            subtitle="Structured notes belonging to the whole series"
-          />
+        <Section
+          title="Notes"
+          subtitle="Structured notes belonging to the whole series"
+        >
           {/* The hero remark editor above edits the same singleton note row, so
               hide the duplicate `remark` section wherever that editor renders. */}
           <SeriesNotes
@@ -1706,16 +1667,20 @@ export default function SeriesPage() {
             isAdmin={isAdmin}
             hideSections={isAdmin || series.remark ? ["remark"] : []}
           />
-        </div>
+        </Section>
       )}
 
       {/* No entries at all. Keyed off the media tabs, not every tab: Watch
           Order and Notes are always offered, so `tabs` is never empty. */}
       {mediaTabs.length === 0 && !loading && (
-        <div className="text-center py-16 text-text-faint">
-          <i className="fas fa-box-open text-3xl mb-3"></i>
-          <p className="font-medium">No entries found for this series.</p>
-        </div>
+        <section className="border border-dashed border-border-strong px-4 py-6 text-center">
+          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+            No entries
+          </div>
+          <p className="text-sm text-text-faint">
+            Nothing is filed under this series yet. Assign entries to it from the Modify page.
+          </p>
+        </section>
       )}
 
       {showRemark && (

@@ -2,6 +2,7 @@
 import StatsCompletions from "../statistics/StatsCompletions";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaList } from "../../hooks/useMediaList";
+import { Eyebrow } from "../../components/ui/primitives";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -48,19 +49,13 @@ export default function Completions() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-          <i className="fas fa-history text-brand text-lg"></i>
-        </div>
-        <div>
-          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-            Completions
-          </h1>
-          <p className="text-xs text-text-faint font-medium mt-0.5">
-            All completed entries by media type
-          </p>
-        </div>
-      </div>
+      <header>
+        <Eyebrow className="mb-2">Archive</Eyebrow>
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none mb-2">
+          Completions
+        </h1>
+        <p className="text-sm text-text-muted">All completed entries by media type</p>
+      </header>
 
       <StatsCompletions
         allAnime={animeQuery.data || []}

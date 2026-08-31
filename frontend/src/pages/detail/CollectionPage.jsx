@@ -1,13 +1,13 @@
 // Frontend: page component file for CollectionPage.
 //
-// The Collection hub. Same shape as the Franchise and Series hubs - hero card,
-// two-group tab bar, shared section headers - but a collection groups
-// franchises rather than media entries, so its contents group holds the one
-// "Franchises" tab instead of a tab per media type, and there are no status
-// filters or roll-up statistics. Clicking a member card lands on the normal
-// Franchise hub.
+// The Collection hub. Same shape as the Franchise and Series hubs - cover with
+// spine strip, identity block, two-group tab bar, section slips - but a
+// collection groups franchises rather than media entries, so its contents
+// group holds the one "Franchises" tab instead of a tab per media type, and
+// there are no status filters or roll-up statistics. Clicking a member card
+// lands on the normal Franchise hub.
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
@@ -16,29 +16,33 @@ import {
   getDisplayName,
   getNamingFields,
   getSortName,
+  FALLBACK_SVG,
 } from "../../utils/media";
 import {
   MY_RATINGS,
   FRANCHISE_EXPECTATIONS,
 } from "../../config/fieldOptions";
 import { getFranchiseCover, getCollectionCover } from "../../lib/covers";
-import TierBadge from "../../components/layout/TierBadge";
-import SectionHeader from "../../components/hub/SectionHeader";
-import HubTabBar from "../../components/hub/HubTabBar";
 import RelationGraph from "../../components/relations/RelationGraph";
 import {
   HubShell,
-  HubBreadcrumb,
-  HubCard,
-  HubHeroRow,
-  HubCover,
   GRID_CLS,
+  SELECT_CLS,
+  Crumbs,
+  AdminStrip,
+  HeroCover,
+  Field,
+  HubTabs,
+  Section,
 } from "../../components/hub/HubChrome";
+import { HubLoading, HubError } from "../../components/hub/HubStates";
 import {
-  HubLoading,
-  HubError,
-  HubEmpty,
-} from "../../components/hub/HubStates";
+  Eyebrow,
+  Slip,
+  RatingStamp,
+  Chip,
+  Button,
+} from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
@@ -189,15 +193,15 @@ export default function CollectionPage() {
       saveField("remark", remarkDraft);
   }
 
-  if (loading) return <HubLoading label="Loading Collection Hub..." />;
+  if (loading) return <HubLoading label="Loading collection..." />;
 
   if (error || !collection)
     return (
       <HubError
-        title="Error Loading Collection"
+        title="Error loading collection"
         message={error || "Collection not found"}
         backTo="/library/collection"
-        backLabel="Collection Library"
+        backLabel="Collection library"
       />
     );
 
@@ -215,123 +219,122 @@ export default function CollectionPage() {
     (f) => f.value && f.value !== name,
   );
 
+  const eyebrow = [
+    "Collection",
+    `${members.length} ${members.length === 1 ? "franchise" : "franchises"}`,
+  ].join("  ·  ");
+
   return (
     <HubShell>
-      <HubBreadcrumb
-        trail={[
-          {
-            to: "/library/collection",
-            icon: "fa-boxes-stacked",
-            label: "Collection Library",
-          },
-        ]}
+      <Crumbs
+        trail={[{ to: "/library/collection", label: "Collection" }]}
         current={name}
-        editId={collection.system_id}
-        isAdmin={isAdmin}
       />
 
-      {/* Hero */}
-      <HubCard tier="collection">
-        <HubHeroRow>
-          <HubCover src={coverUrl} />
+      {isAdmin && <AdminStrip editId={collection.system_id} />}
 
-            <div className="flex-1 min-w-0">
-              <div className="mb-2">
-                <TierBadge tier="collection" />
+      {/* Hero: cover with spine strip, then the identity block */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
+          <HeroCover
+            src={coverUrl}
+            spine="Collection"
+            id={collection.system_id}
+            rating={collection.my_rating}
+          />
+        </div>
+
+        <div className="lg:col-span-3 space-y-6">
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
+            </div>
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
+              {name}
+            </h1>
+            {altNames.length > 0 && (
+              <div className="space-y-0.5 mb-4">
+                {altNames.map((f) => (
+                  <p
+                    key={f.label}
+                    className="text-lg text-text-muted truncate flex items-baseline gap-2"
+                  >
+                    <Eyebrow className="shrink-0">{f.label}</Eyebrow>
+                    {f.value}
+                  </p>
+                ))}
               </div>
-              <h1 className="text-2xl font-black text-text leading-tight">
-                {name}
-              </h1>
-              {altNames.length > 0 && (
-                <div className="text-sm text-text-faint mt-1 flex flex-wrap gap-x-3">
-                  {altNames.map((f) => (
-                    <span key={f.label}>{f.value}</span>
-                  ))}
-                </div>
-              )}
+            )}
 
-              {/* Same badge vocabulary as the Franchise hub, so a rating or an
-                  expectation reads the same wherever it turns up. */}
-              <div className="flex flex-wrap gap-2 mt-4">
-                {collection.my_rating && (
-                  <span className="bg-yellow-100 text-yellow-800 px-2.5 py-1 rounded-full text-xs font-bold">
-                    <i className="fas fa-star mr-1"></i>
-                    {collection.my_rating}
-                  </span>
-                )}
-                {collection.collection_expectation && (
-                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                    {collection.collection_expectation} Expectation
-                  </span>
-                )}
-                <span className="bg-surface-2 text-text-muted px-2.5 py-1 rounded-full text-xs font-bold">
-                  {members.length}{" "}
-                  {members.length === 1 ? "Franchise" : "Franchises"}
-                </span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchises</Eyebrow>
+                <span className="text-text">{members.length}</span>
               </div>
             </div>
 
-            {/* Admin controls, labelled the way the Franchise hub labels them. */}
-            {isAdmin && (
-              <div className="w-full lg:w-52 shrink-0 space-y-2">
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Overall Rating
-                  </label>
+            {/* Same chip vocabulary as the Franchise hub, so an expectation
+                reads the same wherever it turns up. */}
+            {collection.collection_expectation && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Chip>Expectation · {collection.collection_expectation}</Chip>
+              </div>
+            )}
+          </header>
+
+          {isAdmin && (
+            <Slip title="Curation">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Overall rating">
                   <select
                     value={collection.my_rating || ""}
                     onChange={(e) => saveField("my_rating", e.target.value)}
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— Not Rated —</option>
+                    <option value="">Not rated</option>
                     {MY_RATINGS.map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-text-faint uppercase tracking-wider block mb-1">
-                    Expectation
-                  </label>
+                </Field>
+                <Field label="Expectation">
                   <select
                     value={collection.collection_expectation || ""}
                     onChange={(e) =>
                       saveField("collection_expectation", e.target.value)
                     }
-                    className="w-full border border-border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
+                    className={`${SELECT_CLS} w-full`}
                   >
-                    <option value="">— None —</option>
+                    <option value="">None</option>
                     {FRANCHISE_EXPECTATIONS.map((x) => (
                       <option key={x} value={x}>
                         {x}
                       </option>
                     ))}
                   </select>
-                </div>
+                </Field>
               </div>
-            )}
-        </HubHeroRow>
+            </Slip>
+          )}
 
-        {/* Remark */}
           {(isAdmin || collection.remark) && (
-            <div className="mt-4">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-bold text-text-faint uppercase tracking-wider">
-                  Remark
-                </label>
-                {remarkClipped && (
-                  <button
+            <Slip
+              title="Remark"
+              actions={
+                remarkClipped && (
+                  <Button
+                    kind="ghost"
+                    size="sm"
                     type="button"
                     onClick={() => setShowRemark(true)}
-                    className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
                   >
-                    <i className="fas fa-up-right-and-down-left-from-center text-[10px]"></i>
                     Show all
-                  </button>
-                )}
-              </div>
+                  </Button>
+                )
+              }
+            >
               <textarea
                 ref={remarkRef}
                 value={remarkDraft}
@@ -339,18 +342,19 @@ export default function CollectionPage() {
                 onChange={(e) => setRemarkDraft(e.target.value)}
                 onBlur={() => saveRemark()}
                 rows={3}
-                className={`mt-1 w-full border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface" : "border-border bg-surface-2 text-text-faint cursor-default"}`}
-            />
-          </div>
-        )}
-      </HubCard>
+                className={`w-full border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none transition ${isAdmin ? "border-border bg-surface text-text" : "border-border bg-surface-2 text-text-muted cursor-default"}`}
+              />
+            </Slip>
+          )}
+        </div>
+      </div>
 
       {/*
         Same two-group bar as the other two hubs. The contents group is
         "Members" rather than "Media" and holds a single tab, because a
         collection groups franchises instead of media entries.
       */}
-      <HubTabBar
+      <HubTabs
         groups={[
           { label: "Members", tabs: ["Franchises"], counted: true },
           { label: "Extras", tabs: ["Watch Order", "Relations", "Notes"] },
@@ -361,19 +365,21 @@ export default function CollectionPage() {
       />
 
       {activeTab === "Franchises" && (
-        <div>
-          <SectionHeader
-            icon="fa-sitemap"
-            title="Franchises"
-            subtitle="Franchises grouped under this collection"
-            count={sortedMembers.length}
-          />
+        <Section
+          title="Franchises"
+          subtitle="Franchises grouped under this collection"
+          count={sortedMembers.length}
+        >
           {sortedMembers.length === 0 ? (
-            <HubEmpty
-              icon="fa-sitemap"
-              message="No franchises in this collection yet"
-              hint="Assign one from the Franchise tab on the Modify page."
-            />
+            <div className="border border-dashed border-border-strong px-4 py-6 text-center">
+              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+                No franchises
+              </div>
+              <p className="text-sm text-text-faint">
+                Nothing is filed under this collection yet. Assign one from the
+                Franchise tab on the Modify page.
+              </p>
+            </div>
           ) : (
             <div className={GRID_CLS}>
               {sortedMembers.map((franchise) => (
@@ -389,18 +395,16 @@ export default function CollectionPage() {
               ))}
             </div>
           )}
-        </div>
+        </Section>
       )}
 
       {activeTab === "Watch Order" && (
-        <div>
-          <SectionHeader
-            icon="fa-list-ol"
-            title="Watch Order"
-            subtitle="Cross-franchise orders covering this collection"
-          />
+        <Section
+          title="Watch order"
+          subtitle="Cross-franchise orders covering this collection"
+        >
           <WatchOrderSection collectionId={system_id} />
-        </div>
+        </Section>
       )}
 
       {/*
@@ -410,26 +414,22 @@ export default function CollectionPage() {
       */}
       {/* ── Relations tab content ────────────────────────────────────────── */}
       {activeTab === "Relations" && (
-        <div>
-          <SectionHeader
-            icon="fa-diagram-project"
-            title="Relations"
-            subtitle="How this collection's entries connect - prequels, alternatives, side stories and adaptations"
-          />
+        <Section
+          title="Relations"
+          subtitle="How this collection's entries connect - prequels, alternatives, side stories and adaptations"
+        >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
               one place rather than scattered across every hub. */}
           <RelationGraph readOnly scopeType="collection" scopeId={system_id} />
-        </div>
+        </Section>
       )}
 
       {activeTab === "Notes" && (
-        <div>
-          <SectionHeader
-            icon="fa-sticky-note"
-            title="Notes"
-            subtitle="Structured notes belonging to the whole collection"
-          />
+        <Section
+          title="Notes"
+          subtitle="Structured notes belonging to the whole collection"
+        >
           {/* The hero remark editor above edits the same singleton note row, so
               hide the duplicate `remark` section wherever that editor renders. */}
           <CollectionNotes
@@ -437,7 +437,7 @@ export default function CollectionPage() {
             isAdmin={isAdmin}
             hideSections={isAdmin || collection.remark ? ["remark"] : []}
           />
-        </div>
+        </Section>
       )}
 
       {showRemark && (
@@ -454,4 +454,3 @@ export default function CollectionPage() {
     </HubShell>
   );
 }
-

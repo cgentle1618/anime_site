@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
 import { getCollectionCover } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
+import { Eyebrow } from "../../components/ui/primitives";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -137,10 +138,10 @@ export default function CollectionLibrary() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-2">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-text-faint font-medium">Loading collections...</p>
+          <p className="text-text-faint">Loading collections...</p>
         </div>
       </div>
     );
@@ -148,26 +149,26 @@ export default function CollectionLibrary() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-2">
-        <div className="text-center text-red-500">
-          <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
-          <p className="font-medium">{error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center border border-danger bg-danger/10 px-6 py-4 text-danger">
+          <p className="font-bold">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-surface-2">
-      {/* Sticky toolbar */}
-      <div className="bg-surface border-b border-border sticky top-16 z-30 shadow-sm">
+    <div className="min-h-screen">
+      {/* Filter strip: flat on the canvas */}
+      <div className="border-b border-border sticky top-16 z-30 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-black text-text leading-none">
-                Collection Library
+              <Eyebrow className="mb-1">Library</Eyebrow>
+              <h1 className="font-display text-3xl font-semibold text-text leading-none">
+                Collections
               </h1>
-              <p className="text-xs text-text-faint mt-0.5">
+              <p className="font-mono text-[11px] text-text-faint mt-1.5">
                 {filteredAndSorted.length} collection
                 {filteredAndSorted.length !== 1 ? "s" : ""}
                 {searchQuery && ` matching "${searchQuery}"`}
@@ -177,17 +178,17 @@ export default function CollectionLibrary() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search */}
               <div className="relative">
-                <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-xs pointer-events-none"></i>
                 <input
                   type="text"
                   placeholder="Search collections..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-surface-2 border border-transparent rounded-full text-sm focus:outline-none focus:bg-surface focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
+                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
                   >
                     <i className="fas fa-times text-xs"></i>
@@ -196,17 +197,18 @@ export default function CollectionLibrary() {
               </div>
 
               {/* Sort */}
-              <select
-                value={currentSort}
-                onChange={(e) => setCurrentSort(e.target.value)}
-                className="bg-surface-2 border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand transition"
-              >
-                <option value="title">Sort: Title</option>
-                <option value="my_rating">Sort: My Rating</option>
-                <option value="collection_expectation">
-                  Sort: Expectation
-                </option>
-              </select>
+              <label className="flex items-center gap-2">
+                <Eyebrow>Sort</Eyebrow>
+                <select
+                  value={currentSort}
+                  onChange={(e) => setCurrentSort(e.target.value)}
+                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
+                >
+                  <option value="title">Title</option>
+                  <option value="my_rating">My rating</option>
+                  <option value="collection_expectation">Expectation</option>
+                </select>
+              </label>
             </div>
           </div>
         </div>
@@ -215,9 +217,9 @@ export default function CollectionLibrary() {
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-24">
-            <i className="fas fa-boxes-stacked text-text-faint/60 text-4xl mb-4"></i>
-            <p className="text-text-faint font-medium">No collections found</p>
+          <div className="text-center py-16 border border-dashed border-border-strong">
+            <Eyebrow className="mb-1">Empty</Eyebrow>
+            <p className="text-text-muted text-sm">No collections found</p>
             <p className="text-sm text-text-faint mt-1">
               {searchQuery ? (
                 <>

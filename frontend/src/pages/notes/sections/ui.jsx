@@ -2,7 +2,14 @@
 // save/cancel and link pills. These used to be private helpers inside the
 // 1500-line NotesTemplate; the shape components each own one file now, so the
 // chrome lives here instead of being duplicated four times.
+//
+// Styled as archive slips (see docs/frontend/design-system.md): a flat
+// bordered surface, a mono eyebrow title on a dotted rule, hairline dividers
+// between rows. The cards stay `div.bg-surface` because NotesTemplate.test.jsx
+// locates them by that selector.
 import { useState } from "react";
+
+import { Button } from "../../../components/ui/primitives";
 
 // Collapse state for a card whose emptiness decides its default.
 //
@@ -21,47 +28,63 @@ function useCollapsed(count) {
 }
 
 export const inputCls =
-  "w-full border border-border-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
-export const btnCls =
-  "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors";
+  "w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
+
+// A mono tag for a row's locator / kind / status. Ink only - colour never
+// encodes a category.
+export const tagCls =
+  "inline-flex items-center border border-border-strong px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none text-text-muted whitespace-nowrap";
+export const brandTagCls =
+  "inline-flex items-center border border-brand px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none text-brand whitespace-nowrap";
+
+// A row inside a section: a hairline above, no box.
+export const rowCls = "border-t border-border pt-2 first:border-t-0 first:pt-0";
+// The draft row: dashed so the reader sees it is not saved yet.
+export const draftCls = "border border-dashed border-border-strong p-2.5";
+
+const chevron = (collapsed) => (
+  <span
+    aria-hidden="true"
+    className="font-mono text-[10px] text-text-faint select-none"
+  >
+    {collapsed ? "+" : "−"}
+  </span>
+);
+
+const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 
 export function SectionCard({ label, count, isAdmin, onAdd, children }) {
   const [collapsed, setCollapsed] = useCollapsed(count);
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+    <div className="bg-surface border border-border">
       <div
-        className="bg-surface-2 border-b border-border px-4 py-2.5 flex items-center justify-between cursor-pointer select-none"
+        className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
-        <div className="flex items-center gap-2">
-          <h4 className="font-bold text-sm text-text">{label}</h4>
-          {count > 0 && (
-            <span className="text-[10px] font-black bg-brand/10 text-brand rounded-full px-1.5 py-0.5">
-              {count}
-            </span>
-          )}
-        </div>
+        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
+          {label}
+        </h4>
+        {count > 0 && <span className={countCls}>{count}</span>}
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
         <div
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           {isAdmin && onAdd && (
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={() => {
                 // The draft row renders in the body, so adding to a collapsed
                 // (i.e. empty) section has to open it or the form never shows.
                 setCollapsed(false);
                 onAdd();
               }}
-              className={btnCls + " bg-brand text-white hover:bg-brand/90"}
             >
-              <i className="fas fa-plus text-[10px]"></i> Add
-            </button>
+              Add
+            </Button>
           )}
-          <i
-            className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-xs`}
-          ></i>
+          <span onClick={() => setCollapsed(!collapsed)}>{chevron(collapsed)}</span>
         </div>
       </div>
       {!collapsed && <div className="p-3 space-y-2">{children}</div>}
@@ -76,29 +99,22 @@ export function SectionCard({ label, count, isAdmin, onAdd, children }) {
 // Each child is still its own SectionCard, so a group collapses as a unit and
 // its subsections collapse individually. `showCount` is for the Notes card,
 // which borrows this chrome to gain the same collapse-when-empty behaviour but
-// has never worn a count badge.
-export function GroupCard({ label, icon, count, showCount = true, children }) {
+// has never worn a count badge. `icon` is accepted (the registry still sends
+// one) and ignored: section titles do not carry icons.
+export function GroupCard({ label, count, showCount = true, children }) {
   const [collapsed, setCollapsed] = useCollapsed(count);
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+    <div className="bg-surface border border-border">
       <div
-        className="bg-surface-2 border-b border-border px-4 py-3 flex items-center justify-between cursor-pointer select-none"
+        className="flex items-center gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-text">
-            {icon && <i className={`fas ${icon} text-brand mr-2`}></i>}
-            {label}
-          </h3>
-          {showCount && count > 0 && (
-            <span className="text-[10px] font-black bg-brand/10 text-brand rounded-full px-1.5 py-0.5">
-              {count}
-            </span>
-          )}
-        </div>
-        <i
-          className={`fas fa-chevron-${collapsed ? "down" : "up"} text-text-faint text-xs`}
-        ></i>
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+          {label}
+        </h3>
+        {showCount && count > 0 && <span className={countCls}>{count}</span>}
+        <span className="flex-1 border-t border-dotted border-border-strong/60" />
+        {chevron(collapsed)}
       </div>
       {!collapsed && <div className="p-4 space-y-3">{children}</div>}
     </div>
@@ -112,6 +128,8 @@ export function ItemActions({ isAdmin, onEdit, onDelete }) {
       <button
         type="button"
         onClick={onEdit}
+        aria-label="Edit"
+        title="Edit"
         className="text-text-faint hover:text-brand text-xs px-1"
       >
         <i className="fas fa-pencil-alt"></i>
@@ -119,7 +137,9 @@ export function ItemActions({ isAdmin, onEdit, onDelete }) {
       <button
         type="button"
         onClick={onDelete}
-        className="text-text-faint hover:text-red-500 text-xs px-1"
+        aria-label="Delete"
+        title="Delete"
+        className="text-text-faint hover:text-danger text-xs px-1"
       >
         <i className="fas fa-trash"></i>
       </button>
@@ -130,20 +150,12 @@ export function ItemActions({ isAdmin, onEdit, onDelete }) {
 export function SaveCancel({ onSave, onCancel }) {
   return (
     <div className="flex gap-2 mt-2">
-      <button
-        type="button"
-        onClick={onSave}
-        className={btnCls + " bg-brand text-white hover:bg-brand/90"}
-      >
+      <Button type="button" kind="primary" size="sm" onClick={onSave}>
         Save
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className={btnCls + " bg-surface-2 text-text-muted hover:bg-surface-3"}
-      >
+      </Button>
+      <Button type="button" size="sm" onClick={onCancel}>
         Cancel
-      </button>
+      </Button>
     </div>
   );
 }
@@ -161,7 +173,7 @@ export function LinkPill({ url }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-xs text-brand hover:underline bg-brand-soft border border-brand/20 rounded px-1.5 py-0.5 max-w-[200px] truncate"
+      className="inline-flex items-center gap-1 font-mono text-[11px] text-text-muted hover:text-brand border border-border px-1.5 py-0.5 max-w-[200px] truncate transition"
     >
       <i className="fas fa-external-link-alt text-[9px]"></i>
       {label}
@@ -187,7 +199,9 @@ export function LinksEditor({ links, onChange }) {
             <button
               type="button"
               onClick={() => onChange(list.filter((_, idx) => idx !== i))}
-              className="text-red-400 hover:text-red-600 px-1"
+              aria-label="Remove link"
+              title="Remove link"
+              className="text-text-faint hover:text-danger px-1"
             >
               <i className="fas fa-times text-xs"></i>
             </button>
@@ -197,7 +211,7 @@ export function LinksEditor({ links, onChange }) {
       <button
         type="button"
         onClick={() => onChange([...list, ""])}
-        className="text-xs text-brand hover:underline"
+        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
       >
         + Add link
       </button>
@@ -206,5 +220,5 @@ export function LinksEditor({ links, onChange }) {
 }
 
 export const EmptyHint = () => (
-  <p className="text-xs text-text-faint italic">No entries.</p>
+  <p className="text-xs text-text-faint">No entries.</p>
 );

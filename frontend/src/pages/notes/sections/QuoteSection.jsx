@@ -14,7 +14,16 @@ import QuoteForm, {
 import { endpoints } from "../../../api/endpoints";
 import { fetchJson, jsonBody } from "../../../api/client";
 import { getQuoteImageUrl } from "../../../lib/covers";
-import { ItemActions, LinkPill, SaveCancel, SectionCard } from "./ui";
+import {
+  ItemActions,
+  LinkPill,
+  SaveCancel,
+  SectionCard,
+  brandTagCls,
+  draftCls,
+  rowCls,
+  tagCls,
+} from "./ui";
 
 export default function QuoteSection({
   label,
@@ -111,7 +120,7 @@ export default function QuoteSection({
         return (
           <div
             key={item.system_id}
-            className="border border-border rounded-lg p-2 bg-surface-2"
+            className={rowCls}
           >
             {editId === item.system_id ? (
               <div>
@@ -131,7 +140,7 @@ export default function QuoteSection({
                       {item.translation}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-text-faint font-medium">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
                     {item.speaker && (
                       <span className="text-text-faint">— {item.speaker}</span>
                     )}
@@ -140,27 +149,21 @@ export default function QuoteSection({
                     )}
                     {item.episode && <span>{item.episode}</span>}
                     {item.meme_id && (
-                      <span className="rounded-full bg-violet-100 text-violet-700 px-1.5 py-0.5 font-bold">
-                        in a meme
-                      </span>
+                      <span className={tagCls}>in a meme</span>
                     )}
                     {item.is_general && (
-                      <span className="rounded-full bg-brand/10 text-brand px-1.5 py-0.5 font-bold">
-                        general
-                      </span>
+                      <span className={brandTagCls}>general</span>
                     )}
                     {item.is_favorite && (
-                      <i className="fas fa-star text-amber-500" />
+                      <span className={tagCls}>favourite</span>
                     )}
                     {item.needs_review && (
-                      <span className="rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 font-bold">
-                        needs review
-                      </span>
+                      <span className={tagCls}>needs review</span>
                     )}
                     {(item.tags || []).map((t) => (
                       <span
                         key={t}
-                        className="rounded-full bg-surface-2 text-text-muted px-1.5 py-0.5 font-bold"
+                        className={tagCls}
                       >
                         {t}
                       </span>
@@ -170,7 +173,7 @@ export default function QuoteSection({
                     <img
                       src={imageUrl}
                       alt=""
-                      className="mt-1 max-h-40 rounded-lg border border-border"
+                      className="mt-1 max-h-40 border border-border"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -192,7 +195,7 @@ export default function QuoteSection({
         );
       })}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <QuoteForm val={draft} setVal={setDraft} />
           <SaveCancel
             onSave={commit}
@@ -204,7 +207,7 @@ export default function QuoteSection({
         </div>
       )}
       {!items.length && !adding && (
-        <p className="text-xs text-text-faint italic">
+        <p className="text-xs text-text-faint">
           {isLoading ? "Loading..." : "No entries."}
         </p>
       )}

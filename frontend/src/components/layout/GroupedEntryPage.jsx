@@ -7,17 +7,19 @@ import { Link } from "react-router-dom";
 
 import MediaLoadingState from "./MediaLoadingState";
 import { getCoverUrl } from "../../lib/covers";
+import { Chip, Eyebrow } from "../ui/primitives";
 
 export const controlCls =
-  "bg-surface border border-border text-text-muted rounded-lg text-xs font-medium px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand/30";
+  "bg-surface border border-border-strong text-text text-xs px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand";
 
 // Media type values as stored in the media_type column (hyphenated, matching
 // watch_order_item and MEDIA_CONFIG).
-// The grouping tiers have no cover, so their header shows an icon instead.
+// The grouping tiers have no cover, so their header shows a spine label
+// naming the tier instead. Kept under the old name so callers need not change.
 export const TIER_ICONS = {
-  series: "fa-layer-group",
-  franchise: "fa-sitemap",
-  collection: "fa-boxes-stacked",
+  series: "Series",
+  franchise: "Fran.",
+  collection: "Coll.",
 };
 
 export const MEDIA_TYPE_FILTERS = [
@@ -32,20 +34,11 @@ export const MEDIA_TYPE_FILTERS = [
   { value: "comic", label: "Comic" },
 ];
 
+// A tag on a row. Colour never names a category, so every tone but `brand`
+// (the one thing a page points at) collapses to ink; the prop is kept so
+// callers keep working.
 export function Pill({ children, tone = "gray" }) {
-  const tones = {
-    gray: "bg-surface-2 text-text-muted",
-    brand: "bg-brand/10 text-brand",
-    amber: "bg-amber-100 text-amber-700",
-    violet: "bg-violet-100 text-violet-700",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${tones[tone]}`}
-    >
-      {children}
-    </span>
-  );
+  return <Chip tone={tone === "brand" ? "brand" : "ink"}>{children}</Chip>;
 }
 
 export function Toggle({ active, onClick, children }) {
@@ -53,10 +46,11 @@ export function Toggle({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+      aria-pressed={active}
+      className={`px-2.5 py-1.5 border font-mono text-[10px] uppercase tracking-[0.12em] transition ${
         active
-          ? "bg-brand/10 text-brand"
-          : "bg-surface border border-border text-text-faint hover:text-text-muted"
+          ? "bg-brand text-on-brand border-brand"
+          : "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text"
       }`}
     >
       {children}
@@ -65,7 +59,7 @@ export function Toggle({ active, onClick, children }) {
 }
 
 /**
- * @param icon          Font Awesome class for the header tile
+ * @param icon          Accepted for compatibility; the header no longer shows one
  * @param title         Page title
  * @param subtitle      Muted line under the title
  * @param filters       JSX for the filter bar (rendered inside the flex row)
@@ -75,7 +69,7 @@ export function Toggle({ active, onClick, children }) {
  * @param renderRow     (item) => JSX for one row
  */
 export default function GroupedEntryPage({
-  icon,
+  icon: _icon,
   title,
   subtitle,
   filters,
@@ -92,19 +86,17 @@ export default function GroupedEntryPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-          <i className={`fas ${icon} text-brand text-lg`}></i>
-        </div>
-        <div>
-          <h1 className="text-2xl font-black text-text tracking-tight leading-none">
-            {title}
-          </h1>
-          <p className="text-xs text-text-faint font-medium mt-0.5">{subtitle}</p>
-        </div>
-      </div>
+      <header>
+        <h1 className="font-display text-4xl font-semibold text-text leading-none">
+          {title}
+        </h1>
+        <p className="text-sm text-text-muted mt-1">{subtitle}</p>
+      </header>
 
-      <div className="flex flex-wrap items-center gap-2">{filters}</div>
+      {/* Filter bar: a flat strip on the canvas */}
+      <div className="flex flex-wrap items-center gap-2 border-y border-border py-3">
+        {filters}
+      </div>
 
       {isLoading || error ? (
         <MediaLoadingState
@@ -115,15 +107,15 @@ export default function GroupedEntryPage({
         />
       ) : (
         <>
-          <p className="text-xs text-text-faint font-medium">
+          <Eyebrow>
             {total} {plural(total)} across {groups.length} entr
             {groups.length === 1 ? "y" : "ies"}
-          </p>
+          </Eyebrow>
 
           {!groups.length && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-8 text-center">
-              <p className="text-sm text-text-faint italic">
-                No {noun}s match these filters.
+            <div className="border border-dashed border-border-strong px-4 py-8 text-center">
+              <p className="text-sm text-text-faint">
+                No {noun}s match these filters. Clear a filter to see more.
               </p>
             </div>
           )}
@@ -142,20 +134,18 @@ export default function GroupedEntryPage({
               return (
               <div
                 key={`${ownerType}-${ownerId}`}
-                className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden"
+                className="bg-surface border border-border overflow-hidden"
               >
                 {/* Owner header */}
                 <div className="flex items-center gap-3 border-b border-border px-4 py-3">
                   {group.missing ? (
                     <>
-                      <div className="w-9 h-12 rounded bg-surface-2 flex items-center justify-center shrink-0">
-                        <i className="fas fa-unlink text-text-faint/60 text-xs" />
-                      </div>
+                      <div className="w-9 h-12 bg-surface-2 border border-dashed border-border-strong shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-text-faint italic">
-                          Unlinked / deleted owner
+                        <p className="text-sm text-text-faint">
+                          Unlinked or deleted owner
                         </p>
-                        <p className="text-[10px] text-text-faint/60 font-mono truncate">
+                        <p className="font-mono text-[10px] text-text-faint truncate">
                           {ownerType} · {ownerId}
                         </p>
                       </div>
@@ -166,16 +156,19 @@ export default function GroupedEntryPage({
                         // Tiers have no cover column — a franchise's cover is
                         // derived from its entries on the frontend, which is
                         // more work than a group header is worth.
-                        <div className="w-9 h-12 rounded bg-brand-soft flex items-center justify-center shrink-0 border border-brand/10">
-                          <i
-                            className={`fas ${TIER_ICONS[ownerType] || "fa-layer-group"} text-brand/60 text-sm`}
-                          />
+                        <div className="w-9 h-12 bg-ink text-ink-text flex items-center justify-center shrink-0">
+                          <span
+                            className="font-mono text-[9px] uppercase tracking-[0.16em] whitespace-nowrap"
+                            style={{ writingMode: "vertical-rl" }}
+                          >
+                            {TIER_ICONS[ownerType] || "Group"}
+                          </span>
                         </div>
                       ) : (
                         <img
                           src={getCoverUrl(group.cover_image_file)}
                           alt=""
-                          className="w-9 h-12 rounded object-cover shrink-0 border border-border"
+                          className="w-9 h-12 object-cover shrink-0 border border-border"
                         />
                       )}
                       <div className="min-w-0">
@@ -183,13 +176,13 @@ export default function GroupedEntryPage({
                           {navPath ? (
                             <Link
                               to={navPath}
-                              className="text-sm font-bold text-text hover:text-brand truncate"
+                              className="font-display text-base font-semibold text-text hover:text-brand truncate"
                             >
                               {name}
                             </Link>
                           ) : (
                             // Series has no page of its own.
-                            <span className="text-sm font-bold text-text truncate">
+                            <span className="font-display text-base font-semibold text-text truncate">
                               {name}
                             </span>
                           )}
@@ -197,9 +190,9 @@ export default function GroupedEntryPage({
                             <Pill tone="brand">{group.owner_label}</Pill>
                           )}
                         </div>
-                        <p className="text-[10px] text-text-faint font-medium">
+                        <Eyebrow>
                           {count} {plural(count)}
-                        </p>
+                        </Eyebrow>
                       </div>
                     </>
                   )}

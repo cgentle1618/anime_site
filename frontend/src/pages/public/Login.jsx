@@ -3,6 +3,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
+import { Button, Eyebrow, Slip } from "../../components/ui/primitives";
+
+const INPUT_CLS =
+  "w-full px-3 py-2 border border-border-strong bg-surface text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -49,80 +53,64 @@ export default function Login() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-brand/10 rounded-2xl mb-4">
-            <i className="fas fa-shield-alt text-brand text-2xl"></i>
+      <Slip title="Admin" className="w-full max-w-md" bodyClassName="p-8">
+        <header className="mb-8">
+          <Eyebrow className="mb-2">Sign in</Eyebrow>
+          <h1 className="font-display text-4xl font-semibold text-text leading-none mb-2">
+            Admin access
+          </h1>
+          <p className="text-sm text-text-muted">Sign in to manage the collection.</p>
+        </header>
+
+        {error && (
+          <div
+            role="alert"
+            className="border border-danger text-danger px-3 py-2 mb-6 text-sm"
+          >
+            {error}
           </div>
-          <h1 className="text-2xl font-black text-text">Admin Access</h1>
-          <p className="text-text-faint mt-1 font-medium">
-            Sign in to manage your collection
-          </p>
-        </div>
+        )}
 
-        {/* Card */}
-        <div className="bg-surface rounded-2xl shadow-xl border border-border p-8">
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm font-medium">
-              <i className="fas fa-exclamation-circle shrink-0"></i>
-              <span>{error}</span>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Eyebrow as="label" htmlFor="login-username" className="block mb-1.5">
+              Username
+            </Eyebrow>
+            <input
+              id="login-username"
+              type="text"
+              name="username"
+              required
+              className={INPUT_CLS}
+              placeholder="admin"
+            />
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-bold text-text-muted mb-1.5">
-                Username
-              </label>
-              <div className="relative">
-                <i className="fas fa-user absolute left-3.5 top-3 text-text-faint text-sm"></i>
-                <input
-                  type="text"
-                  name="username"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition bg-surface-2 focus:bg-surface"
-                  placeholder="admin"
-                />
-              </div>
-            </div>
+          <div>
+            <Eyebrow as="label" htmlFor="login-password" className="block mb-1.5">
+              Password
+            </Eyebrow>
+            <input
+              id="login-password"
+              type="password"
+              name="password"
+              required
+              className={INPUT_CLS}
+              placeholder="••••••••"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-bold text-text-muted mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <i className="fas fa-lock absolute left-3.5 top-3 text-text-faint text-sm"></i>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition bg-surface-2 focus:bg-surface"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-brand hover:bg-brand-hover text-white font-bold py-3 rounded-xl transition shadow-md disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin"></i> Verifying...
-                </>
-              ) : (
-                <>
-                  <span>Authenticate</span>
-                  <i className="fas fa-arrow-right text-sm"></i>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
+          <Button kind="primary" type="submit" disabled={loading} className="w-full py-2.5">
+            {loading ? (
+              <>
+                <i className="fas fa-circle-notch fa-spin"></i> Verifying…
+              </>
+            ) : (
+              "Sign in"
+            )}
+          </Button>
+        </form>
+      </Slip>
     </div>
   );
 }
-

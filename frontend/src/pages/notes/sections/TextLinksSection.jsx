@@ -10,7 +10,10 @@ import {
   LinksEditor,
   SaveCancel,
   SectionCard,
+  brandTagCls,
+  draftCls,
   inputCls,
+  rowCls,
 } from "./ui";
 
 const empty = () => ({ locator: "", content: "", links: [""] });
@@ -105,7 +108,7 @@ export default function TextLinksSection({
       {notes.map((n) => (
         <div
           key={n.system_id}
-          className="border border-border rounded-lg p-2.5 bg-surface-2"
+          className={rowCls}
         >
           {editId === n.system_id ? (
             <div>
@@ -120,7 +123,7 @@ export default function TextLinksSection({
             <div className="flex gap-2 items-start">
               <div className="flex-1 space-y-1">
                 {n.locator && (
-                  <span className="text-[11px] font-bold bg-brand/10 text-brand px-1.5 py-0.5 rounded">
+                  <span className={brandTagCls}>
                     {n.locator}
                   </span>
                 )}
@@ -133,7 +136,7 @@ export default function TextLinksSection({
                   <LinkPill key={j} url={l} />
                 ))}
                 {!n.content && !(n.links || []).filter(Boolean).length && (
-                  <span className="text-xs text-text-faint italic">(empty)</span>
+                  <span className="text-xs text-text-faint">(empty)</span>
                 )}
               </div>
               <ItemActions
@@ -149,7 +152,7 @@ export default function TextLinksSection({
         </div>
       ))}
       {adding && (
-        <div className="border border-brand/20 rounded-lg p-2.5 bg-brand-soft">
+        <div className={draftCls}>
           <TextLinksForm val={draft} setVal={setDraft} section={section} />
           <SaveCancel
             onSave={commit}

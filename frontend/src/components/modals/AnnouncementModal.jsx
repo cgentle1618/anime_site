@@ -1,5 +1,6 @@
 // Frontend: modal component file for AnnouncementModal.
 import { useEffect } from "react";
+import { Button } from "../ui/primitives";
 
 export default function AnnouncementModal({ announcement, onClose }) {
   // Close on Escape so the fullscreen view never traps the reader.
@@ -13,21 +14,32 @@ export default function AnnouncementModal({ announcement, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 transition-opacity"
       onClick={onClose}
     >
       <div
-        className="bg-surface rounded-xl shadow-2xl w-[95vw] max-w-5xl h-[90vh] flex flex-col overflow-hidden transform transition-all m-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="announcement-modal-title"
+        className="bg-surface border border-border shadow-xl w-[95vw] max-w-5xl h-[90vh] flex flex-col overflow-hidden m-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-2 shrink-0">
-          <h3 className="text-lg font-black text-text flex items-center min-w-0">
-            <i className="fas fa-bullhorn text-brand mr-2 shrink-0"></i>
-            <span className="truncate">{announcement.title}</span>
-          </h3>
+        <div className="px-6 py-3 border-b border-border flex justify-between items-center gap-3 shrink-0">
+          <div className="min-w-0">
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+              Announcement
+            </div>
+            <h3
+              id="announcement-modal-title"
+              className="font-display text-xl font-semibold text-text truncate"
+            >
+              {announcement.title}
+            </h3>
+          </div>
           <button
             onClick={onClose}
-            className="text-text-faint hover:text-text-muted transition bg-surface hover:bg-surface-2 rounded-lg p-1.5 focus:outline-none shrink-0 ml-3"
+            aria-label="Close"
+            className="text-text-faint hover:text-text transition px-1.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand shrink-0"
           >
             <i className="fas fa-times"></i>
           </button>
@@ -37,13 +49,8 @@ export default function AnnouncementModal({ announcement, onClose }) {
             {announcement.body}
           </p>
         </div>
-        <div className="px-6 py-4 border-t border-border bg-surface-2 flex justify-end shrink-0">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 bg-surface border border-border-strong rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition shadow-sm focus:outline-none"
-          >
-            Close
-          </button>
+        <div className="px-6 py-3 border-t border-border flex justify-end shrink-0">
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </div>

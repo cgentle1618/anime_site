@@ -101,7 +101,7 @@ export default function MultiSelect({
                 e.stopPropagation();
                 removeValue(v);
               }}
-              className="hover:text-red-500 transition ml-0.5"
+              className="hover:text-danger transition ml-0.5"
             >
               <i className="fas fa-times text-[9px]"></i>
             </button>

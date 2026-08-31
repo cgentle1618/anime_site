@@ -11,6 +11,7 @@ import SourcesCard from "../../components/info/SourcesCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import MovieNotes from "./MovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
@@ -39,6 +40,11 @@ function formatLength(minutes) {
   return `${hrs}hr ${mins}min`;
 }
 const LIST_OPTIONS = { params: { limit: 2000 } };
+
+const selectCls =
+  "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
+const lineageLinkCls =
+  "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 export default function Movie() {
   const { system_id } = useParams();
@@ -149,63 +155,51 @@ export default function Movie() {
 
   const imageUrl = getCoverUrl(movie.cover_image_file);
 
-  let airingStatusColor = "bg-surface-2 text-text-muted border border-border";
-  if (movie.airing_status === "Airing")
-    airingStatusColor = "bg-green-100 text-green-700 border border-green-200";
-  else if (movie.airing_status === "Finished Airing")
-    airingStatusColor = "bg-blue-100 text-blue-700 border border-blue-200";
-  else if (movie.airing_status === "Not Yet Aired")
-    airingStatusColor =
-      "bg-orange-100 text-orange-700 border border-orange-200";
-  else if (movie.airing_status === "Canceled")
-    airingStatusColor = "bg-red-100 text-red-700 border border-red-200";
-  else if (movie.airing_status === "Rumored")
-    airingStatusColor =
-      "bg-purple-100 text-purple-700 border border-purple-200";
-
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
       franchise.franchise_name_roman
     : null;
 
-  const selectDisabledCls = !isAdmin
-    ? "bg-surface-2 text-text-faint cursor-not-allowed"
-    : "";
+  const eyebrow = [
+    "Movie",
+    movie.movie_type,
+    movie.airing_status,
+    formatLength(movie.length_min),
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+
+  const imdbScore =
+    movie.imdb_rating && movie.imdb_rating !== "N/A" ? movie.imdb_rating : "—";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      {/* Breadcrumb */}
-      <nav className="flex text-sm text-text-faint mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-2">
-          <li>
-            <Link to="/library/movie" className="hover:text-brand transition">
-              <i className="fas fa-ticket-alt mr-1.5"></i>Movies
-            </Link>
-          </li>
-          <li>
-            <i className="fas fa-chevron-right text-[10px]"></i>
-          </li>
-          <li className="font-medium text-text truncate max-w-xs">
-            {titleMain}
-          </li>
-        </ol>
+      {/* Breadcrumb: a catalogue path, set in mono */}
+      <nav
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3"
+        aria-label="Breadcrumb"
+      >
+        <Link to="/library/movie" className="hover:text-brand transition">
+          Movies
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span className="text-text-muted truncate max-w-xs normal-case tracking-normal">
+          {titleMain}
+        </span>
       </nav>
 
-      {/* Admin Toolbar */}
+      {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between mb-8 shadow-sm">
-          <div className="flex items-center text-brand font-bold text-sm uppercase tracking-wider">
-            <i className="fas fa-shield-alt mr-2"></i> Admin Tools
-          </div>
+        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
+          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+            Admin
+          </Eyebrow>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}
-              className="bg-surface hover:bg-surface-2 border border-border text-text-muted px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
-            >
-              <i className="fas fa-pencil-alt mr-2 text-brand"></i> Quick Edit
-            </button>
-            <button
+            <Button onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}>
+              Quick edit
+            </Button>
+            <Button
               onClick={async () => {
                 if (!isAdmin) return;
                 try {
@@ -221,21 +215,12 @@ export default function Movie() {
                   showToast("error", "Update failed");
                 }
               }}
-              className="bg-surface hover:bg-green-50 border border-border text-text-muted hover:text-green-700 px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center"
             >
-              <i className="fas fa-check-double mr-2 text-green-500"></i> Mark
-              Completed
-            </button>
-            <button
-              onClick={handleAutofill}
-              disabled={autofilling}
-              className="bg-brand hover:bg-brand-hover text-white px-3 py-1.5 rounded-md text-sm font-bold shadow-sm transition flex items-center disabled:opacity-50"
-            >
-              <i
-                className={`fas ${autofilling ? "fa-circle-notch fa-spin" : "fa-magic"} mr-2`}
-              ></i>
-              {autofilling ? "Autofilling..." : "Autofill & Update"}
-            </button>
+              Mark completed
+            </Button>
+            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              {autofilling ? "Autofilling…" : "Autofill & update"}
+            </Button>
           </div>
         </div>
       )}
@@ -244,23 +229,39 @@ export default function Movie() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster */}
-          <div className="bg-surface p-2 rounded-xl border border-border shadow-sm relative overflow-hidden">
-            {movie.my_rating && (
-              <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded flex items-center shadow-md">
-                <i className="fas fa-star text-[9px] mr-1"></i>
-                {movie.my_rating}
-              </div>
-            )}
-            <div className="w-full aspect-[2/3] bg-surface-2 rounded-lg overflow-hidden border border-border">
-              <img
-                src={imageUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = FALLBACK_SVG;
-                }}
+          {/* Poster: cover with a spine strip and the rating stamp */}
+          <div className="flex border border-border bg-surface">
+            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                Movie{movie.movie_type ? ` · ${movie.movie_type}` : ""}
+              </span>
+              <span
+                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {movie.system_id}
+              </span>
+            </div>
+            <div className="relative flex-1 min-w-0">
+              <RatingStamp
+                rating={movie.my_rating}
+                size="md"
+                tilt
+                className="absolute top-2 right-2 z-10"
               />
+              <div className="w-full aspect-[2/3] bg-surface-2 overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -272,127 +273,74 @@ export default function Movie() {
 
           {/* Related Entries */}
           <RelationsSection mediaType="movie" entryId={movie.system_id} />
-
-          {/* System Info — admin only */}
-          {isAdmin && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
-              <h3 className="text-xs font-bold text-text-faint uppercase tracking-wider mb-4 border-b border-border pb-2">
-                <i className="fas fa-microchip mr-1.5"></i>System Info
-              </h3>
-              <div>
-                <div className="text-[10px] text-text-faint uppercase tracking-wider font-bold mb-1">
-                  System ID
-                </div>
-                <div className="text-xs font-mono text-text bg-surface-2 px-2 py-1.5 rounded border border-border break-all select-all">
-                  {movie.system_id}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ========== RIGHT COLUMN ========== */}
-        <div className="lg:col-span-3 space-y-8">
+        <div className="lg:col-span-3 space-y-10">
           {/* Header & Titles */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              {movie.airing_status && (
-                <span
-                  className={`${airingStatusColor} px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider`}
-                >
-                  {movie.airing_status}
-                </span>
-              )}
-              {movie.movie_type && (
-                <span className="bg-surface-2 text-text-muted border border-border px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm uppercase tracking-wider">
-                  {movie.movie_type}
-                </span>
-              )}
+          <header>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              {eyebrow}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-text leading-tight mb-1">
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
             {titleSub && (
-              <h2 className="text-lg text-text-faint font-medium mb-3">
+              <h2 className="text-lg text-text-muted font-normal mb-4">
                 {titleSub}
               </h2>
             )}
 
-            {/* Franchise / Series Bar */}
-            <div className="flex items-center gap-4 text-sm text-text-faint bg-surface-2 py-2 px-3 rounded-lg border border-border mb-6">
-              {franchise ? (
-                <span>
-                  <i className="fas fa-sitemap text-brand/50 mr-1.5"></i>
-                  <Link
-                    to={`/franchise/${franchise.system_id}`}
-                    className="text-brand hover:underline font-medium"
-                  >
+            {/* Franchise / Series lineage */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Franchise</Eyebrow>
+                {franchise ? (
+                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
-                </span>
-              ) : (
-                <span className="text-text-faint">
-                  <i className="fas fa-unlink mr-1.5"></i>No Franchise
-                </span>
-              )}
-              {series && (
-                <>
-                  <div className="hidden sm:block text-text-faint/60">|</div>
-                  <span>
-                    <i className="fas fa-layer-group text-purple-400/50 mr-1.5"></i>
-                    <Link
-                      to={`/series/${series.system_id}`}
-                      className="font-medium text-purple-600 hover:text-purple-800 hover:underline transition"
-                    >
-                      {series.series_name_cn ||
-                        series.series_name_en ||
-                        series.series_name_alt}
-                    </Link>
-                  </span>
-                </>
-              )}
+                ) : (
+                  <span className="text-text-faint">Independent</span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <Eyebrow>Series</Eyebrow>
+                {series ? (
+                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                    {series.series_name_cn ||
+                      series.series_name_en ||
+                      series.series_name_alt}
+                  </Link>
+                ) : (
+                  <span className="text-text-faint">None</span>
+                )}
+              </div>
             </div>
 
-            {/* IMDb Score Block */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="bg-yellow-50 text-yellow-800 border border-yellow-100 px-4 py-2 rounded-lg flex items-center shadow-sm">
-                <i className="fas fa-star text-yellow-500 mr-2 text-lg"></i>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-75 leading-none mb-0.5">
-                    IMDb Score
-                  </div>
-                  <div className="font-black text-base leading-none">
-                    {movie.imdb_rating && movie.imdb_rating !== "N/A"
-                      ? movie.imdb_rating
-                      : "-"}
-                  </div>
+            {/* IMDb score: display figures on a hairline */}
+            <div className="flex flex-wrap items-end gap-8 border-t border-b border-border py-3">
+              <div>
+                <Eyebrow>IMDb score</Eyebrow>
+                <div className="font-display text-3xl font-semibold text-text leading-none mt-1">
+                  {imdbScore}
                 </div>
               </div>
               <div className="ml-auto text-right">
-                <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
-                  Last Updated
-                </div>
-                <div className="text-sm font-mono text-text-muted">
+                <Eyebrow>Last updated</Eyebrow>
+                <div className="font-mono text-xs text-text-muted mt-1">
                   {movie.updated_at
                     ? new Date(movie.updated_at).toLocaleString()
-                    : "-"}
+                    : "—"}
                 </div>
               </div>
             </div>
-          </div>
+          </header>
 
           {/* My Tracker Block */}
-          <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden border-t-4 border-t-brand">
-            <div className="bg-surface-2 border-b border-border px-5 py-3.5">
-              <h3 className="font-bold text-text text-lg flex items-center">
-                <i className="fas fa-chart-line text-brand mr-2"></i>My Tracker
-              </h3>
-            </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Slip title="My tracker">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-                  Watching Status
-                </label>
+                <Eyebrow as="label">Watching status</Eyebrow>
                 <select
                   value={movie.watching_status || ""}
                   disabled={!isAdmin}
@@ -403,7 +351,7 @@ export default function Movie() {
                       "Status updated",
                     )
                   }
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+                  className={selectCls}
                 >
                   {WATCHING_STATUSES.map((s) => (
                     <option key={s} value={s}>
@@ -413,9 +361,7 @@ export default function Movie() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-                  Rating
-                </label>
+                <Eyebrow as="label">Rating</Eyebrow>
                 <select
                   value={movie.my_rating || ""}
                   disabled={!isAdmin}
@@ -423,7 +369,7 @@ export default function Movie() {
                     isAdmin &&
                     performPatch({ my_rating: e.target.value }, "Rating saved")
                   }
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
+                  className={selectCls}
                 >
                   <option value="">Unrated</option>
                   {MY_RATINGS.map((r) => (
@@ -434,9 +380,7 @@ export default function Movie() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-                  Watch Next
-                </label>
+                <Eyebrow>Watch next</Eyebrow>
                 <label
                   className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                 >
@@ -453,17 +397,13 @@ export default function Movie() {
                           : "Removed from Watch Next",
                       )
                     }
-                    className="w-4 h-4 rounded accent-brand"
+                    className="w-4 h-4 accent-brand"
                   />
-                  <span className="text-sm font-medium text-text-muted">
-                    Watch Next
-                  </span>
+                  <span className="text-sm text-text-muted">Watch next</span>
                 </label>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wider">
-                  To Rewatch
-                </label>
+                <Eyebrow>To rewatch</Eyebrow>
                 <label
                   className={`flex items-center gap-2 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                 >
@@ -480,22 +420,19 @@ export default function Movie() {
                           : "Removed from rewatch",
                       )
                     }
-                    className="w-4 h-4 rounded accent-brand"
+                    className="w-4 h-4 accent-brand"
                   />
-                  <span className="text-sm font-medium text-text-muted">
-                    To Rewatch
-                  </span>
+                  <span className="text-sm text-text-muted">To rewatch</span>
                 </label>
               </div>
             </div>
-          </div>
+          </Slip>
 
           {/* Detail Cards */}
           <div className="space-y-6">
             <NamingCard type="movie" item={movie} />
             <InfoCard
               title="Information"
-              icon="fa-info-circle"
               fields={[
                 [
                   { label: "本傳 / 外傳", value: movie.is_main },
@@ -513,27 +450,20 @@ export default function Movie() {
 
           {/* Remarks */}
           {movie.remark && (
-            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
-              <div className="bg-surface-2 border-b border-border px-4 py-3">
-                <h3 className="font-bold text-text">
-                  <i className="fas fa-sticky-note text-brand mr-2"></i>Remarks
-                </h3>
-              </div>
-              <div className="p-4">
-                <textarea
-                  key={movie.system_id}
-                  defaultValue={movie.remark || ""}
-                  disabled={!isAdmin}
-                  onBlur={(e) =>
-                    isAdmin &&
-                    performPatch({ remark: e.target.value }, "Remark saved")
-                  }
-                  rows={4}
-                  placeholder="Add remarks..."
-                  className={`block w-full border-border-strong rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm ${selectDisabledCls}`}
-                ></textarea>
-              </div>
-            </div>
+            <Slip title="Remarks">
+              <textarea
+                key={movie.system_id}
+                defaultValue={movie.remark || ""}
+                disabled={!isAdmin}
+                onBlur={(e) =>
+                  isAdmin &&
+                  performPatch({ remark: e.target.value }, "Remark saved")
+                }
+                rows={4}
+                placeholder="Add remarks…"
+                className={selectCls}
+              ></textarea>
+            </Slip>
           )}
 
           {/* The dedicated remark textarea above renders only when a remark
@@ -547,8 +477,6 @@ export default function Movie() {
           />
         </div>
       </div>
-
     </div>
   );
 }
-

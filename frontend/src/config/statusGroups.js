@@ -44,10 +44,10 @@ export const READING_STATUS_GROUP = {
  * Use: AIRING_STATUS_CLS[item.airing_status] ?? AIRING_STATUS_CLS._default
  */
 export const AIRING_STATUS_CLS = {
-  Airing:            "text-green-700 bg-green-100",
-  "Finished Airing": "text-blue-700 bg-blue-100",
-  "Not Yet Aired":   "text-orange-700 bg-orange-100",
-  Canceled:          "text-red-700 bg-red-100",
-  Rumored:           "text-purple-700 bg-purple-100",
+  Airing:            "text-text-muted border border-border-strong",
+  "Finished Airing": "text-text-muted border border-border-strong",
+  "Not Yet Aired":   "text-text-muted border border-border-strong",
+  Canceled:          "text-text-muted border border-border-strong",
+  Rumored:           "text-text-muted border border-border-strong",
   _default:          "text-text-faint bg-surface-2",
 };

@@ -6,37 +6,33 @@ import { useToast } from "../../hooks/useToast";
 import { getRatingWeight } from "../../utils/media";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import RatingDistributionBlock from "../../components/info/RatingDistributionBlock";
+import { Eyebrow, ProgressRule, RatingStamp, Slip } from "../../components/ui/primitives";
 
 // Section definitions — display order and status membership
 const SECTIONS = [
   {
     key: "completed",
     label: "Completed",
-    icon: "fa-check-circle",
     statuses: ["Completed", "Completed (解說)"],
   },
   {
     key: "watching",
     label: "Watching",
-    icon: "fa-play-circle",
     statuses: ["Active Watching", "Passive Watching", "Paused"],
   },
   {
     key: "planned",
     label: "Planned",
-    icon: "fa-bookmark",
     statuses: ["Plan to Watch", "Watch When Airs"],
   },
   {
     key: "might",
     label: "Might Watch",
-    icon: "fa-question-circle",
     statuses: ["Might Watch"],
   },
   {
     key: "dropped",
     label: "Dropped",
-    icon: "fa-times-circle",
     statuses: ["Dropped", "Temp Dropped", "Won't Watch"],
   },
 ];
@@ -76,6 +72,16 @@ function sortAnime(items, franchiseMap) {
     const eB = EXPECTATION_WEIGHT[fB?.franchise_expectation] ?? 99;
     return eA - eB;
   });
+}
+
+// A count as a display figure under a mono label (the ScoreBlock pattern).
+function StatFigure({ label, value }) {
+  return (
+    <div className="pr-6 border-r border-border last:border-r-0 last:pr-0">
+      <Eyebrow className="mb-1">{label}</Eyebrow>
+      <div className="font-display text-2xl leading-none tabular-nums text-text">{value}</div>
+    </div>
+  );
 }
 
 export default function SeasonalDetail() {
@@ -193,7 +199,7 @@ export default function SeasonalDetail() {
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-text-faint font-medium">Loading seasonal data...</p>
+          <p className="text-text-faint text-sm">Loading seasonal data...</p>
         </div>
       </div>
     );
@@ -202,8 +208,7 @@ export default function SeasonalDetail() {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center text-red-600 bg-red-50 p-6 rounded-xl border border-red-200">
-          <i className="fas fa-exclamation-triangle mb-2 text-2xl"></i>
+        <div className="text-center border border-danger text-danger p-6">
           <p className="font-bold">Error loading seasonal page.</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
@@ -221,94 +226,67 @@ export default function SeasonalDetail() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Hero */}
-      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <Slip title="Season">
         <div className="flex flex-col sm:flex-row sm:items-start gap-6">
           {/* Left: name + stats */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-calendar-alt text-brand text-lg"></i>
-              </div>
               <button
                 onClick={() =>
                   navigate(`/seasonal/${encodeURIComponent(prevSeason)}`)
                 }
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-text-faint hover:text-brand hover:border-brand transition shrink-0"
+                className="w-8 h-8 flex items-center justify-center border border-border-strong text-text-faint hover:text-brand hover:border-brand transition shrink-0"
                 title={`Previous: ${prevSeason}`}
               >
                 <i className="fas fa-chevron-left text-xs"></i>
               </button>
-              <h1 className="text-3xl font-black text-text tracking-tight">
+              <h1 className="font-display text-4xl font-semibold text-text leading-none">
                 {seasonalId}
               </h1>
               <button
                 onClick={() =>
                   navigate(`/seasonal/${encodeURIComponent(nextSeason)}`)
                 }
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-text-faint hover:text-brand hover:border-brand transition shrink-0"
+                className="w-8 h-8 flex items-center justify-center border border-border-strong text-text-faint hover:text-brand hover:border-brand transition shrink-0"
                 title={`Next: ${nextSeason}`}
               >
                 <i className="fas fa-chevron-right text-xs"></i>
               </button>
-              {seasonal?.my_rating && (
-                <span className="bg-yellow-400 text-yellow-900 text-sm font-black px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
-                  <i className="fas fa-star text-xs"></i>
-                  {seasonal.my_rating}
-                </span>
-              )}
+              <RatingStamp rating={seasonal?.my_rating} size="md" />
             </div>
 
-            <div className="flex flex-wrap gap-3 mt-4">
-              <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
-                {totalEntries} Total
-              </span>
-              <span className="bg-violet-50 text-violet-700 px-3 py-1 rounded-full text-sm font-bold border border-violet-200">
-                {plannedCount} Planned
-              </span>
-              <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
-                {seasonal?.entry_watching ?? 0} Watching
-              </span>
-              <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold border border-blue-200">
-                {completedCount} Completed
-              </span>
-              {droppedCount > 0 && (
-                <span className="bg-red-50 text-red-700 px-3 py-1 rounded-full text-sm font-bold border border-red-200">
-                  {droppedCount} Dropped
-                </span>
-              )}
+            <div className="flex flex-wrap gap-x-6 gap-y-3 mt-5">
+              <StatFigure label="Total" value={totalEntries} />
+              <StatFigure label="Planned" value={plannedCount} />
+              <StatFigure label="Watching" value={seasonal?.entry_watching ?? 0} />
+              <StatFigure label="Completed" value={completedCount} />
+              {droppedCount > 0 && <StatFigure label="Dropped" value={droppedCount} />}
             </div>
 
             {/* Completion bar */}
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1.5">
-                <span className="text-xs font-bold text-text-faint uppercase tracking-wider">
-                  Completion
-                </span>
-                <span className="text-xs font-bold text-brand">
+                <Eyebrow>Completion</Eyebrow>
+                <span className="font-mono text-[10px] text-text tabular-nums">
                   {completionPct}%
                 </span>
               </div>
-              <div className="w-full bg-surface-3 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-brand h-2 rounded-full transition-all duration-700"
-                  style={{ width: `${completionPct}%` }}
-                />
-              </div>
+              <ProgressRule value={completionPct / 100} />
             </div>
           </div>
 
           {/* Right: admin rating control */}
           {isAdmin && (
             <div className="shrink-0">
-              <label className="block text-xs font-bold text-text-faint uppercase tracking-wider mb-1.5">
-                Seasonal Rating
-              </label>
+              <Eyebrow as="label" className="block mb-1.5">
+                Seasonal rating
+              </Eyebrow>
               <div className="flex items-center gap-2">
                 <select
                   value={seasonal?.my_rating || ""}
                   onChange={(e) => handleRatingChange(e.target.value)}
                   disabled={savingRating}
-                  className="bg-surface border border-border-strong text-text text-sm font-bold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
+                  className="bg-surface border border-border-strong text-text text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
                 >
                   <option value="">—</option>
                   {RATING_OPTIONS.map((r) => (
@@ -324,7 +302,7 @@ export default function SeasonalDetail() {
             </div>
           )}
         </div>
-      </div>
+      </Slip>
 
       {/* Rating Distribution */}
       <RatingDistributionBlock animeData={animeData} />
@@ -340,12 +318,11 @@ export default function SeasonalDetail() {
 
           return (
             <div key={section.key}>
-              <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-border">
-                <h2 className="text-xl font-black text-text flex items-center gap-2">
-                  <i className={`fas ${section.icon} text-brand/70`}></i>
+              <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border">
+                <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted font-normal">
                   {section.label}
                 </h2>
-                <span className="bg-surface-2 text-text-muted px-3 py-1 rounded-full text-sm font-bold border border-border">
+                <span className="font-mono text-[11px] text-text-faint tabular-nums">
                   {sorted.length}
                 </span>
               </div>
@@ -365,9 +342,8 @@ export default function SeasonalDetail() {
         })}
 
         {totalEntries === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 bg-surface rounded-xl border border-border border-dashed">
-            <i className="fas fa-ghost text-3xl text-text-faint/60 mb-3"></i>
-            <p className="text-text-faint font-medium">
+          <div className="flex flex-col items-center justify-center py-16 border border-dashed border-border-strong">
+            <p className="text-text-faint text-sm">
               No anime entries for this season.
             </p>
           </div>

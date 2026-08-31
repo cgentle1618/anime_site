@@ -123,7 +123,7 @@ function TitleBar({ tier1Keys, categories, activeId }) {
   const linkClass = (id) =>
     `block truncate rounded px-2 py-1 text-xs font-semibold transition ${
       activeId === id
-        ? "bg-gray-900 text-white"
+        ? "bg-ink text-ink-text"
         : "text-text-faint hover:bg-surface-2 hover:text-text"
     }`;
 
@@ -199,7 +199,7 @@ function SectionHeader({ tier, title, subtitle, source, children }) {
   return (
     <div className="border-b border-border pb-4 mb-6">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded">
+        <span className="bg-ink text-ink-text text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded">
           Tier {tier}
         </span>
         <h2 className="text-xl font-black text-text tracking-tight">
@@ -217,7 +217,7 @@ function SectionHeader({ tier, title, subtitle, source, children }) {
 
 function ReadOnlyNote({ children }) {
   return (
-    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 inline-flex items-center gap-2">
+    <p className="text-xs text-warning bg-warning/15 border border-warning/40 rounded-lg px-3 py-2 mt-3 inline-flex items-center gap-2">
       <i className="fas fa-lock"></i>
       <span>{children}</span>
     </p>
@@ -272,7 +272,7 @@ function Tier1({ constants, keys }) {
               ))}
             </div>
             {TIER1_NOTES[key] && (
-              <p className="text-[11px] text-amber-700 mt-3 leading-snug">
+              <p className="text-[11px] text-warning mt-3 leading-snug">
                 <i className="fas fa-triangle-exclamation mr-1"></i>
                 {TIER1_NOTES[key]}
               </p>
@@ -360,7 +360,7 @@ function Tier2({ groups, loading }) {
                               {row.scopes.map((scope) => (
                                 <span
                                   key={scope}
-                                  className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold rounded px-1.5 py-0.5"
+                                  className="bg-brand-soft border border-brand/30 text-brand text-[10px] font-bold rounded px-1.5 py-0.5"
                                 >
                                   {scope}
                                 </span>
