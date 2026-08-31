@@ -1,5 +1,5 @@
 // Frontend: page component file for Index.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -42,6 +42,57 @@ function readingSortName(item) {
     item.manga_name_cn ||
     item.manga_name_alt ||
     ""
+  );
+}
+
+const MEDIA_TYPES = ["Anime", "TV Show", "Cartoon", "Manga", "Novel", "Comic"];
+
+// Single-select media-type filter shared by the Watching and Reading
+// divisions; the same state renders under both headers. While a type is
+// picked the bar pins below the sticky division header and reports its
+// height so the sub-section headers can stack beneath it.
+function TypeFilterBar({ id, types, value, onChange, sticky, top, onHeightChange }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!sticky) return;
+    const el = ref.current;
+    if (!el) return;
+    onHeightChange(el.offsetHeight);
+    const ro = new ResizeObserver(() => onHeightChange(el.offsetHeight));
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      onHeightChange(0);
+    };
+  }, [sticky, onHeightChange]);
+
+  return (
+    <div
+      ref={ref}
+      data-testid={id}
+      style={sticky ? { top } : undefined}
+      className={`flex flex-wrap items-center gap-2 py-2.5 border-b border-border ${
+        sticky ? "sticky z-[25] bg-canvas" : ""
+      }`}
+    >
+      <Eyebrow className="mr-1">Type</Eyebrow>
+      {[["All", null], ...types.map((t) => [t, t])].map(([label, val]) => {
+        const isActive = value === val;
+        return (
+          <button
+            key={label}
+            onClick={() => onChange(isActive ? null : val)}
+            className={`px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+              isActive
+                ? "border-brand text-brand"
+                : "border-border text-text-faint hover:text-text hover:border-border-strong"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -315,6 +366,10 @@ export default function Index() {
     comicQuery.error?.message ||
     null;
   const [activeSection, setActiveSection] = useState("announcements");
+  // One type filter shared by Watching and Reading: null shows every type;
+  // a value shows only it across both divisions.
+  const [typeFilter, setTypeFilter] = useState(null);
+  const [filterBarH, setFilterBarH] = useState(0);
 
   // Subsection headers pin below a division header. Its height depends on
   // fonts, so measure it instead of guessing; all four division headers share
@@ -328,7 +383,12 @@ export default function Index() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [loading]);
-  const subHeaderTop = `calc(var(--nav-h) + ${divisionBarHeight}px)`;
+  // The filter bar pins directly below the division header; while a filter
+  // is active the sub-section headers stack below the bar as well.
+  const divisionTop = `calc(var(--nav-h) + ${divisionBarHeight}px)`;
+  const subHeaderTop = `calc(var(--nav-h) + ${
+    divisionBarHeight + (typeFilter ? filterBarH : 0)
+  }px)`;
 
   function updateCachedList(type, updater) {
     queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
@@ -574,11 +634,16 @@ export default function Index() {
     },
   );
 
-  const active = sorted.filter((a) => a.watching_status === "Active Watching");
-  const passive = sorted.filter(
+  const watchShown = typeFilter
+    ? sorted.filter((i) => i._ui_type === typeFilter)
+    : sorted;
+  const active = watchShown.filter(
+    (a) => a.watching_status === "Active Watching",
+  );
+  const passive = watchShown.filter(
     (a) => a.watching_status === "Passive Watching",
   );
-  const paused = sorted.filter((a) => a.watching_status === "Paused");
+  const paused = watchShown.filter((a) => a.watching_status === "Paused");
 
   const readingSorted = [...mangaTagged, ...novelTagged, ...comicTagged].sort(
     (a, b) => {
@@ -589,13 +654,16 @@ export default function Index() {
       return readingSortName(a).localeCompare(readingSortName(b));
     },
   );
-  const activeReading = readingSorted.filter(
+  const readingShown = typeFilter
+    ? readingSorted.filter((i) => i._ui_type === typeFilter)
+    : readingSorted;
+  const activeReading = readingShown.filter(
     (m) => m.reading_status === "Active Reading",
   );
-  const passiveReading = readingSorted.filter(
+  const passiveReading = readingShown.filter(
     (m) => m.reading_status === "Passive Reading",
   );
-  const pausedReading = readingSorted.filter(
+  const pausedReading = readingShown.filter(
     (m) => m.reading_status === "Paused",
   );
 
@@ -685,6 +753,15 @@ export default function Index() {
                 {active.length + passive.length + paused.length} in progress
               </span>
             </div>
+            <TypeFilterBar
+              id="watching-filter"
+              types={MEDIA_TYPES}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              sticky={!!typeFilter}
+              top={divisionTop}
+              onHeightChange={setFilterBarH}
+            />
             <div className="pt-8 space-y-12">
               <Section
                 id="watching-active"
@@ -738,6 +815,15 @@ export default function Index() {
 in progress
               </span>
             </div>
+            <TypeFilterBar
+              id="reading-filter"
+              types={MEDIA_TYPES}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              sticky={!!typeFilter}
+              top={divisionTop}
+              onHeightChange={setFilterBarH}
+            />
             <div className="pt-8 space-y-12">
               <ReadingSection
                 id="reading-active"

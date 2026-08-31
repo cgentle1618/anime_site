@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-08-31 (commit 4339702, plus uncommitted archive-look changes)
+Last verified: 2026-08-31 (commit 4339702, plus uncommitted archive-look and dashboard type-filter changes)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -135,8 +135,8 @@ division with a `scrollY + 140` threshold):
 |---|---|---|
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only here; CRUD is on `/system`. |
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted, entries sort by `HH:MM` then name. |
-| `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. |
-| `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. |
+| `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A single-select type filter bar (`TypeFilterBar`: All / Anime / TV Show / Cartoon / Manga / Novel / Comic) sits under the division header; picking a type shows only it across BOTH the Watching and Reading divisions and pins the bar as a sticky header below the division header (sub-section headers stack below it). |
+| `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. The same `TypeFilterBar` renders here bound to the same shared filter state as Watching. |
 
 **Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
 (`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.
