@@ -115,7 +115,7 @@ export default function DashboardCard({
 
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative"
+      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
       onClick={() => navigate(navigatePath)}
     >
       <div className="flex p-3">
@@ -156,9 +156,7 @@ export default function DashboardCard({
             {localTotal !== "?" ? ` · ${localTotal} ${isReading ? "ch" : "ep"}` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
-            <Chip tone="ink" className="truncate max-w-[110px]">
-              {statusText}
-            </Chip>
+            <Chip tone="ink">{statusText}</Chip>
             {!isTV && !isCartoon && !isReading && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}

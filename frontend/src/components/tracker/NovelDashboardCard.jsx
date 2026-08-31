@@ -270,7 +270,7 @@ export default function NovelDashboardCard({
 
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative"
+      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
       onClick={() => navigate(`/novel/${novel.system_id}`)}
     >
       <div className="flex p-3">

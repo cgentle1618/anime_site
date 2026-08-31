@@ -70,19 +70,20 @@ export function RatingStamp({ rating, size = "sm", tilt = false, className = "" 
   );
 }
 
-// A chip: mono text in an outlined pill-less box. Colour does not encode a
+// A chip: mono text on a faint fill with a hairline border and a slight
+// radius - softer than the slips around it. Colour does not encode a
 // category - every chip is ink, except `tone="brand"` for the one thing the
 // page wants to point at and `tone="danger"` for destructive/critical states.
 const CHIP_TONES = {
-  ink: "border-border-strong text-text-muted",
-  brand: "border-brand text-brand",
-  danger: "border-danger text-danger",
-  muted: "border-border text-text-faint",
+  ink: "border-border bg-surface-2/60 text-text-muted",
+  brand: "border-brand/40 bg-brand-soft text-brand",
+  danger: "border-danger/40 bg-danger/10 text-danger",
+  muted: "border-border bg-surface-2/40 text-text-faint",
 };
 export function Chip({ tone = "ink", className = "", children, ...rest }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${CHIP_TONES[tone] || CHIP_TONES.ink} ${className}`}
+      className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${CHIP_TONES[tone] || CHIP_TONES.ink} ${className}`}
       {...rest}
     >
       {children}

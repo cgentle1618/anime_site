@@ -304,14 +304,14 @@ export default function Search() {
     return <MediaLoadingState error={error} errorTitle="Search error" />;
   }
 
-  const sectionHeaderTop = `${64 + stickyBarHeight}px`;
+  const sectionHeaderTop = `calc(var(--nav-h) + ${stickyBarHeight}px)`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Sticky header: title + count summary */}
       <div
         ref={stickyBarRef}
-        className="sticky top-16 z-30 bg-canvas pb-4 mb-8 border-b border-border"
+        className="sticky top-[var(--nav-h)] z-30 bg-canvas pb-4 mb-8 border-b border-border"
       >
         <Eyebrow className="mb-1">Search results</Eyebrow>
         <h1 className="font-display text-3xl sm:text-4xl font-semibold text-text leading-none">

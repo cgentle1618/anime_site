@@ -605,7 +605,7 @@ export default function MediaCard({
       {btnConfig.symbol}
     </button>
   ) : !ADMIN_ONLY_STATUS.has(type) && currentStatus ? (
-    <Chip className="max-w-[80px] truncate" title={currentStatus}>
+    <Chip className="min-w-0 truncate" title={currentStatus}>
       {currentStatus}
     </Chip>
   ) : null;

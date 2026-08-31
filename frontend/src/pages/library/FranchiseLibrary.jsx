@@ -225,7 +225,7 @@ export default function FranchiseLibrary() {
   return (
     <div className="min-h-screen">
       {/* Filter strip: flat on the canvas */}
-      <div className="border-b border-border sticky top-16 z-30 bg-canvas">
+      <div className="border-b border-border sticky top-[var(--nav-h)] z-30 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">

@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-08-30
+Last verified: 2026-08-31
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -28,6 +28,11 @@ Geometry: Tailwind's `--radius-*` scale is capped at 6 px and `shadow-sm` /
 `shadow-md` are zeroed, so every `rounded-xl shadow-sm` card in the code
 renders flat. Elevation (`shadow-lg`+) is reserved for menus, popovers and
 modals.
+
+Sticky offsets: the nav height lives once as `--nav-h` in `index.css`
+(3.5rem; 6rem + 1px on lg+ where the tab strip shows). Page headers that
+pin below the nav use `top-[var(--nav-h)]`, never a hard-coded `top-16`
+(`src/nav-offset.test.js` guards this).
 
 Type: `font-display` Archivo Narrow (titles, large figures), `font-sans`
 Noto Sans TC (body, CJK), `font-mono` IBM Plex Mono (labels, ids, dates,
@@ -67,7 +72,7 @@ counts). `h1` is display by default.
   `padded`).
 - `RatingStamp` — outlined brand square with the rank letter; `size`
   `sm`/`md`, `tilt` on covers.
-- `Chip` — outlined mono tag; `tone` `ink` (default) / `brand` / `danger` /
+- `Chip` — mono tag on a faint fill, hairline border, 4 px radius; `tone` `ink` (default) / `brand` / `danger` /
   `muted`.
 - `ProgressRule` — 4 px brand rule, `value` 0–1.
 - `Button` — `kind` `primary` / `outline` / `danger` / `ghost`, `size`

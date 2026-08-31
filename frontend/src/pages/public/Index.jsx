@@ -65,13 +65,16 @@ function DashboardTOC({ activeId }) {
     const el = document.getElementById(id);
     if (!el) return;
     // Division links: land just below nav. Subsection links: land below division sticky header.
-    const offset = id.includes("-") ? 140 : 72;
+    const navH = document.querySelector("nav")?.offsetHeight ?? 56;
+    const divH =
+      document.querySelector("[data-division-header]")?.offsetHeight ?? 58;
+    const offset = navH + (id.includes("-") ? divH + 24 : 8);
     const top = el.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
   };
 
   return (
-    <nav className="sticky top-20 space-y-0.5">
+    <nav className="sticky top-[calc(var(--nav-h)+1rem)] space-y-0.5">
       <Eyebrow className="px-2 mb-3">Contents</Eyebrow>
       {TOC_ITEMS.map(({ id, label, level }) => {
         const isActive = activeId === id;
@@ -105,6 +108,7 @@ function Section({
   franchiseData,
   isAdmin,
   onEpChange,
+  headerTop,
 }) {
   const typeGroups = { Anime: [], "TV Show": [], Cartoon: [] };
   items.forEach((item) => {
@@ -116,7 +120,10 @@ function Section({
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong">
+      <div
+        style={{ top: headerTop }}
+        className="sticky z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong"
+      >
         <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
@@ -179,11 +186,15 @@ function ReadingSection({
   onChChange,
   onNovelProgressChange,
   onComicProgressChange,
+  headerTop,
 }) {
   return (
     <div id={id}>
       {/* Sticky section header — stacks below the sticky division header */}
-      <div className="sticky top-[116px] z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong">
+      <div
+        style={{ top: headerTop }}
+        className="sticky z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong"
+      >
         <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
@@ -305,6 +316,20 @@ export default function Index() {
     null;
   const [activeSection, setActiveSection] = useState("announcements");
 
+  // Subsection headers pin below a division header. Its height depends on
+  // fonts, so measure it instead of guessing; all four division headers share
+  // the same structure, so observing the first is enough.
+  const [divisionBarHeight, setDivisionBarHeight] = useState(58);
+  useEffect(() => {
+    if (loading) return;
+    const el = document.querySelector("[data-division-header]");
+    if (!el) return;
+    const ro = new ResizeObserver(() => setDivisionBarHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+  const subHeaderTop = `calc(var(--nav-h) + ${divisionBarHeight}px)`;
+
   function updateCachedList(type, updater) {
     queryClient.setQueriesData({ queryKey: ["media-list", type] }, (old) =>
       Array.isArray(old) ? old.map(updater) : old,
@@ -331,7 +356,10 @@ export default function Index() {
 
     function getActive() {
       // Use the same offset as the sticky headers so highlight matches what's visible
-      const threshold = window.scrollY + 140;
+      const navH = document.querySelector("nav")?.offsetHeight ?? 56;
+      const divH =
+        document.querySelector("[data-division-header]")?.offsetHeight ?? 58;
+      const threshold = window.scrollY + navH + divH + 24;
       let active = ids[0];
       for (const id of ids) {
         const el = document.getElementById(id);
@@ -581,44 +609,12 @@ export default function Index() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-16">
-          {/* Hero: the archive's thesis - what is on the shelf right now */}
-          <header className="pb-8 border-b border-border">
-            <Eyebrow className="mb-3">
-              CG1618 media archive ·{" "}
-              {new Date().toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "short",
-                day: "numeric",
-              })}
-            </Eyebrow>
-            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-6">
-              {active.length + passive.length + paused.length} on the watching shelf,{" "}
-              {activeReading.length + passiveReading.length + pausedReading.length} on the
-              reading shelf.
-            </h1>
-            <div className="flex flex-wrap items-end gap-y-4">
-              {[
-                ["Active watching", active.length],
-                ["Active reading", activeReading.length],
-                ["Watch days this week", watchSchedule.length],
-                ["Airing this week", broadcastSchedule.length],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="pr-6 mr-6 border-r border-border last:border-r-0 last:mr-0 last:pr-0"
-                >
-                  <Eyebrow className="mb-1">{label}</Eyebrow>
-                  <div className="font-display text-3xl leading-none tabular-nums text-text">
-                    {value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </header>
-
           {/* Announcement Division */}
           <div id="announcements">
-            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+            <div
+              data-division-header
+              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
+            >
               <div>
                 <Eyebrow className="mb-1">Pinned to the top of the dashboard</Eyebrow>
                 <h2 className="font-display text-3xl font-semibold text-text leading-none">
@@ -634,7 +630,10 @@ export default function Index() {
 
           {/* Schedule Division */}
           <div id="schedule">
-            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+            <div
+              data-division-header
+              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
+            >
               <div>
                 <Eyebrow className="mb-1">Sunday · Saturday</Eyebrow>
                 <h2 className="font-display text-3xl font-semibold text-text leading-none">
@@ -672,7 +671,10 @@ export default function Index() {
 
           {/* Watching Division */}
           <div id="watching">
-            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+            <div
+              data-division-header
+              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
+            >
               <div>
                 <Eyebrow className="mb-1">Anime · TV Show · Cartoon</Eyebrow>
                 <h2 className="font-display text-3xl font-semibold text-text leading-none">
@@ -690,6 +692,7 @@ export default function Index() {
                 count={active.length}
                 items={active}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -699,6 +702,7 @@ export default function Index() {
                 count={passive.length}
                 items={passive}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -708,6 +712,7 @@ export default function Index() {
                 count={paused.length}
                 items={paused}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -716,7 +721,10 @@ export default function Index() {
 
           {/* Reading Division */}
           <div id="reading">
-            <div className="sticky top-16 z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+            <div
+              data-division-header
+              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
+            >
               <div>
                 <Eyebrow className="mb-1">Manga · Novel · Comic</Eyebrow>
                 <h2 className="font-display text-3xl font-semibold text-text leading-none">
@@ -737,6 +745,7 @@ in progress
                 count={activeReading.length}
                 items={activeReading}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
@@ -748,6 +757,7 @@ in progress
                 count={passiveReading.length}
                 items={passiveReading}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
@@ -759,6 +769,7 @@ in progress
                 count={pausedReading.length}
                 items={pausedReading}
                 franchiseData={franchiseData}
+                headerTop={subHeaderTop}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}

@@ -59,6 +59,17 @@
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Nav height: row 1 (3.5rem) plus, on lg+, the tab strip (2.5rem + 1px rule).
+   Sticky page headers offset by this so they pin below the nav, not under it. */
+:root {
+  --nav-h: 3.5rem;
+}
+@media (min-width: 64rem) {
+  :root {
+    --nav-h: calc(6rem + 1px);
+  }
+}
+
 /* Light palette (default). */
 :root {
   color-scheme: light;
