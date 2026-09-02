@@ -31,14 +31,19 @@ export default function ScoreBlock({
       <Figure label="MAL score" value={malScore} />
       <Figure label="MAL rank" value={malRank ? `#${malRank}` : null} />
       <Figure label="AniList" value={anilistScore} />
-      <div className="ml-auto text-right">
-        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
-          Last updated
+      {/* Absent, not blanked. The server nulls this for a viewer without
+          field_group.system_info, and an em-dash under a "Last updated" label
+          would announce that there is a date here they are not being shown. */}
+      {updatedAt && (
+        <div className="ml-auto text-right">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
+            Last updated
+          </div>
+          <div className="font-mono text-xs text-text-muted">
+            {new Date(updatedAt).toLocaleString()}
+          </div>
         </div>
-        <div className="font-mono text-xs text-text-muted">
-          {updatedAt ? new Date(updatedAt).toLocaleString() : "—"}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

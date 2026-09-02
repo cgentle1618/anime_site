@@ -214,3 +214,84 @@ def test_a_gated_note_section_is_withheld(
     assert "Zvornik private assessment" not in body
     # The rest of the page still renders.
     assert "A public review anyone may read" in body
+
+
+# ---------------------------------------------------------------------------
+# System info: the timestamps
+# ---------------------------------------------------------------------------
+# system_id is deliberately NOT gated. It is the route parameter of the page
+# the viewer is already on, so withholding it would break navigation without
+# concealing anything - the detail pages hide the spine text as presentation
+# only. created_at/updated_at are in no URL and nothing routes on them, so
+# they are the half that can actually be withheld.
+
+
+@pytest.fixture
+def no_system_info_client(client, db_session):
+    return make_viewer(
+        db_session,
+        client,
+        "nosysteminfo",
+        default_guest_permissions() - {field_group_perm("system_info")},
+    )
+
+
+def test_timestamps_are_null_in_the_list(no_system_info_client, anime_with_sources):
+    body = no_system_info_client.get("/api/anime/").json()
+    row = next(e for e in body if e["system_id"] == str(anime_with_sources.system_id))
+    assert row["created_at"] is None
+    assert row["updated_at"] is None
+
+
+def test_timestamps_are_null_in_the_detail(no_system_info_client, anime_with_sources):
+    """
+    Also the regression guard for AnimeResponse: its timestamps were the only
+    required ones of the eight, so a gated copy failed response validation and
+    the route answered 500 rather than a blanked entry.
+    """
+    response = no_system_info_client.get(f"/api/anime/{anime_with_sources.system_id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created_at"] is None
+    assert body["updated_at"] is None
+
+
+def test_the_entry_id_is_not_gated(no_system_info_client, anime_with_sources):
+    """Withholding the id would break every link on the page."""
+    body = no_system_info_client.get(
+        f"/api/anime/{anime_with_sources.system_id}"
+    ).json()
+    assert body["system_id"] == str(anime_with_sources.system_id)
+
+
+def test_the_factory_routers_gate_the_timestamps(
+    no_system_info_client, movie_with_sources
+):
+    body = no_system_info_client.get(
+        f"/api/movies/{movie_with_sources.system_id}"
+    ).json()
+    assert body["created_at"] is None
+    assert body["updated_at"] is None
+
+
+def test_a_holder_still_sees_the_timestamps(client, anime_with_sources):
+    body = client.get(f"/api/anime/{anime_with_sources.system_id}").json()
+    assert body["updated_at"] is not None
+
+
+def test_admin_still_sees_the_timestamps(admin_client, anime_with_sources):
+    body = admin_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
+    assert body["updated_at"] is not None
+
+
+def test_gating_does_not_erase_the_stored_timestamps(
+    no_system_info_client, db_session, anime_with_sources
+):
+    """The copy-not-setattr rule, for the columns SQLAlchemy maintains itself."""
+    no_system_info_client.get(f"/api/anime/{anime_with_sources.system_id}")
+    no_system_info_client.get("/api/anime/")
+
+    db_session.expire_all()
+    stored = db_session.get(models.Anime, anime_with_sources.system_id)
+    assert stored.created_at is not None
+    assert stored.updated_at is not None

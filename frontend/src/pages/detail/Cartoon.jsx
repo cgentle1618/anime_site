@@ -47,7 +47,7 @@ const lineageLinkCls =
 export default function Cartoon() {
   const { system_id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [cartoon, setCartoon] = useState(null);
@@ -251,12 +251,16 @@ export default function Cartoon() {
               >
                 Cartoon{cartoon.airing_type ? ` · ${cartoon.airing_type}` : ""}
               </span>
-              <span
-                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                {cartoon.system_id}
-              </span>
+              {/* Cosmetic only: the id is this page's own URL, so hiding
+                  it tidies the spine rather than concealing the value. */}
+              {has("field_group.system_info") && (
+                <span
+                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                  style={{ writingMode: "vertical-rl" }}
+                >
+                  {cartoon.system_id}
+                </span>
+              )}
             </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
@@ -348,14 +352,16 @@ export default function Cartoon() {
                   {imdbScore}
                 </div>
               </div>
-              <div className="ml-auto text-right">
-                <Eyebrow>Last updated</Eyebrow>
-                <div className="font-mono text-xs text-text-muted mt-1">
-                  {cartoon.updated_at
-                    ? new Date(cartoon.updated_at).toLocaleString()
-                    : "—"}
+              {/* Absent, not blanked: an em-dash would announce a
+                  withheld date. See ScoreBlock for the shared version. */}
+              {cartoon.updated_at && (
+                <div className="ml-auto text-right">
+                  <Eyebrow>Last updated</Eyebrow>
+                  <div className="font-mono text-xs text-text-muted mt-1">
+                    {new Date(cartoon.updated_at).toLocaleString()}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </header>
 

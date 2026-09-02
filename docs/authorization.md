@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-02
 
 ## What this is for
 
@@ -61,12 +61,82 @@ hyphenated keys survive.
 |---|---|---|---|
 | `sources_other` | Other Sources | `source_other` on every media type | real column, stripped from a copy |
 | `personal_notes` | Personal Reviews | note section `personal_reviews` | note rows filtered in `routers/note.py` |
-| `system_info` | System Info | the ids/timestamps panel on detail pages | `ui_block` only — SPA hides it |
+| `system_info` | System Info | `created_at` / `updated_at` on every media type, plus the entry id printed down a detail page's poster spine | timestamps are real columns, stripped from a copy; the spine id is `ui_block` only |
 | `credits` | Credits | every credit-kind link field (studio, director, …), derived from `credit_roles` | link attrs blanked before response |
 
-Each `FieldGroup` also carries a `ui_block` name that the frontend checks via
-`AuthContext.has()`. `tests/unit/test_field_groups.py` asserts every declared
-column and link field still exists (drift test).
+Each `FieldGroup` may also carry a `ui_block` name for a block the SPA hides
+itself. `tests/unit/test_field_groups.py` asserts every declared column and
+link field still exists (drift test).
+
+**`system_info` gates two things at two strengths, deliberately.** Its
+timestamps are withheld for real — they appear in no URL and nothing routes on
+them. Its `system_id` is not gated at all: that id is the route parameter of
+the page the viewer is already on (`/anime/<system_id>`), as well as the query
+cache key, the notes owner and every link out, so withholding it would break
+navigation while concealing nothing. Hiding the spine text is presentation, and
+the code says so. This is not a hole — an id is not a credential here; a hidden
+entry is protected by `entry_visible` answering 404, and a viewer can only
+learn an id for an entry they were already allowed to see. Removing the id from
+the UI entirely would mean routing on slugs instead of UUIDs.
+
+Withheld fields are **absent, not blanked**, in the UI as well as the API: the
+"Last updated" figure is dropped rather than showing `—`, for the same reason
+`note.py` drops a withheld section instead of serving an empty card.
+
+#### Changing which columns a group hides — code only
+
+> **There is no admin page for this.** `/roles` decides *who holds* a field
+> group; *what a field group contains* is `FIELD_GROUPS` in
+> `app/services/rbac/field_groups.py` and changing it is a commit and a deploy.
+> This is the same rule as the rest of the catalog — permissions live in code,
+> grants live in the database — so a string the code branches on cannot be
+> edited out from under it by an admin editing a row. `PUT
+> /api/roles/{id}/permissions` validates against `catalog(db)` and answers
+> **422** for anything unknown, so a group cannot be invented from the UI
+> either.
+
+Edit the `columns` mapping on a group. `ALL` (`"*"`) means every media type;
+otherwise key by the **hyphenated** media type. Both forms merge.
+
+```python
+"system_info": FieldGroup(
+    ...
+    columns={ALL: ("created_at", "updated_at")},   # every type
+),
+# or, for columns that only exist on some types:
+    columns={"anime": ("mal_rank",), "tv-show": ("imdb_rating",)},
+```
+
+A new `FieldGroup` entry appears on `/roles` by itself: the editor grid is
+built from `GET /api/roles/catalog`, never mirrored in the SPA. No migration —
+the vocabulary is code, only the grants are rows. Restart to pick it up.
+
+**Three rules before adding a column.**
+
+1. **It must be `Optional` in that media type's Response schema.** The gated
+   response is a copy with the column set to `None`, and FastAPI re-validates
+   it against the route's `response_model`. A required field means the route
+   answers **500** instead of a blanked entry. `AnimeResponse` was the one
+   schema with required timestamps and had to be widened before `system_info`
+   could gate them.
+2. **Never gate a column the SPA routes on.** `system_id` is the route
+   parameter, the query cache key and the notes owner id; withholding it breaks
+   navigation and conceals nothing, since it is the page's own URL.
+3. **Check the frontend for a placeholder.** The API blanking a value is the
+   gate, but a component that renders `—` where the value used to be still
+   announces that something is being withheld. Drop the element instead.
+
+`tests/unit/test_field_groups.py` is a drift test: it fails if a group names a
+column or link field that no longer exists, so a typo surfaces in CI rather
+than as a silent no-op.
+
+**The two edits default opposite ways.** Adding a column to an *existing* group
+changes nothing until someone unticks it, because guest already holds that
+permission. Creating a *new* group hides it from guests immediately: the seed
+only tops up a guest role holding no grants at all (`seed.py`, `if not held`),
+so an established guest role never receives the new permission and an admin
+grants it deliberately. Same safe direction as content labels — new
+restrictions start restrictive.
 
 ## Roles
 
@@ -210,9 +280,25 @@ All are behind `get_current_admin`; every write calls `cache.bump()`.
 | Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles, reset passwords, delete |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | key/label/description; shows the `label.<key>` permission each becomes |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the 16 per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
+| Field groups | — | **No page exists.** `/roles` grants them; their contents are `FIELD_GROUPS` in code. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
 
-Frontend blocks named by a field group's `ui_block` hide themselves with
-`useAuth().has("field_group.<key>")`.
+What an admin can change from the browser, and what needs a commit:
+
+| | Browser | Code |
+|---|---|---|
+| who holds a permission | `/roles` | |
+| which content labels exist | `/content-labels` | |
+| which entries carry a label | Add / Modify | |
+| which columns a field group hides | | `field_groups.py` |
+| which field groups exist | | `field_groups.py` |
+| which media types / field-group families exist | | `permissions.py`, the registry |
+
+A field group's `ui_block` is hidden by the SPA itself: the eight detail pages
+read `useAuth().has("field_group.system_info")` to drop the poster-spine id.
+Where the server already blanks the value there is nothing to ask —
+`ScoreBlock.jsx` drops its "Last updated" figure on a null timestamp, so the
+component stays presentational. Either way this is cosmetic; every gate that
+matters is enforced server-side.
 
 ## Tests
 
@@ -224,10 +310,11 @@ Frontend blocks named by a field group's `ui_block` hide themselves with
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
-| `tests/api/test_field_gating.py` | column and link stripping, DB untouched |
+| `tests/api/test_field_gating.py` | column and link stripping, DB untouched, `system_info` timestamps null while `system_id` survives |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
+| `frontend/src/components/info/ScoreBlock.test.jsx` | the "Last updated" figure is dropped, not blanked to `—` |
 
 ## Why it is built this way
 

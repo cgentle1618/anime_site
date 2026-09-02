@@ -17,10 +17,14 @@ storage comes in four flavours and they are gated in different places:
                 attrs since the 26 comma-joined columns were dropped, so they
                 are simply not attached.
   note_sections rows in `note`, filtered in routers/note.py.
-  ui_block      a block that exists only on the frontend and has no backing
-                data, e.g. the detail pages' System Info panel. The server
-                has nothing to strip; the permission travels to the SPA in
-                /api/auth/me and the block hides itself.
+  ui_block      a block the SPA hides itself, because the server cannot strip
+                what backs it. The permission travels to the browser in
+                /api/auth/me and the block checks it. This is presentation,
+                never a gate: system_info names the entry id printed on a
+                detail page's spine, which is also that page's own URL, so
+                hiding it tidies the page rather than concealing the value.
+                A group may declare both - system_info withholds its
+                timestamps for real and hides its spine text cosmetically.
 
 tests/unit/test_field_groups.py asserts every declared name still exists.
 """
@@ -105,9 +109,16 @@ FIELD_GROUPS: dict[str, FieldGroup] = {
         key="system_info",
         label="System Info",
         description=(
-            "The ids and timestamps panel on a detail page. Frontend-only - "
-            "there is no column behind it."
+            "When an entry was created and last edited, and the id printed "
+            "down the spine of its detail page."
         ),
+        # system_id is deliberately absent. It is the route parameter of the
+        # page the viewer is already on - in the address bar, the cache key,
+        # and every link out - so withholding it would break navigation while
+        # concealing nothing. The spine text hides itself via ui_block, which
+        # is presentation only and documented as such. The timestamps are in
+        # no URL and nothing routes on them, so they can be withheld for real.
+        columns={ALL: ("created_at", "updated_at")},
         ui_block="detail.SystemInfo",
     ),
     "credits": FieldGroup(

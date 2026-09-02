@@ -79,8 +79,10 @@ class AnimeUpdate(AnimeBase):
 
 class AnimeResponse(AnimeBase, AnimeLinkFields):
     system_id: UUID
-    created_at: datetime
-    updated_at: datetime
+    # Optional because field_gate blanks them for a viewer without
+    # field_group.system_info, matching the other seven Response schemas.
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

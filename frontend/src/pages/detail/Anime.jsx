@@ -39,7 +39,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Anime() {
   const { system_id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [anime, setAnime] = useState(null);
@@ -249,12 +249,16 @@ export default function Anime() {
               >
                 Anime · {anime.airing_type || "—"}
               </span>
-              <span
-                className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                {anime.system_id}
-              </span>
+              {/* Cosmetic only: the id is this page's own URL, so hiding
+                  it tidies the spine rather than concealing the value. */}
+              {has("field_group.system_info") && (
+                <span
+                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
+                  style={{ writingMode: "vertical-rl" }}
+                >
+                  {anime.system_id}
+                </span>
+              )}
             </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
