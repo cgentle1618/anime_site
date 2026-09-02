@@ -58,6 +58,7 @@ right and the doc needs the fix.
 | File | Scope |
 |---|---|
 | [deployment-gcp.md](deployment-gcp.md) | Docker, CI (tests gate deploy), Cloud Run, Cloud SQL, GCS, Sheets service account — **the GCP deployment is down as of 2026-09-02 and is not expected back soon; see the status banner there** |
+| [deployment-selfhost.md](deployment-selfhost.md) | the intended replacement: a mini PC at home behind a Cloudflare Tunnel — hardware, networking, and the code that assumes Cloud Run. **A plan; nothing in it is built yet** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
 | [roadmap.md](roadmap.md) | done / next / deferred — the working plan (see the rule in CLAUDE.md) |
