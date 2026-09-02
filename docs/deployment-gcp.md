@@ -1,6 +1,31 @@
 # Deployment (Google Cloud)
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-02 (commit e14dba6)
+
+> ## ⚠️ Status: the GCP deployment is down (as of 2026-09-02)
+>
+> It is **not expected to be restored in the near future**. Everything below
+> describes how the deployment is *configured*, not how it is currently
+> *running* — read it as the reference for rebuilding or resuming the
+> deployment, not as a description of a live service.
+>
+> What this means in practice:
+>
+> - There is no reachable Cloud Run revision, and the Cloud SQL database
+>   behind it is unavailable with it.
+> - Cover images live in a GCS bucket in the same project, so treat cover
+>   upload and serving as unavailable too — including from a local run, which
+>   reaches the same bucket with `credentials.json`.
+> - A push to `main` still triggers `.github/workflows/deploy.yml`. The test
+>   job is unaffected and still gates; expect the deploy job that follows it
+>   to fail. Merge on the strength of the tests, not the workflow's overall
+>   status.
+> - **Google Sheets is unaffected** and reached with a service account rather
+>   than through GCP compute, so Backup and Pull keep working against a local
+>   database (verified 2026-09-02).
+>
+> Local development is the only working environment — see
+> [setup-local.md](setup-local.md).
 
 **What this is for.** How the app gets from a push on `main` to a running
 Cloud Run revision, and what is different about the code when it runs there.

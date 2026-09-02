@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-08-30
+Last verified: 2026-09-02
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -57,7 +57,7 @@ right and the doc needs the fix.
 
 | File | Scope |
 |---|---|
-| [deployment-gcp.md](deployment-gcp.md) | Docker, CI (tests gate deploy), Cloud Run, Cloud SQL, GCS, Sheets service account |
+| [deployment-gcp.md](deployment-gcp.md) | Docker, CI (tests gate deploy), Cloud Run, Cloud SQL, GCS, Sheets service account — **the GCP deployment is down as of 2026-09-02 and is not expected back soon; see the status banner there** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
 | [roadmap.md](roadmap.md) | done / next / deferred — the working plan (see the rule in CLAUDE.md) |
