@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-02 (commit 72f03ae)
 
 ## What this is for
 
@@ -122,6 +122,19 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
+   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): seven tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
+
+     | Tab | Matched on | Sheet PK |
+     |---|---|---|
+     | `System Options` | `category` + `value` | uuid — tried first |
+     | `Person`, `Studio` | `name_native` + `name_en` | uuid — tried first |
+     | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
+     | `Plan Next` | `kind` + `scope` + `target_id` + `media_type` | uuid — tried first |
+     | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |
+     | `Person Role` | `person_id` + `role` + `scope` | integer — **ignored** |
+
+     A uuid that misses is merely unknown, so trying it first costs nothing and lets a value *renamed* in the sheet follow its existing row. The two autoincrement ids are ignored outright: the sheet's `id = 1` names a real but unrelated local row, and honouring it retargets the wrong row.
+   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id` and `Person Role.person_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
    - **Target row**: `existing = query(Model).filter(pk == pk_value)` when a PK is present.
    - **INSERT-only defaults** (never applied to an UPDATE, so a sheet that omits a column cannot wipe a good value):
 

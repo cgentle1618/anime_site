@@ -67,6 +67,124 @@ MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
 TABS_IN_ORDER = TAB_NAMES
 
 
+# ---------------------------------------------------------------------------
+# Derived identity: rows whose system_id is minted, not carried by the source.
+#
+# system_option, person and studio hold no identity of their own in the
+# spreadsheet - they are DERIVED, minted row by row by the credit backfill and
+# by extract_system_options. Two databases that run those migrations therefore
+# end up with the SAME natural keys under COMPLETELY DIFFERENT system_ids, and
+# a sheet backed up from one of them is full of uuids the other has never seen.
+#
+# Resolving such a row by system_id alone misses every time, and the INSERT
+# that follows collides with the UNIQUE constraint the same logical row already
+# occupies - which rolls back the whole tab. So for these tabs the sheet's uuid
+# is only a hint; what actually identifies the row across databases is the
+# natural key its UNIQUE constraint already names. Same reasoning, and the same
+# keep-the-local-uuid handling, as the Note remark block further down.
+# ---------------------------------------------------------------------------
+
+# tab -> the columns of that table's natural-key UNIQUE constraint.
+DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
+    "System Options": ("category", "value"),  # uq_system_option_value
+    "Person": ("name_native", "name_en"),  # uq_person_name
+    "Studio": ("name_native", "name_en"),  # uq_studio_name
+    "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
+    "Person Role": ("person_id", "role", "scope"),  # uq_person_role
+    # These two mint their own uuid but cite entry ids, which the sheet does
+    # carry and which are the same in every database - so only the row's own
+    # identity needs reconciling, never what it points at.
+    "Media Relation": (
+        "from_type",
+        "from_id",
+        "relation_type",
+        "to_type",
+        "to_id",
+    ),  # uq_media_relation_pair
+    "Plan Next": ("kind", "scope", "target_id", "media_type"),  # uq_plan_next_target
+}
+
+# Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
+# database's uuid, so it has to be translated through the parent's own tab
+# before it can be stored here.
+DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
+    "System Option Scope": ("option_id", "System Options"),
+    "Person Role": ("person_id", "Person"),
+}
+
+# Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
+# an identity. The three parent tabs above key on a uuid: it is minted too, but
+# a uuid that misses is simply unknown, so trying it first costs nothing and
+# correctly follows a value RENAMED in the sheet to the row that already holds
+# it. These two key on an autoincrement integer instead, where the sheet's id=1
+# names a real but UNRELATED local row - a match that silently retargets the
+# wrong row and then collides. Their natural key is the only identity they have.
+DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
+    {"System Option Scope", "Person Role"}
+)
+
+
+def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
+    """
+    The local row a derived-identity sheet row denotes, or None.
+
+    A key column the sheet header never carried makes the match impossible to
+    state, so it returns None rather than matching on a partial key. A NULL
+    part of the key compares as IS NULL, which is what the constraints mean:
+    n1u2l3l4s5n6d made them NULLS NOT DISTINCT precisely so a person with no
+    name_en still collides with themselves.
+    """
+    key_cols = DERIVED_IDENTITY_KEYS.get(tab_name)
+    if not key_cols:
+        return None
+    if any(col not in payload for col in key_cols):
+        return None
+
+    Model = TAB_MODELS[tab_name]
+    query = db.query(Model)
+    for col in key_cols:
+        query = query.filter(getattr(Model, col) == payload[col])
+    return query.first()
+
+
+def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
+    """
+    {uuid as the sheet spells it: uuid as this database spells it}, for one
+    derived-identity parent tab.
+
+    Built by reading the parent's OWN tab and matching each of its rows to a
+    local row by natural key. Deriving it from the sheet rather than from a
+    map threaded through Pull All is what lets a single-tab Pull of a child
+    work on its own - the parent tab need not have been pulled first.
+    """
+    mapping: dict[str, object] = {}
+    try:
+        matrix = get_all_raw_rows(parent_tab)
+    except SheetsUnavailableError:
+        logger.warning(
+            "Could not read '%s' to translate its uuids; rows citing an "
+            "unknown parent will be skipped.",
+            parent_tab,
+        )
+        return mapping
+    if not matrix or len(matrix) < 2:
+        return mapping
+
+    headers, parser = matrix[0], TAB_PARSERS[parent_tab]
+    for row in matrix[1:]:
+        if not row or not any(row):
+            continue
+        raw = parse_row_to_dict(headers, row)
+        payload = {k: v for k, v in parser(raw).items() if k in raw}
+        sheet_uuid = payload.get("system_id")
+        if not sheet_uuid:
+            continue
+        local = _match_by_natural_key(db, parent_tab, payload)
+        if local is not None:
+            mapping[str(sheet_uuid)] = local.system_id
+    return mapping
+
+
 def execute_pull_specific(
     db: Session, tab_name: str, action_type: str = "Manual", log_action: bool = True
 ) -> dict:
@@ -120,6 +238,12 @@ def execute_pull_specific(
     rows_added = 0
     rows_updated = 0
 
+    # Built on first use, and only for the two tabs that need it: reading the
+    # parent tab costs a Sheets round trip, so a tab that cites no derived
+    # identity never pays for one.
+    parent_ref = DERIVED_IDENTITY_PARENTS.get(tab_name)
+    foreign_uuids: dict[str, object] | None = None
+
     for row in data_rows:
         if not row or not any(row):
             continue
@@ -161,6 +285,33 @@ def execute_pull_specific(
                 header = sheet_column_for(media_type, field.key)
                 if header in clean_header_dict:
                     pending_tags.append((field.key, clean_header_dict.pop(header)))
+
+        # A child of a derived-identity tab cites its parent by the uuid the
+        # OTHER database minted. Translate it to the local one before anything
+        # stores it; a reference that survives untranslated is dangling, and
+        # the FK violation it raises at commit rolls back the whole tab.
+        if parent_ref:
+            fk_column, parent_tab = parent_ref
+            sheet_ref = clean_header_dict.get(fk_column)
+            if sheet_ref is not None:
+                known_locally = (
+                    db.query(TAB_MODELS[parent_tab])
+                    .filter(TAB_MODELS[parent_tab].system_id == sheet_ref)
+                    .first()
+                )
+                if known_locally is None:
+                    if foreign_uuids is None:
+                        foreign_uuids = _foreign_uuid_map(db, parent_tab)
+                    local_ref = foreign_uuids.get(str(sheet_ref))
+                    if local_ref is None:
+                        logger.warning(
+                            "Could not resolve %s %s for the %s tab. Skipping row.",
+                            fk_column,
+                            sheet_ref,
+                            tab_name,
+                        )
+                        continue
+                    clean_header_dict[fk_column] = local_ref
 
         # Resolve String Foreign Keys -> Actual UUIDs
         # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
@@ -612,6 +763,23 @@ def execute_pull_specific(
             existing = (
                 db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
             )
+
+        # A derived-identity row whose uuid is unknown here is almost never a
+        # new row - it is this database's own copy under a locally minted uuid
+        # (see DERIVED_IDENTITY_KEYS). Retarget it by natural key and keep the
+        # LOCAL uuid: media_credit, media_tag, person_role and
+        # system_option_scope all point at it, and the sheet's uuid belongs to
+        # whichever database last ran a Backup. Popping the PK from the payload
+        # is what stops the setattr loop below from overwriting it.
+        if tab_name in DERIVED_IDENTITY_MINTED_PK:
+            # The sheet's id is meaningless here, including when it "matches".
+            clean_header_dict.pop(pk_field, None)
+            existing = _match_by_natural_key(db, tab_name, clean_header_dict)
+        elif existing is None and tab_name in DERIVED_IDENTITY_KEYS:
+            local_row = _match_by_natural_key(db, tab_name, clean_header_dict)
+            if local_row is not None:
+                clean_header_dict.pop(pk_field, None)
+                existing = local_row
 
         # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors).
         # INSERT-only: an UPDATE keeps whatever the row already holds.
