@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-02 (commit 72f03ae)
 
 ## What this is for
 
@@ -131,7 +131,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 | `attach_link_fields(db, media_type, entries)` | Sets the legacy-named, comma-joined attributes (`studio`, `director`, `music`, `distributor_tw`, `era` …) on ORM entries in place, like `attach_plan_flag`. Called from `_factory.py` on detail (one entry) and list (many) so public pages keep reading one response. These live on `*Response` schemas only, never on Create/Update bases — a write naming them is rejected, not silently stored. |
 | `sheet_link_headers(media_type)` / `sheet_link_values` / `sheet_link_rows` | Sheets export: headers via `sheet_column_for`, appended at the **end** of each entry tab (restore matches by header name, not position). `sheet_link_rows` is the batched form Backup uses. |
 | `names_from_sheet_value` | `split_names` alias for Pull. |
-| `backfill_credits(db)` | One-time, idempotent migration body over `BACKFILL_MAP` (26 legacy columns). Reports counts and an `unplaced` list rather than guessing; then runs `extract_system_options`. `manga.anime_studio` is deliberately excluded (it names the adaptation's studio — belongs in relations). |
+| `backfill_credits(db)` | One-time, idempotent migration body over `BACKFILL_MAP` (26 legacy columns). Reads each legacy column through `information_schema` + raw SQL, not the ORM — the models no longer define these columns, so an attribute read makes the whole backfill a silent no-op. Reports counts and an `unplaced` list rather than guessing; then runs `extract_system_options`. `manga.anime_studio` is deliberately excluded (it names the adaptation's studio — belongs in relations). |
 | `verify_backfill_lossless(db)` | Compares legacy raw columns (via `information_schema`, not the ORM) against link tables as normalized sets; only names *missing* on the link side count as mismatches. The drop migration aborts on any. |
 
 ### `extract_system_options` (`app/services/domain/options_extraction.py`)

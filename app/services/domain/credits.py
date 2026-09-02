@@ -383,12 +383,22 @@ def backfill_credits(db: Session) -> dict:
     credits_written = tags_written = 0
 
     for media_type, column, kind, key in BACKFILL_MAP:
-        model = MEDIA_TABLES[media_type].model
-        if not hasattr(model, column):
+        table_name = MEDIA_TABLES[media_type].model.__tablename__
+        # Read the legacy value from the database, never through the ORM: by
+        # the time this module is importable the model classes no longer
+        # define these columns (see `_legacy_column_exists`), so an attribute
+        # read would make the whole backfill a silent no-op and leave the next
+        # migration's drop gate with nothing to verify against.
+        if not _legacy_column_exists(db, table_name, column):
             continue
 
-        for entry in db.query(model).all():
-            raw = getattr(entry, column, None)
+        rows = db.execute(
+            text(f'SELECT system_id, "{column}" AS raw FROM {table_name} '
+                 f'WHERE "{column}" IS NOT NULL')
+        ).fetchall()
+
+        for row in rows:
+            raw = row.raw
             if not raw:
                 continue
 
@@ -398,7 +408,7 @@ def backfill_credits(db: Session) -> dict:
                 unplaced.append(
                     {
                         "media_type": media_type,
-                        "entry_id": str(entry.system_id),
+                        "entry_id": str(row.system_id),
                         "column": column,
                         "raw": raw,
                         "reason": "empty fragment",
@@ -408,10 +418,10 @@ def backfill_credits(db: Session) -> dict:
                 continue
 
             if kind == "credit":
-                replace_credits(db, media_type, entry.system_id, key, names)
+                replace_credits(db, media_type, row.system_id, key, names)
                 credits_written += len(names)
             else:
-                replace_tags(db, media_type, entry.system_id, key, names)
+                replace_tags(db, media_type, row.system_id, key, names)
                 tags_written += len(names)
 
     db.commit()
