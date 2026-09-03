@@ -1,17 +1,15 @@
 // Frontend: add tab page file for OptionsAddTab.
 //
-// Three sub-tabs share the "System Options" nav entry, one per Tier 2/3
-// source: Options (closed vocabularies), People and Studios (credited
-// entities). See app/utils/credit_roles.py for the person-role vocabulary.
+// Four sub-tabs share the "System Options" nav entry: Options and Tags (two
+// halves of one closed-vocabulary table, split for navigation only - the
+// form and the endpoint are identical), then People and Studios (credited
+// entities). See app/utils/credit_roles.py for the person-role vocabulary
+// and TAG_CATEGORIES, and lib/optionCategoryGroups.js for the split.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
 import { MEDIA_TYPES, PERSON_ROLES } from "../../config/fieldOptions";
-
-const SUB_TABS = [
-  { key: "options", label: "Options", icon: "fa-cog" },
-  { key: "people", label: "People", icon: "fa-user" },
-  { key: "studios", label: "Studios", icon: "fa-industry" },
-];
+import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
 // PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
 // fieldOptions.js — this file used to carry its own hand-written copy of the
@@ -27,28 +25,6 @@ function roleLabel(key) {
     .join(" ");
 }
 
-function SubTabBar({ active, onSelect }) {
-  return (
-    <div className="flex gap-1 border-b border-border mb-4">
-      {SUB_TABS.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => onSelect(t.key)}
-          className={`px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 -mb-px transition ${
-            active === t.key
-              ? "border-brand text-brand"
-              : "border-transparent text-text-faint hover:text-text-muted"
-          }`}
-        >
-          <i className={`fas ${t.icon}`}></i>
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function OptionsForm({
   optCategory,
   setOptCategory,
@@ -61,11 +37,13 @@ function OptionsForm({
   return (
     <div className="space-y-4">
       <Field label="Category" required>
+        {/* The examples come from the sub-tab's own categories: a hard-coded
+            placeholder named Comic Publisher while Tags was showing. */}
         <input
           className={inputCls}
           value={optCategory}
           onChange={(e) => setOptCategory(e.target.value)}
-          placeholder="e.g. Genre Main, Comic Publisher, Official Source..."
+          placeholder={`e.g. ${optionCategories.slice(0, 3).join(", ")}...`}
           list="opt-categories"
         />
         <datalist id="opt-categories">
@@ -282,14 +260,19 @@ export default function OptionsAddTab({
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       <SectionHeader icon="fa-cog" title="System Options" />
-      <SubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
-      {optionsSubTab === "options" && (
+      <OptionSubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
+      {/* Tags and Options are the same form; only the categories the
+          Category box suggests differ. */}
+      {(optionsSubTab === "options" || optionsSubTab === "tags") && (
         <OptionsForm
           optCategory={optCategory}
           setOptCategory={setOptCategory}
           optValues={optValues}
           setOptValues={setOptValues}
-          optionCategories={optionCategories}
+          optionCategories={categoriesForSubTab(
+            optionCategories,
+            optionsSubTab,
+          )}
           optScopes={optScopes}
           setOptScopes={setOptScopes}
         />

@@ -11,7 +11,11 @@ from fastapi import APIRouter
 
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.utils import constants as c
-from app.utils.credit_roles import OPTION_CATEGORIES, PERSON_ROLES
+from app.utils.credit_roles import (
+    OPTION_CATEGORIES,
+    PERSON_ROLES,
+    TAG_CATEGORIES,
+)
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
@@ -71,4 +75,7 @@ def get_constants() -> dict[str, list[str]]:
         # state every new tag field starts in. The values themselves stay on
         # GET /api/options, where an admin edits them.
         "option_categories": list(OPTION_CATEGORIES),
+        # The subset of the above that the admin pages group under "Tags".
+        # Navigation only: both sub-tabs write the same system_option rows.
+        "tag_categories": list(TAG_CATEGORIES),
     }

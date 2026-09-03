@@ -5,6 +5,10 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
+import OptionSubTabBar, {
+  OPTION_VALUE_SUB_TABS,
+} from "../../components/forms/OptionSubTabBar";
+import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 
@@ -210,6 +214,9 @@ export default function Delete() {
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [optCategoryFilter, setOptCategoryFilter] = useState("");
+  // Which half of the System Option tab is showing. People and Studios are
+  // not offered here: neither can be deleted from this page.
+  const [optionsSubTab, setOptionsSubTab] = useState("options");
 
   const [modal, setModal] = useState(null); // { type, target, cascadeOptions }
   const [cascadeChecked, setCascadeChecked] = useState(false);
@@ -1613,14 +1620,24 @@ export default function Delete() {
       {/* OPTIONS TAB */}
       {tab === "options" && (
         <div className="space-y-4">
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 flex gap-3">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <OptionSubTabBar
+              tabs={OPTION_VALUE_SUB_TABS}
+              active={optionsSubTab}
+              onSelect={(key) => {
+                setOptionsSubTab(key);
+                // The selected category belongs to the sub-tab it was picked
+                // on, so it cannot survive the switch.
+                setOptCategoryFilter("");
+              }}
+            />
             <select
-              className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand flex-1"
+              className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand w-full"
               value={optCategoryFilter}
               onChange={(e) => setOptCategoryFilter(e.target.value)}
             >
               <option value="">— Select Category —</option>
-              {optCategories.map((c) => (
+              {categoriesForSubTab(optCategories, optionsSubTab).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

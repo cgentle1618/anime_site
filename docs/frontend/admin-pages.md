@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -102,9 +102,15 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**Options tab.** Creates system options (category + value + scopes), people
-(with roles/scopes) and studios — see
-[../systems/credits-and-tags.md](../systems/credits-and-tags.md).
+**Options tab.** Four sub-tabs (`OptionSubTabBar`, shared with Modify and
+Delete): **Options** and **Tags** create system options (category + value +
+scopes), **People** (with roles/scopes) and **Studios** create the credited
+entities — see
+[../systems/credits-and-tags.md](../systems/credits-and-tags.md). Options and
+Tags are the same form posting to the same endpoint; only the categories the
+Category box suggests differ (`TAG_CATEGORIES`, see
+[../options.md](../options.md)). Modify and Delete show the same bar with
+just those two, because neither page can edit a person or a studio.
 
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
 `MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).

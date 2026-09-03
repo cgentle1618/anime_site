@@ -183,6 +183,11 @@ export const OPTION_CATEGORIES = [
   "Franchise for Filter",
 ];
 
+// The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
+// sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
+// both sub-tabs are the same form over the same system_option rows.
+export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label", "Quality"];
+
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
@@ -208,6 +213,7 @@ export const CONSTANTS_FALLBACK = {
   person_role: PERSON_ROLES,
   media_type: MEDIA_TYPES,
   option_categories: OPTION_CATEGORIES,
+  tag_categories: TAG_CATEGORIES,
 };
 
 // Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and

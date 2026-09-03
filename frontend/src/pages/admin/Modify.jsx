@@ -38,6 +38,10 @@ import MemeManageTab from "../modify-tabs/MemeManageTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
+import OptionSubTabBar, {
+  OPTION_VALUE_SUB_TABS,
+} from "../../components/forms/OptionSubTabBar";
+import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import {
   fetchFormDefaults,
   resolveDefaults,
@@ -264,6 +268,9 @@ export default function Modify() {
   const searchRef = useRef(null);
 
   const [optCatFilter, setOptCatFilter] = useState("");
+  // Which half of the System Option tab is showing. People and Studios are
+  // not offered here: neither has an editor on this page.
+  const [optionsSubTab, setOptionsSubTab] = useState("options");
   const [submitting, setSubmitting] = useState(false);
   const [createModal, setCreateModal] = useState(null);
   const [franchiseCreateModal, setFranchiseCreateModal] = useState(null);
@@ -3099,6 +3106,16 @@ export default function Modify() {
             </div>
           ) : (
             <div>
+              <OptionSubTabBar
+                tabs={OPTION_VALUE_SUB_TABS}
+                active={optionsSubTab}
+                onSelect={(key) => {
+                  setOptionsSubTab(key);
+                  // The selected category belongs to the sub-tab it was
+                  // picked on, so it cannot survive the switch.
+                  setOptCatFilter("");
+                }}
+              />
               <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
                 Select Category
               </label>
@@ -3108,11 +3125,13 @@ export default function Modify() {
                 onChange={(e) => setOptCatFilter(e.target.value)}
               >
                 <option value="">— Choose a category —</option>
-                {optionCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+                {categoriesForSubTab(optionCategories, optionsSubTab).map(
+                  (c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ),
+                )}
               </select>
             </div>
           )}

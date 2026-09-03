@@ -77,3 +77,20 @@ def test_serves_the_declared_option_categories(client):
     body = client.get("/api/constants").json()
     assert body["option_categories"] == list(OPTION_CATEGORIES)
     assert "Quality" in body["option_categories"]
+
+
+def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
+    """
+    The admin Options UI groups its category picker into Tags and Options.
+    A category listed as a tag but absent from OPTION_CATEGORIES would show
+    up in the Tags sub-tab and nowhere else, so the two must stay in step.
+    """
+    from app.utils.credit_roles import OPTION_CATEGORIES, TAG_CATEGORIES
+
+    assert set(TAG_CATEGORIES) <= set(OPTION_CATEGORIES)
+
+    body = client.get("/api/constants").json()
+    assert body["tag_categories"] == list(TAG_CATEGORIES)
+    assert set(body["tag_categories"]) <= set(body["option_categories"])
+    assert "Quality" in body["tag_categories"]
+    assert "Comic Era" not in body["tag_categories"]

@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-03 (commit 0c4a57d, plus the uncommitted `option_categories` constants key)
+Last verified: 2026-09-03 (commit df14959, plus the uncommitted `tag_categories` constants key)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -674,7 +674,8 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `manga_region`, `novel_region`, `novel_type`, `comic_type`,
 `manga_serialization_status`, `novel_serialization_status`, `day_of_week`,
 `music_status`, `seiyuu_status`, `watch_order_importance`, `person_role`,
-`media_type`, `option_categories`. The last three are for the admin forms:
+`media_type`, `option_categories`, `tag_categories`. The last four are for
+the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
 hyphenated `MEDIA_TABLES` keys the option scope picker offers — NOT
@@ -684,7 +685,9 @@ tag field reads (never their values, which stay on `GET /api/options`). The
 Options form needs the declared names because it otherwise derives its
 category list from the options already stored, and so could not offer a
 category with no values yet — the state every new tag field starts in.
-`franchise_type`
+`tag_categories` is the subset of those categories the Add / Modify / Delete
+pages group under their Tags sub-tab, which is navigation only — both
+sub-tabs write the same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those

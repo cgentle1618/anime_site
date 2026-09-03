@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-08-31 (commit 4339702, plus uncommitted archive-look changes)
+Last verified: 2026-09-03 (commit df14959, plus uncommitted archive-look and Tags sub-tab changes)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -148,7 +148,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
-  `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `ContentLabelPicker`,
+  `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  `ContentLabelPicker`,
   `DefaultValueControl`, `BelongingNovelsEditor`, `QuoteForm`,
   `QuoteEntryPicker`, `MemeForm`, `MemeOwnerPicker`.
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,

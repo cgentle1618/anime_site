@@ -138,6 +138,24 @@ TAG_FIELD_KEYS: tuple[str, ...] = tuple(TAG_FIELDS.keys())
 # list-page filters only, so no TagField names them.
 FILTER_ONLY_CATEGORIES: tuple[str, ...] = ("Franchise for Filter",)
 
+# The categories the admin Add / Modify / Delete pages offer under their
+# "Tags" sub-tab instead of "Options". Both sub-tabs are the same form over
+# the same system_option rows - the split is navigational, nothing in the
+# data or the API distinguishes a tag category from any other.
+#
+# Listed, not derived. These four happen to be exactly the anime-only tag
+# fields today, but that is a coincidence of the current vocabulary, not the
+# rule: what puts a category here is that its values read as tags ON the
+# work, while Official Source, Publisher / Distributor TW and the Comic
+# vocabularies name an outside party. A new anime-only category is not
+# automatically a tag, so it must be added here deliberately.
+TAG_CATEGORIES: tuple[str, ...] = (
+    "Genre Main",
+    "Genre Sub",
+    "Label",
+    "Quality",
+)
+
 OPTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
         [f.category for f in TAG_FIELDS.values()] + list(FILTER_ONLY_CATEGORIES)

@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-03 (commit 0c4a57d, plus the uncommitted Quality 品質 tag field)
+Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
 
 ## What this is for
 
@@ -274,6 +274,17 @@ Tier 2 category:
 | `comic_continuity` | Continuity | `Comic Continuity` | comic |
 | `comic_era` | Era | `Comic Era` | comic |
 | `comic_event` | Events | `Comic Event` | comic |
+
+`TAG_CATEGORIES` (served as `/api/constants` `tag_categories`): `Genre Main`,
+`Genre Sub`, `Label`, `Quality` — the subset of the categories below that the
+admin Add / Modify / Delete pages offer under their **Tags** sub-tab instead
+of **Options**. The split is navigation only: both sub-tabs are the same form
+over the same `system_option` rows, and nothing in the data or the API marks
+a category as a tag. The list is written out, not derived — these four happen
+to be exactly the anime-only tag fields today, but what puts a category here
+is that its values read as tags *on* the work, while `Official Source`,
+`Publisher / Distributor TW` and the Comic vocabularies name an outside
+party. A new anime-only category is therefore not automatically a tag.
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` (a Tier 2 category with no
 tag field behind it). `OPTION_CATEGORIES` = the eleven categories above plus

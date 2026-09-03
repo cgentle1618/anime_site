@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-03 (commit 0c4a57d, plus the uncommitted Quality 品質 tag field)
+Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
 
 ## What this is for
 
@@ -180,11 +180,21 @@ The fix it points at is the merge endpoint, never delete.
 ## Admin UI
 
 The "System Options" nav entry on the **Add** page (`OptionsAddTab.jsx`) has
-three sub-tabs: **Options** (vocabulary value + `ScopePicker`), **People**
+four sub-tabs, rendered by the shared `OptionSubTabBar`: **Options** and
+**Tags** (both: vocabulary value + `ScopePicker` — one form, one endpoint,
+split only so the category list is shorter; `TAG_CATEGORIES` decides which
+side a category falls on, see [../options.md](../options.md)), **People**
 (`PersonForm`: names, gender, rating, remark, a role dropdown fed by
 `PERSON_ROLES` from `GET /api/constants` via `fieldOptions.js` — labels derived
 from keys so a role added in Python needs no frontend edit), and **Studios**
-(`StudioForm`). The person/studio pickers on entry forms are the standard
+(`StudioForm`). **Modify** and **Delete** render the same bar with the
+Options and Tags halves only: neither page has a person or studio editor, and
+each filters its category `<select>` through `categoriesForSubTab`
+(`frontend/src/lib/optionCategoryGroups.js`), clearing the selected category
+when the half changes. Delete lists only categories that actually hold
+values — an empty category has nothing to delete.
+
+The person/studio pickers on entry forms are the standard
 "tags" fields whose `source.kind` is `person` / `studio`; there is no public
 person or studio page yet.
 
