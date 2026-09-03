@@ -191,3 +191,72 @@ def test_scopes_are_editable_after_creation(admin_client, client):
         o["value"] for o in client.get("/api/options/Genre Main?scope=comic").json()
     }
     assert "Mecha" in offered
+
+
+def test_update_keeps_a_scope_the_option_already_had(admin_client):
+    """
+    Editing a value without touching its scopes must not fail.
+
+    `db_option.scopes = [...]` left the old rows to delete-orphan, but within
+    one flush SQLAlchemy emits this table's INSERTs before its DELETEs, so
+    re-saving a scope the option already had inserted a duplicate
+    (option_id, scope) while the old row was still there and tripped
+    uq_system_option_scope with a 500.
+    """
+    created = admin_client.post(
+        "/api/options/",
+        json={"category": "Quality", "value": "品質高", "scopes": ["anime"]},
+    ).json()
+
+    r = admin_client.put(
+        f"/api/options/{created['system_id']}",
+        json={"category": "Quality", "value": "品質很高", "scopes": ["anime"]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["value"] == "品質很高"
+    assert r.json()["scopes"] == ["anime"]
+
+
+def test_update_can_add_and_drop_scopes_at_once(admin_client, db_session):
+    """A kept scope, a new one and a dropped one in a single save."""
+    created = admin_client.post(
+        "/api/options/",
+        json={
+            "category": "Official Source",
+            "value": "Netflix",
+            "scopes": ["tv-show", "cartoon"],
+        },
+    ).json()
+
+    r = admin_client.put(
+        f"/api/options/{created['system_id']}",
+        json={
+            "category": "Official Source",
+            "value": "Netflix",
+            "scopes": ["tv-show", "movie"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["scopes"]) == ["movie", "tv-show"]
+    # No orphan left behind for the dropped scope.
+    rows = (
+        db_session.query(models.SystemOptionScope)
+        .filter_by(option_id=created["system_id"])
+        .all()
+    )
+    assert sorted(row.scope for row in rows) == ["movie", "tv-show"]
+
+
+def test_update_can_clear_every_scope(admin_client):
+    """Empty scopes means offered everywhere, and must be reachable."""
+    created = admin_client.post(
+        "/api/options/",
+        json={"category": "Quality", "value": "作畫崩壞", "scopes": ["anime"]},
+    ).json()
+
+    r = admin_client.put(
+        f"/api/options/{created['system_id']}",
+        json={"category": "Quality", "value": "作畫崩壞", "scopes": []},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["scopes"] == []

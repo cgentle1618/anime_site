@@ -184,9 +184,28 @@ def update_system_option(
     db_option.value = payload.value
     db_option.sort_order = payload.sort_order
     db_option.remark = payload.remark
-    db_option.scopes = [
-        models.SystemOptionScope(scope=s) for s in payload.scopes
-    ]
+
+    # Replace the scope rows the same way PUT /api/person replaces
+    # person_role: a bulk DELETE (emitted at once, before anything below)
+    # and then fresh rows.
+    #
+    # NOT `db_option.scopes = [...]`. That leaves the old rows to
+    # delete-orphan, and within one flush SQLAlchemy emits this table's
+    # INSERTs before its DELETEs - so re-saving a scope the option already
+    # had inserted a duplicate (option_id, scope) while the old row was
+    # still there and tripped uq_system_option_scope. Editing a value
+    # without changing its scopes, the most ordinary edit there is, 500ed;
+    # only clearing the scopes outright happened to work, because then
+    # there was no INSERT to collide.
+    #
+    # Payload duplicates are already dropped by SystemOptionCreate's
+    # _known_scopes validator, so these rows cannot collide with each other.
+    db.query(models.SystemOptionScope).filter_by(option_id=option_id).delete(
+        synchronize_session=False
+    )
+    for scope in payload.scopes:
+        db.add(models.SystemOptionScope(option_id=option_id, scope=scope))
+
     db.commit()
     db.refresh(db_option)
 
