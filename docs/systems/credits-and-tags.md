@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-02 (commit 72f03ae)
+Last verified: 2026-09-03 (commit 0c4a57d, plus the uncommitted Quality 品質 tag field)
 
 ## What this is for
 
@@ -77,6 +77,7 @@ recorded on `person_role`, never on the credit.
 | `genre_main` | Genre Main | Genre Main | anime |
 | `genre_sub` | Genre Sub | Genre Sub | anime |
 | `label` | 標籤 Label | Label | anime |
+| `quality` | Quality 品質 | Quality | anime |
 | `source_official` | Official Source | Official Source | tv-show, cartoon, movie |
 | `publisher_tw` | Publisher / Distributor TW | Publisher / Distributor TW | anime, manga, novel, comic |
 | `comic_publisher` | Publisher | Comic Publisher | comic |

@@ -164,6 +164,25 @@ export const MEDIA_TYPES = [
   "comic",
 ];
 
+// Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
+// their values. The Options form needs these because the categories present
+// in the stored options cannot include one that has no values yet - which is
+// how every new tag field starts life.
+export const OPTION_CATEGORIES = [
+  "Genre Main",
+  "Genre Sub",
+  "Label",
+  "Quality",
+  "Official Source",
+  "Publisher / Distributor TW",
+  "Comic Publisher",
+  "Comic Imprint",
+  "Comic Continuity",
+  "Comic Era",
+  "Comic Event",
+  "Franchise for Filter",
+];
+
 // Shape-matched to GET /api/constants. Rendered only until the fetch resolves.
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
@@ -188,6 +207,7 @@ export const CONSTANTS_FALLBACK = {
   seiyuu_status: SEIYUU_STATUSES,
   person_role: PERSON_ROLES,
   media_type: MEDIA_TYPES,
+  option_categories: OPTION_CATEGORIES,
 };
 
 // Every Add/Modify tab imports the arrays above (e.g. `AIRING_STATUSES`) and

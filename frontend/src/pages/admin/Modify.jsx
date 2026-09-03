@@ -37,6 +37,7 @@ import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
+import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import {
   fetchFormDefaults,
   resolveDefaults,
@@ -2336,8 +2337,12 @@ export default function Modify() {
     return [];
   })();
 
+  // See Add.jsx: the declared categories belong here even with no values yet.
   const optionCategories = [
-    ...new Set(sources.options.map((o) => o.category)),
+    ...new Set([
+      ...OPTION_CATEGORIES,
+      ...sources.options.map((o) => o.category),
+    ]),
   ].sort();
   const filteredOptions = optCatFilter
     ? sources.options.filter((o) => o.category === optCatFilter)

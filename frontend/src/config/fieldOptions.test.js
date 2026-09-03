@@ -3,6 +3,7 @@ import {
   AIRING_STATUSES,
   CONSTANTS_FALLBACK,
   MEDIA_TYPES,
+  OPTION_CATEGORIES,
   PERSON_ROLES,
   applyConstants,
 } from "./fieldOptions";
@@ -14,10 +15,12 @@ import {
 // would see whatever the last test here left behind.
 const ORIGINAL_AIRING_STATUSES = [...AIRING_STATUSES];
 const ORIGINAL_PERSON_ROLES = [...PERSON_ROLES];
+const ORIGINAL_OPTION_CATEGORIES = [...OPTION_CATEGORIES];
 afterEach(() => {
   applyConstants({
     airing_status: ORIGINAL_AIRING_STATUSES,
     person_role: ORIGINAL_PERSON_ROLES,
+    option_categories: ORIGINAL_OPTION_CATEGORIES,
   });
 });
 
@@ -69,5 +72,25 @@ describe("admin-form vocabularies served from /api/constants", () => {
     expect(MEDIA_TYPES).toContain("anime-movie");
     expect(MEDIA_TYPES).toContain("tv-show");
     expect(MEDIA_TYPES).not.toContain("non_anime");
+  });
+});
+
+// A category with no values yet exists only in TAG_FIELDS, so the Options
+// form cannot learn it from the stored options - the reason Quality 品質 was
+// unreachable on the day its tag field shipped.
+describe("declared option categories", () => {
+  it("is wired into applyConstants like every other Tier 1 list", () => {
+    expect(CONSTANTS_FALLBACK.option_categories).toBe(OPTION_CATEGORIES);
+  });
+
+  it("offers a category that has no options stored against it", () => {
+    expect(OPTION_CATEGORIES).toContain("Quality");
+  });
+
+  it("updates in place from the API payload", () => {
+    const before = OPTION_CATEGORIES;
+    applyConstants({ option_categories: ["Genre Main", "Quality"] });
+    expect(OPTION_CATEGORIES).toBe(before);
+    expect(OPTION_CATEGORIES).toEqual(["Genre Main", "Quality"]);
   });
 });

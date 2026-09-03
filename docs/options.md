@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-03 (commit 0c4a57d, plus the uncommitted Quality 品質 tag field)
 
 ## What this is for
 
@@ -94,9 +94,10 @@ file's own comment calls this Ruling R10). See
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 
-`/api/constants` also serves three keys from other modules:
+`/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
-`person_role` ([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
+`person_role` and `option_categories`
+([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
 `media_type` ([below](#media-type-and-owner-keys-apputilsmedia_resolverpy)).
 
 Retired: `Dub Preference` (never existed in code) and the old `Main / Spinoff`,
@@ -265,6 +266,7 @@ Tier 2 category:
 | `genre_main` | Genre Main | `Genre Main` | anime |
 | `genre_sub` | Genre Sub | `Genre Sub` | anime |
 | `label` | 標籤 Label | `Label` | anime |
+| `quality` | Quality 品質 | `Quality` | anime |
 | `source_official` | Official Source | `Official Source` | tv-show, cartoon, movie |
 | `publisher_tw` | Publisher / Distributor TW | `Publisher / Distributor TW` | anime, manga, novel, comic |
 | `comic_publisher` | Publisher | `Comic Publisher` | comic |
@@ -274,8 +276,12 @@ Tier 2 category:
 | `comic_event` | Events | `Comic Event` | comic |
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` (a Tier 2 category with no
-tag field behind it). `OPTION_CATEGORIES` = the ten categories above plus
-that one. `LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
+tag field behind it). `OPTION_CATEGORIES` = the eleven categories above plus
+that one, served as `/api/constants` `option_categories` and unioned with the
+categories present in the stored options to build the category picker on the
+Add and Modify pages. Without it a declared category holding no values yet
+could not be picked at all, so the first value of a new tag field had nowhere
+to go. `LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
 Sheets header it has always used (e.g. `("anime", "composer")` -> `music`,
 `("anime", "publisher_tw")` -> `distributor_tw`).
 
@@ -337,13 +343,14 @@ An open vocabulary: values only humans read. Tables `system_option` and
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-eleven in `OPTION_CATEGORIES`:
+twelve in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
 | `Genre Main` | anime | tag field `genre_main` |
 | `Genre Sub` | anime | tag field `genre_sub` |
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
+| `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
 | `Official Source` | tv-show, cartoon, movie | tag field `source_official` (merged the old `TV Show Official Source` / `Cartoon Official Source`) |
 | `Publisher / Distributor TW` | anime, manga, novel, comic | tag field `publisher_tw` (merged `Distributor TW`, `Manga Publisher TW`, `Novel Publisher TW`) |
 | `Comic Publisher` | comic | tag field `comic_publisher` |

@@ -63,3 +63,17 @@ def test_serves_the_hyphenated_media_type_keys(client):
     assert body["media_type"] == list(MEDIA_TYPE_KEYS)
     assert "anime-movie" in body["media_type"]
     assert "anime_movie" not in body["media_type"]
+
+
+def test_serves_the_declared_option_categories(client):
+    """
+    The Options form used to build its category list purely from the options
+    already in the database, so a category declared in TAG_FIELDS but not yet
+    populated - Quality on the day it shipped - could not be picked at all,
+    and its first value had to be typed blind into a free-text box.
+    """
+    from app.utils.credit_roles import OPTION_CATEGORIES
+
+    body = client.get("/api/constants").json()
+    assert body["option_categories"] == list(OPTION_CATEGORIES)
+    assert "Quality" in body["option_categories"]

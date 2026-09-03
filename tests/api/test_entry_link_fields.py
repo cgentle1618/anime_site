@@ -147,3 +147,22 @@ def test_anime_carries_the_label_tag_and_its_sheet_column(client, db_session):
     headers = credits_service.sheet_link_headers("anime")
     values = credits_service.sheet_link_values(db_session, "anime", a)
     assert values[headers.index("label")] == "會跳OP, 很多福利"
+
+
+def test_anime_carries_the_quality_tag_and_its_sheet_column(client, db_session):
+    """
+    Quality 品質 is anime-only and, like 標籤 Label, never had a legacy string
+    column, so it is served - and backed up - under its own key.
+    """
+    a = _anime(db_session, "品質測試")
+    credits_service.replace_tags(
+        db_session, "anime", a.system_id, "quality", ["作畫崩壞", "神作畫"]
+    )
+    db_session.commit()
+
+    body = client.get(f"/api/anime/{a.system_id}").json()
+    assert body["quality"] == "作畫崩壞, 神作畫"
+
+    headers = credits_service.sheet_link_headers("anime")
+    values = credits_service.sheet_link_values(db_session, "anime", a)
+    assert values[headers.index("quality")] == "作畫崩壞, 神作畫"

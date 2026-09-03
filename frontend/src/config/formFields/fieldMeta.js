@@ -262,6 +262,12 @@ export const TYPE_FIELD_META = {
       source: { kind: "option", category: "Label" },
       group: "Classification",
     },
+    quality: {
+      label: "Quality 品質",
+      control: "tags",
+      source: { kind: "option", category: "Quality" },
+      group: "Classification",
+    },
     ep_previous: {
       label: "Previous Episodes",
       control: "number",

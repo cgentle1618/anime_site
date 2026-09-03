@@ -42,6 +42,7 @@ export const defaultAnime = () => ({
   genre_main: "",
   genre_sub: "",
   label: "",
+  quality: "",
   studio: "",
   director: "",
   producer: "",

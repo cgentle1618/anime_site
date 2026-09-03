@@ -43,6 +43,7 @@ import {
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
+import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
 import { enrichEntry } from "../../lib/enrich";
@@ -2286,8 +2287,14 @@ export default function Add() {
       .join(" "),
   }));
 
+  // Declared categories first, then whatever else the stored options carry:
+  // a category a tag field reads must be offered even before its first value
+  // exists, or the field it backs renders an empty dropdown with no way in.
   const optionCategories = [
-    ...new Set(sources.options.map((o) => o.category)),
+    ...new Set([
+      ...OPTION_CATEGORIES,
+      ...sources.options.map((o) => o.category),
+    ]),
   ].sort();
 
   if (dataLoading) {

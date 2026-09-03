@@ -371,6 +371,18 @@ export default function AnimeModifyTab({
             limit={null}
           />
         </Field>
+        <Field label="Quality 品質">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Quality",
+            })}
+            value={af.quality}
+            onChange={(v) => ua("quality", v)}
+            placeholder="Select qualities..."
+            limit={null}
+          />
+        </Field>
       </div>
 
       <SectionHeader icon="fa-industry" title="Production" />

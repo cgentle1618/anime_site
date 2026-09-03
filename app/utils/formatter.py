@@ -416,6 +416,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "genre_main": parse_from_sheet(raw.get("genre_main"), str),
         "genre_sub": parse_from_sheet(raw.get("genre_sub"), str),
         "label": parse_from_sheet(raw.get("label"), str),
+        "quality": parse_from_sheet(raw.get("quality"), str),
         "is_main_entry": parse_from_sheet(raw.get("is_main_entry"), bool),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "official_link": parse_from_sheet(raw.get("official_link"), str),

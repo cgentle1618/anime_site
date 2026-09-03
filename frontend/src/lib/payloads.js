@@ -16,6 +16,7 @@ const CREDITS_FIELD_MAP = {
       genre_main: "genre_main",
       genre_sub: "genre_sub",
       label: "label",
+      quality: "quality",
       distributor_tw: "publisher_tw",
     },
   },

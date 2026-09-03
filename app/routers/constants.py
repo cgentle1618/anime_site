@@ -11,7 +11,7 @@ from fastapi import APIRouter
 
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.utils import constants as c
-from app.utils.credit_roles import PERSON_ROLES
+from app.utils.credit_roles import OPTION_CATEGORIES, PERSON_ROLES
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
@@ -64,4 +64,11 @@ def get_constants() -> dict[str, list[str]]:
         # Hyphenated media-type keys - NOT person-role scopes, which are the
         # coarser anime / non_anime split.
         "media_type": list(MEDIA_TYPE_KEYS),
+        # Tier 2 CATEGORY NAMES, not their values: the vocabularies a tag
+        # field reads, declared in TAG_FIELDS. Served because the Options
+        # form otherwise derives its category list from the options already
+        # stored, which cannot offer a category that has no values yet - the
+        # state every new tag field starts in. The values themselves stay on
+        # GET /api/options, where an admin edits them.
+        "option_categories": list(OPTION_CATEGORIES),
     }
