@@ -61,11 +61,11 @@ describe("computeMissingSourceValues", () => {
 });
 
 describe("buildCreateRequest", () => {
-  it("posts a studio as { name_native }", () => {
+  it("posts a studio as { name_en }", () => {
     const [url, init] = buildCreateRequest({ kind: "studio" }, "New Studio");
     expect(url).toBe("/api/studio/");
     expect(init.method).toBe("POST");
-    expect(JSON.parse(init.body)).toEqual({ name_native: "New Studio" });
+    expect(JSON.parse(init.body)).toEqual({ name_en: "New Studio" });
   });
 
   it("posts a person with the requested role AND scope", () => {
@@ -80,13 +80,18 @@ describe("buildCreateRequest", () => {
     });
   });
 
-  it("posts a scopeless person role with scope: null", () => {
+  // Every person source carries its own media-type scope now, and the API
+  // rejects a role without a legal one. The scope must therefore travel from
+  // the descriptor untouched — a hard-coded "anime", or the null this used to
+  // send for the roles that had no scope, would create people the dropdown
+  // that just created them cannot see.
+  it("sends the field's own scope, not the role's first legal one", () => {
     const [, init] = buildCreateRequest(
-      { kind: "person", role: "composer" },
-      "New Composer",
+      { kind: "person", role: "illustrator", scope: "comic" },
+      "New Artist",
     );
     expect(JSON.parse(init.body).roles).toEqual([
-      { role: "composer", scope: null },
+      { role: "illustrator", scope: "comic" },
     ]);
   });
 
@@ -146,7 +151,7 @@ describe("ensureSourceValues", () => {
       url.startsWith("/api/studio"),
     );
     expect(studioUrl).toBe("/api/studio/");
-    expect(JSON.parse(studioInit.body)).toEqual({ name_native: "New Studio" });
+    expect(JSON.parse(studioInit.body)).toEqual({ name_en: "New Studio" });
 
     const [optionUrl, optionInit] = fetchImpl.mock.calls.find(([url]) =>
       url.startsWith("/api/options"),

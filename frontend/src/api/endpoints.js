@@ -153,6 +153,7 @@ export const endpoints = {
     update: (id) => `/api/studio/${id}`,
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
+    entries: (id) => `/api/studio/${id}/entries`,
   },
 
   system: {

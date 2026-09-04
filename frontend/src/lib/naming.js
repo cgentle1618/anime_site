@@ -99,3 +99,26 @@ export function middleTruncate(name, max) {
   const tail = keep - head;
   return `${text.slice(0, head).trimEnd()}…${tail ? text.slice(-tail).trimStart() : ""}`;
 }
+
+// Studio names. Unlike the media types above, whose fallback chain is fixed
+// per type, a studio picks its own display field - display_name_field is
+// data. This mirrors Studio.display_name on the backend; change both or
+// neither.
+export const STUDIO_NAME_FIELDS = [
+  { key: "en", label: "English", field: "name_en" },
+  { key: "cn", label: "Chinese", field: "name_cn" },
+  { key: "jp", label: "Japanese", field: "name_jp" },
+  { key: "alt", label: "Alternative", field: "name_alt" },
+];
+
+export function displayStudioName(studio) {
+  if (!studio) return "";
+  const chosen = STUDIO_NAME_FIELDS.find(
+    (f) => f.key === studio.display_name_field,
+  );
+  if (chosen && studio[chosen.field]?.trim()) return studio[chosen.field].trim();
+  for (const { field } of STUDIO_NAME_FIELDS) {
+    if (studio[field]?.trim()) return studio[field].trim();
+  }
+  return "";
+}
