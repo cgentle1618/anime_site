@@ -153,6 +153,35 @@ inheritor of the pattern. The alternatives it rejected — a derived
 `name_native` cache, a separate alias table — are rejected here for the same
 reasons.
 
+### Decision E — an ambiguous name raises rather than picking a winner
+
+`_find_by_name` collects every row whose any `_name_fields` entry normalizes to
+the search key. Zero matches returns None and the caller creates; exactly one
+returns that row; **two or more raises**.
+
+Added after the studio session's Ruling 7 (commit `43a36c5`) reverted a
+widening of `Person._name_fields`, on the grounds that `resolve_person` is
+find-or-create and runs on every automated write path, so a false match
+silently attaches one person's credits to another. That review was right, and
+the hazard is worse for this design than for the one it was raised against:
+with names distributed across four columns, person A holding `name_cn = 高橋`
+and person B holding `name_jp = 高橋` are two legal rows under the 4-column
+unique constraint, and Japanese personal names collide often. The pre-existing
+implementation returns the first row an unordered `db.query(model).all()` scan
+hits, which on such a collision is genuinely arbitrary.
+
+Narrowing the match instead was rejected: the Sheets round trip requires that a
+display name written from any of the four columns resolves back to its own row,
+so all four must be searched. The fix belongs at the ambiguity, not the width.
+
+Raising is not a worse outcome for the pipelines. Fill/Pull and the Sheets
+restore report per-row failures, so an ambiguous name becomes a visible,
+recoverable error naming both candidates; a wrong match is neither. The
+duplicate-entity check page already exists as the place an admin resolves it.
+
+Applies to `Studio` as well, through the same function. The studio session has
+agreed to inherit it rather than keep a second behaviour in one function.
+
 ## Schema
 
 ```

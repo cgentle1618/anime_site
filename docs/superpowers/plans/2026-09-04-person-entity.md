@@ -244,13 +244,20 @@ them moved does not run. No database change here — Task 3 carries that.
 
 **Files:**
 - Modify: `app/utils/credit_roles.py`
-- Modify: `app/services/domain/credits.py` (`replace_credits`, ~line 126)
+- Modify: `app/services/domain/credits.py` — `_find_by_name:34` (Decision E) and `replace_credits:~126`. Per the ownership split agreed with the studio session, do **not** touch `resolve_studio`, `credit_names`, `link_values_for_entries` or `attach_link_fields` in this task.
 - Modify: `app/schemas/staff.py:10-52`
-- Test: `tests/api/test_credits_sheets.py`, `tests/api/test_credits_service.py` (extend)
+- Test: `tests/unit/test_credit_roles.py` (rewrite — it already exists and several of its 14 tests assert the old two-vocabulary design), `tests/api/test_credits_service.py` (extend)
+
+**The vocabulary tests go in `tests/unit/`, not `tests/api/`.** `credit_label`,
+`legal_scopes` and the sheet-header guard are pure functions over a dict; they
+need no database. That is better placement on its own merits, and it means this
+task's main gate runs without the `anime_site_test` lock the two sessions are
+serialising on.
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `CREDIT_ROLES` keyed `studio | director | producer | composer | author | illustrator`; `PERSON_ROLES = ("director","producer","composer","author","illustrator")`; `credit_label(role: str, media_type: str) -> str`; `legal_scopes(role: str) -> tuple[str, ...]`. Removed: `director_scope_for`, `SCOPED_PERSON_ROLES`, `DIRECTOR_ANIME_MEDIA_TYPES`, `CreditRole.person_role`, `PERSON_ROLE_SCOPES`.
+- Produces: `CREDIT_ROLES` keyed `studio | director | producer | composer | author | illustrator`; `PERSON_ROLES = ("director","producer","composer","author","illustrator")`; `credit_label(role: str, media_type: str) -> str`; `legal_scopes(role: str) -> tuple[str, ...]`; `AmbiguousNameError`. Removed: `director_scope_for`, `SCOPED_PERSON_ROLES`, `DIRECTOR_ANIME_MEDIA_TYPES`, `CreditRole.person_role`, `PERSON_ROLE_SCOPES`.
+- Note: `CreditRole`'s positional order becomes `(key, label, target, media_types)` — one field shorter. The studio session confirmed it reads only `.target` and `.media_types` and constructs none positionally, so its `studio` entry is unaffected.
 
 - [ ] **Step 1: Write the failing test**
 
