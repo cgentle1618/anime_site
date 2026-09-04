@@ -19,7 +19,7 @@ def test_a_fetched_studio_name_lands_on_a_studio_row(db_session):
 
 
 def test_a_fetched_name_reuses_an_existing_studio(db_session):
-    db_session.add(models.Studio(name_native="MAPPA"))
+    db_session.add(models.Studio(name_en="MAPPA"))
     db_session.commit()
 
     a = models.Anime(anime_name_cn="測試")

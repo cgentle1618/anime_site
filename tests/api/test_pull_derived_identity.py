@@ -100,7 +100,7 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
 
 
 def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
-    local = models.Studio(system_id=uuid.uuid4(), name_native="シャフト")
+    local = models.Studio(system_id=uuid.uuid4(), name_en="シャフト")
     db_session.add(local)
     db_session.flush()
     local_id = local.system_id
@@ -134,7 +134,7 @@ def test_a_different_name_en_is_a_different_studio(db_session, sheets):
     tabs carry an empty name_en on every row today, so nothing hits this path;
     it is recorded here so a future change to the constraint has to face it.
     """
-    db_session.add(models.Studio(system_id=uuid.uuid4(), name_native="シャフト"))
+    db_session.add(models.Studio(system_id=uuid.uuid4(), name_en="シャフト"))
     db_session.flush()
 
     sheets(

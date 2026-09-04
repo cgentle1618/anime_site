@@ -22,7 +22,7 @@ def test_interior_whitespace_variants_are_flagged(db_session):
 
 def test_full_width_variants_are_flagged(db_session):
     db_session.add_all(
-        [models.Studio(name_native="MAPPA"), models.Studio(name_native="ＭＡＰＰＡ")]
+        [models.Studio(name_en="MAPPA"), models.Studio(name_en="ＭＡＰＰＡ")]
     )
     db_session.commit()
     found = find_duplicate_entities(db_session)
@@ -31,7 +31,7 @@ def test_full_width_variants_are_flagged(db_session):
 
 def test_a_person_and_a_studio_sharing_a_name_are_not_duplicates(db_session):
     db_session.add(models.Person(name_native="Ghibli"))
-    db_session.add(models.Studio(name_native="Ghibli"))
+    db_session.add(models.Studio(name_en="Ghibli"))
     db_session.commit()
     assert find_duplicate_entities(db_session) == []
 

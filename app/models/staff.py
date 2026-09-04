@@ -3,6 +3,7 @@
 import uuid
 
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -15,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
+from app.models.base import NameFallbackMixin
 
 
 class Person(Base):
@@ -106,36 +108,68 @@ class PersonRole(Base):
     person = relationship("Person", back_populates="roles")
 
 
-class Studio(Base):
+class Studio(Base, NameFallbackMixin):
     """
     One anime production studio.
 
     Publishers and distributors are deliberately NOT here - they need no
     profile, so they stay a single "Publisher / Distributor TW" vocabulary in
-    system_option, which is what fixes the old three-way split across
-    "Distributor TW", "Manga Publisher TW" and "Novel Publisher TW".
+    system_option.
+
+    All four names are nullable and at least one must be set: a studio is
+    known by whichever names it is known by, and requiring a specific one
+    would force a made-up value. display_name_field picks the one to show;
+    see the display_name property for the fallback when it is NULL.
     """
 
     __tablename__ = "studio"
     __table_args__ = (
-        # NULLS NOT DISTINCT - see the note on uq_person_name; name_en is
-        # NULL on all 74 backfilled studios, so the plain constraint was inert.
+        # NULLS NOT DISTINCT: three of the four name columns are NULL on a
+        # typical row, and Postgres treats two NULLs as distinct by default -
+        # without this the constraint is INERT and duplicates commit cleanly.
+        # Same lesson as uq_person_name and uq_media_credit_row.
         UniqueConstraint(
-            "name_native",
             "name_en",
+            "name_cn",
+            "name_jp",
+            "name_alt",
             name="uq_studio_name",
             postgresql_nulls_not_distinct=True,
         ),
+        CheckConstraint(
+            "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
+            name="ck_studio_has_a_name",
+        ),
+        CheckConstraint(
+            r"founded_date IS NULL OR founded_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_studio_founded_date",
+        ),
+        CheckConstraint(
+            r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_studio_defunct_date",
+        ),
     )
+
+    _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    name_native = Column(String, nullable=False, index=True)
-    name_en = Column(String, nullable=True)
+    name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
+    name_jp = Column(String, nullable=True)
+    name_alt = Column(String, nullable=True)
+    # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
+    display_name_field = Column(String, nullable=True)
     my_rating = Column(String, nullable=True)
     logo_file = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
+    # Truncated ISO-8601, the format owned by app/utils/release_date.py.
+    founded_date = Column(String, nullable=True)
+    defunct_date = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    website_url = Column(String, nullable=True)
+    mal_id = Column(Integer, nullable=True)
+    mal_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -46,9 +46,9 @@ def test_two_people_with_the_same_name_and_no_english_name_collide(db_session):
 
 
 def test_two_studios_with_the_same_name_and_no_english_name_collide(db_session):
-    db_session.add(models.Studio(name_native="Dup Studio"))
+    db_session.add(models.Studio(name_en="Dup Studio"))
     db_session.flush()
-    db_session.add(models.Studio(name_native="Dup Studio"))
+    db_session.add(models.Studio(name_en="Dup Studio"))
     with pytest.raises(IntegrityError):
         db_session.flush()
 

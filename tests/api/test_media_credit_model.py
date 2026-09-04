@@ -18,7 +18,7 @@ def person(db_session):
 
 @pytest.fixture
 def studio(db_session):
-    s = models.Studio(name_native="MAPPA")
+    s = models.Studio(name_en="MAPPA")
     db_session.add(s)
     db_session.commit()
     return s

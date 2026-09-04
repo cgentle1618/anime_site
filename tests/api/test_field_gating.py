@@ -139,7 +139,7 @@ def test_gating_does_not_erase_the_stored_value(
 # ---------------------------------------------------------------------------
 
 def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
-    studio = models.Studio(system_id=uuid.uuid4(), name_native="Zvornik Studio")
+    studio = models.Studio(system_id=uuid.uuid4(), name_en="Zvornik Studio")
     db_session.add(studio)
     db_session.flush()
     db_session.add(
