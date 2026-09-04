@@ -102,6 +102,8 @@ from app.schemas.novel import (
     NovelCreate,
     NovelResponse,
     NovelSheetSync,
+    NovelUnitResponse,
+    NovelUnitWrite,
     NovelUpdate,
 )
 from app.schemas.plan_next import (
@@ -285,6 +287,8 @@ __all__ = [
     "NovelUpdate",
     "NovelResponse",
     "NovelSheetSync",
+    "NovelUnitResponse",
+    "NovelUnitWrite",
     "WatchOrderItemBase",
     "WatchOrderItemCreate",
     "WatchOrderItemUpdate",

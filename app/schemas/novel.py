@@ -1,13 +1,49 @@
 """Novel request/response schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import NovelLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.services.domain.novel_units import unit_display_key
+
+
+class NovelUnitWrite(BaseModel):
+    """
+    One unit as the client sends it. system_id present means "update this
+    row"; absent means "insert". Rows the payload omits are deleted — see
+    write_novel_units.
+    """
+
+    system_id: Optional[UUID] = None
+    unit_kind: Literal["volume", "arc", "story", "chapter"]
+    position: float
+    unit_key: Optional[str] = None
+    name_cn: Optional[str] = None
+    name_en: Optional[str] = None
+    remark: Optional[str] = None
+    ch_count: Optional[float] = None
+
+
+class NovelUnitResponse(BaseModel):
+    system_id: UUID
+    unit_kind: str
+    position: float
+    unit_key: Optional[str] = None
+    name_cn: Optional[str] = None
+    name_en: Optional[str] = None
+    remark: Optional[str] = None
+    ch_count: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def display_key(self) -> str:
+        return unit_display_key(self.unit_kind, self.position, self.unit_key)
 
 
 class NovelBase(BaseModel):
@@ -19,15 +55,6 @@ class NovelBase(BaseModel):
     novel_name_roman: Optional[str] = None
     novel_name_jp: Optional[str] = None
     novel_name_alt: Optional[str] = None
-    novel_name_each_cn: Optional[list] = None
-    novel_name_each_en: Optional[list] = None
-
-    @field_validator("novel_name_each_cn", "novel_name_each_en", mode="before")
-    @classmethod
-    def _coerce_each_to_list(cls, v):
-        if isinstance(v, dict):
-            return [{"key": k, "name": n} for k, n in v.items()]
-        return v
 
     region: Optional[str] = None
     type: Optional[str] = None
@@ -43,6 +70,7 @@ class NovelBase(BaseModel):
     arc_fin: float = 0
     ch_total: Optional[float] = None
     ch_fin: float = 0
+    ch_fin_in_arc: float = 0
     progress_display: Optional[str] = None
 
     my_rating: Optional[str] = None
@@ -61,6 +89,10 @@ class NovelBase(BaseModel):
     anilist_link: Optional[str] = None
 
     source_other: Optional[dict] = None
+
+    # Popped out of the payload by the router before the model is built;
+    # see MediaTypeSpec.nested_collections.
+    units: Optional[List[NovelUnitWrite]] = None
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
@@ -81,6 +113,7 @@ class NovelUpdate(NovelBase):
 
 class NovelResponse(NovelBase, NovelLinkFields):
     system_id: UUID
+    units: List[NovelUnitResponse] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
