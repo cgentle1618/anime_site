@@ -139,6 +139,11 @@ export const COMMON_FIELD_META = {
   //   studio -> /api/studio
   // Splitting these is the point of the redesign: a director is an entity
   // with a profile, a genre is a vocabulary value.
+  //
+  // A person source always carries BOTH role and scope, and the scope is a
+  // hyphenated media-type key. person_role rows are all scoped now, so a
+  // roleless or scopeless query would match nobody — there is no "offered
+  // everywhere" state left for it to fall back on.
   studio: {
     label: "Studio",
     control: "tags",
@@ -304,13 +309,13 @@ export const TYPE_FIELD_META = {
     producer: {
       label: "Producer",
       control: "tags",
-      source: { kind: "person", role: "producer" },
+      source: { kind: "person", role: "producer", scope: "anime" },
       group: "Credits",
     },
     music: {
       label: "Music / Composer",
       control: "tags",
-      source: { kind: "person", role: "composer" },
+      source: { kind: "person", role: "composer", scope: "anime" },
       group: "Credits",
     },
     distributor_tw: {
@@ -349,6 +354,16 @@ export const TYPE_FIELD_META = {
       control: "text",
       group: "Release",
     },
+    // Overrides the common director only to correct its scope. Before the
+    // role collapse one `anime` scope served both anime and anime movies, so
+    // this tab inherited the common descriptor untouched; the scope is now
+    // the media type, and an anime-movie director is scoped anime-movie.
+    director: {
+      label: "Director",
+      control: "tags",
+      source: { kind: "person", role: "director", scope: "anime-movie" },
+      group: "Credits",
+    },
   },
 
   movie: {
@@ -369,7 +384,7 @@ export const TYPE_FIELD_META = {
     director: {
       label: "Director",
       control: "tags",
-      source: { kind: "person", role: "director", scope: "non_anime" },
+      source: { kind: "person", role: "director", scope: "movie" },
       group: "Credits",
     },
     source_official: {
@@ -459,16 +474,19 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
+    // 原作 and 作畫 are two roles, not two credits of one role. They shared
+    // `manga_author` before the collapse, which is why one person could not be
+    // offered for the plot without also being offered for the art.
     author_plot: {
       label: "Author (Plot)",
       control: "tags",
-      source: { kind: "person", role: "manga_author" },
+      source: { kind: "person", role: "author", scope: "manga" },
       group: "Credits",
     },
     author_draw: {
       label: "Author (Art)",
       control: "tags",
-      source: { kind: "person", role: "manga_author" },
+      source: { kind: "person", role: "illustrator", scope: "manga" },
       group: "Credits",
     },
     // Column was not migrated — it points at the adaptation studio, not a
@@ -555,13 +573,13 @@ export const TYPE_FIELD_META = {
     author: {
       label: "Author",
       control: "tags",
-      source: { kind: "person", role: "novel_author" },
+      source: { kind: "person", role: "author", scope: "novel" },
       group: "Credits",
     },
     illustrator: {
       label: "Illustrator",
       control: "tags",
-      source: { kind: "person", role: "novel_illustrator" },
+      source: { kind: "person", role: "illustrator", scope: "novel" },
       group: "Credits",
     },
     publisher_tw: {
@@ -631,13 +649,13 @@ export const TYPE_FIELD_META = {
     writer: {
       label: "Writer",
       control: "tags",
-      source: { kind: "person", role: "comic_writer" },
+      source: { kind: "person", role: "author", scope: "comic" },
       group: "Credits",
     },
     artist: {
       label: "Artist",
       control: "tags",
-      source: { kind: "person", role: "comic_artist" },
+      source: { kind: "person", role: "illustrator", scope: "comic" },
       group: "Credits",
     },
     publisher: {
@@ -725,6 +743,14 @@ export const TYPE_FIELD_META = {
 // Fetched once at page load (one /api/person request per pair) rather than
 // fetched-then-filtered like options, because PersonResponse does not carry
 // role/scope — the API only knows how to filter server-side.
+//
+// Eleven descriptors, eleven pairs — none of them coincide any more. They used
+// to: before the role collapse, anime and anime-movie shared one `anime`
+// director scope, and manga's 原作 and 作畫 shared `manga_author`. Now that
+// the scope IS the media type, every field asks for its own pair.
+// fieldOptions.test.js pins the count, so a mistyped scope surfaces as a
+// changed request count rather than as a dropdown that quietly comes back
+// empty.
 function collectPersonSources() {
   const groups = [COMMON_FIELD_META, ...Object.values(TYPE_FIELD_META)];
   const seen = new Map();

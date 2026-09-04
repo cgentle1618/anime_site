@@ -519,7 +519,21 @@ The ten person-sourced fields move to the collapsed pairs:
 | comic artist | `comic_artist` / — | `illustrator` / `comic` |
 
 `sources.js` needs no change — it already fetches one request per distinct
-`{role, scope}` pair. The pair count rises from 7 to 10.
+`{role, scope}` pair. The pair count rises from **9 to 11** (measured against
+the file, not estimated).
+
+Two of those eleven are new pairs rather than edited ones, and both come from
+collisions the old vocabulary hid:
+
+- **anime-movie had no director descriptor at all.** `TYPE_FIELD_META["anime-movie"]`
+  carried only names and release dates, so the tab inherited
+  `COMMON_FIELD_META.director` — scope `anime` — through the shallow spread in
+  `formFields/index.js`. One `anime` scope legitimately served both anime and
+  anime movies before the collapse. Now that the scope is the media type, this
+  tab needs its own override supplying the whole `source` object.
+- **manga's 原作 and 作畫 both pointed at `manga_author`**, which is why one
+  person could not be offered for the plot without also being offered for the
+  art. They are now two distinct pairs.
 
 ## Testing
 

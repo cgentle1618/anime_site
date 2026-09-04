@@ -80,14 +80,27 @@ describe("buildCreateRequest", () => {
     });
   });
 
-  it("posts a scopeless person role with scope: null", () => {
+  it("carries a non-anime scope through unchanged", () => {
+    const [, init] = buildCreateRequest(
+      { kind: "person", role: "illustrator", scope: "comic" },
+      "New Artist",
+    );
+    expect(JSON.parse(init.body).roles).toEqual([
+      { role: "illustrator", scope: "comic" },
+    ]);
+  });
+
+  it("does not invent a null scope for a descriptor that lacks one", () => {
+    // Replaces "posts a scopeless person role with scope: null". Every
+    // descriptor carries a scope now and the API rejects a role without a
+    // legal one, so sending scope: null would guarantee a 422 rather than
+    // meaning "offered everywhere". A malformed descriptor should surface as
+    // a failed create, not be quietly padded into an invalid request.
     const [, init] = buildCreateRequest(
       { kind: "person", role: "composer" },
       "New Composer",
     );
-    expect(JSON.parse(init.body).roles).toEqual([
-      { role: "composer", scope: null },
-    ]);
+    expect(JSON.parse(init.body).roles[0]).not.toHaveProperty("scope", null);
   });
 
   it("posts an option with its category and scope array", () => {

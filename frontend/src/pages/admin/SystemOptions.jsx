@@ -22,38 +22,55 @@ import { scopeChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
 
 // Tier 3 is the one section with no endpoint that describes itself, because
-// the interesting fact is historical: which old system_options category each
+// the interesting fact is historical: which old system_options categories each
 // entity role replaced. Mirrors the "Became Entities" table in
 // docs/options.md - keep the two in step.
+//
+// A row is one LIVE role, not one old category, because the role collapse made
+// that mapping many-to-one: Manga Author, Novel Author and Comic Writer all
+// became `author`. The Records column reads /api/person/role-counts, which
+// tallies per role and knows nothing of scope, so a row per old category would
+// have printed the same author total three times and invited an admin to add
+// them up.
 const TIER3_ROWS = [
   {
-    oldCategory: "Studio",
+    oldCategories: ["Studio"],
     home: "studio",
     roleKey: null,
     detail: "credited via media_credit role studio",
   },
   {
-    oldCategory: "Director",
+    oldCategories: ["Director"],
     home: "person",
     roleKey: "director",
-    detail: "scoped anime / non_anime on person_role",
+    detail: "scoped by media type on person_role: anime, anime-movie, movie",
   },
-  { oldCategory: "Producer", home: "person", roleKey: "producer" },
-  { oldCategory: "Music / Composer", home: "person", roleKey: "composer" },
   {
-    oldCategory: "Manga Author",
+    oldCategories: ["Producer"],
     home: "person",
-    roleKey: "manga_author",
-    detail: "two credit roles imply it: 原作 and 作画",
+    roleKey: "producer",
+    detail: "scoped anime on person_role",
   },
-  { oldCategory: "Novel Author", home: "person", roleKey: "novel_author" },
   {
-    oldCategory: "Novel Illustrator",
+    oldCategories: ["Music / Composer"],
     home: "person",
-    roleKey: "novel_illustrator",
+    roleKey: "composer",
+    detail: "scoped anime on person_role",
   },
-  { oldCategory: "Comic Writer", home: "person", roleKey: "comic_writer" },
-  { oldCategory: "Comic Artist", home: "person", roleKey: "comic_artist" },
+  {
+    oldCategories: ["Manga Author", "Novel Author", "Comic Writer"],
+    home: "person",
+    roleKey: "author",
+    detail:
+      "one role, three labels: 原作 on manga, Author on a novel, Writer on a comic",
+  },
+  {
+    oldCategories: ["Manga Author", "Novel Illustrator", "Comic Artist"],
+    home: "person",
+    roleKey: "illustrator",
+    detail:
+      "作畫 on manga, Illustrator on a novel, Artist on a comic. Manga Author covered this half too before the split",
+  },
 ];
 
 // Two Tier 1 keys knowingly disagree with their Enum class in Python. The
@@ -393,7 +410,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
         tier="3"
         title="Entities"
         source="person / person_role / studio"
-        subtitle="Categories that named a person or a studio became real tables — a director needs multilingual names, a rating, a photo and a remark, none of which a flat (category, value) string could hold. Counts are of distinct records; a director scoped both ways is still one person."
+        subtitle="Categories that named a person or a studio became real tables — a director needs multilingual names, a rating, a photo and a remark, none of which a flat (category, value) string could hold. Counts are of distinct records; a director scoped for all three of their media types is still one person."
       >
         <ReadOnlyNote>
           View only here. People and studios are managed on their own forms in{" "}
@@ -436,7 +453,9 @@ function Tier3({ roleCounts, studioCount, loading }) {
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
             <tr>
-              <th className="text-left font-black px-3 py-2">Old category</th>
+              <th className="text-left font-black px-3 py-2">
+                Old categories
+              </th>
               <th className="text-left font-black px-3 py-2">New home</th>
               <th className="text-left font-black px-3 py-2">Notes</th>
               <th className="text-right font-black px-3 py-2 w-24">Records</th>
@@ -444,9 +463,9 @@ function Tier3({ roleCounts, studioCount, loading }) {
           </thead>
           <tbody className="divide-y divide-border">
             {TIER3_ROWS.map((row) => (
-              <tr key={row.oldCategory}>
+              <tr key={row.roleKey ?? row.home}>
                 <td className="px-3 py-2 font-semibold text-text">
-                  {row.oldCategory}
+                  {row.oldCategories.join(" · ")}
                 </td>
                 <td className="px-3 py-2">
                   <code className="text-xs font-mono text-text-muted">

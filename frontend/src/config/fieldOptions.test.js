@@ -7,6 +7,11 @@ import {
   PERSON_ROLES,
   applyConstants,
 } from "./fieldOptions";
+import {
+  COMMON_FIELD_META,
+  PERSON_SOURCES,
+  TYPE_FIELD_META,
+} from "./formFields/fieldMeta";
 
 // applyConstants mutates AIRING_STATUSES (and the other bundled arrays) IN
 // PLACE, so capture the true original contents once, before any test runs,
@@ -92,5 +97,60 @@ describe("declared option categories", () => {
     applyConstants({ option_categories: ["Genre Main", "Quality"] });
     expect(OPTION_CATEGORIES).toBe(before);
     expect(OPTION_CATEGORIES).toEqual(["Genre Main", "Quality"]);
+  });
+});
+
+// Every person-sourced dropdown queries /api/person?role=&scope=. person_role
+// rows are all scoped now, so a descriptor missing either half matches nobody
+// and the field silently offers an empty list - the failure this block exists
+// to catch, since nothing else in the app reads these strings until a user
+// opens the form.
+const LEGAL = {
+  director: ["anime", "anime-movie", "movie"],
+  producer: ["anime"],
+  composer: ["anime"],
+  author: ["manga", "novel", "comic"],
+  illustrator: ["manga", "novel", "comic"],
+};
+
+function everyMeta() {
+  return [COMMON_FIELD_META, ...Object.values(TYPE_FIELD_META)].flatMap((g) =>
+    Object.values(g),
+  );
+}
+
+describe("person field sources", () => {
+  it("every person source names a role and a scope", () => {
+    for (const meta of everyMeta()) {
+      if (meta.source?.kind !== "person") continue;
+      expect(meta.source.role, JSON.stringify(meta.source)).toBeTruthy();
+      expect(meta.source.scope, JSON.stringify(meta.source)).toBeTruthy();
+    }
+  });
+
+  it("every scope is legal for its role", () => {
+    for (const meta of everyMeta()) {
+      if (meta.source?.kind !== "person") continue;
+      expect(LEGAL[meta.source.role]).toContain(meta.source.scope);
+    }
+  });
+
+  it("no retired role key survives", () => {
+    const retired = [
+      "manga_author",
+      "novel_author",
+      "novel_illustrator",
+      "comic_writer",
+      "comic_artist",
+      "non_anime",
+    ];
+    const json = JSON.stringify([COMMON_FIELD_META, TYPE_FIELD_META]);
+    for (const key of retired) expect(json).not.toContain(`"${key}"`);
+  });
+
+  it("asks for eleven distinct role/scope pairs", () => {
+    const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
+    expect(new Set(keys).size).toBe(11);
+    expect(keys).toHaveLength(11);
   });
 });

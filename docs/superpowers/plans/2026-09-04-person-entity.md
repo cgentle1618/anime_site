@@ -1690,8 +1690,8 @@ Pure config. Nothing renders differently yet, but every dropdown starts asking
 for the right `{role, scope}` pair.
 
 **Files:**
-- Modify: `frontend/src/config/formFields/fieldMeta.js` (lines 151, 307, 313, 322, 372, 465, 471, 558, 564, 634, 640)
-- Modify: `frontend/src/pages/admin/SystemOptions.jsx:26-57` (`BECAME_ENTITIES`)
+- Modify: `frontend/src/config/formFields/fieldMeta.js` — **find the descriptors by searching `kind: "person"`; the line numbers in this plan drifted and several are wrong**
+- Modify: `frontend/src/pages/admin/SystemOptions.jsx:28-57` (`TIER3_ROWS` — `BECAME_ENTITIES` is the name of the *docs* table it mirrors, not the constant)
 - Modify: `frontend/src/lib/ensureSourceValues.js`
 - Test: `frontend/src/config/fieldOptions.test.js`, `frontend/src/lib/ensureSourceValues.test.js`
 
@@ -1751,10 +1751,10 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for ten distinct role/scope pairs", () => {
+  it("asks for eleven distinct role/scope pairs", () => {
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(10);
-    expect(keys).toHaveLength(10);
+    expect(new Set(keys).size).toBe(11);
+    expect(keys).toHaveLength(11);
   });
 });
 ```
@@ -1771,7 +1771,7 @@ Expected: FAIL — retired keys present
 | anime director (151) | `director` / `anime` | unchanged |
 | anime producer (307) | `producer` / — | `producer` / `anime` |
 | anime music (313) | `composer` / — | `composer` / `anime` |
-| anime-movie director (322 area) | `director` / `anime` | `director` / `anime-movie` |
+| anime-movie director | **no descriptor exists** — inherited `COMMON_FIELD_META.director` (`anime`) via the shallow spread in `formFields/index.js` | ADD an override supplying the whole `source` object |
 | movie director (372) | `director` / `non_anime` | `director` / `movie` |
 | manga 原作 (465) | `manga_author` / — | `author` / `manga` |
 | manga 作畫 (471) | `manga_author` / — | `illustrator` / `manga` |
@@ -2256,6 +2256,10 @@ they were.
 - `frontend/pages.md`, `frontend/admin-pages.md`, `frontend/components.md` —
   the public pages, the Entity → Person tab, `PersonSubTabBar`.
 - `notes/migrations-history.md` — both revisions.
+- `options.md` — its "Became Entities" table is mirrored by `TIER3_ROWS` in
+  `SystemOptions.jsx`, whose comment asks the two be kept in step. Task 7
+  re-keyed that array by live role (six rows, each listing the old categories
+  that folded into it); the table must follow or the two now disagree.
 - `roadmap.md` — add this work to "Done" (newest first). Remove the "Public
   person and studio pages deferred" debt line **only if** the studio session's
   half has also landed; otherwise leave their half. Do not rewrite the plan

@@ -49,7 +49,12 @@ export function buildCreateRequest(source, value) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name_native: value,
-          roles: [{ role: source.role, scope: source.scope || null }],
+          // No `|| null` fallback: every person source descriptor carries an
+          // explicit scope now, and PersonRoleIn.scope is required and
+          // validated against the role, so a null scope can only ever produce
+          // a 422. The fallback was the right shape when a role could be
+          // offered everywhere; there is no such state any more.
+          roles: [{ role: source.role, scope: source.scope }],
         }),
         credentials: "include",
       },
