@@ -44,3 +44,14 @@ def test_completing_a_volume_novel_is_unchanged():
     assert entry.vol_fin == 12
     assert entry.vol_total_tw == 12
     assert entry.ch_fin_in_arc == 0
+
+
+def test_completing_an_already_finished_arc_novel_is_idempotent():
+    entry = novel(units=[arc(1, 50), arc(2, 60)], arc_fin=2, ch_fin_in_arc=0)
+    mark_novel_completed(entry)
+    assert entry.reading_status == "Completed"
+    assert entry.serialization_status == "完結"
+    assert entry.arc_fin == 2
+    assert entry.ch_fin_in_arc == 0
+    assert entry.ch_fin == 110
+    assert entry.ch_total == 110

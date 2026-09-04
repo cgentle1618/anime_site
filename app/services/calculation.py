@@ -6,7 +6,7 @@ Wraps single-entry logic from services.domain for bulk application across the DB
 
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     Anime,
@@ -505,7 +505,7 @@ def run_sync_novel(db: Session) -> dict:
     # Re-derive from the unit rows so a Sheets restore, which writes rows
     # straight to the tables without going through the router, lands with
     # consistent totals.
-    for entry in db.query(Novel).all():
+    for entry in db.query(Novel).options(selectinload(Novel.units)).all():
         derive_novel_progress(entry)
     db.commit()
     return {
