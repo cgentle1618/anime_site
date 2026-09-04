@@ -21,6 +21,7 @@ import {
   formatLength,
   parseTypes,
   MEDIA_CONFIG,
+  getNovelProgress,
 } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
@@ -404,10 +405,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "arc_ch") {
       return (
         <span className="font-mono text-[10px] text-text-muted tabular-nums">
-          {data.arc_fin ?? 0}/{data.arc_total ?? "?"}
-          <span className={UNIT_CLS}>arc</span> &nbsp;
-          {data.ch_fin ?? 0}/{data.ch_total ?? "?"}
-          <span className={UNIT_CLS}>ch</span>
+          {getNovelProgress(data)}
         </span>
       );
     }

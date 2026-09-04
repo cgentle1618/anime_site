@@ -552,7 +552,7 @@ export const TYPE_FIELD_META = {
       group: "Progress",
     },
     vol_total_original: {
-      label: "Total Volumes (Original)",
+      label: "Total Volumes (JP/KR)",
       control: "number",
       group: "Progress",
     },

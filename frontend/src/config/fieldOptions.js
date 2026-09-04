@@ -86,13 +86,32 @@ export const NOVEL_SERIALIZATION_STATUSES = [
 ];
 
 // Progress display uses {value, label} pairs — the stored value is a short code.
+// Decision G: with the novel `type` now driving structure (units/arcs), the
+// only genuine remaining choice is JP/KR volumes vs TW volumes, so this list
+// narrows to that. Older stored values (ch, vol_original, arc_ch) are still
+// rendered on the detail/card views (see getNovelProgress in lib/formatters.js
+// and MediaCard.jsx) — narrowing the offered choice must not blank them.
 export const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
+  { value: "", label: "— Default (VOL JP/KR) —" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
 ];
+
+// A <select> bound to PROGRESS_DISPLAY_OPTIONS must still show a value stored
+// before the Decision G narrowing (e.g. "ch", "vol_original", "arc_ch")
+// instead of silently reverting to the default option. This appends it back
+// as a labelled, selectable entry when it isn't one of the current choices.
+export function withLegacyProgressDisplay(currentValue) {
+  if (
+    !currentValue ||
+    PROGRESS_DISPLAY_OPTIONS.some((o) => o.value === currentValue)
+  ) {
+    return PROGRESS_DISPLAY_OPTIONS;
+  }
+  return [
+    ...PROGRESS_DISPLAY_OPTIONS,
+    { value: currentValue, label: `${currentValue} (legacy)` },
+  ];
+}
 
 export const RELEASE_SEASONS = ["WIN", "SPR", "SUM", "FAL"];
 

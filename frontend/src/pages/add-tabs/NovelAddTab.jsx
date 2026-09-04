@@ -357,7 +357,7 @@ export default function NovelAddTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Vol Total (Original)">
+        <Field label="Total Volumes (JP/KR)">
           <input
             className={inputCls}
             type="number"

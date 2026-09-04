@@ -5,7 +5,9 @@ import {
   MEDIA_TYPES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
+  PROGRESS_DISPLAY_OPTIONS,
   applyConstants,
+  withLegacyProgressDisplay,
 } from "./fieldOptions";
 import {
   COMMON_FIELD_META,
@@ -152,5 +154,42 @@ describe("person field sources", () => {
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
     expect(new Set(keys).size).toBe(11);
     expect(keys).toHaveLength(11);
+  });
+});
+
+// Decision G: with the novel `type` driving structure (units/arcs), the only
+// genuine remaining choice for progress_display is JP/KR volumes vs TW
+// volumes. NovelModifyTab.jsx and NovelTrackerBlock.jsx used to keep their
+// own hand-written copies of this list, which had already drifted from
+// config/fieldOptions.js's — they must read this one shared list instead.
+describe("PROGRESS_DISPLAY_OPTIONS (Decision G narrowing)", () => {
+  it("offers only the default (JP/KR) and the TW alternative", () => {
+    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual(["", "vol_tw"]);
+  });
+
+  it("no longer offers the retired ch/vol_original/arc_ch choices", () => {
+    const values = PROGRESS_DISPLAY_OPTIONS.map((o) => o.value);
+    expect(values).not.toContain("ch");
+    expect(values).not.toContain("vol_original");
+    expect(values).not.toContain("arc_ch");
+  });
+});
+
+describe("withLegacyProgressDisplay", () => {
+  it("returns the narrowed list unchanged when there is no stored value", () => {
+    expect(withLegacyProgressDisplay(null)).toBe(PROGRESS_DISPLAY_OPTIONS);
+    expect(withLegacyProgressDisplay("")).toBe(PROGRESS_DISPLAY_OPTIONS);
+  });
+
+  it("returns the narrowed list unchanged when the stored value is still offered", () => {
+    expect(withLegacyProgressDisplay("vol_tw")).toBe(PROGRESS_DISPLAY_OPTIONS);
+  });
+
+  it("appends a stored value from before the narrowing so it keeps rendering as selected", () => {
+    const withLegacy = withLegacyProgressDisplay("arc_ch");
+    expect(withLegacy).toHaveLength(PROGRESS_DISPLAY_OPTIONS.length + 1);
+    expect(withLegacy.find((o) => o.value === "arc_ch")).toBeTruthy();
+    // The narrowed list itself is untouched.
+    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual(["", "vol_tw"]);
   });
 });

@@ -726,8 +726,6 @@ export default function Modify() {
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
-    const novel_name_each_cn = n.novel_name_each_cn || [];
-    const novel_name_each_en = n.novel_name_each_en || [];
     return {
       novel_name_cn: n.novel_name_cn || "",
       novel_name_en: n.novel_name_en || "",
@@ -761,8 +759,7 @@ export default function Modify() {
       release_date: n.release_date ?? "",
       end_date: n.end_date ?? "",
       read_order: n.read_order ?? "",
-      novel_name_each_cn,
-      novel_name_each_en,
+      units: n.units || [],
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
       anilist_link: n.anilist_link || "",
@@ -1862,19 +1859,6 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    const novelNameEachCn =
-      (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
-        ? (cnvf.novel_name_each_cn || [])
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-    const novelNameEachEn =
-      (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
-        ? (cnvf.novel_name_each_en || [])
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-
     // Auto-create missing entities for author, illustrator, publisher_tw
     await ensureSourceValues([
       {
@@ -1929,8 +1913,19 @@ export default function Modify() {
       release_date: cnvf.release_date || null,
       end_date: cnvf.end_date || null,
       read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
-      novel_name_each_cn: novelNameEachCn,
-      novel_name_each_en: novelNameEachEn,
+      units: (cnvf.units || [])
+        .filter(
+          (u) =>
+            (u.unit_key && u.unit_key.trim()) ||
+            (u.name_cn && u.name_cn.trim()) ||
+            (u.name_en && u.name_en.trim()) ||
+            u.ch_count !== "",
+        )
+        .map((u, i) => ({
+          ...u,
+          position: i + 1,
+          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+        })),
       mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
       mal_link: cnvf.mal_link || null,
       anilist_link: cnvf.anilist_link || null,

@@ -19,16 +19,9 @@ import {
   NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
   READING_STATUSES,
   MY_RATINGS,
+  withLegacyProgressDisplay,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-
-const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
-  { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
-];
 
 export default function NovelModifyTab({
   franchiseCollections,
@@ -263,7 +256,7 @@ export default function NovelModifyTab({
           value={cnvf.progress_display || ""}
           onChange={(e) => unv("progress_display", e.target.value)}
         >
-          {PROGRESS_DISPLAY_OPTIONS.map((o) => (
+          {withLegacyProgressDisplay(cnvf.progress_display).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -271,7 +264,7 @@ export default function NovelModifyTab({
         </select>
       </Field>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Vol Total (Original)">
+        <Field label="Total Volumes (JP/KR)">
           <input
             className={inputCls}
             type="number"

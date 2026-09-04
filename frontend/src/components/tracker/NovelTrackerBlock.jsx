@@ -2,15 +2,10 @@
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
 import StatusOptions from "../ui/StatusOptions";
-import { READING_STATUSES } from "../../config/fieldOptions";
-
-const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
-  { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
-];
+import {
+  READING_STATUSES,
+  withLegacyProgressDisplay,
+} from "../../config/fieldOptions";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -161,9 +156,11 @@ export default function NovelTrackerBlock({
               onChange={(e) => isAdmin && onProgressDisplayChange(e.target.value)}
               className={SELECT_CLS}
             >
-              {PROGRESS_DISPLAY_OPTIONS.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
+              {withLegacyProgressDisplay(novel.progress_display).map(
+                ({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ),
+              )}
             </select>
           </div>
         </div>

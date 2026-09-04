@@ -1895,19 +1895,6 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    const novelNameEachCn =
-      nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
-        ? nvf.novel_name_each_cn
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-    const novelNameEachEn =
-      nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
-        ? nvf.novel_name_each_en
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-
     // Auto-create missing entities for author, illustrator, publisher_tw
     await ensureSourceValues([
       {
@@ -1962,14 +1949,19 @@ export default function Add() {
       release_date: nvf.release_date || null,
       end_date: nvf.end_date || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
-      novel_name_each_cn:
-        novelNameEachCn && Object.keys(novelNameEachCn).length > 0
-          ? novelNameEachCn
-          : null,
-      novel_name_each_en:
-        novelNameEachEn && Object.keys(novelNameEachEn).length > 0
-          ? novelNameEachEn
-          : null,
+      units: (nvf.units || [])
+        .filter(
+          (u) =>
+            (u.unit_key && u.unit_key.trim()) ||
+            (u.name_cn && u.name_cn.trim()) ||
+            (u.name_en && u.name_en.trim()) ||
+            u.ch_count !== "",
+        )
+        .map((u, i) => ({
+          ...u,
+          position: i + 1,
+          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+        })),
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
       anilist_link: nvf.anilist_link || null,

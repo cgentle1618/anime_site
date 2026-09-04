@@ -13,9 +13,11 @@ import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
+import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
   Button,
+  Chip,
   Eyebrow,
   ProgressRule,
   RatingStamp,
@@ -30,11 +32,94 @@ const textareaCls =
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-// BelongingNovelsCard (CN/EN per-volume title editor) lived here; it read
-// novel_name_each_cn/_en, which the backend replaced with the `units`
-// relationship (see app/models/novel.py NovelUnit). Task 11 owns the real
-// units rendering for this detail page — this is a scope-minimum removal
-// so the deleted BelongingNovelsEditor import does not break lint/build.
+// BelongingNovelsCard (CN/EN per-volume title editor) used to live here; it
+// read novel_name_each_cn/_en, which the backend replaced with the `units`
+// relationship (see app/models/novel.py NovelUnit). NovelUnitsCard below is
+// its replacement: same read-only/editor split, but backed by `units` and
+// each row's server-computed `display_key` instead of a bare `{key, name}`.
+function NovelUnitsCard({ novel, isAdmin, onSave }) {
+  const [items, setItems] = useState(novel.units || []);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setItems(novel.units || []);
+    setDirty(false);
+  }, [novel.units]);
+
+  function handleSave() {
+    onSave({
+      units: items.map((u, i) => ({
+        ...u,
+        position: i + 1,
+        ch_count:
+          u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
+      })),
+    });
+    setDirty(false);
+  }
+
+  function handleCancel() {
+    setItems(novel.units || []);
+    setDirty(false);
+  }
+
+  const hasUnits = (novel.units || []).length > 0;
+  // Read-only viewers see nothing when there are no units — an empty
+  // "Units" card would just be a title over a blank box. Admins still get
+  // the editor (with its own "+ Add" control) so they can create the first
+  // one.
+  if (!isAdmin && !hasUnits) return null;
+
+  return (
+    <Slip title="Units">
+      <div className="space-y-4">
+        {isAdmin ? (
+          <>
+            <NovelUnitsEditor
+              items={items}
+              novelType={novel.type}
+              onChange={(v) => {
+                setItems(v);
+                setDirty(true);
+              }}
+            />
+            {dirty && (
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <Button type="button" kind="primary" size="sm" onClick={handleSave}>
+                  Save
+                </Button>
+                <Button type="button" size="sm" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-1.5">
+            {(novel.units || []).map((u) => (
+              <div key={u.system_id} className="flex items-center gap-2">
+                <Chip className="shrink-0">{u.display_key}</Chip>
+                {(u.name_cn || u.name_en) && (
+                  <span className="text-sm text-text">
+                    {[u.name_cn, u.name_en].filter(Boolean).join(" / ")}
+                  </span>
+                )}
+                {u.unit_kind === "arc" && u.ch_count != null && (
+                  <span className="text-xs font-mono text-text-faint">
+                    {u.ch_count} ch
+                  </span>
+                )}
+                {u.remark && (
+                  <span className="text-xs text-text-faint">{u.remark}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Slip>
+  );
+}
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Novel() {
@@ -401,7 +486,7 @@ export default function Novel() {
                 ],
                 [
                   {
-                    label: "Vol Total (Original)",
+                    label: "Total Volumes (JP/KR)",
                     value:
                       novel.vol_total_original != null
                         ? String(novel.vol_total_original)
@@ -486,6 +571,13 @@ export default function Novel() {
               ></textarea>
             </Slip>
           )}
+
+          {/* Units */}
+          <NovelUnitsCard
+            novel={novel}
+            isAdmin={isAdmin}
+            onSave={(payload) => performPatch(payload, "Units saved")}
+          />
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only when a remark
