@@ -645,8 +645,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "novel_name_roman": parse_from_sheet(raw.get("novel_name_roman"), str),
         "novel_name_jp": parse_from_sheet(raw.get("novel_name_jp"), str),
         "novel_name_alt": parse_from_sheet(raw.get("novel_name_alt"), str),
-        "novel_name_each_cn": _safe_json(raw.get("novel_name_each_cn")),
-        "novel_name_each_en": _safe_json(raw.get("novel_name_each_en")),
         "region": parse_from_sheet(raw.get("region"), str),
         "type": parse_from_sheet(raw.get("type"), str),
         "version": parse_from_sheet(raw.get("version"), str),
@@ -661,6 +659,7 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "arc_fin": parse_from_sheet(raw.get("arc_fin"), float) or 0.0,
         "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "ch_fin": parse_from_sheet(raw.get("ch_fin"), float) or 0.0,
+        "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float) or 0.0,
         "progress_display": parse_from_sheet(raw.get("progress_display"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
@@ -679,6 +678,30 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "source_other": _safe_json(raw.get("source_other")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_novel_unit_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Novel Unit sheet into typed data ready
+    for the Database.
+
+    novel_id goes through _uuid_or_none: unlike the entry tabs there is no
+    name to resolve a bad cell against, so anything unparseable must become
+    NULL rather than reach Postgres as a string.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "novel_id": _uuid_or_none(raw.get("novel_id")),
+        "unit_kind": parse_from_sheet(raw.get("unit_kind"), str),
+        "position": parse_from_sheet(raw.get("position"), float),
+        "unit_key": parse_from_sheet(raw.get("unit_key"), str),
+        "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "name_en": parse_from_sheet(raw.get("name_en"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "ch_count": parse_from_sheet(raw.get("ch_count"), float),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

@@ -51,6 +51,8 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Cartoons", models.Cartoon, f.parse_cartoon_from_sheet, "cartoon"),
     SheetTab("Manga", models.Manga, f.parse_manga_from_sheet, "manga"),
     SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel"),
+    # After Novel: novel_id is a real FK, so the parent rows must exist first.
+    SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
     SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic"),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.
     SheetTab("Watch Order List", models.WatchOrderList, f.parse_watch_order_list_from_sheet),
