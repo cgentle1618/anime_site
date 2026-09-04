@@ -6,6 +6,7 @@ leading apostrophe forces text and is stripped from the value on read.
 """
 
 from app.models import Anime, Movies
+from app.models.staff import Studio
 from app.utils.formatter import format_model_for_sheet
 
 
@@ -45,3 +46,13 @@ def test_both_regional_columns_are_escaped():
 def test_a_non_date_column_is_untouched():
     anime = Anime(anime_name_en="Cowboy Bebop", release_date="1998-04")
     assert _cell(Anime, anime, "anime_name_en") == "Cowboy Bebop"
+
+
+def test_studio_founded_date_is_escaped():
+    studio = Studio(name_en="X", founded_date="1985-04")
+    assert _cell(Studio, studio, "founded_date") == "'1985-04"
+
+
+def test_studio_defunct_date_is_escaped():
+    studio = Studio(name_en="X", defunct_date="2011")
+    assert _cell(Studio, studio, "defunct_date") == "'2011"

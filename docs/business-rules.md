@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit 818f4cd)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -65,9 +65,10 @@ one:
 | `comic`       | `release_date`                      |
 
 `DATE_COLUMNS` (keyed by `__tablename__`) is the wider list that also includes
-run-end columns (`manga.end_date`, `novel.end_date`, `comic.end_date`) and
-`movies.release_date_usa`; the Sheets backup formatter uses it to know which
-cells to protect with an apostrophe (see `docs/data-actions.md`).
+run-end columns (`manga.end_date`, `novel.end_date`, `comic.end_date`),
+`movies.release_date_usa`, and `studio.founded_date` / `studio.defunct_date`;
+the Sheets backup formatter uses it to know which cells to protect with an
+apostrophe (see `docs/data-actions.md`).
 
 ### Season is derived only at month precision
 

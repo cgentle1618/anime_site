@@ -117,7 +117,7 @@ def test_anime_movie_priority_puts_japan_first():
     assert RELEASE_PRIORITY["anime-movie"] == ("release_date_jp", "release_date_tw")
 
 
-def test_date_columns_cover_every_media_table():
+def test_date_columns_cover_every_table_with_truncated_iso_dates():
     assert set(DATE_COLUMNS) == {
         "anime",
         "anime_movies",
@@ -127,6 +127,7 @@ def test_date_columns_cover_every_media_table():
         "manga",
         "novel",
         "comic",
+        "studio",
     }
 
 
