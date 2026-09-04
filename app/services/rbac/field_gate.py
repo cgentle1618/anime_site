@@ -55,6 +55,11 @@ def gated_link_fields(viewer: Optional[Viewer], media_type: str) -> tuple[str, .
     return tuple(dict.fromkeys(out))
 
 
+def gated_source_buckets(viewer: Optional[Viewer]) -> tuple[str, ...]:
+    """media_source buckets to withhold. Real implementation in Task 7."""
+    return ()
+
+
 def gate(
     viewer: Optional[Viewer],
     media_type: str,
