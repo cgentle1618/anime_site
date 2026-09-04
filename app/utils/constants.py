@@ -89,6 +89,28 @@ MANGA_REGIONS: tuple[str, ...] = ("日漫", "韓漫", "國漫", "台漫", "其�
 NOVEL_REGIONS: tuple[str, ...] = ("JP", "CN", "TW", "KR", "Western")
 
 NOVEL_TYPES: tuple[str, ...] = ("Light Novel", "Novel", "Web", "Other")
+
+# Unit kinds a novel can hold. A plain map rather than a system_option
+# category: code branches on these (which kinds the editor offers, which
+# counter pair the tracker renders), and docs/options.md reserves
+# system_option for values nothing branches on.
+NOVEL_UNIT_KINDS = ("volume", "arc", "story", "chapter")
+
+NOVEL_UNIT_KINDS_BY_TYPE = {
+    "Light Novel": ("volume",),
+    "Novel": ("volume",),
+    "Web": ("arc",),
+    "Other": ("volume", "story", "chapter"),
+}
+
+# Prefix used when a unit has no unit_key of its own.
+NOVEL_UNIT_KEY_PREFIX = {
+    "volume": "Vol",
+    "arc": "Arc",
+    "story": "Story",
+    "chapter": "Ch",
+}
+
 COMIC_TYPES: tuple[str, ...] = ("Ongoing", "Limited", "One-Shot", "Annual")
 
 MANGA_SERIALIZATION_STATUSES: tuple[str, ...] = ("連載中", "停更", "腰斬", "完結")

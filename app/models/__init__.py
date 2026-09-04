@@ -18,7 +18,7 @@ from app.models.media_relation import MediaRelation
 from app.models.meme import Meme
 from app.models.movie import Movies
 from app.models.note import Note
-from app.models.novel import Novel
+from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.staff import Person, PersonRole, Studio
@@ -54,6 +54,7 @@ __all__ = [
     "Cartoon",
     "Manga",
     "Novel",
+    "NovelUnit",
     "Comic",
     "WatchOrderList",
     "WatchOrderItem",
