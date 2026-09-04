@@ -1,11 +1,13 @@
 """Novel unit schemas — write shape, response shape, display_key."""
 
 import uuid
+from typing import get_args
 
 import pytest
 from pydantic import ValidationError
 
 from app.schemas.novel import NovelBase, NovelUnitResponse, NovelUnitWrite
+from app.utils.constants import NOVEL_UNIT_KINDS
 
 
 def test_write_accepts_a_new_unit_without_system_id():
@@ -67,3 +69,8 @@ def test_novel_base_carries_units_and_the_in_arc_cursor():
 def test_the_old_json_lists_are_gone():
     assert "novel_name_each_cn" not in NovelBase.model_fields
     assert "novel_name_each_en" not in NovelBase.model_fields
+
+
+def test_unit_kind_literal_matches_the_constant():
+    annotation = NovelUnitWrite.model_fields["unit_kind"].annotation
+    assert get_args(annotation) == NOVEL_UNIT_KINDS
