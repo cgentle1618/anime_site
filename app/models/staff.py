@@ -84,8 +84,9 @@ class PersonRole(Base):
 
     Explicit rather than derived from credits: a director added today must be
     offered in the anime director dropdown before their first credit exists.
-    Only "director" is scoped (anime / non_anime); every other role means the
-    same thing everywhere and stores scope = NULL.
+    Every row carries a media-type scope; a person's visibility is the union of
+    their rows. Task 3 makes the column NOT NULL - see the design spec's
+    Decision B.
     """
 
     __tablename__ = "person_role"
@@ -111,7 +112,7 @@ class PersonRole(Base):
     )
     # One of credit_roles.PERSON_ROLES.
     role = Column(String, nullable=False, index=True)
-    # "anime" | "non_anime" for director; NULL for every other role.
+    # A hyphenated media-type key, and one of legal_scopes(role).
     scope = Column(String, nullable=True)
 
     person = relationship("Person", back_populates="roles")

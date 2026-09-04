@@ -5,27 +5,26 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from app.utils.credit_roles import PERSON_ROLES
-
-# The two values person_role.scope may carry, plus NULL. Deliberately NOT the
-# hyphenated media-type keys - director scope is anime vs non_anime, a
-# coarser split than the eight media types.
-PERSON_ROLE_SCOPES: frozenset[str] = frozenset({"anime", "non_anime"})
+from app.utils.credit_roles import PERSON_ROLES, legal_scopes
 
 
 class PersonRoleIn(BaseModel):
     """
-    One role a person is offered under.
+    One role a person is offered under, in one media type.
 
     Validated rather than free text because the frontend is now a routine
     writer of these strings: one typo'd `source.role` in a fieldMeta.js
     descriptor would otherwise mint a person holding a role no dropdown
     queries, invisible until someone wonders why a name they just typed is
     never suggested.
+
+    scope is REQUIRED. Every person_role row carries one, because there is no
+    "offered everywhere" state to fall back on - see the design spec's
+    Decision B for why removing it is what makes auto-scoping on write safe.
     """
 
     role: str
-    scope: Optional[str] = None
+    scope: str
 
     @field_validator("role")
     @classmethod
@@ -37,18 +36,20 @@ class PersonRoleIn(BaseModel):
             )
         return v
 
-    @field_validator("scope")
-    @classmethod
-    def _known_scope(cls, v: Optional[str]) -> Optional[str]:
-        if v in (None, ""):
-            return None
-        if v not in PERSON_ROLE_SCOPES:
+    @model_validator(mode="after")
+    def _scope_is_legal_for_role(self):
+        """
+        Checked as a PAIR, not per field. A per-field validator cannot see the
+        role, so it could never reject (composer, manga) - a scope that is a
+        real media type but names a credit that does not exist.
+        """
+        allowed = legal_scopes(self.role)
+        if self.scope not in allowed:
             raise ValueError(
-                f"'{v}' is not a person role scope. Expected one of: "
-                + ", ".join(sorted(PERSON_ROLE_SCOPES))
-                + ", or null."
+                f"'{self.scope}' is not a scope for the {self.role} role. "
+                "Expected one of: " + ", ".join(allowed)
             )
-        return v
+        return self
 
 
 class PersonBase(BaseModel):

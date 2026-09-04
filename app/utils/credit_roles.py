@@ -5,86 +5,80 @@ Deliberately shaped like app/utils/relation_kinds.py and MEDIA_TABLES in
 app/utils/media_resolver.py: a frozen dataclass per entry, a dict keyed by the
 value stored in the column, and a tuple of keys for validation.
 
-Credit roles and person roles are two vocabularies on purpose. Two credits can
-imply one role: 原作 (manga_author_plot) and 作画 (manga_author_draw) are
-distinct credits that share a single dropdown, exactly as the old single
-"Manga Author" option category behaved.
+ONE vocabulary. `media_credit.role` and `person_role.role` store the same five
+person keys plus `studio`; the key a credit stores IS the person role it
+implies. Before the collapse these were two lists that disagreed - 原作 and
+作画 were separate credit keys sharing one `manga_author` dropdown, while
+`novel_author` and `comic_writer` were separate person roles meaning the same
+thing.
 
-Director scope is never stored on the credit. It is derived from the media type
-on write and recorded on person_role, so a director can be offered in the anime
-dropdown before their first credit exists.
+What varies by media type is the LABEL, not the key: `author` reads 原作 on a
+manga, Author on a novel and Writer on a comic. credit_label() owns that.
+
+Scope is the media type. `person_role.scope` holds a hyphenated media-type key
+and is NOT NULL, so a role's `media_types` doubles as its legal scopes. The old
+anime/non_anime split and the director_scope_for() that derived it are gone.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class CreditRole:
     """One role a person or studio can be credited in."""
 
-    # Value stored in media_credit.role.
+    # Value stored in media_credit.role AND, for people, person_role.role.
     key: str
-    # Human label for the form and the docs.
+    # Human label, used wherever the media type does not override it below.
     label: str
     # Which entity table the credit points at: "person" or "studio".
     target: str
-    # The person_role this credit implies, or None for studio credits.
-    person_role: Optional[str]
     # Media type keys (hyphenated, from MEDIA_TABLES) that may use this role.
+    # For a person role this doubles as the set of legal person_role.scope
+    # values, because the scope IS the media type.
     media_types: tuple[str, ...]
 
 
 CREDIT_ROLES: dict[str, CreditRole] = {
-    "studio": CreditRole(
-        "studio", "Studio", "studio", None, ("anime", "anime-movie")
-    ),
+    "studio": CreditRole("studio", "Studio", "studio", ("anime", "anime-movie")),
     "director": CreditRole(
-        "director", "Director", "person", "director",
-        ("anime", "anime-movie", "movie"),
+        "director", "Director", "person", ("anime", "anime-movie", "movie")
     ),
-    "producer": CreditRole(
-        "producer", "Producer", "person", "producer", ("anime",)
-    ),
-    "composer": CreditRole(
-        "composer", "Music / Composer", "person", "composer", ("anime",)
-    ),
-    "manga_author_plot": CreditRole(
-        "manga_author_plot", "原作", "person", "manga_author", ("manga",)
-    ),
-    "manga_author_draw": CreditRole(
-        "manga_author_draw", "作画", "person", "manga_author", ("manga",)
-    ),
-    "novel_author": CreditRole(
-        "novel_author", "Author", "person", "novel_author", ("novel",)
-    ),
-    "novel_illustrator": CreditRole(
-        "novel_illustrator", "Illustrator", "person", "novel_illustrator",
-        ("novel",),
-    ),
-    "comic_writer": CreditRole(
-        "comic_writer", "Writer", "person", "comic_writer", ("comic",)
-    ),
-    "comic_artist": CreditRole(
-        "comic_artist", "Artist", "person", "comic_artist", ("comic",)
+    "producer": CreditRole("producer", "Producer", "person", ("anime",)),
+    "composer": CreditRole("composer", "Music / Composer", "person", ("anime",)),
+    "author": CreditRole("author", "Author", "person", ("manga", "novel", "comic")),
+    "illustrator": CreditRole(
+        "illustrator", "Illustrator", "person", ("manga", "novel", "comic")
     ),
 }
 
 CREDIT_ROLE_KEYS: tuple[str, ...] = tuple(CREDIT_ROLES.keys())
 
 PERSON_ROLES: tuple[str, ...] = tuple(
-    dict.fromkeys(
-        role.person_role
-        for role in CREDIT_ROLES.values()
-        if role.person_role is not None
-    )
+    key for key, role in CREDIT_ROLES.items() if role.target == "person"
 )
 
-# Only "director" is scoped. Every other person_role means the same thing
-# everywhere, and stores scope=NULL.
-SCOPED_PERSON_ROLES: frozenset[str] = frozenset({"director"})
+# Labels that differ by media type. One person type, three reader-facing words:
+# the same `author` is 原作 on a manga, Author on a novel and Writer on a
+# comic. 作畫 is the traditional form, matching the site's other CJK labels
+# (標籤 Label, Quality 品質); the pre-collapse label carried the Japanese 作画.
+# Anything absent falls back to CreditRole.label.
+_LABEL_OVERRIDES: dict[tuple[str, str], str] = {
+    ("author", "manga"): "原作",
+    ("illustrator", "manga"): "作畫",
+    ("author", "comic"): "Writer",
+    ("illustrator", "comic"): "Artist",
+}
 
-DIRECTOR_ANIME_MEDIA_TYPES: frozenset[str] = frozenset({"anime", "anime-movie"})
+
+def credit_label(role: str, media_type: str) -> str:
+    """What this credit is called on this media type."""
+    return _LABEL_OVERRIDES.get((role, media_type)) or CREDIT_ROLES[role].label
+
+
+def legal_scopes(role: str) -> tuple[str, ...]:
+    """The media types a person may hold this role in."""
+    return CREDIT_ROLES[role].media_types
 
 
 @dataclass(frozen=True)
@@ -185,14 +179,14 @@ LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("movie", "director"): "director",
     ("tv-show", "source_official"): "source_official",
     ("cartoon", "source_official"): "source_official",
-    ("manga", "manga_author_plot"): "author_plot",
-    ("manga", "manga_author_draw"): "author_draw",
+    ("manga", "author"): "author_plot",
+    ("manga", "illustrator"): "author_draw",
     ("manga", "publisher_tw"): "publisher_tw",
-    ("novel", "novel_author"): "author",
-    ("novel", "novel_illustrator"): "illustrator",
+    ("novel", "author"): "author",
+    ("novel", "illustrator"): "illustrator",
     ("novel", "publisher_tw"): "publisher_tw",
-    ("comic", "comic_writer"): "writer",
-    ("comic", "comic_artist"): "artist",
+    ("comic", "author"): "writer",
+    ("comic", "illustrator"): "artist",
     ("comic", "comic_publisher"): "publisher",
     ("comic", "comic_imprint"): "imprint",
     ("comic", "comic_continuity"): "continuity",
@@ -205,11 +199,6 @@ LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
 def sheet_column_for(media_type: str, key: str) -> str:
     """The sheet header a credit role or tag field key has always used."""
     return LEGACY_SHEET_COLUMN.get((media_type, key), key)
-
-
-def director_scope_for(media_type: str) -> str:
-    """Which director dropdown a credit on this media type belongs to."""
-    return "anime" if media_type in DIRECTOR_ANIME_MEDIA_TYPES else "non_anime"
 
 
 def credit_roles_for(media_type: str) -> tuple[CreditRole, ...]:

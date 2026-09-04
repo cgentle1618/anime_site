@@ -22,7 +22,7 @@ from app.dependencies import get_current_admin, get_db
 from app.services.domain.credits import find_person
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
-from app.utils.credit_roles import PERSON_ROLES
+from app.utils.credit_roles import PERSON_ROLES, legal_scopes
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +93,8 @@ def get_role_counts(db: Session = Depends(get_db)):
     Declared BEFORE /{system_id} on purpose: that route parses its path as a
     UUID, so "role-counts" would 422 there if this came second.
 
-    Counts people, not person_role rows - a director scoped both anime and
-    non_anime has two rows but is one person.
+    Counts people, not person_role rows - a director scoped for
+    all three of their media types has three rows but is one person.
     """
     tallied = dict(
         db.query(
@@ -105,6 +105,27 @@ def get_role_counts(db: Session = Depends(get_db)):
         .all()
     )
     return {role: tallied.get(role, 0) for role in PERSON_ROLES}
+
+
+@router.get(
+    "/role-scopes",
+    response_model=dict[str, list[str]],
+    summary="Legal Scopes per Person Role",
+)
+def get_role_scopes():
+    """
+    Which media types each person role may be scoped to.
+
+    The person form offers exactly these, so an admin cannot give a role a
+    scope naming a credit that does not exist - (composer, manga), say. Derived
+    from the same CreditRole.media_types that PersonRoleIn validates against,
+    so the form and the validator cannot drift.
+
+    Not on /api/constants: that endpoint serves one flat list per key, and this
+    is a map of lists. Declared BEFORE /{system_id} for the same reason
+    role-counts is - that route parses its path as a UUID.
+    """
+    return {role: list(legal_scopes(role)) for role in PERSON_ROLES}
 
 
 @router.get(

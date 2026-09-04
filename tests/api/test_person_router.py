@@ -19,7 +19,7 @@ def test_create_and_read_back(admin_client, client):
 
 def test_list_filters_by_role_and_scope(admin_client, client):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    _create(admin_client, "Nolan", [{"role": "director", "scope": "non_anime"}])
+    _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
 
     names = [
         p["name_native"]
@@ -34,10 +34,10 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
         "宮崎駿",
         [
             {"role": "director", "scope": "anime"},
-            {"role": "director", "scope": "non_anime"},
+            {"role": "director", "scope": "movie"},
         ],
     )
-    for scope in ("anime", "non_anime"):
+    for scope in ("anime", "movie"):
         names = [
             p["name_native"]
             for p in client.get(f"/api/person/?role=director&scope={scope}").json()
@@ -50,7 +50,7 @@ def test_unfiltered_list_returns_everyone(admin_client, client):
     # "seiyuu" is deliberately NOT a person role: anime.seiyuu is still a
     # plain string column on the entry and no credit role implies it, so
     # PersonRoleIn now rejects it. Use a real unscoped role instead.
-    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": None}])
+    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
     assert len(client.get("/api/person/").json()) == 2
 
 
@@ -140,7 +140,7 @@ def test_merge_does_not_duplicate_a_credit_both_already_had(
 
 def test_merge_unions_the_roles(admin_client, db_session):
     keep = _create(admin_client, "A", [{"role": "director", "scope": "anime"}])
-    drop = _create(admin_client, "B", [{"role": "composer", "scope": None}])
+    drop = _create(admin_client, "B", [{"role": "composer", "scope": "anime"}])
     admin_client.post(
         f"/api/person/{keep['system_id']}/merge",
         json={"source_id": drop["system_id"]},
@@ -174,13 +174,29 @@ def test_an_unknown_person_role_is_rejected(admin_client):
     """
     r = admin_client.post(
         "/api/person/",
-        json={"name_native": "誰か", "roles": [{"role": "drector", "scope": None}]},
+        json={"name_native": "誰か", "roles": [{"role": "drector", "scope": "anime"}]},
     )
     assert r.status_code == 422
 
 
-def test_an_unknown_person_role_scope_is_rejected(admin_client):
-    """Role scope is anime / non_anime - never a hyphenated media type key."""
+def test_a_scope_illegal_for_the_role_is_rejected(admin_client):
+    """
+    Scope is a hyphenated media-type key, and legality is PER ROLE: `manga` is
+    a real media type but a composer is never credited on one. This is the
+    check a per-field validator could not make, because it cannot see the role.
+    """
+    r = admin_client.post(
+        "/api/person/",
+        json={
+            "name_native": "誰か",
+            "roles": [{"role": "composer", "scope": "manga"}],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_a_media_type_scope_is_accepted_for_a_role_that_uses_it(admin_client):
+    """anime-movie was rejected before the collapse; it is now the point."""
     r = admin_client.post(
         "/api/person/",
         json={
@@ -188,20 +204,23 @@ def test_an_unknown_person_role_scope_is_rejected(admin_client):
             "roles": [{"role": "director", "scope": "anime-movie"}],
         },
     )
-    assert r.status_code == 422
+    assert r.status_code == 200
 
 
-def test_an_empty_scope_string_is_stored_as_null(admin_client, db_session):
-    created = admin_client.post(
-        "/api/person/",
-        json={"name_native": "澤野弘之", "roles": [{"role": "composer", "scope": ""}]},
-    ).json()
-    role = (
-        db_session.query(models.PersonRole)
-        .filter_by(person_id=created["system_id"])
-        .one()
-    )
-    assert role.scope is None
+def test_a_scopeless_role_is_rejected(admin_client):
+    """
+    Every person_role row carries a scope - there is no "offered everywhere"
+    state. An empty scope used to be stored as NULL and meant exactly that.
+    """
+    for bad in ("", None):
+        r = admin_client.post(
+            "/api/person/",
+            json={
+                "name_native": "澤野弘之",
+                "roles": [{"role": "composer", "scope": bad}],
+            },
+        )
+        assert r.status_code == 422, bad
 
 
 # ---------------------------------------------------------------------------
@@ -221,8 +240,8 @@ def test_role_counts_covers_every_person_role_including_the_empty_ones(client):
 
 def test_role_counts_tallies_people_per_role(admin_client, client):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    _create(admin_client, "Nolan", [{"role": "director", "scope": "non_anime"}])
-    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": None}])
+    _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
+    _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
 
     counts = client.get("/api/person/role-counts").json()
     assert counts["director"] == 2
@@ -237,7 +256,7 @@ def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
         "宮崎駿",
         [
             {"role": "director", "scope": "anime"},
-            {"role": "director", "scope": "non_anime"},
+            {"role": "director", "scope": "movie"},
         ],
     )
     assert client.get("/api/person/role-counts").json()["director"] == 1

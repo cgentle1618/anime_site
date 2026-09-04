@@ -116,7 +116,7 @@ def test_posting_an_existing_person_adds_the_role_instead_of_a_second_row(
     """
     first = admin_client.post(
         "/api/person/",
-        json={"name_native": "新海誠", "roles": [{"role": "producer", "scope": None}]},
+        json={"name_native": "新海誠", "roles": [{"role": "producer", "scope": "anime"}]},
     ).json()
     second = admin_client.post(
         "/api/person/",
@@ -131,7 +131,7 @@ def test_posting_an_existing_person_adds_the_role_instead_of_a_second_row(
         .filter_by(person_id=first["system_id"])
         .all()
     }
-    assert held == {("producer", None), ("director", "anime")}
+    assert held == {("producer", "anime"), ("director", "anime")}
 
 
 def test_posting_an_existing_studio_returns_it(admin_client, db_session):

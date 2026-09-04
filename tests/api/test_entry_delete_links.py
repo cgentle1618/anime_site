@@ -59,7 +59,7 @@ def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_sessio
     db_session.add(c)
     db_session.commit()
     credits_service.replace_credits(
-        db_session, "comic", c.system_id, "comic_writer", ["Brian K. Vaughan"]
+        db_session, "comic", c.system_id, "author", ["Brian K. Vaughan"]
     )
     credits_service.replace_tags(
         db_session, "comic", c.system_id, "comic_era", ["Modern Age"]

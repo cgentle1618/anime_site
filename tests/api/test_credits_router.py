@@ -49,7 +49,7 @@ def test_a_role_the_media_type_does_not_have_is_rejected(admin_client, db_sessio
     a = _anime(db_session)
     r = admin_client.put(
         f"/api/credits/anime/{a.system_id}",
-        json={"credits": {"comic_writer": ["X"]}, "tags": {}},
+        json={"credits": {"author": ["X"]}, "tags": {}},
     )
     assert r.status_code == 400
 

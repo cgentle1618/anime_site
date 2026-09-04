@@ -53,12 +53,12 @@ def test_a_director_can_be_scoped_both_ways(db_session):
         [
             models.PersonRole(person_id=p.system_id, role="director", scope="anime"),
             models.PersonRole(
-                person_id=p.system_id, role="director", scope="non_anime"
+                person_id=p.system_id, role="director", scope="movie"
             ),
         ]
     )
     db_session.commit()
-    assert {r.scope for r in p.roles} == {"anime", "non_anime"}
+    assert {r.scope for r in p.roles} == {"anime", "movie"}
 
 
 def test_one_role_scope_pair_cannot_repeat(db_session):

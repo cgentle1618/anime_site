@@ -67,7 +67,7 @@ def test_comic_list_carries_era_and_events(client, db_session):
         db_session, "comic", c.system_id, "comic_event", ["Civil War", "Secret Wars"]
     )
     credits_service.replace_credits(
-        db_session, "comic", c.system_id, "comic_writer", ["Brian K. Vaughan"]
+        db_session, "comic", c.system_id, "author", ["Brian K. Vaughan"]
     )
     db_session.commit()
 

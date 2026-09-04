@@ -478,13 +478,13 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             if getattr(comic, field, None) is None:
                 setattr(comic, field, cv_data.get(field))
 
-        if not credit_names(db, "comic", comic.system_id, "comic_writer"):
+        if not credit_names(db, "comic", comic.system_id, "author"):
             replace_credits(
-                db, "comic", comic.system_id, "comic_writer", split_names(cv_data.get("writer"))
+                db, "comic", comic.system_id, "author", split_names(cv_data.get("writer"))
             )
-        if not credit_names(db, "comic", comic.system_id, "comic_artist"):
+        if not credit_names(db, "comic", comic.system_id, "illustrator"):
             replace_credits(
-                db, "comic", comic.system_id, "comic_artist", split_names(cv_data.get("artist"))
+                db, "comic", comic.system_id, "illustrator", split_names(cv_data.get("artist"))
             )
         if not tag_values(db, "comic", comic.system_id, "comic_publisher"):
             replace_tags(

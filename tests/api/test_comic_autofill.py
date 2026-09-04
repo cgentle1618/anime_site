@@ -72,8 +72,8 @@ class TestAutofillComicFromComicvine:
         autofill_comic_from_comicvine(comic, db_session)
 
         assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == ["Marvel"]
-        assert credit_names(db_session, "comic", comic.system_id, "comic_writer") == ["Stan Lee"]
-        assert credit_names(db_session, "comic", comic.system_id, "comic_artist") == ["Steve Ditko"]
+        assert credit_names(db_session, "comic", comic.system_id, "author") == ["Stan Lee"]
+        assert credit_names(db_session, "comic", comic.system_id, "illustrator") == ["Steve Ditko"]
         assert comic.release_date == "1963"
         assert comic.issue_total == 441
         assert comic.volume_label == "(1963)"
@@ -81,18 +81,18 @@ class TestAutofillComicFromComicvine:
 
     def test_does_not_overwrite_admin_entered_values(self, db_session, patched):
         comic = make_comic(db_session, volume_label="Legacy", release_date="1999")
-        replace_credits(db_session, "comic", comic.system_id, "comic_writer", ["J. M. DeMatteis"])
+        replace_credits(db_session, "comic", comic.system_id, "author", ["J. M. DeMatteis"])
         replace_tags(db_session, "comic", comic.system_id, "comic_publisher", ["Marvel UK"])
         db_session.flush()
 
         autofill_comic_from_comicvine(comic, db_session)
 
         assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == ["Marvel UK"]
-        assert credit_names(db_session, "comic", comic.system_id, "comic_writer") == ["J. M. DeMatteis"]
+        assert credit_names(db_session, "comic", comic.system_id, "author") == ["J. M. DeMatteis"]
         assert comic.volume_label == "Legacy"
         assert comic.release_date == "1999"
         # Blank fields are still filled.
-        assert credit_names(db_session, "comic", comic.system_id, "comic_artist") == ["Steve Ditko"]
+        assert credit_names(db_session, "comic", comic.system_id, "illustrator") == ["Steve Ditko"]
 
     def test_does_not_overwrite_an_existing_cover(self, db_session, patched):
         comic = make_comic(db_session, cover_image_file="my-own-scan.jpg")

@@ -64,23 +64,23 @@ def test_a_movie_missing_a_real_column_needs_a_fill(db_session):
 
 def test_a_complete_comic_with_links_needs_no_fill(db_session):
     c = make_comic(db_session)
-    replace_credits(db_session, "comic", c.system_id, "comic_writer", ["Stan Lee"])
-    replace_credits(db_session, "comic", c.system_id, "comic_artist", ["Steve Ditko"])
+    replace_credits(db_session, "comic", c.system_id, "author", ["Stan Lee"])
+    replace_credits(db_session, "comic", c.system_id, "illustrator", ["Steve Ditko"])
     replace_tags(db_session, "comic", c.system_id, "comic_publisher", ["Marvel"])
     assert has_missing_values_comic(db_session, c) is False
 
 
 def test_a_comic_without_a_publisher_tag_needs_a_fill(db_session):
     c = make_comic(db_session)
-    replace_credits(db_session, "comic", c.system_id, "comic_writer", ["Stan Lee"])
-    replace_credits(db_session, "comic", c.system_id, "comic_artist", ["Steve Ditko"])
+    replace_credits(db_session, "comic", c.system_id, "author", ["Stan Lee"])
+    replace_credits(db_session, "comic", c.system_id, "illustrator", ["Steve Ditko"])
     assert has_missing_values_comic(db_session, c) is True
 
 
 def test_issue_total_of_zero_is_a_real_value_not_a_blank(db_session):
     c = make_comic(db_session)
     c.issue_total = 0
-    replace_credits(db_session, "comic", c.system_id, "comic_writer", ["Stan Lee"])
-    replace_credits(db_session, "comic", c.system_id, "comic_artist", ["Steve Ditko"])
+    replace_credits(db_session, "comic", c.system_id, "author", ["Stan Lee"])
+    replace_credits(db_session, "comic", c.system_id, "illustrator", ["Steve Ditko"])
     replace_tags(db_session, "comic", c.system_id, "comic_publisher", ["Marvel"])
     assert has_missing_values_comic(db_session, c) is False

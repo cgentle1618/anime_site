@@ -119,8 +119,8 @@ NOVEL_FIELDS_TO_FILL = [
 # (kind, key) pairs resolved through media_credit / media_tag.
 MOVIE_LINK_FIELDS_TO_FILL = [("credit", "director")]
 COMIC_LINK_FIELDS_TO_FILL = [
-    ("credit", "comic_writer"),
-    ("credit", "comic_artist"),
+    ("credit", "author"),
+    ("credit", "illustrator"),
     ("tag", "comic_publisher"),
 ]
 

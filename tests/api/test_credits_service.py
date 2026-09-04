@@ -34,9 +34,9 @@ def test_resolve_person_adds_a_second_scope_without_duplicating_the_person(
     db_session,
 ):
     svc.resolve_person(db_session, "宮崎駿", role="director", scope="anime")
-    p = svc.resolve_person(db_session, "宮崎駿", role="director", scope="non_anime")
+    p = svc.resolve_person(db_session, "宮崎駿", role="director", scope="movie")
     assert db_session.query(models.Person).count() == 1
-    assert {r.scope for r in p.roles} == {"anime", "non_anime"}
+    assert {r.scope for r in p.roles} == {"anime", "movie"}
 
 
 def test_resolve_studio_creates_once(db_session):
@@ -111,7 +111,7 @@ def test_replace_tags_round_trips(db_session):
 def test_director_scope_follows_the_media_type(db_session):
     svc.replace_credits(db_session, "movie", uuid.uuid4(), "director", ["Nolan"])
     p = db_session.query(models.Person).one()
-    assert [r.scope for r in p.roles] == ["non_anime"]
+    assert [r.scope for r in p.roles] == ["movie"]
 
 
 def test_find_studio_matches_a_japanese_name(db_session):

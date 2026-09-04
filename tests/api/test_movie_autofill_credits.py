@@ -95,10 +95,10 @@ class TestAutofillMovieDirectorCredits:
             "Someone Else"
         ]
 
-    def test_the_created_director_holds_the_non_anime_scope(self, db_session, patched):
+    def test_the_created_director_holds_the_movie_scope(self, db_session, patched):
         """
         Movie is not an anime media type, so the director person row must be
-        recorded with scope="non_anime" - that's what makes them show up in
+        recorded with scope="movie" - that's what makes them show up in
         the non-anime director dropdown rather than the anime one.
         """
         movie = make_movie(db_session)
@@ -110,4 +110,4 @@ class TestAutofillMovieDirectorCredits:
             .one()
         )
         roles = {(r.role, r.scope) for r in person.roles}
-        assert ("director", "non_anime") in roles
+        assert ("director", "movie") in roles

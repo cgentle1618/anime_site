@@ -65,8 +65,12 @@ def get_constants() -> dict[str, list[str]]:
         # Both are derived, never literals - see app/utils/credit_roles.py
         # and app/utils/media_resolver.py.
         "person_role": list(PERSON_ROLES),
-        # Hyphenated media-type keys - NOT person-role scopes, which are the
-        # coarser anime / non_anime split.
+        # Which media types each role may be scoped to is NOT here: it is a
+        # map of lists, and this endpoint's contract is one flat list per key.
+        # It lives on GET /api/person/role-scopes instead.
+        # Hyphenated media-type keys. Person-role scopes are drawn from this
+        # same vocabulary now; before the role collapse they were the coarser
+        # anime / non_anime split and the two had to be kept apart.
         "media_type": list(MEDIA_TYPE_KEYS),
         # Tier 2 CATEGORY NAMES, not their values: the vocabularies a tag
         # field reads, declared in TAG_FIELDS. Served because the Options

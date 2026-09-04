@@ -23,7 +23,6 @@ from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
     credit_roles_for,
-    director_scope_for,
     sheet_column_for,
     tag_fields_for,
 )
@@ -32,27 +31,72 @@ from app.utils.name_normalize import normalize_name, split_names
 logger = logging.getLogger(__name__)
 
 
+class AmbiguousNameError(Exception):
+    """
+    One name matched more than one stored entity.
+
+    Raised rather than resolved. _find_by_name used to return the first row an
+    unordered scan happened to hit, which is arbitrary on a collision - and
+    resolve_person/resolve_studio are find-or-create, reached by the credits
+    API, Fill/Pull and the Sheets restore. A wrong match there silently
+    attaches one entity's credits to another and leaves no signal; a raise
+    becomes a per-row failure those pipelines already report, which an admin
+    can act on from the duplicate entity check.
+    """
+
+    def __init__(self, model_name: str, name: str, matches: list):
+        self.model_name = model_name
+        self.name = name
+        self.matches = matches
+        super().__init__(
+            f"{name!r} matches {len(matches)} {model_name} rows "
+            f"({', '.join(str(m.system_id) for m in matches)}). "
+            "Resolve the duplicate before this name can be credited."
+        )
+
+
 def _find_by_name(db: Session, model, name: str):
     """
-    Find an entity whose stored name normalizes to the same key.
+    Find THE entity whose stored name normalizes to the same key.
 
-    Fields come from the model's _name_fields, so a studio matches on any of
-    its four names - a Japanese name from Tenrai and an English one typed
-    into the Add form must land on the same row, or the studio's credits
-    split in two.
+    Fields come from the model's _name_fields, so an entity matches on any of
+    its names - a Japanese name from Tenrai and an English one typed into the
+    Add form must land on the same row, or its credits split in two.
 
     Linear scan over the whole table in Python rather than a SQL filter -
     normalize_name folds width/case/whitespace in ways SQL can't express
     portably, and these tables are small enough that this stays cheap.
+
+    Returns None when nothing matches, the row when exactly one does, and
+    raises AmbiguousNameError when several do. Two DIFFERENT people can hold
+    the same string in different columns - A's name_cn and B's name_jp - and
+    Japanese personal names collide often, so picking one silently would
+    misattribute credits.
+
+    De-duplicating by primary key is load-bearing, not tidiness: normalize_name
+    strips whitespace and casefolds by design, so ONE row with
+    name_en="KyoAni" and name_alt="KyoAni " matches the key through two of its
+    own fields. Counting that as two would raise on every lookup and make the
+    row permanently unresolvable.
     """
     key = normalize_name(name)
+    if not key:
+        return None
+
     fields = getattr(model, "_name_fields", None) or ["name_native", "name_en"]
+    matches = {}
     for row in db.query(model).all():
         for field in fields:
             value = getattr(row, field, None)
             if value and normalize_name(value) == key:
-                return row
-    return None
+                matches[row.system_id] = row
+                break
+
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise AmbiguousNameError(model.__name__, name, list(matches.values()))
+    return next(iter(matches.values()))
 
 
 def find_person(db: Session, name: str):
@@ -150,14 +194,10 @@ def replace_credits(
                 position=position,
             )
         else:
-            scope = (
-                director_scope_for(media_type)
-                if spec.person_role == "director"
-                else None
-            )
-            target = resolve_person(
-                db, name, role=spec.person_role, scope=scope
-            )
+            # The scope is the media type - nothing left to derive. Before the
+            # collapse, director alone was scoped, anime/non_anime, by
+            # director_scope_for().
+            target = resolve_person(db, name, role=role, scope=media_type)
             row = models.MediaCredit(
                 media_type=media_type,
                 entry_id=entry_id,
@@ -362,14 +402,14 @@ BACKFILL_MAP: tuple[tuple[str, str, str, str], ...] = (
     ("movie", "director", "credit", "director"),
     ("tv-show", "source_official", "tag", "source_official"),
     ("cartoon", "source_official", "tag", "source_official"),
-    ("manga", "author_plot", "credit", "manga_author_plot"),
-    ("manga", "author_draw", "credit", "manga_author_draw"),
+    ("manga", "author_plot", "credit", "author"),
+    ("manga", "author_draw", "credit", "illustrator"),
     ("manga", "publisher_tw", "tag", "publisher_tw"),
-    ("novel", "author", "credit", "novel_author"),
-    ("novel", "illustrator", "credit", "novel_illustrator"),
+    ("novel", "author", "credit", "author"),
+    ("novel", "illustrator", "credit", "illustrator"),
     ("novel", "publisher_tw", "tag", "publisher_tw"),
-    ("comic", "writer", "credit", "comic_writer"),
-    ("comic", "artist", "credit", "comic_artist"),
+    ("comic", "writer", "credit", "author"),
+    ("comic", "artist", "credit", "illustrator"),
     ("comic", "publisher", "tag", "comic_publisher"),
     ("comic", "imprint", "tag", "comic_imprint"),
     ("comic", "continuity", "tag", "comic_continuity"),
