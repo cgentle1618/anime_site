@@ -32,6 +32,7 @@ from app.services.domain import (
     cartoon_post_processing,
     create_missing_seasonal,
     derive_ep_previous_all_anime,
+    derive_novel_progress,
     extract_system_options,
     manga_post_processing,
     sync_seasonal_counts,
@@ -501,6 +502,12 @@ def run_sync_manga(db: Session) -> dict:
 
 def run_sync_novel(db: Session) -> dict:
     extract_system_options(db)
+    # Re-derive from the unit rows so a Sheets restore, which writes rows
+    # straight to the tables without going through the router, lands with
+    # consistent totals.
+    for entry in db.query(Novel).all():
+        derive_novel_progress(entry)
+    db.commit()
     return {
         "status": "success",
         "message": "Novel sync completed.",

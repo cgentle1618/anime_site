@@ -14,6 +14,7 @@ from app.models import (
     Novel,
     TVShows,
 )
+from app.services.domain.novel_units import derive_novel_progress
 from app.utils.constants import (
     COMPLETED_WATCH_STATUSES,
 )
@@ -120,21 +121,29 @@ def mark_novel_completed(entry: Novel) -> None:
         if entry.vol_total_tw is not None:
             entry.vol_total_tw = vol_max
 
-    # arc: set both to max of the two
-    arc_vals = [v for v in [entry.arc_total, entry.arc_fin] if v is not None]
-    if arc_vals:
-        arc_max = max(arc_vals)
-        entry.arc_fin = arc_max
-        if entry.arc_total is not None:
-            entry.arc_total = arc_max
+    # Arc-structured novels: close every recorded arc and let the derivation
+    # recompute the totals, so ch_fin and ch_total cannot disagree with the
+    # rows. The old max() dance could not express "which arc am I in".
+    arcs = [u for u in (getattr(entry, "units", None) or []) if u.unit_kind == "arc"]
+    if arcs:
+        entry.arc_fin = float(len(arcs))
+        entry.ch_fin_in_arc = 0
+        derive_novel_progress(entry)
+    else:
+        entry.ch_fin_in_arc = 0
+        arc_vals = [v for v in [entry.arc_total, entry.arc_fin] if v is not None]
+        if arc_vals:
+            arc_max = max(arc_vals)
+            entry.arc_fin = arc_max
+            if entry.arc_total is not None:
+                entry.arc_total = arc_max
 
-    # ch: set both to max of the two
-    ch_vals = [v for v in [entry.ch_total, entry.ch_fin] if v is not None]
-    if ch_vals:
-        ch_max = max(ch_vals)
-        entry.ch_fin = ch_max
-        if entry.ch_total is not None:
-            entry.ch_total = ch_max
+        ch_vals = [v for v in [entry.ch_total, entry.ch_fin] if v is not None]
+        if ch_vals:
+            ch_max = max(ch_vals)
+            entry.ch_fin = ch_max
+            if entry.ch_total is not None:
+                entry.ch_total = ch_max
 
 
 def mark_comic_completed(entry: Comic) -> None:
