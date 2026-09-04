@@ -260,3 +260,71 @@ def test_update_can_clear_every_scope(admin_client):
     )
     assert r.status_code == 200, r.text
     assert r.json()["scopes"] == []
+
+
+def test_create_records_usages(admin_client):
+    r = admin_client.post(
+        "/api/options/",
+        json={
+            "category": "Platform",
+            "value": "Fox",
+            "scopes": ["tv-show"],
+            "usages": ["origin"],
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["usages"] == ["origin"]
+
+
+def test_an_unknown_usage_is_rejected(admin_client):
+    r = admin_client.post(
+        "/api/options/",
+        json={"category": "Platform", "value": "Bad", "usages": ["streaming"]},
+    )
+    assert r.status_code == 422
+
+
+def test_reading_a_category_filters_by_usage(client, admin_client):
+    admin_client.post(
+        "/api/options/",
+        json={"category": "Platform", "value": "ABC", "usages": ["origin"]},
+    )
+    admin_client.post(
+        "/api/options/", json={"category": "Platform", "value": "Netflix"}
+    )
+
+    values = [o["value"] for o in client.get("/api/options/Platform?usage=watch").json()]
+    assert "Netflix" in values
+    assert "ABC" not in values
+
+
+def test_an_unrestricted_value_serves_every_usage(client, admin_client):
+    admin_client.post(
+        "/api/options/", json={"category": "Platform", "value": "Prime Video"}
+    )
+    for usage in ("watch", "origin"):
+        values = [
+            o["value"] for o in client.get(f"/api/options/Platform?usage={usage}").json()
+        ]
+        assert "Prime Video" in values
+
+
+def test_update_replaces_the_usage_set(admin_client):
+    created = admin_client.post(
+        "/api/options/",
+        json={"category": "Platform", "value": "HBO Max", "usages": ["origin"]},
+    ).json()
+
+    r = admin_client.put(
+        f"/api/options/{created['system_id']}",
+        json={
+            "category": "Platform",
+            "value": "HBO Max",
+            "sort_order": 0,
+            "remark": None,
+            "scopes": [],
+            "usages": [],
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["usages"] == []

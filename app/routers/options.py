@@ -22,6 +22,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/options", tags=["System Options"])
 
 
+def _filter_by_child(query, relation, column, value):
+    """
+    Narrow to options that either declare no child rows at all, or declare one
+    matching `value`. Used for both scope and usage: an option that names
+    neither is offered everywhere, for everything.
+    """
+    if not value:
+        return query
+    return query.filter(or_(~relation.any(), relation.any(column == value)))
+
+
 # ==========================================
 # PUBLIC READ OPERATIONS (Unprotected)
 # ==========================================
@@ -34,6 +45,7 @@ router = APIRouter(prefix="/api/options", tags=["System Options"])
 )
 def get_all_system_options(
     scope: Optional[str] = Query(default=None),
+    usage: Optional[str] = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -43,15 +55,12 @@ def get_all_system_options(
     Used by the frontend UI to populate all dropdowns dynamically at once.
     """
     query = db.query(models.SystemOption)
-    if scope:
-        query = query.filter(
-            or_(
-                ~models.SystemOption.scopes.any(),
-                models.SystemOption.scopes.any(
-                    models.SystemOptionScope.scope == scope
-                ),
-            )
-        )
+    query = _filter_by_child(
+        query, models.SystemOption.scopes, models.SystemOptionScope.scope, scope
+    )
+    query = _filter_by_child(
+        query, models.SystemOption.usages, models.SystemOptionUsage.usage, usage
+    )
     options = (
         query.order_by(
             models.SystemOption.category,
@@ -73,6 +82,7 @@ def get_all_system_options(
 def get_system_options(
     category: str,
     scope: Optional[str] = Query(default=None),
+    usage: Optional[str] = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -82,15 +92,12 @@ def get_system_options(
     Used extensively by the frontend UI to populate dropdowns dynamically.
     """
     query = db.query(models.SystemOption).filter(models.SystemOption.category == category)
-    if scope:
-        query = query.filter(
-            or_(
-                ~models.SystemOption.scopes.any(),
-                models.SystemOption.scopes.any(
-                    models.SystemOptionScope.scope == scope
-                ),
-            )
-        )
+    query = _filter_by_child(
+        query, models.SystemOption.scopes, models.SystemOptionScope.scope, scope
+    )
+    query = _filter_by_child(
+        query, models.SystemOption.usages, models.SystemOptionUsage.usage, usage
+    )
     options = (
         query.order_by(models.SystemOption.sort_order, models.SystemOption.value)
         .limit(limit)
@@ -135,6 +142,9 @@ def add_system_option(
     )
     new_option.scopes = [
         models.SystemOptionScope(scope=s) for s in payload.scopes
+    ]
+    new_option.usages = [
+        models.SystemOptionUsage(usage=u) for u in payload.usages
     ]
     db.add(new_option)
     db.commit()
@@ -205,6 +215,12 @@ def update_system_option(
     )
     for scope in payload.scopes:
         db.add(models.SystemOptionScope(option_id=option_id, scope=scope))
+
+    db.query(models.SystemOptionUsage).filter_by(option_id=option_id).delete(
+        synchronize_session=False
+    )
+    for usage in payload.usages:
+        db.add(models.SystemOptionUsage(option_id=option_id, usage=usage))
 
     db.commit()
     db.refresh(db_option)

@@ -52,6 +52,22 @@ class SystemOptionCreate(SystemOptionBase):
             )
         return list(dict.fromkeys(v))
 
+    # Roles this value may be used in. Empty = every usage.
+    usages: list[str] = []
+
+    @field_validator("usages")
+    @classmethod
+    def _known_usages(cls, v: list[str]) -> list[str]:
+        from app.utils.source_fields import OPTION_USAGES
+
+        unknown = [u for u in v if u not in OPTION_USAGES]
+        if unknown:
+            raise ValueError(
+                "Not usages: " + ", ".join(unknown)
+                + ". Expected any of: " + ", ".join(OPTION_USAGES)
+            )
+        return list(dict.fromkeys(v))
+
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
@@ -65,6 +81,16 @@ class SystemOptionResponse(SystemOptionBase):
         # ORM gives SystemOptionScope rows; the API contract is plain strings.
         if v and not isinstance(v[0], str):
             return [s.scope for s in v]
+        return v
+
+    usages: list[str] = []
+
+    @field_validator("usages", mode="before")
+    @classmethod
+    def _flatten_usages(cls, v):
+        # ORM gives SystemOptionUsage rows; the API contract is plain strings.
+        if v and not isinstance(v[0], str):
+            return [u.usage for u in v]
         return v
 
 
