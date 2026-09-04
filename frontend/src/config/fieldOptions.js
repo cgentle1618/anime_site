@@ -7,6 +7,8 @@
 
 import { WEEKDAYS } from "./weekdays";
 
+export { NOVEL_UNIT_KINDS_BY_TYPE } from "../lib/novelUnits";
+
 export const AIRING_STATUSES = [
   "Not Yet Aired",
   "Airing",
