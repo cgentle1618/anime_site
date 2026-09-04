@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-04 (commit c80c84a)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -143,6 +143,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/cards`** — `MediaCard` (one card for all eight types,
   `variant="future"`), `FranchiseCard`, `CollectionCard`.
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
+  `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
+  the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
   `ComicDashboardCard`, `MyTrackerCard`, `WeeklySchedule`, `RelationsSection`,
   `WatchOrderSection`, `WatchOrderGuide`, `WatchOrderEditor`.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
@@ -150,7 +152,12 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
   `ContentLabelPicker`,
-  `DefaultValueControl`, `BelongingNovelsEditor`, `QuoteForm`,
+  `DefaultValueControl`, `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
+  — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
+  kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
+  and previews each row's `unitDisplayKey` placeholder before save. The
+  two-stage reading cursor stepper (`arcStep`, same module) lives in the
+  tracker components below, not here), `QuoteForm`,
   `QuoteEntryPicker`, `MemeForm`, `MemeOwnerPicker`.
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
@@ -180,6 +187,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
+| `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`) |
 
 ## Testing conventions
 

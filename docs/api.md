@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-04 (commit c80c84a)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -228,15 +228,45 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 
 | Method   | Path                   | Auth   | Description                                                                                                                           |
 | -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. |
+| `GET`    | `/`                    | Public | List all novels. Optional params: `franchise_id`, `series_id`, `reading_status`, `serialization_status`, `search_query`. No `to_reread` filter — dropped along with the column; passing it is silently ignored like any unknown filter. `units` are eagerly loaded (`selectinload`) on every row. |
 | `GET`    | `/{entry_id}`          | Public | Get a single novel entry by UUID.                                                                                                     |
 | `POST`   | `/`                    | Admin  | Create a novel entry. Auto-runs `execute_replace_single_novel` after creation. Body: `NovelCreate`.                                   |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
-| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished, serialization status).                                       |
-| `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished; closes every recorded arc and re-derives if the novel has arc rows, otherwise the old max()-of-arc/ch-totals rule; serialization status).                     |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. `novel_unit` rows cascade-delete (`ON DELETE CASCADE`). Removes cover from local/GCS storage. Logs to `deleted_record`. |
 
 **Response model:** `NovelResponse`
+
+**`units` — the `novel_unit` child rows.** `POST`/`PUT` bodies accept an
+optional `units: NovelUnitWrite[]` array (`NovelCreate`/`NovelUpdate`, via
+`NovelBase.units`). A missing `units` key leaves the existing rows
+untouched; an empty array `[]` deletes them all. `PATCH` cannot write
+`units` at all — its body is a raw column dict and `units` is not a real
+column, so it is silently ignored. Each item:
+
+- `system_id` (optional) — present to update that row, absent to insert one.
+  A row whose `system_id` the payload omits is **deleted**.
+- `unit_kind` — one of `volume`, `arc`, `story`, `chapter`.
+- `position` (float, required) — order within the novel; not unique.
+- `unit_key`, `name_cn`, `name_en`, `remark` (all optional strings).
+- `ch_count` (optional float) — only meaningful on `unit_kind = "arc"`; the
+  router (`write_novel_units`) forces it to `null` on any other kind before
+  the row is written, regardless of what the client sent, so a re-kinded row
+  cannot trip `ck_novel_unit_ch_count_arc_only`.
+
+The response's `units` array (`NovelUnitResponse[]`) mirrors the same fields
+plus `system_id` and a computed field, **`display_key`**: an explicit
+`unit_key` if set, otherwise a generated label like `"Vol 1"` / `"Arc 2"`
+(`unit_display_key`, prefix from `NOVEL_UNIT_KEY_PREFIX` — see
+[options.md](options.md#novel-unit-kinds-apputilsconstantspy)). `display_key`
+is display-time only; it is never stored.
+
+Every write (create, update, and patch — patch bypasses `units` itself since
+`PATCH` takes a raw column dict, but still re-derives) recomputes
+`arc_total`, `ch_total`, `ch_fin` from the novel's arc rows and normalises
+`arc_fin`/`ch_fin_in_arc` — see the rollover rule in
+[business-rules.md](business-rules.md).
 
 ---
 

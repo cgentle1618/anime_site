@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit c80c84a)
 
 ## What this is for
 
@@ -62,6 +62,24 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 
 All eight are implemented with their own router under `app/routers/` and their own detail page in `frontend/src/App.jsx`. (CLAUDE.md still says Novel is "not implemented yet"; the code disagrees.)
 
+### Novel unit structure (`novel_unit`, `NOVEL_UNIT_KINDS_BY_TYPE`)
+
+A novel is not one flat progress counter — it optionally holds `novel_unit`
+child rows (volume / arc / story / chapter), and `novel.type` decides which
+kinds the editor (`NovelUnitsEditor`) offers:
+
+| `novel.type` | Kinds offered | Structure |
+|---|---|---|
+| `Light Novel` | `volume` | Volumes only, for display (subtitles, per-volume remarks). Progress is tracked flat via `vol_fin` / `vol_total_original` / `vol_total_tw` — volume rows never feed those columns (Decision B). |
+| `Novel` | `volume` | Same as Light Novel. |
+| `Web` | `arc` | Two-stage progress: `arc_fin` (arcs fully finished) and `ch_fin_in_arc` (chapters into the current arc). `arc_total`, `ch_total` and `ch_fin` are derived from the arc rows' `ch_count` on every write — see `app/services/domain/novel_units.py` and [business-rules.md](business-rules.md). |
+| `Other` | `volume`, `story`, `chapter` | Free-form structure for entries that fit neither pattern (e.g. a short-story collection); `story` and `chapter` rows are display-only, the same as `volume`. |
+
+Only `arc` rows are authoritative for derivation; every other kind is
+enrichment shown on the detail page via `display_key` (`unit_display_key` /
+`unitDisplayKey`: an explicit `unit_key`, or a generated `"Vol 1"`/`"Arc 2"`
+style label). Vocabulary source and drift guard: [options.md](options.md#novel-unit-kinds-apputilsconstantspy).
+
 ## Common points of confusion (from CLAUDE.md)
 
 - **Anime Movie is not the same as Anime with `airing_type` "Movie".** Anime Movie has its own table `anime_movies`; an anime with `airing_type = "Movie"` lives in `anime`. "Anime Movie" almost always means the `anime_movies` rows.
@@ -79,7 +97,7 @@ All eight are implemented with their own router under `app/routers/` and their o
 | Default status | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Read"` | `"Might Read"` | `"Might Read"` |
 | Display-name fallback (model `display_name`) | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | **EN → CN → Alt** |
 | Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | en, cn, alt |
-| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total_original` / `vol_total_tw`, `arc_fin` / `arc_total`, `progress_display` | `issue_fin` / `issue_total` |
+| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` |
 | Other status column | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) |
 

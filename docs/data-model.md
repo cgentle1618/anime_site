@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit c80c84a)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -18,7 +18,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [The hierarchy](#the-hierarchy)
 - [Conventions shared by every table](#conventions-shared-by-every-table)
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
-- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, comic
+- [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [People, studios and links](#people-studios-and-links): person, person_role, studio, media_credit, media_tag
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
@@ -373,26 +373,29 @@ Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 
 Light novels, web novels, books. Model: `Novel`. CHECKs:
 `ck_novel_release_date_iso`, `ck_novel_end_date_iso`. Progress counts are
-**Float** so half-volumes can be recorded.
+**Float** so half-volumes can be recorded. `novel_name_each_cn` /
+`novel_name_each_en` (the two parallel per-volume JSONB lists) are gone -
+replaced by `novel_unit` rows, one per volume/arc/story/chapter, migrated by
+Alembic revision `nv1u2n3i4t5s`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `novel_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `novel_name_each_cn` / `novel_name_each_en` | JSONB | yes | | Per-volume titles |
 | `region` | String | yes | | NOVEL_REGIONS |
-| `type` | String | yes | | NOVEL_TYPES (Light Novel / Novel / Web / Other) |
+| `type` | String | yes | | NOVEL_TYPES (Light Novel / Novel / Web / Other); also selects which `novel_unit.unit_kind`s the editor offers - see `entry-types.md` |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
 | `serialization_status` | String | yes | | NOVEL_SERIALIZATION_STATUSES |
 | `reading_status` | String | **no** | `"Might Read"` | |
-| `vol_total_original` | Float | yes | | Volumes in the original run |
-| `vol_total_tw` | Float | yes | | Volumes published in Taiwan |
-| `vol_fin` | Float | **no** | `0` | |
-| `arc_total` | Float | yes | | |
-| `arc_fin` | Float | **no** | `0` | |
-| `ch_total` | Float | yes | | |
-| `ch_fin` | Float | **no** | `0` | |
-| `progress_display` | String | yes | | Which pair the UI shows: `ch`, `vol_tw`, `vol_original`, `arc_ch`, or empty for the default (VOL Original) - see PROGRESS_DISPLAY_OPTIONS in `fieldOptions.js` |
+| `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `novel_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
+| `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `novel_unit` rows |
+| `vol_fin` | Float | **no** | `0` | Not derived |
+| `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows |
+| `arc_fin` | Float | **no** | `0` | Number of arcs fully finished. Together with `ch_fin_in_arc` this is the two-stage reading cursor; normalised (never left out of range) on every write |
+| `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows |
+| `ch_fin` | Float | **no** | `0` | **Derived**: `sum(ch_count of fully-finished arcs) + ch_fin_in_arc` |
+| `ch_fin_in_arc` | Float | **no** | `0` | Chapters read into the arc currently being read (the arc at position `arc_fin`). Zero for every novel with no arc rows. Not clamped at the last recorded arc - see the rollover rule in business-rules.md |
+| `progress_display` | String | yes | | Which pair the UI shows. Canonical values (Decision G, narrowed to the JP/KR-vs-TW volume choice): `""` (default, VOL JP/KR) or `vol_tw`. Older stored values (`ch`, `vol_original`, `arc_ch`) still render on detail/card views - see PROGRESS_DISPLAY_OPTIONS and `withLegacyProgressDisplay` in `fieldOptions.js` |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` / `anilist_rating` | String | yes | | |
 | `release_date` / `end_date` | String | yes | | |
@@ -402,7 +405,40 @@ Light novels, web novels, books. Model: `Novel`. CHECKs:
 | `mal_link` / `anilist_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
-`author` / `illustrator` / `publisher_tw` link fields.
+`author` / `illustrator` / `publisher_tw` link fields, `units`
+(`List[NovelUnitResponse]`, populated via `selectinload`).
+
+### `novel_unit`
+
+One volume, arc, story or chapter belonging to exactly one `novel`. Model:
+`NovelUnit`. Replaces the two parallel `novel_name_each_cn` /
+`novel_name_each_en` JSONB lists, which could drift out of alignment because
+they were matched by list position and nothing else - one row now holds both
+languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
+`volume, arc, story, chapter`), `ck_novel_unit_ch_count_arc_only`
+(`ch_count` is non-NULL only when `unit_kind = 'arc'`). Index
+`ix_novel_unit_novel_kind_position` on `(novel_id, unit_kind, position)`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `novel_id` | UUID | no | | FK `novel.system_id` ON DELETE CASCADE |
+| `unit_kind` | String | no | | `volume`, `arc`, `story` or `chapter` - see NOVEL_UNIT_KINDS_BY_TYPE in options.md |
+| `position` | Float | no | | Order within the novel. **Not unique** - the editor reorders by swapping two rows' positions, and a unique constraint would fire mid-swap |
+| `unit_key` | String | yes | | Explicit label (e.g. a volume subtitle's short code). When blank, the display key falls back to `"{prefix} {position}"` (`unit_display_key` / `unitDisplayKey`) |
+| `name_cn` / `name_en` | String | yes | | |
+| `remark` | String | yes | | |
+| `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Written through `POST`/`PUT /api/novel` via the `units` payload key (popped
+out before the row is built, see `MediaTypeSpec.nested_collections`);
+reconciled by `write_novel_units` (rows with a `system_id` are updated, rows
+without are inserted, rows the payload omits are deleted). `PATCH` cannot
+touch `units` - it is not a real column, so `apply_column_patch` silently
+ignores it. Every create/update/patch write runs `derive_novel_progress`,
+which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
+normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
 
 ### `comic`
 

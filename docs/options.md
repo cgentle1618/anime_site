@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-04 (commit f35ee2c, plus the uncommitted status-optgroup change)
+Last verified: 2026-09-04 (commit c80c84a)
 
 ## What this is for
 
@@ -22,6 +22,7 @@ code.
 - [The three tiers](#the-three-tiers)
 - [Tier 1: closed enums in code](#tier-1-closed-enums-in-code)
   - [`app/utils/constants.py`](#apputilsconstantspy)
+  - [Novel unit kinds](#novel-unit-kinds-apputilsconstantspy)
   - [Relation kinds](#relation-kinds-apputilsrelation_kindspy)
   - [Note sections](#note-sections-apputilsnote_sectionspy)
   - [Plan-next vocabulary](#plan-next-vocabulary-apputilsplan_next_kindspy)
@@ -103,6 +104,32 @@ file's own comment calls this Ruling R10). See
 Retired: `Dub Preference` (never existed in code) and the old `Main / Spinoff`,
 `Region (TV Show)`, `Region (Manga)` option categories (now `IS_MAIN`,
 `TV_REGIONS`, `MANGA_REGIONS`).
+
+### Novel unit kinds (`app/utils/constants.py`)
+
+Not served by `/api/constants` - `novel_unit.unit_kind` and the per-type
+offering are hand-maintained in the frontend the way `planNextGroups.js`
+mirrors `plan_next_kinds.py` (see
+[Frontend copies of backend vocabulary](#frontend-copies-of-backend-vocabulary)).
+Tier 1 because code branches on the exact values: which kinds the
+`NovelUnitsEditor` offers for a given `novel.type`, and which counter pair
+the tracker renders.
+
+| Name | Values | Used by |
+|---|---|---|
+| `NOVEL_UNIT_KINDS` | `volume`, `arc`, `story`, `chapter` | the closed set every `novel_unit.unit_kind` and `NovelUnitWrite.unit_kind` (Pydantic `Literal`) must be one of; also `ck_novel_unit_kind` |
+| `NOVEL_UNIT_KINDS_BY_TYPE` | `Light Novel` -> `(volume,)`; `Novel` -> `(volume,)`; `Web` -> `(arc,)`; `Other` -> `(volume, story, chapter)` | which kinds `NovelUnitsEditor` offers for the novel's `type`; mirrored in `frontend/src/lib/novelUnits.js` as `NOVEL_UNIT_KINDS_BY_TYPE` and pinned to this map by `frontend/src/config/novelUnitKinds.test.js` |
+| `NOVEL_UNIT_KEY_PREFIX` | `volume` -> `Vol`, `arc` -> `Arc`, `story` -> `Story`, `chapter` -> `Ch` | the generated display key (`unit_display_key` / `unitDisplayKey`) when a unit has no explicit `unit_key`, e.g. `"Vol 1"` |
+
+Only `arc` rows are authoritative for progress derivation (Decision B in the
+design doc): a `volume`, `story` or `chapter` row is display-only enrichment.
+See [business-rules.md](business-rules.md) for the rollover and derivation
+rules this feeds.
+
+Decision F only relabelled a column, it did not rename it: `novel.vol_total_original`
+keeps its column name, but its form label (`fieldMeta.js`,
+`NovelAddTab.jsx`/`NovelModifyTab.jsx`) reads "Total Volumes (JP/KR)" to make
+the JP/KR-vs-TW pairing with `vol_total_tw` ("Total Volumes (TW)") explicit.
 
 ### Relation kinds (`app/utils/relation_kinds.py`)
 
@@ -540,7 +567,7 @@ anime-movie, manga, novel) and comic.
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
-| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` (`""`, `ch`, `vol_tw`, `vol_original`, `arc_ch`), `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
+| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - narrowed by Decision G to `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"), now that `novel.type` drives structure and the only genuine remaining choice is JP/KR volumes vs TW volumes; a novel whose stored `progress_display` predates the narrowing (`ch`, `vol_original`, `arc_ch`) is appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
 Relation kinds and note sections are **not** copied: the frontend fetches
 `/api/media-relation/kinds` and the note registry over HTTP.

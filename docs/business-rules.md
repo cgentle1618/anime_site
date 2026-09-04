@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-04 (commit c80c84a)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -212,12 +212,69 @@ not already in a completed status.
 | `mark_tv_completed`      | `watching_status = "Completed"`, `airing_status = "Finished Airing"` (always, even if the trigger was a provisional `ep_total`), `ep_fin = ep_total` when `ep_total` is set.                                                                                              |
 | `mark_movie_completed`   | `watching_status = "Completed"`, `airing_status = "Finished Airing"`.                                                                                                                                                                                                       |
 | `mark_reading_completed` | (manga) `serialization_status = "完結"` unless it is `腰斬`; `reading_status = "Completed"`; `ch_fin = ch_total` and `vol_fin = vol_total` when those totals are truthy; `vol_fin_page = 0`.                                                                                  |
-| `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null; same max-rule for `arc_fin`/`arc_total` and `ch_fin`/`ch_total`. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
+| `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null. Arc handling branches on whether the novel has `novel_unit` arc rows: if it does, every arc is closed (`arc_fin = len(arcs)`, `ch_fin_in_arc = 0`) and `derive_novel_progress` recomputes `arc_total`/`ch_total`/`ch_fin` from them, so the totals cannot disagree with the rows; if it has none, the old max-rule applies to `arc_fin`/`arc_total` and `ch_fin`/`ch_total` (whichever are non-null) and `ch_fin_in_arc` is zeroed. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
 | `mark_comic_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`, `issue_fin`/`issue_total` set to the max of the two. Same: router-only.                                                                                                                                    |
 
 `apply_completion_timestamp(entry, status)` stamps `completed_at` with Taipei
 now the first time a write moves an entry into a completed status; it never
 overwrites an existing timestamp.
+
+---
+
+## 4a. Novel two-stage progress (`app/services/domain/novel_units.py`)
+
+A novel with `novel_unit` arc rows (`type = "Web"`, or any novel an admin
+gave arc rows to) tracks progress in two stages instead of one flat chapter
+counter: `arc_fin` counts arcs that are **fully finished**, and
+`ch_fin_in_arc` is the chapter position inside the arc currently being read
+— the arc at index `arc_fin` (0-based) among the novel's arc rows in
+`position` order.
+
+**Derivation** (`derive_novel_progress`, called unconditionally on every
+create/update/patch by the router, whether or not the write touched `units`):
+
+- With no arc rows: only `ch_fin_in_arc` is zeroed; `arc_total`, `arc_fin`,
+  `ch_total`, `ch_fin` are left as stored (flat) values.
+- With arc rows: `arc_total = len(arcs)`, `ch_total = sum(ch_count over arcs)`,
+  and `ch_fin = sum(ch_count of the arc_fin fully-finished arcs) + ch_fin_in_arc`.
+  `arc_fin`/`ch_fin_in_arc` are first passed through the rollover rule below.
+
+**Rollover** (`normalize_arc_progress`, mirrored in the frontend as
+`arcStep` in `frontend/src/lib/novelUnits.js`): folds an out-of-range
+`ch_fin_in_arc` into the right arc after a step.
+
+- *Carry up*: while the current arc (`counts[arc_fin]`) has a known,
+  positive `ch_count` and `ch_fin_in_arc >= ch_count`, subtract that arc's
+  count from `ch_fin_in_arc` and increment `arc_fin`. An arc with an unknown
+  (`None` or `0`) `ch_count` stops the carry — there is no width to
+  subtract past it.
+- *Carry stops at the last recorded arc, on purpose* (Decision D): an
+  ongoing web novel is read into an arc nobody has entered a row for yet, so
+  carrying past the last arc would discard real progress. `ch_fin_in_arc` is
+  **not** clamped there — a value larger than the last arc's `ch_count` is
+  left as-is once `arc_fin` reaches the arc count.
+- *Borrow down*: a negative `ch_fin_in_arc` (stepping back past the start of
+  the current arc) decrements `arc_fin` and adds the previous arc's
+  `ch_count`; a result still negative at `arc_fin == 0` clamps to `0`.
+
+**Worked example** (the anchor case): arc 1 has `ch_count = 100`, arc 2 has
+`ch_count = 112`. A cursor of `arc_fin = 1, ch_fin_in_arc = 101` (into arc 2,
+101 chapters in) derives `ch_total = 212` and
+`ch_fin = 100 (arc 1, fully finished) + 101 = 201` — **not** 101 or 213.
+
+**Display key** (`unit_display_key` / `unitDisplayKey`): a unit's shown
+label is its explicit `unit_key` if set, otherwise
+`"{NOVEL_UNIT_KEY_PREFIX[unit_kind]} {position}"` (e.g. `"Vol 1"`,
+`"Arc 2"`). Generated, never stored; computed server-side as
+`NovelUnitResponse.display_key` and previewed client-side before save.
+
+**Decision B — volume/arc asymmetry, deliberate.** Only `arc` rows are
+authoritative. `volume`, `story` and `chapter` rows are optional display
+enrichment: adding, editing or deleting them never changes `vol_fin`,
+`vol_total_original` or `vol_total_tw`, which remain the denominators for
+volume-based progress exactly as they were before `novel_unit` existed. The
+asymmetry exists because `ch_count` — the one number progress derivation
+needs — lives only on arc rows; a volume has no equivalent "width".
 
 ---
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-04 (commit c80c84a)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-04 | Novel units and two-stage progress: `novel_unit` child table (volume/arc/story/chapter, `unit_key`/names/remark/`ch_count`) replacing the two parallel `novel_name_each_cn`/`_en` JSONB lists; `ch_fin_in_arc` added so `arc_fin`/`ch_fin_in_arc` form a two-stage reading cursor derived from arc rows on every write, with volume rows staying non-authoritative enrichment (Decision B); `MediaTypeSpec.nested_collections`/`progress_hook` generalise the router factory for a `units` payload key; `NovelUnitsEditor` replaces `BelongingNovelsEditor`; `progress_display` narrowed to the JP/KR-vs-TW volumes choice with legacy values still rendering; a `novelUnitKinds.test.js` drift guard pins the frontend kind map to `app/utils/constants.py` |
 | 2026-09-04 | Person as a public entity: one role vocabulary of five (director, producer, composer, author, illustrator) replacing the two lists, media-type-scoped and NOT NULL on `person_role`, with 原作 / Author / Writer derived from `(role, media_type)`; `person` reshaped to four optional names with a data-driven display choice; `credit_refs` with ids and labels on every media payload; `GET /api/person/{id}/entries` and a `?credits=N`-guarded delete; Entity → Person Add/Modify/Delete with a role × scope matrix; `/library/person` and `/person/:system_id`, linked from every credit row on the six detail pages |
 | 2026-09-04 | Studio as a public entity: `studio` reshaped to four optional names with a data-driven display choice and a profile (country, founded/defunct, website, MAL, logo); `GET /api/studio/{id}/entries`; `studio_refs` on anime and anime-movie payloads; `/library/studio` and `/studio/:system_id` pages, linked from the Studio row on both detail pages; studio Add/Modify/Delete moved into a new Entity admin group |
 | 2026-08-30 | Dark mode across the app: semantic colour tokens, `ThemeProvider`, Nav toggle, ReactFlow `colorMode`, a token guard test |
@@ -70,8 +71,7 @@ Each line was verified against the code at the commit above.
 | Backend | Autofill wraps each fetch in a bare `except Exception`, so tenacity's `RetryError` is swallowed and reported as a generic failure | `app/services/domain/autofill.py` |
 | Backend | Tenrai and Comic Vine rate limiters are in-memory sliding windows; a second instance would double the budget | `app/services/integrations/tenrai.py`, `comicvine.py` |
 | Data model | `character` / `character_voice` tables deferred | noted in `data-model.md` |
-| Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
-| Frontend | `NovelModifyTab` keeps a local option array (`PROGRESS_DISPLAY_OPTIONS`) instead of reading `/api/constants` | `frontend/src/pages/modify-tabs/NovelModifyTab.jsx` |
+| Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `ch_fin_in_arc`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
 | Tooling | `ruff check` runs in CI but `ruff format` has never been applied to the tree | `.github/workflows/deploy.yml` |
 | Backend | No `/api/health` endpoint | `app/main.py` |
 | Backend | RBAC permission cache is a process-local dict; correct only while Cloud Run runs one instance | `app/services/rbac/cache.py` |

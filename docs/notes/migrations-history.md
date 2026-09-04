@@ -1,6 +1,6 @@
 # Migrations history
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-04 (commit c80c84a)
 
 ## What this is for
 
@@ -96,6 +96,7 @@ table, the chain wins.
 | 75 | `s1t2u3d4i5o6` | Reshape `studio` to four optional names plus the profile columns | `name_native` → `name_en` (lossless over the 77 rows), adds `name_jp`, `name_alt`, `display_name_field`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`; recreates `uq_studio_name` over all four names with NULLS NOT DISTINCT plus three CHECKs |
 | 76 | `r0l1c2o3l4p5` | Collapse the person-role vocabulary to five media-type-scoped types | rewrites `media_credit.role` (372 rows: `manga_author_plot` → `author`, `comic_artist` → `illustrator`, …), rebuilds `person_role` onto the new keys with a hyphenated media-type `scope`, then makes `scope` NOT NULL. **A Sheets backup taken before this revision can no longer be restored directly** — its `Person Role` tab has empty scopes and retired role names; `alembic downgrade s1t2u3d4i5o6`, Pull, then upgrade again (verified to round-trip 791 → 555 → 791 rows exactly) |
 | 77 | `p7n8a9m10e11` | Reshape `person` to match `studio` | adds `name_jp`, `name_alt`, `display_name_field`; distributes the 554 `name_native` values through `name_slot_for` (218 en / 165 cn / 171 jp — every row verified to land where the rule says); drops `name_native`; recreates `uq_person_name` over all four names with NULLS NOT DISTINCT plus `ck_person_has_a_name`. The downgrade rebuilds `name_native` from `COALESCE(name_cn, name_jp, name_en, name_alt)` |
+| 78 | `nv1u2n3i4t5s` (head) | Create `novel_unit`; add `novel.ch_fin_in_arc`; migrate `novel_name_each_cn`/`novel_name_each_en` to `novel_unit` rows then drop both columns | zips the two parallel per-volume JSONB lists into one row per surviving position (`unit_key` prefers CN's key, falling back to EN's; a position where key and both names are empty is skipped); `ch_fin_in_arc` gets `server_default='0'`. **Downgrade is lossy on purpose**: it rebuilds the two JSONB lists from `volume`-kind rows only — `arc`/`story`/`chapter` rows and every unit's `remark` have nowhere to go in the old shape and are dropped. Run a Sheets Backup before upgrading |
 
 ## Patterns worth knowing
 
