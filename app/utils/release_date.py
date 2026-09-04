@@ -61,6 +61,15 @@ DATE_COLUMNS: Dict[str, tuple] = {
 }
 
 
+def primary_release_value(media_type: str, entry) -> Optional[str]:
+    """The entry's most meaningful release date, per RELEASE_PRIORITY."""
+    for column in RELEASE_PRIORITY.get(media_type, ()):
+        value = getattr(entry, column, None)
+        if value:
+            return value
+    return None
+
+
 def is_valid(value: Any) -> bool:
     """
     True only for a legal stored value: the right shape AND a real calendar

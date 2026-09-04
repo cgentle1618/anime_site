@@ -20,6 +20,8 @@ from app.dependencies import get_current_admin, get_db
 from app.services.domain.credits import find_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
+from app.utils.media_resolver import MEDIA_TABLES
+from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,65 @@ def get_studio_by_id(
     if studio is None:
         raise HTTPException(status_code=404, detail="Studio not found.")
     return _to_response(db, studio, viewer)
+
+
+@router.get("/{system_id}/entries", summary="Entries Credited to This Studio")
+def get_studio_entries(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    The entries this studio is credited on, grouped by media type.
+
+    The reverse of GET /api/credits/{media_type}/{entry_id}. Visibility runs
+    through the same filter_visible_pairs call _to_response uses for
+    credit_count, so the number on the card and the list on the page can
+    never disagree. A studio carries no content label of its own, so one
+    whose every credit is hidden answers with empty groups, not a 404 - the
+    studio is not the secret, its credits are.
+    """
+    studio = db.get(models.Studio, system_id)
+    if studio is None:
+        raise HTTPException(status_code=404, detail="Studio not found.")
+
+    rows = (
+        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        .filter(models.MediaCredit.studio_id == system_id)
+        .all()
+    )
+    visible = filter_visible_pairs(
+        db, viewer, [(mt, eid) for mt, eid in rows if mt and eid]
+    )
+
+    groups = []
+    for media_type, ref in MEDIA_TABLES.items():
+        ids = [eid for mt, eid in visible if mt == media_type]
+        if not ids:
+            continue
+        entries = (
+            db.query(ref.model).filter(ref.model.system_id.in_(ids)).all()
+        )
+        payload = [
+            {
+                "system_id": str(entry.system_id),
+                "display_name": entry.display_name,
+                "cover_image_file": getattr(entry, "cover_image_file", None),
+                "release_date": primary_release_value(media_type, entry),
+            }
+            for entry in entries
+        ]
+        # Newest first; an undated entry sorts last, as UNDATED does elsewhere.
+        payload.sort(key=lambda e: e["release_date"] or "", reverse=True)
+        groups.append(
+            {
+                "media_type": media_type,
+                "label": ref.label,
+                "nav_path": ref.nav_path,
+                "entries": payload,
+            }
+        )
+    return {"groups": groups}
 
 
 # ==========================================
