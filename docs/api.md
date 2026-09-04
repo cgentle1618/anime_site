@@ -245,8 +245,10 @@ untouched; an empty array `[]` deletes them all. `PATCH` cannot write
 `units` at all — its body is a raw column dict and `units` is not a real
 column, so it is silently ignored. Each item:
 
-- `system_id` (optional) — present to update that row, absent to insert one.
-  A row whose `system_id` the payload omits is **deleted**.
+- `system_id` (optional) — present on an item to update that existing row,
+  absent to insert a new one. Separately: any **existing** row whose
+  `system_id` appears in no item of the array is **deleted** — deletion is
+  by the array omitting an id, not by an item lacking the field.
 - `unit_kind` — one of `volume`, `arc`, `story`, `chapter`.
 - `position` (float, required) — order within the novel; not unique.
 - `unit_key`, `name_cn`, `name_en`, `remark` (all optional strings).
