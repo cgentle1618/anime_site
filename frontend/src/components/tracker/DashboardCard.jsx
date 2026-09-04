@@ -51,15 +51,6 @@ export default function DashboardCard({
         : isTV
           ? `/tv-show/${anime.system_id}`
           : `/anime/${anime.system_id}`;
-  const editPath = isNovel
-    ? `/modify?id=${anime.system_id}&type=novel`
-    : isManga
-      ? `/modify?id=${anime.system_id}&type=manga`
-      : isCartoon
-        ? `/modify?id=${anime.system_id}&type=cartoon`
-        : isTV
-          ? `/modify?id=${anime.system_id}&type=tv-show`
-          : `/modify?id=${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
   const bahaFlag = isTV || isCartoon || isReading ? false : isBaha(anime);
@@ -153,7 +144,6 @@ export default function DashboardCard({
           </h3>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
             {subTitle}
-            {localTotal !== "?" ? ` · ${localTotal} ${isReading ? "ch" : "ep"}` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             <Chip tone="ink">{statusText}</Chip>
@@ -192,18 +182,6 @@ export default function DashboardCard({
             )}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(editPath);
-            }}
-            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
-            title="Quick edit"
-          >
-            <i className="fas fa-pencil-alt text-xs"></i>
-          </button>
-        )}
       </div>
 
       <div
@@ -213,8 +191,7 @@ export default function DashboardCard({
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Progress</span>
           <span className="text-text">
-            {localFin} / {localTotal}
-            {localTotal !== "?" ? ` · ${progressPercent}%` : ""}
+            {localTotal !== "?" ? `${progressPercent}%` : ""}
           </span>
         </div>
         <ProgressRule value={progressValue} className="mb-3" />

@@ -128,18 +128,6 @@ export default function ComicDashboardCard({
             )}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/modify?id=${comic.system_id}&type=comic`);
-            }}
-            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
-            title="Quick edit"
-          >
-            <i className="fas fa-pencil-alt text-xs"></i>
-          </button>
-        )}
       </div>
 
       <div
@@ -149,8 +137,7 @@ export default function ComicDashboardCard({
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Progress</span>
           <span className="text-text">
-            {fin} / {hasTotal ? total : "?"}
-            {hasTotal ? ` · ${progressPercent}%` : ""}
+            {hasTotal ? `${progressPercent}%` : ""}
           </span>
         </div>
         <ProgressRule

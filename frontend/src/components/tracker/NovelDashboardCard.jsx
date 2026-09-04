@@ -324,18 +324,6 @@ export default function NovelDashboardCard({
             )}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/modify?id=${novel.system_id}&type=novel`);
-            }}
-            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
-            title="Quick edit"
-          >
-            <i className="fas fa-pencil-alt text-xs"></i>
-          </button>
-        )}
       </div>
 
       <div
