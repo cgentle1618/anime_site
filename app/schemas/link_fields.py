@@ -16,6 +16,11 @@ The attribute names are the LEGACY column names, not the credit-role keys
 `era`). `credit_roles.sheet_column_for` owns that mapping and is the single
 source of it; tests/unit/test_link_fields_schema.py asserts these classes stay
 in step with it, so a new role or field cannot be added on one side only.
+
+Two keys are NOT legacy columns and carry ids instead of a joined string:
+`studio_refs` and `credit_refs`. They repeat credits the legacy strings
+already name, shaped so a page can link to the entity - those strings have no
+ids and are the Sheets contract, so neither replaces the other.
 """
 
 from typing import Optional
@@ -31,7 +36,23 @@ class StudioRef(BaseModel):
     display_name: str
 
 
+class PersonRef(BaseModel):
+    """
+    One credited person a page can link to.
+
+    `label` is what the credit is called ON THIS MEDIA TYPE - the same person
+    role reads as 原作 on a manga, Author on a novel and Writer on a comic - so
+    a page can render the heading without knowing the vocabulary.
+    credit_label() in app/utils/credit_roles.py owns that mapping.
+    """
+
+    system_id: UUID
+    display_name: str
+    label: str
+
+
 class AnimeLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
@@ -45,12 +66,14 @@ class AnimeLinkFields(BaseModel):
 
 
 class AnimeMovieLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
 
 
 class MovieLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     director: Optional[str] = None
     # Movie never had a legacy source_official column; the tag field is
     # offered on movies, so the key is its own name.
@@ -58,26 +81,31 @@ class MovieLinkFields(BaseModel):
 
 
 class TvShowLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
 
 
 class CartoonLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
 
 
 class MangaLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
     publisher_tw: Optional[str] = None
 
 
 class NovelLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     author: Optional[str] = None
     illustrator: Optional[str] = None
     publisher_tw: Optional[str] = None
 
 
 class ComicLinkFields(BaseModel):
+    credit_refs: dict[str, list[PersonRef]] = {}
     writer: Optional[str] = None
     artist: Optional[str] = None
     publisher: Optional[str] = None

@@ -77,13 +77,20 @@ def gate(
     entries = payload if is_list else [payload]
 
     # Link fields are not columns, so blanking them in place cannot be flushed.
-    # Most are Optional[str] = None, but a list-shaped one (studio_refs) needs
-    # an empty list - its response field does not accept None - so the blank
-    # value follows the field's own current type instead of a single constant.
+    # Most are Optional[str] = None, but the ref-carrying ones are shaped:
+    # studio_refs is a list and credit_refs a dict, and neither response field
+    # accepts None - so the blank value follows the field's own current type
+    # instead of a single constant.
     for entry in entries:
         for name in links:
             if hasattr(entry, name):
-                blank = [] if isinstance(getattr(entry, name), list) else None
+                current = getattr(entry, name)
+                if isinstance(current, list):
+                    blank = []
+                elif isinstance(current, dict):
+                    blank = {}
+                else:
+                    blank = None
                 setattr(entry, name, blank)
 
     if not columns:

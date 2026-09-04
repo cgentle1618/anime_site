@@ -239,6 +239,78 @@ def manga_entry(db_session, sample_franchise):
 
 
 @pytest.fixture
+def manga_with_credits(db_session, manga_entry):
+    """A manga with one author and one illustrator credit."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "author", ["諫山創"]
+    )
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "illustrator", ["小山宙哉"]
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def manga_with_two_authors(db_session, manga_entry):
+    """Two author credits at position 0 and 1, to pin the stored order."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session,
+        "manga",
+        manga_entry.system_id,
+        "author",
+        ["First Author", "Second Author"],
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def three_manga_with_credits(db_session, sample_franchise):
+    """Three credited manga, for the N+1 query-count assertion."""
+    from app.services.domain import credits as credits_service
+
+    made = []
+    for index in range(3):
+        m = models.Manga(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            manga_name_en=f"Counted Manga {index}",
+        )
+        db_session.add(m)
+        db_session.flush()
+        credits_service.replace_credits(
+            db_session, "manga", m.system_id, "author", [f"Author {index}"]
+        )
+        made.append(m)
+    db_session.flush()
+    return made
+
+
+@pytest.fixture
+def anime_with_studio(db_session, sample_franchise):
+    """One anime carrying a studio credit and no person credits."""
+    from app.services.domain import credits as credits_service
+
+    a = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Studio Only",
+    )
+    db_session.add(a)
+    db_session.flush()
+    credits_service.replace_credits(
+        db_session, "anime", a.system_id, "studio", ["MAPPA"]
+    )
+    db_session.flush()
+    return a
+
+
+@pytest.fixture
 def sample_comic(db_session, sample_franchise):
     c = models.Comic(
         system_id=uuid.uuid4(),

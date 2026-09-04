@@ -19,10 +19,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models
-from app.schemas.link_fields import StudioRef
+from app.schemas.link_fields import PersonRef, StudioRef
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
+    credit_label,
     credit_roles_for,
     sheet_column_for,
     tag_fields_for,
@@ -744,12 +745,15 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     a column of its own table; the response schema then reads it like any other
     attribute. Accepts one entry or a sequence.
 
-    Anime and anime-movie also get `studio_refs`: the same studio credit rows,
-    shaped as {system_id, display_name} so a detail page can link to the
-    studio - the legacy `studio` string beside it carries no ids. Built from
-    the same batched `_link_rows_and_lookups` fetch as the rest of this
-    function, so adding it costs no extra query - still five total,
-    regardless of how many entries are passed.
+    Every type also gets `credit_refs`: the same PERSON credit rows keyed by
+    role, shaped as {system_id, display_name, label} so a detail page can link
+    to the person - the legacy strings beside them carry no ids. Anime and
+    anime-movie additionally get `studio_refs`, the studio half of the same
+    idea; studio is a single role, so those need no role key.
+
+    Both are built from the same batched `_link_rows_and_lookups` fetch as the
+    rest of this function, so adding them costs no extra query - still five
+    total, regardless of how many entries are passed.
     """
     if entries is None:
         return
@@ -757,15 +761,32 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     if not rows:
         return
 
+    # Deliberately not `if not spec: return` any more: a media type with no
+    # legacy link field of its own still has person credits to link to.
     spec = legacy_link_fields(media_type)
-    if not spec:
-        return
 
     entry_ids = [e.system_id for e in rows]
     credit_rows, tag_rows, people, studios, options = _link_rows_and_lookups(
         db, media_type, entry_ids
     )
     values = _values_from_rows(entry_ids, credit_rows, tag_rows, people, studios, options)
+
+    credit_refs_by_entry: dict[UUID, dict[str, list[PersonRef]]] = {}
+    for row in credit_rows:
+        if not row.person_id:
+            continue
+        display_name = people.get(row.person_id)
+        if not display_name:
+            continue
+        credit_refs_by_entry.setdefault(row.entry_id, {}).setdefault(
+            row.role, []
+        ).append(
+            PersonRef(
+                system_id=row.person_id,
+                display_name=display_name,
+                label=credit_label(row.role, media_type),
+            )
+        )
 
     wants_studio_refs = media_type in ("anime", "anime-movie")
     studio_refs_by_entry: dict[UUID, list[StudioRef]] = {}
@@ -785,5 +806,6 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
         for attr, _kind, key in spec:
             names = per_entry.get(key) or []
             setattr(entry, attr, ", ".join(names) if names else None)
+        entry.credit_refs = credit_refs_by_entry.get(entry.system_id, {})
         if wants_studio_refs:
             entry.studio_refs = studio_refs_by_entry.get(entry.system_id, [])

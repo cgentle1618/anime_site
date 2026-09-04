@@ -165,6 +165,41 @@ def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
     assert "Zvornik Studio" not in client.get("/api/anime/").text
 
 
+def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
+    """
+    credit_refs names the same people the legacy strings do, so withholding
+    Credits must take it as well - a linkable ref leaks the same name the
+    string does. It is a dict, so the blank is {}, not None: the response
+    field does not accept None and a 500 would be the alternative.
+    """
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Composer")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            system_id=uuid.uuid4(),
+            media_type="anime",
+            entry_id=sample_anime.system_id,
+            role="composer",
+            person_id=person.system_id,
+        )
+    )
+    db_session.flush()
+
+    body = client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert body["credit_refs"]["composer"][0]["display_name"] == "Zvornik Composer"
+
+    make_viewer(
+        db_session,
+        client,
+        "nocredits2",
+        default_guest_permissions() - {field_group_perm("credits")},
+    )
+    body = client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert body["credit_refs"] == {}
+    assert "Zvornik Composer" not in client.get("/api/anime/").text
+
+
 # ---------------------------------------------------------------------------
 # Note sections
 # ---------------------------------------------------------------------------

@@ -80,11 +80,12 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
     these would be one more place to forget when a role is added, so they come
     from credit_roles through the same helper the response mixins use.
 
-    `studio_refs` rides beside `studio` on anime and anime-movie (see
-    `attach_link_fields`) - it names the same studio credit, just shaped for
-    linking, so a viewer withheld from the Credits group must lose it too.
-    It has no credit_roles entry of its own, so it is added by hand rather
-    than picked up by the `legacy_link_fields` scan above.
+    `credit_refs` (every type) and `studio_refs` (anime and anime-movie) ride
+    beside the legacy strings (see `attach_link_fields`) - they name the same
+    credits, just shaped for linking, so a viewer withheld from the Credits
+    group must lose them too. Neither has a credit_roles entry of its own, so
+    both are added by hand rather than picked up by the `legacy_link_fields`
+    scan above.
     """
     out = {
         media_type: tuple(
@@ -94,6 +95,8 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
         )
         for media_type in MEDIA_TYPE_KEYS
     }
+    for media_type in out:
+        out[media_type] = out[media_type] + ("credit_refs",)
     for media_type in ("anime", "anime-movie"):
         if media_type in out:
             out[media_type] = out[media_type] + ("studio_refs",)

@@ -39,10 +39,10 @@ CREATE_SCHEMAS = {
 
 # Fields carried on a mixin beside its legacy sheet columns, with no
 # credit_roles/tag_fields entry of their own - so the drift test below must
-# not expect them from `legacy_link_fields`. `studio_refs` is one: it repeats
-# the "studio" credit as linkable {system_id, display_name} objects rather
-# than a sheet column.
-NON_SHEET_FIELDS = {"studio_refs"}
+# not expect them from `legacy_link_fields`. Both repeat credits the sheet
+# columns already carry, as linkable objects rather than joined strings:
+# `studio_refs` for the "studio" credit, `credit_refs` for every person credit.
+NON_SHEET_FIELDS = {"studio_refs", "credit_refs"}
 
 
 @pytest.mark.parametrize("media_type", sorted(LINK_FIELD_MIXINS))
