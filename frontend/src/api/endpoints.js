@@ -136,9 +136,13 @@ export const endpoints = {
     detail: (id) => `/api/person/${id}`,
     create: () => "/api/person/",
     update: (id) => `/api/person/${id}`,
-    remove: (id) => `/api/person/${id}`,
+    // The credit count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, credits) => `/api/person/${id}?credits=${credits}`,
     merge: (id) => `/api/person/${id}/merge`,
+    entries: (id) => `/api/person/${id}/entries`,
     roleCounts: () => "/api/person/role-counts",
+    roleScopes: () => "/api/person/role-scopes",
   },
 
   credits: {

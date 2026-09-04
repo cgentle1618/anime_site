@@ -22,8 +22,10 @@ from app.dependencies import get_current_admin, get_db
 from app.services.domain.credits import find_person
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
-from app.utils.credit_roles import PERSON_ROLES, legal_scopes
+from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
+from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import name_slot_for
+from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +74,14 @@ def get_all_people(
     viewer: Viewer = Depends(get_viewer),
 ):
     """
-    Retrieves people, optionally filtered to those who hold a given role
-    (and, for a scoped role like director, a given scope).
+    Retrieves people, optionally filtered to those who hold a given role, and
+    to one media-type scope of it.
+
+    Both filters are exact. Every person_role row carries a scope now, so a
+    query WITHOUT `scope` means "holds this role in any media type" - the admin
+    list wants that, and no dropdown asks for it. The old behaviour, where
+    scope only narrowed the director role and was ignored otherwise, is gone
+    with the unscoped rows it existed for.
     """
     query = db.query(models.Person)
     if role:
@@ -133,6 +141,98 @@ def get_role_scopes():
     role-counts is - that route parses its path as a UUID.
     """
     return {role: list(legal_scopes(role)) for role in PERSON_ROLES}
+
+
+@router.get("/{system_id}/entries", summary="Entries This Person Is Credited On")
+def get_person_entries(
+    system_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    The entries this person is credited on, grouped by media type AND role.
+
+    The reverse of GET /api/credits/{media_type}/{entry_id}, and the mirror of
+    the studio endpoint - except that a person can hold several roles, so the
+    group key is the pair and each group carries the label that credit has on
+    that media type (原作 on a manga, Author on a novel).
+
+    Visibility runs through the same filter_visible_pairs call _to_response
+    uses for credit_count, so the number on the card and the list on the page
+    can never disagree. A person carries no content label of their own, so one
+    whose every credit is hidden answers with empty groups, not a 404 - the
+    person is not the secret, their credits are.
+    """
+    person = db.get(models.Person, system_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail="Person not found.")
+
+    rows = (
+        db.query(models.MediaCredit)
+        .filter(models.MediaCredit.person_id == system_id)
+        .order_by(models.MediaCredit.position)
+        .all()
+    )
+    visible = set(
+        filter_visible_pairs(
+            db,
+            viewer,
+            [(r.media_type, r.entry_id) for r in rows if r.media_type and r.entry_id],
+        )
+    )
+
+    # One query per media type that appears, not one per credit row.
+    wanted: dict[str, set[UUID]] = {}
+    for row in rows:
+        if (row.media_type, row.entry_id) in visible:
+            wanted.setdefault(row.media_type, set()).add(row.entry_id)
+    loaded: dict[str, dict[UUID, object]] = {}
+    for media_type, ids in wanted.items():
+        ref = MEDIA_TABLES.get(media_type)
+        if ref is None:
+            continue
+        loaded[media_type] = {
+            entry.system_id: entry
+            for entry in db.query(ref.model)
+            .filter(ref.model.system_id.in_(ids))
+            .all()
+        }
+
+    groups: dict[tuple[str, str], list] = {}
+    for row in rows:
+        if row.media_type not in MEDIA_TABLES:
+            continue
+        # setdefault before the visibility check on purpose: a group the viewer
+        # may not see any entry of still exists, empty. Hiding the group as
+        # well would tell them the person has no such credits at all.
+        payload = groups.setdefault((row.media_type, row.role), [])
+        entry = loaded.get(row.media_type, {}).get(row.entry_id)
+        if entry is None:
+            continue
+        payload.append(
+            {
+                "system_id": str(entry.system_id),
+                "display_name": entry.display_name,
+                "cover_image_file": getattr(entry, "cover_image_file", None),
+                "release_date": primary_release_value(row.media_type, entry),
+            }
+        )
+
+    out = []
+    for (media_type, role), entries in groups.items():
+        # Newest first; an undated entry sorts last, as UNDATED does elsewhere.
+        entries.sort(key=lambda e: e["release_date"] or "", reverse=True)
+        ref = MEDIA_TABLES[media_type]
+        out.append(
+            {
+                "media_type": media_type,
+                "role": role,
+                "label": credit_label(role, media_type),
+                "nav_path": ref.nav_path,
+                "entries": entries,
+            }
+        )
+    return {"groups": out}
 
 
 @router.get(
@@ -259,16 +359,33 @@ def update_person(
 @router.delete("/{system_id}", summary="Delete Person")
 def delete_person(
     system_id: UUID,
+    credits: int = Query(..., description="Credit count the admin confirmed"),
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
     """
     Permanently deletes a person. Their credits cascade away with them - see
     the merge endpoint for the correct fix when this person is a duplicate.
+
+    `credits` is the count the UI showed in its confirmation, and it is
+    REQUIRED. If it no longer matches, the request is rejected with 409: the
+    admin agreed to destroy a specific amount of credit history, and a count
+    that moved underneath them - another session crediting this person while
+    the dialog was open - is not what they agreed to.
     """
     person = db.get(models.Person, system_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found.")
+
+    actual = db.query(models.MediaCredit).filter_by(person_id=system_id).count()
+    if actual != credits:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"This person now has {actual} credits, not {credits}. "
+                "Reload and confirm again."
+            ),
+        )
 
     db.delete(person)
     db.commit()

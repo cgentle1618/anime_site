@@ -80,7 +80,10 @@ def test_delete_cascades_the_credits(admin_client, db_session):
     )
     db_session.commit()
 
-    assert admin_client.delete(f"/api/person/{created['system_id']}").status_code == 200
+    # The count the admin confirmed rides along; see the delete guard in
+    # tests/api/test_person_entries.py for what a stale one does.
+    deleted = admin_client.delete(f"/api/person/{created['system_id']}?credits=1")
+    assert deleted.status_code == 200
     assert db_session.query(models.MediaCredit).count() == 0
 
 
