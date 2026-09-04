@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-04 (commit 4ba9c07)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-04 | Studio as a public entity: `studio` reshaped to four optional names with a data-driven display choice and a profile (country, founded/defunct, website, MAL, logo); `GET /api/studio/{id}/entries`; `studio_refs` on anime and anime-movie payloads; `/library/studio` and `/studio/:system_id` pages, linked from the Studio row on both detail pages; studio Add/Modify/Delete moved into a new Entity admin group |
 | 2026-08-30 | Dark mode across the app: semantic colour tokens, `ThemeProvider`, Nav toggle, ReactFlow `colorMode`, a token guard test |
 | 2026-08-30 | Route-level code splitting for admin, statistics, plan and relations pages |
 | 2026-08-30 | One `Library` page on `/library/:type` with shared columns and sorts |
@@ -170,7 +171,7 @@ Each line was verified against the code at the commit above.
 | Backend | Autofill wraps each fetch in a bare `except Exception`, so tenacity's `RetryError` is swallowed and reported as a generic failure | `app/services/domain/autofill.py` |
 | Backend | Tenrai and Comic Vine rate limiters are in-memory sliding windows; a second instance would double the budget | `app/services/integrations/tenrai.py`, `comicvine.py` |
 | Data model | `character` / `character_voice` tables deferred | noted in `data-model.md` |
-| Frontend | Public person and studio pages deferred; only admin and pickers read the routers | no route in `frontend/src/App.jsx` |
+| Frontend | Public **person** pages deferred; only admin and pickers read `/api/person` (the studio half shipped: `/library/studio`, `/studio/:system_id`) | no person route in `frontend/src/App.jsx` |
 | Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
 | Frontend | `NovelModifyTab` keeps a local option array (`PROGRESS_DISPLAY_OPTIONS`) instead of reading `/api/constants` | `frontend/src/pages/modify-tabs/NovelModifyTab.jsx` |
 | Tooling | `ruff check` runs in CI but `ruff format` has never been applied to the tree | `.github/workflows/deploy.yml` |
