@@ -96,6 +96,17 @@ names leak to viewers without the Credits permission. Build `person_refs` from
 the shared `_link_rows_and_lookups` helper in `credits.py` rather than adding a
 fetch, or it becomes an N+1 over library pages of up to 2000 entries.
 
+**Studio-side documentation is unwritten.** The studio session
+(anime-site-b0) completed its Tasks 1-11 — the reshaped `studio` table, the
+display-name resolution, `GET /api/studio/{id}/entries`, `studio_refs`, the
+Entity admin group and studio Add/Modify/Delete — but its Task 12 (docs) was
+cut from that run. So `data-model.md`, `api.md`, `frontend/admin-pages.md` and
+this file's Done log all describe a studio that no longer matches the code.
+Task 10 of the person plan was already going to document both halves of the
+Entity group; it should now also cover the studio work that shipped without
+docs. Do not treat the studio docs as merely stale — they were never written
+for this change.
+
 **Known consequence of `r0l1c2o3l4p5`, worth recording:** a Google Sheets
 backup taken BEFORE that migration can no longer be restored — its
 `Person Role` tab has empty scopes (now NOT NULL) and retired role names. To
