@@ -28,12 +28,6 @@ export function computeMissingSourceValues(fields, sources) {
  * dispatched on source.kind. A person is created with the role AND scope
  * the field asked for — get that wrong and the person exists but never
  * appears in the dropdown that just "created" it.
- *
- * The scope is passed through verbatim rather than defaulted to null: every
- * person_role row is scoped now, and POST /api/person rejects a role whose
- * scope is not one of that role's legal media types. A descriptor without a
- * scope is a bug in fieldMeta.js, and a 422 naming the role is a better
- * outcome than a person quietly minted outside every dropdown.
  */
 export function buildCreateRequest(source, value) {
   if (source.kind === "studio") {
@@ -55,7 +49,7 @@ export function buildCreateRequest(source, value) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name_native: value,
-          roles: [{ role: source.role, scope: source.scope }],
+          roles: [{ role: source.role, scope: source.scope || null }],
         }),
         credentials: "include",
       },

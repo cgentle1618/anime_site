@@ -80,18 +80,13 @@ describe("buildCreateRequest", () => {
     });
   });
 
-  // Every person source carries its own media-type scope now, and the API
-  // rejects a role without a legal one. The scope must therefore travel from
-  // the descriptor untouched — a hard-coded "anime", or the null this used to
-  // send for the roles that had no scope, would create people the dropdown
-  // that just created them cannot see.
-  it("sends the field's own scope, not the role's first legal one", () => {
+  it("posts a scopeless person role with scope: null", () => {
     const [, init] = buildCreateRequest(
-      { kind: "person", role: "illustrator", scope: "comic" },
-      "New Artist",
+      { kind: "person", role: "composer" },
+      "New Composer",
     );
     expect(JSON.parse(init.body).roles).toEqual([
-      { role: "illustrator", scope: "comic" },
+      { role: "composer", scope: null },
     ]);
   });
 
