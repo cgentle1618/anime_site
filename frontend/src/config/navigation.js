@@ -37,6 +37,17 @@ export const NAV_SECTIONS = [
         ],
       },
       {
+        heading: "Entities",
+        items: [
+          {
+            label: "Studio",
+            icon: "fas fa-building",
+            to: "/library/studio",
+            matches: ["/studio"],
+          },
+        ],
+      },
+      {
         heading: "ACG",
         items: [
           {

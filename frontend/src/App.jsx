@@ -29,6 +29,7 @@ import Comic from "./pages/detail/Comic";
 import CollectionLibrary from "./pages/library/CollectionLibrary";
 import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
+const StudioLibrary = lazy(() => import("./pages/library/StudioLibrary"));
 
 
 // Route-level code splitting: the admin pages, the relations canvas
@@ -94,6 +95,7 @@ export default function App() {
                   path="/library/franchise"
                   element={<FranchiseLibrary />}
                 />
+                <Route path="/library/studio" element={<StudioLibrary />} />
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
