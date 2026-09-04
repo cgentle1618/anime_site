@@ -31,6 +31,7 @@ from app.models.system import (
     SystemConfigs,
     SystemOption,
     SystemOptionScope,
+    SystemOptionUsage,
     User,
 )
 from app.models.tv_show import TVShows
@@ -71,6 +72,7 @@ __all__ = [
     "Note",
     "SystemOption",
     "SystemOptionScope",
+    "SystemOptionUsage",
     "SystemConfigs",
     "Seasonal",
     "ContentLabel",

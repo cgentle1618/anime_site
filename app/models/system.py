@@ -49,6 +49,12 @@ class SystemOption(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    usages = relationship(
+        "SystemOptionUsage",
+        back_populates="option",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class SystemOptionScope(Base):
@@ -76,6 +82,36 @@ class SystemOptionScope(Base):
     scope = Column(String, nullable=False)
 
     option = relationship("SystemOption", back_populates="scopes")
+
+
+class SystemOptionUsage(Base):
+    """
+    Which roles a vocabulary value may be used in.
+
+    Parallel to SystemOptionScope, which answers "in which media types". This
+    answers "for what". The Platform category serves both the access rows on a
+    media entry and the origin tag fields, and some values belong to only one:
+    Fox and ABC are places a show first aired, never places to go and watch it.
+
+    A value with no usage rows serves every usage.
+    """
+
+    __tablename__ = "system_option_usage"
+    __table_args__ = (
+        UniqueConstraint("option_id", "usage", name="uq_system_option_usage"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # One of app.utils.source_fields.OPTION_USAGES.
+    usage = Column(String, nullable=False)
+
+    option = relationship("SystemOption", back_populates="usages")
 
 
 class SystemConfigs(Base):
