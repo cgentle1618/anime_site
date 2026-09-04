@@ -159,7 +159,8 @@ def make_media_router(spec) -> APIRouter:
         entry.system_id = uuid.uuid4()
         _resolve_parents(db, entry)
         db.add(entry)
-        db.flush()
+        if nested or spec.progress_hook:
+            db.flush()
         _write_nested(db, entry, nested)
         _derive(db, entry)
         if spec.pre_commit_hook:
