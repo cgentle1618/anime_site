@@ -100,3 +100,51 @@ it("removing a row renumbers the remaining rows", () => {
     expect.objectContaining({ unit_key: "B", position: 1 }),
   ]);
 });
+
+it("clears ch_count when a row's kind is changed away from arc", () => {
+  const onChange = vi.fn();
+  const items = [
+    { unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "12" },
+  ];
+  render(<NovelUnitsEditor items={items} novelType="Other" onChange={onChange} />);
+
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "volume" } });
+
+  expect(onChange).toHaveBeenCalledWith([
+    expect.objectContaining({ unit_kind: "volume", ch_count: "" }),
+  ]);
+});
+
+it("does not force-clear ch_count when a row's kind is changed to arc", () => {
+  // Only "Web" offers "arc", and it offers nothing else, so the only way to
+  // reach an arc target via the select is a stranded non-arc row on a Web
+  // novel (see the "stranded kind" annotated-option test below).
+  const onChange = vi.fn();
+  const items = [
+    { unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "7" },
+  ];
+  render(<NovelUnitsEditor items={items} novelType="Web" onChange={onChange} />);
+
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "arc" } });
+
+  expect(onChange).toHaveBeenCalledWith([
+    expect.objectContaining({ unit_kind: "arc", ch_count: "7" }),
+  ]);
+});
+
+it("shows a disabled, annotated option for a stranded kind the current type no longer offers", () => {
+  render(
+    <NovelUnitsEditor
+      items={[{ unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", ch_count: "5" }]}
+      novelType="Light Novel"
+      onChange={() => {}}
+    />,
+  );
+
+  // Light Novel offers only "volume", yet the stranded "arc" row still gets
+  // a reachable selector, with its own current kind shown disabled.
+  const select = screen.getByRole("combobox");
+  expect(select.value).toBe("arc");
+  const strandedOption = screen.getByText("arc (not valid for this type)");
+  expect(strandedOption).toBeDisabled();
+});

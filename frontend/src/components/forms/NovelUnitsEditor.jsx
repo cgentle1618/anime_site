@@ -32,6 +32,18 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
   const updateEntry = (i, field, value) =>
     onChange(rows.map((x, j) => (j === i ? { ...x, [field]: value } : x)));
 
+  // ch_count is meaningful only on arc rows; clear it in the same update as
+  // unit_kind so a value the UI has already hidden can't ride along in the
+  // payload after the user picks a non-arc kind.
+  const updateKind = (i, kind) =>
+    onChange(
+      rows.map((x, j) =>
+        j === i
+          ? { ...x, unit_kind: kind, ...(kind === "arc" ? {} : { ch_count: "" }) }
+          : x,
+      ),
+    );
+
   // Swap adjacent rows and renumber. position is not unique in the database
   // precisely so this swap cannot trip a constraint mid-move.
   const move = (i, delta) => {
@@ -67,12 +79,24 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
             </button>
           </div>
 
-          {kinds.length > 1 ? (
+          {/* A row can be stranded when the novel's Type changes and the
+              stored unit_kind is no longer offered (e.g. Web -> Other
+              leaves an "arc" row around). The server re-normalises on
+              write and the row stays valid, but the select must still be
+              reachable so the user can see and fix the mismatch — so it
+              renders (with a disabled, annotated option for the stranded
+              kind) even when the type would otherwise offer only one kind. */}
+          {kinds.length > 1 || !kinds.includes(entry.unit_kind) ? (
             <select
               className={kindSelectCls}
               value={entry.unit_kind}
-              onChange={(e) => updateEntry(i, "unit_kind", e.target.value)}
+              onChange={(e) => updateKind(i, e.target.value)}
             >
+              {!kinds.includes(entry.unit_kind) ? (
+                <option value={entry.unit_kind} disabled>
+                  {entry.unit_kind} (not valid for this type)
+                </option>
+              ) : null}
               {kinds.map((k) => (
                 <option key={k} value={k}>
                   {k}
