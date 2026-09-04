@@ -71,6 +71,38 @@ def migrate_each_lists(each_cn, each_en):
     return rows
 
 
+def rebuild_each_lists(rows):
+    """
+    Inverse of migrate_each_lists: turns one novel's novel_unit rows, already
+    in position order, back into the two parallel per-language lists the old
+    JSONB columns held.
+
+    Only 'volume' kind rows have a representation in the old shape -- arc,
+    story and chapter rows are dropped here exactly as the revision docstring
+    says they are on downgrade. A NULL key or name becomes '' rather than a
+    missing dict key, mirroring what migrate_each_lists reads back out with
+    .get() on the other side of the round trip; every surviving volume gets
+    one entry in both lists, so a name present in only one language never
+    creates a hole that shifts later positions.
+
+    Returns (None, None), not ([], []), when no volume rows survive the
+    filter -- matching the old model's own column default
+    (`Column(JSONB, default=None, nullable=True)`): a novel with no volume
+    units gets NULL back, the same value it would have had if the columns
+    had never been touched.
+    """
+    entries = [row for row in rows if row[0] == "volume"]
+    if not entries:
+        return None, None
+
+    cn = []
+    en = []
+    for _unit_kind, _position, unit_key, name_cn, name_en in entries:
+        cn.append({"key": unit_key or "", "name": name_cn or ""})
+        en.append({"key": unit_key or "", "name": name_en or ""})
+    return cn, en
+
+
 def _as_list(val):
     """The column is JSONB, but a restored sheet can leave a JSON string."""
     if val is None:
@@ -155,32 +187,30 @@ def downgrade():
     conn = op.get_bind()
     rows = conn.execute(
         sa.text(
-            "SELECT novel_id, unit_key, name_cn, name_en FROM novel_unit "
-            "WHERE unit_kind = 'volume' ORDER BY novel_id, position"
+            "SELECT novel_id, unit_kind, position, unit_key, name_cn, name_en "
+            "FROM novel_unit ORDER BY novel_id, position"
         )
     ).fetchall()
 
     grouped = {}
-    for novel_id, unit_key, name_cn, name_en in rows:
-        cn, en = grouped.setdefault(novel_id, ([], []))
-        cn.append({"key": unit_key or "", "name": name_cn or ""})
-        en.append({"key": unit_key or "", "name": name_en or ""})
+    for novel_id, unit_kind, position, unit_key, name_cn, name_en in rows:
+        grouped.setdefault(novel_id, []).append(
+            (unit_kind, position, unit_key, name_cn, name_en)
+        )
 
-    for novel_id, (cn, en) in grouped.items():
+    for novel_id, unit_rows in grouped.items():
+        cn, en = rebuild_each_lists(unit_rows)
         conn.execute(
             sa.text(
                 "UPDATE novel SET novel_name_each_cn = CAST(:cn AS JSONB),"
                 " novel_name_each_en = CAST(:en AS JSONB) WHERE system_id = :nid"
             ),
             {
-                "cn": json.dumps(cn, ensure_ascii=False),
-                "en": json.dumps(en, ensure_ascii=False),
+                "cn": json.dumps(cn, ensure_ascii=False) if cn is not None else None,
+                "en": json.dumps(en, ensure_ascii=False) if en is not None else None,
                 "nid": novel_id,
             },
         )
 
     op.drop_column("novel", "ch_fin_in_arc")
-    op.drop_index("ix_novel_unit_novel_kind_position", table_name="novel_unit")
-    op.drop_index("ix_novel_unit_novel_id", table_name="novel_unit")
-    op.drop_index("ix_novel_unit_system_id", table_name="novel_unit")
     op.drop_table("novel_unit")
