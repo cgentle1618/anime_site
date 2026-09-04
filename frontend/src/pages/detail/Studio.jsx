@@ -60,12 +60,17 @@ function EntryCard({ entry, navPath }) {
   );
 }
 
-/** `founded – defunct`, `Since founded` when active, or null when both are empty. */
+/**
+ * `founded – defunct`, `Since founded` while still active, `Until defunct`
+ * for the (unusual) case a defunct date is on record with no founding date,
+ * or null when both are empty so the row is omitted rather than rendering
+ * an empty dash.
+ */
 function activeRangeText(studio) {
   const { founded_date: founded, defunct_date: defunct } = studio;
   if (founded && defunct) return `${founded} – ${defunct}`;
   if (founded) return `Since ${founded}`;
-  if (defunct) return defunct;
+  if (defunct) return `Until ${defunct}`;
   return null;
 }
 

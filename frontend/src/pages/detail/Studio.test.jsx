@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Studio from "./Studio";
@@ -120,5 +120,89 @@ describe("Studio detail page", () => {
     renderPage("missing");
 
     expect(await screen.findByText(/not found/i)).toBeInTheDocument();
+  });
+
+  describe("the Active facts row", () => {
+    it("renders founded and defunct as a range", async () => {
+      mockFetch(
+        { ...STUDIO, founded_date: "2011-06-14", defunct_date: "2020-01-01" },
+        ENTRIES_EMPTY,
+      );
+      renderPage();
+
+      expect(await screen.findByText("2011-06-14 – 2020-01-01")).toBeInTheDocument();
+    });
+
+    it("renders a since-date when only founded_date is set", async () => {
+      mockFetch(
+        { ...STUDIO, founded_date: "2011-06-14", defunct_date: null },
+        ENTRIES_EMPTY,
+      );
+      renderPage();
+
+      expect(await screen.findByText("Since 2011-06-14")).toBeInTheDocument();
+    });
+
+    it("renders an until-date when only defunct_date is set", async () => {
+      mockFetch(
+        { ...STUDIO, founded_date: null, defunct_date: "2020-01-01" },
+        ENTRIES_EMPTY,
+      );
+      renderPage();
+
+      expect(await screen.findByText("Until 2020-01-01")).toBeInTheDocument();
+    });
+
+    it("omits the row entirely when both dates are empty", async () => {
+      mockFetch(
+        { ...STUDIO, founded_date: null, defunct_date: null },
+        ENTRIES_EMPTY,
+      );
+      renderPage();
+
+      await screen.findByRole("heading", { name: "MAPPA" });
+      expect(screen.queryByText("Active")).not.toBeInTheDocument();
+    });
+  });
+
+  it("resolves the display name via the en/cn/jp/alt fallback with a null display_name_field, and shows it exactly once", async () => {
+    const studio = {
+      ...STUDIO,
+      display_name_field: null,
+      name_en: null,
+      name_cn: "京都アニメーション中文",
+      name_jp: "京都アニメーション",
+      name_alt: "KyoAni",
+      display_name: "京都アニメーション中文",
+    };
+    mockFetch(studio, ENTRIES_EMPTY);
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "京都アニメーション中文" }),
+    ).toBeInTheDocument();
+    // Chinese equals the displayed name and must not repeat as an "other name".
+    expect(screen.queryByText("Chinese:")).not.toBeInTheDocument();
+    // Japanese and Alternative differ, so both should be listed once.
+    expect(screen.getByText("Japanese:")).toBeInTheDocument();
+    expect(screen.getByText("Alternative:")).toBeInTheDocument();
+    // The name also appears once more in the breadcrumb trail; scope the
+    // "shows it exactly once" check to the header block itself.
+    const heading = screen.getByRole("heading", { name: "京都アニメーション中文" });
+    expect(within(heading.parentElement).getAllByText("京都アニメーション中文")).toHaveLength(1);
+  });
+
+  it("renders the website link, MAL link and remark", async () => {
+    mockFetch(STUDIO, ENTRIES_EMPTY);
+    renderPage();
+
+    expect(
+      await screen.findByRole("link", { name: STUDIO.website_url }),
+    ).toHaveAttribute("href", STUDIO.website_url);
+    expect(screen.getByRole("link", { name: "MyAnimeList" })).toHaveAttribute(
+      "href",
+      STUDIO.mal_link,
+    );
+    expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
   });
 });
