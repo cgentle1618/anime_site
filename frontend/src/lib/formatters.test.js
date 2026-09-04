@@ -49,8 +49,9 @@ describe("getSourceValues", () => {
       { category: "Comic Era", value: "Modern Age", scopes: ["comic"] },
     ],
     studios: [
-      { name_native: "A-1 Pictures" },
-      { name_native: "8bit" },
+      { display_name: "A-1 Pictures" },
+      { display_name: "8bit" },
+      { display_name: "" },
     ],
     people: {
       "director|anime": [{ name_native: "Abel Gongora" }],
@@ -141,11 +142,17 @@ describe("getSourceValues", () => {
   });
 
   describe("kind: studio", () => {
-    it("returns every studio, unfiltered", () => {
+    it("returns every studio's server-computed display_name", () => {
       expect(getSourceValues(sources, { kind: "studio" })).toEqual([
         "A-1 Pictures",
         "8bit",
       ]);
+    });
+
+    it("drops a studio with no display name instead of colliding with a typed value", () => {
+      expect(
+        getSourceValues(sources, { kind: "studio" }),
+      ).not.toContain("");
     });
   });
 });

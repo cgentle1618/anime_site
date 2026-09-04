@@ -50,7 +50,13 @@ export function getSourceValues(sources, source) {
     return (sources.people?.[key] || []).map((p) => p.name_native);
   }
   if (source.kind === "studio") {
-    return (sources.studios || []).map((s) => s.name_native);
+    // display_name is computed server-side (StudioResponse) - do not
+    // re-derive it here, that would be a second source of truth. Filter out
+    // empty values so a nameless studio can't collide with a typed value in
+    // the Set-based "already exists" check in ensureSourceValues.js.
+    return (sources.studios || [])
+      .map((s) => s.display_name)
+      .filter((name) => !!name);
   }
   return [];
 }
