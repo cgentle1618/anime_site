@@ -10,7 +10,7 @@ from app import models
 
 @pytest.fixture
 def person(db_session):
-    p = models.Person(name_native="新海誠")
+    p = models.Person(name_jp="新海誠")
     db_session.add(p)
     db_session.commit()
     return p
@@ -117,7 +117,7 @@ def test_one_person_can_hold_two_roles_on_one_entry(db_session, person):
 def test_position_preserves_the_original_comma_order(db_session):
     entry_id = uuid.uuid4()
     for i, name in enumerate(["A", "B", "C"]):
-        p = models.Person(name_native=name)
+        p = models.Person(name_jp=name)
         db_session.add(p)
         db_session.commit()
         db_session.add(

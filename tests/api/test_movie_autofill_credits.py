@@ -106,7 +106,7 @@ class TestAutofillMovieDirectorCredits:
 
         person = (
             db_session.query(models.Person)
-            .filter_by(name_native="David Fincher")
+            .filter_by(name_en="David Fincher")
             .one()
         )
         roles = {(r.role, r.scope) for r in person.roles}

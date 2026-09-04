@@ -28,39 +28,53 @@ class Person(Base, NameFallbackMixin):
     role, and putting it on an extension would encode a data-entry habit into
     the schema. No role extension table exists yet - one is added when a role
     earns several columns that are genuinely meaningless elsewhere.
+
+    All four names are nullable and at least one must be set, matching Studio:
+    a person is known by whichever names they are known by, and requiring a
+    specific one would force a made-up value. Which column a name lands in when
+    a writer other than the admin form creates the row is decided by
+    name_slot_for in app/utils/name_normalize.py.
     """
 
     __tablename__ = "person"
     __table_args__ = (
-        # NULLS NOT DISTINCT: name_en is nullable and almost always NULL, and
-        # Postgres treats two NULLs as distinct by default - without this the
-        # constraint is INERT and two Person rows with the same name_native
-        # commit cleanly. See uq_media_credit_row for the same lesson, and
-        # alembic/versions/n1u2l3l4s5n6d_* for the migration that collapsed
-        # the duplicates the inert version already allowed.
+        # NULLS NOT DISTINCT: three of the four name columns are NULL on a
+        # typical row, and Postgres treats two NULLs as distinct by default -
+        # without this the constraint is INERT and duplicates commit cleanly.
+        # Same lesson as uq_studio_name and uq_media_credit_row, and see
+        # alembic/versions/n1u2l3l4s5n6d_* for the migration that collapsed the
+        # duplicates the inert version already allowed.
         UniqueConstraint(
-            "name_native",
             "name_en",
+            "name_cn",
+            "name_jp",
+            "name_alt",
             name="uq_person_name",
             postgresql_nulls_not_distinct=True,
         ),
+        CheckConstraint(
+            "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
+            name="ck_person_has_a_name",
+        ),
     )
 
-    # Used by _find_by_name (app/services/domain/credits.py) so a person
-    # matches on the same two fields the resolver hard-coded before it was
-    # made model-generic. Deliberately NOT name_cn: resolve_person is
-    # find-or-create on every automated write path (Fill/Pull, Sheets
-    # restore), and person has no external id to disambiguate a collision -
-    # widening the match to a common transliterated surname would silently
-    # merge two distinct people and reattach one's credits to the other.
-    _name_fields = ["name_native", "name_en"]
+    # Used by _find_by_name (app/services/domain/credits.py): a person matches
+    # on any of their names, because the same human arrives as a Japanese name
+    # from Tenrai, a Chinese one from the sheet and an English one typed into
+    # the Add form. Matching on only one column would split their credits.
+    # Ambiguity is not silently resolved - _find_by_name raises when two people
+    # match, which is the safe answer when a person has no external id.
+    _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    name_native = Column(String, nullable=False, index=True)
-    name_en = Column(String, nullable=True)
+    name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
+    name_jp = Column(String, nullable=True)
+    name_alt = Column(String, nullable=True)
+    # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
+    display_name_field = Column(String, nullable=True)
     gender = Column(String, nullable=True)
     # One of constants.MY_RATINGS.
     my_rating = Column(String, nullable=True)
@@ -76,6 +90,42 @@ class Person(Base, NameFallbackMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    # Which column each display_name_field value names.
+    _DISPLAY_FIELDS = {
+        "en": "name_en", "cn": "name_cn", "jp": "name_jp", "alt": "name_alt",
+    }
+
+    @property
+    def names_dict(self) -> dict:
+        """Every name variation, for resolution and for the detail page."""
+        return {
+            "en": self.name_en,
+            "cn": self.name_cn,
+            "jp": self.name_jp,
+            "alt": self.name_alt,
+        }
+
+    @property
+    def display_name(self) -> str:
+        """
+        The name to show. Like Studio and unlike every media model, whose
+        fallback chain is hard-coded per type, a person's choice is DATA:
+        display_name_field names the winner. The chain below is only the
+        fallback for when that is NULL or names an empty column.
+        """
+        chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
+        if chosen:
+            value = getattr(self, chosen)
+            if value and value.strip():
+                return value.strip()
+        sequence = [
+            ("EN", self.name_en),
+            ("CN", self.name_cn),
+            ("JP", self.name_jp),
+            ("Alt", self.name_alt),
+        ]
+        return self.get_fallback_name(sequence, "EN")
 
 
 class PersonRole(Base):

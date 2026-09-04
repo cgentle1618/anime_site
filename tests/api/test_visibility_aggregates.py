@@ -267,7 +267,7 @@ def test_a_hidden_entry_is_not_an_addable_candidate(
 def test_a_credit_on_a_hidden_entry_is_not_counted(
     client, db_session, hidden_anime
 ):
-    person = models.Person(system_id=uuid.uuid4(), name_native="Zvornik Director")
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director")
     db_session.add(person)
     db_session.flush()
     db_session.add(
@@ -287,7 +287,7 @@ def test_a_credit_on_a_hidden_entry_is_not_counted(
 
 
 def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
-    person = models.Person(system_id=uuid.uuid4(), name_native="Zvornik Director 2")
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Director 2")
     db_session.add(person)
     db_session.flush()
     db_session.add(

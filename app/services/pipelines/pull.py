@@ -87,7 +87,7 @@ TABS_IN_ORDER = TAB_NAMES
 # tab -> the columns of that table's natural-key UNIQUE constraint.
 DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "System Options": ("category", "value"),  # uq_system_option_value
-    "Person": ("name_native", "name_en"),  # uq_person_name
+    "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role

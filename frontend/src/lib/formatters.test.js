@@ -54,9 +54,9 @@ describe("getSourceValues", () => {
       { display_name: "" },
     ],
     people: {
-      "director|anime": [{ name_native: "Abel Gongora" }],
-      "director|non_anime": [{ name_native: "Alan Taylor" }],
-      "composer|": [{ name_native: "Some Composer" }],
+      "director|anime": [{ display_name: "Abel Gongora" }],
+      "director|non_anime": [{ display_name: "Alan Taylor" }],
+      "composer|": [{ display_name: "Some Composer" }],
     },
   };
 

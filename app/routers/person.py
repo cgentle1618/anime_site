@@ -23,6 +23,7 @@ from app.services.domain.credits import find_person
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.credit_roles import PERSON_ROLES, legal_scopes
+from app.utils.name_normalize import name_slot_for
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,12 @@ def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.Per
     )
     return schemas.PersonResponse(
         system_id=person.system_id,
-        name_native=person.name_native,
         name_en=person.name_en,
         name_cn=person.name_cn,
+        name_jp=person.name_jp,
+        name_alt=person.name_alt,
+        display_name_field=person.display_name_field,
+        display_name=person.display_name,
         gender=person.gender,
         my_rating=person.my_rating,
         photo_file=person.photo_file,
@@ -77,7 +81,10 @@ def get_all_people(
         query = query.filter(models.PersonRole.role == role)
         if scope:
             query = query.filter(models.PersonRole.scope == scope)
-    people = query.order_by(models.Person.name_native).distinct().all()
+    people = query.distinct().all()
+    # Sorted in Python, not SQL: display_name is a property over four columns
+    # with a per-row choice, so no single ORDER BY column can express it.
+    people.sort(key=lambda p: p.display_name.casefold())
     return [_to_response(db, person, viewer) for person in people]
 
 
@@ -166,11 +173,32 @@ def create_person(
     split their credits across two people. Matching is on the normalized name,
     the same key resolve_person uses, so the two writers agree.
 
+    A payload may carry the four labelled name columns (the admin form) or one
+    unslotted `name` (every other writer); see schemas.PersonCreate. An
+    unslotted name is placed by name_slot_for, using the first requested role
+    for context, so the column it lands in matches what resolve_person would
+    have chosen for the same name.
+
     Metadata on an existing person is left untouched - use PUT to edit it.
     """
-    person = find_person(db, payload.name_native)
+    data = payload.model_dump(exclude={"roles", "name"})
+    lookup = payload.name or next(
+        n
+        for n in (
+            payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt
+        )
+        if n
+    )
+    person = find_person(db, lookup)
     if person is None:
-        data = payload.model_dump(exclude={"roles"})
+        if payload.name:
+            first = payload.roles[0] if payload.roles else None
+            slot = name_slot_for(
+                payload.name.strip(),
+                role=first.role if first else "",
+                scope=first.scope if first else "",
+            )
+            data[f"name_{slot}"] = payload.name.strip()
         person = models.Person(**data)
         db.add(person)
         db.flush()

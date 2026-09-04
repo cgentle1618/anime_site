@@ -111,6 +111,10 @@ export const STUDIO_NAME_FIELDS = [
   { key: "alt", label: "Alternative", field: "name_alt" },
 ];
 
+// A person carries the same four name columns and the same display_name_field
+// choice as a studio, so the field list is shared rather than copied.
+export const PERSON_NAME_FIELDS = STUDIO_NAME_FIELDS;
+
 export function displayStudioName(studio) {
   if (!studio) return "";
   const chosen = STUDIO_NAME_FIELDS.find(

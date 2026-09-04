@@ -7,9 +7,9 @@ import {
 
 const sources = {
   options: [{ category: "Genre Main", value: "Action", scopes: [] }],
-  studios: [{ name_native: "A-1 Pictures" }],
+  studios: [{ display_name: "A-1 Pictures" }],
   people: {
-    "director|anime": [{ name_native: "Abel Gongora" }],
+    "director|anime": [{ display_name: "Abel Gongora" }],
   },
 };
 
@@ -68,14 +68,14 @@ describe("buildCreateRequest", () => {
     expect(JSON.parse(init.body)).toEqual({ name_en: "New Studio" });
   });
 
-  it("posts a person with the requested role AND scope", () => {
+  it("posts a person as an unslotted { name } with role AND scope", () => {
     const [url, init] = buildCreateRequest(
       { kind: "person", role: "director", scope: "anime" },
       "New Director",
     );
     expect(url).toBe("/api/person/");
     expect(JSON.parse(init.body)).toEqual({
-      name_native: "New Director",
+      name: "New Director",
       roles: [{ role: "director", scope: "anime" }],
     });
   });
@@ -151,7 +151,7 @@ describe("ensureSourceValues", () => {
     );
     expect(personUrl).toBe("/api/person/");
     expect(JSON.parse(personInit.body)).toEqual({
-      name_native: "New Director",
+      name: "New Director",
       roles: [{ role: "director", scope: "anime" }],
     });
 

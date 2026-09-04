@@ -46,8 +46,14 @@ export function getSourceValues(sources, source) {
       .map((o) => o.value);
   }
   if (source.kind === "person") {
+    // display_name is computed server-side (PersonResponse) over four name
+    // columns and a per-row choice - do not re-derive it here. Empty values
+    // are dropped for the same reason as studios: they would collide with a
+    // typed value in the Set-based "already exists" check.
     const key = `${source.role}|${source.scope || ""}`;
-    return (sources.people?.[key] || []).map((p) => p.name_native);
+    return (sources.people?.[key] || [])
+      .map((p) => p.display_name)
+      .filter((name) => !!name);
   }
   if (source.kind === "studio") {
     // display_name is computed server-side (StudioResponse) - do not

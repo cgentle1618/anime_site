@@ -7,14 +7,14 @@ from app import models
 
 def _create(admin_client, name, roles):
     return admin_client.post(
-        "/api/person/", json={"name_native": name, "roles": roles}
+        "/api/person/", json={"name": name, "roles": roles}
     ).json()
 
 
 def test_create_and_read_back(admin_client, client):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     r = client.get(f"/api/person/{created['system_id']}")
-    assert r.json()["name_native"] == "新海誠"
+    assert r.json()["display_name"] == "新海誠"
 
 
 def test_list_filters_by_role_and_scope(admin_client, client):
@@ -22,7 +22,7 @@ def test_list_filters_by_role_and_scope(admin_client, client):
     _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
 
     names = [
-        p["name_native"]
+        p["display_name"]
         for p in client.get("/api/person/?role=director&scope=anime").json()
     ]
     assert names == ["新海誠"]
@@ -39,7 +39,7 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
     )
     for scope in ("anime", "movie"):
         names = [
-            p["name_native"]
+            p["display_name"]
             for p in client.get(f"/api/person/?role=director&scope={scope}").json()
         ]
         assert names == ["宮崎駿"]
@@ -159,7 +159,7 @@ def test_merge_into_itself_is_rejected(admin_client):
 
 
 def test_writes_require_admin(client):
-    assert client.post("/api/person/", json={"name_native": "X"}).status_code in (
+    assert client.post("/api/person/", json={"name": "X"}).status_code in (
         401,
         403,
     )
@@ -174,7 +174,7 @@ def test_an_unknown_person_role_is_rejected(admin_client):
     """
     r = admin_client.post(
         "/api/person/",
-        json={"name_native": "誰か", "roles": [{"role": "drector", "scope": "anime"}]},
+        json={"name": "誰か", "roles": [{"role": "drector", "scope": "anime"}]},
     )
     assert r.status_code == 422
 
@@ -188,7 +188,7 @@ def test_a_scope_illegal_for_the_role_is_rejected(admin_client):
     r = admin_client.post(
         "/api/person/",
         json={
-            "name_native": "誰か",
+            "name": "誰か",
             "roles": [{"role": "composer", "scope": "manga"}],
         },
     )
@@ -200,7 +200,7 @@ def test_a_media_type_scope_is_accepted_for_a_role_that_uses_it(admin_client):
     r = admin_client.post(
         "/api/person/",
         json={
-            "name_native": "誰か",
+            "name": "誰か",
             "roles": [{"role": "director", "scope": "anime-movie"}],
         },
     )
@@ -216,7 +216,7 @@ def test_a_scopeless_role_is_rejected(admin_client):
         r = admin_client.post(
             "/api/person/",
             json={
-                "name_native": "澤野弘之",
+                "name": "澤野弘之",
                 "roles": [{"role": "composer", "scope": bad}],
             },
         )

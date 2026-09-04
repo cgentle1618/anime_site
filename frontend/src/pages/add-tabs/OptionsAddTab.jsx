@@ -10,6 +10,7 @@ import { Field, SectionHeader, inputCls, selectCls } from "../../components/form
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
 import { MEDIA_TYPES, PERSON_ROLES } from "../../config/fieldOptions";
+import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
 // PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
@@ -102,28 +103,35 @@ function OptionsForm({
 function PersonForm({ personForm, upf }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Name (Native)" required>
-          <input
-            className={inputCls}
-            value={personForm.name_native}
-            onChange={(e) => upf("name_native", e.target.value)}
-            placeholder="e.g. 新海誠"
-          />
-        </Field>
-        <Field label="Name (EN)">
-          <input
-            className={inputCls}
-            value={personForm.name_en}
-            onChange={(e) => upf("name_en", e.target.value)}
-          />
-        </Field>
-        <Field label="Name (CN)">
-          <input
-            className={inputCls}
-            value={personForm.name_cn}
-            onChange={(e) => upf("name_cn", e.target.value)}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {PERSON_NAME_FIELDS.map(({ key, label, field }) => (
+          <Field key={key} label={`Name (${label})`}>
+            <input
+              className={inputCls}
+              value={personForm[field]}
+              onChange={(e) => upf(field, e.target.value)}
+              placeholder={key === "jp" ? "e.g. 新海誠" : undefined}
+            />
+          </Field>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field
+          label="Display Name"
+          hint="Which name to show. Automatic falls back EN → CN → JP → Alt"
+        >
+          <select
+            className={selectCls}
+            value={personForm.display_name_field}
+            onChange={(e) => upf("display_name_field", e.target.value)}
+          >
+            <option value="">Automatic (EN → CN → JP → Alt)</option>
+            {PERSON_NAME_FIELDS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

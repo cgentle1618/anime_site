@@ -753,9 +753,11 @@ def parse_person_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "name_native": parse_from_sheet(raw.get("name_native"), str),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "name_jp": parse_from_sheet(raw.get("name_jp"), str),
+        "name_alt": parse_from_sheet(raw.get("name_alt"), str),
+        "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         "gender": parse_from_sheet(raw.get("gender"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "photo_file": parse_from_sheet(raw.get("photo_file"), str),

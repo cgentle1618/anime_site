@@ -25,7 +25,14 @@ from app import models
 from app.services.pipelines import pull
 
 OPTION_HEADERS = ["system_id", "category", "value", "sort_order", "remark"]
-PERSON_HEADERS = ["system_id", "name_native", "name_en", "name_cn", "gender"]
+PERSON_HEADERS = [
+    "system_id",
+    "name_en",
+    "name_cn",
+    "name_jp",
+    "name_alt",
+    "gender",
+]
 STUDIO_HEADERS = ["system_id", "name_en", "name_cn", "name_jp", "name_alt", "my_rating"]
 SCOPE_HEADERS = ["id", "option_id", "scope"]
 ROLE_HEADERS = ["id", "person_id", "role", "scope"]
@@ -76,7 +83,7 @@ def test_option_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
 
 
 def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
-    local = models.Person(system_id=uuid.uuid4(), name_native="新房昭之")
+    local = models.Person(system_id=uuid.uuid4(), name_cn="新房昭之")
     db_session.add(local)
     db_session.flush()
     local_id = local.system_id
@@ -85,7 +92,7 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
         {
             "Person": [
                 PERSON_HEADERS,
-                [str(uuid.uuid4()), "新房昭之", "", "新房昭之", "Male"],
+                [str(uuid.uuid4()), "", "新房昭之", "", "", "Male"],
             ]
         }
     )
@@ -93,7 +100,7 @@ def test_person_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     result = pull.execute_pull_specific(db_session, "Person", log_action=False)
 
     assert result["status"] == "success"
-    rows = db_session.query(models.Person).filter_by(name_native="新房昭之").all()
+    rows = db_session.query(models.Person).filter_by(name_cn="新房昭之").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
     assert rows[0].gender == "Male"
@@ -210,7 +217,7 @@ def test_scope_row_is_remapped_onto_the_local_option(db_session, sheets):
 
 
 def test_person_role_row_is_remapped_onto_the_local_person(db_session, sheets):
-    local = models.Person(system_id=uuid.uuid4(), name_native="新房昭之")
+    local = models.Person(system_id=uuid.uuid4(), name_cn="新房昭之")
     db_session.add(local)
     db_session.flush()
     local_id = local.system_id
@@ -220,7 +227,7 @@ def test_person_role_row_is_remapped_onto_the_local_person(db_session, sheets):
         {
             "Person": [
                 PERSON_HEADERS,
-                [sheet_person_uuid, "新房昭之", "", "新房昭之", "Male"],
+                [sheet_person_uuid, "", "新房昭之", "", "", "Male"],
             ],
             "Person Role": [ROLE_HEADERS, ["", sheet_person_uuid, "director", "anime"]],
         }
@@ -303,7 +310,7 @@ def test_a_new_scope_for_a_known_option_still_inserts(db_session, sheets):
 
 
 def test_person_role_ignores_the_sheets_integer_id(db_session, sheets):
-    local = models.Person(system_id=uuid.uuid4(), name_native="新房昭之")
+    local = models.Person(system_id=uuid.uuid4(), name_cn="新房昭之")
     db_session.add(local)
     db_session.flush()
     db_session.add(
@@ -316,7 +323,7 @@ def test_person_role_ignores_the_sheets_integer_id(db_session, sheets):
         {
             "Person": [
                 PERSON_HEADERS,
-                [sheet_person_uuid, "新房昭之", "", "新房昭之", "Male"],
+                [sheet_person_uuid, "", "新房昭之", "", "", "Male"],
             ],
             "Person Role": [ROLE_HEADERS, ["1", sheet_person_uuid, "director", "anime"]],
         }

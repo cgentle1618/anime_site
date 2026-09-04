@@ -22,7 +22,8 @@ def test_resolve_person_matches_across_spelling_variants(db_session):
 def test_resolve_person_keeps_the_first_spelling(db_session):
     svc.resolve_person(db_session, "新海 誠", role="director", scope="anime")
     p = svc.resolve_person(db_session, "新海誠", role="director", scope="anime")
-    assert p.name_native == "新海 誠"
+    # An anime director's CJK name is recorded in the cn slot; see name_slot_for.
+    assert p.name_cn == "新海 誠"
 
 
 def test_resolve_person_records_the_role(db_session):
@@ -155,3 +156,41 @@ def test_a_credited_display_name_resolves_back_to_the_same_row(db_session):
     written = credit_names(db_session, "anime", entry_id, "studio")
     assert written == ["KyoAni"]
     assert resolve_studio(db_session, written[0]).system_id == studio.system_id
+
+
+def test_resolve_person_uses_the_shared_name_slot_rule(db_session):
+    latin = svc.resolve_person(
+        db_session, "Jon Favreau", role="director", scope="movie"
+    )
+    assert latin.name_en == "Jon Favreau" and latin.name_jp is None
+
+    cjk_anime = svc.resolve_person(
+        db_session, "渡部高志", role="director", scope="anime"
+    )
+    assert cjk_anime.name_cn == "渡部高志"
+
+    cjk_manga = svc.resolve_person(db_session, "諫山創", role="author", scope="manga")
+    assert cjk_manga.name_jp == "諫山創"
+
+    # And never name_alt, whichever route created them.
+    for p in (latin, cjk_anime, cjk_manga):
+        assert p.name_alt is None
+
+
+def test_a_person_name_round_trips_through_sheets(db_session, manga_entry):
+    """
+    credit_names feeds the Sheets backup column; the restore resolves that
+    string back through _find_by_name. A display name must land on the same
+    row it came from, whichever column holds it.
+    """
+    svc.replace_credits(
+        db_session, "manga", manga_entry.system_id, "author", ["諫山創"]
+    )
+    db_session.flush()
+
+    written = svc.credit_names(db_session, "manga", manga_entry.system_id, "author")
+    assert written == ["諫山創"]
+
+    same = svc.resolve_person(db_session, written[0], role="author", scope="manga")
+    assert db_session.query(models.Person).count() == 1
+    assert same.system_id is not None

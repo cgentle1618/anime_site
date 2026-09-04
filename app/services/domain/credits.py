@@ -27,7 +27,7 @@ from app.utils.credit_roles import (
     sheet_column_for,
     tag_fields_for,
 )
-from app.utils.name_normalize import normalize_name, split_names
+from app.utils.name_normalize import name_slot_for, normalize_name, split_names
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def _find_by_name(db: Session, model, name: str):
     if not key:
         return None
 
-    fields = getattr(model, "_name_fields", None) or ["name_native", "name_en"]
+    fields = getattr(model, "_name_fields", None) or ["name_en"]
     matches = {}
     for row in db.query(model).all():
         for field in fields:
@@ -116,7 +116,9 @@ def resolve_person(
     """Find or create the person, and make sure they hold the given role."""
     person = _find_by_name(db, models.Person, name)
     if person is None:
-        person = models.Person(name_native=name.strip())
+        stripped = name.strip()
+        slot = name_slot_for(stripped, role=role, scope=scope or "")
+        person = models.Person(**{f"name_{slot}": stripped})
         db.add(person)
         db.flush()
 
@@ -286,12 +288,10 @@ def credit_names(
         else:
             entity = db.get(models.Studio, row.studio_id)
         if entity is not None:
-            # A studio's shown name is its own choice; a person's is still
-            # name_native. This value reaches the anime payload, the admin
-            # form and the Sheets column - all three read the same string.
-            out.append(
-                entity.display_name if row.studio_id else entity.name_native
-            )
+            # People and studios both choose their own shown name. This value
+            # reaches the anime payload, the admin form and the Sheets column -
+            # all three read the same string.
+            out.append(entity.display_name)
     return out
 
 
@@ -663,7 +663,7 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
 
     people = (
         {
-            p.system_id: p.name_native
+            p.system_id: p.display_name
             for p in db.query(models.Person)
             .filter(models.Person.system_id.in_(person_ids))
             .all()

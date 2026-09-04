@@ -241,10 +241,10 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     findable in the first place.
 
     Groups on EVERY field _find_by_name (app/services/domain/credits.py)
-    would check for that model - name_native and name_en for a person, all
-    four of name_en/name_cn/name_jp/name_alt for a studio - not on one field
-    alone: resolve_person/resolve_studio look a new credit up by whichever of
-    those fields matches, so two rows that collide on any one of them are
+    would check for that model - all four of name_en/name_cn/name_jp/name_alt,
+    for a person as for a studio - not on one field alone:
+    resolve_person/resolve_studio look a new credit up by whichever of those
+    fields matches, so two rows that collide on any one of them are
     just as ambiguous to future credit resolution as two that collide on the
     "primary" field. Union-find gives the transitive closure across all of a
     model's fields (A's name_en == B's name_jp, B's name_jp == C's name_alt,
@@ -252,16 +252,15 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     are never grouped together - each table is scanned independently.
 
     Each result's "key" is a representative label (the first member's
-    normalized display name - name_native for a person, display_name for a
-    studio), not a normalization key every member is guaranteed to share - a
-    cluster formed through transitivity can have no single key common to all
+    normalized display_name), not a normalization key every member is
+    guaranteed to share - a cluster formed through transitivity can have no single key common to all
     of its rows.
     """
     from app.utils.clustering import cluster
     from app.utils.name_normalize import normalize_name
 
     def keys(row) -> set[str]:
-        fields = getattr(row, "_name_fields", None) or ["name_native"]
+        fields = getattr(row, "_name_fields", None) or ["name_en"]
         return {
             normalize_name(getattr(row, field))
             for field in fields
@@ -269,7 +268,7 @@ def find_duplicate_entities(db: Session) -> list[dict]:
         }
 
     def label(row) -> str:
-        return row.display_name if isinstance(row, Studio) else row.name_native
+        return row.display_name
 
     found: list[dict] = []
     for kind, model in (("person", Person), ("studio", Studio)):

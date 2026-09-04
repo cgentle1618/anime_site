@@ -226,6 +226,19 @@ def sample_anime(db_session, sample_franchise):
 
 
 @pytest.fixture
+def manga_entry(db_session, sample_franchise):
+    """One committed manga with no credits, for the credit-resolution tests."""
+    m = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        manga_name_en="Test Manga",
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
 def sample_comic(db_session, sample_franchise):
     c = models.Comic(
         system_id=uuid.uuid4(),

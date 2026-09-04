@@ -44,7 +44,7 @@ import {
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
@@ -155,9 +155,11 @@ export default function Add() {
   // adminTabs.js) with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
   const emptyPerson = () => ({
-    name_native: "",
     name_en: "",
     name_cn: "",
+    name_jp: "",
+    name_alt: "",
+    display_name_field: "",
     gender: "",
     my_rating: "",
     photo_file: "",
@@ -1000,8 +1002,11 @@ export default function Add() {
   }
 
   async function submitPerson() {
-    if (!personForm.name_native.trim()) {
-      showToast("warning", "Name (native) is required.");
+    const hasName = PERSON_NAME_FIELDS.some(
+      ({ field }) => personForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A person needs at least one name.");
       return;
     }
     const roles = personForm.role.trim()
@@ -1011,9 +1016,11 @@ export default function Add() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name_native: personForm.name_native.trim(),
-        name_en: personForm.name_en || null,
-        name_cn: personForm.name_cn || null,
+        name_en: personForm.name_en.trim() || null,
+        name_cn: personForm.name_cn.trim() || null,
+        name_jp: personForm.name_jp.trim() || null,
+        name_alt: personForm.name_alt.trim() || null,
+        display_name_field: personForm.display_name_field || null,
         gender: personForm.gender || null,
         my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
@@ -1025,7 +1032,7 @@ export default function Add() {
     if (res.ok) {
       const created = await res.json();
       showToast("success", "Person appended successfully.");
-      setLastAdded(created.name_native);
+      setLastAdded(created.display_name);
       setPersonForm(emptyPerson());
       setSources(await fetchAllSources());
     } else {

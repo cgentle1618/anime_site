@@ -39,7 +39,7 @@ def _rewind(db_session, sequence):
 
 def test_person_role_sequence_is_resynced_after_a_restore(db_session, sheet):
     _rewind(db_session, "person_role_id_seq")
-    person = models.Person(name_native="新海誠")
+    person = models.Person(name_jp="新海誠")
     db_session.add(person)
     db_session.flush()
 
