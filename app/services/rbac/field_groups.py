@@ -79,8 +79,14 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
     vocabulary that describes the work, while credits name people. Hand-listing
     these would be one more place to forget when a role is added, so they come
     from credit_roles through the same helper the response mixins use.
+
+    `studio_refs` rides beside `studio` on anime and anime-movie (see
+    `attach_link_fields`) - it names the same studio credit, just shaped for
+    linking, so a viewer withheld from the Credits group must lose it too.
+    It has no credit_roles entry of its own, so it is added by hand rather
+    than picked up by the `legacy_link_fields` scan above.
     """
-    return {
+    out = {
         media_type: tuple(
             attr
             for attr, kind, _key in legacy_link_fields(media_type)
@@ -88,6 +94,10 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
         )
         for media_type in MEDIA_TYPE_KEYS
     }
+    for media_type in ("anime", "anime-movie"):
+        if media_type in out:
+            out[media_type] = out[media_type] + ("studio_refs",)
+    return out
 
 
 FIELD_GROUPS: dict[str, FieldGroup] = {

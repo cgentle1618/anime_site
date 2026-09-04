@@ -19,12 +19,21 @@ in step with it, so a new role or field cannot be added on one side only.
 """
 
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
 
+class StudioRef(BaseModel):
+    """A studio a page can link to. The `studio` string beside it has no ids."""
+
+    system_id: UUID
+    display_name: str
+
+
 class AnimeLinkFields(BaseModel):
     studio: Optional[str] = None
+    studio_refs: list[StudioRef] = []
     director: Optional[str] = None
     producer: Optional[str] = None
     music: Optional[str] = None
@@ -37,6 +46,7 @@ class AnimeLinkFields(BaseModel):
 
 class AnimeMovieLinkFields(BaseModel):
     studio: Optional[str] = None
+    studio_refs: list[StudioRef] = []
     director: Optional[str] = None
 
 

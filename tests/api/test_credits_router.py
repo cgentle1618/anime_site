@@ -72,3 +72,27 @@ def test_writes_require_admin(client, db_session):
         f"/api/credits/anime/{a.system_id}", json={"credits": {}, "tags": {}}
     )
     assert r.status_code in (401, 403)
+
+
+def test_anime_payload_carries_linkable_studio_refs(
+    admin_client, db_session, sample_anime
+):
+    studio = models.Studio(name_en="MAPPA")
+    db_session.add(studio)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            media_type="anime",
+            entry_id=sample_anime.system_id,
+            role="studio",
+            studio_id=studio.system_id,
+            position=0,
+        )
+    )
+    db_session.commit()
+
+    body = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert body["studio"] == "MAPPA"          # legacy string, unchanged
+    assert body["studio_refs"] == [
+        {"system_id": str(studio.system_id), "display_name": "MAPPA"}
+    ]

@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models
+from app.schemas.link_fields import StudioRef
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
@@ -625,21 +626,17 @@ def legacy_link_fields(media_type: str) -> tuple[tuple[str, str, str], ...]:
     return tuple(out)
 
 
-def link_values_for_entries(
-    db: Session, media_type: str, entry_ids: list[UUID]
-) -> dict[UUID, dict[str, list[str]]]:
+def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     """
-    Every credit and tag for a batch of entries, in a fixed number of queries.
+    One query each for the credit rows, tag rows, and the entities they
+    reference (people, studios, options) for a batch of entries.
 
-    Returns {entry_id: {role_or_field_key: [name, ...]}}. Five queries total
-    regardless of how many entries are passed - `credit_names`/`tag_values`
-    issue one query each and are fine for a single entry, but a list endpoint
-    calling them per row is the N+1 this function exists to avoid.
+    Shared by `link_values_for_entries` and `attach_link_fields`'s
+    `studio_refs` build, so having both read from the same batch costs no
+    extra queries - five total regardless of how many entries are passed.
     """
     if not entry_ids:
-        return {}
-
-    out: dict[UUID, dict[str, list[str]]] = {eid: {} for eid in entry_ids}
+        return [], [], {}, {}, {}
 
     credit_rows = (
         db.query(models.MediaCredit)
@@ -676,7 +673,7 @@ def link_values_for_entries(
     )
     studios = (
         {
-            s.system_id: s.display_name
+            s.system_id: s
             for s in db.query(models.Studio)
             .filter(models.Studio.system_id.in_(studio_ids))
             .all()
@@ -694,9 +691,19 @@ def link_values_for_entries(
         if option_ids
         else {}
     )
+    return credit_rows, tag_rows, people, studios, options
+
+
+def _values_from_rows(
+    entry_ids: list[UUID], credit_rows, tag_rows, people, studios, options
+) -> dict[UUID, dict[str, list[str]]]:
+    out: dict[UUID, dict[str, list[str]]] = {eid: {} for eid in entry_ids}
 
     for row in credit_rows:
-        name = people.get(row.person_id) if row.person_id else studios.get(row.studio_id)
+        studio = studios.get(row.studio_id) if row.studio_id else None
+        name = people.get(row.person_id) if row.person_id else (
+            studio.display_name if studio else None
+        )
         if name is None or row.entry_id not in out:
             continue
         out[row.entry_id].setdefault(row.role, []).append(name)
@@ -710,6 +717,25 @@ def link_values_for_entries(
     return out
 
 
+def link_values_for_entries(
+    db: Session, media_type: str, entry_ids: list[UUID]
+) -> dict[UUID, dict[str, list[str]]]:
+    """
+    Every credit and tag for a batch of entries, in a fixed number of queries.
+
+    Returns {entry_id: {role_or_field_key: [name, ...]}}. Five queries total
+    regardless of how many entries are passed - `credit_names`/`tag_values`
+    issue one query each and are fine for a single entry, but a list endpoint
+    calling them per row is the N+1 this function exists to avoid.
+    """
+    if not entry_ids:
+        return {}
+    credit_rows, tag_rows, people, studios, options = _link_rows_and_lookups(
+        db, media_type, entry_ids
+    )
+    return _values_from_rows(entry_ids, credit_rows, tag_rows, people, studios, options)
+
+
 def attach_link_fields(db: Session, media_type: str, entries) -> None:
     """
     Set the legacy-named, comma-joined link attributes on ORM entries in place.
@@ -717,6 +743,13 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     Mirrors how `attach_plan_flag` decorates an entry with a value that is not
     a column of its own table; the response schema then reads it like any other
     attribute. Accepts one entry or a sequence.
+
+    Anime and anime-movie also get `studio_refs`: the same studio credit rows,
+    shaped as {system_id, display_name} so a detail page can link to the
+    studio - the legacy `studio` string beside it carries no ids. Built from
+    the same batched `_link_rows_and_lookups` fetch as the rest of this
+    function, so adding it costs no extra query - still five total,
+    regardless of how many entries are passed.
     """
     if entries is None:
         return
@@ -728,9 +761,29 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     if not spec:
         return
 
-    values = link_values_for_entries(db, media_type, [e.system_id for e in rows])
+    entry_ids = [e.system_id for e in rows]
+    credit_rows, tag_rows, people, studios, options = _link_rows_and_lookups(
+        db, media_type, entry_ids
+    )
+    values = _values_from_rows(entry_ids, credit_rows, tag_rows, people, studios, options)
+
+    wants_studio_refs = media_type in ("anime", "anime-movie")
+    studio_refs_by_entry: dict[UUID, list[StudioRef]] = {}
+    if wants_studio_refs:
+        for row in credit_rows:
+            if row.role != "studio" or not row.studio_id:
+                continue
+            studio = studios.get(row.studio_id)
+            if studio is None:
+                continue
+            studio_refs_by_entry.setdefault(row.entry_id, []).append(
+                StudioRef(system_id=studio.system_id, display_name=studio.display_name)
+            )
+
     for entry in rows:
         per_entry = values.get(entry.system_id, {})
         for attr, _kind, key in spec:
             names = per_entry.get(key) or []
             setattr(entry, attr, ", ".join(names) if names else None)
+        if wants_studio_refs:
+            entry.studio_refs = studio_refs_by_entry.get(entry.system_id, [])
