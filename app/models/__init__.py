@@ -15,6 +15,7 @@ from app.models.franchise import Franchise, Series
 from app.models.manga import Manga
 from app.models.media_credit import MediaCredit, MediaTag
 from app.models.media_relation import MediaRelation
+from app.models.media_source import MediaSource  # noqa: F401
 from app.models.meme import Meme
 from app.models.movie import Movies
 from app.models.note import Note
@@ -66,6 +67,7 @@ __all__ = [
     "Studio",
     "MediaCredit",
     "MediaTag",
+    "MediaSource",
     "PlanNext",
     "Quote",
     "Meme",
