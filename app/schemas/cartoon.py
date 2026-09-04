@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import CartoonLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class CartoonBase(BaseModel):
@@ -45,11 +46,11 @@ class CartoonBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date")
 
 
-class CartoonCreate(CartoonBase):
+class CartoonCreate(CartoonBase, SourceWriteFields):
     pass
 
 
-class CartoonUpdate(CartoonBase):
+class CartoonUpdate(CartoonBase, SourceWriteFields):
     pass
 
 

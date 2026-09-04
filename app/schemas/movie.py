@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import MovieLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class MovieBase(BaseModel):
@@ -43,11 +44,11 @@ class MovieBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date_usa", "release_date_tw")
 
 
-class MovieCreate(MovieBase):
+class MovieCreate(MovieBase, SourceWriteFields):
     pass
 
 
-class MovieUpdate(MovieBase):
+class MovieUpdate(MovieBase, SourceWriteFields):
     pass
 
 

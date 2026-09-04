@@ -35,6 +35,7 @@ from app.services.domain import (
     write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
+from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
@@ -119,6 +120,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_tv_completed,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
+        nested_collections={"sources": media_sources_writer("anime")},
     ),
     "anime_movie": MediaTypeSpec(
         key="anime_movie",
@@ -138,6 +140,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=lambda db, fid, sid, names: (resolve_anime_movie_parent_hierarchy(db, fid, names), None),
         mark_completed=mark_movie_completed,
         has_series=False,
+        nested_collections={"sources": media_sources_writer("anime-movie")},
     ),
     "movie": MediaTypeSpec(
         key="movie",
@@ -155,6 +158,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_movie_parent_hierarchy,
         mark_completed=mark_movie_completed,
         write_hook=execute_replace_single_movie,
+        nested_collections={"sources": media_sources_writer("movie")},
     ),
     "tv_show": MediaTypeSpec(
         key="tv_show",
@@ -172,6 +176,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_tv_show_parent_hierarchy,
         mark_completed=mark_tv_completed,
         write_hook=execute_replace_single_tv_show,
+        nested_collections={"sources": media_sources_writer("tv-show")},
     ),
     "cartoon": MediaTypeSpec(
         key="cartoon",
@@ -189,6 +194,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_cartoon_parent_hierarchy,
         mark_completed=mark_tv_completed,
         write_hook=execute_replace_single_cartoon,
+        nested_collections={"sources": media_sources_writer("cartoon")},
     ),
     "manga": MediaTypeSpec(
         key="manga",
@@ -207,6 +213,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_manga_parent_hierarchy,
         mark_completed=mark_reading_completed,
         write_hook=execute_replace_single_manga,
+        nested_collections={"sources": media_sources_writer("manga")},
     ),
     "novel": MediaTypeSpec(
         key="novel",
@@ -225,7 +232,10 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_completed,
         write_hook=execute_replace_single_novel,
-        nested_collections={"units": write_novel_units},
+        nested_collections={
+            "units": write_novel_units,
+            "sources": media_sources_writer("novel"),
+        },
         progress_hook=lambda db, entry: derive_novel_progress(entry),
     ),
     "comic": MediaTypeSpec(
@@ -244,5 +254,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_comic_parent_hierarchy,
         mark_completed=mark_comic_completed,
         write_hook=execute_replace_single_comic,
+        nested_collections={"sources": media_sources_writer("comic")},
     ),
 }

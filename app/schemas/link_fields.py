@@ -28,6 +28,14 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.sources import SourceRef
+
+
+class SourceFields(BaseModel):
+    """Attached by services.domain.sources.attach_sources at read time."""
+
+    sources: list[SourceRef] = []
+
 
 class StudioRef(BaseModel):
     """A studio a page can link to. The `studio` string beside it has no ids."""
@@ -51,7 +59,7 @@ class PersonRef(BaseModel):
     label: str
 
 
-class AnimeLinkFields(BaseModel):
+class AnimeLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
@@ -65,14 +73,14 @@ class AnimeLinkFields(BaseModel):
     quality: Optional[str] = None
 
 
-class AnimeMovieLinkFields(BaseModel):
+class AnimeMovieLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
 
 
-class MovieLinkFields(BaseModel):
+class MovieLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     director: Optional[str] = None
     # Movie never had a legacy source_official column; the tag field is
@@ -80,31 +88,31 @@ class MovieLinkFields(BaseModel):
     source_official: Optional[str] = None
 
 
-class TvShowLinkFields(BaseModel):
+class TvShowLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
 
 
-class CartoonLinkFields(BaseModel):
+class CartoonLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     source_official: Optional[str] = None
 
 
-class MangaLinkFields(BaseModel):
+class MangaLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
     publisher_tw: Optional[str] = None
 
 
-class NovelLinkFields(BaseModel):
+class NovelLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author: Optional[str] = None
     illustrator: Optional[str] = None
     publisher_tw: Optional[str] = None
 
 
-class ComicLinkFields(BaseModel):
+class ComicLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     writer: Optional[str] = None
     artist: Optional[str] = None

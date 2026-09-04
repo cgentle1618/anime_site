@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import AnimeLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class AnimeBase(BaseModel):
@@ -69,11 +70,11 @@ class AnimeBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date")
 
 
-class AnimeCreate(AnimeBase):
+class AnimeCreate(AnimeBase, SourceWriteFields):
     pass
 
 
-class AnimeUpdate(AnimeBase):
+class AnimeUpdate(AnimeBase, SourceWriteFields):
     pass
 
 

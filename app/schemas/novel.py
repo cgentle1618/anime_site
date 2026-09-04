@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import NovelLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 from app.services.domain.novel_units import unit_display_key
 
 
@@ -103,11 +104,11 @@ class NovelBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date", "end_date")
 
 
-class NovelCreate(NovelBase):
+class NovelCreate(NovelBase, SourceWriteFields):
     pass
 
 
-class NovelUpdate(NovelBase):
+class NovelUpdate(NovelBase, SourceWriteFields):
     pass
 
 

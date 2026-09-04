@@ -27,6 +27,7 @@ from app.services.domain.plan_next import (
     pop_plan_flag,
     set_entry_flag,
 )
+from app.services.domain.sources import attach_sources, delete_sources_for
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
@@ -74,9 +75,10 @@ def make_media_router(spec) -> APIRouter:
             db.rollback()
             logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
 
-    def _finish(db: Session, entry):
+    def _finish(db: Session, entry, viewer=None):
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
+        attach_sources(db, spec.owner_type, entry, viewer)
         return entry
 
     def _pop_nested(payload: dict) -> dict:
@@ -112,8 +114,12 @@ def make_media_router(spec) -> APIRouter:
         query = apply_entry_visibility(
             db.query(spec.model), spec.model, spec.owner_type, db, viewer
         )
+        # Only preload keys that are real ORM relationships (e.g. novel's
+        # "units"). "sources" has no relationship - media_source rows carry no
+        # FK to the entry - and is populated separately by attach_sources().
         for name in (spec.nested_collections or {}):
-            query = query.options(selectinload(getattr(spec.model, name)))
+            if name in spec.model.__mapper__.relationships:
+                query = query.options(selectinload(getattr(spec.model, name)))
         columns = spec.model.__table__.columns
         for field in spec.list_filters:
             raw = request.query_params.get(field)
@@ -132,6 +138,7 @@ def make_media_router(spec) -> APIRouter:
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
         attach_link_fields(db, spec.owner_type, entries)
+        attach_sources(db, spec.owner_type, entries, viewer)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
@@ -141,7 +148,7 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        return gate(viewer, spec.owner_type, _finish(db, entry), spec.response_schema)
+        return gate(viewer, spec.owner_type, _finish(db, entry, viewer), spec.response_schema)
 
     # ------------------------------------------------------------------
     # Protected write (admin only)
@@ -180,7 +187,7 @@ def make_media_router(spec) -> APIRouter:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
             db.commit()
             db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, None)
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
     async def update(
@@ -212,7 +219,7 @@ def make_media_router(spec) -> APIRouter:
 
         await _run_write_hook(db, entry)
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, None)
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
     async def patch(
@@ -237,7 +244,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, None)
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
                  summary=f"Mark {spec.label} Entry as Completed")
@@ -253,7 +260,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, None)
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")
     def delete(
@@ -267,6 +274,7 @@ def make_media_router(spec) -> APIRouter:
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
         delete_links_for(db, spec.owner_type, entry.system_id)
+        delete_sources_for(db, spec.owner_type, entry.system_id)
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}
