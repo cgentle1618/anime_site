@@ -13,11 +13,9 @@ import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
-import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
   Button,
-  Chip,
   Eyebrow,
   ProgressRule,
   RatingStamp,
@@ -32,96 +30,11 @@ const textareaCls =
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-function BelongingNovelsCard({ novel, isAdmin, onSave }) {
-  const [cnItems, setCnItems] = useState(novel.novel_name_each_cn || []);
-  const [enItems, setEnItems] = useState(novel.novel_name_each_en || []);
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    setCnItems(novel.novel_name_each_cn || []);
-    setEnItems(novel.novel_name_each_en || []);
-    setDirty(false);
-  }, [novel.novel_name_each_cn, novel.novel_name_each_en]);
-
-  function handleSave() {
-    const toArr = (items) => {
-      const filtered = items.filter(({ key, name }) => key && name);
-      return filtered.length ? filtered : null;
-    };
-    onSave({
-      novel_name_each_cn: toArr(cnItems),
-      novel_name_each_en: toArr(enItems),
-    });
-    setDirty(false);
-  }
-
-  function handleCancel() {
-    // Mirror the reset effect above; `objToItems` never existed, so Cancel
-    // threw a ReferenceError before this was caught by ESLint's no-undef.
-    setCnItems(novel.novel_name_each_cn || []);
-    setEnItems(novel.novel_name_each_en || []);
-    setDirty(false);
-  }
-
-  function renderReadOnly(items) {
-    if (!items.length)
-      return <p className="text-xs text-text-faint">No entries.</p>;
-    return (
-      <div className="space-y-1.5">
-        {items.map((item) => (
-          <div key={item.key} className="flex items-center gap-2">
-            <Chip className="shrink-0">{item.key}</Chip>
-            <span className="text-sm text-text">{item.name}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <Slip title="Belonging novels">
-      <div className="space-y-4">
-        {isAdmin ? (
-          <>
-            <BelongingNovelsEditor
-              label="CN"
-              placeholder="Chinese title"
-              items={cnItems}
-              onChange={(v) => { setCnItems(v); setDirty(true); }}
-            />
-            <BelongingNovelsEditor
-              label="EN"
-              placeholder="English title"
-              items={enItems}
-              onChange={(v) => { setEnItems(v); setDirty(true); }}
-            />
-            {dirty && (
-              <div className="flex gap-2 pt-3 border-t border-border">
-                <Button type="button" kind="primary" size="sm" onClick={handleSave}>
-                  Save
-                </Button>
-                <Button type="button" size="sm" onClick={handleCancel}>
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <Eyebrow className="mb-2">CN</Eyebrow>
-              {renderReadOnly(cnItems)}
-            </div>
-            <div>
-              <Eyebrow className="mb-2">EN</Eyebrow>
-              {renderReadOnly(enItems)}
-            </div>
-          </div>
-        )}
-      </div>
-    </Slip>
-  );
-}
+// BelongingNovelsCard (CN/EN per-volume title editor) lived here; it read
+// novel_name_each_cn/_en, which the backend replaced with the `units`
+// relationship (see app/models/novel.py NovelUnit). Task 11 owns the real
+// units rendering for this detail page — this is a scope-minimum removal
+// so the deleted BelongingNovelsEditor import does not break lint/build.
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Novel() {
@@ -573,13 +486,6 @@ export default function Novel() {
               ></textarea>
             </Slip>
           )}
-
-          {/* Belonging Novels Card */}
-          <BelongingNovelsCard
-            novel={novel}
-            isAdmin={isAdmin}
-            onSave={(payload) => performPatch(payload, "Belonging novels saved")}
-          />
 
           {/* Structured Notes */}
           {/* The dedicated remark textarea above renders only when a remark

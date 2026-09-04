@@ -1,5 +1,5 @@
 // Frontend: add tab page file for NovelAddTab.
-import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -511,21 +511,12 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
-      <div className="space-y-4">
-        <BelongingNovelsEditor
-          items={nvf.novel_name_each_cn}
-          onChange={(val) => unv("novel_name_each_cn", val)}
-          label="CN"
-          placeholder="CN book name"
-        />
-        <BelongingNovelsEditor
-          items={nvf.novel_name_each_en}
-          onChange={(val) => unv("novel_name_each_en", val)}
-          label="EN"
-          placeholder="EN book name"
-        />
-      </div>
+      <SectionHeader icon="fa-book-open" title="Units" />
+      <NovelUnitsEditor
+        items={nvf.units}
+        novelType={nvf.type}
+        onChange={(val) => unv("units", val)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

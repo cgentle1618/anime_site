@@ -520,15 +520,8 @@ export const TYPE_FIELD_META = {
     novel_name_roman: { label: "Name (Romaji)", group: "Names" },
     novel_name_jp: { label: "Name (JP)", group: "Names" },
     novel_name_alt: { label: "Name (Alt)", group: "Names" },
-    // Per-volume title lists, edited with a dedicated repeater component.
-    novel_name_each_cn: {
-      label: "Per-Volume Names (CN)",
-      control: "none",
-      defaultable: false,
-      group: "Names",
-    },
-    novel_name_each_en: {
-      label: "Per-Volume Names (EN)",
+    units: {
+      label: "Units (Volumes / Arcs)",
       control: "none",
       defaultable: false,
       group: "Names",
