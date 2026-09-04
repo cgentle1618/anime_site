@@ -48,7 +48,12 @@ def test_person_role_sequence_is_resynced_after_a_restore(db_session, sheet):
         [
             # Ids 1..N are exactly what a restore into a fresh instance brings.
             ["1", str(person.system_id), "director", "anime"],
-            ["2", str(person.system_id), "producer", ""],
+            # A real scope, not "": person_role.scope is NOT NULL now, so a
+            # sheet row with an empty scope fails the restore. Backups taken
+            # after the role collapse always carry one - and a backup taken
+            # BEFORE it cannot be restored anyway, because its role names are
+            # the retired vocabulary.
+            ["2", str(person.system_id), "producer", "anime"],
         ],
     )
     result = pull.execute_pull_specific(db_session, "Person Role", log_action=False)
@@ -56,7 +61,7 @@ def test_person_role_sequence_is_resynced_after_a_restore(db_session, sheet):
 
     # The next role saved from the Add form lets the sequence choose the id.
     db_session.add(
-        models.PersonRole(person_id=person.system_id, role="composer", scope=None)
+        models.PersonRole(person_id=person.system_id, role="composer", scope="anime")
     )
     db_session.flush()
 

@@ -78,16 +78,22 @@ def test_two_studios_with_the_same_name_and_no_english_name_collide(db_session):
         db_session.flush()
 
 
-def test_one_person_cannot_hold_the_same_unscoped_role_twice(db_session):
+def test_one_person_cannot_hold_the_same_role_and_scope_twice(db_session):
+    """
+    Was "the same UNSCOPED role twice", which needed NULLS NOT DISTINCT to
+    fire at all. scope is NOT NULL now, so there is no unscoped row to
+    duplicate and the plain constraint is sufficient - see the design spec's
+    Decision B.
+    """
     person = models.Person(name_native="澤野弘之")
     db_session.add(person)
     db_session.flush()
     db_session.add(
-        models.PersonRole(person_id=person.system_id, role="composer", scope=None)
+        models.PersonRole(person_id=person.system_id, role="composer", scope="anime")
     )
     db_session.flush()
     db_session.add(
-        models.PersonRole(person_id=person.system_id, role="composer", scope=None)
+        models.PersonRole(person_id=person.system_id, role="composer", scope="anime")
     )
     with pytest.raises(IntegrityError):
         db_session.flush()
@@ -211,9 +217,16 @@ def test_the_migration_collapses_duplicate_person_roles(db_session):
     person = models.Person(name_native="澤野弘之")
     db_session.add(person)
     db_session.flush()
+    # scope="anime" rather than None: the frozen migration deduplicates on
+    # (person_id, role, scope) whatever the scope is, and scope is NOT NULL
+    # now so an unscoped row cannot be created to feed it. The migration
+    # itself is history and stays as written - a fresh database runs it while
+    # the column is still nullable.
     for _ in range(3):
         db_session.add(
-            models.PersonRole(person_id=person.system_id, role="composer", scope=None)
+            models.PersonRole(
+                person_id=person.system_id, role="composer", scope="anime"
+            )
         )
     db_session.flush()
 

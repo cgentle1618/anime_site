@@ -38,7 +38,7 @@ def test_a_person_can_hold_two_roles(db_session):
     db_session.add_all(
         [
             models.PersonRole(person_id=p.system_id, role="director", scope="anime"),
-            models.PersonRole(person_id=p.system_id, role="composer", scope=None),
+            models.PersonRole(person_id=p.system_id, role="composer", scope="anime"),
         ]
     )
     db_session.commit()

@@ -84,23 +84,24 @@ class PersonRole(Base):
 
     Explicit rather than derived from credits: a director added today must be
     offered in the anime director dropdown before their first credit exists.
-    Every row carries a media-type scope; a person's visibility is the union of
-    their rows. Task 3 makes the column NOT NULL - see the design spec's
-    Decision B.
+    Every row carries a media-type scope, and a person's visibility is the
+    union of their rows. There is deliberately no unscoped "offered
+    everywhere" state - unlike system_option_scope, where zero rows means
+    everywhere. Person credits ARE auto-scoped on write, and under an
+    "everywhere" rule the first scope row would silently narrow the person,
+    which is exactly the trap Ruling R27 removed from tags. With no
+    "everywhere" state to collapse, auto-scoping is purely additive and the
+    trap cannot occur. See the design spec's Decision B.
     """
 
     __tablename__ = "person_role"
     __table_args__ = (
-        # NULLS NOT DISTINCT: scope is NULL for every role except director, so
-        # without this the constraint never fires for the common case and one
-        # person can hold the same unscoped role many times over.
-        UniqueConstraint(
-            "person_id",
-            "role",
-            "scope",
-            name="uq_person_role",
-            postgresql_nulls_not_distinct=True,
-        ),
+        # No NULLS NOT DISTINCT here, unlike uq_person_name and
+        # uq_media_credit_row: scope is NOT NULL, so there is no nullable
+        # column left in the key for Postgres to treat as distinct from
+        # itself. It WAS needed when scope was NULL for every role but
+        # director.
+        UniqueConstraint("person_id", "role", "scope", name="uq_person_role"),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -113,7 +114,7 @@ class PersonRole(Base):
     # One of credit_roles.PERSON_ROLES.
     role = Column(String, nullable=False, index=True)
     # A hyphenated media-type key, and one of legal_scopes(role).
-    scope = Column(String, nullable=True)
+    scope = Column(String, nullable=False)
 
     person = relationship("Person", back_populates="roles")
 
