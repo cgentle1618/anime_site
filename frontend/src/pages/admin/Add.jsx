@@ -16,6 +16,7 @@ import CollectionAddTab, {
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
+import StudioAddTab from "../add-tabs/StudioAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
@@ -43,6 +44,7 @@ import {
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
+import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
@@ -147,8 +149,10 @@ export default function Add() {
   // components/forms/ScopePicker.jsx.
   const [optScopes, setOptScopes] = useState([]);
 
-  // The Options tab has three sub-tabs (Options / People / Studios) sharing
-  // one "System Options" nav entry — each manages a different Tier 2/3 source.
+  // The Options tab has two sub-tabs (Options / People) sharing one
+  // "System Options" nav entry — each manages a different Tier 2/3 source.
+  // Studio is a separate top-level tab under the Entity group (see
+  // adminTabs.js) with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
   const emptyPerson = () => ({
     name_native: "",
@@ -162,11 +166,19 @@ export default function Add() {
     scope: "",
   });
   const emptyStudio = () => ({
-    name_native: "",
     name_en: "",
     name_cn: "",
+    name_jp: "",
+    name_alt: "",
+    display_name_field: "",
     my_rating: "",
     logo_file: "",
+    country: "",
+    website_url: "",
+    founded_date: "",
+    defunct_date: "",
+    mal_id: "",
+    mal_link: "",
     remark: "",
   });
   const [personForm, setPersonForm] = useState(emptyPerson());
@@ -585,6 +597,7 @@ export default function Add() {
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
+      else if (activeTab === "studio") await submitStudio();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -944,7 +957,6 @@ export default function Add() {
 
   async function submitOptions() {
     if (optionsSubTab === "people") return submitPerson();
-    if (optionsSubTab === "studios") return submitStudio();
 
     if (!optCategory.trim()) {
       showToast("warning", "Category is required.");
@@ -1022,19 +1034,30 @@ export default function Add() {
   }
 
   async function submitStudio() {
-    if (!studioForm.name_native.trim()) {
-      showToast("warning", "Name (native) is required.");
+    const hasName = STUDIO_NAME_FIELDS.some(
+      ({ field }) => studioForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A studio needs at least one name.");
       return;
     }
     const res = await fetch(endpoints.studio.create(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name_native: studioForm.name_native.trim(),
-        name_en: studioForm.name_en || null,
-        name_cn: studioForm.name_cn || null,
+        name_en: studioForm.name_en.trim() || null,
+        name_cn: studioForm.name_cn.trim() || null,
+        name_jp: studioForm.name_jp.trim() || null,
+        name_alt: studioForm.name_alt.trim() || null,
+        display_name_field: studioForm.display_name_field || null,
         my_rating: studioForm.my_rating || null,
         logo_file: studioForm.logo_file || null,
+        country: studioForm.country || null,
+        website_url: studioForm.website_url || null,
+        founded_date: studioForm.founded_date || null,
+        defunct_date: studioForm.defunct_date || null,
+        mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
+        mal_link: studioForm.mal_link || null,
         remark: studioForm.remark || null,
       }),
       credentials: "include",
@@ -1042,7 +1065,7 @@ export default function Add() {
     if (res.ok) {
       const created = await res.json();
       showToast("success", "Studio appended successfully.");
-      setLastAdded(created.name_native);
+      setLastAdded(created.display_name);
       setStudioForm(emptyStudio());
       setSources(await fetchAllSources());
     } else {
@@ -2531,9 +2554,12 @@ export default function Add() {
             setOptScopes={setOptScopes}
             personForm={personForm}
             upf={upf}
-            studioForm={studioForm}
-            usf={usf}
           />
+        )}
+
+        {/* ═══ STUDIO TAB ═══ */}
+        {activeTab === "studio" && (
+          <StudioAddTab studioForm={studioForm} usf={usf} />
         )}
 
         {/* Content labels - one control for every media tab. */}
@@ -2550,7 +2576,13 @@ export default function Add() {
         <div className="mt-6 flex justify-end">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              (activeTab === "studio" &&
+                !STUDIO_NAME_FIELDS.some(
+                  ({ field }) => studioForm[field]?.trim(),
+                ))
+            }
             className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
           >
             {submitting ? (

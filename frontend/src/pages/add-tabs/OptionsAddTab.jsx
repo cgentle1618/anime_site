@@ -1,10 +1,11 @@
 // Frontend: add tab page file for OptionsAddTab.
 //
-// Four sub-tabs share the "System Options" nav entry: Options and Tags (two
+// Three sub-tabs share the "System Options" nav entry: Options and Tags (two
 // halves of one closed-vocabulary table, split for navigation only - the
-// form and the endpoint are identical), then People and Studios (credited
-// entities). See app/utils/credit_roles.py for the person-role vocabulary
-// and TAG_CATEGORIES, and lib/optionCategoryGroups.js for the split.
+// form and the endpoint are identical), then People (a credited entity;
+// Studio moved out to its own Entity tab group - see StudioAddTab.jsx). See
+// app/utils/credit_roles.py for the person-role vocabulary and
+// TAG_CATEGORIES, and lib/optionCategoryGroups.js for the split.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
@@ -187,61 +188,6 @@ function PersonForm({ personForm, upf }) {
   );
 }
 
-function StudioForm({ studioForm, usf }) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Name (Native)" required>
-          <input
-            className={inputCls}
-            value={studioForm.name_native}
-            onChange={(e) => usf("name_native", e.target.value)}
-            placeholder="e.g. ufotable"
-          />
-        </Field>
-        <Field label="Name (EN)">
-          <input
-            className={inputCls}
-            value={studioForm.name_en}
-            onChange={(e) => usf("name_en", e.target.value)}
-          />
-        </Field>
-        <Field label="Name (CN)">
-          <input
-            className={inputCls}
-            value={studioForm.name_cn}
-            onChange={(e) => usf("name_cn", e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="My Rating">
-          <input
-            className={inputCls}
-            value={studioForm.my_rating}
-            onChange={(e) => usf("my_rating", e.target.value)}
-          />
-        </Field>
-        <Field label="Logo File">
-          <input
-            className={inputCls}
-            value={studioForm.logo_file}
-            onChange={(e) => usf("logo_file", e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={2}
-          value={studioForm.remark}
-          onChange={(e) => usf("remark", e.target.value)}
-        />
-      </Field>
-    </div>
-  );
-}
-
 export default function OptionsAddTab({
   optionsSubTab,
   setOptionsSubTab,
@@ -254,8 +200,6 @@ export default function OptionsAddTab({
   setOptScopes,
   personForm,
   upf,
-  studioForm,
-  usf,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
@@ -279,9 +223,6 @@ export default function OptionsAddTab({
       )}
       {optionsSubTab === "people" && (
         <PersonForm personForm={personForm} upf={upf} />
-      )}
-      {optionsSubTab === "studios" && (
-        <StudioForm studioForm={studioForm} usf={usf} />
       )}
     </div>
   );

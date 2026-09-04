@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 
 import { TAG_CATEGORIES, applyConstants } from "../config/fieldOptions";
 import { categoriesForSubTab, isTagCategory } from "./optionCategoryGroups";
+import { OPTION_SUB_TABS } from "../components/forms/OptionSubTabBar";
 
 // applyConstants mutates TAG_CATEGORIES in place, so restore its real
 // contents after any test that overwrites them.
@@ -49,5 +50,11 @@ describe("categoriesForSubTab", () => {
   it("offers no categories on a sub-tab that has no category picker", () => {
     expect(categoriesForSubTab(ALL, "people")).toEqual([]);
     expect(categoriesForSubTab(ALL, "studios")).toEqual([]);
+  });
+});
+
+describe("OPTION_SUB_TABS", () => {
+  it("no longer offers Studios under System Option", () => {
+    expect(OPTION_SUB_TABS.map((t) => t.key)).not.toContain("studios");
   });
 });
