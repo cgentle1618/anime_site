@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-09-02
+Last verified: 2026-09-04
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -12,6 +12,7 @@ right and the doc needs the fix.
 | Read this | When you want to |
 |---|---|
 | [setup-local.md](setup-local.md) | get the app running on a new machine (Windows or Linux) |
+| [switching-environments.md](switching-environments.md) | hand work over between the **company** and **home** machines — what to push, when to Backup/Pull the data |
 | [architecture.md](architecture.md) | know how a request flows and where code lives |
 | [entry-types.md](entry-types.md) | understand what a collection / franchise / series / entry is and what each media type supports |
 

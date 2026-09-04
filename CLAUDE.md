@@ -64,6 +64,30 @@ See `.env.example` (authoritative) and `docs/setup-local.md`. Cloud Run auto-set
 - The Google Sheets tab for anime movies is named **"Anime Movie"** (singular); every tab name lives in `app/services/pipelines/tabs.py`.
 - Media-type keys: the registry uses underscores (`anime_movie`, `tv_show`) for router files; the data layer uses hyphens (`anime-movie`, `tv-show`, see `app/utils/media_resolver.py`). Use `spec.owner_type` when in doubt.
 
+## Two Development Environments (company / home)
+
+This project is developed on two machines — **company** and **home** — and work
+is often stopped halfway on one and continued on the other. Full procedure and
+per-machine details: **`docs/switching-environments.md`**.
+
+- Code travels by **git** (`origin`); database contents travel by **Google Sheets**
+  (admin `/system` → **Backup** writes local DB → sheet, **Pull All** writes sheet
+  → local DB). `.env`, `credentials.json`, `venv/`, `node_modules/` and
+  `frontend_dist/` travel nowhere — they are per-machine.
+- The sheet holds exactly **one** version of the data: Backup overwrites every tab,
+  Pull All overwrites every table. Back up from the machine with the newer data
+  *before* touching the other one, and never Pull All over unsaved local changes.
+  If both databases moved since the last backup, stop and ask — there is no merge.
+- **Before I switch away**: push my commits, write any half-done state into
+  `docs/` or `docs/roadmap.md` (the next session starts blank), and run Backup if
+  data changed.
+- **After switching in**: `git pull` → start Postgres → install deps if they moved
+  → `alembic upgrade head` (always, before any Pull) → Pull All if data changed
+  elsewhere → `cd frontend && npm run build`.
+- When I say I am about to switch environments, walk me through the leaving
+  checklist; when a session starts and the working tree looks stale, suspect a
+  handover and check the arriving checklist first.
+
 ## Concurrent Claude Code Sessions
 
 - Multiple Claude Code sessions may be running at the same time in this same local directory and on the same git branch. Assume you are not the only agent editing the working tree.
