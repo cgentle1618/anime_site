@@ -9,6 +9,7 @@ import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
+import { studioValue } from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -403,7 +404,7 @@ export default function Anime() {
               title="Production"
               fields={[
                 [
-                  { label: "Studio", value: anime.studio },
+                  { label: "Studio", value: studioValue(anime) },
                   { label: "台灣代理", value: anime.distributor_tw },
                 ],
                 [
