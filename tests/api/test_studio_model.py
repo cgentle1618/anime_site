@@ -57,3 +57,21 @@ def test_founded_date_must_be_truncated_iso(db_session):
 
 def test_studio_has_no_role_table():
     assert not hasattr(models.Studio, "roles")
+
+
+def test_display_name_honours_the_chosen_field(db_session):
+    s = models.Studio(
+        name_en="Kyoto Animation", name_alt="KyoAni", display_name_field="alt"
+    )
+    assert s.display_name == "KyoAni"
+
+
+def test_display_name_falls_back_when_the_chosen_field_is_empty(db_session):
+    s = models.Studio(name_en="Kyoto Animation", display_name_field="alt")
+    assert s.display_name == "Kyoto Animation"
+
+
+def test_display_name_falls_back_en_cn_jp_alt_when_unchosen(db_session):
+    assert models.Studio(name_cn="京都動畫", name_jp="京アニ").display_name == "京都動畫"
+    assert models.Studio(name_jp="京アニ").display_name == "京アニ"
+    assert models.Studio(name_alt="KyoAni").display_name == "KyoAni"

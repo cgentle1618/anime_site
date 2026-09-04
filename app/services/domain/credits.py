@@ -36,16 +36,22 @@ def _find_by_name(db: Session, model, name: str):
     """
     Find an entity whose stored name normalizes to the same key.
 
+    Fields come from the model's _name_fields, so a studio matches on any of
+    its four names - a Japanese name from Tenrai and an English one typed
+    into the Add form must land on the same row, or the studio's credits
+    split in two.
+
     Linear scan over the whole table in Python rather than a SQL filter -
     normalize_name folds width/case/whitespace in ways SQL can't express
     portably, and these tables are small enough that this stays cheap.
     """
     key = normalize_name(name)
+    fields = getattr(model, "_name_fields", None) or ["name_native", "name_en"]
     for row in db.query(model).all():
-        if normalize_name(row.name_native) == key:
-            return row
-        if row.name_en and normalize_name(row.name_en) == key:
-            return row
+        for field in fields:
+            value = getattr(row, field, None)
+            if value and normalize_name(value) == key:
+                return row
     return None
 
 
@@ -80,10 +86,10 @@ def resolve_person(
 
 
 def resolve_studio(db: Session, name: str) -> models.Studio:
-    """Find or create the studio."""
+    """Find or create the studio. A new one is created under its English name."""
     studio = _find_by_name(db, models.Studio, name)
     if studio is None:
-        studio = models.Studio(name_native=name.strip())
+        studio = models.Studio(name_en=name.strip())
         db.add(studio)
         db.flush()
     return studio
@@ -239,7 +245,12 @@ def credit_names(
         else:
             entity = db.get(models.Studio, row.studio_id)
         if entity is not None:
-            out.append(entity.name_native)
+            # A studio's shown name is its own choice; a person's is still
+            # name_native. This value reaches the anime payload, the admin
+            # form and the Sheets column - all three read the same string.
+            out.append(
+                entity.display_name if row.studio_id else entity.name_native
+            )
     return out
 
 
@@ -625,7 +636,7 @@ def link_values_for_entries(
     )
     studios = (
         {
-            s.system_id: s.name_native
+            s.system_id: s.display_name
             for s in db.query(models.Studio)
             .filter(models.Studio.system_id.in_(studio_ids))
             .all()

@@ -112,3 +112,46 @@ def test_director_scope_follows_the_media_type(db_session):
     svc.replace_credits(db_session, "movie", uuid.uuid4(), "director", ["Nolan"])
     p = db_session.query(models.Person).one()
     assert [r.scope for r in p.roles] == ["non_anime"]
+
+
+def test_find_studio_matches_a_japanese_name(db_session):
+    from app.services.domain.credits import find_studio
+
+    db_session.add(models.Studio(name_en="Kyoto Animation", name_jp="京都アニメーション"))
+    db_session.commit()
+    assert find_studio(db_session, "京都アニメーション").name_en == "Kyoto Animation"
+
+
+def test_find_studio_matches_an_alt_name(db_session):
+    from app.services.domain.credits import find_studio
+
+    db_session.add(models.Studio(name_en="Kyoto Animation", name_alt="KyoAni"))
+    db_session.commit()
+    assert find_studio(db_session, "kyoani").name_en == "Kyoto Animation"
+
+
+def test_a_credited_display_name_resolves_back_to_the_same_row(db_session):
+    """The Sheets round trip: backup writes display_name, restore resolves it."""
+    import uuid
+
+    from app.services.domain.credits import credit_names, resolve_studio
+
+    studio = models.Studio(
+        name_en="Kyoto Animation", name_alt="KyoAni", display_name_field="alt"
+    )
+    db_session.add(studio)
+    db_session.flush()
+    entry_id = uuid.uuid4()
+    db_session.add(
+        models.MediaCredit(
+            media_type="anime",
+            entry_id=entry_id,
+            role="studio",
+            studio_id=studio.system_id,
+        )
+    )
+    db_session.commit()
+
+    written = credit_names(db_session, "anime", entry_id, "studio")
+    assert written == ["KyoAni"]
+    assert resolve_studio(db_session, written[0]).system_id == studio.system_id

@@ -787,12 +787,20 @@ def parse_studio_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "name_native": parse_from_sheet(raw.get("name_native"), str),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "name_jp": parse_from_sheet(raw.get("name_jp"), str),
+        "name_alt": parse_from_sheet(raw.get("name_alt"), str),
+        "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "logo_file": parse_from_sheet(raw.get("logo_file"), str),
         "remark": parse_from_sheet(raw.get("remark"), str),
+        "founded_date": parse_from_sheet(raw.get("founded_date"), str),
+        "defunct_date": parse_from_sheet(raw.get("defunct_date"), str),
+        "country": parse_from_sheet(raw.get("country"), str),
+        "website_url": parse_from_sheet(raw.get("website_url"), str),
+        "mal_id": parse_from_sheet(raw.get("mal_id"), int),
+        "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

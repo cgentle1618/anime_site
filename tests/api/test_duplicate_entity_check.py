@@ -61,6 +61,20 @@ def test_null_name_en_does_not_collapse_distinct_people(db_session):
     assert find_duplicate_entities(db_session) == []
 
 
+def test_studios_colliding_only_on_name_jp_are_flagged(db_session):
+    db_session.add_all(
+        [
+            models.Studio(name_en="Kyoto Animation", name_jp="京都アニメーション"),
+            models.Studio(name_en="KyoAni Inc", name_jp="京都アニメーション"),
+        ]
+    )
+    db_session.commit()
+    found = find_duplicate_entities(db_session)
+    assert len(found) == 1
+    assert found[0]["kind"] == "studio"
+    assert sorted(found[0]["names"]) == sorted(["Kyoto Animation", "KyoAni Inc"])
+
+
 def test_transitive_closure_across_fields_forms_one_cluster(db_session):
     # A and B share name_native; B and C share name_en. A and C share neither
     # field directly, so only union-find (not naive per-field grouping) puts

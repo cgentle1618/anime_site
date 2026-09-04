@@ -19,7 +19,7 @@ from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
 
 
-class Person(Base):
+class Person(Base, NameFallbackMixin):
     """
     One human credited on a media entry.
 
@@ -45,6 +45,11 @@ class Person(Base):
             postgresql_nulls_not_distinct=True,
         ),
     )
+
+    # Used by _find_by_name (app/services/domain/credits.py) so a person
+    # matches on any of these three, the same fields the resolver checked
+    # before it was made model-generic.
+    _name_fields = ["name_native", "name_en", "name_cn"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -173,3 +178,39 @@ class Studio(Base, NameFallbackMixin):
     mal_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    # Which column each display_name_field value names.
+    _DISPLAY_FIELDS = {
+        "en": "name_en", "cn": "name_cn", "jp": "name_jp", "alt": "name_alt",
+    }
+
+    @property
+    def names_dict(self) -> dict:
+        """Every name variation, for resolution and for the detail page."""
+        return {
+            "en": self.name_en,
+            "cn": self.name_cn,
+            "jp": self.name_jp,
+            "alt": self.name_alt,
+        }
+
+    @property
+    def display_name(self) -> str:
+        """
+        The name to show. Unlike every media model, whose fallback chain is
+        hard-coded per type, a studio's choice is DATA: display_name_field
+        names the winner. The chain below is only the fallback for when that
+        is NULL or names an empty column.
+        """
+        chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
+        if chosen:
+            value = getattr(self, chosen)
+            if value and value.strip():
+                return value.strip()
+        sequence = [
+            ("EN", self.name_en),
+            ("CN", self.name_cn),
+            ("JP", self.name_jp),
+            ("Alt", self.name_alt),
+        ]
+        return self.get_fallback_name(sequence, "EN")

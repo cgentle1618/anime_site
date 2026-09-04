@@ -26,7 +26,7 @@ from app.services.pipelines import pull
 
 OPTION_HEADERS = ["system_id", "category", "value", "sort_order", "remark"]
 PERSON_HEADERS = ["system_id", "name_native", "name_en", "name_cn", "gender"]
-STUDIO_HEADERS = ["system_id", "name_native", "name_en", "name_cn", "my_rating"]
+STUDIO_HEADERS = ["system_id", "name_en", "name_cn", "name_jp", "name_alt", "my_rating"]
 SCOPE_HEADERS = ["id", "option_id", "scope"]
 ROLE_HEADERS = ["id", "person_id", "role", "scope"]
 
@@ -109,7 +109,7 @@ def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
         {
             "Studio": [
                 STUDIO_HEADERS,
-                [str(uuid.uuid4()), "シャフト", "", "沙夫特", "A"],
+                [str(uuid.uuid4()), "シャフト", "", "", "", "A"],
             ]
         }
     )
@@ -117,22 +117,20 @@ def test_studio_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     result = pull.execute_pull_specific(db_session, "Studio", log_action=False)
 
     assert result["status"] == "success"
-    rows = db_session.query(models.Studio).filter_by(name_native="シャフト").all()
+    rows = db_session.query(models.Studio).filter_by(name_en="シャフト").all()
     assert len(rows) == 1
     assert rows[0].system_id == local_id
     assert rows[0].my_rating == "A"
 
 
-def test_a_different_name_en_is_a_different_studio(db_session, sheets):
+def test_a_different_name_cn_is_a_different_studio(db_session, sheets):
     """
     The boundary of the natural key, stated on purpose.
 
-    uq_studio_name is (name_native, name_en), so a sheet row that fills in a
-    name_en the local row does not have is a DIFFERENT key and inserts rather
-    than merging. Matching on name_native alone instead would silently fuse two
-    studios that merely share a native name. Both the live Person and Studio
-    tabs carry an empty name_en on every row today, so nothing hits this path;
-    it is recorded here so a future change to the constraint has to face it.
+    uq_studio_name is (name_en, name_cn, name_jp, name_alt), so a sheet row
+    that fills in a name_cn the local row does not have is a DIFFERENT key and
+    inserts rather than merging. Matching on name_en alone instead would
+    silently fuse two studios that merely share an English name.
     """
     db_session.add(models.Studio(system_id=uuid.uuid4(), name_en="シャフト"))
     db_session.flush()
@@ -141,7 +139,7 @@ def test_a_different_name_en_is_a_different_studio(db_session, sheets):
         {
             "Studio": [
                 STUDIO_HEADERS,
-                [str(uuid.uuid4()), "シャフト", "SHAFT", "", ""],
+                [str(uuid.uuid4()), "シャフト", "沙夫特", "", "", ""],
             ]
         }
     )
@@ -149,7 +147,7 @@ def test_a_different_name_en_is_a_different_studio(db_session, sheets):
     result = pull.execute_pull_specific(db_session, "Studio", log_action=False)
 
     assert result["status"] == "success"
-    rows = db_session.query(models.Studio).filter_by(name_native="シャフト").all()
+    rows = db_session.query(models.Studio).filter_by(name_en="シャフト").all()
     assert len(rows) == 2
 
 

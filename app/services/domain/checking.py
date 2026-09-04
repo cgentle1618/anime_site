@@ -240,29 +240,36 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     the fix is POST /api/person/{id}/merge - this check is what makes the pairs
     findable in the first place.
 
-    Groups on BOTH name_native and name_en, not name_native alone:
-    resolve_person/resolve_studio (app/services/domain/credits.py:_find_by_name)
-    look a new credit up by whichever of the two fields matches, so two rows
-    that only collide on name_en are just as ambiguous to future credit
-    resolution as two that collide on name_native. Union-find gives the
-    transitive closure across both fields (A's name_en == B's name_native,
-    B's name_native == C's name_en, etc. all collapse into one cluster).
-    A person and a studio sharing a name are never grouped together - each
-    table is scanned independently.
+    Groups on EVERY field _find_by_name (app/services/domain/credits.py)
+    would check for that model - name_native and name_en for a person, all
+    four of name_en/name_cn/name_jp/name_alt for a studio - not on one field
+    alone: resolve_person/resolve_studio look a new credit up by whichever of
+    those fields matches, so two rows that collide on any one of them are
+    just as ambiguous to future credit resolution as two that collide on the
+    "primary" field. Union-find gives the transitive closure across all of a
+    model's fields (A's name_en == B's name_jp, B's name_jp == C's name_alt,
+    etc. all collapse into one cluster). A person and a studio sharing a name
+    are never grouped together - each table is scanned independently.
 
     Each result's "key" is a representative label (the first member's
-    normalized name_native), not a normalization key every member is
-    guaranteed to share - a cluster formed through name_en transitivity can
-    have no single key common to all of its rows.
+    normalized display name - name_native for a person, display_name for a
+    studio), not a normalization key every member is guaranteed to share - a
+    cluster formed through transitivity can have no single key common to all
+    of its rows.
     """
     from app.utils.clustering import cluster
     from app.utils.name_normalize import normalize_name
 
     def keys(row) -> set[str]:
-        out = {normalize_name(row.name_native)}
-        if row.name_en:
-            out.add(normalize_name(row.name_en))
-        return out
+        fields = getattr(row, "_name_fields", None) or ["name_native"]
+        return {
+            normalize_name(getattr(row, field))
+            for field in fields
+            if getattr(row, field, None)
+        }
+
+    def label(row) -> str:
+        return row.display_name if isinstance(row, Studio) else row.name_native
 
     found: list[dict] = []
     for kind, model in (("person", Person), ("studio", Studio)):
@@ -271,9 +278,9 @@ def find_duplicate_entities(db: Session) -> list[dict]:
             found.append(
                 {
                     "kind": kind,
-                    "key": normalize_name(members[0].name_native),
+                    "key": normalize_name(label(members[0])),
                     "ids": [str(r.system_id) for r in members],
-                    "names": [r.name_native for r in members],
+                    "names": [label(r) for r in members],
                 }
             )
 
