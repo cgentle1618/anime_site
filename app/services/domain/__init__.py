@@ -77,6 +77,11 @@ from app.services.domain.hierarchy import (
     resolve_series_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
+from app.services.domain.novel_units import (
+    derive_novel_progress,
+    normalize_arc_progress,
+    unit_display_key,
+)
 from app.services.domain.options_extraction import (
     extract_system_options,
 )
@@ -208,4 +213,7 @@ __all__ = [
     "cartoon_post_processing",
     "manga_post_processing",
     "derive_ep_previous_all_anime",
+    "derive_novel_progress",
+    "normalize_arc_progress",
+    "unit_display_key",
 ]
