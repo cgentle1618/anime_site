@@ -18,6 +18,7 @@ from sqlalchemy import func
 
 from app import models, schemas
 from app.services.domain import (
+    derive_novel_progress,
     mark_comic_completed,
     mark_movie_completed,
     mark_novel_completed,
@@ -31,6 +32,7 @@ from app.services.domain import (
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
+    write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
 from app.services.pipelines import (
@@ -68,6 +70,13 @@ class MediaTypeSpec:
     mark_completed: Callable       # (entry) -> None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
+    # Payload key -> writer(db, entry, value), popped before the model is
+    # built because the value is not a column. Only novel uses this.
+    nested_collections: Optional[dict] = None
+    # (db, entry) -> None, called in create, update AND patch, after columns
+    # and nested collections are applied. Distinct from pre_commit_hook,
+    # which patch deliberately does not call. Only novel uses this.
+    progress_hook: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
     # (query, query_params) -> query, for filters that are not plain equality.
     extra_filters: Optional[Callable] = None
@@ -216,6 +225,8 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_completed,
         write_hook=execute_replace_single_novel,
+        nested_collections={"units": write_novel_units},
+        progress_hook=lambda db, entry: derive_novel_progress(entry),
     ),
     "comic": MediaTypeSpec(
         key="comic",

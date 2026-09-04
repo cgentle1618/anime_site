@@ -77,6 +77,9 @@ from app.services.domain.hierarchy import (
     resolve_series_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
 )
+from app.services.domain.novel_unit_writer import (
+    write_novel_units,
+)
 from app.services.domain.novel_units import (
     derive_novel_progress,
     normalize_arc_progress,
@@ -216,4 +219,5 @@ __all__ = [
     "derive_novel_progress",
     "normalize_arc_progress",
     "unit_display_key",
+    "write_novel_units",
 ]

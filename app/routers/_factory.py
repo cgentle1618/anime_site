@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy import Boolean, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
@@ -79,6 +79,24 @@ def make_media_router(spec) -> APIRouter:
         attach_link_fields(db, spec.owner_type, entry)
         return entry
 
+    def _pop_nested(payload: dict) -> dict:
+        """Lift nested collections out of the payload; they are not columns."""
+        if not spec.nested_collections:
+            return {}
+        return {
+            key: payload.pop(key)
+            for key in list(spec.nested_collections)
+            if key in payload
+        }
+
+    def _write_nested(db: Session, entry, nested: dict) -> None:
+        for key, value in nested.items():
+            spec.nested_collections[key](db, entry, value)
+
+    def _derive(db: Session, entry) -> None:
+        if spec.progress_hook:
+            spec.progress_hook(db, entry)
+
     # ------------------------------------------------------------------
     # Public read
     # ------------------------------------------------------------------
@@ -94,6 +112,8 @@ def make_media_router(spec) -> APIRouter:
         query = apply_entry_visibility(
             db.query(spec.model), spec.model, spec.owner_type, db, viewer
         )
+        for name in (spec.nested_collections or {}):
+            query = query.options(selectinload(getattr(spec.model, name)))
         columns = spec.model.__table__.columns
         for field in spec.list_filters:
             raw = request.query_params.get(field)
@@ -134,10 +154,14 @@ def make_media_router(spec) -> APIRouter:
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         _resolve_parents(db, entry)
         db.add(entry)
+        db.flush()
+        _write_nested(db, entry, nested)
+        _derive(db, entry)
         if spec.pre_commit_hook:
             spec.pre_commit_hook(db, entry)
         db.commit()
@@ -167,8 +191,11 @@ def make_media_router(spec) -> APIRouter:
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         for key, value in payload.items():
             setattr(entry, key, value)
+        _write_nested(db, entry, nested)
+        _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
@@ -197,6 +224,7 @@ def make_media_router(spec) -> APIRouter:
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         apply_column_patch(entry, payload)
+        _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
