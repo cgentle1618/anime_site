@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit 4ba9c07)
 
 ## What this is for
 
@@ -53,7 +53,55 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 ## Next
 
-(empty)
+### Person as an entity (session anime-site-a3) — 4 of 9 tasks done
+
+Spec: [superpowers/specs/2026-09-04-person-entity-design.md](superpowers/specs/2026-09-04-person-entity-design.md).
+Plan: [superpowers/plans/2026-09-04-person-entity.md](superpowers/plans/2026-09-04-person-entity.md).
+The plan holds the full code for every remaining task, including Task 4's
+migration, so nothing needed to continue lives only in a session transcript.
+
+| Task | State |
+|---|---|
+| 1 `name_slot_for` | done — `7bb172b` |
+| 2 role vocabulary collapse | done — `faf0081` |
+| 3 migration `r0l1c2o3l4p5`, `scope` NOT NULL | done — `6ca6719` |
+| 7 frontend config, 11 scoped dropdowns | done — `4ba9c07` |
+| 4 person names + migration `p7n8a9m10e11` | **NEXT** — not started |
+| 5 `person_refs` on media payloads | blocked on 4 |
+| 6 `/api/person/{id}/entries` + delete guard | blocked on 4 |
+| 8 Entity > Person admin tab | blocked on 4 (needs the four name columns) |
+| 9 public person library + detail | blocked on 6 |
+| 10 docs | last |
+
+**Database state:** `anime_site_db` is at `r0l1c2o3l4p5`. Any other machine
+must run `alembic upgrade head` before a Pull All.
+
+**Corrections to the plan found while executing it, which the plan now records:**
+
+- The revision id it proposed, `p1e2r3s4o5n6`, was already taken by the
+  migration that CREATED the person tables. Alembic reports this as
+  "Cycle is detected in revisions (...)", not as a duplicate id.
+- Nine live readers of the renamed role keys were missed by planning and by
+  grep across this work and the studio work — they are spelled differently at
+  the call site than the thing being renamed. Three were mine:
+  `autofill.py`, `COMIC_LINK_FIELDS_TO_FILL` in `utils.py`, and `BACKFILL_MAP`
+  in `credits.py`, the last of which drives the legacy link attributes on
+  every media response.
+- The person-source dropdown pair count is 11, not the 10 the spec first said.
+
+**Carry into Task 5** (from the studio session's equivalent work, `c997745`):
+a new `*_refs` link field is NOT gated by RBAC automatically — it must be
+added to the Credits group in `app/services/rbac/field_groups.py` or credited
+names leak to viewers without the Credits permission. Build `person_refs` from
+the shared `_link_rows_and_lookups` helper in `credits.py` rather than adding a
+fetch, or it becomes an N+1 over library pages of up to 2000 entries.
+
+**Known consequence of `r0l1c2o3l4p5`, worth recording:** a Google Sheets
+backup taken BEFORE that migration can no longer be restored — its
+`Person Role` tab has empty scopes (now NOT NULL) and retired role names. To
+restore an old sheet: `alembic downgrade s1t2u3d4i5o6`, Pull, then
+`alembic upgrade head`. That downgrade was verified to round-trip this dataset
+exactly, 791 -> 555 -> 791 with zero differing rows.
 
 Rule from `CLAUDE.md`: when work starts from this section, finish a step, ask before continuing, and log progress here without rewriting the plan.
 
