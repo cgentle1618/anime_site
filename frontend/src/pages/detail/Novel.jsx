@@ -7,6 +7,7 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -521,10 +522,28 @@ export default function Novel() {
                 title="Production"
                 fields={[
                   ...(novel.author
-                    ? [{ label: "Author", value: novel.author }]
+                    ? [
+                        {
+                          label: creditLabel(novel, "author", "Author"),
+                          value: creditValue(novel, "author", novel.author),
+                        },
+                      ]
                     : []),
                   ...(novel.illustrator
-                    ? [{ label: "Illustrator", value: novel.illustrator }]
+                    ? [
+                        {
+                          label: creditLabel(
+                            novel,
+                            "illustrator",
+                            "Illustrator",
+                          ),
+                          value: creditValue(
+                            novel,
+                            "illustrator",
+                            novel.illustrator,
+                          ),
+                        },
+                      ]
                     : []),
                   ...(novel.publisher_tw
                     ? [{ label: "Publisher (TW)", value: novel.publisher_tw }]

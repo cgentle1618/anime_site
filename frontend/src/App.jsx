@@ -31,6 +31,8 @@ import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
 const StudioLibrary = lazy(() => import("./pages/library/StudioLibrary"));
 const Studio = lazy(() => import("./pages/detail/Studio"));
+const PersonLibrary = lazy(() => import("./pages/library/PersonLibrary"));
+const Person = lazy(() => import("./pages/detail/Person"));
 
 
 // Route-level code splitting: the admin pages, the relations canvas
@@ -97,6 +99,7 @@ export default function App() {
                   element={<FranchiseLibrary />}
                 />
                 <Route path="/library/studio" element={<StudioLibrary />} />
+                <Route path="/library/person" element={<PersonLibrary />} />
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
@@ -114,6 +117,7 @@ export default function App() {
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />
                 <Route path="/studio/:system_id" element={<Studio />} />
+                <Route path="/person/:system_id" element={<Person />} />
                 <Route path="/watch-order/:system_id" element={<WatchOrder />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route

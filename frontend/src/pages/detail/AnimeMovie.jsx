@@ -7,6 +7,7 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import { studioValue } from "../../components/info/StudioLinks";
+import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -408,7 +409,10 @@ export default function AnimeMovie() {
               title="Production"
               fields={[
                 { label: "Studio", value: studioValue(movie) },
-                { label: "Director", value: movie.director },
+                {
+                  label: "Director",
+                  value: creditValue(movie, "director", movie.director),
+                },
               ]}
             />
           </div>

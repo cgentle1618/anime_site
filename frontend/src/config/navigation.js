@@ -45,6 +45,12 @@ export const NAV_SECTIONS = [
             to: "/library/studio",
             matches: ["/studio"],
           },
+          {
+            label: "Person",
+            icon: "fas fa-user",
+            to: "/library/person",
+            matches: ["/person"],
+          },
         ],
       },
       {

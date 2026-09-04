@@ -10,6 +10,7 @@ import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
 import { studioValue } from "../../components/info/StudioLinks";
+import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -408,10 +409,19 @@ export default function Anime() {
                   { label: "台灣代理", value: anime.distributor_tw },
                 ],
                 [
-                  { label: "Director", value: anime.director },
-                  { label: "Producer", value: anime.producer },
+                  {
+                    label: "Director",
+                    value: creditValue(anime, "director", anime.director),
+                  },
+                  {
+                    label: "Producer",
+                    value: creditValue(anime, "producer", anime.producer),
+                  },
                 ],
-                { label: "Music", value: anime.music },
+                {
+                  label: "Music",
+                  value: creditValue(anime, "composer", anime.music),
+                },
               ]}
             />
           </div>

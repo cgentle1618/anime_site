@@ -7,6 +7,7 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
@@ -662,13 +663,44 @@ export default function Manga() {
                 title="Production"
                 fields={[
                   ...(authorSame
-                    ? [{ label: "作者", value: manga.author_plot }]
+                    ? [
+                        {
+                          label: "作者",
+                          value: creditValue(
+                            manga,
+                            "author",
+                            manga.author_plot,
+                          ),
+                        },
+                      ]
                     : [
                         ...(manga.author_plot
-                          ? [{ label: "原作", value: manga.author_plot }]
+                          ? [
+                              {
+                                label: creditLabel(manga, "author", "原作"),
+                                value: creditValue(
+                                  manga,
+                                  "author",
+                                  manga.author_plot,
+                                ),
+                              },
+                            ]
                           : []),
                         ...(manga.author_draw
-                          ? [{ label: "作畫", value: manga.author_draw }]
+                          ? [
+                              {
+                                label: creditLabel(
+                                  manga,
+                                  "illustrator",
+                                  "作畫",
+                                ),
+                                value: creditValue(
+                                  manga,
+                                  "illustrator",
+                                  manga.author_draw,
+                                ),
+                              },
+                            ]
                           : []),
                       ]),
                   [

@@ -54,10 +54,10 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
-  it("keeps Studio in its own Entities column, not Groups", () => {
+  it("keeps the credited entities in their own column, not Groups", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
     const entities = library.columns.find((c) => c.heading === "Entities");
-    expect(entities.items.map((i) => i.label)).toEqual(["Studio"]);
+    expect(entities.items.map((i) => i.label)).toEqual(["Studio", "Person"]);
   });
 
   it("keeps Watch Orders and Relations in Admin only", () => {

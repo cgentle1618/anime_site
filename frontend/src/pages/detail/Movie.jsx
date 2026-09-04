@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
+import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
@@ -430,7 +431,10 @@ export default function Movie() {
                   { label: "Airing Status", value: movie.airing_status },
                   { label: "Length", value: formatLength(movie.length_min) },
                 ],
-                { label: "Director", value: movie.director },
+                {
+                  label: "Director",
+                  value: creditValue(movie, "director", movie.director),
+                },
                 [
                   { label: "Release Date TW", value: movie.release_date_tw },
                   { label: "Release Date USA", value: movie.release_date_usa },
