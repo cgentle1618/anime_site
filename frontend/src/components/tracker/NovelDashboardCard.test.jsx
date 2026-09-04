@@ -75,6 +75,58 @@ describe("NovelDashboardCard — arc_ch chapter stepper", () => {
   });
 });
 
+describe("NovelDashboardCard — Decision G effective display mode", () => {
+  const units = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 112 },
+  ];
+
+  it("a new Web novel with arc rows and no stored progress_display renders the two-stage tracker, not a volume counter", () => {
+    const novel = {
+      system_id: "n4",
+      type: "Web",
+      progress_display: "",
+      units,
+      arc_fin: 0,
+      ch_fin_in_arc: 0,
+      arc_total: 2,
+      ch_total: 212,
+      ch_fin: 0,
+      vol_fin: 0,
+      vol_total_original: null,
+    };
+    renderCard(novel);
+
+    expect(screen.getByLabelText("One chapter forward")).toBeInTheDocument();
+    expect(screen.queryByLabelText("One volume forward")).not.toBeInTheDocument();
+  });
+
+  it("a novel stuck on the legacy `ch` display that has since grown arc rows still routes the chapter stepper through the two-stage cursor (c80c84a's fix, reachable through this branch too)", () => {
+    const novel = {
+      system_id: "n5",
+      type: "Web",
+      progress_display: "ch",
+      units,
+      arc_fin: 0,
+      ch_fin_in_arc: 99,
+      arc_total: 2,
+      ch_total: 212,
+      ch_fin: 99,
+    };
+    const onProgressChange = renderCard(novel);
+
+    fireEvent.click(screen.getByLabelText("One chapter forward"));
+
+    // 99 -> 100 crosses arc 1's own boundary (ch_count 100), so the step
+    // rolls into arc 2 rather than sitting at 100/100.
+    expect(onProgressChange).toHaveBeenCalledWith(
+      "n5",
+      { arc_fin: 1, ch_fin_in_arc: 0 },
+      { arc_fin: 0, ch_fin_in_arc: 99 },
+    );
+  });
+});
+
 describe("NovelDashboardCard — non-derived paths are unaffected", () => {
   it("still PATCHes ch_fin directly for a novel with no arc rows", () => {
     const novel = {

@@ -77,6 +77,42 @@ def test_patching_the_cursor_rolls_over(admin_client):
     assert body["ch_fin"] == 212
 
 
+def test_patch_saves_units_not_just_the_cursor(admin_client):
+    """PATCH /api/novel/{id} carrying `units` must actually write the rows and
+    re-derive progress from them, not silently discard the key.
+
+    Regression coverage for the detail-page Units editor, which patches the
+    whole novel (including `units`) rather than PUTting it."""
+    created = admin_client.post("/api/novel/", json=_novel_payload()).json()
+    keep, drop = created["units"][0], created["units"][1]
+
+    resp = admin_client.patch(
+        f"/api/novel/{created['system_id']}",
+        json={
+            "units": [
+                {
+                    "system_id": keep["system_id"],
+                    "unit_kind": "arc",
+                    "position": 1,
+                    "unit_key": "arc 1",
+                    "ch_count": 150,
+                },
+                {"unit_kind": "arc", "position": 2, "unit_key": "arc 2b", "ch_count": 60},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+
+    ids = {u["system_id"] for u in body["units"]}
+    assert keep["system_id"] in ids       # kept and updated
+    assert drop["system_id"] not in ids   # omitted, therefore deleted
+    assert len(body["units"]) == 2
+    # ch_count changed on the kept row and the inserted row's count is new;
+    # ch_total must be re-derived from the new rows, not left stale.
+    assert body["ch_total"] == 210
+
+
 def test_deleting_a_novel_removes_its_units(admin_client, db_session):
     from app import models
 

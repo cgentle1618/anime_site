@@ -28,6 +28,46 @@ export function kindsForType(novelType) {
 }
 
 /**
+ * Decision G: the type (plus, for Web, whether arc rows exist) determines
+ * which progress pair a novel renders. `progress_display` narrows to a pure
+ * override — when it is set, it wins outright and existing rows keep
+ * rendering exactly as they did before this table existed (that is what
+ * `withLegacyProgressDisplay` protects on the select side). When it is
+ * unset, the mode is derived here so every consumer agrees:
+ *
+ * | novel.type                      | Effective mode        |
+ * |----------------------------------|------------------------|
+ * | Web, with arc rows                | "arc_ch" (two-stage)   |
+ * | Web, no arc rows                  | "ch"                   |
+ * | Light Novel / Novel                | "vol_original"          |
+ * | Other, unit kind volume (or none)  | "vol_original"          |
+ * | Other, unit kind story or chapter  | "ch"                   |
+ *
+ * Consumers: getNovelProgress (lib/formatters.js), MediaCard, and
+ * NovelDashboardCard / NovelTrackerBlock all read this instead of the raw
+ * `progress_display` column, so a web novel with arcs cannot show a volume
+ * counter in one place and a two-stage row in another.
+ */
+export function effectiveProgressDisplay(novel) {
+  const pd = novel?.progress_display;
+  if (pd) return pd;
+
+  const units = novel?.units || [];
+  const type = novel?.type;
+
+  if (type === "Web") {
+    return units.some((u) => u.unit_kind === "arc") ? "arc_ch" : "ch";
+  }
+  if (type === "Other") {
+    return units.some((u) => u.unit_kind === "story" || u.unit_kind === "chapter")
+      ? "ch"
+      : "vol_original";
+  }
+  // Light Novel, Novel, and any unrecognised type default to volumes.
+  return "vol_original";
+}
+
+/**
  * One chapter step for a web novel with arcs, folded into the right arc.
  * Mirrors normalize_arc_progress: carrying stops at the last recorded arc,
  * because an ongoing novel is read into an arc nobody has entered yet.

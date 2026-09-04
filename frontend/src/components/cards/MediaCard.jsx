@@ -10,6 +10,7 @@ import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
 import { releaseYear } from "../../lib/releaseDate";
+import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   getDisplayName,
   getCoverUrl,
@@ -392,7 +393,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   }
 
   if (type === "novel") {
-    const pd = data.progress_display;
+    const pd = effectiveProgressDisplay(data);
     if (pd === "vol_tw") {
       return (
         <Count

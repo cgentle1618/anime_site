@@ -224,7 +224,9 @@ def make_media_router(spec) -> APIRouter:
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         apply_column_patch(entry, payload)
+        _write_nested(db, entry, nested)
         _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)

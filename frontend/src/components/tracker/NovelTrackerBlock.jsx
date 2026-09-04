@@ -6,7 +6,7 @@ import {
   READING_STATUSES,
   withLegacyProgressDisplay,
 } from "../../config/fieldOptions";
-import { arcStep } from "../../lib/novelUnits";
+import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -61,8 +61,8 @@ export default function NovelTrackerBlock({
   onToRerereadChange,
   onProgressDisplayChange,
 }) {
-  const pd = novel.progress_display;
-  const volHighlighted = !pd || pd === "vol_original" || pd === "vol_tw";
+  const pd = effectiveProgressDisplay(novel);
+  const volHighlighted = pd === "vol_original" || pd === "vol_tw";
   const chHighlighted = pd === "ch" || pd === "arc_ch";
 
   const volFin = novel.vol_fin ?? 0;

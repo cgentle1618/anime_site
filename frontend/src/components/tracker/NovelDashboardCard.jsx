@@ -6,7 +6,7 @@ import {
   getDisplayName,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
-import { arcStep } from "../../lib/novelUnits";
+import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -36,7 +36,7 @@ export default function NovelDashboardCard({
     : "Independent Series";
 
   const imageUrl = getCoverUrl(novel.cover_image_file);
-  const pd = novel.progress_display;
+  const pd = effectiveProgressDisplay(novel);
 
   // Decision B/D: arc rows are authoritative for arc_ch novels. ch_fin and
   // arc_total are derived server-side from arc_fin + ch_fin_in_arc + these
@@ -59,10 +59,7 @@ export default function NovelDashboardCard({
       ((novel.vol_fin ?? 0) / novel.vol_total_tw) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (
-    (pd === "vol_original" || !pd) &&
-    novel.vol_total_original != null
-  ) {
+  } else if (pd === "vol_original" && novel.vol_total_original != null) {
     progressPercent = Math.round(
       ((novel.vol_fin ?? 0) / novel.vol_total_original) * 100,
     );
@@ -93,6 +90,12 @@ export default function NovelDashboardCard({
     onProgressChange(novel.system_id, { vol_fin: target }, { vol_fin: prev });
   }
 
+  // The `pd === "ch"` branch renders only when there are no arc rows (see
+  // renderTracker below), but a "ch"-labelled novel CAN still have arc rows
+  // once one is added without a progress_display override — c80c84a fixed
+  // this same snap-back for the arc_ch branch; route through the two-stage
+  // cursor here too when rows exist, since _derive recomputes ch_fin from
+  // them and would otherwise discard a bare ch_fin write in the same request.
   function handleChChange(newVal) {
     const target = Math.max(0, newVal);
     if (novel.ch_total != null && target > novel.ch_total) {
@@ -101,6 +104,20 @@ export default function NovelDashboardCard({
     }
     const prev = novel.ch_fin ?? 0;
     if (target === prev) return;
+    if (arcs.length > 0) {
+      const dir = target > prev ? 1 : -1;
+      let next = { arc_fin: arcFin, ch_fin_in_arc: chInArc };
+      for (let i = 0; i < Math.abs(target - prev); i += 1) {
+        next = arcStep(arcs, next.arc_fin, next.ch_fin_in_arc, dir);
+      }
+      if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
+      onProgressChange(
+        novel.system_id,
+        { arc_fin: next.arc_fin, ch_fin_in_arc: next.ch_fin_in_arc },
+        { arc_fin: arcFin, ch_fin_in_arc: chInArc },
+      );
+      return;
+    }
     onProgressChange(novel.system_id, { ch_fin: target }, { ch_fin: prev });
   }
 
@@ -154,7 +171,7 @@ export default function NovelDashboardCard({
 
   // ── Progress tracker ─────────────────────────────────────────────
   function renderTracker() {
-    if (pd === "vol_tw" || pd === "vol_original" || !pd) {
+    if (pd === "vol_tw" || pd === "vol_original") {
       const fin = novel.vol_fin ?? 0;
       const total =
         pd === "vol_tw"

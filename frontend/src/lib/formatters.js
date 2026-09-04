@@ -1,5 +1,6 @@
 // Misc display/data helpers: length, release, progress, ratings, options, type parsing.
 import { formatReleaseDate } from "./releaseDate";
+import { effectiveProgressDisplay } from "./novelUnits";
 
 export function isBaha(anime) {
   return (
@@ -92,7 +93,7 @@ export function parseTypes(franchiseType) {
  * own ch_count rather than the whole novel's chapter total.
  */
 export function getNovelProgress(novel) {
-  switch (novel.progress_display) {
+  switch (effectiveProgressDisplay(novel)) {
     case "vol_tw":
       return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
     case "vol_original":

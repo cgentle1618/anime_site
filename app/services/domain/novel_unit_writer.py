@@ -32,6 +32,16 @@ def write_novel_units(db, entry, units) -> None:
     for item in units:
         data = item if isinstance(item, dict) else item.model_dump()
         unit_id = data.get("system_id")
+        # PUT/POST go through a pydantic schema, which parses this into a
+        # UUID before it reaches us. PATCH's payload is a raw dict (see
+        # apply_column_patch), so a JSON string survives untouched — coerce
+        # it here rather than letting it fail the identity match below and
+        # silently duplicate the row as an insert.
+        if isinstance(unit_id, str):
+            try:
+                unit_id = uuid.UUID(unit_id)
+            except ValueError:
+                unit_id = None
         fields = {
             "unit_kind": data.get("unit_kind"),
             "position": data.get("position"),

@@ -186,4 +186,19 @@ describe("getNovelProgress", () => {
     const novel = { progress_display: "vol_tw", vol_fin: 3, vol_total_tw: 9 };
     expect(getNovelProgress(novel)).toBe("3 / 9 VOL TW");
   });
+
+  it("a new Web novel with arc rows and no stored progress_display still renders the two-stage position (Decision G)", () => {
+    const novel = {
+      type: "Web",
+      progress_display: "",
+      arc_fin: 1,
+      arc_total: 2,
+      ch_fin_in_arc: 101,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+  });
 });

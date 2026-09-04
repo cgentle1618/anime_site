@@ -1919,6 +1919,7 @@ export default function Modify() {
             (u.unit_key && u.unit_key.trim()) ||
             (u.name_cn && u.name_cn.trim()) ||
             (u.name_en && u.name_en.trim()) ||
+            (u.remark && u.remark.trim()) ||
             u.ch_count !== "",
         )
         .map((u, i) => ({

@@ -3,6 +3,7 @@
 // unit's server-computed display_key.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,26 +38,35 @@ const BASE_NOVEL = {
   units: [],
 };
 
-function respond(url) {
+function respond(url, isAdmin) {
   const u = String(url);
   if (u.startsWith("/api/auth/me")) {
     return {
-      is_admin: false,
-      username: null,
-      role: "guest",
-      is_superuser: false,
+      is_admin: isAdmin,
+      username: isAdmin ? "admin" : null,
+      role: isAdmin ? "admin" : "guest",
+      is_superuser: isAdmin,
       permissions: [],
     };
   }
   return [];
 }
 
-function mockFetch(novel) {
+function mockFetch(novel, { isAdmin = false, onPatch } = {}) {
   vi.stubGlobal(
     "fetch",
-    vi.fn((url) => {
+    vi.fn((url, options) => {
       const u = String(url);
       if (u.startsWith("/api/novel/n1")) {
+        if (options?.method === "PATCH") {
+          const body = JSON.parse(options.body);
+          onPatch?.(body);
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...novel, ...body }),
+          });
+        }
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -66,7 +76,7 @@ function mockFetch(novel) {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(respond(u)),
+        json: () => Promise.resolve(respond(u, isAdmin)),
       });
     }),
   );
@@ -151,6 +161,52 @@ describe("Novel detail page — units", () => {
     mount();
     await waitFor(() =>
       expect(screen.getByText("Total Volumes (JP/KR)")).toBeInTheDocument(),
+    );
+  });
+
+  it("admin editing a unit and saving PATCHes the full units array and applies the server response", async () => {
+    let patchedBody = null;
+    mockFetch(
+      {
+        ...BASE_NOVEL,
+        type: "Light Novel",
+        units: [
+          {
+            system_id: "u1",
+            unit_kind: "volume",
+            position: 1,
+            unit_key: "Vol.1",
+            name_cn: "第一卷",
+            name_en: "Volume One",
+            remark: "",
+            ch_count: null,
+            display_key: "Vol.1",
+          },
+        ],
+      },
+      { isAdmin: true, onPatch: (body) => (patchedBody = body) },
+    );
+    const user = userEvent.setup();
+    mount();
+
+    const remarkInput = await screen.findByPlaceholderText("Remark");
+    await user.type(remarkInput, "Limited edition");
+
+    const saveButton = await screen.findByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    await waitFor(() => expect(patchedBody).not.toBeNull());
+    expect(patchedBody.units).toHaveLength(1);
+    expect(patchedBody.units[0]).toMatchObject({
+      system_id: "u1",
+      remark: "Limited edition",
+    });
+
+    // The Save/Cancel controls disappear once the edit round-trips —
+    // proof the page applied the server's response rather than the toast
+    // firing over an edit that never left the client (Finding 1).
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument(),
     );
   });
 });

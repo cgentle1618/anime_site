@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-04 (commit 601ceb8, plus uncommitted archive-look, dashboard type-filter and Quality 品質 changes)
+Last verified: 2026-09-04 (commit 601ceb8, plus uncommitted archive-look, dashboard type-filter, Quality 品質 and novel-units Units-card changes)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -435,7 +435,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, Publisher TW, Anime Studio (card shown only when any value) | Twitter link pulled from `source_other` |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (Original/TW), Arc Total, Chapter Total | Author, Illustrator, Publisher TW (conditional) | **Belonging Novels** card (`BelongingNovelsEditor` for `novel_name_each_cn/en`, Save → PATCH) |
+| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, Publisher TW (conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, Publisher, Imprint, Publisher TW (conditional) | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.

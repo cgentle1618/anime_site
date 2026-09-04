@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { arcStep, kindsForType, unitDisplayKey } from "./novelUnits";
+import {
+  arcStep,
+  effectiveProgressDisplay,
+  kindsForType,
+  unitDisplayKey,
+} from "./novelUnits";
 
 describe("unitDisplayKey", () => {
   it("uses the explicit key when there is one", () => {
@@ -83,5 +88,62 @@ describe("arcStep", () => {
     expect(arcStep(arcs, 0, 100, 1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 1 });
     // arc 2 = 101/112, closing it (+11) lands exactly at arc 2 finished.
     expect(arcStep(arcs, 1, 101, 11)).toEqual({ arc_fin: 2, ch_fin_in_arc: 0 });
+  });
+});
+
+describe("effectiveProgressDisplay", () => {
+  const arcUnits = [{ unit_kind: "arc", position: 1, ch_count: 100 }];
+  const volUnits = [{ unit_kind: "volume", position: 1 }];
+  const storyUnits = [{ unit_kind: "story", position: 1 }];
+  const chapterUnits = [{ unit_kind: "chapter", position: 1 }];
+
+  it("Web with arc rows renders arc_ch", () => {
+    expect(effectiveProgressDisplay({ type: "Web", units: arcUnits })).toBe("arc_ch");
+  });
+
+  it("Web without arc rows renders ch", () => {
+    expect(effectiveProgressDisplay({ type: "Web", units: [] })).toBe("ch");
+    expect(effectiveProgressDisplay({ type: "Web", units: volUnits })).toBe("ch");
+  });
+
+  it("Light Novel and Novel render volumes", () => {
+    expect(effectiveProgressDisplay({ type: "Light Novel", units: [] })).toBe(
+      "vol_original",
+    );
+    expect(effectiveProgressDisplay({ type: "Novel", units: [] })).toBe(
+      "vol_original",
+    );
+  });
+
+  it("Other with volume rows (or no rows) renders volumes", () => {
+    expect(effectiveProgressDisplay({ type: "Other", units: volUnits })).toBe(
+      "vol_original",
+    );
+    expect(effectiveProgressDisplay({ type: "Other", units: [] })).toBe(
+      "vol_original",
+    );
+  });
+
+  it("Other with story or chapter rows renders ch", () => {
+    expect(effectiveProgressDisplay({ type: "Other", units: storyUnits })).toBe(
+      "ch",
+    );
+    expect(effectiveProgressDisplay({ type: "Other", units: chapterUnits })).toBe(
+      "ch",
+    );
+  });
+
+  it("a stored progress_display always wins, even against a Web novel with arcs", () => {
+    expect(
+      effectiveProgressDisplay({
+        type: "Web",
+        units: arcUnits,
+        progress_display: "vol_tw",
+      }),
+    ).toBe("vol_tw");
+    // Pre-Decision-G legacy values keep rendering exactly as before.
+    expect(
+      effectiveProgressDisplay({ type: "Light Novel", progress_display: "ch" }),
+    ).toBe("ch");
   });
 });
