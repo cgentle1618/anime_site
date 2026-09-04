@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
+Last verified: 2026-09-04 (commit 1414ef2, plus the uncommitted orphan-category retirement)
 
 ## What this is for
 
@@ -399,6 +399,25 @@ pairs once up front so two entries sharing a genre cannot insert a duplicate.
 It runs at the end of every `run_sync_<type>` in `app/services/calculation.py`
 (so Calculate All calls it seven times) and after credit backfill.
 
+**Retired categories.** `system_option` is a free-text `category` column and
+the Options page lists whatever distinct values it holds, so every superseded
+vocabulary stayed on screen long after its successor took over. Migration
+`o1r2p3h4a5n6` deletes the thirteen that nothing reads: `Distributor TW`,
+`Manga Publisher TW` and `Novel Publisher TW` (merged into
+`Publisher / Distributor TW`); `TV Official Source` and
+`Cartoon Official Source` (merged into `Official Source`); and `Director`,
+`Studio`, `Manga Author`, `Novel Author`, `Novel Illustrator`, `Comic Writer`,
+`Music / Composer` and `Producer`, which are Tier 3 entities now. Three values
+existed only in a retired category and were moved first: `bilibili` into
+`Publisher / Distributor TW` scoped `anime` (distinct from
+`bilibili (GoodShow)`), `FX` into `Official Source` scoped `tv-show` (distinct
+from `Fox`), and the studio names `Gonzo`, `Project No.9` and `SANZIGEN`,
+which became `studio` rows. Both FKs into `system_option` are
+`ON DELETE CASCADE`, so the delete skips any option a `media_tag` still points
+at rather than taking entry data with it — the drop list is guarded in
+`tests/unit/test_retire_orphan_option_categories.py`, which fails if a live
+category is ever named in it.
+
 ---
 
 ## Tier 3: people and studios
@@ -531,5 +550,9 @@ Carried over on purpose; do not "fix" one side without reconciling both.
   but Fill only fetches `TV` and `Movie` (business-rules.md section 17).
 - **`MUSIC_STATUSES`** is defined twice with identical values, in
   `constants.py` and `note_sections.py`.
+- **Option categories are free text.** `SystemOptionCreate.category` accepts
+  any string and the Options page lists whatever the table holds, so a typo
+  creates a category rather than being rejected. `OPTION_CATEGORIES` is what
+  the dropdowns read, not what the page shows.
 - **`EXPECTATION_WEIGHT`** is defined three times in the frontend with two
   different unknown-value fallbacks (4 vs 99).
