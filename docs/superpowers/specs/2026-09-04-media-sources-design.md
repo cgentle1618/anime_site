@@ -71,16 +71,40 @@ onto the entry at read time.
 
 | Column | Type | Notes |
 |---|---|---|
-| `system_id` | UUID pk | |
-| `owner_type` | String | hyphenated media type key (`app/utils/media_resolver.py`) |
-| `owner_id` | UUID | FK-less pair with `owner_type`, same idiom as `media_relation` |
-| `kind` | String | `access` \| `reference` |
-| `bucket` | String | `main` \| `other` \| `restricted` |
-| `platform_key` | String, nullable | vocabulary value; NULL for free-form rows |
-| `name` | String, nullable | free text; set only when `platform_key` is NULL |
+| `system_id` | UUID pk | `default=uuid.uuid4`, indexed |
+| `media_type` | String, not null | hyphenated media type key (`app/utils/media_resolver.py`) |
+| `entry_id` | UUID, not null | FK-less pair with `media_type` |
+| `kind` | String, not null | `access` \| `reference` |
+| `bucket` | String, not null | `main` \| `other` \| `restricted` |
+| `option_id` | UUID, nullable | FK → `system_option.system_id`, `ondelete="CASCADE"`. Set on `main` rows |
+| `name` | String, nullable | free text. Set on `other` / `restricted` rows |
 | `available` | Boolean, nullable | tristate. **`main` access rows only** |
 | `url` | String, nullable | |
-| `sort_order` | Integer | only meaningful for `other` / `restricted` |
+| `position` | Integer, not null, `server_default="0"` | |
+| `created_at` | DateTime | `default=get_taipei_now` |
+
+```python
+__table_args__ = (
+    CheckConstraint(
+        "num_nonnulls(option_id, name) = 1", name="ck_media_source_one_target"
+    ),
+    UniqueConstraint(
+        "media_type", "entry_id", "kind", "bucket", "option_id", "name",
+        name="uq_media_source_row", postgresql_nulls_not_distinct=True,
+    ),
+    Index("ix_media_source_entry", "media_type", "entry_id"),
+)
+```
+
+Naming and shape copy `media_credit` exactly (`app/models/media_credit.py:21-83`):
+the polymorphic pair is `media_type` + `entry_id` (not `owner_type`/`owner_id`,
+which is the `MediaTypeSpec` attribute); the ordering column is `position`; and
+the mutually exclusive targets are enforced by `num_nonnulls(...) = 1` the same
+way `media_credit` separates `person_id` from `studio_id`.
+
+`main` rows point at the vocabulary through `option_id` rather than storing a
+string, matching `media_tag.option_id`. That gives referential integrity and
+makes renaming a platform propagate everywhere.
 
 `kind` is `access`, not `watch`, so the same column serves viewing and reading
 types. The card picks its heading from the media type — **Where to Watch** for
@@ -194,6 +218,11 @@ Netflix the same day.
 
 Every type gets `other` and `restricted` access buckets. Only the rows below
 differ.
+
+The `platform_key` column in these tables is shorthand for the `system_option`
+row a `main` row points at through `option_id`; the stored value is the option's
+human `value` string (`Disney+`, `Prime Video`), following every other vocabulary
+in the codebase.
 
 ### Anime / Anime Movie
 
@@ -332,8 +361,26 @@ machinery.
 | after `System Option Scope` | `System Option Usage` | child of System Options |
 | after `Note` | `Media Source` | FK-less pair; both endpoints must exist |
 
-`Media Source` columns mirror the table: `system_id`, `media_type`, `entry_id`,
-`kind`, `bucket`, `platform_key`, `name`, `available`, `url`, `sort_order`.
+Sheet headers are derived, not declared — `backup.py:33` is
+`[c.name for c in tab.model.__table__.columns]` — so the tab's columns follow the
+model for free.
+
+**`option_id` is not written to the sheet as a UUID.** `system_option` mints a
+different `system_id` in each database, so a raw `option_id` would not survive
+the round trip. The tab carries the option's `category` and `value` strings
+instead, resolved back through `resolve_option` on Pull — the same treatment
+credits and tags already get (`pull.py:835-840`). Entry IDs *are* identical
+across databases, so `entry_id` round-trips as a plain UUID.
+
+**Pull identity.** `media_source` mints its own `system_id`, so it needs an entry
+in `DERIVED_IDENTITY_KEYS` (`pull.py:88`) or a Pull on the second machine inserts
+duplicates instead of matching. The natural key is the unique constraint:
+`("media_type", "entry_id", "kind", "bucket", "option_id", "name")`. It does
+**not** belong in `DERIVED_IDENTITY_MINTED_PK`.
+
+Note that Pull upserts and never deletes (`pull.py:812-824`). A source deleted on
+one machine is not deleted on the other by a Pull. This is pre-existing behaviour
+for every table, not something this change introduces.
 
 Removed from the eight media tabs and from `formatter.py`: `source_baha`,
 `baha_link`, `source_netflix`, `source_other`, `official_link`, `twitter_link`,
@@ -393,6 +440,16 @@ this in the migration script — dump the live values first.
 - Render `original_source` on the Movie page.
 - Replace the 8 copy-pasted `source_other` editors in `*AddTab.jsx` with one
   shared component.
+
+### Integration points that are easy to miss
+
+| Place | Why |
+|---|---|
+| `delete_links_for` (`credits.py:249`, called at `_factory.py:266`) | `media_source` is FK-less, so nothing cascades. Deleting an entry must delete its sources or they orphan. |
+| `spec.nested_collections` (`_factory.py:83-96`) | The existing hook for writing child rows from a POST/PATCH payload — `write_novel_units` already uses it. `sources` registers here on all 8 specs; no new write machinery. |
+| `attach_link_fields` seam (`_factory.py:79`, `:134`) | `attach_sources` goes beside it, and the viewer is in scope at both. Bucket filtering is *partial* (drop `restricted`, keep `other`), so it happens at attach time — `gate()` needs no change. |
+| `SystemOptionResponse` (`app/schemas/system.py:56`) | The whole options table is fetched once and filtered client-side (`lib/sources.js`), so `usages` must be in the response or the client cannot filter on it. |
+| `options.py:203-207` | Scope updates are bulk-DELETE-then-INSERT, deliberately (see the comment at `:188-202`). `usages` must copy that exactly or hit the same unique-constraint 500. |
 
 ## Testing
 
