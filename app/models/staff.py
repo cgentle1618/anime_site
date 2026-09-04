@@ -47,9 +47,13 @@ class Person(Base, NameFallbackMixin):
     )
 
     # Used by _find_by_name (app/services/domain/credits.py) so a person
-    # matches on any of these three, the same fields the resolver checked
-    # before it was made model-generic.
-    _name_fields = ["name_native", "name_en", "name_cn"]
+    # matches on the same two fields the resolver hard-coded before it was
+    # made model-generic. Deliberately NOT name_cn: resolve_person is
+    # find-or-create on every automated write path (Fill/Pull, Sheets
+    # restore), and person has no external id to disambiguate a collision -
+    # widening the match to a common transliterated surname would silently
+    # merge two distinct people and reattach one's credits to the other.
+    _name_fields = ["name_native", "name_en"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
