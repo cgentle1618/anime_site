@@ -75,6 +75,7 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
+  if (type === "studio") return item.display_name || "Unknown";
   if (type === "collection")
     return (
       item.collection_name_cn ||
@@ -175,6 +176,7 @@ export default function Delete() {
     franchise: [],
     series: [],
     options: [],
+    studio: [],
   });
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -213,6 +215,10 @@ export default function Delete() {
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedStudio, setSelectedStudio] = useState(null);
+  const [studioConfirm, setStudioConfirm] = useState(false);
+  const [studioMergeMode, setStudioMergeMode] = useState(false);
+  const [studioMergeTarget, setStudioMergeTarget] = useState(null);
   const [optCategoryFilter, setOptCategoryFilter] = useState("");
   // Which half of the System Option tab is showing. People and Studios are
   // not offered here: neither can be deleted from this page.
@@ -238,6 +244,7 @@ export default function Delete() {
         mgRes,
         nvRes,
         cmRes,
+        stRes,
       ] =
         await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
@@ -252,8 +259,9 @@ export default function Delete() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch(endpoints.studio.list(), { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -266,6 +274,7 @@ export default function Delete() {
         mgRes.json(),
         nvRes.json(),
         cmRes.json(),
+        stRes.json(),
       ]);
       setDb({
         anime: a,
@@ -280,6 +289,7 @@ export default function Delete() {
         franchise: f,
         series: s,
         options: o,
+        studio: st,
       });
     } catch {
       showToast("error", "Database load failed");
@@ -335,6 +345,55 @@ export default function Delete() {
       setSelectedFranchise(null);
       setSelectedSeries(null);
       showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executeStudioDelete(item) {
+    setDeleting(true);
+    try {
+      const res = await fetch(endpoints.studio.remove(item.system_id), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete studio");
+      setSelectedStudio(null);
+      setStudioConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executeStudioMerge() {
+    if (!selectedStudio || !studioMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.studio.merge(studioMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedStudio.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge studios");
+      const data = await res.json();
+      setSelectedStudio(null);
+      setStudioMergeMode(false);
+      setStudioMergeTarget(null);
+      showToast(
+        "success",
+        `Merged - ${data.credits_moved} credit(s) moved.`,
+      );
       await loadDb();
     } catch (e) {
       showToast("error", e.message);
@@ -613,6 +672,10 @@ export default function Delete() {
           setSelectedFranchise(null);
           setSelectedSeries(null);
           setSelectedOption(null);
+          setSelectedStudio(null);
+          setStudioConfirm(false);
+          setStudioMergeMode(false);
+          setStudioMergeTarget(null);
         }}
       />
 
@@ -1612,6 +1675,179 @@ export default function Delete() {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* STUDIO TAB */}
+      {tab === "studio" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search studio to delete..."
+              items={db.studio}
+              type="studio"
+              onSelect={(item) => {
+                setSelectedStudio(item);
+                setStudioConfirm(false);
+                setStudioMergeMode(false);
+                setStudioMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "studio")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.credit_count} credit
+                    {item.credit_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedStudio && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedStudio, "studio")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedStudio.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedStudio.credit_count} credit
+                    {selectedStudio.credit_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedStudio(null);
+                    setStudioConfirm(false);
+                    setStudioMergeMode(false);
+                    setStudioMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i>{" "}
+                  Deleting destroys this studio's credit history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  media_credit.studio_id is ON DELETE CASCADE: deleting this
+                  studio permanently deletes its{" "}
+                  {selectedStudio.credit_count} credit
+                  {selectedStudio.credit_count === 1 ? "" : "s"} on every
+                  entry it's linked to. If this studio is a duplicate of
+                  another one, the correct action is Merge below, not
+                  Delete.
+                </div>
+              </div>
+
+              {!studioMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setStudioMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into
+                    Another Studio
+                  </button>
+                  {!studioConfirm ? (
+                    <button
+                      onClick={() => setStudioConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setStudioConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => executeStudioDelete(selectedStudio)}
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search studio to merge into..."
+                    items={db.studio.filter(
+                      (s) => s.system_id !== selectedStudio.system_id,
+                    )}
+                    type="studio"
+                    onSelect={setStudioMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "studio")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.credit_count} credit
+                          {item.credit_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {studioMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedStudio, "studio")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(studioMergeTarget, "studio")}
+                        </span>
+                        . All {selectedStudio.credit_count} credit
+                        {selectedStudio.credit_count === 1 ? "" : "s"} move
+                        to the surviving studio; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executeStudioMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setStudioMergeMode(false);
+                      setStudioMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

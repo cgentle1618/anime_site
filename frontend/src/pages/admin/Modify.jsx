@@ -35,6 +35,7 @@ import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
+import StudioModifyTab from "../modify-tabs/StudioModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
@@ -3032,6 +3033,11 @@ export default function Modify() {
       {/* ═══ MEME TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "meme" && <MemeManageTab mode="modify" />}
 
+      {/* ═══ STUDIO TAB — bypasses search/edit pattern; Studio is a public
+          entity, not a media entry/collection/franchise/series shape, so it
+          owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
+      {activeTab === "studio" && <StudioModifyTab />}
+
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
         <Fav3x3ModifyTab
@@ -3049,7 +3055,7 @@ export default function Modify() {
       )}
 
       {/* ═══ DISCOVERY VIEW ═══ */}
-      {!editorOpen && activeTab !== "fav3x3" && (
+      {!editorOpen && activeTab !== "fav3x3" && activeTab !== "studio" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -3209,7 +3215,7 @@ export default function Modify() {
       )}
 
       {/* ═══ EDITOR VIEW ═══ */}
-      {editorOpen && editingItem && activeTab !== "fav3x3" && (
+      {editorOpen && editingItem && activeTab !== "fav3x3" && activeTab !== "studio" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button
