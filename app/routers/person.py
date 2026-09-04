@@ -57,6 +57,9 @@ def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.Per
         my_rating=person.my_rating,
         photo_file=person.photo_file,
         remark=person.remark,
+        roles=[
+            schemas.PersonRoleIn(role=r.role, scope=r.scope) for r in person.roles
+        ],
         credit_count=credit_count,
     )
 

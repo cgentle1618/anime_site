@@ -8,8 +8,8 @@
 export const TAB_GROUPS = [
   { key: "entries", icon: "fa-photo-film", label: "Entries" },
   { key: "structure", icon: "fa-sitemap", label: "Structure" },
-  // Entities are credited ON entries rather than being entries: a studio
-  // today, people (director, author, seiyuu) when person gets its pages.
+  // Entities are credited ON entries rather than being entries: studios and
+  // the people credited as director, producer, composer, author, illustrator.
   { key: "entity", icon: "fa-industry", label: "Entity" },
 ];
 
@@ -84,15 +84,21 @@ export const ADMIN_TABS = [
     icon: "fa-industry",
     label: "Studio",
   },
+  {
+    key: "person",
+    group: "entity",
+    icon: "fa-user",
+    label: "Person",
+  },
 ];
 
 /**
  * Tabs backed by a form factory — everything but System Options, Quote,
- * Meme and Studio. None of the four is a media entry, so none has default
- * field values to edit.
+ * Meme, Studio and Person. None of the five is a media entry, so none has
+ * default field values to edit.
  */
 export const FORM_TABS = ADMIN_TABS.filter(
-  (t) => !["options", "quote", "meme", "studio"].includes(t.key),
+  (t) => !["options", "quote", "meme", "studio", "person"].includes(t.key),
 );
 
 /** The Fav 3x3 grid editor — only the Modify page offers it. */

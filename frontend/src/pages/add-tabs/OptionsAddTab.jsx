@@ -1,16 +1,16 @@
 // Frontend: add tab page file for OptionsAddTab.
 //
-// Three sub-tabs share the "System Options" nav entry: Options and Tags (two
-// halves of one closed-vocabulary table, split for navigation only - the
-// form and the endpoint are identical), then People (a credited entity;
-// Studio moved out to its own Entity tab group - see StudioAddTab.jsx). See
-// app/utils/credit_roles.py for the person-role vocabulary and
-// TAG_CATEGORIES, and lib/optionCategoryGroups.js for the split.
-import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+// Two sub-tabs share the "System Options" nav entry: Options and Tags, two
+// halves of one closed-vocabulary table split for navigation only - the form
+// and the endpoint are identical. See lib/optionCategoryGroups.js for the
+// split. People and Studio both used to live here as well; both are credited
+// entities with their own public pages rather than closed vocabularies, and
+// both moved to the Entity tab group - see PersonAddTab.jsx and
+// StudioAddTab.jsx.
+import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
-import { MEDIA_TYPES, PERSON_ROLES } from "../../config/fieldOptions";
-import { PERSON_NAME_FIELDS } from "../../lib/naming";
+import { MEDIA_TYPES } from "../../config/fieldOptions";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
 // PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
@@ -100,102 +100,6 @@ function OptionsForm({
   );
 }
 
-function PersonForm({ personForm, upf }) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {PERSON_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={personForm[field]}
-              onChange={(e) => upf(field, e.target.value)}
-              placeholder={key === "jp" ? "e.g. 新海誠" : undefined}
-            />
-          </Field>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field
-          label="Display Name"
-          hint="Which name to show. Automatic falls back EN → CN → JP → Alt"
-        >
-          <select
-            className={selectCls}
-            value={personForm.display_name_field}
-            onChange={(e) => upf("display_name_field", e.target.value)}
-          >
-            <option value="">Automatic (EN → CN → JP → Alt)</option>
-            {PERSON_NAME_FIELDS.map(({ key, label }) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Role" hint="Which dropdown this person should appear in">
-          <select
-            className={selectCls}
-            value={personForm.role}
-            onChange={(e) => upf("role", e.target.value)}
-          >
-            <option value="">— None —</option>
-            {PERSON_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {roleLabel(r)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Scope" hint="Only meaningful for Director">
-          <select
-            className={selectCls}
-            value={personForm.scope}
-            onChange={(e) => upf("scope", e.target.value)}
-          >
-            <option value="">— Any —</option>
-            <option value="anime">anime</option>
-            <option value="non_anime">non_anime</option>
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Gender">
-          <input
-            className={inputCls}
-            value={personForm.gender}
-            onChange={(e) => upf("gender", e.target.value)}
-          />
-        </Field>
-        <Field label="My Rating">
-          <input
-            className={inputCls}
-            value={personForm.my_rating}
-            onChange={(e) => upf("my_rating", e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="Photo File">
-        <input
-          className={inputCls}
-          value={personForm.photo_file}
-          onChange={(e) => upf("photo_file", e.target.value)}
-        />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={2}
-          value={personForm.remark}
-          onChange={(e) => upf("remark", e.target.value)}
-        />
-      </Field>
-    </div>
-  );
-}
-
 export default function OptionsAddTab({
   optionsSubTab,
   setOptionsSubTab,
@@ -206,8 +110,6 @@ export default function OptionsAddTab({
   optionCategories,
   optScopes,
   setOptScopes,
-  personForm,
-  upf,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
@@ -228,9 +130,6 @@ export default function OptionsAddTab({
           optScopes={optScopes}
           setOptScopes={setOptScopes}
         />
-      )}
-      {optionsSubTab === "people" && (
-        <PersonForm personForm={personForm} upf={upf} />
       )}
     </div>
   );

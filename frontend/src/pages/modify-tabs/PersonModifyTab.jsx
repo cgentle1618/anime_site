@@ -1,0 +1,229 @@
+// Frontend: modify tab page file for PersonModifyTab.
+//
+// Self-contained, like StudioModifyTab/QuoteManageTab: owns its own fetch,
+// picker and save state instead of hooking into Modify.jsx's per-type
+// form/search/save machinery (which is built around the media-entry and
+// collection/franchise/series shapes, not a credited entity like Person).
+// Reuses PersonFields from PersonAddTab so the input markup isn't duplicated
+// - see the comment on that export.
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
+import { PersonFields, useRoleScopes } from "../add-tabs/PersonAddTab";
+import { endpoints } from "../../api/endpoints";
+import { fetchJson, jsonBody } from "../../api/client";
+import { useToast } from "../../hooks/useToast";
+import { PERSON_NAME_FIELDS } from "../../lib/naming";
+
+function cleanString(str) {
+  return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+}
+
+function personToForm(p) {
+  return {
+    name_en: p.name_en || "",
+    name_cn: p.name_cn || "",
+    name_jp: p.name_jp || "",
+    name_alt: p.name_alt || "",
+    display_name_field: p.display_name_field || "",
+    gender: p.gender || "",
+    my_rating: p.my_rating || "",
+    photo_file: p.photo_file || "",
+    remark: p.remark || "",
+  };
+}
+
+export default function PersonModifyTab() {
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const legalScopes = useRoleScopes();
+
+  const [subTab, setSubTab] = useState("director");
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [personForm, setPersonForm] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Filtered by the sub-tab's role, which is what makes the sub-tab useful on
+  // a list of several hundred people. The FORM below still edits every type
+  // they hold - a person is one row.
+  const { data: people = [], isLoading } = useQuery({
+    queryKey: ["people-admin", subTab],
+    queryFn: () => fetchJson(endpoints.person.list(`role=${subTab}`)),
+    staleTime: 10_000,
+  });
+
+  const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
+
+  // Searches all four name fields, not just whichever one display_name_field
+  // points at - an admin looking someone up by their Japanese name must find
+  // them even when English is the configured display name.
+  const filtered = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = cleanString(search);
+    return people
+      .filter((p) =>
+        PERSON_NAME_FIELDS.some(
+          ({ field }) => p[field] && cleanString(p[field]).includes(q),
+        ),
+      )
+      .slice(0, 10);
+  }, [people, search]);
+
+  async function selectPerson(person) {
+    setOpen(false);
+    setSearch(person.display_name || "");
+    try {
+      const fresh = await fetchJson(endpoints.person.detail(person.system_id));
+      setSelectedId(fresh.system_id);
+      setPersonForm(personToForm(fresh));
+      // Every (role, scope) they hold, from the same response - the form edits
+      // the whole set, because PUT replaces it.
+      setRoles(fresh.roles || []);
+    } catch {
+      showToast("error", "Failed to load person.");
+    }
+  }
+
+  function closeEditor() {
+    setSelectedId(null);
+    setPersonForm(null);
+    setRoles([]);
+    setSearch("");
+  }
+
+  const hasAnyName = personForm
+    ? PERSON_NAME_FIELDS.some(({ field }) => personForm[field]?.trim())
+    : false;
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (submitting || !selectedId || !hasAnyName) return;
+    setSubmitting(true);
+    try {
+      const updated = await fetchJson(endpoints.person.update(selectedId), {
+        method: "PUT",
+        ...jsonBody({
+          name_en: personForm.name_en.trim() || null,
+          name_cn: personForm.name_cn.trim() || null,
+          name_jp: personForm.name_jp.trim() || null,
+          name_alt: personForm.name_alt.trim() || null,
+          display_name_field: personForm.display_name_field || null,
+          gender: personForm.gender || null,
+          my_rating: personForm.my_rating || null,
+          photo_file: personForm.photo_file || null,
+          remark: personForm.remark || null,
+          // PUT replaces the whole role set, so this must be every type the
+          // person holds, not just the sub-tab's one.
+          roles,
+        }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["people-admin"] });
+      setPersonForm(personToForm(updated));
+      showToast("success", "Person updated.");
+    } catch (err) {
+      showToast("error", err.message || "Update failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {!selectedId && (
+        <>
+          <PersonSubTabBar
+            active={subTab}
+            onSelect={(key) => {
+              setSubTab(key);
+              setSearch("");
+            }}
+          />
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 relative">
+            <div className="relative">
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
+              <input
+                className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+                placeholder="Search people to modify..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => search && setOpen(true)}
+              />
+            </div>
+            {open && filtered.length > 0 && (
+              <div className="absolute z-50 left-4 right-4 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                {filtered.map((p) => (
+                  <div
+                    key={p.system_id}
+                    className="px-4 py-2.5 hover:bg-brand/10 cursor-pointer"
+                    onMouseDown={() => selectPerson(p)}
+                  >
+                    <div className="font-bold text-text text-sm">
+                      {p.display_name}
+                    </div>
+                    <div className="text-[11px] text-text-faint">
+                      {p.credit_count} credit{p.credit_count === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isLoading && people.length === 0 && (
+              <p className="text-sm text-text-faint italic mt-2">
+                Nobody holds this type yet.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {selectedId && personForm && (
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={closeEditor}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition shrink-0"
+            >
+              <i className="fas fa-arrow-left text-xs"></i> Back
+            </button>
+            <span className="font-mono text-xs text-text-faint bg-surface-2 px-2 py-1 rounded truncate">
+              {selectedId}
+            </span>
+          </div>
+
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+            <PersonFields
+              personForm={personForm}
+              upf={upf}
+              roles={roles}
+              setRoles={setRoles}
+              legalScopes={legalScopes}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={submitting || !hasAnyName}
+              className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
+            >
+              {submitting ? (
+                <i className="fas fa-spinner fa-spin"></i>
+              ) : (
+                <i className="fas fa-save"></i>
+              )}
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}

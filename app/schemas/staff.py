@@ -116,6 +116,11 @@ class PersonUpdate(PersonBase):
 class PersonResponse(PersonBase):
     system_id: UUID
     display_name: str = ""
+    # Every (role, scope) the person holds. The admin form edits the whole set
+    # at once - PUT replaces it - so it has to be readable in one request; a
+    # form that reconstructed it by asking each role list who is in it would
+    # issue a query per legal pair and still guess.
+    roles: List[PersonRoleIn] = []
     credit_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)

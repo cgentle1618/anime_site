@@ -5,9 +5,8 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
-import OptionSubTabBar, {
-  OPTION_VALUE_SUB_TABS,
-} from "../../components/forms/OptionSubTabBar";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
+import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
@@ -75,7 +74,8 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
-  if (type === "studio") return item.display_name || "Unknown";
+  if (type === "studio" || type === "person")
+    return item.display_name || "Unknown";
   if (type === "collection")
     return (
       item.collection_name_cn ||
@@ -177,6 +177,7 @@ export default function Delete() {
     series: [],
     options: [],
     studio: [],
+    person: [],
   });
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -219,10 +220,21 @@ export default function Delete() {
   const [studioConfirm, setStudioConfirm] = useState(false);
   const [studioMergeMode, setStudioMergeMode] = useState(false);
   const [studioMergeTarget, setStudioMergeTarget] = useState(null);
+  const [personSubTab, setPersonSubTab] = useState("director");
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [personConfirm, setPersonConfirm] = useState(false);
+  const [personMergeMode, setPersonMergeMode] = useState(false);
+  const [personMergeTarget, setPersonMergeTarget] = useState(null);
   const [optCategoryFilter, setOptCategoryFilter] = useState("");
   // Which half of the System Option tab is showing. People and Studios are
-  // not offered here: neither can be deleted from this page.
+  // not here: each is a top-level Entity tab with its own branch below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
+
+  // The people offered for deletion are the ones holding the selected type.
+  // db.person carries every role a person holds, so this needs no extra fetch.
+  const peopleOfType = db.person.filter((p) =>
+    (p.roles || []).some((r) => r.role === personSubTab),
+  );
 
   const [modal, setModal] = useState(null); // { type, target, cascadeOptions }
   const [cascadeChecked, setCascadeChecked] = useState(false);
@@ -245,6 +257,7 @@ export default function Delete() {
         nvRes,
         cmRes,
         stRes,
+        peRes,
       ] =
         await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
@@ -260,8 +273,9 @@ export default function Delete() {
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
           fetch(endpoints.studio.list(), { credentials: "include" }),
+          fetch(endpoints.person.list(), { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st, pe] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -275,6 +289,7 @@ export default function Delete() {
         nvRes.json(),
         cmRes.json(),
         stRes.json(),
+        peRes.json(),
       ]);
       setDb({
         anime: a,
@@ -290,6 +305,7 @@ export default function Delete() {
         series: s,
         options: o,
         studio: st,
+        person: pe,
       });
     } catch {
       showToast("error", "Database load failed");
@@ -364,6 +380,58 @@ export default function Delete() {
       setSelectedStudio(null);
       setStudioConfirm(false);
       showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePersonDelete(item) {
+    setDeleting(true);
+    try {
+      // The count the confirmation showed rides along: the API answers 409 if
+      // it moved while the dialog was open, so the deletion that happens is
+      // the one the admin agreed to.
+      const res = await fetch(
+        endpoints.person.remove(item.system_id, item.credit_count),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to delete person");
+      }
+      setSelectedPerson(null);
+      setPersonConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePersonMerge() {
+    if (!selectedPerson || !personMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.person.merge(personMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedPerson.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge people");
+      const data = await res.json();
+      setSelectedPerson(null);
+      setPersonMergeMode(false);
+      setPersonMergeTarget(null);
+      showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
       await loadDb();
     } catch (e) {
       showToast("error", e.message);
@@ -1853,12 +1921,195 @@ export default function Delete() {
         </div>
       )}
 
+      {/* PERSON TAB — same shape as Studio above: delete cascades credit
+          history away, so Merge is offered first and the delete carries the
+          count the admin was shown (the API rejects a stale one with 409). */}
+      {tab === "person" && (
+        <div className="space-y-4">
+          <PersonSubTabBar
+            active={personSubTab}
+            onSelect={(key) => {
+              setPersonSubTab(key);
+              setSelectedPerson(null);
+              setPersonConfirm(false);
+              setPersonMergeMode(false);
+              setPersonMergeTarget(null);
+            }}
+          />
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search person to delete..."
+              items={peopleOfType}
+              type="person"
+              onSelect={(item) => {
+                setSelectedPerson(item);
+                setPersonConfirm(false);
+                setPersonMergeMode(false);
+                setPersonMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "person")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.credit_count} credit
+                    {item.credit_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedPerson && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedPerson, "person")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedPerson.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedPerson.credit_count} credit
+                    {selectedPerson.credit_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPerson(null);
+                    setPersonConfirm(false);
+                    setPersonMergeMode(false);
+                    setPersonMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i> Deleting
+                  destroys this person's credit history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  media_credit.person_id is ON DELETE CASCADE: deleting this
+                  person permanently deletes their{" "}
+                  {selectedPerson.credit_count} credit
+                  {selectedPerson.credit_count === 1 ? "" : "s"} on every entry
+                  they're linked to. If this person is a duplicate of someone
+                  else, the correct action is Merge below, not Delete.
+                </div>
+              </div>
+
+              {!personMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setPersonMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into Another
+                    Person
+                  </button>
+                  {!personConfirm ? (
+                    <button
+                      onClick={() => setPersonConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setPersonConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => executePersonDelete(selectedPerson)}
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search person to merge into..."
+                    items={db.person.filter(
+                      (p) => p.system_id !== selectedPerson.system_id,
+                    )}
+                    type="person"
+                    onSelect={setPersonMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "person")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.credit_count} credit
+                          {item.credit_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {personMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedPerson, "person")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(personMergeTarget, "person")}
+                        </span>
+                        . All {selectedPerson.credit_count} credit
+                        {selectedPerson.credit_count === 1 ? "" : "s"} move to
+                        the surviving person; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executePersonMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPersonMergeMode(false);
+                      setPersonMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* OPTIONS TAB */}
       {tab === "options" && (
         <div className="space-y-4">
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <OptionSubTabBar
-              tabs={OPTION_VALUE_SUB_TABS}
               active={optionsSubTab}
               onSelect={(key) => {
                 setOptionsSubTab(key);

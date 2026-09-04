@@ -268,3 +268,32 @@ def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
 def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(client):
     """'role-counts' must not be parsed as a person system_id."""
     assert client.get("/api/person/role-counts").status_code == 200
+
+
+def test_the_response_carries_every_role_the_person_holds(admin_client):
+    """
+    The admin form edits the whole role set at once and PUT replaces it, so
+    the set has to arrive in one response. Reconstructing it by asking each
+    role list who is in it would be a query per legal pair, and would still
+    miss a pair the caller forgot to ask about.
+    """
+    created = _create(
+        admin_client,
+        "宮崎駿",
+        [
+            {"role": "director", "scope": "anime"},
+            {"role": "director", "scope": "movie"},
+            {"role": "producer", "scope": "anime"},
+        ],
+    )
+    held = {
+        (r["role"], r["scope"])
+        for r in admin_client.get(f"/api/person/{created['system_id']}").json()[
+            "roles"
+        ]
+    }
+    assert held == {
+        ("director", "anime"),
+        ("director", "movie"),
+        ("producer", "anime"),
+    }

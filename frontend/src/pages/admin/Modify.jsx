@@ -35,13 +35,12 @@ import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
+import PersonModifyTab from "../modify-tabs/PersonModifyTab";
 import StudioModifyTab from "../modify-tabs/StudioModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
-import OptionSubTabBar, {
-  OPTION_VALUE_SUB_TABS,
-} from "../../components/forms/OptionSubTabBar";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import {
   fetchFormDefaults,
@@ -3038,6 +3037,11 @@ export default function Modify() {
           owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
       {activeTab === "studio" && <StudioModifyTab />}
 
+      {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
+          Studio does; a person is a credited entity with its own role x scope
+          matrix (see PersonModifyTab.jsx). ═══ */}
+      {activeTab === "person" && <PersonModifyTab />}
+
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
         <Fav3x3ModifyTab
@@ -3055,7 +3059,10 @@ export default function Modify() {
       )}
 
       {/* ═══ DISCOVERY VIEW ═══ */}
-      {!editorOpen && activeTab !== "fav3x3" && activeTab !== "studio" && (
+      {!editorOpen &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "person" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -3113,7 +3120,6 @@ export default function Modify() {
           ) : (
             <div>
               <OptionSubTabBar
-                tabs={OPTION_VALUE_SUB_TABS}
                 active={optionsSubTab}
                 onSelect={(key) => {
                   setOptionsSubTab(key);
@@ -3215,7 +3221,11 @@ export default function Modify() {
       )}
 
       {/* ═══ EDITOR VIEW ═══ */}
-      {editorOpen && editingItem && activeTab !== "fav3x3" && activeTab !== "studio" && (
+      {editorOpen &&
+        editingItem &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "person" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button

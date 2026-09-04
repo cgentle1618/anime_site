@@ -16,6 +16,7 @@ import CollectionAddTab, {
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
+import PersonAddTab from "../add-tabs/PersonAddTab";
 import StudioAddTab from "../add-tabs/StudioAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
@@ -149,11 +150,14 @@ export default function Add() {
   // components/forms/ScopePicker.jsx.
   const [optScopes, setOptScopes] = useState([]);
 
-  // The Options tab has two sub-tabs (Options / People) sharing one
-  // "System Options" nav entry — each manages a different Tier 2/3 source.
-  // Studio is a separate top-level tab under the Entity group (see
-  // adminTabs.js) with its own form state below.
+  // The Options tab has two sub-tabs (Options / Tags) sharing one "System
+  // Options" nav entry. Person and Studio are top-level tabs under the Entity
+  // group (see adminTabs.js), each with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
+  // Which person type the Person tab is filtered to; it preselects the type a
+  // new person is given, and never narrows what the form can edit.
+  const [personSubTab, setPersonSubTab] = useState("director");
+  const [personRoles, setPersonRoles] = useState([]);
   const emptyPerson = () => ({
     name_en: "",
     name_cn: "",
@@ -164,8 +168,6 @@ export default function Add() {
     my_rating: "",
     photo_file: "",
     remark: "",
-    role: "",
-    scope: "",
   });
   const emptyStudio = () => ({
     name_en: "",
@@ -600,6 +602,7 @@ export default function Add() {
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
       else if (activeTab === "studio") await submitStudio();
+      else if (activeTab === "person") await submitPerson();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -958,8 +961,6 @@ export default function Add() {
   }
 
   async function submitOptions() {
-    if (optionsSubTab === "people") return submitPerson();
-
     if (!optCategory.trim()) {
       showToast("warning", "Category is required.");
       return;
@@ -1009,9 +1010,6 @@ export default function Add() {
       showToast("warning", "A person needs at least one name.");
       return;
     }
-    const roles = personForm.role.trim()
-      ? [{ role: personForm.role.trim(), scope: personForm.scope || null }]
-      : [];
     const res = await fetch(endpoints.person.create(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1025,7 +1023,7 @@ export default function Add() {
         my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
         remark: personForm.remark || null,
-        roles,
+        roles: personRoles,
       }),
       credentials: "include",
     });
@@ -1034,6 +1032,7 @@ export default function Add() {
       showToast("success", "Person appended successfully.");
       setLastAdded(created.display_name);
       setPersonForm(emptyPerson());
+      setPersonRoles([]);
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create person");
@@ -2559,14 +2558,26 @@ export default function Add() {
             optionCategories={optionCategories}
             optScopes={optScopes}
             setOptScopes={setOptScopes}
-            personForm={personForm}
-            upf={upf}
           />
         )}
 
         {/* ═══ STUDIO TAB ═══ */}
         {activeTab === "studio" && (
           <StudioAddTab studioForm={studioForm} usf={usf} />
+        )}
+
+        {/* ═══ PERSON TAB ═══ */}
+        {activeTab === "person" && (
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+            <PersonAddTab
+              personForm={personForm}
+              upf={upf}
+              roles={personRoles}
+              setRoles={setPersonRoles}
+              subTab={personSubTab}
+              setSubTab={setPersonSubTab}
+            />
+          </div>
         )}
 
         {/* Content labels - one control for every media tab. */}
@@ -2588,6 +2599,10 @@ export default function Add() {
               (activeTab === "studio" &&
                 !STUDIO_NAME_FIELDS.some(
                   ({ field }) => studioForm[field]?.trim(),
+                )) ||
+              (activeTab === "person" &&
+                !PERSON_NAME_FIELDS.some(
+                  ({ field }) => personForm[field]?.trim(),
                 ))
             }
             className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
