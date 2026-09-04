@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getReleaseFallback, getSourceValues } from "./formatters";
+import { getReleaseFallback, getSourceValues, getNovelProgress } from "./formatters";
 
 describe("getReleaseFallback", () => {
   it("prefers the season and year when both are known", () => {
@@ -154,5 +154,36 @@ describe("getSourceValues", () => {
         getSourceValues(sources, { kind: "studio" }),
       ).not.toContain("");
     });
+  });
+});
+
+describe("getNovelProgress", () => {
+  it("renders the two-stage arc position", () => {
+    const novel = {
+      progress_display: "arc_ch",
+      arc_fin: 1,
+      arc_total: 2,
+      ch_fin_in_arc: 101,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+  });
+
+  it("falls back to the flat chapter pair when there are no arcs", () => {
+    const novel = { progress_display: "ch", ch_fin: 120, ch_total: 300, units: [] };
+    expect(getNovelProgress(novel)).toBe("120 / 300 CH");
+  });
+
+  it("shows the JP/KR volume label", () => {
+    const novel = { progress_display: "vol_original", vol_fin: 3, vol_total_original: 12 };
+    expect(getNovelProgress(novel)).toBe("3 / 12 VOL JP/KR");
+  });
+
+  it("still shows TW volumes", () => {
+    const novel = { progress_display: "vol_tw", vol_fin: 3, vol_total_tw: 9 };
+    expect(getNovelProgress(novel)).toBe("3 / 9 VOL TW");
   });
 });

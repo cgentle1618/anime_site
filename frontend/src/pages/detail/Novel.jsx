@@ -440,8 +440,8 @@ export default function Novel() {
             onVolChange={(v) =>
               performPatch({ vol_fin: v }, "Volume progress saved")
             }
-            onArcChange={(v) =>
-              performPatch({ arc_fin: v }, "Arc progress saved")
+            onArcProgressChange={(next) =>
+              performPatch(next, "Arc progress saved")
             }
             onStatusChange={(v) =>
               performPatch({ reading_status: v }, "Status updated")

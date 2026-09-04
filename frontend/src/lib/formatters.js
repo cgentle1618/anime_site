@@ -85,17 +85,31 @@ export function parseTypes(franchiseType) {
 }
 
 /**
- * Returns a human-readable progress string for a novel entry, branching
- * on the novel's progress_display field.
+ * Human-readable progress for a novel, branching on progress_display.
+ *
+ * The arc_ch case is two-stage: the arc being read is arc_fin + 1, and
+ * ch_fin_in_arc counts chapters inside it, so the denominator is that arc's
+ * own ch_count rather than the whole novel's chapter total.
  */
 export function getNovelProgress(novel) {
   switch (novel.progress_display) {
     case "vol_tw":
       return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
     case "vol_original":
-      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL`;
-    case "arc_ch":
-      return `${novel.arc_fin ?? 0}/${novel.arc_total ?? "?"} ARC  ${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} CH`;
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL JP/KR`;
+    case "arc_ch": {
+      const arcs = (novel.units || [])
+        .filter((u) => u.unit_kind === "arc")
+        .sort((a, b) => a.position - b.position);
+      const finished = novel.arc_fin ?? 0;
+      const current = arcs[finished];
+      if (!current) {
+        return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+      }
+      return `arc ${finished + 1} · ${novel.ch_fin_in_arc ?? 0}/${
+        current.ch_count ?? "?"
+      } CH`;
+    }
     default:
       return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
   }

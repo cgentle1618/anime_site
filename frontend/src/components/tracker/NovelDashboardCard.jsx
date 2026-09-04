@@ -53,9 +53,11 @@ export default function NovelDashboardCard({
       ((novel.vol_fin ?? 0) / novel.vol_total_original) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (pd === "arc_ch" && novel.arc_total != null) {
+  } else if (pd === "arc_ch" && novel.ch_total) {
+    // ch_fin is derived server-side from arc_fin/ch_fin_in_arc, so it
+    // already accounts for the partial arc being read — no unit maths here.
     progressPercent = Math.round(
-      ((novel.arc_fin ?? 0) / novel.arc_total) * 100,
+      Math.min(((novel.ch_fin ?? 0) / novel.ch_total) * 100, 100),
     );
     progressLabel = `${progressPercent}%`;
   } else if (pd === "ch" && novel.ch_total != null) {
