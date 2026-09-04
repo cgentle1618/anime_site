@@ -31,6 +31,31 @@ def _migration_module():
     return module
 
 
+def _person_collapse_statements(module):
+    """
+    The Person-only subset of module.COLLAPSE_DUPLICATES.
+
+    COLLAPSE_DUPLICATES also merges duplicate Studio rows via raw SQL keyed
+    on studio.name_native (module._STUDIO_MERGE and the two statements that
+    follow it). That SQL is correct where the frozen migration actually
+    runs - before s1t2u3d4i5o6 renamed name_native off of Studio - but this
+    file's tests build a database from the CURRENT models, where that column
+    is gone, so replaying it here raises UndefinedColumn regardless of what
+    the test is trying to exercise. The scenario that step covered - a
+    duplicate studio surviving because the constraint was inert - is now
+    enforced directly by uq_studio_name + ck_studio_has_a_name on the
+    current schema, and its find-or-create path is exercised above by
+    test_posting_an_existing_studio_returns_it. So the tests below, which
+    are about Person and PersonRole collapsing, replay only the Person-side
+    statements.
+    """
+    return tuple(
+        statement
+        for statement in module.COLLAPSE_DUPLICATES
+        if statement is not module._STUDIO_MERGE and "studio_merge" not in statement
+    )
+
+
 # ---------------------------------------------------------------------------
 # The constraints themselves
 # ---------------------------------------------------------------------------
@@ -110,8 +135,8 @@ def test_posting_an_existing_person_adds_the_role_instead_of_a_second_row(
 
 
 def test_posting_an_existing_studio_returns_it(admin_client, db_session):
-    first = admin_client.post("/api/studio/", json={"name_native": "MAPPA"}).json()
-    second = admin_client.post("/api/studio/", json={"name_native": " mappa "})
+    first = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
+    second = admin_client.post("/api/studio/", json={"name_en": " mappa "})
     assert second.status_code == 200
     assert second.json()["system_id"] == first["system_id"]
     assert db_session.query(models.Studio).count() == 1
@@ -163,7 +188,7 @@ def test_the_migration_merges_duplicates_without_losing_credits(db_session):
     )
     db_session.flush()
 
-    for statement in module.COLLAPSE_DUPLICATES:
+    for statement in _person_collapse_statements(module):
         db_session.execute(text(statement))
 
     assert db_session.query(models.Person).filter_by(name_native="Dup").count() == 1
@@ -192,7 +217,7 @@ def test_the_migration_collapses_duplicate_person_roles(db_session):
         )
     db_session.flush()
 
-    for statement in module.COLLAPSE_DUPLICATES:
+    for statement in _person_collapse_statements(module):
         db_session.execute(text(statement))
 
     assert (

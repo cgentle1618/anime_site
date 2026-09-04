@@ -3,7 +3,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.utils.credit_roles import PERSON_ROLES
 
@@ -77,12 +77,34 @@ class PersonResponse(PersonBase):
 
 
 class StudioBase(BaseModel):
-    name_native: str
     name_en: Optional[str] = None
     name_cn: Optional[str] = None
+    name_jp: Optional[str] = None
+    name_alt: Optional[str] = None
+    display_name_field: Optional[str] = None
     my_rating: Optional[str] = None
     logo_file: Optional[str] = None
     remark: Optional[str] = None
+    founded_date: Optional[str] = None
+    defunct_date: Optional[str] = None
+    country: Optional[str] = None
+    website_url: Optional[str] = None
+    mal_id: Optional[int] = None
+    mal_link: Optional[str] = None
+
+    @model_validator(mode="after")
+    def at_least_one_name(self):
+        """
+        Mirrors ck_studio_has_a_name, so a nameless studio is a 422 from the
+        API rather than a 500 surfacing the database's IntegrityError.
+        """
+        if not any(
+            (self.name_en, self.name_cn, self.name_jp, self.name_alt)
+        ):
+            raise ValueError("A studio needs at least one name.")
+        if self.display_name_field not in (None, "en", "cn", "jp", "alt"):
+            raise ValueError("display_name_field must be en, cn, jp or alt.")
+        return self
 
 
 class StudioCreate(StudioBase):
@@ -95,6 +117,7 @@ class StudioUpdate(StudioBase):
 
 class StudioResponse(StudioBase):
     system_id: UUID
+    display_name: str = ""
     credit_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)

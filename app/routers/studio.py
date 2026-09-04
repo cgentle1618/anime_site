@@ -41,12 +41,21 @@ def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.Stu
     )
     return schemas.StudioResponse(
         system_id=studio.system_id,
-        name_native=studio.name_native,
         name_en=studio.name_en,
         name_cn=studio.name_cn,
+        name_jp=studio.name_jp,
+        name_alt=studio.name_alt,
+        display_name_field=studio.display_name_field,
+        display_name=studio.display_name,
         my_rating=studio.my_rating,
         logo_file=studio.logo_file,
         remark=studio.remark,
+        founded_date=studio.founded_date,
+        defunct_date=studio.defunct_date,
+        country=studio.country,
+        website_url=studio.website_url,
+        mal_id=studio.mal_id,
+        mal_link=studio.mal_link,
         credit_count=credit_count,
     )
 
@@ -61,8 +70,9 @@ def get_all_studios(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves every studio, sorted by native name."""
-    studios = db.query(models.Studio).order_by(models.Studio.name_native).all()
+    """Retrieves every studio, sorted by display name."""
+    studios = db.query(models.Studio).all()
+    studios.sort(key=lambda s: s.display_name.casefold())
     return [_to_response(db, studio, viewer) for studio in studios]
 
 
@@ -103,7 +113,11 @@ def create_studio(
 
     Metadata on an existing studio is left untouched - use PUT to edit it.
     """
-    studio = find_studio(db, payload.name_native)
+    first_name = next(
+        n for n in (payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt)
+        if n
+    )
+    studio = find_studio(db, first_name)
     if studio is None:
         studio = models.Studio(**payload.model_dump())
         db.add(studio)
