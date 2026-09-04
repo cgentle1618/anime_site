@@ -16,6 +16,7 @@ import {
   TV_REGIONS,
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export { defaultTvShow } from "../../config/formFactories";
 
@@ -216,11 +217,7 @@ export default function TvShowAddTab({
             value={tvf.watching_status}
             onChange={(e) => utf("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="Is Main">

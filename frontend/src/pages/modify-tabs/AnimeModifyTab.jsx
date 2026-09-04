@@ -21,6 +21,7 @@ import {
   SEIYUU_STATUSES,
   ANIME_AIRING_TYPES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export default function AnimeModifyTab({
   franchiseCollections,
@@ -172,11 +173,7 @@ export default function AnimeModifyTab({
             value={af.watching_status}
             onChange={(e) => ua("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

@@ -16,20 +16,9 @@ import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitiv
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
+import StatusOptions from "../../components/ui/StatusOptions";
+import { WATCHING_STATUSES } from "../../config/fieldOptions";
 
-const WATCHING_STATUSES = [
-  "Might Watch",
-  "Plan to Watch",
-  "Watch When Airs",
-  "Active Watching",
-  "Passive Watching",
-  "Paused",
-  "Temp Dropped",
-  "Dropped",
-  "Won't Watch",
-  "Completed",
-  "Completed (解說)",
-];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 function formatLength(minutes) {
@@ -327,11 +316,7 @@ export default function AnimeMovie() {
                   }
                   className={selectCls}
                 >
-                  {WATCHING_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
+                  <StatusOptions statuses={WATCHING_STATUSES} />
                 </select>
               </div>
               <div className="space-y-1">

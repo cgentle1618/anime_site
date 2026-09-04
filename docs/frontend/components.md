@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-03 (commit df14959, plus uncommitted archive-look and Tags sub-tab changes)
+Last verified: 2026-09-04 (commit f35ee2c, plus the uncommitted status-optgroup change)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -118,7 +118,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 |---|---|
 | `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). Source for `endpoints.resource`. |
 | `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Track, Insights, Admin with `requires: "admin"`), `activeItem`, `visibleSections`. |
-| `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `AIRING_STATUS_CLS`. |
+| `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary. |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. |
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount. |
 | `formFactories.js` | `freshForm(type)` defaults per form. |

@@ -4,6 +4,7 @@
 // buttons around a mono input, selects on hairlines. Status is text, never
 // a coloured background.
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
+import StatusOptions from "../ui/StatusOptions";
 
 export const SELECT_CLS =
   "block w-full bg-surface border border-border-strong text-text text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -106,11 +107,7 @@ export default function MyTrackerCard({
               onChange={(e) => isAdmin && onStatusChange(e.target.value)}
               className={SELECT_CLS}
             >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              <StatusOptions statuses={statusOptions} />
             </select>
           ) : (
             <div>

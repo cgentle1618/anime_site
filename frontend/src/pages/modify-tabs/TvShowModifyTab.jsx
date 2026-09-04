@@ -16,6 +16,7 @@ import {
   IS_MAIN,
   MY_RATINGS,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export default function TvShowModifyTab({
   franchiseCollections,
@@ -163,11 +164,7 @@ export default function TvShowModifyTab({
             value={tvmf.watching_status}
             onChange={(e) => utv("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="Is Main">

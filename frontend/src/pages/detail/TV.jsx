@@ -22,20 +22,8 @@ import {
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
+import { WATCHING_STATUSES } from "../../config/fieldOptions";
 
-const WATCHING_STATUSES = [
-  "Might Watch",
-  "Plan to Watch",
-  "Watch When Airs",
-  "Active Watching",
-  "Passive Watching",
-  "Paused",
-  "Temp Dropped",
-  "Dropped",
-  "Won't Watch",
-  "Completed",
-  "Completed (解說)",
-];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
 

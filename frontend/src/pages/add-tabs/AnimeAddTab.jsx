@@ -22,6 +22,7 @@ import {
   SEASON_NUMS,
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export { defaultAnime } from "../../config/formFactories";
 
@@ -249,11 +250,7 @@ export default function AnimeAddTab({
             value={af.watching_status}
             onChange={(e) => ua("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

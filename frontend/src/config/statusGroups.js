@@ -51,3 +51,62 @@ export const AIRING_STATUS_CLS = {
   Rumored:           "text-text-muted border border-border-strong",
   _default:          "text-text-faint bg-surface-2",
 };
+
+/**
+ * The three coarse buckets the status <select>s group their options under.
+ * Purely a picking aid for the Add/Modify forms and the detail-page tracker —
+ * nothing filters, sorts or counts by them (WATCHING_STATUS_GROUP above is
+ * what the library filters use, and it splits the same values differently).
+ */
+export const STATUS_PICKER_GROUPS = ["Not Released", "On-Going", "Done"];
+
+/**
+ * Maps every watching_status AND reading_status value to its picker group.
+ * One map covers both vocabularies because no value is shared between them
+ * with a different meaning — "Paused" is "Paused" either way.
+ */
+export const STATUS_PICKER_GROUP = {
+  "Might Watch":      "Not Released",
+  "Plan to Watch":    "Not Released",
+  "Watch When Airs":  "Not Released",
+  "Might Read":       "Not Released",
+  "Plan to Read":     "Not Released",
+  "Active Watching":  "On-Going",
+  "Passive Watching": "On-Going",
+  "Active Reading":   "On-Going",
+  "Passive Reading":  "On-Going",
+  Paused:             "On-Going",
+  "Temp Dropped":     "On-Going",
+  Completed:          "Done",
+  "Completed (解說)":  "Done",
+  Dropped:            "Done",
+  "Won't Watch":      "Done",
+  "Won't Read":       "Done",
+};
+
+/**
+ * Splits a status vocabulary into [{ label, statuses }] for <optgroup>s,
+ * keeping the source array's own order inside each group. Groups with no
+ * members are dropped, so the same helper serves the watching list (which
+ * has "Watch When Airs") and the reading list (which does not).
+ *
+ * A value with no group — /api/constants is the real source of these arrays,
+ * so it can serve one this map has never heard of — lands in a trailing
+ * bucket with `label: null`, which the caller renders without an <optgroup>.
+ * Never drop it: an unlisted option would silently blank out a saved status.
+ */
+export function groupStatusOptions(statuses) {
+  const buckets = new Map(STATUS_PICKER_GROUPS.map((g) => [g, []]));
+  const ungrouped = [];
+  for (const status of statuses ?? []) {
+    const group = STATUS_PICKER_GROUP[status];
+    if (group) buckets.get(group).push(status);
+    else ungrouped.push(status);
+  }
+  const groups = [];
+  for (const [label, list] of buckets) {
+    if (list.length) groups.push({ label, statuses: list });
+  }
+  if (ungrouped.length) groups.push({ label: null, statuses: ungrouped });
+  return groups;
+}

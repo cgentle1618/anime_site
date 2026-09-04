@@ -15,6 +15,7 @@ import {
   MY_RATINGS,
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export { defaultAnimeMovie } from "../../config/formFactories";
 
@@ -182,11 +183,7 @@ export default function AnimeMovieAddTab({
             value={amf.watching_status}
             onChange={(e) => uam("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

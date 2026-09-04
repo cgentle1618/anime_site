@@ -15,6 +15,7 @@ import {
   WATCHING_STATUSES,
   MY_RATINGS,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export default function AnimeMovieModifyTab({
   franchiseCollections,
@@ -112,11 +113,7 @@ export default function AnimeMovieModifyTab({
             value={amf.watching_status}
             onChange={(e) => uam("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

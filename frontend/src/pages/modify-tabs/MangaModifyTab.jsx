@@ -18,6 +18,7 @@ import {
   READING_STATUSES,
   MY_RATINGS,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export default function MangaModifyTab({
   franchiseCollections,
@@ -197,11 +198,7 @@ export default function MangaModifyTab({
             value={cmgf.reading_status}
             onChange={(e) => umg("reading_status", e.target.value)}
           >
-            {READING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={READING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

@@ -16,6 +16,7 @@ import {
   MY_RATINGS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 // `events` is an array in the form but MultiSelect speaks comma-separated
 // strings, so it is converted at this boundary in both directions.
@@ -232,11 +233,7 @@ export default function ComicModifyTab({
             value={ccmf.reading_status}
             onChange={(e) => ucm("reading_status", e.target.value)}
           >
-            {READING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={READING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

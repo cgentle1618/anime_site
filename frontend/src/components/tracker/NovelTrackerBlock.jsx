@@ -1,6 +1,8 @@
 // Frontend: tracker component file for NovelTrackerBlock.
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
+import StatusOptions from "../ui/StatusOptions";
+import { READING_STATUSES } from "../../config/fieldOptions";
 
 const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (VOL Original) —" },
@@ -10,18 +12,6 @@ const PROGRESS_DISPLAY_OPTIONS = [
   { value: "arc_ch", label: "ARC + CH" },
 ];
 
-const READING_STATUSES = [
-  "Might Read",
-  "Plan to Read",
-  "Active Reading",
-  "Passive Reading",
-  "Paused",
-  "Temp Dropped",
-  "Dropped",
-  "Won't Read",
-  "Completed",
-  "Completed (解說)",
-];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 function stepUp(v) {
@@ -131,9 +121,7 @@ export default function NovelTrackerBlock({
                 onChange={(e) => isAdmin && onStatusChange(e.target.value)}
                 className={SELECT_CLS}
               >
-                {READING_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                <StatusOptions statuses={READING_STATUSES} />
               </select>
             ) : (
               <div>

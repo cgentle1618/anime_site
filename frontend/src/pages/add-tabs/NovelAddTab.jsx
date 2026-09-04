@@ -20,6 +20,7 @@ import {
   PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export { defaultNovel } from "../../config/formFactories";
 
@@ -300,11 +301,7 @@ export default function NovelAddTab({
             value={nvf.reading_status}
             onChange={(e) => unv("reading_status", e.target.value)}
           >
-            {READING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={READING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">

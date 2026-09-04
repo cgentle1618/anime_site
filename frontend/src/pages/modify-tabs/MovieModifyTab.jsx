@@ -17,6 +17,7 @@ import {
   IS_MAIN,
   MY_RATINGS,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export default function MovieModifyTab({
   franchiseCollections,
@@ -144,11 +145,7 @@ export default function MovieModifyTab({
             value={mmf.watching_status}
             onChange={(e) => umm("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
         <Field label="Movie Type">

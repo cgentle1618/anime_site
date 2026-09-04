@@ -28,19 +28,8 @@ import {
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
+import { READING_STATUSES } from "../../config/fieldOptions";
 
-const READING_STATUSES = [
-  "Might Read",
-  "Plan to Read",
-  "Active Reading",
-  "Passive Reading",
-  "Paused",
-  "Temp Dropped",
-  "Dropped",
-  "Won't Read",
-  "Completed",
-  "Completed (解說)",
-];
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 const LIST_OPTIONS = { params: { limit: 2000 } };

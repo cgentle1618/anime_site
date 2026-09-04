@@ -16,6 +16,7 @@ import {
   MY_RATINGS,
   WATCHING_STATUSES,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 export { defaultCartoon } from "../../config/formFactories";
 
@@ -230,11 +231,7 @@ export default function CartoonAddTab({
             value={cf.watching_status}
             onChange={(e) => uc("watching_status", e.target.value)}
           >
-            {WATCHING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={WATCHING_STATUSES} />
           </select>
         </Field>
       </div>

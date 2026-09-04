@@ -20,6 +20,7 @@ import {
   READING_STATUSES,
   MY_RATINGS,
 } from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
 
 const PROGRESS_DISPLAY_OPTIONS = [
   { value: "", label: "— Default (VOL Original) —" },
@@ -236,11 +237,7 @@ export default function NovelModifyTab({
             value={cnvf.reading_status}
             onChange={(e) => unv("reading_status", e.target.value)}
           >
-            {READING_STATUSES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
+            <StatusOptions statuses={READING_STATUSES} />
           </select>
         </Field>
         <Field label="My Rating">
