@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import { scopeChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
 
 // Tier 3 is the one section with no endpoint that describes itself, because
@@ -358,10 +359,7 @@ function Tier2({ groups, loading }) {
                           ) : (
                             <span className="flex flex-wrap gap-1">
                               {row.scopes.map((scope) => (
-                                <span
-                                  key={scope}
-                                  className="bg-brand-soft border border-brand/30 text-brand text-[10px] font-bold rounded px-1.5 py-0.5"
-                                >
+                                <span key={scope} className={scopeChip(scope)}>
                                   {scope}
                                 </span>
                               ))}

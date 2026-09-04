@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-08-31
+Last verified: 2026-09-04
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -57,7 +57,17 @@ counts). `h1` is display by default.
    not get an icon.
 5. **Colour never encodes a category.** Media type, airing status,
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
-   are the rating stamp (brand) and destructive states (danger).
+   are the rating stamp (brand), destructive states (danger) and the
+   **scope chips on the System Options page** (`config/scopeColors.js`,
+   `--color-scope-*` in both palettes). That page runs the same eight media
+   type keys down one narrow column across hundreds of rows, and the question
+   asked of it — which two values are offered in the same places — is a
+   comparison, not a reading; hue answers it at a glance where
+   "anime-movie" against "anime" does not. The key stays written in the chip,
+   so the colour is an index and never the only signal. It is scoped to that
+   one column on purpose: `config/mediaTypeColors.js` still gives every media
+   type the same ink chip everywhere else, and a second colour-coded category
+   needs the same argument made again, not this one cited.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
    "Quick edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.
@@ -111,6 +121,8 @@ tables use hairline rows with mono headers.
 ## Changing it
 
 - New colour → add a token to `index.css` in both palettes, never a raw hex
-  in a component.
+  in a component. Three palettes in practice: `:root`, `[data-theme="dark"]`
+  and the `prefers-color-scheme` block that covers a no-JS first paint —
+  a token missing from the third renders as nothing in that one case.
 - New surface pattern → add a primitive here before using it twice.
 - Check both themes on :5173 before calling it done.

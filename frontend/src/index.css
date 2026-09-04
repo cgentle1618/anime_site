@@ -44,6 +44,27 @@
   --color-ink: var(--c-ink);
   --color-ink-text: var(--c-ink-text);
 
+  /* Media-type scope hues. The one documented exception to design rule 5
+     (colour never encodes a category): the System Options table compares
+     eight scope keys at a glance down a single column, where reading each
+     chip's text is the slow path. Used ONLY by config/scopeColors.js -
+     nothing else colours a media type. Tint with opacity (bg-scope-anime/12).
+     Hues are ~45 degrees apart so neighbours stay separable, and every value
+     is desaturated enough to sit on bone paper without competing with brand.
+     Lightness is set by contrast, not by eye: the chip text is 10px, so every
+     hue must clear WCAG AA 4.5:1 on --c-surface. Measured floors are 4.54
+     (light) and 5.84 (dark) - anime, tv-show and cartoon were each darkened
+     in the light palette to get there, so do not lighten one back for looks
+     without re-measuring. */
+  --color-scope-anime: var(--c-scope-anime);
+  --color-scope-anime-movie: var(--c-scope-anime-movie);
+  --color-scope-movie: var(--c-scope-movie);
+  --color-scope-tv-show: var(--c-scope-tv-show);
+  --color-scope-cartoon: var(--c-scope-cartoon);
+  --color-scope-manga: var(--c-scope-manga);
+  --color-scope-novel: var(--c-scope-novel);
+  --color-scope-comic: var(--c-scope-comic);
+
   /* Semantic state hues; tint with opacity modifiers (bg-success/15). */
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
@@ -88,6 +109,14 @@
   --c-on-brand: #ffffff;
   --c-ink: #1c1a17;
   --c-ink-text: #f8f6f1;
+  --c-scope-anime: hsl(210 47% 43%);
+  --c-scope-anime-movie: hsl(260 40% 52%);
+  --c-scope-movie: hsl(350 45% 50%);
+  --c-scope-tv-show: hsl(25 57% 40%);
+  --c-scope-cartoon: hsl(45 60% 33%);
+  --c-scope-manga: hsl(150 40% 35%);
+  --c-scope-novel: hsl(185 45% 35%);
+  --c-scope-comic: hsl(310 35% 48%);
 }
 
 /* Dark palette. Applied by the attribute, and by the OS preference when no
@@ -109,6 +138,14 @@
   --c-on-brand: #17150f;
   --c-ink: #0f0e0a;
   --c-ink-text: #ece8df;
+  --c-scope-anime: hsl(210 55% 68%);
+  --c-scope-anime-movie: hsl(260 50% 72%);
+  --c-scope-movie: hsl(350 60% 68%);
+  --c-scope-tv-show: hsl(25 65% 62%);
+  --c-scope-cartoon: hsl(45 60% 58%);
+  --c-scope-manga: hsl(150 40% 58%);
+  --c-scope-novel: hsl(185 45% 58%);
+  --c-scope-comic: hsl(310 45% 70%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -129,6 +166,14 @@
   --c-on-brand: #17150f;
     --c-ink: #0f0e0a;
     --c-ink-text: #ece8df;
+    --c-scope-anime: hsl(210 55% 68%);
+    --c-scope-anime-movie: hsl(260 50% 72%);
+    --c-scope-movie: hsl(350 60% 68%);
+    --c-scope-tv-show: hsl(25 65% 62%);
+    --c-scope-cartoon: hsl(45 60% 58%);
+    --c-scope-manga: hsl(150 40% 58%);
+    --c-scope-novel: hsl(185 45% 58%);
+    --c-scope-comic: hsl(310 45% 70%);
   }
 }
 
