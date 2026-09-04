@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-04 (commit 4ba9c07)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-04 | Studio as a public entity: `studio` reshaped to four optional names with a data-driven display choice and a profile (country, founded/defunct, website, MAL, logo); `GET /api/studio/{id}/entries`; `studio_refs` on anime and anime-movie payloads; `/library/studio` and `/studio/:system_id` pages, linked from the Studio row on both detail pages; studio Add/Modify/Delete moved into a new Entity admin group |
 | 2026-08-30 | Dark mode across the app: semantic colour tokens, `ThemeProvider`, Nav toggle, ReactFlow `colorMode`, a token guard test |
 | 2026-08-30 | Route-level code splitting for admin, statistics, plan and relations pages |
 | 2026-08-30 | One `Library` page on `/library/:type` with shared columns and sorts |
@@ -96,16 +97,32 @@ names leak to viewers without the Credits permission. Build `person_refs` from
 the shared `_link_rows_and_lookups` helper in `credits.py` rather than adding a
 fetch, or it becomes an N+1 over library pages of up to 2000 entries.
 
-**Studio-side documentation is unwritten.** The studio session
-(anime-site-b0) completed its Tasks 1-11 — the reshaped `studio` table, the
-display-name resolution, `GET /api/studio/{id}/entries`, `studio_refs`, the
-Entity admin group and studio Add/Modify/Delete — but its Task 12 (docs) was
-cut from that run. So `data-model.md`, `api.md`, `frontend/admin-pages.md` and
-this file's Done log all describe a studio that no longer matches the code.
-Task 10 of the person plan was already going to document both halves of the
-Entity group; it should now also cover the studio work that shipped without
-docs. Do not treat the studio docs as merely stale — they were never written
-for this change.
+**The studio work is now finished, including its docs.** Two corrections to
+what this file previously recorded:
+
+- It said the studio session (anime-site-b0) "completed its Tasks 1-11". It
+  had not: Task 8 (the `/studio/:system_id` detail page) and Task 9 (linking
+  studios from the anime and anime-movie pages) were never built, and
+  `StudioLibrary.jsx` had been shipping a card link to a route that did not
+  exist. Both are done now, so `/library/studio` no longer leads anywhere
+  dead.
+- Its Task 12 docs were never written, not merely stale. They are written
+  now: `data-model.md` (the reshaped table and its four constraints),
+  `api.md` (the studio endpoints, `/entries`, `studio_refs`),
+  `business-rules.md` §10a (display-name resolution is data, and the same
+  rule lives twice — `Studio.display_name` and `lib/naming.js`),
+  `frontend/pages.md` (both public pages), `frontend/admin-pages.md` (the
+  Entity group) and `systems/credits-and-tags.md`.
+
+Task 10 of the person plan therefore only has to document the **person** half
+of the Entity group.
+
+Two things the studio work established that person Task 8 should copy:
+`StudioModifyTab` deliberately bypasses `Modify.jsx`'s per-type
+form/search/save machinery, which is shaped around media entries and the
+grouping tiers; and the studio detail page does **not** reuse `MediaCard`,
+because the entries endpoint returns four keys and `MediaCard` resolves its
+title through `getDisplayName(data, type)`.
 
 **Known consequence of `r0l1c2o3l4p5`, worth recording:** a Google Sheets
 backup taken BEFORE that migration can no longer be restored — its
@@ -128,7 +145,7 @@ Each line was verified against the code at the commit above.
 | Backend | Autofill wraps each fetch in a bare `except Exception`, so tenacity's `RetryError` is swallowed and reported as a generic failure | `app/services/domain/autofill.py` |
 | Backend | Tenrai and Comic Vine rate limiters are in-memory sliding windows; a second instance would double the budget | `app/services/integrations/tenrai.py`, `comicvine.py` |
 | Data model | `character` / `character_voice` tables deferred | noted in `data-model.md` |
-| Frontend | Public person and studio pages deferred; only admin and pickers read the routers | no route in `frontend/src/App.jsx` |
+| Frontend | Public **person** pages deferred; only admin and pickers read `/api/person` (the studio half shipped: `/library/studio`, `/studio/:system_id`) | no person route in `frontend/src/App.jsx` |
 | Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
 | Frontend | `NovelModifyTab` keeps a local option array (`PROGRESS_DISPLAY_OPTIONS`) instead of reading `/api/constants` | `frontend/src/pages/modify-tabs/NovelModifyTab.jsx` |
 | Tooling | `ruff check` runs in CI but `ruff format` has never been applied to the tree | `.github/workflows/deploy.yml` |

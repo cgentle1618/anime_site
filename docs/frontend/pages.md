@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-03 (commit 0c4a57d, plus uncommitted archive-look, dashboard type-filter and Quality 品質 changes)
+Last verified: 2026-09-04 (commit 5d1cecc, plus uncommitted archive-look, dashboard type-filter and Quality 品質 changes)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -31,11 +31,13 @@ are a large share of the bundle and never needed on first paint.
 | `/search` | `Search` — `public/Search.jsx` | eager |
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
+| `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic; anything else redirects to `/under-development`) | eager |
 | `/anime/:system_id` … `/comic/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx` | eager |
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
+| `/studio/:system_id` | `detail/Studio.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy |
@@ -59,7 +61,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu (`dev: true`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise`, Studio `/library/studio` (also matches `/studio`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu (`dev: true`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
@@ -249,6 +251,60 @@ Movie, TV, Cartoon, Comic, Other (Anime/Manga only count when the type is ACG
 exists but **table view is a "Table View Under Development" placeholder**.
 Grid renders `FranchiseCard`.
 
+### StudioLibrary — `/library/studio`
+
+File `pages/library/StudioLibrary.jsx`. A studio is a public **entity**, not a
+media type, so this sits outside `LIBRARY_CONFIGS` as its own component,
+alongside `CollectionLibrary` and `FranchiseLibrary`; its route is declared
+before `/library/:type` so the generic library page never claims it.
+
+Raw `fetch` of `/api/studio/` alone — the response already carries
+`display_name`, `credit_count` and `logo_file`, so no per-studio request and
+no entry lists are needed. Search runs over **all four** name fields
+(`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
+Animation" finds a studio displayed as "KyoAni". Sort
+`name (default) | credit_count | my_rating`. No filter panel, no table view,
+no admin controls. Each `StudioCard` shows the logo, the display name and the
+credit count, and links to `/studio/:system_id`.
+
+### Studio — `/studio/:system_id`
+
+File `pages/detail/Studio.jsx`. The public profile for one studio, built by
+hand beside the media detail pages rather than from their shape: a studio has
+no franchise, no tracker and no notes.
+
+Two raw fetches in one `Promise.all`: `GET /api/studio/{id}` and
+`GET /api/studio/{id}/entries`. The studio call failing is the page's 404
+(rendered through `MediaLoadingState`, as the media pages render theirs); the
+entries call failing is not, since a profile without its credits is still
+worth showing. Nothing on the page is editable, which is why it uses `fetch`
+rather than the TanStack hooks the media detail pages need for their admin
+controls.
+
+Layout:
+
+1. **Breadcrumb** `/library/studio` → display name.
+2. **Left column** — logo with the rating stamp, then an "Other names" card
+   listing whichever of the four names is set and is not the one being
+   displayed, labelled English / Chinese / Japanese / Alternative.
+3. **Right column** — the display name, a credited-entry count, a "Profile"
+   `InfoCard` (country; `founded – defunct`, or `Since founded` while the
+   studio is still working, and the row is dropped when both are empty;
+   website and MAL as external links; remark), then one section per group the
+   entries endpoint returned, each entry linking to
+   `{nav_path}/{system_id}`.
+
+Empty `groups` renders "No credited entries" as an ordinary empty state, not
+an error: that is exactly what a viewer whose permissions hide every one of
+this studio's credits sees.
+
+The entry cards are a local `CreditCard`, **not** `MediaCard`. `MediaCard`
+resolves its title through `getDisplayName(data, type)` and reads status,
+franchise and admin props; the entries endpoint returns four keys
+(`system_id`, `display_name`, `cover_image_file`, `release_date`), so
+`MediaCard` would render blank titles. A group whose `nav_path` is null
+renders the card unlinked.
+
 ### Hubs — `/franchise/:id`, `/series/:id`, `/collection/:id`
 
 Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
@@ -311,7 +367,12 @@ Top to bottom:
    `ScoreBlock` (MAL score/rank, AniList score, last updated) on Anime,
    AnimeMovie, Manga, Novel (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), the tracker, `NamingCard`, `InfoCard "Information"`, `InfoCard
-   "Production"`, a "Cast & Characters — Under Development" placeholder
+   "Production"` — whose Studio row on Anime and AnimeMovie is built by
+   `studioValue()` (`components/info/StudioLinks.jsx`): one link to
+   `/studio/{system_id}` per entry in `studio_refs`, falling back to the plain
+   comma-joined `studio` string when there are none, which is what a viewer
+   without the Credits permission and an entry whose studio never resolved to
+   a row both get — a "Cast & Characters — Under Development" placeholder
    (Anime, AnimeMovie only), a remark textarea (blur-saves; rendered only when
    a remark already exists, with the Notes `remark` section hidden so the
    singleton row never has two editors), then `{Type}Notes` →

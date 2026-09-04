@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-03 (commit df14959, plus the uncommitted `tag_categories` constants key)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -732,19 +732,65 @@ composer, manga/novel author, illustrator, comic writer/artist).
 
 ## Studio — `/api/studio`
 
-Tier 3 entity CRUD for anime production studios. Mirrors `/api/person`
-without the role/scope filter — studios have no `person_role` concept.
+Tier 3 entity CRUD for anime production studios, plus the reverse-credit
+read the public studio page uses. Mirrors `/api/person` without the
+role/scope filter — studios have no `person_role` concept.
 
 | Method   | Path                  | Auth   | Description                                                                       |
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
-| `GET`    | `/`                   | Public | List all studios, ordered by native name.                                        |
-| `GET`    | `/{system_id}`        | Public | Get one studio by UUID.                                                          |
-| `POST`   | `/`                   | Admin  | Create a studio. Body: `StudioCreate`.                                           |
-| `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Body: `StudioUpdate`.                                     |
-| `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. |
-| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit`, then deletes the loser. Body: `MergeRequest`. |
+| `GET`    | `/`                   | Public | List all studios, sorted by `display_name` case-insensitively.                   |
+| `GET`    | `/{system_id}`        | Public | Get one studio by UUID. 404 if absent.                                           |
+| `GET`    | `/{system_id}/entries`| Public | The entries this studio is credited on, grouped by media type. 404 if the studio is absent. |
+| `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`); metadata on an existing row is left untouched. Body: `StudioCreate`. |
+| `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. |
+| `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Body: `MergeRequest`. 400 if merging into self. |
 
-**Response model:** `StudioResponse` (`StudioBase` fields + `system_id`, `credit_count`)
+**Response model:** `StudioResponse` — `StudioBase` fields (the four names,
+`display_name_field`, `my_rating`, `logo_file`, `remark`, `founded_date`,
+`defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`) plus
+`system_id`, the resolved `display_name`, and `credit_count`.
+
+`StudioBase` rejects a payload with no name at all and a `display_name_field`
+outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
+`ck_studio_has_a_name` so the database's IntegrityError never surfaces as a
+500.
+
+**`credit_count` counts only credits on entries the viewer may see.** A number
+is a smaller leak than a title, but "worked on 3 things, you can see 2" is
+still one, so it runs through `filter_visible_pairs` — the same call
+`/entries` uses, which is what keeps the count on the card and the list on the
+page from disagreeing.
+
+### `GET /api/studio/{system_id}/entries`
+
+The reverse of `GET /api/credits/{media_type}/{entry_id}`.
+
+```json
+{
+  "groups": [
+    {
+      "media_type": "anime",
+      "label": "Anime",
+      "nav_path": "/anime",
+      "entries": [
+        {
+          "system_id": "…",
+          "display_name": "Violet Evergarden",
+          "cover_image_file": "…",
+          "release_date": "2018-01-11"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Groups follow `MEDIA_TABLES` order and a group with no visible entries is
+omitted; entries are newest first, with an undated entry last. A studio whose
+every credit is hidden from this viewer answers with empty `groups`, **not**
+a 404: a studio carries no content label of its own, so the studio is not the
+secret — its credits are.
 
 ---
 
@@ -782,6 +828,16 @@ a whole batch in a fixed number of queries.
 These keys are READ-ONLY. They sit on the `*Response` schemas only, never on
 the `Create` / `Update` bases, so a write naming one is rejected rather than
 silently stored; `PUT /api/credits` is the only writer.
+
+Anime and anime-movie responses also carry `studio_refs`: the same studio
+credits as the `studio` string beside them, shaped as
+`[{system_id, display_name}]` so the detail pages can link each studio to
+`/studio/{system_id}` — the comma-joined string has no ids to link with. It is
+built in the same batched pass, so it costs no extra query on a library page.
+Being a credit field it is gated with `studio` in the Credits field group
+(`app/services/rbac/field_groups.py`): a viewer without that permission gets
+neither, and the pages fall back to the plain string when `studio_refs` is
+empty.
 
 ---
 

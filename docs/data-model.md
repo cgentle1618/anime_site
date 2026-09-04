@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -446,6 +446,7 @@ are not columns on the entry tables.
 | `watch_next` / `read_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all 8 |
 | `to_rewatch` / `to_reread` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. | anime_movies, movies, tv_shows, manga, novel, comic |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
+| `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
 ---
@@ -491,20 +492,51 @@ DISTINCT.
 
 ### `studio`
 
-One anime production studio. Publishers and distributors are deliberately
-**not** here - they stay a `system_option` vocabulary.
+One anime production studio, and a public entity with a page of its own.
+Publishers and distributors are deliberately **not** here - they need no
+profile, so they stay a single "Publisher / Distributor TW" `system_option`
+vocabulary.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `name_native` | String | no | | Indexed |
-| `name_en` / `name_cn` | String | yes | | |
-| `my_rating` | String | yes | | |
+| `name_en` | String | yes | | Indexed |
+| `name_cn` / `name_jp` / `name_alt` | String | yes | | |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
+| `my_rating` | String | yes | | MY_RATINGS |
 | `logo_file` | String | yes | | GCS object key |
 | `remark` | Text | yes | | |
+| `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
+| `country` | String | yes | | |
+| `website_url` | String | yes | | |
+| `mal_id` | Integer | yes | | MAL producer id |
+| `mal_link` | String | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraint: `uq_studio_name` UNIQUE (`name_native`, `name_en`) NULLS NOT DISTINCT.
+All four name columns are nullable and **at least one** must be set: a studio
+is known by whichever names it is known by, and requiring a specific one would
+force a made-up value. Which one is shown is data, not a hard-coded chain -
+see [business-rules.md section 10a](business-rules.md#10a-studio-display-names-modelsstaffpy-libnamingjs).
+
+Constraints:
+
+- `uq_studio_name` UNIQUE (`name_en`, `name_cn`, `name_jp`, `name_alt`)
+  **NULLS NOT DISTINCT**. Load-bearing: three of the four columns are NULL on
+  a typical row, and Postgres treats two NULLs as distinct by default, so
+  without it the constraint is inert and two studios with the same
+  `name_en` commit cleanly. Same lesson as `uq_person_name` and
+  `uq_media_credit_row`.
+- `ck_studio_has_a_name` CHECK `num_nonnulls(name_en, name_cn, name_jp,
+  name_alt) >= 1`. Mirrored in `StudioBase` (`app/schemas/staff.py`) so a
+  nameless studio is a 422 from the API rather than a 500 surfacing the
+  database's IntegrityError.
+- `ck_studio_founded_date` / `ck_studio_defunct_date` CHECK the value matches
+  `^\d{4}(-\d{2}(-\d{2})?)?$` when it is not NULL.
+
+Migration `s1t2u3d4i5o6` reshaped the table: the old required `name_native`
+became `name_en` (verified lossless against the 77 production rows - every
+value was already a Latin/romanised name), and the profile columns above were
+added.
 
 ### `media_credit`
 

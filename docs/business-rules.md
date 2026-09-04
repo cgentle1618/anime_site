@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -390,7 +390,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
-| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between `{normalize_name(name_native), normalize_name(name_en)}` sets (section 10)          |
+| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: `name_native` + `name_en` for a person, all four of `name_en` / `name_cn` / `name_jp` / `name_alt` for a studio |
 
 Entries with no franchise are ignored by every per-type finder except anime.
 Results are returned as `find_all_duplicates(db)` from `GET
@@ -413,6 +413,35 @@ duplicate check.
 
 `split_names(raw)` splits a comma-joined name column, drops empty fragments,
 and de-duplicates on the normalised key, keeping the **first** spelling seen.
+
+---
+
+## 10a. Studio display names (`models/staff.py`, `lib/naming.js`)
+
+Every media model resolves its display name through a fallback chain that is
+**hard-coded per type**. A studio does not: which name it shows is DATA.
+
+`studio.display_name_field` holds `en` / `cn` / `jp` / `alt` and names the
+winning column. `Studio.display_name` returns that column's value when it is
+set and non-blank; otherwise it falls back through **EN → CN → JP → Alt**,
+returning `""` only if all four are empty, which `ck_studio_has_a_name`
+prevents. So `display_name_field` is a preference, not a guarantee: pointing
+it at an empty column silently falls back rather than blanking the studio.
+
+The rule exists twice, because the pickers and the studio pages resolve names
+in the browser without a round trip: `displayStudioName()` and
+`STUDIO_NAME_FIELDS` in `frontend/src/lib/naming.js` mirror it exactly.
+**Change both or neither.** `StudioResponse` also carries the server-resolved
+`display_name`, which is what list and detail pages actually render; the
+helper is for rows that arrive without it.
+
+Two consequences worth knowing:
+
+- `GET /api/studio/` sorts on the resolved `display_name`, case-insensitively,
+  so the list order changes when an admin changes a display choice.
+- The duplicate check and credit resolution do NOT use `display_name`. They
+  compare **every** name a studio has (`get_all_names()`, section 10), so two
+  studios cannot hide a collision behind different display choices.
 
 ---
 

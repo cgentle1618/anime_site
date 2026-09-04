@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 ## What this is for
 
@@ -26,7 +26,7 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 |---|---|---|
 | `person` | One human credited anywhere. `name_native` (required), `name_en`, `name_cn`, `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_native, name_en)` **NULLS NOT DISTINCT** |
 | `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (`"anime"` / `"non_anime"` for `director`, NULL for every other role). Explicit, not derived from credits, so a new director can be offered before their first credit. | `uq_person_role (person_id, role, scope)` NULLS NOT DISTINCT |
-| `studio` | One **anime** production studio only: `name_native`, `name_en`, `name_cn`, `my_rating`, `logo_file`, `remark`. Publishers/distributors are deliberately not studios — they are the `"Publisher / Distributor TW"` vocabulary. | `uq_studio_name (name_native, name_en)` NULLS NOT DISTINCT |
+| `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers/distributors are deliberately not studios — they are the `"Publisher / Distributor TW"` vocabulary. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
 | `media_credit` | One person **or** studio on one entry: FK-less `(media_type, entry_id)` pair, `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` (both FK, cascade on delete), `position` (order of the original comma list), `remark`. | `CHECK num_nonnulls(person_id, studio_id) = 1`; `uq_media_credit_row (media_type, entry_id, role, person_id, studio_id)` NULLS NOT DISTINCT; index on `(media_type, entry_id)` |
 | `media_tag` | One vocabulary value on one entry: `(media_type, entry_id)`, `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_type, entry_id, field, option_id)`; index on `(media_type, entry_id)` |
 
@@ -118,7 +118,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 
 | Function | What it does |
 |---|---|
-| `find_person` / `find_studio` | Linear scan matching `normalize_name` against `name_native` **or** `name_en`; returns the row or None. Python-side because the fold is not expressible in portable SQL and the tables are small. |
+| `find_person` / `find_studio` | Linear scan matching `normalize_name` against any of the model's `_name_fields` — `name_native` / `name_en` for a person, all four names for a studio; returns the row or None. Python-side because the fold is not expressible in portable SQL and the tables are small. |
 | `resolve_person(db, name, role=, scope=)` | Find-or-create, then ensure the `(role, scope)` `person_role` row exists. |
 | `resolve_studio(db, name)` | Find-or-create. |
 | `resolve_option(db, category, value, scope=None)` | Find-or-create the `system_option`; adds a scope row only when `scope` is passed explicitly (backfill seeding, admin edits) — never derived from the caller's media type. |
@@ -156,7 +156,8 @@ the backfill and by Calculate All.
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. |
 | `DELETE /api/person/{id}` | admin | Credits cascade away — wrong fix for a duplicate. |
 | `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, deletes the source. 400 on self-merge. Returns `credits_moved`. |
-| `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as person | Same shape minus roles. Renaming a studio changes what every credited entry shows — no propagation step. |
+| `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as person | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. Renaming a studio changes what every credited entry shows — no propagation step. |
+| `GET /api/studio/{id}/entries` | public | The reverse of `GET /api/credits/...`: the entries this studio is credited on, grouped by media type, filtered through the same `filter_visible_pairs` as `credit_count` so the two can never disagree. Empty groups, not 404, when every credit is hidden. |
 | `GET/POST/PUT/DELETE /api/options/...` | read public, write admin | The Tier 2 vocabulary `media_tag` points at; see [options.md](../options.md). |
 
 ## Duplicate entity check
@@ -186,17 +187,22 @@ split only so the category list is shorter; `TAG_CATEGORIES` decides which
 side a category falls on, see [../options.md](../options.md)), **People**
 (`PersonForm`: names, gender, rating, remark, a role dropdown fed by
 `PERSON_ROLES` from `GET /api/constants` via `fieldOptions.js` — labels derived
-from keys so a role added in Python needs no frontend edit), and **Studios**
-(`StudioForm`). **Modify** and **Delete** render the same bar with the
-Options and Tags halves only: neither page has a person or studio editor, and
+from keys so a role added in Python needs no frontend edit). Studios were a
+fourth sub-tab here and are not any more: they moved to their own **Entity**
+tab group on Add / Modify / Delete when studio became a public entity — see
+[../frontend/admin-pages.md](../frontend/admin-pages.md). **Modify** and
+**Delete** render the same bar with the Options and Tags halves only:
+neither page has a person editor, and
 each filters its category `<select>` through `categoriesForSubTab`
 (`frontend/src/lib/optionCategoryGroups.js`), clearing the selected category
 when the half changes. Delete lists only categories that actually hold
 values — an empty category has nothing to delete.
 
-The person/studio pickers on entry forms are the standard
-"tags" fields whose `source.kind` is `person` / `studio`; there is no public
-person or studio page yet.
+The person/studio pickers on entry forms are the standard "tags" fields whose
+`source.kind` is `person` / `studio`. Studios now have public pages —
+`/library/studio` and `/studio/:system_id`, and a link from the Studio row on
+every anime and anime-movie detail page (via `studio_refs`). People do not
+yet.
 
 ## Migrations (chain order)
 
@@ -207,6 +213,7 @@ person or studio page yet.
 | `m1i2g3r4a5t6` | Ran `backfill_credits`; logged unplaced values. |
 | `d1r2o3p4c5o6l` | Ran `verify_backfill_lossless`, then dropped the 26 legacy string columns and `system_option.id`. Aborts on any mismatch. |
 | `n1u2l3l4s5n6d` | Merged duplicate people/studios in SQL (repointing credits first), then recreated `uq_person_name`, `uq_studio_name`, `uq_person_role` with NULLS NOT DISTINCT. |
+| `s1t2u3d4i5o6` | Reshaped `studio`: `name_native` → `name_en` (lossless over the 77 production rows), added `name_jp`, `name_alt`, `display_name_field` and the profile columns, and recreated `uq_studio_name` over all four names plus the three CHECKs. |
 
 ## Deferred: `character` / `character_voice`
 

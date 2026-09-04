@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-03 (commit df14959, plus the uncommitted Tags sub-tab)
+Last verified: 2026-09-04 (commit 5d1cecc)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -67,10 +67,17 @@ back to the owning franchise/series where the ids still exist.
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic, quote, meme) and **Structure**
-(collection, franchise, series, options). Each tab is a form component in
-`pages/add-tabs/`; the page owns the state objects, submit handlers and the
-shared modals.
+movie, TV show, cartoon, manga, novel, comic), **Structure** (collection,
+franchise, series, quote, meme, system option) and **Entity** (studio). Each
+tab is a form component in `pages/add-tabs/`; the page owns the state objects,
+submit handlers and the shared modals.
+
+The **Entity** group holds things that are credited *on* entries rather than
+being entries. Studio is its only member today; people (director, author,
+seiyuu) join it when `person` gets its pages. Studio used to be a sub-tab of
+System Options beside People, and moved out once it became a public entity
+with a page of its own — `FORM_TABS` excludes it (with options, quote and
+meme) because it is not a media entry and so has no `/defaults` field set.
 
 **Data loaded on mount.** Every list the forms need for ComboBoxes and
 duplicate hints — franchises, series, collections, options and all eight
@@ -102,15 +109,26 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**Options tab.** Four sub-tabs (`OptionSubTabBar`, shared with Modify and
+**Options tab.** Three sub-tabs (`OptionSubTabBar`, shared with Modify and
 Delete): **Options** and **Tags** create system options (category + value +
-scopes), **People** (with roles/scopes) and **Studios** create the credited
-entities — see
-[../systems/credits-and-tags.md](../systems/credits-and-tags.md). Options and
-Tags are the same form posting to the same endpoint; only the categories the
-Category box suggests differ (`TAG_CATEGORIES`, see
-[../options.md](../options.md)). Modify and Delete show the same bar with
-just those two, because neither page can edit a person or a studio.
+scopes), **People** (with roles/scopes) creates the credited person entities —
+see [../systems/credits-and-tags.md](../systems/credits-and-tags.md). Options
+and Tags are the same form posting to the same endpoint; only the categories
+the Category box suggests differ (`TAG_CATEGORIES`, see
+[../options.md](../options.md)). Modify and Delete show the same bar with just
+those two (`OPTION_VALUE_SUB_TABS`), because neither page can edit a person.
+Studios are **not** here — they have their own Entity tab.
+
+**Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
+Chinese, Japanese, Alternative) with a "Display name" select naming which one
+to show, plus rating, logo key, country, founded/defunct dates
+(`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
+and remark. Submit is blocked client-side until at least one name is filled,
+matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
+find-or-create: posting a name that already exists returns the existing
+studio rather than splitting its credits, and leaves its metadata untouched.
+`StudioFields` is exported from this file so the Modify tab renders the exact
+same inputs.
 
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
 `MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).
@@ -136,6 +154,13 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   enrichment failed. Other types save without enrichment.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
+- **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
+  save machinery above, which is shaped around media entries and the grouping
+  tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and
+  its own `PUT /api/studio/{id}`, rendering `StudioFields` from the Add tab.
+  The picker searches **all four** name fields, not just the one
+  `display_name_field` points at, so a studio configured to display its
+  English name is still findable by its Japanese one.
 
 ## /delete (`Delete.jsx`)
 
@@ -155,6 +180,16 @@ Counts are computed across all eight media types (`entriesIn`,
 any orphaned parents the admin ticked. Every delete goes through the type's
 `DELETE` endpoint, which also removes cover images, plan rows, credit links and
 writes a `deleted_record`.
+
+**Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
+display name, id and credit count, then a warning that says exactly what
+deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
+destroys this studio's *n* credits on every entry linked to it. The panel
+therefore offers **Merge Into Another Studio** beside Delete — merge
+(`POST /api/studio/{keep}/merge` with the selected studio as `source_id`)
+repoints the credits onto the survivor first, and is the correct fix for a
+duplicate. Delete itself is two-step (confirm, then execute) and writes no
+`deleted_record`.
 
 ## /defaults (`FormDefaults.jsx`)
 
