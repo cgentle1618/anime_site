@@ -130,7 +130,11 @@ TAG_FIELD_KEYS: tuple[str, ...] = tuple(TAG_FIELDS.keys())
 
 # Categories that exist as vocabularies but back no entry column - they drive
 # list-page filters only, so no TagField names them.
-FILTER_ONLY_CATEGORIES: tuple[str, ...] = ("Franchise for Filter",)
+FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
+    "Franchise for Filter",
+    # Drawn on by media_source rows rather than by a TagField.
+    "Reference Source",
+)
 
 # The categories the admin Add / Modify / Delete pages offer under their
 # "Tags" sub-tab instead of "Options". Both sub-tabs are the same form over
