@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-04 (commit f35ee2c, plus the uncommitted status-optgroup change)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -199,3 +199,18 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`.
 6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js`, `Index.jsx` divisions, `NavSearch.jsx` scopes and quotas, `navigation.js`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
+
+## Entity components (person and studio)
+
+| Component | What it is |
+|---|---|
+| `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Add / Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all four. It filters a list and preselects a type; it never scopes the editor, because a person is one row that may hold several types. |
+| `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
+| `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
+| `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them, the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
+| `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. |
+
+Neither entity detail page reuses `MediaCard`: it resolves its title through
+`getDisplayName(data, type)` and reads status, franchise and admin props, none
+of which the four keys an `/entries` endpoint returns can satisfy — the title
+would render blank. Both pages carry a small local card instead.

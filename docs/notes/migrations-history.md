@@ -1,6 +1,6 @@
 # Migrations history
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 ## What this is for
 
@@ -92,7 +92,10 @@ table, the chain wins.
 | 71 | `r1b2a3c4c5o6` | Create `role`, `role_permission`; `users.role_id` FK | seeds the roles first, then sets each user's `role_id` by matching the old `users.role` string by name, falling back to `guest` |
 | 72 | `c1o2n3t4e5n6` | Create `content_label`, `media_content_label` | schema only |
 | 73 | `d1r2o3p4r5o6` | `users.role_id` NOT NULL; drop the `users.role` string | any user still without a role_id is set to `guest` |
-| 74 | `l1a2b3e4l5o6` (head) | Seed the `"Label"` system-option category | inserts `會跳OP`, `吃飯不宜觀看`, `很多福利` with `anime` scope, each guarded by `WHERE NOT EXISTS` so hand-added duplicates do not abort the migration |
+| 74 | `l1a2b3e4l5o6` | Seed the `"Label"` system-option category | inserts `會跳OP`, `吃飯不宜觀看`, `很多福利` with `anime` scope, each guarded by `WHERE NOT EXISTS` so hand-added duplicates do not abort the migration |
+| 75 | `s1t2u3d4i5o6` | Reshape `studio` to four optional names plus the profile columns | `name_native` → `name_en` (lossless over the 77 rows), adds `name_jp`, `name_alt`, `display_name_field`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`; recreates `uq_studio_name` over all four names with NULLS NOT DISTINCT plus three CHECKs |
+| 76 | `r0l1c2o3l4p5` | Collapse the person-role vocabulary to five media-type-scoped types | rewrites `media_credit.role` (372 rows: `manga_author_plot` → `author`, `comic_artist` → `illustrator`, …), rebuilds `person_role` onto the new keys with a hyphenated media-type `scope`, then makes `scope` NOT NULL. **A Sheets backup taken before this revision can no longer be restored directly** — its `Person Role` tab has empty scopes and retired role names; `alembic downgrade s1t2u3d4i5o6`, Pull, then upgrade again (verified to round-trip 791 → 555 → 791 rows exactly) |
+| 77 | `p7n8a9m10e11` | Reshape `person` to match `studio` | adds `name_jp`, `name_alt`, `display_name_field`; distributes the 554 `name_native` values through `name_slot_for` (218 en / 165 cn / 171 jp — every row verified to land where the rule says); drops `name_native`; recreates `uq_person_name` over all four names with NULLS NOT DISTINCT plus `ck_person_has_a_name`. The downgrade rebuilds `name_native` from `COALESCE(name_cn, name_jp, name_en, name_alt)` |
 
 ## Patterns worth knowing
 

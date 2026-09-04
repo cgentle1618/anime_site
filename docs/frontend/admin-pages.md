@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -68,16 +68,17 @@ back to the owning franchise/series where the ids still exist.
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
 movie, TV show, cartoon, manga, novel, comic), **Structure** (collection,
-franchise, series, quote, meme, system option) and **Entity** (studio). Each
+franchise, series, quote, meme, system option) and **Entity** (studio,
+person). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
 
 The **Entity** group holds things that are credited *on* entries rather than
-being entries. Studio is its only member today; people (director, author,
-seiyuu) join it when `person` gets its pages. Studio used to be a sub-tab of
-System Options beside People, and moved out once it became a public entity
-with a page of its own — `FORM_TABS` excludes it (with options, quote and
-meme) because it is not a media entry and so has no `/defaults` field set.
+being entries: studios, and the people credited as director, producer,
+composer, author or illustrator. Both were sub-tabs of System Options and both
+moved out once each became a public entity with pages of its own. `FORM_TABS`
+excludes them (with options, quote and meme) because neither is a media entry
+and so neither has a `/defaults` field set.
 
 **Data loaded on mount.** Every list the forms need for ComboBoxes and
 duplicate hints — franchises, series, collections, options and all eight
@@ -109,15 +110,25 @@ Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
 
-**Options tab.** Three sub-tabs (`OptionSubTabBar`, shared with Modify and
-Delete): **Options** and **Tags** create system options (category + value +
-scopes), **People** (with roles/scopes) creates the credited person entities —
-see [../systems/credits-and-tags.md](../systems/credits-and-tags.md). Options
-and Tags are the same form posting to the same endpoint; only the categories
-the Category box suggests differ (`TAG_CATEGORIES`, see
-[../options.md](../options.md)). Modify and Delete show the same bar with just
-those two (`OPTION_VALUE_SUB_TABS`), because neither page can edit a person.
-Studios are **not** here — they have their own Entity tab.
+**Person tab (Entity).** `PersonAddTab.jsx`. A `PersonSubTabBar` of the five
+types (Director, Producer, Music / Composer, Author, Illustrator) sits above
+the form: it preselects the type a new person is being added as, and never
+narrows what the form edits. `PersonFields` holds the four name fields with a
+"Display name" select, the **role × scope matrix**, and gender, rating, photo
+key and remark. Ticking a type selects its first legal media type, because a
+scopeless role is a 422; the legal types per role come from
+`GET /api/person/role-scopes`, so the form cannot offer a pair the API
+rejects. Submit is blocked until at least one name is filled, matching
+`ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
+`PersonFields` is exported so the Modify tab renders the same inputs.
+
+**Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
+Delete): **Options** and **Tags**, both creating system options (category +
+value + scopes). They are the same form posting to the same endpoint; only the
+categories the Category box suggests differ (`TAG_CATEGORIES`, see
+[../options.md](../options.md)). All three pages now show the same two, so the
+Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
+**not** here — each has its own Entity tab.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
@@ -180,6 +191,16 @@ Counts are computed across all eight media types (`entriesIn`,
 any orphaned parents the admin ticked. Every delete goes through the type's
 `DELETE` endpoint, which also removes cover images, plan rows, credit links and
 writes a `deleted_record`.
+
+**Person tab (Entity).** A `PersonSubTabBar` filters the picker to the people
+holding one type, then the selected person's whole record is edited through
+`PersonFields` — every type they hold, not just the sub-tab's one, because
+`PUT` replaces the role set wholesale. The picker searches all four name
+columns, not just the displayed one. The panel mirrors the studio one below:
+credit count, a warning that `media_credit.person_id` is `ON DELETE CASCADE`,
+**Merge Into Another Person** offered before Delete, and the confirmed credit
+count sent as `?credits=N` so a count that moved while the dialog was open
+comes back as a 409 rather than a silent over-deletion.
 
 **Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
 display name, id and credit count, then a warning that says exactly what

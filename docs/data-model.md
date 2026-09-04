@@ -461,19 +461,32 @@ One human credited on a media entry (Tier 3 entity - see
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `name_native` | String | **no** | | Indexed |
-| `name_en` | String | yes | | |
+| `name_en` | String | yes | | Indexed |
 | `name_cn` | String | yes | | |
+| `name_jp` | String | yes | | |
+| `name_alt` | String | yes | | The slot for a name that is none of the other three. Never chosen automatically. |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `photo_file` | String | yes | | GCS object key |
 | `remark` | Text | yes | | A real column here (not a note row) |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraint: `uq_person_name` UNIQUE (`name_native`, `name_en`) **NULLS NOT
-DISTINCT** - `name_en` is almost always NULL and Postgres treats NULLs as
-distinct by default, so without this the constraint was inert.
+Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
+`name_alt`) **NULLS NOT DISTINCT** - three of the four are NULL on a typical
+row and Postgres treats NULLs as distinct by default, so without this the
+constraint is inert; `ck_person_has_a_name` requires at least one name.
 Relationship: `roles` (cascade delete-orphan).
+
+Same name shape as `studio`, and for the same reason: a person is known by
+whichever names they are known by, and requiring a specific one would force a
+made-up value. `display_name` picks `display_name_field`'s column, falling back
+en -> cn -> jp -> alt. Which column an automatically created name lands in is
+`name_slot_for`'s decision (`app/utils/name_normalize.py`), shared by
+`resolve_person` and the reshape migration so a name cannot land in one column
+today and another tomorrow. Migration `p7n8a9m10e11` distributed the 554
+existing `name_native` values (218 en / 165 cn / 171 jp) and dropped that
+column.
 
 ### `person_role`
 
@@ -485,10 +498,19 @@ credits, so a director can be offered before their first credit exists.
 | `id` | Integer | no | autoincrement | PK |
 | `person_id` | UUID | no | | FK `person.system_id` ON DELETE CASCADE, indexed |
 | `role` | String | no | | One of PERSON_ROLES, indexed |
-| `scope` | String | yes | | `anime` / `non_anime` for `director`; NULL for every other role |
+| `scope` | String | **no** | | A hyphenated media-type key, one of `legal_scopes(role)` |
 
-Constraint: `uq_person_role` UNIQUE (`person_id`, `role`, `scope`) NULLS NOT
-DISTINCT.
+Constraint: `uq_person_role` UNIQUE (`person_id`, `role`, `scope`) - plain, not
+NULLS NOT DISTINCT: with `scope` NOT NULL there is no nullable column left in
+the key. It *was* needed while scope was NULL for every role but `director`.
+
+A person's dropdown visibility is the **union** of their rows, and there is
+deliberately no unscoped "offered everywhere" state - unlike
+`system_option_scope`, where zero rows means everywhere. Person credits are
+auto-scoped on write, so under an "everywhere" rule the first scope row would
+silently narrow the person; with no such state to collapse, auto-scoping is
+purely additive. Migration `r0l1c2o3l4p5` rebuilt the table onto the five
+collapsed role keys and made `scope` NOT NULL.
 
 ### `studio`
 

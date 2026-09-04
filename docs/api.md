@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -678,8 +678,10 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 the admin forms:
 `person_role` is derived from `CREDIT_ROLES` in `app/utils/credit_roles.py`
 (it replaced a hand-written copy in `OptionsAddTab.jsx`), `media_type` is the
-hyphenated `MEDIA_TABLES` keys the option scope picker offers — NOT
-person-role scopes, which are the coarser `anime` / `non_anime` split — and
+hyphenated `MEDIA_TABLES` keys the option scope picker offers, which are now
+also what a `person_role` scope holds (the coarser `anime` / `non_anime` split
+is gone; `GET /api/person/role-scopes` says which of these keys each role may
+use) — and
 `option_categories` is `OPTION_CATEGORIES`, the Tier 2 category **names** a
 tag field reads (never their values, which stay on `GET /api/options`). The
 Options form needs the declared names because it otherwise derives its
@@ -713,20 +715,53 @@ Tier 2 open vocabularies (`system_option` / `system_option_scope`).
 
 ## Person — `/api/person`
 
-Tier 3 entity CRUD for people credited on media entries (director, producer,
-composer, manga/novel author, illustrator, comic writer/artist).
+Tier 3 entity CRUD for people credited on media entries, plus the
+reverse-credit read the public person page uses. One vocabulary of five types —
+director, producer, composer, author, illustrator — each scoped to the media
+types it may be credited on; the reader-facing label (原作 / Author / Writer) is
+derived from `(role, media_type)`, never stored.
 
 | Method   | Path              | Auth   | Description                                                                          |
 | -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
-| `GET`    | `/`                | Public | List people. `?role=` filters to those holding a `person_role`; `?scope=` further filters that role (only meaningful for `director`: `anime` \| `non_anime`). |
+| `GET`    | `/`                | Public | List people, sorted by resolved `display_name`. `?role=` filters to those holding a `person_role`; `?scope=` narrows it to one hyphenated media-type key. Both filters are exact — with no unscoped rows left, a query without `scope` means "holds this role in any media type". |
 | `GET`    | `/role-counts`     | Public | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Read by the `/options` admin page. |
-| `GET`    | `/{system_id}`     | Public | Get one person by UUID.                                                              |
-| `POST`   | `/`                | Admin  | Create a person. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`). |
+| `GET`    | `/role-scopes`     | Public | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form cannot offer a pair the API rejects. Declared before `/{system_id}` for the same reason `role-counts` is. |
+| `GET`    | `/{system_id}`     | Public | Get one person by UUID. 404 if absent.                                               |
+| `GET`    | `/{system_id}/entries` | Public | The entries this person is credited on, grouped by `(media_type, role)`. 404 if the person is absent. |
+| `POST`   | `/`                | Admin  | Create a person, **or return the existing one** under that name — find-or-create, matching `resolve_person`, because `ensureSourceValues.js` POSTs here whenever a typed name is missing from a role-filtered dropdown. Body: `PersonCreate` (`PersonBase` fields + `roles: [{role, scope}]`), carrying either the four labelled name columns or one unslotted `name` that the endpoint places through `name_slot_for`. A body with no name at all is 422, mirroring `ck_person_has_a_name`. |
 | `PUT`    | `/{system_id}`     | Admin  | Fully update a person, replacing their `person_role` rows wholesale. Body: `PersonUpdate`. |
-| `DELETE` | `/{system_id}`     | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. |
+| `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit` and `person_role` rows — no `deleted_record` entry is logged. `credits` is **required**: it is the count the confirmation dialog showed, and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
 | `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and unions the `person_role` rows onto the survivor, then deletes the loser. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 
-**Response model:** `PersonResponse` (`PersonBase` fields + `system_id`, `credit_count`) — `credit_count` is a live count of `media_credit` rows, not a stored column.
+**Response model:** `PersonResponse` — the four name columns,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`photo_file`, `remark`, `system_id`, `roles` (every `(role, scope)` the person
+holds, so the admin form can load the whole set in one request) and
+`credit_count`, a live count of the `media_credit` rows **the viewer may see**
+(`filter_visible_pairs`), not a stored column.
+
+### `GET /api/person/{system_id}/entries`
+
+The reverse of `GET /api/credits/{media_type}/{entry_id}`, and the mirror of
+the studio endpoint — except that one person may hold several roles, so groups
+are keyed by the pair:
+
+```json
+{"groups": [
+  {"media_type": "manga", "role": "author", "label": "原作",
+   "nav_path": "/manga",
+   "entries": [{"system_id": "...", "display_name": "...",
+                "cover_image_file": "...", "release_date": "2013-04-06"}]}
+]}
+```
+
+`label` is `credit_label(role, media_type)`, so the heading reads 原作 on a
+manga and Writer on a comic without the page knowing the vocabulary. Entries
+run through the same `filter_visible_pairs` call `credit_count` uses, so the
+number on the card and the list on the page can never disagree; they are newest
+first with an undated entry last. A person carries no content label of their
+own, so one whose every credit is hidden answers **200 with empty groups**, not
+404 — the person is not the secret, their credits are.
 
 ---
 
@@ -761,6 +796,25 @@ is a smaller leak than a title, but "worked on 3 things, you can see 2" is
 still one, so it runs through `filter_visible_pairs` — the same call
 `/entries` uses, which is what keeps the count on the card and the list on the
 page from disagreeing.
+
+### `credit_refs` and `studio_refs` on every media payload
+
+Beside the legacy comma-joined credit strings (`director`, `author_plot`,
+`writer`, …), which are the Sheets contract and carry no ids, every media
+response carries `credit_refs`:
+
+```json
+"credit_refs": {"author": [{"system_id": "...", "display_name": "諫山創",
+                            "label": "原作"}]}
+```
+
+keyed by credit role, in stored order, with the label that credit has on that
+media type. Anime and anime-movie also carry `studio_refs`, the same idea for
+studios (a bare list — studio is a single role). Both are built inside
+`attach_link_fields` from one batched fetch, so a list endpoint serves them in
+the same fixed five queries it always used. Both belong to the **Credits**
+field group: a viewer without that permission gets `{}` / `[]`, because a
+linkable ref leaks the same name the string does.
 
 ### `GET /api/studio/{system_id}/entries`
 

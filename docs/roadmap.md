@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-04 | Person as a public entity: one role vocabulary of five (director, producer, composer, author, illustrator) replacing the two lists, media-type-scoped and NOT NULL on `person_role`, with 原作 / Author / Writer derived from `(role, media_type)`; `person` reshaped to four optional names with a data-driven display choice; `credit_refs` with ids and labels on every media payload; `GET /api/person/{id}/entries` and a `?credits=N`-guarded delete; Entity → Person Add/Modify/Delete with a role × scope matrix; `/library/person` and `/person/:system_id`, linked from every credit row on the six detail pages |
 | 2026-09-04 | Studio as a public entity: `studio` reshaped to four optional names with a data-driven display choice and a profile (country, founded/defunct, website, MAL, logo); `GET /api/studio/{id}/entries`; `studio_refs` on anime and anime-movie payloads; `/library/studio` and `/studio/:system_id` pages, linked from the Studio row on both detail pages; studio Add/Modify/Delete moved into a new Entity admin group |
 | 2026-08-30 | Dark mode across the app: semantic colour tokens, `ThemeProvider`, Nav toggle, ReactFlow `colorMode`, a token guard test |
 | 2026-08-30 | Route-level code splitting for admin, statistics, plan and relations pages |
@@ -54,110 +55,8 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 ## Next
 
-### Person as an entity (session anime-site-a3) — 5 of 9 tasks done
-
-Spec: [superpowers/specs/2026-09-04-person-entity-design.md](superpowers/specs/2026-09-04-person-entity-design.md).
-Plan: [superpowers/plans/2026-09-04-person-entity.md](superpowers/plans/2026-09-04-person-entity.md).
-The plan holds the full code for every remaining task, including Task 4's
-migration, so nothing needed to continue lives only in a session transcript.
-
-| Task | State |
-|---|---|
-| 1 `name_slot_for` | done — `7bb172b` |
-| 2 role vocabulary collapse | done — `faf0081` |
-| 3 migration `r0l1c2o3l4p5`, `scope` NOT NULL | done — `6ca6719` |
-| 7 frontend config, 11 scoped dropdowns | done — `4ba9c07` |
-| 4 person names + migration `p7n8a9m10e11` | done — session anime-site-ee |
-| 5 `person_refs` on media payloads | **NEXT** — not started |
-| 6 `/api/person/{id}/entries` + delete guard | not started |
-| 8 Entity > Person admin tab | not started |
-| 9 public person library + detail | blocked on 6 |
-| 10 docs | last |
-
-**Database state:** `anime_site_db` is at `p7n8a9m10e11`. Any other machine
-must run `alembic upgrade head` before a Pull All. A sheet backed up before
-`p7n8a9m10e11` still restores: its `Person` tab carries `name_native`, which
-that revision's downgrade recreates (see the note on `r0l1c2o3l4p5` below for
-the same procedure).
-
-**Corrections to the plan found while executing it, which the plan now records:**
-
-- The revision id it proposed, `p1e2r3s4o5n6`, was already taken by the
-  migration that CREATED the person tables. Alembic reports this as
-  "Cycle is detected in revisions (...)", not as a duplicate id.
-- Nine live readers of the renamed role keys were missed by planning and by
-  grep across this work and the studio work — they are spelled differently at
-  the call site than the thing being renamed. Three were mine:
-  `autofill.py`, `COMIC_LINK_FIELDS_TO_FILL` in `utils.py`, and `BACKFILL_MAP`
-  in `credits.py`, the last of which drives the legacy link attributes on
-  every media response.
-- The person-source dropdown pair count is 11, not the 10 the spec first said.
-- Task 4's expected name split was `218 en / 167 cn / 169 jp`; the migration
-  produced `218 en / 165 cn / 171 jp`. Not a fault: every one of the 554 rows
-  was verified to land exactly where `name_slot_for` says and nowhere else
-  (0 mismatches), and only 3 people are ambiguous at all - the novel authors
-  who wrote both a light and a plain novel, which the ordering resolves to
-  `cn` as intended. The plan's figure was measured before `r0l1c2o3l4p5`
-  renamed the roles the rule keys on.
-- Task 4 needed changes the plan did not list, all of which read the dropped
-  column: `checking.py` (duplicate-entity labels), `pull.py`
-  `DERIVED_IDENTITY_KEYS`, `formatter.py`'s Person sheet parser, and the
-  frontend person call sites (`ensureSourceValues.js`, `formatters.js`,
-  `Add.jsx`, `OptionsAddTab.jsx`). Left unchanged, every person auto-created
-  from a media form would have 422'd - the same bug the studio session shipped
-  and fixed in `03aa036`.
-- `POST /api/person/` now also accepts one unslotted `name` alongside the four
-  labelled columns. `ensureSourceValues.js` holds one typed string and cannot
-  know its column; the endpoint places it through `name_slot_for`, so the rule
-  keeps one owner instead of being copied into the frontend.
-- The two frozen-migration replay tests in `test_person_studio_uniqueness.py`
-  are gone, for the reason the studio session recorded for its half:
-  `n1u2l3l4s5n6d`'s `COLLAPSE_DUPLICATES` partitions by `name_native`, a
-  column neither table still has, and API tests build their schema from the
-  current models rather than from Alembic.
-
-**Carry into Task 5** (from the studio session's equivalent work, `c997745`):
-a new `*_refs` link field is NOT gated by RBAC automatically — it must be
-added to the Credits group in `app/services/rbac/field_groups.py` or credited
-names leak to viewers without the Credits permission. Build `person_refs` from
-the shared `_link_rows_and_lookups` helper in `credits.py` rather than adding a
-fetch, or it becomes an N+1 over library pages of up to 2000 entries.
-
-**The studio work is now finished, including its docs.** Two corrections to
-what this file previously recorded:
-
-- It said the studio session (anime-site-b0) "completed its Tasks 1-11". It
-  had not: Task 8 (the `/studio/:system_id` detail page) and Task 9 (linking
-  studios from the anime and anime-movie pages) were never built, and
-  `StudioLibrary.jsx` had been shipping a card link to a route that did not
-  exist. Both are done now, so `/library/studio` no longer leads anywhere
-  dead.
-- Its Task 12 docs were never written, not merely stale. They are written
-  now: `data-model.md` (the reshaped table and its four constraints),
-  `api.md` (the studio endpoints, `/entries`, `studio_refs`),
-  `business-rules.md` §10a (display-name resolution is data, and the same
-  rule lives twice — `Studio.display_name` and `lib/naming.js`),
-  `frontend/pages.md` (both public pages), `frontend/admin-pages.md` (the
-  Entity group) and `systems/credits-and-tags.md`.
-
-Task 10 of the person plan therefore only has to document the **person** half
-of the Entity group.
-
-Two things the studio work established that person Task 8 should copy:
-`StudioModifyTab` deliberately bypasses `Modify.jsx`'s per-type
-form/search/save machinery, which is shaped around media entries and the
-grouping tiers; and the studio detail page does **not** reuse `MediaCard`,
-because the entries endpoint returns four keys and `MediaCard` resolves its
-title through `getDisplayName(data, type)`.
-
-**Known consequence of `r0l1c2o3l4p5`, worth recording:** a Google Sheets
-backup taken BEFORE that migration can no longer be restored — its
-`Person Role` tab has empty scopes (now NOT NULL) and retired role names. To
-restore an old sheet: `alembic downgrade s1t2u3d4i5o6`, Pull, then
-`alembic upgrade head`. That downgrade was verified to round-trip this dataset
-exactly, 791 -> 555 -> 791 with zero differing rows.
-
-Rule from `CLAUDE.md`: when work starts from this section, finish a step, ask before continuing, and log progress here without rewriting the plan.
+Nothing in progress. Pick the next piece of work from "Deferred / known debt"
+below, or start a new spec under `docs/superpowers/specs/`.
 
 ## Deferred / known debt
 
@@ -171,7 +70,6 @@ Each line was verified against the code at the commit above.
 | Backend | Autofill wraps each fetch in a bare `except Exception`, so tenacity's `RetryError` is swallowed and reported as a generic failure | `app/services/domain/autofill.py` |
 | Backend | Tenrai and Comic Vine rate limiters are in-memory sliding windows; a second instance would double the budget | `app/services/integrations/tenrai.py`, `comicvine.py` |
 | Data model | `character` / `character_voice` tables deferred | noted in `data-model.md` |
-| Frontend | Public **person** pages deferred; only admin and pickers read `/api/person` (the studio half shipped: `/library/studio`, `/studio/:system_id`) | no person route in `frontend/src/App.jsx` |
 | Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
 | Frontend | `NovelModifyTab` keeps a local option array (`PROGRESS_DISPLAY_OPTIONS`) instead of reading `/api/constants` | `frontend/src/pages/modify-tabs/NovelModifyTab.jsx` |
 | Tooling | `ruff check` runs in CI but `ruff format` has never been applied to the tree | `.github/workflows/deploy.yml` |

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-04 (commit 5d1cecc, plus uncommitted archive-look, dashboard type-filter and Quality 品質 changes)
+Last verified: 2026-09-04 (commit 601ceb8, plus uncommitted archive-look, dashboard type-filter and Quality 品質 changes)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -32,12 +32,14 @@ are a large share of the bundle and never needed on first paint.
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
 | `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy |
+| `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic; anything else redirects to `/under-development`) | eager |
 | `/anime/:system_id` … `/comic/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx` | eager |
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
 | `/studio/:system_id` | `detail/Studio.jsx` | lazy |
+| `/person/:system_id` | `detail/Person.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy |
@@ -61,7 +63,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise`, Studio `/library/studio` (also matches `/studio`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu (`dev: true`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Person `/library/person` (also matches `/person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu (`dev: true`) · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
@@ -266,6 +268,41 @@ Animation" finds a studio displayed as "KyoAni". Sort
 `name (default) | credit_count | my_rating`. No filter panel, no table view,
 no admin controls. Each `StudioCard` shows the logo, the display name and the
 credit count, and links to `/studio/:system_id`.
+
+### PersonLibrary — `/library/person`
+
+File `pages/library/PersonLibrary.jsx`. Same shape and the same reasoning as
+`StudioLibrary` — a person is a public **entity**, not a media type, so it sits
+outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
+
+Raw `fetch` of `/api/person/` alone: the response carries `display_name`,
+`credit_count`, `photo_file` and the `roles` each person holds, which is what
+lets the **type filter** (All plus the five `PERSON_SUB_TABS`) run client-side
+— one request serves every filter, where a per-type request would refetch on
+each click. Search runs over all four name columns (`PERSON_NAME_FIELDS`), not
+just the displayed one. Sort `name (default) | credit_count | my_rating`. Each
+`PersonCard` shows the photo, display name and credit count, and links to
+`/person/:system_id`.
+
+### Person — `/person/:system_id`
+
+File `pages/detail/Person.jsx`. The public profile for one person, built the
+same way as the studio page below and for the same reasons: two raw fetches in
+one `Promise.all` (`GET /api/person/{id}` and `.../entries`), the profile call
+failing is the page's 404 while the entries call failing is not, and nothing on
+the page is editable.
+
+Layout: breadcrumb → left column with the photo, rating stamp and an "Other
+names" card → right column with the display name, credited-entry count, a
+"Profile" `InfoCard` (gender, the types they are offered under, remark), then
+one section per group.
+
+The one difference from the studio page: a person may hold several roles, so
+`/entries` groups by **(media type, role)** and each heading is the group's
+`label` — 原作 on a manga, Writer on a comic — which comes from the endpoint,
+not from the page. A group the viewer may see no entries of still renders, with
+"Nothing you can see here" inside it. Entry cards are the same local
+`CreditCard`, not `MediaCard`, for the reason spelled out below.
 
 ### Studio — `/studio/:system_id`
 

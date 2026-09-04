@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-02 (commit 72f03ae)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 ## What this is for
 
@@ -127,7 +127,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | Tab | Matched on | Sheet PK |
      |---|---|---|
      | `System Options` | `category` + `value` | uuid — tried first |
-     | `Person`, `Studio` | `name_native` + `name_en` | uuid — tried first |
+     | `Person`, `Studio` | `name_en` + `name_cn` + `name_jp` + `name_alt` | uuid — tried first |
      | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
      | `Plan Next` | `kind` + `scope` + `target_id` + `media_type` | uuid — tried first |
      | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |

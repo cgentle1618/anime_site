@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -236,7 +236,7 @@ in `app/utils/utils.py`.
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, ep_total, cover_image_file`; Movie: same minus `ep_total`                   | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
-| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `comic_writer` credit, `comic_artist` credit, `comic_publisher` tag. Imprint, continuity, era, events, `end_date`, `publisher_tw` are manual and never required — Comic Vine does not model them.                                                          |
+| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `comic_publisher` tag. Imprint, continuity, era, events, `end_date`, `publisher_tw` are manual and never required — Comic Vine does not model them.                                                          |
 
 The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 `credit_names` / `tag_values`; the dropped `director` / `writer` / `artist` /
@@ -390,7 +390,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
-| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: `name_native` + `name_en` for a person, all four of `name_en` / `name_cn` / `name_jp` / `name_alt` for a studio |
+| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
 
 Entries with no franchise are ignored by every per-type finder except anime.
 Results are returned as `find_all_duplicates(db)` from `GET

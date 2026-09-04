@@ -234,29 +234,37 @@ manga, novel, comic. Anime and cartoon have no entry-level rewatch field.
 
 ### Credit roles and tag fields (`app/utils/credit_roles.py`)
 
-`CREDIT_ROLES` is the vocabulary of `media_credit.role`. Credit roles and
-person roles are two lists on purpose: 原作 and 作画 are two credits that both
-imply the single `manga_author` person role.
+`CREDIT_ROLES` is the vocabulary of `media_credit.role`, and since the collapse
+it is also the vocabulary of `person_role.role` - one list, not two.
 
-| Key | Label | Target | Person role | Media types |
-|---|---|---|---|---|
-| `studio` | Studio | studio | | anime, anime-movie |
-| `director` | Director | person | `director` | anime, anime-movie, movie |
-| `producer` | Producer | person | `producer` | anime |
-| `composer` | Music / Composer | person | `composer` | anime |
-| `manga_author_plot` | 原作 | person | `manga_author` | manga |
-| `manga_author_draw` | 作画 | person | `manga_author` | manga |
-| `novel_author` | Author | person | `novel_author` | novel |
-| `novel_illustrator` | Illustrator | person | `novel_illustrator` | novel |
-| `comic_writer` | Writer | person | `comic_writer` | comic |
-| `comic_artist` | Artist | person | `comic_artist` | comic |
+| Key | Label | Target | Media types |
+|---|---|---|---|
+| `studio` | Studio | studio | anime, anime-movie |
+| `director` | Director | person | anime, anime-movie, movie |
+| `producer` | Producer | person | anime |
+| `composer` | Music / Composer | person | anime |
+| `author` | Author | person | manga, novel, comic |
+| `illustrator` | Illustrator | person | manga, novel, comic |
 
-`PERSON_ROLES` (derived, in first-seen order, served as `/api/constants`
-`person_role`): `director`, `producer`, `composer`, `manga_author`,
-`novel_author`, `novel_illustrator`, `comic_writer`, `comic_artist`.
-`SCOPED_PERSON_ROLES = {"director"}`: a director's `person_role` carries a
-scope of `anime` (credited on anime or anime-movie, `DIRECTOR_ANIME_MEDIA_TYPES`)
-or `non_anime`. These scopes are **not** the hyphenated media-type keys.
+`PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
+`producer`, `composer`, `author`, `illustrator`.
+
+The reader-facing word is **derived, not stored**:
+`credit_label(role, media_type)` reads 原作 / Author / Writer for `author` on
+manga / novel / comic and 作畫 / Illustrator / Artist for `illustrator`. One
+vocabulary, several words.
+
+**Person scope is not option scope.** Every `person_role` row carries a
+NOT NULL media-type scope and a person is offered in the union of their rows;
+there is no "offered everywhere" state. A `system_option` with **zero**
+`system_option_scope` rows, by contrast, IS offered everywhere. The asymmetry
+is deliberate, not an oversight to tidy up: person credits are auto-scoped on
+write, so an "everywhere" state would let the first credit silently narrow the
+person - exactly the trap Ruling R27 removed from tags, where using an unscoped
+"Disney+" on one TV show hid it from the Cartoon dropdown. Option values are
+not auto-scoped, so their "everywhere" state is safe. `legal_scopes(role)` says
+which media types a role may be scoped to; `GET /api/person/role-scopes` serves
+the map to the admin form.
 
 `TAG_FIELDS` is the vocabulary of `media_tag.field`; each field reads one
 Tier 2 category:
@@ -428,17 +436,19 @@ a remark. See [systems/credits-and-tags.md](systems/credits-and-tags.md) for
 the full system and [data-model.md](data-model.md#people-studios-and-links)
 for the `person`, `person_role`, `studio`, `media_credit` tables.
 
-| Old option category | New home |
-|---|---|
-| `Studio` | `studio` rows, credited via `media_credit` role `studio` |
-| `Director` | `person` with `person_role` `director` (scope `anime` / `non_anime`) |
-| `Producer` | `person` with `person_role` `producer` |
-| `Music / Composer` | `person` with `person_role` `composer` |
-| `Manga Author` | `person` with `person_role` `manga_author` (implied by `manga_author_plot` or `manga_author_draw`) |
-| `Novel Author` | `person` with `person_role` `novel_author` |
-| `Novel Illustrator` | `person` with `person_role` `novel_illustrator` |
-| `Comic Writer` | `person` with `person_role` `comic_writer` |
-| `Comic Artist` | `person` with `person_role` `comic_artist` |
+Keyed by the LIVE role, with the old categories that folded into it - the same
+shape as `TIER3_ROWS` in `frontend/src/pages/admin/SystemOptions.jsx`, whose
+comment asks that the two be kept in step. Six rows, because the role
+vocabulary collapsed to five person roles plus `studio`.
+
+| Old option categories | New home | Notes |
+|---|---|---|
+| `Studio` | `studio` | credited via `media_credit` role `studio` |
+| `Director` | `person`, role `director` | scoped by media type on `person_role`: anime, anime-movie, movie |
+| `Producer` | `person`, role `producer` | scoped anime |
+| `Music / Composer` | `person`, role `composer` | scoped anime |
+| `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
+| `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
 `person.my_rating` and `studio.my_rating` reuse `MY_RATINGS`. `character` /
 `character_voice` tables were designed but not built; `anime.seiyuu` is a
@@ -468,7 +478,7 @@ are no longer columns.
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
 | `NOVEL_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
 | `COMIC_FIELDS_TO_FILL` | `release_date`, `issue_total`, `cover_image_file` |
-| `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "comic_writer")`, `("credit", "comic_artist")`, `("tag", "comic_publisher")` |
+| `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "author")`, `("credit", "illustrator")`, `("tag", "comic_publisher")` |
 
 `MONTH_MAP` (`JAN` -> `01` ... `DEC` -> `12`) is also in `utils.py` but is
 unused (business-rules.md section 17).

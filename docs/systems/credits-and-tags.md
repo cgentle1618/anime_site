@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-04 (commit 5d1cecc)
+Last verified: 2026-09-04 (commit 601ceb8)
 
 ## What this is for
 
@@ -24,8 +24,8 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 
 | Table | Purpose | Key constraints |
 |---|---|---|
-| `person` | One human credited anywhere. `name_native` (required), `name_en`, `name_cn`, `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_native, name_en)` **NULLS NOT DISTINCT** |
-| `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (`"anime"` / `"non_anime"` for `director`, NULL for every other role). Explicit, not derived from credits, so a new director can be offered before their first credit. | `uq_person_role (person_id, role, scope)` NULLS NOT DISTINCT |
+| `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. Same name shape as `studio`. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
+| `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes(role)`). Explicit, not derived from credits, so a new director can be offered before their first credit. A person's visibility is the union of their rows; there is no "offered everywhere" state — see [options.md](../options.md) for why this differs from option scope. | `uq_person_role (person_id, role, scope)` (plain — no nullable column left in the key) |
 | `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers/distributors are deliberately not studios — they are the `"Publisher / Distributor TW"` vocabulary. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
 | `media_credit` | One person **or** studio on one entry: FK-less `(media_type, entry_id)` pair, `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` (both FK, cascade on delete), `position` (order of the original comma list), `remark`. | `CHECK num_nonnulls(person_id, studio_id) = 1`; `uq_media_credit_row (media_type, entry_id, role, person_id, studio_id)` NULLS NOT DISTINCT; index on `(media_type, entry_id)` |
 | `media_tag` | One vocabulary value on one entry: `(media_type, entry_id)`, `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_type, entry_id, field, option_id)`; index on `(media_type, entry_id)` |
@@ -49,26 +49,44 @@ the stored value, tuple of keys for validation.
 
 ### `CREDIT_ROLES` (values of `media_credit.role`)
 
-| key | label | target | implied `person_role` | media types |
-|---|---|---|---|---|
-| `studio` | Studio | studio | — | anime, anime-movie |
-| `director` | Director | person | `director` | anime, anime-movie, movie |
-| `producer` | Producer | person | `producer` | anime |
-| `composer` | Music / Composer | person | `composer` | anime |
-| `manga_author_plot` | 原作 | person | `manga_author` | manga |
-| `manga_author_draw` | 作画 | person | `manga_author` | manga |
-| `novel_author` | Author | person | `novel_author` | novel |
-| `novel_illustrator` | Illustrator | person | `novel_illustrator` | novel |
-| `comic_writer` | Writer | person | `comic_writer` | comic |
-| `comic_artist` | Artist | person | `comic_artist` | comic |
+| key | label | target | media types |
+|---|---|---|---|
+| `studio` | Studio | studio | anime, anime-movie |
+| `director` | Director | person | anime, anime-movie, movie |
+| `producer` | Producer | person | anime |
+| `composer` | Music / Composer | person | anime |
+| `author` | Author | person | manga, novel, comic |
+| `illustrator` | Illustrator | person | manga, novel, comic |
 
-Credit roles and person roles are two vocabularies on purpose: 原作 and 作画
-are distinct credits that share one `manga_author` dropdown. `PERSON_ROLES` is
-derived from the table (`director, producer, composer, manga_author,
-novel_author, novel_illustrator, comic_writer, comic_artist`).
-`SCOPED_PERSON_ROLES = {"director"}`; `director_scope_for(media_type)` returns
-`"anime"` for anime / anime-movie and `"non_anime"` otherwise. Scope is
-recorded on `person_role`, never on the credit.
+**One vocabulary, not two.** Credit roles and person roles used to be separate
+lists — ten credit roles against eight person roles, with `manga_author_plot`
+and `manga_author_draw` sharing one `manga_author` dropdown. They are now the
+same five person keys (plus `studio`), so `media_credit.role` and
+`person_role.role` store the same strings and `PERSON_ROLES` is just
+`CREDIT_ROLES` minus `studio`.
+
+**Labels are derived, not stored.** `credit_label(role, media_type)` is the
+single owner of the reader-facing word: the same `author` credit reads 原作 on
+a manga, Author on a novel and Writer on a comic, and `illustrator` reads 作畫 /
+Illustrator / Artist. A small `{(role, media_type): label}` override map falls
+back to `CreditRole.label`; nothing else in the codebase — no page, no form —
+may hard-code these words.
+
+**Retired keys**, in case you meet them in an old sheet or backup:
+`manga_author_plot` and `manga_author_draw` → `author` / `illustrator` on
+manga; `novel_author` / `novel_illustrator` → `author` / `illustrator` on
+novel; `comic_writer` / `comic_artist` → `author` / `illustrator` on comic. The
+person roles `manga_author`, `novel_author`, `novel_illustrator`,
+`comic_writer` and `comic_artist` are gone the same way. Revision
+`r0l1c2o3l4p5` rewrote the stored values.
+
+**Scope is the media type.** `SCOPED_PERSON_ROLES`,
+`DIRECTOR_ANIME_MEDIA_TYPES` and `director_scope_for()` are gone: every role is
+scoped, and the scope is a hyphenated media-type key rather than the old
+`"anime"` / `"non_anime"` pair. `legal_scopes(role)` returns the media types a
+role may be held in, and both `PersonRoleIn` and the admin form read it, so a
+form cannot offer — and the API cannot store — a pair like (composer, manga)
+that names a credit which does not exist.
 
 ### `TAG_FIELDS` (values of `media_tag.field`)
 
@@ -95,16 +113,31 @@ Helpers: `credit_roles_for(media_type)`, `tag_fields_for(media_type)`.
 Keyed by `(media_type, key)`, **not** by key alone, because the same key can
 have a different legacy header per type: anime's `publisher_tw` writes under
 `distributor_tw`, manga/novel/comic under `publisher_tw`. Other renames:
-`composer → music`, `manga_author_plot → author_plot`, `manga_author_draw →
-author_draw`, `novel_author → author`, `novel_illustrator → illustrator`,
-`comic_writer → writer`, `comic_artist → artist`, `comic_* → publisher /
-imprint / continuity / era / events`. A pair absent from the map (movie
+`composer → music`, manga's `author → author_plot` and `illustrator →
+author_draw`, novel's `author → author` and `illustrator → illustrator`,
+comic's `author → writer` and `illustrator → artist`, `comic_* → publisher /
+imprint / continuity / era / events`. Because the map was already keyed by
+`(media_type, key)`, the role collapse only renamed its keys: **every sheet
+header is byte-identical to what it was before**, which `tests/unit/
+test_credit_roles.py` asserts against a hand-written table. A pair absent from the map (movie
 `source_official`, anime `label`) uses the key itself as header.
 `sheet_column_for(media_type, key)` is the single accessor; the same names are
 used as the entry payload attributes (below), so the API edge, the form state
 and the sheets share one vocabulary.
 
 ## Name matching: `app/utils/name_normalize.py`
+
+`name_slot_for(name, role=, scope=, novel_type=None)` decides **which** of a
+person's four name columns an automatically created name lands in: `"en"` for a
+name with no CJK, `"cn"` for anime staff and Chinese-rendered literary
+novelists, `"jp"` otherwise. It never returns `"alt"` — that slot means "a name
+that is none of these three", which only a human can assert. The rule lives in
+one place because the reshape migration is not its only caller: `resolve_person`
+mints a person whenever Fill/Pull, the Sheets restore or a typed dropdown value
+names somebody unknown, and a name must not land in one column during the
+migration and another the next day. Resolution and display do not depend on the
+choice — `_find_by_name` matches on all four columns and `display_name` falls
+back through all four — so only the label is at stake.
 
 `normalize_name(raw)` = NFKC fold (full-width Latin → half-width), strip **all**
 whitespace, `casefold()`. It is a comparison key only — the original spelling is
@@ -118,18 +151,18 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 
 | Function | What it does |
 |---|---|
-| `find_person` / `find_studio` | Linear scan matching `normalize_name` against any of the model's `_name_fields` — `name_native` / `name_en` for a person, all four names for a studio; returns the row or None. Python-side because the fold is not expressible in portable SQL and the tables are small. |
-| `resolve_person(db, name, role=, scope=)` | Find-or-create, then ensure the `(role, scope)` `person_role` row exists. |
+| `find_person` / `find_studio` | Linear scan matching `normalize_name` against any of the model's `_name_fields` — all four names, for a person as for a studio; returns the row or None, and raises `AmbiguousNameError` when several rows match. Python-side because the fold is not expressible in portable SQL and the tables are small. |
+| `resolve_person(db, name, role=, scope=)` | Find-or-create, then ensure the `(role, scope)` `person_role` row exists. A newly created person's name goes into the column `name_slot_for` picks, not a fixed one. |
 | `resolve_studio(db, name)` | Find-or-create. |
 | `resolve_option(db, category, value, scope=None)` | Find-or-create the `system_option`; adds a scope row only when `scope` is passed explicitly (backfill seeding, admin edits) — never derived from the caller's media type. |
-| `replace_credits(db, media_type, entry_id, role, names)` | Whole-set replace for one role, preserving order in `position`. Director credits get `director_scope_for(media_type)` on the person role. |
+| `replace_credits(db, media_type, entry_id, role, names)` | Whole-set replace for one role, preserving order in `position`. The person role is scoped to the entry's own media type. |
 | `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. |
 | `delete_links_for` | Removes all credit + tag rows of a deleted entry; returns the count. |
 | `credit_names` / `tag_values` | One entry, one role/field, stored order. |
 | `credits_to_sheet_value` / `tags_to_sheet_value` | `", ".join(...)` of the above. |
 | `link_values_for_entries(db, media_type, ids)` | Batch read: `{entry_id: {key: [names]}}` in a **fixed five queries** regardless of entry count (the N+1 avoider). |
 | `legacy_link_fields(media_type)` | `(payload_attr, "credit"/"tag", key)` triples using the legacy names. |
-| `attach_link_fields(db, media_type, entries)` | Sets the legacy-named, comma-joined attributes (`studio`, `director`, `music`, `distributor_tw`, `era` …) on ORM entries in place, like `attach_plan_flag`. Called from `_factory.py` on detail (one entry) and list (many) so public pages keep reading one response. These live on `*Response` schemas only, never on Create/Update bases — a write naming them is rejected, not silently stored. |
+| `attach_link_fields(db, media_type, entries)` | Sets the legacy-named, comma-joined attributes (`studio`, `director`, `music`, `distributor_tw`, `era` …) on ORM entries in place, like `attach_plan_flag`, plus the two linkable shapes: `credit_refs` (`{role: [{system_id, display_name, label}]}`, every type) and `studio_refs` (anime and anime-movie). Both come out of the same batched fetch, so they cost no extra query. Called from `_factory.py` on detail (one entry) and list (many) so public pages keep reading one response. These live on `*Response` schemas only, never on Create/Update bases — a write naming them is rejected, not silently stored. |
 | `sheet_link_headers(media_type)` / `sheet_link_values` / `sheet_link_rows` | Sheets export: headers via `sheet_column_for`, appended at the **end** of each entry tab (restore matches by header name, not position). `sheet_link_rows` is the batched form Backup uses. |
 | `names_from_sheet_value` | `split_names` alias for Pull. |
 | `backfill_credits(db)` | One-time, idempotent migration body over `BACKFILL_MAP` (26 legacy columns). Reads each legacy column through `information_schema` + raw SQL, not the ORM — the models no longer define these columns, so an attribute read makes the whole backfill a silent no-op. Reports counts and an `unplaced` list rather than guessing; then runs `extract_system_options`. `manga.anime_studio` is deliberately excluded (it names the adaptation's studio — belongs in relations). |
@@ -149,12 +182,14 @@ the backfill and by Calculate All.
 |---|---|---|
 | `GET /api/credits/{media_type}/{entry_id}` | public (viewer) | `{"credits": {role: [names]}, "tags": {field: [values]}}`, only keys with rows. Unknown type → 400; missing **or hidden** entry → 404 (`entry_visible`). |
 | `PUT /api/credits/{media_type}/{entry_id}` | admin | Body `{credits: {role: [..]}, tags: {field: [..]}}`. Touches only the named roles/fields; an absent key is left alone, an empty list clears. Role/field not valid for the type → 400. |
-| `GET /api/person/?role=&scope=` | public | Sorted by `name_native`; filter joins `person_role`. `credit_count` counts only entries the viewer may see (`filter_visible_pairs`). |
+| `GET /api/person/?role=&scope=` | public | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count` counts only entries the viewer may see (`filter_visible_pairs`). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
 | `GET /api/person/role-counts` | public | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. |
+| `GET /api/person/role-scopes` | public | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form and the validator cannot drift. Declared before `/{system_id}`. |
+| `GET /api/person/{id}/entries` | public | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. Empty groups, not 404, when every credit is hidden — the person is not the secret, their credits are. |
 | `GET /api/person/{id}` | public | 404 if absent. |
-| `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. |
+| `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. The body carries either the four labelled name columns (the admin form) or one unslotted `name` (every other writer), which the endpoint places through `name_slot_for` — a caller holding one typed string cannot know its column, and copying the rule into the frontend would give one name two homes. |
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. |
-| `DELETE /api/person/{id}` | admin | Credits cascade away — wrong fix for a duplicate. |
+| `DELETE /api/person/{id}?credits=N` | admin | Credits cascade away — wrong fix for a duplicate. `credits` is **required** and is the count the confirmation dialog showed; a mismatch is a 409, because an admin who agreed to destroy three credits did not agree to destroy the five that exist now. |
 | `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, deletes the source. 400 on self-merge. Returns `credits_moved`. |
 | `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as person | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. Renaming a studio changes what every credited entry shows — no propagation step. |
 | `GET /api/studio/{id}/entries` | public | The reverse of `GET /api/credits/...`: the entries this studio is credited on, grouped by media type, filtered through the same `filter_visible_pairs` as `credit_count` so the two can never disagree. Empty groups, not 404, when every credit is hidden. |
@@ -164,8 +199,8 @@ the backfill and by Calculate All.
 
 `find_duplicate_entities` (`app/services/domain/checking.py`) is part of
 `find_all_duplicates` under the `"entities"` key. It clusters people and
-studios (each table separately) by union-find over the normalized keys of
-**both** `name_native` and `name_en`, since `_find_by_name` matches on either.
+studios (each table separately) by union-find over the normalized keys of all
+four name columns, since `_find_by_name` matches on any of them.
 The fix it points at is the merge endpoint, never delete.
 
 ## Where credits are written
@@ -180,29 +215,33 @@ The fix it points at is the merge endpoint, never delete.
 
 ## Admin UI
 
-The "System Options" nav entry on the **Add** page (`OptionsAddTab.jsx`) has
-four sub-tabs, rendered by the shared `OptionSubTabBar`: **Options** and
-**Tags** (both: vocabulary value + `ScopePicker` — one form, one endpoint,
-split only so the category list is shorter; `TAG_CATEGORIES` decides which
-side a category falls on, see [../options.md](../options.md)), **People**
-(`PersonForm`: names, gender, rating, remark, a role dropdown fed by
-`PERSON_ROLES` from `GET /api/constants` via `fieldOptions.js` — labels derived
-from keys so a role added in Python needs no frontend edit). Studios were a
-fourth sub-tab here and are not any more: they moved to their own **Entity**
-tab group on Add / Modify / Delete when studio became a public entity — see
-[../frontend/admin-pages.md](../frontend/admin-pages.md). **Modify** and
-**Delete** render the same bar with the Options and Tags halves only:
-neither page has a person editor, and
-each filters its category `<select>` through `categoriesForSubTab`
-(`frontend/src/lib/optionCategoryGroups.js`), clearing the selected category
-when the half changes. Delete lists only categories that actually hold
-values — an empty category has nothing to delete.
+The "System Options" nav entry has **two** sub-tabs on all three admin pages
+(Add / Modify / Delete), rendered by the shared `OptionSubTabBar`: **Options**
+and **Tags**. Both are the same form over the same rows — vocabulary value plus
+`ScopePicker`, one endpoint — split only so the category list is shorter;
+`TAG_CATEGORIES` decides which side a category falls on, see
+[../options.md](../options.md). Each page filters its category `<select>`
+through `categoriesForSubTab` (`frontend/src/lib/optionCategoryGroups.js`),
+clearing the selected category when the half changes; Delete lists only
+categories that actually hold values.
+
+People and studios were once sub-tabs here. Both moved out to the **Entity**
+tab group on Add / Modify / Delete when each became a public entity rather than
+a closed vocabulary — see
+[../frontend/admin-pages.md](../frontend/admin-pages.md). The Person tab adds a
+`PersonSubTabBar` of the five types, which filters the list and preselects the
+type for a new person but never narrows what the form edits: a person is one
+row that may hold several types, so `PersonFields` always shows the full
+role × scope matrix, with each type's legal media types read from
+`GET /api/person/role-scopes`.
 
 The person/studio pickers on entry forms are the standard "tags" fields whose
-`source.kind` is `person` / `studio`. Studios now have public pages —
-`/library/studio` and `/studio/:system_id`, and a link from the Studio row on
-every anime and anime-movie detail page (via `studio_refs`). People do not
-yet.
+`source.kind` is `person` / `studio`. Both entities now have public pages —
+`/library/person` and `/person/:system_id`, `/library/studio` and
+`/studio/:system_id` — and every credit on a detail page links to them:
+`credit_refs` through `PersonLinks.jsx`, `studio_refs` through
+`StudioLinks.jsx`, each falling back to the legacy comma-joined string when the
+entry carries no refs or the viewer lacks the Credits permission.
 
 ## Migrations (chain order)
 
@@ -214,6 +253,8 @@ yet.
 | `d1r2o3p4c5o6l` | Ran `verify_backfill_lossless`, then dropped the 26 legacy string columns and `system_option.id`. Aborts on any mismatch. |
 | `n1u2l3l4s5n6d` | Merged duplicate people/studios in SQL (repointing credits first), then recreated `uq_person_name`, `uq_studio_name`, `uq_person_role` with NULLS NOT DISTINCT. |
 | `s1t2u3d4i5o6` | Reshaped `studio`: `name_native` → `name_en` (lossless over the 77 production rows), added `name_jp`, `name_alt`, `display_name_field` and the profile columns, and recreated `uq_studio_name` over all four names plus the three CHECKs. |
+| `r0l1c2o3l4p5` | Collapsed the role vocabulary: rewrote `media_credit.role` (372 rows), rebuilt `person_role` onto the five keys with a media-type `scope`, and made that column NOT NULL. A Sheets backup taken **before** this revision can no longer be restored directly — its `Person Role` tab has empty scopes and retired role names; `alembic downgrade s1t2u3d4i5o6`, Pull, then `alembic upgrade head`. |
+| `p7n8a9m10e11` | Reshaped `person` to match `studio`: added `name_jp`, `name_alt`, `display_name_field`, distributed the 554 `name_native` values through `name_slot_for` (218 en / 165 cn / 171 jp), dropped `name_native` and recreated `uq_person_name` over all four names plus `ck_person_has_a_name`. |
 
 ## Deferred: `character` / `character_voice`
 
@@ -232,5 +273,10 @@ grep for `character` in `app/models` returns nothing.
 `test_options_extraction.py`, `test_media_credit_model.py`,
 `test_person_model.py`, `test_studio_model.py`,
 `test_person_studio_uniqueness.py`; `tests/api/test_credits_router.py`,
-`test_person_router.py`, `test_studio_router.py`, `test_options_router.py`;
-`frontend/src/lib/ensureSourceValues.test.js`.
+`test_person_router.py`, `test_person_entries.py`, `test_studio_router.py`,
+`test_options_router.py`, `test_entry_link_fields.py` (including the
+query-count guard on `credit_refs`), `test_field_gating.py`;
+`tests/unit/test_person_role_collapse.py`, `test_person_name_slots.py`;
+`frontend/src/lib/ensureSourceValues.test.js`,
+`src/lib/naming.test.js`, `src/components/forms/PersonSubTabBar.test.jsx`,
+`src/pages/library/PersonLibrary.test.jsx`.
