@@ -148,8 +148,6 @@ export default function Comic() {
     ? getDisplayName(franchise, "franchise")
     : null;
 
-  const sourceOther = comic.source_other || {};
-
   const startYear = releaseYear(comic.release_date);
   const endYear = releaseYear(comic.end_date);
   const yearRange = startYear
@@ -287,7 +285,9 @@ export default function Comic() {
           </div>
 
           <SourcesCard
-            sourceOther={Object.keys(sourceOther).length > 0 ? sourceOther : null}
+            sources={comic.sources}
+            mediaType="comic"
+            comicvineLink={comic.comicvine_link}
           />
         </div>
 

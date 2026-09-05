@@ -4,7 +4,7 @@ import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
@@ -283,14 +283,10 @@ export default function Anime() {
 
           {/* Sources */}
           <SourcesCard
-            showBaha={isBaha(anime)}
-            bahaLink={anime.baha_link}
-            sourceNetflix={anime.source_netflix}
-            sourceOther={anime.source_other}
+            sources={anime.sources}
+            mediaType="anime"
             malLink={anime.mal_link}
-            anilistLink={anime.anilist_link}
-            officialLink={anime.official_link}
-            twitterLink={anime.twitter_link}
+            exclusiveSource={anime.exclusive_source}
           />
 
           <RelationsSection mediaType="anime" entryId={anime.system_id} />

@@ -15,7 +15,6 @@ import {
   getDisplayName,
   getCoverUrl,
   FALLBACK_SVG,
-  isBaha,
   getStatusButtonConfig,
   getReadingButtonConfig,
   getReleaseFallback,
@@ -75,8 +74,12 @@ function MetaLine({ children, className = "" }) {
 }
 
 function PosterBadges({ type, variant, data, franchiseDict }) {
-  const bahaFlag = (type === "anime" || type === "anime-movie") && isBaha(data);
-  const hasBahaLink = bahaFlag && data.baha_link && data.baha_link !== "N/A";
+  const bahaRow = (data.sources || []).find(
+    (s) => s.kind === "access" && s.name === "Bahamut",
+  );
+  const bahaFlag =
+    (type === "anime" || type === "anime-movie") && bahaRow?.available === true;
+  const hasBahaLink = bahaFlag && bahaRow?.url;
   const franchise = franchiseDict?.[data.franchise_id];
   const expectation = franchise?.franchise_expectation;
 
@@ -96,7 +99,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
         {bahaFlag &&
           (hasBahaLink ? (
             <a
-              href={data.baha_link}
+              href={bahaRow.url}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}

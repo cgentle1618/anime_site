@@ -243,14 +243,6 @@ export default function Novel() {
       franchise.franchise_name_roman
     : null;
 
-  const rawSourceOther = novel.source_other || {};
-  const twitterLink = rawSourceOther.Twitter || rawSourceOther.twitter || null;
-  const filteredSourceOther = Object.fromEntries(
-    Object.entries(rawSourceOther).filter(
-      ([k]) => k.toLowerCase() !== "twitter",
-    ),
-  );
-
   // The rule along the cover counts whatever the type counts. A Light Novel
   // or a Novel counts volumes; its chapter columns are cleared server-side, so
   // reading them here produced the "CHAPTERS 0 / 110" a finished 11-volume
@@ -383,15 +375,11 @@ export default function Novel() {
 
           {/* Sources */}
           <SourcesCard
-            twitterLink={twitterLink}
+            sources={novel.sources}
+            mediaType="novel"
             malLink={novel.mal_link}
-            anilistLink={novel.anilist_link}
             openLibraryLink={novel.openlibrary_link}
-            sourceOther={
-              Object.keys(filteredSourceOther).length > 0
-                ? filteredSourceOther
-                : null
-            }
+            serializationPlatform={novel.serialization_platform}
           />
 
           <RelationsSection mediaType="novel" entryId={novel.system_id} />

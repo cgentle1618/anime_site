@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import { creditValue } from "../../components/info/PersonLinks";
@@ -249,14 +249,10 @@ export default function AnimeMovie() {
 
           {/* Sources */}
           <SourcesCard
-            showBaha={isBaha(movie)}
-            bahaLink={movie.baha_link}
-            sourceNetflix={movie.source_netflix}
-            sourceOther={movie.source_other}
+            sources={movie.sources}
+            mediaType="anime"
             malLink={movie.mal_link}
-            anilistLink={movie.anilist_link}
-            officialLink={movie.official_link}
-            twitterLink={movie.twitter_link}
+            exclusiveSource={movie.exclusive_source}
           />
 
           {/* Related Entries */}

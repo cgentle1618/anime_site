@@ -391,15 +391,6 @@ export default function Manga() {
       franchise.franchise_name_roman
     : null;
 
-  // Extract twitter from source_other so SourcesCard renders it as a dedicated button
-  const rawSourceOther = manga.source_other || {};
-  const twitterLink = rawSourceOther.Twitter || rawSourceOther.twitter || null;
-  const filteredSourceOther = Object.fromEntries(
-    Object.entries(rawSourceOther).filter(
-      ([k]) => k.toLowerCase() !== "twitter",
-    ),
-  );
-
   const authorSame =
     manga.author_plot &&
     manga.author_draw &&
@@ -521,15 +512,10 @@ export default function Manga() {
 
           {/* Sources */}
           <SourcesCard
-            officialSource={manga.serialization_platform}
-            twitterLink={twitterLink}
+            sources={manga.sources}
+            mediaType="manga"
             malLink={manga.mal_link}
-            anilistLink={manga.anilist_link}
-            sourceOther={
-              Object.keys(filteredSourceOther).length > 0
-                ? filteredSourceOther
-                : null
-            }
+            serializationPlatform={manga.serialization_platform}
           />
 
           {/* Related Entries */}
@@ -624,10 +610,6 @@ export default function Manga() {
                   {
                     label: "Serialization Status",
                     value: manga.serialization_status,
-                  },
-                  {
-                    label: "Serialization Platform",
-                    value: manga.serialization_platform,
                   },
                 ],
                 [

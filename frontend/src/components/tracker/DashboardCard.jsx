@@ -5,7 +5,6 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
-  isBaha,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 
@@ -53,7 +52,14 @@ export default function DashboardCard({
           : `/anime/${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isTV || isCartoon || isReading ? false : isBaha(anime);
+  const bahaRow = (anime.sources || []).find(
+    (s) => s.kind === "access" && s.name === "Bahamut",
+  );
+  const netflixRow = (anime.sources || []).find(
+    (s) => s.kind === "access" && s.name === "Netflix",
+  );
+  const bahaFlag =
+    isTV || isCartoon || isReading ? false : bahaRow?.available === true;
 
   const prevEps = isTV || isCartoon || isReading ? 0 : anime.ep_previous || 0;
   const localFin = isReading ? anime.ch_fin || 0 : anime.ep_fin || 0;
@@ -150,9 +156,9 @@ export default function DashboardCard({
             {!isTV && !isCartoon && !isReading && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}
-            {bahaFlag && anime.baha_link && (
+            {bahaFlag && bahaRow?.url && (
               <a
-                href={anime.baha_link}
+                href={bahaRow.url}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -166,7 +172,7 @@ export default function DashboardCard({
                 />
               </a>
             )}
-            {bahaFlag && !anime.baha_link && (
+            {bahaFlag && !bahaRow?.url && (
               <span className="inline-block" title="Available on Bahamut">
                 <img
                   src="https://i2.bahamut.com.tw/anime/logo.svg"
@@ -175,7 +181,7 @@ export default function DashboardCard({
                 />
               </span>
             )}
-            {!isTV && anime.source_netflix && (
+            {!isTV && netflixRow?.available && (
               <Chip tone="ink" title="Available on Netflix">
                 Netflix
               </Chip>

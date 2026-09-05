@@ -144,7 +144,6 @@ export default function TV() {
       franchise.franchise_name_roman
     : null;
 
-  const sourceOtherDict = show.source_other || null;
 
   const epFin = show.ep_fin ?? 0;
   const epTotal =
@@ -272,9 +271,10 @@ export default function TV() {
 
           {/* Sources */}
           <SourcesCard
-            sourceOther={sourceOtherDict}
-            officialSource={show.source_official}
+            sources={show.sources}
+            mediaType="tv-show"
             imdbLink={show.imdb_link}
+            originalSource={show.original_source}
           />
 
           {/* Related Entries */}
@@ -393,7 +393,6 @@ export default function TV() {
                     label: "Total Ep",
                     value: show.ep_total != null ? String(show.ep_total) : null,
                   },
-                  { label: "Official Source", value: show.source_official },
                 ],
                 [
                   { label: "Airing Status", value: show.airing_status },

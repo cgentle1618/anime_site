@@ -261,8 +261,10 @@ export default function Movie() {
 
           {/* Sources */}
           <SourcesCard
-            sourceOther={movie.source_other}
+            sources={movie.sources}
+            mediaType="movie"
             imdbLink={movie.imdb_link}
+            originalSource={movie.original_source}
           />
 
           {/* Related Entries */}

@@ -1,5 +1,5 @@
 // Frontend: the single sources editor behind every media type's Sources
-// block, replacing eight copy-pasted `source_other` blocks (see
+// block, replacing the eight copy-pasted free-form source blocks (see
 // AnimeAddTab.jsx around line 672 for the editor this supersedes).
 //
 // Row shape: { kind, bucket, name, url, available }. `kind` is "access" or

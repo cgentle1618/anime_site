@@ -281,9 +281,10 @@ export default function Cartoon() {
 
           {/* Sources */}
           <SourcesCard
-            sourceOther={cartoon.source_other}
-            officialSource={cartoon.source_official}
+            sources={cartoon.sources}
+            mediaType="tv-show"
             imdbLink={cartoon.imdb_link}
+            originalSource={cartoon.original_source}
           />
 
           {/* Related Entries */}
@@ -402,7 +403,6 @@ export default function Cartoon() {
                         ? String(cartoon.length_ep_min)
                         : null,
                   },
-                  { label: "Official Source", value: cartoon.source_official },
                 ],
                 [
                   { label: "Release Date", value: cartoon.release_date },
