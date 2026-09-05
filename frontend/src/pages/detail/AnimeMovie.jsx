@@ -14,14 +14,66 @@ import SourcesCard from "../../components/info/SourcesCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import AnimeMovieNotes from "./AnimeMovieNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Button, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
+import { Button, Chip, Eyebrow, RatingStamp, Slip } from "../../components/ui/primitives";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { useCasting } from "../../hooks/useCasting";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+
+// Main before Supporting, then whatever order the server already gave —
+// castings unrelated to either role sort last rather than crowding the top.
+const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+
+// Read-only cast list, shared shape for every ACG detail page. Renders
+// nothing when the entry has no cast — an empty "Cast" slip would just be a
+// title over a blank box, same rule the Units card follows on Novel/Manga.
+function CastSection({ cast, linkCls }) {
+  if (!cast || cast.length === 0) return null;
+  const sorted = [...cast].sort((a, b) => {
+    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
+    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+  return (
+    <Slip title="Cast">
+      <div className="space-y-2">
+        {sorted.map((row) => (
+          <div key={row.system_id} className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+              <img
+                src={getCoverUrl(row.photo_file)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {row.role && <Chip>{row.role}</Chip>}
+              <Link to={`/character/${row.character_id}`} className={linkCls}>
+                {row.character_name || "Unknown"}
+              </Link>
+              {row.person_id && (
+                <>
+                  <span className="text-text-faint text-xs">voiced by</span>
+                  <Link to={`/person/${row.person_id}`} className={linkCls}>
+                    {row.person_name || "Unknown"}
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
+}
 
 function formatLength(minutes) {
   if (!minutes) return null;
@@ -51,6 +103,8 @@ export default function AnimeMovie() {
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime-movie", system_id);
+  const castingQuery = useCasting("anime-movie", movie?.system_id);
+  const cast = castingQuery.data?.cast || [];
 
   useEffect(() => {
     if (movieQuery.data) setMovie(movieQuery.data);
@@ -413,15 +467,8 @@ export default function AnimeMovie() {
             />
           </div>
 
-          {/* Cast & Characters (not built yet): an empty slip, not a mood */}
-          <section className="border border-dashed border-border-strong px-4 py-6 text-center">
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
-              Cast & characters
-            </div>
-            <p className="text-sm text-text-faint">
-              Not tracked yet — the character and staff pipeline is still being built.
-            </p>
-          </section>
+          {/* Cast */}
+          <CastSection cast={cast} linkCls={lineageLinkCls} />
 
           {/* Remarks */}
           {movie.remark && (
