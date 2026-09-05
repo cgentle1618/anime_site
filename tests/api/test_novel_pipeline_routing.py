@@ -10,6 +10,7 @@ MAL does not have.
 import uuid
 
 from app import models
+from app.services.domain.autofill import autofill_novel_from_openlibrary
 from app.services.pipelines.specs import PIPELINES
 
 SPEC = PIPELINES["novel"]
@@ -72,6 +73,25 @@ class TestFillEligible:
         )
         assert SPEC.fill_eligible(db_session, novel) is False
 
+    def test_an_empty_string_mal_link_agrees_with_routing(self, db_session, monkeypatch):
+        """An empty-string mal_link (reachable via direct POST/PATCH, not the UI
+        or Sheets) must not disagree with `fill`'s truthiness routing: eligible
+        via the wrong branch but routed to Open Library would re-fetch Open
+        Library forever, since it can never satisfy the MAL-only fields."""
+        called = []
+        monkeypatch.setattr(
+            "app.services.pipelines.specs.autofill_novel_from_openlibrary",
+            lambda e, db: called.append("openlibrary"),
+        )
+        monkeypatch.setattr(
+            "app.services.pipelines.specs.autofill_novel_from_mal",
+            lambda e, force_replace_ratings=True: called.append("mal"),
+        )
+        novel = make_novel(db_session, mal_link="", openlibrary_id="OL5738148W")
+        assert SPEC.fill_eligible(db_session, novel) is True
+        PIPELINES["novel"].fill(db_session, novel)
+        assert called == ["openlibrary"]
+
 
 class TestFillRouting:
     def test_routes_to_open_library_when_there_is_no_mal_link(
@@ -120,3 +140,32 @@ class TestExtractId:
         assert SPEC.extract_id(novel) is True
         assert novel.mal_id == 23390
         assert novel.openlibrary_id == "OL5738148W"
+
+
+class TestFillClosesTheEligibilityLoop:
+    def test_a_completed_open_library_fill_is_no_longer_eligible(self, db_session, monkeypatch):
+        """Pins the invariant that the gate and the autofill agree: whatever
+        Fill judges fillable, one Fill actually completes. Uses mal_link=""
+        (not None) because that is the input that actually exercises the
+        bug: with the `is not None` guard, an empty-string mal_link routes
+        eligibility through the MAL branch, which Open Library's fill can
+        never satisfy (it never writes serialization_status, end_date,
+        mal_rating or mal_rank) — so the entry stays eligible forever and
+        would be re-fetched on every Fill run."""
+        work_result = {
+            "work": {"title": "The Final Empire", "covers": [14658160]},
+            "editions": [{"publish_date": "2006"}, {"publish_date": "July 2015"}],
+            "authors": [{"name": "Brandon Sanderson"}],
+        }
+        monkeypatch.setattr(
+            "app.services.domain.autofill.fetch_openlibrary_work",
+            lambda work_id, *, want_editions=True, want_authors=True: work_result,
+        )
+        monkeypatch.setattr(
+            "app.services.domain.autofill.download_cover_image",
+            lambda url, system_id: "downloaded.jpg",
+        )
+        novel = make_novel(db_session, mal_link="", openlibrary_id="OL5738148W")
+        assert SPEC.fill_eligible(db_session, novel) is True
+        autofill_novel_from_openlibrary(novel, db_session)
+        assert SPEC.fill_eligible(db_session, novel) is False

@@ -161,15 +161,19 @@ PIPELINES: dict[str, PipelineSpec] = {
         # Novel is the one type with two sources, so both extractors run.
         extract_id=apply_extract_novel_ids,
         # A mal_link means Tenrai, which returns strictly more. Open Library
-        # covers only the novels MAL does not have. The `mal_link is None`
+        # covers only the novels MAL does not have. The `not e.mal_link`
         # guard on the second branch keeps eligibility identical to the
         # routing below: without it, a MAL-complete novel with no author
-        # credit would be eligible forever and never progress.
-        fill_eligible=lambda db, e: (
-            (e.mal_link is not None and has_missing_values_novel(e))
+        # credit would be eligible forever and never progress. Both branches
+        # test mal_link (and openlibrary_id) truthily, matching `fill`'s
+        # routing and the autofill's own guard, so an empty string can't
+        # disagree between them the way it would under an `is not None`
+        # check.
+        fill_eligible=lambda db, e: bool(
+            (e.mal_link and has_missing_values_novel(e))
             or (
-                e.mal_link is None
-                and e.openlibrary_id is not None
+                not e.mal_link
+                and e.openlibrary_id
                 and has_missing_values_novel_openlibrary(db, e)
             )
         ),
