@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-05 (commit 8a9e33a)
+Last verified: 2026-09-05 (commit aad5a3e)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -132,7 +132,8 @@ Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus rating, logo key, country, founded/defunct dates
+to show, plus a rating select over the shared `MY_RATINGS` vocabulary
+(S…F, the same one entries use), logo key, country, founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
 and remark. Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
@@ -174,7 +175,9 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   to already know a name to reach the record. The search box filters that grid
   in place over **all four** name fields, not just the one
   `display_name_field` points at, so a studio configured to display its
-  English name is still findable by its Japanese one.
+  English name is still findable by its Japanese one. Opening a studio whose
+  `country` is unset seeds the field with **Japan** — the overwhelmingly
+  common case here — so saving without touching it records Japan.
 - **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
   the option tab's category — and every person holding it is listed in the

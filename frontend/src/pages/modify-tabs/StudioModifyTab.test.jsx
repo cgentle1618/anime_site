@@ -138,3 +138,36 @@ it("loads the selected studio and disables save with hint when every name is cle
   ).toBeInTheDocument();
   expect(saveButton).toBeDisabled();
 });
+
+// My Rating is the same S..F vocabulary every other rated record uses, so it
+// is a picker rather than a free-text box; and a studio with no country
+// recorded starts on Japan, which is what nearly every studio here is.
+it("edits my rating through a dropdown of the rating vocabulary", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
+  );
+  const rating = screen.getByRole("option", { name: "A+" }).closest("select");
+  expect(rating).toBeInTheDocument();
+  await user.selectOptions(rating, "A+");
+  expect(rating).toHaveValue("A+");
+});
+
+it("defaults an unset country to Japan", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Japan")).toBeInTheDocument(),
+  );
+});

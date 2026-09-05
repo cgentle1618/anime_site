@@ -10,6 +10,7 @@
 // an existing studio's form state instead of duplicating them.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
+import { MY_RATINGS } from "../../config/fieldOptions";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export function StudioFields({ studioForm, usf }) {
@@ -53,11 +54,18 @@ export function StudioFields({ studioForm, usf }) {
       </Field>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="My Rating">
-          <input
-            className={inputCls}
+          <select
+            className={selectCls}
             value={studioForm.my_rating ?? ""}
             onChange={(e) => usf("my_rating", e.target.value)}
-          />
+          >
+            <option value="">—</option>
+            {MY_RATINGS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Logo File">
           <input
