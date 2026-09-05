@@ -8,6 +8,7 @@ from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
 from app.models.cartoon import Cartoon
+from app.models.character import Character, CharacterCasting
 from app.models.collection import Collection
 from app.models.comic import Comic
 from app.models.content_label import ContentLabel, MediaContentLabel
@@ -54,6 +55,8 @@ __all__ = [
     "Movies",
     "TVShows",
     "Cartoon",
+    "Character",
+    "CharacterCasting",
     "Manga",
     "Novel",
     "NovelUnit",
