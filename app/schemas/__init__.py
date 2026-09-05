@@ -29,6 +29,12 @@ from app.schemas.cartoon import (
     CartoonSheetSync,
     CartoonUpdate,
 )
+from app.schemas.character import (
+    CharacterBase,
+    CharacterCreate,
+    CharacterResponse,
+    CharacterUpdate,
+)
 from app.schemas.collection import (
     CollectionBase,
     CollectionCreate,
@@ -267,6 +273,10 @@ __all__ = [
     "CartoonUpdate",
     "CartoonResponse",
     "CartoonSheetSync",
+    "CharacterBase",
+    "CharacterCreate",
+    "CharacterUpdate",
+    "CharacterResponse",
     "ComicBase",
     "ComicCreate",
     "ComicUpdate",

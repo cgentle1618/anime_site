@@ -23,6 +23,7 @@ from app.routers import (
     announcements,
     auth,
     cartoon,
+    character,
     collection,
     comic,
     constants,
@@ -191,6 +192,7 @@ app.include_router(form_defaults.router)
 app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
+app.include_router(character.router)
 app.include_router(studio.router)
 app.include_router(credits.router)
 app.include_router(roles.router)
