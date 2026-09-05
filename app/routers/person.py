@@ -2,8 +2,11 @@
 routers/person.py
 CRUD for people credited on media entries, plus scoped role filtering and merge.
 
-Deleting a person cascades their credits away (see MediaCredit.person_id
-ondelete="CASCADE") - that is the chosen design for a genuine removal. Merge
+Deleting a person cascades their media_credit rows away (see
+MediaCredit.person_id ondelete="CASCADE") - that is the chosen design for a
+genuine removal. Their character_casting rows do not cascade: person_id there
+is ON DELETE SET NULL (Decision H), because a casting is the character's link
+to the work, not the person's - deleting a seiyuu only un-casts them. Merge
 exists because deleting is the WRONG fix for a duplicate: it repoints every
 credit and unions the person_role rows onto the survivor before deleting the
 loser, so no credit history is lost.
@@ -38,11 +41,22 @@ def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.Per
         .filter(models.MediaCredit.person_id == person.system_id)
         .all()
     )
-    # Count only credits on entries the viewer may see. A number is a smaller
-    # leak than a title, but "worked on 3 things, you can see 2" is still one.
+    casting_rows = (
+        db.query(models.CharacterCasting.media_type, models.CharacterCasting.entry_id)
+        .filter(models.CharacterCasting.person_id == person.system_id)
+        .all()
+    )
+    # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
+    # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
+    # and would otherwise read "0 credits" despite fifty castings. Both lists
+    # go through ONE filter_visible_pairs call so the card's number and the
+    # /entries list can never disagree about which pairs are visible.
     credit_count = len(
         filter_visible_pairs(
-            db, viewer, [(mt, eid) for mt, eid in credit_rows if mt and eid]
+            db,
+            viewer,
+            [(mt, eid) for mt, eid in credit_rows if mt and eid]
+            + [(mt, eid) for mt, eid in casting_rows if mt and eid],
         )
     )
     return schemas.PersonResponse(
@@ -176,17 +190,35 @@ def get_person_entries(
         .order_by(models.MediaCredit.position)
         .all()
     )
+    # A seiyuu's work lives in character_casting, not media_credit - see
+    # credit_roles.CreditRole.credited_via - so it is walked and grouped
+    # alongside the credit rows, through the same visibility pass, rather
+    # than as a separate endpoint.
+    casting_rows = (
+        db.query(models.CharacterCasting)
+        .filter(models.CharacterCasting.person_id == system_id)
+        .order_by(models.CharacterCasting.position)
+        .all()
+    )
     visible = set(
         filter_visible_pairs(
             db,
             viewer,
-            [(r.media_type, r.entry_id) for r in rows if r.media_type and r.entry_id],
+            [(r.media_type, r.entry_id) for r in rows if r.media_type and r.entry_id]
+            + [
+                (r.media_type, r.entry_id)
+                for r in casting_rows
+                if r.media_type and r.entry_id
+            ],
         )
     )
 
-    # One query per media type that appears, not one per credit row.
+    # One query per media type that appears, not one per credit/casting row.
     wanted: dict[str, set[UUID]] = {}
     for row in rows:
+        if (row.media_type, row.entry_id) in visible:
+            wanted.setdefault(row.media_type, set()).add(row.entry_id)
+    for row in casting_rows:
         if (row.media_type, row.entry_id) in visible:
             wanted.setdefault(row.media_type, set()).add(row.entry_id)
     loaded: dict[str, dict[UUID, object]] = {}
@@ -200,6 +232,20 @@ def get_person_entries(
             .filter(ref.model.system_id.in_(ids))
             .all()
         }
+
+    # character_id -> Character, for character_name/character_id on each
+    # seiyuu entry. One bulk query, not one per casting row.
+    character_ids = {r.character_id for r in casting_rows}
+    characters = (
+        {
+            c.system_id: c
+            for c in db.query(models.Character).filter(
+                models.Character.system_id.in_(character_ids)
+            )
+        }
+        if character_ids
+        else {}
+    )
 
     groups: dict[tuple[str, str], list] = {}
     for row in rows:
@@ -218,6 +264,26 @@ def get_person_entries(
                 "display_name": entry.display_name,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(row.media_type, entry),
+            }
+        )
+
+    for row in casting_rows:
+        if row.media_type not in MEDIA_TABLES:
+            continue
+        # Same "group exists even when empty" rule as the media_credit loop.
+        payload = groups.setdefault((row.media_type, "seiyuu"), [])
+        entry = loaded.get(row.media_type, {}).get(row.entry_id)
+        if entry is None:
+            continue
+        character = characters.get(row.character_id)
+        payload.append(
+            {
+                "system_id": str(entry.system_id),
+                "display_name": entry.display_name,
+                "cover_image_file": getattr(entry, "cover_image_file", None),
+                "release_date": primary_release_value(row.media_type, entry),
+                "character_name": character.display_name if character else None,
+                "character_id": str(character.system_id) if character else None,
             }
         )
 
@@ -367,20 +433,30 @@ def delete_person(
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Permanently deletes a person. Their credits cascade away with them - see
-    the merge endpoint for the correct fix when this person is a duplicate.
+    Permanently deletes a person. Their media_credit rows cascade away with
+    them - see the merge endpoint for the correct fix when this person is a
+    duplicate.
 
-    `credits` is the count the UI showed in its confirmation, and it is
-    REQUIRED. If it no longer matches, the request is rejected with 409: the
-    admin agreed to destroy a specific amount of credit history, and a count
-    that moved underneath them - another session crediting this person while
+    Their character_casting rows do NOT: person_id there is ON DELETE SET
+    NULL, not CASCADE (Decision H), because a casting is the CHARACTER's link
+    to the work, not the person's. Deleting a seiyuu merely un-casts them -
+    the character keeps their place in the anime with no seiyuu attached.
+
+    `credits` is the count the UI showed in its confirmation - media_credit
+    rows plus castings, the same total credit_count and /entries already use
+    - and it is REQUIRED. If it no longer matches, the request is rejected
+    with 409: the admin agreed to a specific number, and a count that moved
+    underneath them - another session crediting or casting this person while
     the dialog was open - is not what they agreed to.
     """
     person = db.get(models.Person, system_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found.")
 
-    actual = db.query(models.MediaCredit).filter_by(person_id=system_id).count()
+    actual = (
+        db.query(models.MediaCredit).filter_by(person_id=system_id).count()
+        + db.query(models.CharacterCasting).filter_by(person_id=system_id).count()
+    )
     if actual != credits:
         raise HTTPException(
             status_code=409,

@@ -54,6 +54,43 @@ def person_with_labelled_credit(db_session, sample_franchise, nsfw_label):
 
 
 @pytest.fixture
+def seiyuu_with_hidden_casting(db_session, sample_franchise, nsfw_label, character):
+    """A seiyuu whose only casting is on a content-labelled entry."""
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Zvornik Hidden Anime",
+        airing_type="TV",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(),
+            media_type="anime",
+            entry_id=entry.system_id,
+            label_id=nsfw_label.system_id,
+        )
+    )
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Seiyuu")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.PersonRole(person_id=person.system_id, role="seiyuu", scope="anime")
+    )
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=entry.system_id,
+            person_id=person.system_id,
+        )
+    )
+    db_session.commit()
+    return person
+
+
+@pytest.fixture
 def restricted_client(db_session, client, nsfw_label):
     """A viewer holding the default guest permissions but not the nsfw label."""
     return make_viewer(
@@ -116,6 +153,33 @@ def test_all_credits_hidden_is_empty_not_404(
         f"/api/person/{person_with_labelled_credit.system_id}/entries"
     )
     assert r.status_code == 200
+
+
+def test_a_seiyuus_entries_come_from_castings(client, seiyuu_with_one_casting, anime):
+    """A pure seiyuu's page would otherwise be empty: /entries walked only
+    media_credit, where a seiyuu has nothing."""
+    groups = client.get(
+        f"/api/person/{seiyuu_with_one_casting.system_id}/entries"
+    ).json()["groups"]
+    seiyuu_groups = [g for g in groups if g["role"] == "seiyuu"]
+    assert len(seiyuu_groups) == 1
+    group = seiyuu_groups[0]
+    assert group["media_type"] == "anime"
+    assert group["label"] == "Seiyuu 聲優"
+    assert [e["system_id"] for e in group["entries"]] == [str(anime.system_id)]
+    # The character voiced is the point of a seiyuu credit; without it the
+    # group says only "was in this anime", which is what Decision A rejected.
+    assert group["entries"][0]["character_name"]
+
+
+def test_a_hidden_entry_is_filtered_from_a_seiyuus_groups(
+    client, seiyuu_with_hidden_casting
+):
+    groups = client.get(
+        f"/api/person/{seiyuu_with_hidden_casting.system_id}/entries"
+    ).json()["groups"]
+    for group in groups:
+        assert group["entries"] == []
 
 
 # ---------------------------------------------------------------------------

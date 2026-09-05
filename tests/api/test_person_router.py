@@ -270,6 +270,27 @@ def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(client):
     assert client.get("/api/person/role-counts").status_code == 200
 
 
+def test_credit_count_includes_castings(client, seiyuu_with_one_casting):
+    """
+    A seiyuu with fifty castings and no other credits would otherwise read
+    "0 credits" on their card, because credit_count only ever walked
+    media_credit and a seiyuu has no rows there. See Decision A.
+    """
+    r = client.get(f"/api/person/{seiyuu_with_one_casting.system_id}")
+    assert r.json()["credit_count"] == 1
+
+
+def test_person_delete_guard_counts_castings(admin_client, seiyuu_with_one_casting):
+    stale = admin_client.delete(
+        f"/api/person/{seiyuu_with_one_casting.system_id}?credits=0"
+    )
+    assert stale.status_code == 409
+    ok = admin_client.delete(
+        f"/api/person/{seiyuu_with_one_casting.system_id}?credits=1"
+    )
+    assert ok.status_code == 200
+
+
 def test_the_response_carries_every_role_the_person_holds(admin_client):
     """
     The admin form edits the whole role set at once and PUT replaces it, so

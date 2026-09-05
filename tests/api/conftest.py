@@ -276,6 +276,32 @@ def character_with_castings(db_session, character, anime):
 
 
 @pytest.fixture
+def seiyuu_with_one_casting(db_session, anime, character):
+    """
+    A Person holding PersonRole(role="seiyuu", scope="anime"), cast as
+    `character` on `anime`. A seiyuu's work lives in character_casting, not
+    media_credit, so this is the fixture the person-router bug-fix tests need
+    - person_with_credits (media_credit-backed) cannot exercise that path.
+    """
+    person = models.Person(system_id=uuid.uuid4(), name_en="Test Seiyuu")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.PersonRole(person_id=person.system_id, role="seiyuu", scope="anime")
+    )
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+            person_id=person.system_id,
+        )
+    )
+    db_session.commit()
+    return person
+
+
+@pytest.fixture
 def manga_entry(db_session, sample_franchise):
     """One committed manga with no credits, for the credit-resolution tests."""
     m = models.Manga(
