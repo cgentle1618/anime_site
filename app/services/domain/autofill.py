@@ -13,6 +13,7 @@ from app.models import (
     Manga,
     Movies,
     Novel,
+    Studio,
     TVShows,
 )
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
@@ -20,7 +21,11 @@ from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.image_manager import download_cover_image
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.openlibrary import fetch_openlibrary_work
-from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
+from app.services.integrations.tenrai import (
+    fetch_tenrai_anime_data,
+    fetch_tenrai_manga_novel_data,
+    fetch_tenrai_producer_data,
+)
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.imdb_utils import (
@@ -37,6 +42,7 @@ from app.utils.tenrai_utils import (
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
+    map_tenrai_to_studio_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -573,4 +579,45 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
         logger.error(
             f"Comic Vine Autofill failed for Comic ID {comic.system_id} "
             f"(Volume {comicvine_id}): {e}"
+        )
+
+
+def autofill_studio_from_mal(studio: Studio) -> None:
+    """
+    Enriches one Studio from MAL's producer record, via Tenrai.
+
+    Strictly fill-only - every column is written only when it is empty, so
+    running this over a studio you have already curated is a no-op. Unlike the
+    media autofills there is nothing to force-replace: a producer carries no
+    score or rank, only facts that do not drift.
+
+    Failures are logged and swallowed because this runs inside the studio
+    write request: a flaky external API must never turn a save into a 500.
+    """
+    mal_id = studio.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_producer_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_tenrai_to_studio_data(raw_data)
+
+        for column in ("mal_link", "founded_date", "name_jp", "website_url"):
+            if not getattr(studio, column, None) and j_data.get(column):
+                setattr(studio, column, j_data[column])
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if not studio.logo_file and j_data.get("logo_url"):
+            filename = download_cover_image(
+                j_data.get("logo_url"), str(studio.system_id)
+            )
+            if filename:
+                studio.logo_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for Studio ID {studio.system_id} (MAL {mal_id}): {e}"
         )

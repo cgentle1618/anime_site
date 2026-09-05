@@ -810,8 +810,8 @@ role/scope filter — studios have no `person_role` concept.
 | `GET`    | `/`                   | Public | List all studios, sorted by `display_name` case-insensitively.                   |
 | `GET`    | `/{system_id}`        | Public | Get one studio by UUID. 404 if absent.                                           |
 | `GET`    | `/{system_id}/entries`| Public | The entries this studio is credited on, grouped by media type. 404 if the studio is absent. |
-| `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`); metadata on an existing row is left untouched. Body: `StudioCreate`. |
-| `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. |
+| `POST`   | `/`                   | Admin  | Create a studio, **or return the existing one** under that name — find-or-create, because the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list. Matching is on the normalized name (`find_studio`); metadata on an existing row is left untouched. Body: `StudioCreate`. Only on the create branch, a payload carrying `mal_id` is enriched from MAL first (see below). |
+| `PUT`    | `/{system_id}`        | Admin  | Fully update a studio. Every credit points at the row by id, so a rename here changes what every credited entry shows — there is no propagation step. Body: `StudioUpdate`. The MAL enrichment runs after the payload is copied, so your values win. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
 | `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Body: `MergeRequest`. 400 if merging into self. |
 
@@ -824,6 +824,17 @@ role/scope filter — studios have no `person_role` concept.
 outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 `ck_studio_has_a_name` so the database's IntegrityError never surfaces as a
 500.
+
+**Writes with a `mal_id` are enriched from MAL.** `autofill_studio_from_mal`
+runs inside the request on create and on update. `mal_id` is derived from `mal_link` first (`apply_extract_mal_id_studio`), so pasting `https://myanimelist.net/anime/producer/56/A-1_Pictures` is enough on its own. The autofill then fills `logo_file` (the
+producer logo, downloaded to GCS), `mal_link`, `founded_date`, `name_jp` and
+`website_url` — every one of them **only when the column is empty**, so
+nothing you typed is overwritten. `POST` fills only when it actually creates a
+row: it is the find-or-create every typed name goes through, and re-fetching an
+existing studio would spend the MAL budget on a no-op. A Tenrai failure is
+logged and swallowed — the save still succeeds, unenriched. The bulk
+equivalent is `POST /api/data-control/fill/studio`; the field mapping is in
+[external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data).
 
 **`credit_count` counts only credits on entries the viewer may see.** A number
 is a smaller leak than a title, but "worked on 3 things, you can see 2" is
@@ -1090,6 +1101,7 @@ The per-type Fill / Replace routes are **generated** from `PIPELINES` (`app/serv
 | `POST` | `/fill/manga`       | Fill missing metadata for all manga from Tenrai. Streams SSE progress.        |
 | `POST` | `/fill/novel`       | Fill missing metadata for all novels from Tenrai. Streams SSE progress.       |
 | `POST` | `/fill/comic`       | Runs options extraction for all comics. No external call — comics are manual-entry. Streams SSE progress. |
+| `POST` | `/fill/studio`      | Fill missing logo, MAL link, founding date, Japanese name and website for every studio that has a MAL id, from Tenrai's producers endpoint. Fill-only; there is no `/replace/studio`. Streams SSE progress. |
 | `POST` | `/fill/all`         | Fill all + auto-backup on completion. Streams SSE progress.                  |
 
 ### Replace

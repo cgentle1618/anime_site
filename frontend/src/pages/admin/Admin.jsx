@@ -1996,6 +1996,10 @@ export default function Admin() {
                 // ~200 requests/hour, so a bulk comic fill is triggered on
                 // purpose rather than riding along with every full run.
                 { label: "Comic", url: "/api/data-control/fill/comic" },
+                // The only non-media type here: a studio fills its logo and
+                // founding facts from MAL's producer record. Replace has no
+                // Studio row to match - see PipelineSpec.fill_only.
+                { label: "Studio", url: "/api/data-control/fill/studio" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}

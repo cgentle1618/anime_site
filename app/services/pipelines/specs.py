@@ -11,7 +11,17 @@ do not).
 
 from sqlalchemy import or_
 
-from app.models import Anime, AnimeMovies, Cartoon, Comic, Manga, Movies, Novel, TVShows
+from app.models import (
+    Anime,
+    AnimeMovies,
+    Cartoon,
+    Comic,
+    Manga,
+    Movies,
+    Novel,
+    Studio,
+    TVShows,
+)
 from app.services.calculation import (
     run_sync_anime,
     run_sync_anime_movie,
@@ -28,6 +38,7 @@ from app.services.domain import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_mal_id_studio,
     apply_extract_novel_ids,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
@@ -44,6 +55,7 @@ from app.services.domain import (
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
     autofill_novel_from_openlibrary,
+    autofill_studio_from_mal,
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
     derive_ep_previous_all_anime,
@@ -55,6 +67,7 @@ from app.services.domain import (
     has_missing_values_movie,
     has_missing_values_novel,
     has_missing_values_novel_openlibrary,
+    has_missing_values_studio,
     has_missing_values_tv_show,
     manga_post_processing,
     tv_show_post_processing,
@@ -205,6 +218,18 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace_select=None,
         replace=None,
         single_after=(run_sync_comic,),
+        in_replace_all=False,
+    ),
+    "studio": PipelineSpec(
+        key="studio", label="Studio", model=Studio,
+        # Not a media entry: nothing to post-process and nothing to sync
+        # afterwards. It does have an id to derive - a producer URL is
+        # /anime/producer/<id>/<slug>, which needs its own pattern.
+        extract_id=apply_extract_mal_id_studio,
+        fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_studio(e),
+        fill=lambda db, e: autofill_studio_from_mal(e),
+        fill_sleep=MAL_PAUSE,
+        fill_only=True,
         in_replace_all=False,
     ),
 }

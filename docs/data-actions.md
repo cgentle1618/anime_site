@@ -255,14 +255,17 @@ Per type (verbatim from `specs.py`):
 | `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
 | `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
+| `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
-`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic).
+`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
 
 **Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
-**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
+**Studio is the only non-media type in the registry.** It fills from MAL's producer endpoint (logo, `mal_link`, `founded_date`, `name_jp`, `website_url` — all fill-only; see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data)) and carries `fill_only=True`, so `_register_replace_routes` is skipped for it entirely: there is no bulk or single Replace for a studio, because a producer record holds no score or rank that drifts. The same autofill also runs inside `POST` / `PUT /api/studio` on save, so a studio you enter with a MAL id is filled without visiting this page at all.
+
+**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel, studio — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
 
 ---
 
@@ -278,7 +281,7 @@ Per type (verbatim from `specs.py`):
 
 `spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`.
 
-**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the seven types with `in_replace_all=True` (comic excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
+**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the seven types with `in_replace_all=True` (comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 
 ### 5.2 Single entry — `run_replace_single(spec, db, entry_id, ...)`
 
@@ -386,15 +389,15 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ## 11. Route table — `/api/data-control`
 
-All routes require admin (`get_current_admin`). `{key}` is a hyphenated media type: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`. Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require admin (`get_current_admin`). `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|
-| POST | `/fill/all` | — | SSE | Fill All (seven types, no comic) then Auto Backup |
+| POST | `/fill/all` | — | SSE | Fill All (seven media types plus studio, no comic) then Auto Backup |
 | POST | `/replace/all` | — | SSE | Replace All (seven types, no comic) then Auto Backup |
-| POST | `/fill/{key}` | — | SSE | Fill one type (all eight keys) |
-| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) |
-| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (all eight keys) |
+| POST | `/fill/{key}` | — | SSE | Fill one type (all nine keys, studio included) |
+| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) |
+| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the eight media keys; **not registered for `studio`**) |
 | POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |
 | POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | JSON `{"status", "processed", "rows_added", "rows_updated"}` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |

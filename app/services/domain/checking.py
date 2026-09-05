@@ -29,6 +29,7 @@ from app.utils.utils import (
     NOVEL_FIELDS_TO_FILL,
     NOVEL_OPENLIBRARY_FIELDS_TO_FILL,
     NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL,
+    STUDIO_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     validate_ch_math,
     validate_episode_math,
@@ -320,3 +321,17 @@ def find_duplicate_entities(db: Session) -> list[dict]:
             )
 
     return found
+
+
+def has_missing_values_studio(studio: Studio) -> bool:
+    """
+    Returns True if any Tenrai-fillable Studio column is blank.
+
+    The Fill pipeline pairs this with a mal_id check: a studio with no MAL id
+    has no source to fill from, however empty it is.
+    """
+    for field in STUDIO_FIELDS_TO_FILL:
+        val = getattr(studio, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False

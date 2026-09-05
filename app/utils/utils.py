@@ -13,6 +13,10 @@ from typing import Any, Optional, Tuple
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
 MAL_MANGA_ID_PATTERN = re.compile(r"myanimelist\.net/manga/(\d+)")
+# A studio lives under /anime/producer/<id>/<slug>, so MAL_ID_PATTERN above
+# cannot match it ("producer" is not digits) and this one cannot match a
+# plain anime link. The two never poach each other.
+MAL_PRODUCER_ID_PATTERN = re.compile(r"myanimelist\.net/anime/producer/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
@@ -51,6 +55,16 @@ ANIME_FIELDS_TO_FILL = [
     "mal_rank",
     "ep_total",
     "cover_image_file",
+]
+
+# What the Tenrai producers endpoint can supply for a studio. my_rating,
+# country and defunct_date are absent on purpose: MAL reports none of them.
+STUDIO_FIELDS_TO_FILL = [
+    "mal_link",
+    "founded_date",
+    "name_jp",
+    "website_url",
+    "logo_file",
 ]
 
 ANIME_MOVIE_FIELDS_TO_FILL = [
@@ -247,6 +261,22 @@ def extract_mal_id_manga_novel(url: str) -> Optional[int]:
     match = MAL_MANGA_ID_PATTERN.search(url)
     if match:
         return int(match.group(1))
+    return None
+
+
+def extract_mal_id_producer(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a MyAnimeList producer (studio) URL, e.g.
+    https://myanimelist.net/anime/producer/56/A-1_Pictures -> 56.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+
+    match = MAL_PRODUCER_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
+
     return None
 
 

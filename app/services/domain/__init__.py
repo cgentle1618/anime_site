@@ -13,6 +13,7 @@ from app.services.domain.autofill import (
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
     autofill_novel_from_openlibrary,
+    autofill_studio_from_mal,
     autofill_tv_show_from_imdb,
 )
 from app.services.domain.casting import (
@@ -34,6 +35,7 @@ from app.services.domain.checking import (
     has_missing_values_movie,
     has_missing_values_novel,
     has_missing_values_novel_openlibrary,
+    has_missing_values_studio,
     has_missing_values_tv_show,
 )
 from app.services.domain.completion import (
@@ -53,6 +55,7 @@ from app.services.domain.derivation import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_mal_id_studio,
     apply_extract_novel_ids,
     apply_extract_openlibrary_id,
     apply_extract_season_from_title,
@@ -160,6 +163,7 @@ __all__ = [
     "has_missing_values_comic",
     "has_missing_values_novel",
     "has_missing_values_novel_openlibrary",
+    "has_missing_values_studio",
     "apply_check_baha",
     "find_duplicate_entities",
     "check_is_tv_completed",
@@ -189,6 +193,7 @@ __all__ = [
     "find_all_duplicates",
     "apply_extract_mal_id_anime",
     "apply_extract_mal_id_manga_novel",
+    "apply_extract_mal_id_studio",
     "apply_extract_novel_ids",
     "apply_extract_openlibrary_id",
     "apply_extract_comicvine_id",
@@ -213,6 +218,7 @@ __all__ = [
     "autofill_comic_from_comicvine",
     "autofill_novel_from_mal",
     "autofill_novel_from_openlibrary",
+    "autofill_studio_from_mal",
     "autofill_movie_from_imdb",
     "autofill_tv_show_from_imdb",
     "autofill_cartoon_from_imdb",

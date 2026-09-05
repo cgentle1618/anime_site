@@ -604,12 +604,12 @@ vocabulary.
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `logo_file` | String | yes | | GCS object key |
+| `logo_file` | String | yes | | GCS object key. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | |
 | `website_url` | String | yes | | |
-| `mal_id` | Integer | yes | | MAL producer id |
+| `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 

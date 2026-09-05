@@ -319,3 +319,79 @@ def map_tenrai_to_novel_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "ch_total": ch_total,
         "cover_image_url": cover_image_url,
     }
+
+
+# ==========================================
+# STUDIOS (MAL "producers")
+# ==========================================
+
+# Hosts that answer /producers' `external` list but are never the studio's own
+# site. MAL mixes the two freely and does not label which is which, so
+# website_url is "the first link that is not one of these".
+SOCIAL_HOSTS = (
+    "twitter.com",
+    "x.com",
+    "youtube.com",
+    "youtu.be",
+    "instagram.com",
+    "tiktok.com",
+    "facebook.com",
+)
+
+
+def _producer_title(titles: List[Dict[str, Any]], wanted: str) -> Optional[str]:
+    """The `titles` entry of one type, e.g. "Japanese"."""
+    for entry in titles or []:
+        if entry.get("type") == wanted and entry.get("title"):
+            return entry["title"]
+    return None
+
+
+def _producer_website(external_links: List[Dict[str, Any]]) -> Optional[str]:
+    """
+    The studio's own site: the first http(s) `external` link whose host is not
+    a social network. Unlike an anime's official_link there is no "Official"
+    name to match on - a studio's site is listed under its own domain.
+    """
+    for link in external_links or []:
+        url = link.get("url") or ""
+        if not url.startswith("http"):
+            continue
+        if any(host in url.lower() for host in SOCIAL_HOSTS):
+            continue
+        return url
+    return None
+
+
+def _established_date(established: Optional[str]) -> Optional[str]:
+    """
+    The date half of Tenrai's `established` timestamp.
+
+    Producers carry no `prop` block, so unlike an anime's `aired` there is no
+    way to tell a real day from MAL's padding - "2011-06-14T00:00:00+00:00"
+    becomes "2011-06-14" and a studio MAL knows only the year for is stored as
+    that year's January 1st. Rare enough, and visible enough on the form, to
+    beat guessing at precision the API does not report.
+    """
+    if not established or not isinstance(established, str):
+        return None
+    match = re.match(r"^(\d{4}-\d{2}-\d{2})", established)
+    return match.group(1) if match else None
+
+
+def map_tenrai_to_studio_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms a raw Tenrai producer payload into the flat dict the Studio
+    autofill writes from.
+
+    Deliberately dropped: `about` (remark is the admin's own note, not MAL's
+    blurb), `favorites` and `count` (no columns), and the Synonym title (it is
+    usually the acronym expanded, not an alternative name worth storing).
+    """
+    return {
+        "logo_url": raw_data.get("images", {}).get("jpg", {}).get("image_url"),
+        "mal_link": raw_data.get("url"),
+        "founded_date": _established_date(raw_data.get("established")),
+        "name_jp": _producer_title(raw_data.get("titles", []), "Japanese"),
+        "website_url": _producer_website(raw_data.get("external", [])),
+    }

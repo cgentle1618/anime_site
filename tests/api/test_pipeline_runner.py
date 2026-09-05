@@ -74,13 +74,30 @@ def movies(db_session):
 # ---------------------------------------------------------------- registry
 
 
+# Non-media types in the registry. Studio is the first: it fills from MAL's
+# producer endpoint but is not a media entry, so it is not in MEDIA_TABLES.
+NON_MEDIA_KEYS = {"studio"}
+
+
 def test_every_media_type_has_a_pipeline_spec():
-    assert set(PIPELINES) == set(MEDIA_TABLES)
+    assert set(MEDIA_TABLES) <= set(PIPELINES)
 
 
-def test_fill_all_skips_comic_and_replace_all_skips_comic():
-    assert [s.key for s in FILL_ALL] == ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel"]
-    assert [s.key for s in REPLACE_ALL] == [s.key for s in FILL_ALL]
+def test_the_registry_holds_nothing_but_media_types_and_the_known_extras():
+    assert set(PIPELINES) - set(MEDIA_TABLES) == NON_MEDIA_KEYS
+
+
+def test_fill_all_skips_comic_but_includes_studio():
+    assert [s.key for s in FILL_ALL] == [
+        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "studio",
+    ]
+
+
+def test_replace_all_skips_comic_and_studio():
+    # Studio is fill_only: a producer record carries nothing that drifts.
+    assert [s.key for s in REPLACE_ALL] == [
+        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+    ]
 
 
 def test_public_entry_points_still_exist():

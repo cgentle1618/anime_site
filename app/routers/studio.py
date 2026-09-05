@@ -17,7 +17,9 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_admin, get_db
+from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.credits import find_studio
+from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.media_resolver import MEDIA_TABLES
@@ -181,6 +183,11 @@ def create_studio(
     studio = find_studio(db, first_name)
     if studio is None:
         studio = models.Studio(**payload.model_dump())
+        # Only on the create branch: POST is the find-or-create every typed
+        # name goes through, and re-filling a studio that already exists would
+        # spend the MAL budget on a no-op.
+        apply_extract_mal_id_studio(studio)
+        autofill_studio_from_mal(studio)
         db.add(studio)
         db.commit()
         db.refresh(studio)
@@ -207,6 +214,12 @@ def update_studio(
 
     for key, value in payload.model_dump().items():
         setattr(studio, key, value)
+
+    # After the copy, so the payload's own values win and only the columns
+    # left blank are filled from MAL. The id is derived first: pasting the
+    # producer URL alone is enough to enrich a studio.
+    apply_extract_mal_id_studio(studio)
+    autofill_studio_from_mal(studio)
 
     db.commit()
     db.refresh(studio)

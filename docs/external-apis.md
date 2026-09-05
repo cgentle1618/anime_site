@@ -4,7 +4,7 @@ Last verified: 2026-09-05
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Seven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga and novels; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Seven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
 
@@ -27,7 +27,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
-| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
+| Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
@@ -55,11 +55,11 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 
 | Item | Value |
 |---|---|
-| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime **and** anime movies) and `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga **and** novels). The response's `data` object is returned. |
+| Endpoints | `GET /anime/{mal_id}/full` (`fetch_tenrai_anime_data`, used for anime **and** anime movies), `GET /manga/{mal_id}/full` (`fetch_tenrai_manga_novel_data`, used for manga **and** novels) and `GET /producers/{mal_id}/full` (`fetch_tenrai_producer_data`, used for studios). The response's `data` object is returned. All three share one `TenraiRateLimiter` budget. |
 | User-Agent | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0` — MAL's CDN rejects the default `python-requests` agent. |
 | Rate limiter | `TenraiRateLimiter`, two windows checked together: `DEFAULT_LIMITS = ((4, 1), (120, 60))` — 4 requests per second **and** 120 per minute. It loops until every window has room. |
 | Pipeline pacing | On top of the limiter, `specs.py` sleeps `MAL_PAUSE = 1` second between entries in Fill and Replace. |
-| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. |
+| MAL ID source | `mal_id` on the row; `extract_mal_id` / `extract_mal_id_manga_novel` in `app/utils/utils.py` pull it out of `mal_link` with `myanimelist\.net/anime/(\d+)` and `myanimelist\.net/manga/(\d+)`. A studio's URL is `myanimelist.net/anime/producer/<id>/<slug>`, so it needs its own `MAL_PRODUCER_ID_PATTERN` = `myanimelist\.net/anime/producer/(\d+)`, read by `extract_mal_id_producer`. The two patterns cannot poach each other's links: the anime one needs digits straight after `/anime/` and finds the word `producer` instead, and the producer one needs the literal segment. |
 
 ### Mapping for `anime` — `map_tenrai_to_anime_data`
 
@@ -106,6 +106,22 @@ Same rules, except the date goes to `release_date_jp` and there is no `release_s
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
 | `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [GCS](#google-cloud-storage-cover-images). |
+
+### Mapping for `studio` — `map_tenrai_to_studio_data`
+
+MAL calls a studio a "producer". The record is a different shape from a title's: a logo, a founding timestamp and a link list, and no score or rank.
+
+| Tenrai field | Column | Rule |
+|---|---|---|
+| `images.jpg.image_url` | `logo_file` | Downloaded to GCS by `download_cover_image(url, str(system_id))`, same as a cover. Producers have no `webp` block, so there is no fallback chain. |
+| `url` | `mal_link` | as-is. |
+| `established` | `founded_date` | `_established_date` keeps the leading `YYYY-MM-DD` of the timestamp. Producers carry no `prop` block, so unlike an anime's `aired` there is no way to tell a real day from MAL's padding — a studio MAL knows only the year for is stored as that year's January 1st. |
+| `titles[type="Japanese"]` | `name_jp` | `_producer_title`. The `Default` title is not written (it is what the studio is already named here) and the `Synonym` is dropped — it is usually the acronym expanded. |
+| `external[]` | `website_url` | `_producer_website`: the first `http(s)` link whose host is not in `SOCIAL_HOSTS` (twitter/x, youtube, instagram, tiktok, facebook). Unlike an anime's `official_link` there is no "Official" name to match on — a studio's site is listed under its own domain. |
+
+Deliberately dropped: `about` (`remark` is the admin's own note, not MAL's blurb), and `favorites` / `count` (no columns).
+
+`autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500.
 
 ## TMDB
 
@@ -311,6 +327,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb, GCS |
 | `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal` | 1 s | Tenrai, GCS |
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library, plus GCS |
+| `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai, GCS |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine, GCS |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page use GCS and, for missing covers, the autofill functions again.

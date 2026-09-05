@@ -185,3 +185,60 @@ def fetch_tenrai_manga_novel_data(mal_id: int) -> Optional[Dict[str, Any]]:
             f"Network/Timeout Error connecting to Tenrai for Manga MAL ID {mal_id}: {e}"
         )
         raise
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
+def fetch_tenrai_producer_data(mal_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Fetches raw studio (MAL "producer") details from Tenrai.
+
+    Producers are a different resource from anime and manga - they carry a
+    logo, an `established` timestamp and an `external` link list, and no
+    score or rank - but the throttle and retry policy are identical, so the
+    same TenraiRateLimiter budget covers all three fetchers.
+    """
+    if not mal_id:
+        return None
+
+    tenrai_rate_limiter.wait_if_needed()
+
+    url = f"{TENRAI_BASE_URL}/producers/{mal_id}/full"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MediaTracker/1.0"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+
+        if response.status_code == 429:
+            logger.warning(f"Tenrai Rate Limit (429) for Producer MAL ID {mal_id}.")
+            raise RateLimitExceeded("429 Too Many Requests")
+
+        if response.status_code == 404:
+            logger.warning(f"Producer not found (404) on Tenrai for MAL ID {mal_id}")
+            return None
+
+        if response.status_code >= 500:
+            logger.warning(
+                f"Tenrai server error ({response.status_code}) for Producer MAL ID {mal_id} — skipping retries."
+            )
+            return None
+
+        response.raise_for_status()
+
+        return response.json().get("data", {})
+
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            f"Network/Timeout Error connecting to Tenrai for Producer MAL ID {mal_id}: {e}"
+        )
+        raise

@@ -80,14 +80,18 @@ async def trigger_replace_all(request: Request, db: Session = Depends(get_db)):
     return _stream(replace.execute_replace_all(db, request, action_type="Manual"))
 
 
-def _register_media_routes(spec) -> None:
+def _register_fill_route(spec) -> None:
     key, label = spec.key, spec.label
     run_fill = _attr(fill, "execute_fill_", key)
-    run_single = _attr(replace, "execute_replace_single_", key)
 
     @router.post(f"/fill/{key}", summary=f"Fill {label} (SSE)", name=f"fill_{key}")
     async def trigger_fill(request: Request, db: Session = Depends(get_db)):
         return _stream(run_fill(db, request, action_type="Manual", log_action=True))
+
+
+def _register_replace_routes(spec) -> None:
+    key, label = spec.key, spec.label
+    run_single = _attr(replace, "execute_replace_single_", key)
 
     if spec.replace_select is not None:
         run_bulk = _attr(replace, "execute_replace_", key)
@@ -106,7 +110,11 @@ def _register_media_routes(spec) -> None:
 
 
 for _spec in PIPELINES.values():
-    _register_media_routes(_spec)
+    _register_fill_route(_spec)
+    # A fill_only type (Studio) has no Replace, bulk or single - see
+    # PipelineSpec.fill_only.
+    if not _spec.fill_only:
+        _register_replace_routes(_spec)
 
 
 # ---------------------------------------------------------------------------
