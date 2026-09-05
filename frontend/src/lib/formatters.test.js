@@ -171,8 +171,23 @@ describe("getSourceValues — usage", () => {
       { category: "Platform", value: "Netflix", scopes: [], usages: [] },
       { category: "Platform", value: "Fox", scopes: [], usages: ["origin"] },
       { category: "Platform", value: "Bahamut", scopes: ["anime"], usages: [] },
+      { category: "Platform", value: "Crunchyroll", scopes: ["manga"] },
     ],
   };
+
+  it("offers a value with no usages key at all for every usage", () => {
+    // An older cached options response may not carry `usages`; absent must
+    // behave the same as empty, i.e. "matches everything" - not "matches
+    // nothing".
+    for (const usage of ["watch", "origin"]) {
+      const values = getSourceValues(sources, {
+        kind: "option",
+        category: "Platform",
+        usage,
+      });
+      expect(values).toContain("Crunchyroll");
+    }
+  });
 
   it("hides an origin-only value from a watch picker", () => {
     const values = getSourceValues(sources, {

@@ -40,13 +40,21 @@ export function scopeChip(scope) {
   return SCOPE_CHIPS[scope] || FALLBACK;
 }
 
-// One hue per usage (watch / origin), for the same System Options table -
-// see UsagePicker.jsx for what the two values mean. Same exception to design
-// rule 5 as SCOPE_CHIPS above, and same reason the classes are spelled out
-// per key rather than built as `bg-usage-${key}`.
+// Usage (watch / origin) is a different axis from media type, not a parallel
+// taxonomy - it does not get its own hue family. Giving it one (a ninth and
+// tenth colour alongside the eight scope hues) would sit in the same visual
+// register as SCOPE_CHIPS and invite exactly the collision this replaced:
+// a usage chip and a scope chip rendering pixel-identical in the same table.
+// Usage chips are ink instead, the way SourcesCard.jsx's `Tag` renders a
+// site tag - a hairline border and muted text, no fill - so watch and origin
+// read as "not a media type" at a glance and differ from each other only by
+// their label, which is exactly how they differ conceptually.
+const USAGE_CHIP =
+  "text-[10px] font-bold rounded px-1.5 py-0.5 border border-border-strong text-text-muted";
+
 export const USAGE_CHIPS = {
-  watch: `${CHIP} bg-scope-anime/12 border-scope-anime/40 text-scope-anime`,
-  origin: `${CHIP} bg-scope-manga/12 border-scope-manga/40 text-scope-manga`,
+  watch: USAGE_CHIP,
+  origin: USAGE_CHIP,
 };
 
 /** Chip classes for one system_option usage key. */
