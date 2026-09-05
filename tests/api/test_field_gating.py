@@ -384,13 +384,12 @@ def test_a_viewer_without_restricted_sources_does_not_see_them(
     seen = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()["sources"]
     assert {s["bucket"] for s in seen} == {"other", "restricted"}
 
-    # NOTE: the brief's original draft used the bare, unauthenticated `client`
-    # fixture here as "a viewer without restricted sources". That does not
-    # hold in this codebase: guest is seeded holding every field group (see
-    # ensure_rbac_seed's docstring - "no page changes on the day it lands"),
-    # so an anonymous request would still see the restricted bucket and the
-    # assertion below would fail, not merely go unchecked. A viewer must have
-    # the permission explicitly removed, exactly as no_sources_client does for
+    # NOTE: sources_restricted is in GUEST_WITHHELD_FIELD_GROUPS (see
+    # app/services/rbac/seed.py), so default_guest_permissions() already
+    # excludes it and the bare, unauthenticated `client` fixture would behave
+    # the same as the explicit removal below. The explicit removal is kept so
+    # this test does not silently stop covering the gate if that default ever
+    # changes, mirroring no_sources_client's explicit removal of
     # sources_other above.
     no_restricted_client = make_viewer(
         db_session,
