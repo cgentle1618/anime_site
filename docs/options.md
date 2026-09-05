@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05 (commit 050e165)
 
 ## What this is for
 
@@ -94,6 +94,15 @@ file's own comment calls this Ruling R10). See
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` | `note.status` on the `op`, `ed`, `insert_songs`, `ost` sections | `music_status` |
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
+
+`anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
+name collision is deliberate to flag: `anime.seiyuu` predates the cast feature
+and remains exactly what it always was, a `Need`/`Done` to-do flag with no
+list of who voices whom. Now that a real seiyuu concept exists (`character`,
+`character_casting` - see [data-model.md](data-model.md#people-studios-and-links)
+and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
+one as evidence for the other: an anime can show `seiyuu: Done` while having
+zero castings, and vice versa.
 
 `/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
@@ -272,9 +281,20 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `composer` | Music / Composer | person | anime |
 | `author` | Author | person | manga, novel, comic |
 | `illustrator` | Illustrator | person | manga, novel, comic |
+| `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
-`producer`, `composer`, `author`, `illustrator`.
+`producer`, `composer`, `author`, `illustrator`, `seiyuu`.
+
+`seiyuu` is the one row whose credits are **not** stored in `media_credit`:
+`CreditRole` carries a `credited_via` field, `"media_credit"` for the other
+five and `"character_casting"` for `seiyuu`, and `credit_roles_for(media_type)`
+filters to `credited_via == "media_credit"` so `/api/credits` and the sheet
+link-column builder never go looking for seiyuu rows there. A seiyuu still
+gets a `person_role` row (so they appear in dropdowns and on
+`/library/seiyuu` before their first casting exists), but their actual work is
+read through `/api/casting`, keyed off `character_casting` - see
+[systems/credits-and-tags.md](systems/credits-and-tags.md).
 
 The reader-facing word is **derived, not stored**:
 `credit_label(role, media_type)` reads 原作 / Author / Writer for `author` on
@@ -477,9 +497,15 @@ vocabulary collapsed to five person roles plus `studio`.
 | `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
 | `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
-`person.my_rating` and `studio.my_rating` reuse `MY_RATINGS`. `character` /
-`character_voice` tables were designed but not built; `anime.seiyuu` is a
-`Need`/`Done` to-do status and unrelated.
+`person.my_rating` and `studio.my_rating` reuse `MY_RATINGS`, and so does the
+new `character.my_rating`. A `character` / `character_voice` shape was once
+designed but not built (see the old "Deferred" note this replaced in
+[systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that
+was actually built uses different names and a different shape - `character`
+and `character_casting` (migration `c1h2a3r4a5c6`) - and diverges from that
+old design in three deliberate ways detailed there. `anime.seiyuu` remains a
+`Need`/`Done` to-do status, unrelated to the `seiyuu` person role above - see
+the note under `SEIYUU_STATUSES` [above](#apputilsconstantspy).
 
 ---
 

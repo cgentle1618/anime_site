@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-05 (commit 9f14245)
+Last verified: 2026-09-05 (commit 050e165)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-05 | Seiyuu and character: `seiyuu` as a sixth person role scoped to anime/anime-movie, with a `credited_via` axis on `CreditRole` recording that its credits live outside `media_credit`; `character` (person-shaped, no unique-name constraint by design) and `character_casting` (one character, one entry, an optional seiyuu, role/position/photo/remark; `person_id` `ON DELETE SET NULL` unlike `media_credit`'s `CASCADE`) tables, migration `c1h2a3r4a5c6`; `/api/character` (plain create, not find-or-create) and `/api/casting` routers; `credit_count`/`/entries`/delete-guard repaired on the person router to span castings too; `CastEditor` on the anime/anime-movie/manga/novel Add/Modify tabs and a Cast section on their detail pages; `/library/character`, `/character/:system_id`, `/library/seiyuu` (`PersonLibrary` with `?role=seiyuu`, no longer `dev: true`), Entity → Character admin forms; Sheets tabs `Character` / `Character Casting`. Tenrai cast auto-fill deferred to a later spec — see `docs/superpowers/specs/2026-09-05-seiyuu-character-design.md` |
 | 2026-09-05 | Open Library fill for novels: `openlibrary_link` / `openlibrary_id` on `novel`, a keyless client fetching a work plus (only when needed) its editions and authors, an anchor-book mapper writing year-precision `release_date`, cover and the `author` credit, and per-entry routing in `PIPELINES["novel"]` so novels with no MAL link are Fill-eligible for the first time; Replace, Google Books and per-volume ids deliberately deferred |
 | 2026-09-04 | Novel units and two-stage progress: `novel_unit` child table (volume/arc/story/chapter, `unit_key`/names/remark/`ch_count`) replacing the two parallel `novel_name_each_cn`/`_en` JSONB lists; `ch_fin_in_arc` added so `arc_fin`/`ch_fin_in_arc` form a two-stage reading cursor derived from arc rows on every write, with volume rows staying non-authoritative enrichment (Decision B); `MediaTypeSpec.nested_collections`/`progress_hook` generalise the router factory for a `units` payload key; `NovelUnitsEditor` replaces `BelongingNovelsEditor`; `progress_display` narrowed to the JP/KR-vs-TW volumes choice with legacy values still rendering; a `novelUnitKinds.test.js` drift guard pins the frontend kind map to `app/utils/constants.py` |
 | 2026-09-04 | Person as a public entity: one role vocabulary of five (director, producer, composer, author, illustrator) replacing the two lists, media-type-scoped and NOT NULL on `person_role`, with 原作 / Author / Writer derived from `(role, media_type)`; `person` reshaped to four optional names with a data-driven display choice; `credit_refs` with ids and labels on every media payload; `GET /api/person/{id}/entries` and a `?credits=N`-guarded delete; Entity → Person Add/Modify/Delete with a role × scope matrix; `/library/person` and `/person/:system_id`, linked from every credit row on the six detail pages |
@@ -71,7 +72,7 @@ Each line was verified against the code at the commit above.
 | Backend | The watch-order router holds domain logic (1,480 lines vs 421 in the domain module) | `app/routers/watch_order.py`, `app/services/domain/watch_order.py` |
 | Backend | Autofill wraps each fetch in a bare `except Exception`, so tenacity's `RetryError` is swallowed and reported as a generic failure | `app/services/domain/autofill.py` |
 | Backend | Tenrai and Comic Vine rate limiters are in-memory sliding windows; a second instance would double the budget | `app/services/integrations/tenrai.py`, `comicvine.py` |
-| Data model | `character` / `character_voice` tables deferred | noted in `data-model.md` |
+| Backend | Tenrai cast auto-fill from `/anime/{mal_id}/characters` not built; that endpoint's existence on Tenrai v1 is unverified, and it needs duplicate-resolution rules of its own | `docs/superpowers/specs/2026-09-05-seiyuu-character-design.md` |
 | Backend | Novel progress columns are `float` in the schema without validators (`vol_fin`, `ch_fin`, `ch_fin_in_arc`, `arc_*`, `vol_total_*`) | `app/schemas/novel.py` |
 | Tooling | `ruff check` runs in CI but `ruff format` has never been applied to the tree | `.github/workflows/deploy.yml` |
 | Backend | No `/api/health` endpoint | `app/main.py` |

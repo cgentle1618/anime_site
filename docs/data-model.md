@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-05 (commit 9f14245)
+Last verified: 2026-09-05 (commit 050e165)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -20,7 +20,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [People, studios and links](#people-studios-and-links): person, person_role, studio, media_credit, media_tag
+- [People, studios and links](#people-studios-and-links): person, person_role, studio, character, character_casting, media_credit, media_tag
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
@@ -611,6 +611,99 @@ Migration `s1t2u3d4i5o6` reshaped the table: the old required `name_native`
 became `name_en` (verified lossless against the 77 production rows - every
 value was already a Latin/romanised name), and the profile columns above were
 added.
+
+### `character`
+
+One fictional character, shared across every entry they appear in (Tier 3
+entity, added alongside `character_casting` for the seiyuu/character feature -
+see `docs/superpowers/specs/2026-09-05-seiyuu-character-design.md`). Model:
+`Character` (`app/models/character.py`). Shaped like `person` deliberately,
+with one intentional deviation - see the constraints note below.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `name_en` | String | yes | | Indexed |
+| `name_cn` | String | yes | | |
+| `name_jp` | String | yes | | |
+| `name_alt` | String | yes | | |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
+| `gender` | String | yes | | |
+| `my_rating` | String | yes | | MY_RATINGS |
+| `photo_file` | String | yes | | GCS object key; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. |
+| `remark` | Text | yes | | |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraint: `ck_character_has_a_name` CHECK `num_nonnulls(name_en, name_cn,
+name_jp, name_alt) >= 1`. **Deliberately no unique constraint on the name
+columns**, unlike `uq_person_name` and `uq_studio_name` (Decision G of the
+design spec). `uq_person_name` works because a human's full name is nearly
+unique; character names are not - "Yuki" and "Ichika" recur across unrelated
+works - and under Decision C a character has no owning franchise to scope a
+uniqueness rule to, so any such constraint here would refuse legitimate rows.
+Duplicates are instead caught by the name-match search the cast editor's
+character combobox runs (listing existing matches together with the entries
+they already appear in) and fixed afterwards by `POST
+/api/character/{id}/merge`. This is why `POST /api/character` is a **plain
+create, not find-or-create**: unlike `POST /api/person`, which safely
+resolves a normalized-name match because two spellings of one director really
+are one human, resolving a character payload against an existing row by name
+would silently fuse the "Yuki" of one work with the unrelated "Yuki" of
+another - exactly the collision Decision G accepts as normal instead.
+
+### `character_casting`
+
+One character, in one entry, optionally voiced by one person. Model:
+`CharacterCasting` (`app/models/character.py`). THE cast record - there is no
+second one; no `media_credit` row with `role="seiyuu"` ever exists, because a
+seiyuu reaches an anime through the character they voice, and deriving the
+entry's seiyuu list from these rows is what keeps "who is in this anime" to a
+single answer (Decision A).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `character_id` | UUID | no | | FK `character.system_id` **ON DELETE CASCADE**, indexed |
+| `media_type` | String | no | | Hyphenated key: one of `anime`, `anime-movie`, `manga`, `novel` |
+| `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
+| `person_id` | UUID | yes | | FK `person.system_id` **ON DELETE SET NULL**, indexed |
+| `role` | String | yes | | One of `CHARACTER_ROLES` (`Main`, `Supporting`) |
+| `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
+| `photo_file` | String | yes | | GCS key: this character as she appears in this entry. NULL falls back to `character.photo_file` at read time. |
+| `remark` | Text | yes | | |
+| `created_at` | DateTime | yes | now | No `updated_at` |
+
+Constraints and indexes:
+
+- `uq_character_casting` UNIQUE (`character_id`, `media_type`, `entry_id`) -
+  one casting per character per entry (Decision E: casting is per-entry with
+  no default/override split, so a recast is a second row, not a resolution
+  rule). No NULLS NOT DISTINCT needed: all three columns are NOT NULL.
+- `ck_casting_voice_scope` CHECK `person_id IS NULL OR media_type IN
+  ('anime', 'anime-movie')` - characters reach all four ACG types
+  (`anime`, `anime-movie`, `manga`, `novel`), but a seiyuu (`person_id` set)
+  may only be attached on the two types with voice acting. Enforced in the
+  database, not just in `app/services/domain/casting.py`, because the Fill
+  pipeline and any future migration write these rows without going through
+  the API.
+- `ix_character_casting_entry` (`media_type`, `entry_id`) - the cast-list
+  query.
+
+**`person_id` is `ON DELETE SET NULL`, unlike `media_credit.person_id`'s `ON
+DELETE CASCADE`** (Decision H). A `media_credit` row *is* the person's link to
+the work and rightly dies with them; a `character_casting` row is the
+*character's* link to the work and merely names a seiyuu, so deleting a
+seiyuu must not delete the character from the entry's cast - it survives with
+`person_id` NULL. `character_id` remains `ON DELETE CASCADE`: deleting the
+character genuinely removes their castings, and `POST
+/api/character/{id}/merge` (repoint then delete the loser) is the fix when a
+delete would otherwise lose casting history for a duplicate.
+
+Migration `c1h2a3r4a5c6` created both tables; nothing existing was altered.
+`person_role.role` carries no database enum or CHECK, so `seiyuu` became a
+legal `PERSON_ROLES` value with no migration of its own - see
+[options.md](options.md) and
+[systems/credits-and-tags.md](systems/credits-and-tags.md).
 
 ### `media_credit`
 

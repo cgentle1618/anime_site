@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05 (commit 050e165)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -208,7 +208,7 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js`, `Index.jsx` divisions, `NavSearch.jsx` scopes and quotas, `navigation.js`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
 
-## Entity components (person and studio)
+## Entity components (person, studio and character)
 
 | Component | What it is |
 |---|---|
@@ -217,6 +217,8 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them, the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
 | `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. |
+| `forms/CastEditor.jsx` | The anime/anime-movie/manga/novel Add/Modify cast table. Controlled like `NovelUnitsEditor` — the parent owns `value` and gets every change through `onChange` — and never saves a cast list itself, only searches/creates the two entities its comboboxes reference: a character combobox (debounced `GET /api/character/?name=`, existing matches shown with the entries they already appear in, plus a synthetic "create new character named X" choice — never find-or-create, per Decision G) and a seiyuu combobox (find-or-creates through the existing `ensureSourceValues.js` path, same as every other person field). Renders **without** the seiyuu column on manga/novel (`SEIYUU_MEDIA_TYPES`), mirroring `ck_casting_voice_scope` so the UI cannot offer what the database will reject. One row per casting: character, seiyuu (when shown), a Main/Supporting `role` select, a photo slot, a remark, and drag-to-reorder writing `position`. |
+| `hooks/useCasting.js` | TanStack Query hook over `GET /api/casting/{media_type}/{entry_id}`, read by the four ACG detail pages' Cast section. |
 
 Neither entity detail page reuses `MediaCard`: it resolves its title through
 `getDisplayName(data, type)` and reads status, franchise and admin props, none

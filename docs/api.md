@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05 (commit 050e165)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -52,6 +52,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Person — `/api/person`](#person--apiperson)
 - [Studio — `/api/studio`](#studio--apistudio)
 - [Credits — `/api/credits`](#credits--apicredits)
+- [Character — `/api/character`](#character--apicharacter)
+- [Casting — `/api/casting`](#casting--apicasting)
 - [Announcements — `/api/announcements`](#announcements--apiannouncements)
 - [Form Defaults — `/api/form-defaults`](#form-defaults--apiform-defaults)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
@@ -920,6 +922,64 @@ credits as the `studio` string beside them, shaped as
 `[{system_id, display_name}]` so the detail pages can link each studio to
 `/studio/{system_id}` — the comma-joined string has no ids to link with. It is
 built in the same batched pass, so it costs no extra query on a library page.
+
+There is deliberately no `cast_refs` alongside `credit_refs` on entry
+payloads. Cast is fetched separately via `/api/casting/...` on the detail
+page — `credit_refs` rides every list payload and carries its own
+query-count guard test precisely because it does, but a cast list is long,
+needed on exactly one page, and would make every library list pay for it.
+
+---
+
+## Character — `/api/character`
+
+Tier 3 entity CRUD for fictional characters, mirroring `/api/person` almost
+line for line, plus one deliberate departure — see the `POST` row.
+
+| Method   | Path                   | Auth   | Description                                                                          |
+| -------- | ---------------------- | ------ | ------------------------------------------------------------------------------------- |
+| `GET`    | `/`                    | Public | List characters, sorted by resolved `display_name`. `?name=` does a case-insensitive substring match against all four name columns, so the cast editor's character combobox can offer suggestions without downloading the whole table. |
+| `GET`    | `/{system_id}`         | Public | Get one character by UUID. 404 if absent. |
+| `GET`    | `/{system_id}/entries` | Public | The entries this character is cast on, grouped by media type only — a character holds no role, unlike a person. Each entry names the seiyuu who voiced the character there, if any. Empty groups, not 404, when every casting is hidden. |
+| `POST`   | `/`                    | Admin  | Create a character. **Always a plain create, never find-or-create** — unlike `POST /api/person`, which safely resolves two spellings of one director onto one row. Character names carry no unique constraint (see `docs/data-model.md`): the "Yuki" of one anime and the "Yuki" of another are different characters, and silently returning the first match on a POST would fuse two unrelated casts under one `system_id`. Disambiguation happens in the cast editor's combobox instead, which lists existing matches together with the entries they already appear in and requires an explicit "Create new character named X" choice before minting a row. Body: `CharacterCreate`. A body with no name at all is 422, mirroring `ck_character_has_a_name`. |
+| `PUT`    | `/{system_id}`         | Admin  | Fully update a character. Body: `CharacterUpdate`. |
+| `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
+| `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting (dropping one that would collide with a casting the survivor already holds on the same entry), then deletes the loser. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+
+**Response model:** `CharacterResponse` — the four name columns,
+`display_name_field`, the resolved `display_name`, `gender`, `my_rating`,
+`photo_file`, `remark`, `system_id`, and `casting_count`, a live count of the
+`character_casting` rows **the viewer may see** (`filter_visible_pairs`), not
+a stored column — the same reasoning as `person.credit_count`.
+
+---
+
+## Casting — `/api/casting`
+
+Read and wholesale-replace one media entry's cast (`character_casting` rows).
+Shaped after `/api/credits`, but deliberately **not** folded into it: a
+credits payload is `Dict[str, List[str]]`, bare names keyed by role, while a
+cast row names a character, an optional seiyuu, a role, a display position, a
+photo and a remark — forcing that shape into `/api/credits` would break the
+simpler contract for every other role, and it would pull character casting
+into a role vocabulary (`credit_roles_for`) that only four of the eight media
+types even have.
+
+| Method | Path                       | Auth   | Description                                                                    |
+| ------ | -------------------------- | ------ | ------------------------------------------------------------------------------- |
+| `GET`  | `/{media_type}/{entry_id}` | Public | The entry's cast, ordered by `position`. 400 for an unknown `media_type`; missing **or hidden** entry → 404 (`entry_visible`), exactly as `/api/credits` behaves. |
+| `PUT`  | `/{media_type}/{entry_id}` | Admin  | Replaces the whole cast in the submitted order. Body: `{cast: [{character_id, person_id?, role?, position?, photo_file?, remark?}]}`. `position` defaults to list index when omitted. Rejects (422) a seiyuu (`person_id` set) on a media type outside `anime`/`anime-movie`, or a `role` outside `CHARACTER_ROLES`, in Python — before the row ever reaches `ck_casting_voice_scope` in the database. |
+
+`media_type` for casting is one of `anime`, `anime-movie`, `manga`, `novel` —
+a subset of the eight `MEDIA_TABLES` keys, matching the four media types a
+character may appear on. Only `anime` and `anime-movie` may carry a
+`person_id` (a seiyuu); `manga` and `novel` characters have no voice actor.
+
+Each cast row in the response carries `character_name` / `person_name`
+(resolved `display_name`) alongside the raw ids, and `photo_file` already
+resolved — the casting's own value if set, otherwise the character's
+canonical `photo_file` — so every reader gets the same answer without
+repeating the fallback.
 Being a credit field it is gated with `studio` in the Credits field group
 (`app/services/rbac/field_groups.py`): a viewer without that permission gets
 neither, and the pages fall back to the plain string when `studio_refs` is

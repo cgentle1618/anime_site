@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-04 (commit 601ceb8, plus uncommitted archive-look, dashboard type-filter, Quality 品質 and novel-units Units-card changes)
+Last verified: 2026-09-05 (commit 050e165, plus uncommitted archive-look, dashboard type-filter, Quality 品質 and novel-units Units-card changes from another session)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -33,6 +33,8 @@ are a large share of the bundle and never needed on first paint.
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
 | `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy |
+| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy |
+| `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/:type` | `Library` — `library/Library.jsx` (anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic; anything else redirects to `/under-development`) | eager |
 | `/anime/:system_id` … `/comic/:system_id` | `detail/Anime.jsx`, `AnimeMovie.jsx`, `Movie.jsx` (`/movie`), `TV.jsx` (`/tv-show`), `Cartoon.jsx`, `Manga.jsx`, `Novel.jsx`, `Comic.jsx` | eager |
 | `/collection/:system_id` | `detail/Collection.jsx` → `CollectionPage.jsx` | eager |
@@ -40,6 +42,7 @@ are a large share of the bundle and never needed on first paint.
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
 | `/studio/:system_id` | `detail/Studio.jsx` | lazy |
 | `/person/:system_id` | `detail/Person.jsx` | lazy |
+| `/character/:system_id` | `detail/Character.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
 | `/seasonal` | `public/SeasonalOverall.jsx` | lazy |
 | `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy |
@@ -63,7 +66,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Person `/library/person` (also matches `/person`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu (`dev: true`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
@@ -284,6 +287,25 @@ just the displayed one. Sort `name (default) | credit_count | my_rating`. Each
 `PersonCard` shows the photo, display name and credit count, and links to
 `/person/:system_id`.
 
+`/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
+`?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
+client-side — not a new page type, and not `dev: true` any more. A person
+holding the `seiyuu` role but never yet cast still appears with zero
+entries: `person_role` exists precisely so a seiyuu can show up before their
+first casting, and hiding them here would defeat that.
+
+### CharacterLibrary — `/library/character`
+
+File `pages/library/CharacterLibrary.jsx`. Same shape as `PersonLibrary` and
+`StudioLibrary` — a character is a public **entity**, not a media type, so it
+sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
+
+Raw `fetch` of `/api/character/` alone (server-side `?name=` search is what
+the cast editor's combobox uses instead; this page filters client-side over
+all four name columns). Sort `name (default) | casting_count | my_rating`.
+Each `CharacterCard` shows the photo, display name and casting count, and
+links to `/character/:system_id`.
+
 ### Person — `/person/:system_id`
 
 File `pages/detail/Person.jsx`. The public profile for one person, built the
@@ -303,6 +325,27 @@ The one difference from the studio page: a person may hold several roles, so
 not from the page. A group the viewer may see no entries of still renders, with
 "Nothing you can see here" inside it. Entry cards are the same local
 `CreditCard`, not `MediaCard`, for the reason spelled out below.
+
+### Character — `/character/:system_id`
+
+File `pages/detail/Character.jsx`. The public profile for one character,
+hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
+detail shape — the header is a profile and the body is the entries this
+character is cast in. Two raw fetches in one `Promise.all`
+(`GET /api/character/{id}` and `.../entries`); the character call failing is
+the page's 404, the entries call failing is not, and nothing is editable.
+
+The one structural difference from the person page: `GET
+/api/character/{id}/entries` groups **by media type only**, because a
+character holds no role the way a person does — see
+`app/routers/character.py`'s `get_character_entries`. Each entry in a group
+also names the seiyuu who voiced the character there (`seiyuu_display_name`
+/ `seiyuu_system_id`), rendered as a small link beneath the entry card
+(`CastingCard`, a local component, not `MediaCard`, for the same reason
+`Person.jsx`'s `CreditCard` is local) — since knowing who played the part is
+the point of looking a character up, unlike a person's own credits. A group
+the viewer may see no entries of still renders, with "Nothing you can see
+here" inside it, same rule the person and studio pages follow.
 
 ### Studio — `/studio/:system_id`
 
@@ -409,8 +452,13 @@ Top to bottom:
    `/studio/{system_id}` per entry in `studio_refs`, falling back to the plain
    comma-joined `studio` string when there are none, which is what a viewer
    without the Credits permission and an entry whose studio never resolved to
-   a row both get — a "Cast & Characters — Under Development" placeholder
-   (Anime, AnimeMovie only), a remark textarea (blur-saves; rendered only when
+   a row both get — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
+   `/api/casting/{media_type}/{entry_id}` via `useCasting`), rendered only
+   when the entry has a cast, one row per casting sorted Main before
+   Supporting then by `position`: a small cover-or-portrait thumbnail, a role
+   chip, a link to `/character/{character_id}`, and — on Anime/AnimeMovie
+   only, where `character_casting.person_id` may be set — "voiced by" plus a
+   link to `/person/{person_id}` — a remark textarea (blur-saves; rendered only when
    a remark already exists, with the Notes `remark` section hidden so the
    singleton row never has two editors), then `{Type}Notes` →
    `pages/notes/NotesTemplate.jsx`.
@@ -551,7 +599,8 @@ File `pages/public/Login.jsx`. Heading "Admin Access". POSTs
 ### UnderDevelopment — `/under-development`
 
 File `pages/public/UnderDevelopment.jsx`. Static card. Targets: unknown
-`/library/:type` values, `dev: true` nav items (Seiyuu).
+`/library/:type` values. No nav item currently carries `dev: true` — Seiyuu
+lost it once `/library/seiyuu` shipped.
 
 ## Known rough edges (as of this commit)
 
