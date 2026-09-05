@@ -24,6 +24,7 @@ from app.models import (
 from app.utils import release_date
 from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
+from app.utils.openlibrary_utils import extract_openlibrary_id
 from app.utils.utils import (
     PART_PATTERN,
     SEASON_PATTERN,
@@ -62,6 +63,27 @@ def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
         entry.mal_id = mal_id
         return True
     return False
+
+
+def apply_extract_openlibrary_id(entry: Novel) -> bool:
+    """Extracts the Open Library work ID from openlibrary_link and writes it to
+    openlibrary_id. Returns True if set. An unparseable link leaves any existing
+    ID untouched — the ID is the fill pipeline's only handle on the entry."""
+    work_id = extract_openlibrary_id(entry.openlibrary_link)
+    if work_id:
+        entry.openlibrary_id = work_id
+        return True
+    return False
+
+
+def apply_extract_novel_ids(entry: Novel) -> bool:
+    """Novel is the one media type with two possible sources, so both extractors
+    run on every entry. Both are called before the `or`, deliberately: a novel
+    can carry a MAL link and an Open Library link at once, and short-circuiting
+    would silently skip the second."""
+    mal_found = apply_extract_mal_id_manga_novel(entry)
+    openlibrary_found = apply_extract_openlibrary_id(entry)
+    return mal_found or openlibrary_found
 
 
 def apply_extract_comicvine_id(entry: Comic) -> bool:
