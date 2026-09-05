@@ -16,9 +16,11 @@ import CollectionAddTab, {
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
-import PersonAddTab from "../add-tabs/PersonAddTab";
-import CharacterAddTab from "../add-tabs/CharacterAddTab";
-import StudioAddTab from "../add-tabs/StudioAddTab";
+import PersonAddTab, { defaultPerson } from "../add-tabs/PersonAddTab";
+import CharacterAddTab, {
+  defaultCharacter,
+} from "../add-tabs/CharacterAddTab";
+import StudioAddTab, { defaultStudio } from "../add-tabs/StudioAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
@@ -166,47 +168,12 @@ export default function Add() {
   // new person is given, and never narrows what the form can edit.
   const [personSubTab, setPersonSubTab] = useState("director");
   const [personRoles, setPersonRoles] = useState([]);
-  const emptyPerson = () => ({
-    name_en: "",
-    name_cn: "",
-    name_jp: "",
-    name_alt: "",
-    display_name_field: "",
-    gender: "",
-    my_rating: "",
-    photo_file: "",
-    remark: "",
-  });
-  const emptyStudio = () => ({
-    name_en: "",
-    name_cn: "",
-    name_jp: "",
-    name_alt: "",
-    display_name_field: "",
-    my_rating: "",
-    logo_file: "",
-    country: "",
-    website_url: "",
-    founded_date: "",
-    defunct_date: "",
-    mal_id: "",
-    mal_link: "",
-    remark: "",
-  });
-  const emptyCharacter = () => ({
-    name_en: "",
-    name_cn: "",
-    name_jp: "",
-    name_alt: "",
-    display_name_field: "",
-    gender: "",
-    my_rating: "",
-    photo_file: "",
-    remark: "",
-  });
-  const [personForm, setPersonForm] = useState(emptyPerson());
-  const [studioForm, setStudioForm] = useState(emptyStudio());
-  const [characterForm, setCharacterForm] = useState(emptyCharacter());
+  // The three entity forms start from their factories in config/formFactories.js
+  // like every other tab, so the admin's /defaults overrides reach them through
+  // the same freshForm() path.
+  const [personForm, setPersonForm] = useState(defaultPerson());
+  const [studioForm, setStudioForm] = useState(defaultStudio());
+  const [characterForm, setCharacterForm] = useState(defaultCharacter());
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
   const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
@@ -381,6 +348,9 @@ export default function Add() {
         setColf(resolveDefaults("collection", fd));
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
+        setStudioForm(resolveDefaults("studio", fd));
+        setPersonForm(resolveDefaults("person", fd));
+        setCharacterForm(resolveDefaults("character", fd));
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -1077,7 +1047,7 @@ export default function Add() {
       const created = await res.json();
       showToast("success", "Person appended successfully.");
       setLastAdded(created.display_name);
-      setPersonForm(emptyPerson());
+      setPersonForm(freshForm("person"));
       setPersonRoles([]);
       setSources(await fetchAllSources());
     } else {
@@ -1116,7 +1086,7 @@ export default function Add() {
       const created = await res.json();
       showToast("success", "Character appended successfully.");
       setLastAdded(created.display_name);
-      setCharacterForm(emptyCharacter());
+      setCharacterForm(freshForm("character"));
     } else {
       showToast("error", "Failed to create character");
     }
@@ -1155,7 +1125,7 @@ export default function Add() {
       const created = await res.json();
       showToast("success", "Studio appended successfully.");
       setLastAdded(created.display_name);
-      setStudioForm(emptyStudio());
+      setStudioForm(freshForm("studio"));
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create studio");

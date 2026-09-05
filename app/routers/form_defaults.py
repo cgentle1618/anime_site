@@ -36,7 +36,8 @@ router = APIRouter(prefix="/api/form-defaults", tags=["Form Defaults"])
 FORM_DEFAULTS_PREFIX = "form_defaults:"
 MAX_PAYLOAD_BYTES = 32 * 1024
 
-# Mirrors the media-type slugs in frontend/src/config/mediaRegistry.js.
+# Mirrors the FORM_TABS keys in frontend/src/config/adminTabs.js: the media
+# types plus the three entity tabs, which have Add forms of their own.
 VALID_MEDIA_TYPES = frozenset(
     {
         "anime",
@@ -50,6 +51,9 @@ VALID_MEDIA_TYPES = frozenset(
         "collection",
         "franchise",
         "series",
+        "studio",
+        "person",
+        "character",
     }
 )
 

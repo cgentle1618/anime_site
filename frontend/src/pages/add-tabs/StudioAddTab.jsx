@@ -13,6 +13,8 @@ import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { MY_RATINGS } from "../../config/fieldOptions";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
+export { defaultStudio } from "../../config/formFactories";
+
 export function StudioFields({ studioForm, usf }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => studioForm[field]?.trim(),

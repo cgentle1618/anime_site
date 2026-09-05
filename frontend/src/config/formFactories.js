@@ -1,4 +1,6 @@
-// Blank-form factories for every Add-page media type.
+// Blank-form factories for every Add-page tab that has a form: the media
+// types, the grouping tiers, and the three entity forms (studio, person,
+// character).
 //
 // These live in config/ rather than in the add-tab components so that other
 // config modules (the form-field registry) can derive field keys from them
@@ -331,7 +333,56 @@ export const defaultSeries = () => ({
   remark: "",
 });
 
-// Keyed by the media-type slugs used in config/mediaRegistry.js.
+// The three Entity-group forms. An entity is credited ON entries rather than
+// being an entry, so these carry none of the tracking fields above -- but they
+// are still Add forms whose starting values the admin configures on /defaults.
+
+export const defaultStudio = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  my_rating: "",
+  logo_file: "",
+  country: "",
+  website_url: "",
+  founded_date: "",
+  defunct_date: "",
+  mal_id: "",
+  mal_link: "",
+  remark: "",
+});
+
+export const defaultPerson = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  gender: "",
+  my_rating: "",
+  photo_file: "",
+  remark: "",
+});
+
+// Identical in shape to a person today, but kept separate: the two are
+// different tables with different futures, and a shared factory would make a
+// person-only field silently appear on the character form.
+export const defaultCharacter = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  gender: "",
+  my_rating: "",
+  photo_file: "",
+  remark: "",
+});
+
+// Keyed by the media-type slugs used in config/mediaRegistry.js, plus the
+// entity tab keys from config/adminTabs.js.
 export const FORM_FACTORIES = {
   anime: defaultAnime,
   "anime-movie": defaultAnimeMovie,
@@ -344,4 +395,7 @@ export const FORM_FACTORIES = {
   collection: defaultCollection,
   franchise: defaultFranchise,
   series: defaultSeries,
+  studio: defaultStudio,
+  person: defaultPerson,
+  character: defaultCharacter,
 };

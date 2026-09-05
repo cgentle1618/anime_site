@@ -18,6 +18,8 @@ import { PERSON_NAME_FIELDS } from "../../lib/naming";
 // choice as a person or studio - see naming.js's STUDIO_NAME_FIELDS comment.
 export const CHARACTER_NAME_FIELDS = PERSON_NAME_FIELDS;
 
+export { defaultCharacter } from "../../config/formFactories";
+
 export function CharacterFields({ characterForm, ucf }) {
   const hasAnyName = CHARACTER_NAME_FIELDS.some(
     ({ field }) => characterForm[field]?.trim(),

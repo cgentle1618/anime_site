@@ -4,7 +4,11 @@ import {
   coerceToShape,
   resolveDefaults,
 } from "./useFormDefaults";
-import { defaultAnime, defaultMovie } from "../config/formFactories";
+import {
+  defaultAnime,
+  defaultMovie,
+  defaultStudio,
+} from "../config/formFactories";
 import { BUILTIN_AUTOFILL } from "../config/formFields";
 
 describe("resolveDefaults", () => {
@@ -54,6 +58,16 @@ describe("resolveDefaults", () => {
       anime: { defaults: { franchise_id: "some-uuid" } },
     });
     expect(resolved.franchise_id).toBeNull();
+  });
+
+  it("resolves the entity forms, which are not media entries", () => {
+    const resolved = resolveDefaults("studio", {
+      studio: { defaults: { country: "Japan", removed_field: "x" } },
+    });
+
+    expect(resolved.country).toBe("Japan");
+    expect(resolved).not.toHaveProperty("removed_field");
+    expect(Object.keys(resolved)).toEqual(Object.keys(defaultStudio()));
   });
 
   it("returns {} for an unknown media type", () => {

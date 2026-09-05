@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-05 (commit 87728c4)
+Last verified: 2026-09-05 (commit aad5a3e)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -76,9 +76,10 @@ submit handlers and the shared modals.
 The **Entity** group holds things that are credited *on* entries rather than
 being entries: studios, and the people credited as director, producer,
 composer, author or illustrator. Both were sub-tabs of System Options and both
-moved out once each became a public entity with pages of its own. `FORM_TABS`
-excludes them (with options, quote and meme) because neither is a media entry
-and so neither has a `/defaults` field set.
+moved out once each became a public entity with pages of its own. They are in
+`FORM_TABS`: an entity is not a media entry, but each has an Add form whose
+starting values are configurable on `/defaults`. Only options, quote and meme
+are excluded — those three have no factory in `config/formFactories.js`.
 
 **Data loaded on mount.** Every list the forms need for ComboBoxes and
 duplicate hints — franchises, series, collections, options and all eight
@@ -234,12 +235,18 @@ duplicate. Delete itself is two-step (confirm, then execute) and writes no
 
 ## /defaults (`FormDefaults.jsx`)
 
-One tab per media type (`DefaultsTab.jsx`). Fields come from
+One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
+three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
 defaults for that type. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+The Entity tabs (studio, person, character) are defaults-only: their Add forms
+have no "auto-fill from an existing record" search, so every one of their
+fields is `autofillable: false` and `DefaultsTab` drops the auto-fill column
+for them entirely.
 
 ## /watch-orders (`WatchOrders.jsx`)
 

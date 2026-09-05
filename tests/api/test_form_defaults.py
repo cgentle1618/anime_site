@@ -162,6 +162,9 @@ def test_unknown_media_type_rejected(admin_client, method):
         "collection",
         "franchise",
         "series",
+        "studio",
+        "person",
+        "character",
     ],
 )
 def test_every_form_tab_is_accepted(admin_client, media_type):

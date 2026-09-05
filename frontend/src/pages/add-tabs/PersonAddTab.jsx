@@ -19,6 +19,8 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 
+export { defaultPerson } from "../../config/formFactories";
+
 /**
  * Which media types each person role may be scoped to, from
  * GET /api/person/role-scopes.

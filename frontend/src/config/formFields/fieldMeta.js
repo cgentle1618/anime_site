@@ -47,6 +47,15 @@ import {
   WATCHING_STATUSES,
 } from "../fieldOptions";
 import { WEEKDAYS } from "../weekdays";
+import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+
+// The display_name_field choice a studio, person and character all share. ""
+// is the unset state, which falls through en -> cn -> jp -> alt; see
+// displayEntityName() in lib/naming.js.
+const ENTITY_DISPLAY_NAME_OPTIONS = [
+  { value: "", label: "Default (English)" },
+  ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
+];
 
 export const COMMON_FIELD_META = {
   // ---- Relations -------------------------------------------------------
@@ -745,6 +754,91 @@ export const TYPE_FIELD_META = {
     series_name_en: { label: "Name (EN)", group: "Names" },
     series_name_cn: { label: "Name (CN)", group: "Names" },
     series_name_alt: { label: "Name (Alt)", group: "Names" },
+  },
+
+  // ---- Entity tabs -----------------------------------------------------
+  // A studio, person or character is credited ON entries rather than being an
+  // entry, and the Add page gives none of the three an "auto-fill from an
+  // existing record" search — copying one studio onto another has no meaning
+  // when a studio is little more than its names. Every field below is
+  // therefore autofillable: false, which leaves these tabs defaults-only.
+
+  studio: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    my_rating: { autofillable: false },
+    country: { label: "Country", group: "Classification", autofillable: false },
+    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    // Free text, not control: "date" — both columns take YYYY, YYYY-MM or
+    // YYYY-MM-DD, which a native date picker cannot express. Same reason
+    // release_date above is text.
+    founded_date: {
+      label: "Founded Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    defunct_date: {
+      label: "Defunct Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    website_url: {
+      label: "Website URL",
+      control: "url",
+      group: "Links",
+      autofillable: false,
+    },
+    mal_id: { autofillable: false },
+    mal_link: { autofillable: false },
+    remark: { autofillable: false },
+  },
+
+  person: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    // Free text on the Add form: there is no gender vocabulary to select from.
+    gender: { label: "Gender", group: "Classification", autofillable: false },
+    my_rating: { autofillable: false },
+    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    remark: { autofillable: false },
+  },
+
+  character: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    gender: { label: "Gender", group: "Classification", autofillable: false },
+    my_rating: { autofillable: false },
+    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    remark: { autofillable: false },
   },
 };
 
