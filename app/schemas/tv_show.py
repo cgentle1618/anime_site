@@ -35,8 +35,6 @@ class TVShowBase(BaseModel):
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 
-    source_other: Optional[dict] = None
-
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None

@@ -89,11 +89,8 @@ class NovelBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
     openlibrary_link: Optional[str] = None
     openlibrary_id: Optional[str] = None
-
-    source_other: Optional[dict] = None
 
     # Popped out of the payload by the router before the model is built;
     # see MediaTypeSpec.nested_collections.

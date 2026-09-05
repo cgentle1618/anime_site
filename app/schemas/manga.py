@@ -43,9 +43,6 @@ class MangaBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-
-    source_other: Optional[dict] = None
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None

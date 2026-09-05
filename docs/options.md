@@ -558,8 +558,8 @@ are no longer columns.
 
 | Constant | Fields |
 |---|---|
-| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `official_link`, `twitter_link`, `cover_image_file` |
-| `ANIME_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `official_link`, `twitter_link`, `cover_image_file` |
+| `ANIME_FIELDS_TO_FILL` | `airing_type`, `airing_status`, `release_date`, `release_season`, `mal_rating`, `mal_rank`, `ep_total`, `cover_image_file` (`official_link`/`twitter_link` were dropped columns and are deliberately not listed — Fill writes them as `media_source` reference rows now) |
+| `ANIME_MOVIE_FIELDS_TO_FILL` | `airing_status`, `release_date_jp`, `mal_rating`, `mal_rank`, `cover_image_file` (same `official_link`/`twitter_link` exclusion) |
 | `MOVIE_FIELDS_TO_FILL` | `length_min`, `airing_status`, `release_date_usa`, `imdb_rating`, `cover_image_file` |
 | `MOVIE_LINK_FIELDS_TO_FILL` | `("credit", "director")` |
 | `TV_SHOW_FIELDS_TO_FILL` | `airing_status`, `release_date`, `imdb_rating`, `ep_total`, `cover_image_file` |

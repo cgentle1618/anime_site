@@ -4,8 +4,8 @@ Check's Bahamut rule writes the media_source row, not the retired column.
 The rule has always been "a Bahamut link means the entry is available on
 Bahamut, unless someone already said otherwise". Since the media_source
 change the link and the verdict live on the entry's `main` access row, so the
-rule has to be applied there - the old source_baha / baha_link columns are
-read by nothing and are about to be dropped.
+rule has to be applied there - the old source_baha / baha_link columns were
+read by nothing and have been dropped.
 """
 
 import pytest
@@ -87,12 +87,3 @@ def test_another_platform_is_untouched(db_session, sample_anime):
 
     assert row.available is None
 
-
-def test_the_retired_column_is_never_written(db_session, sample_anime, bahamut):
-    """source_baha must stay untouched so the drop migration can run."""
-    _row(db_session, sample_anime, bahamut, url="https://ani.gamer.com.tw/1")
-    sample_anime.baha_link = "https://ani.gamer.com.tw/1"
-
-    apply_check_baha(db_session, sample_anime, "anime")
-
-    assert sample_anime.source_baha is None

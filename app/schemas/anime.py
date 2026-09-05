@@ -52,16 +52,9 @@ class AnimeBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-    official_link: Optional[str] = None
-    twitter_link: Optional[str] = None
 
     seiyuu: Optional[str] = None
 
-    source_baha: Optional[bool] = None
-    baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
-    source_other: Optional[dict] = None
     watch_next: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None

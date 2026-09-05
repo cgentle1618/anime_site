@@ -37,8 +37,6 @@ class ComicBase(BaseModel):
     comicvine_id: Optional[int] = None
     comicvine_link: Optional[str] = None
 
-    source_other: Optional[dict] = None
-
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
     remark: Optional[str] = None

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-05 (commit 050e165, plus uncommitted archive-look, dashboard type-filter, Quality 品質 and novel-units Units-card changes from another session)
+Last verified: 2026-09-05
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -482,7 +482,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Movie | 本傳/外傳, Airing Status, Length, Director, Release Date TW/USA | — | inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | |
-| Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, Publisher TW, Anime Studio (card shown only when any value) | Twitter link pulled from `source_other` |
+| Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, Publisher TW, Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, Publisher TW (conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, Publisher, Imprint, Publisher TW (conditional) | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
 

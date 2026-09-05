@@ -36,8 +36,6 @@ class CartoonBase(BaseModel):
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 
-    source_other: Optional[dict] = None
-
     watch_next: Optional[bool] = None
     remark: Optional[str] = None
     cover_image_file: Optional[str] = None

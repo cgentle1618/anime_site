@@ -86,25 +86,24 @@ Note the tab for the `anime_movies` table is named `Anime Movie` (singular), whi
 `Media Source` sits after `Note` (both endpoints — the entry, and, when set,
 the option — must already exist) and before `Seasonal`.
 
-**As of this writing, `source_baha`, `baha_link`, `source_netflix`,
-`source_other`, `official_link`, `twitter_link` and `anilist_link` are still
-real columns**, still round-tripped by `formatter.py` and still present on
-every media tab alongside the new `Media Source` tab — a follow-up migration
-that drops them (and removes them from the eight media tabs and
-`formatter.py`) has not landed yet. Nothing in `app/services/` reads or
-writes them any more outside this Sheets round trip; `media_source` rows are
-what every other read and write path uses.
+**`source_baha`, `baha_link`, `source_netflix`, `source_other`,
+`official_link`, `twitter_link` and `anilist_link` are gone.** Migration
+`dc1o2l3s4d5` dropped all seven from every table that had them (`anime`,
+`anime_movies`, `manga`, `novel`, `movies`, `tv_shows`, `cartoons`, `comic`),
+and `formatter.py` no longer round-trips any of them on any media tab.
+`media_source` rows (the `Media Source` tab) are the only mechanism left for
+this data, on every read and write path.
 
-**This is a breaking sheet change regardless.** The moment that follow-up
-migration lands, an old sheet (backed up before the `Media Source` tab
-existed) and the new schema stop agreeing on what a media entry's sources
-look like. Per [switching-environments.md](switching-environments.md), Backup
-and Pull All carry the *whole* database state each way with no merge — so
-**Backup must run from the machine with the newer data before the other
-machine runs Pull All**, once the column drop deploys. Pulling an old sheet
-into the dropped schema would silently lose every source on that machine: the
-columns it used to fill are gone, and an old sheet has no `Media Source` rows
-to replace them with.
+**This was a breaking sheet change.** A sheet backed up before the
+`Media Source` tab existed has no `media_source` rows and, now that the
+columns are dropped, nothing to fall back on. Per
+[switching-environments.md](switching-environments.md), Backup and Pull All
+carry the *whole* database state each way with no merge — so **on any machine
+that has not yet run a Backup since this migration landed, run Backup from
+the machine with the newer data before the other machine runs Pull All.**
+Pulling an old sheet into the dropped schema silently restores nothing for
+sources: the columns it used to fill no longer exist, and an old sheet has no
+`Media Source` rows to replace them with.
 
 `system_option_usage` has **no sheet tab at all** — unlike its
 `system_option_scope` sibling, a `usage` row set through the Options page on

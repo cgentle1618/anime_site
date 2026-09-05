@@ -34,14 +34,6 @@ class AnimeMovieBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-    official_link: Optional[str] = None
-    twitter_link: Optional[str] = None
-
-    source_baha: Optional[bool] = None
-    baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
-    source_other: Optional[dict] = None
 
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None

@@ -309,8 +309,8 @@ in `app/utils/utils.py`.
 
 | Type        | `*_FIELDS_TO_FILL`                                                                                                        | Extra rules                                                                                                                                                                                                                                                                             |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, official_link, twitter_link, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. |
-| Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, official_link, twitter_link, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it).                                                                                                                                                                                       |
+| Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. `official_link`/`twitter_link` are gone from this list on purpose: Fill now writes them as `media_source` reference rows, and the columns themselves were dropped, so naming a dropped column here would make every anime read as permanently missing. |
+| Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it). Same `official_link`/`twitter_link` exclusion as Anime.                                                                                                                                                                                       |
 | Movie       | `length_min, airing_status, release_date_usa, imdb_rating, cover_image_file`                                              | Plus `MOVIE_LINK_FIELDS_TO_FILL = [("credit","director")]`: the entry is also missing if it has no `director` credit row in `media_credit`.                                                                                                                                                |
 | TV Show     | `airing_status, release_date, imdb_rating, ep_total, cover_image_file`                                                    |                                                                                                                                                                                                                                                                                         |
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, ep_total, cover_image_file`; Movie: same minus `ep_total`                   | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
@@ -333,10 +333,14 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 
 The episode version is skipped entirely when both values are `None`.
 
-### `source_baha`
+### Bahamut availability
 
-`apply_check_baha` (anime, anime movie): if `baha_link` is set and `source_baha`
-is `None`, set `source_baha = True`. Never sets it to False.
+`apply_check_baha` (anime, anime movie): a Bahamut link means the entry is
+available on Bahamut. The verdict used to live in the `source_baha` tristate
+beside a `baha_link` column; both are dropped now, and the verdict lives on
+the entry's Bahamut `main` `access` row in `media_source` instead — if that
+row's `url` is set and its `available` is `None`, set `available = True`.
+Never overwrites an existing verdict.
 
 ---
 

@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-05 (commit 9f14245)
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -72,9 +72,13 @@ Tenrai v1 is a public read-only mirror of MyAnimeList. No key is needed.
 | `score` | `mal_rating` | as-is (float). |
 | `rank` | `mal_rank` | stringified. |
 | `episodes` | `ep_total` | as-is. |
-| `external[]` | `official_link` | First link whose **`name` contains `"official"`** (case-insensitive). A non-Twitter URL without "official" in its name is ignored. |
-| `external[]` | `twitter_link` | First link whose `url` contains `twitter.com` or `x.com`. |
+| `external[]` | `official_link`* | First link whose **`name` contains `"official"`** (case-insensitive). A non-Twitter URL without "official" in its name is ignored. |
+| `external[]` | `twitter_link`* | First link whose `url` contains `twitter.com` or `x.com`. |
 | `images` | `cover_image_url` | `webp.large_image_url`, else `jpg.large_image_url`, else `jpg.image_url`. |
+
+\* `official_link`/`twitter_link` are keys in the mapper's returned dict, not
+entry columns — those columns were dropped by migration `dc1o2l3s4d5`. See
+"What autofill actually writes" below for where the values actually land.
 
 ### Mapping for `anime_movies` — `map_tenrai_to_anime_movie_data`
 
@@ -98,7 +102,7 @@ Same rules, except the date goes to `release_date_jp` and there is no `release_s
 | Column(s) | Rule |
 |---|---|
 | `airing_type`, `airing_status`, `release_season`, `release_date` / `release_date_jp`, `ep_total` (anime only), `serialization_status`, `release_date`, `end_date` | **Fill-only** — written only when the column is `None`. |
-| `official_link`, `twitter_link` | Fill-only, tested with `not value` (so an empty string also gets filled). |
+| Official site / Twitter (anime, anime movie only) | Not columns any more. `_write_tenrai_reference_rows` calls `upsert_main_source(db, media_type, entry.system_id, "reference", value, url)` for each of the two, which is itself fill-only at the row level: it adds a `media_source` `kind='reference', bucket='main'` row only when no such row exists yet for that vocabulary value, and never overwrites or removes one that does (even one with no `url`). |
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
 | `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [GCS](#google-cloud-storage-cover-images). |

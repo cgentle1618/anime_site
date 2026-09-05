@@ -117,15 +117,6 @@ def test_an_existing_row_is_not_overwritten(db_session, sample_anime, patched):
     assert rows[OFFICIAL_SITE_VALUE].url == "https://mine.test"
 
 
-def test_the_retired_columns_are_never_written(db_session, sample_anime, patched):
-    sample_anime.mal_id = "1"
-
-    autofill_anime_from_mal(sample_anime, db=db_session)
-
-    assert sample_anime.official_link is None
-    assert sample_anime.twitter_link is None
-
-
 def test_anime_movie_fill_writes_them_too(
     db_session, sample_franchise, patched
 ):
@@ -142,4 +133,3 @@ def test_anime_movie_fill_writes_them_too(
 
     rows = _rows(db_session, "anime-movie", entry)
     assert set(rows) == {OFFICIAL_SITE_VALUE, TWITTER_VALUE}
-    assert entry.official_link is None

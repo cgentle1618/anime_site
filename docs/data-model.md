@@ -204,7 +204,6 @@ Columns common to all eight entry tables (listed once here):
 | `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_id` | UUID | yes | | FK `series.system_id` ON DELETE SET NULL - **absent on `anime_movies`** |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `source_other` | JSONB | yes | | Free-form map of extra viewing/reading sources (label → URL). **Superseded**: `media_source` `bucket='other'` rows are what every read and write path uses now (see [`media_source`](#media_source)); this column, `source_baha`/`baha_link`/`source_netflix` (anime, anime-movie only), `official_link`, `twitter_link` and `anilist_link` still exist on the tables as of this writing but are no longer read or written outside the Sheets round trip, pending a follow-up migration that drops them. |
 | `cover_image_file` | String | yes | | GCS object key of the cover image. |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed status (see `app/services/domain/completion.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -212,7 +211,10 @@ Columns common to all eight entry tables (listed once here):
 Each entry also has: a status column (`watching_status` NOT NULL default
 `"Might Watch"` for the five watch types; `reading_status` NOT NULL default
 `"Might Read"` for manga, novel, comic), its name columns, and the virtual
-fields in [Virtual fields](#virtual-fields-on-media-entries). Credits
+fields in [Virtual fields](#virtual-fields-on-media-entries). There is no
+`source_other` column any more - a `media_source` `bucket='other'` row is
+what every read and write path uses now (see [`media_source`](#media_source)).
+Credits
 (studio, director, author...) and vocabulary tags (genre, publisher...) are
 **not columns** - they are rows in `media_credit` / `media_tag`.
 
@@ -244,11 +246,8 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `broadcast_time` | Time | yes | | Postgres TIME, exchanged as `"HH:MM:SS"` |
 | `my_watch_day` | String | yes | | WEEKDAYS |
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
-| `mal_link` / `anilist_link` / `official_link` / `twitter_link` | String | yes | | |
+| `mal_link` | String | yes | | |
 | `seiyuu` | String | yes | | SEIYUU_STATUSES - a Need/Done work-status flag, **not** a cast list |
-| `source_baha` | Boolean | yes | `None` | Available on Bahamut |
-| `baha_link` | String | yes | | |
-| `source_netflix` | Boolean | yes | `False` | |
 
 Relationships: `franchise`, `series`. Virtual: `remark`, `watch_next`,
 `cum_ep_fin`, `cum_ep_total`, `display_name`, `names_dict`, credit/tag link
@@ -271,10 +270,7 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY) |
 | `release_date_tw` | String | yes | | |
 | `mal_id` | Integer | yes | | |
-| `mal_link` / `anilist_link` / `official_link` / `twitter_link` | String | yes | | |
-| `source_baha` | Boolean | yes | `None` | |
-| `baha_link` | String | yes | | |
-| `source_netflix` | Boolean | yes | `False` | |
+| `mal_link` | String | yes | | |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `names_dict`.
 
@@ -793,7 +789,7 @@ Model: `MediaSource` (`app/models/media_source.py`).
 | `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, gated by field group `sources_other`), or `restricted` (free-form, gated by `sources_restricted`), indexed |
 | `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
 | `name` | String | yes | | Free text. Set on `other` / `restricted` rows only |
-| `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows (the old `source_baha`); NULL on every `reference` row and every free-form row |
+| `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows (carries the role the now-dropped `source_baha` column used to play); NULL on every `reference` row and every free-form row |
 | `url` | String | yes | | |
 | `position` | Integer | no | `0` (server default too) | `main` rows render in the pointed-at option's `sort_order` instead and never carry a meaningful `position`; `other`/`restricted` rows render in insertion order via this column |
 | `created_at` | DateTime | yes | now | |
@@ -815,17 +811,18 @@ by RBAC happens inside `attach_sources` itself, not in `field_gate.gate()`,
 because it is partial — a viewer can hold `other` and not `restricted` — see
 [authorization.md](authorization.md).
 
-**Coexists with older columns today.** `mal_id`/`mal_link`, `imdb_id`/
-`imdb_link` and `comicvine_id`/`comicvine_link` stay real columns — the Fill
-pipeline extracts an id out of them (`derivation.py`) and gates on their
-presence (`checking.py`, `calculation.py`). The guiding rule: **a link the
-system acts on is a column; a link that is only ever displayed is a
-`media_source` row.** The older per-type source columns this table replaces —
-`source_baha`, `baha_link`, `source_netflix`, `source_other`, `official_link`,
-`twitter_link`, `anilist_link` — are still present on the entry tables as of
-this writing (a follow-up migration drops them); the app no longer reads or
-writes them anywhere outside the Sheets round trip, so treat their survival as
-a pending cleanup rather than a second live mechanism.
+**Coexists with a few older columns.** `mal_id`/`mal_link`, `imdb_id`/
+`imdb_link`, `comicvine_id`/`comicvine_link` and `openlibrary_id`/
+`openlibrary_link` stay real columns — the Fill pipeline extracts an id out of
+them (`derivation.py`) and gates on their presence (`checking.py`,
+`calculation.py`). The guiding rule: **a link the system acts on is a column;
+a link that is only ever displayed is a `media_source` row.** The older
+per-type source columns this table replaces — `source_baha`, `baha_link`,
+`source_netflix`, `source_other`, `official_link`, `twitter_link` and
+`anilist_link` — were dropped from `anime`, `anime_movies`, `manga`, `novel`,
+`movies`, `tv_shows`, `cartoons` and `comic` by migration `dc1o2l3s4d5`; they
+no longer exist on any entry table, and nothing reads or writes them anywhere,
+including the Sheets round trip.
 
 **Sheets.** Backed up and restored as its own tab, `Media Source`, after
 `Note` (both endpoints — the entry and, when set, the option — must already
