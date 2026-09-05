@@ -74,6 +74,14 @@ def test_writes_require_admin(client, db_session):
     assert r.status_code in (401, 403)
 
 
+def test_exclusive_source_rejects_a_second_value(admin_client, sample_anime):
+    r = admin_client.put(
+        f"/api/credits/anime/{sample_anime.system_id}",
+        json={"tags": {"exclusive_source": ["Netflix", "Crunchyroll"]}},
+    )
+    assert r.status_code == 400
+
+
 def test_anime_payload_carries_linkable_studio_refs(
     admin_client, db_session, sample_anime
 ):

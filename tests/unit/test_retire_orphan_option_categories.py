@@ -48,9 +48,15 @@ def test_preserved_values_land_in_live_categories():
 
 
 def test_preserved_scopes_are_offered_by_their_field():
-    by_category = {f.category: f for f in TAG_FIELDS.values()}
+    # A category can now back more than one TagField - "Platform" backs both
+    # original_source and exclusive_source, each with its own media types -
+    # so a preserved scope only needs to be legal for SOME field reading the
+    # category, not a single one keyed by category alone.
+    media_types_by_category: dict[str, set[str]] = {}
+    for f in TAG_FIELDS.values():
+        media_types_by_category.setdefault(f.category, set()).update(f.media_types)
     for category, _value, scope in migration.PRESERVED_VALUES:
-        assert scope in by_category[category].media_types
+        assert scope in media_types_by_category[category]
 
 
 def test_retired_categories_are_unique():

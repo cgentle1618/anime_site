@@ -74,7 +74,14 @@ RETIRED_CATEGORIES: tuple[str, ...] = (
 # these join at 0 and the admin orders them on the Options page.
 PRESERVED_VALUES: tuple[tuple[str, str, str], ...] = (
     ("Publisher / Distributor TW", "bilibili", "anime"),
-    ("Official Source", "FX", "tv-show"),
+    # "Official Source" was the category name when this migration was
+    # written; st1a2g3s4_source_tag_fields later renamed the whole category
+    # to "Platform". Written here as "Platform" directly so a fresh install
+    # replaying this chain ends in the same place as a live database that
+    # already ran both migrations, and so this migration's own
+    # test_preserved_values_land_in_live_categories check stays true against
+    # the current vocabulary instead of a since-renamed one.
+    ("Platform", "FX", "tv-show"),
 )
 
 # Studio names that existed only as an option value.

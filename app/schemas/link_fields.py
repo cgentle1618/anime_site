@@ -71,6 +71,7 @@ class AnimeLinkFields(SourceFields):
     genre_sub: Optional[str] = None
     label: Optional[str] = None
     quality: Optional[str] = None
+    exclusive_source: Optional[str] = None
 
 
 class AnimeMovieLinkFields(SourceFields):
@@ -78,6 +79,7 @@ class AnimeMovieLinkFields(SourceFields):
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
+    exclusive_source: Optional[str] = None
 
 
 class MovieLinkFields(SourceFields):
@@ -85,11 +87,13 @@ class MovieLinkFields(SourceFields):
     director: Optional[str] = None
     # Movie never had a legacy source_official column; the tag field is
     # offered on movies, so the key is its own name.
-    source_official: Optional[str] = None
+    original_source: Optional[str] = None
 
 
 class TvShowLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
+    # Legacy sheet column stays "source_official" - sheet_column_for maps the
+    # renamed field key back to it.
     source_official: Optional[str] = None
 
 
@@ -103,6 +107,9 @@ class MangaLinkFields(SourceFields):
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
     publisher_tw: Optional[str] = None
+    # No serialization_platform here: manga's real column of that name would
+    # collide with the derived link field. Joins in Task 11, once the column
+    # is dropped. See the comment on TAG_FIELDS["serialization_platform"].
 
 
 class NovelLinkFields(SourceFields):
@@ -110,6 +117,7 @@ class NovelLinkFields(SourceFields):
     author: Optional[str] = None
     illustrator: Optional[str] = None
     publisher_tw: Optional[str] = None
+    serialization_platform: Optional[str] = None
 
 
 class ComicLinkFields(SourceFields):

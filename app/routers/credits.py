@@ -99,6 +99,14 @@ def replace_credits(
                 detail=f"'{field}' is not a valid tag field for {media_type}.",
             )
 
+    SINGLE_VALUED = {"exclusive_source"}
+    for field, values in payload.tags.items():
+        if field in SINGLE_VALUED and len(values) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field} takes at most one value, got {len(values)}",
+            )
+
     for role, names in payload.credits.items():
         credits_service.replace_credits(db, media_type, entry_id, role, names)
     for field, values in payload.tags.items():

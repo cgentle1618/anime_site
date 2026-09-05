@@ -32,14 +32,14 @@ def test_extraction_records_the_scope_a_value_is_used_in(db_session):
     db_session.commit()
     from app.services.domain.credits import replace_tags
 
-    replace_tags(db_session, "tv-show", show.system_id, "source_official", ["Netflix"])
+    replace_tags(db_session, "tv-show", show.system_id, "original_source", ["Netflix"])
     db_session.commit()
 
     # replace_tags already writes the scope row for the type it was called
     # with. Delete it so the extraction pass under test is what recreates it,
     # not a leftover from setup.
     opt = db_session.query(models.SystemOption).filter_by(
-        category="Official Source", value="Netflix"
+        category="Platform", value="Netflix"
     ).one()
     db_session.query(models.SystemOptionScope).filter_by(
         option_id=opt.system_id

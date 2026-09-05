@@ -123,23 +123,23 @@ def test_using_an_unscoped_value_does_not_narrow_it(admin_client, client, db_ses
 
     admin_client.post(
         "/api/options/",
-        json={"category": "Official Source", "value": "Disney+", "scopes": []},
+        json={"category": "Platform", "value": "Disney+", "scopes": []},
     )
     show = models.TVShows(tv_name_cn="A")
     db_session.add(show)
     db_session.commit()
-    replace_tags(db_session, "tv-show", show.system_id, "source_official", ["Disney+"])
+    replace_tags(db_session, "tv-show", show.system_id, "original_source", ["Disney+"])
     db_session.commit()
 
     offered = {
         o["value"]
-        for o in client.get("/api/options/Official Source?scope=cartoon").json()
+        for o in client.get("/api/options/Platform?scope=cartoon").json()
     }
     assert "Disney+" in offered
 
     option = (
         db_session.query(models.SystemOption)
-        .filter_by(category="Official Source", value="Disney+")
+        .filter_by(category="Platform", value="Disney+")
         .one()
     )
     assert option.scopes == [], "a save wrote a scope row it had no business writing"

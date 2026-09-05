@@ -212,11 +212,13 @@ def test_a_header_row_missing_the_credit_column_does_not_wipe_it(db_session, mon
     assert credit_names(db_session, "anime", a.system_id, "studio") == ["MAPPA"]
 
 
-def test_movie_source_official_restores_under_its_own_new_header(db_session, monkeypatch):
-    """movie/source_official never had a legacy string column, so it is a
+def test_movie_original_source_restores_under_its_own_new_header(db_session, monkeypatch):
+    """movie/original_source never had a legacy string column, so it is a
     brand-new column rather than a renamed one - it uses its own key as the
-    header, appended at the end like every other link column."""
-    headers = ["movie_name_cn", "source_official"]
+    header, appended at the end like every other link column. Unlike
+    tv-show/cartoon (which keep the old "source_official" header for sheet
+    compatibility), movie's header follows the field key's rename."""
+    headers = ["movie_name_cn", "original_source"]
     rows = [["新電影", "Netflix"]]
     monkeypatch.setattr(pull, "get_all_raw_rows", lambda tab: [headers] + rows)
 
@@ -224,7 +226,7 @@ def test_movie_source_official_restores_under_its_own_new_header(db_session, mon
 
     assert result["status"] == "success"
     fresh = db_session.query(models.Movies).filter_by(movie_name_cn="新電影").one()
-    assert tag_values(db_session, "movie", fresh.system_id, "source_official") == [
+    assert tag_values(db_session, "movie", fresh.system_id, "original_source") == [
         "Netflix"
     ]
 

@@ -508,11 +508,14 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
-        # No legacy column - movie/source_official is a new tag field the
-        # credits redesign added, so it only ever shows up at the end of the
-        # tab under its own key. Popped out in pull.py before the setattr
-        # loop, exactly like the anime/manga/novel/comic credit columns.
-        "source_official": parse_from_sheet(raw.get("source_official"), str),
+        # No legacy column - movie/original_source is a tag field the credits
+        # redesign added, so it only ever shows up at the end of the tab under
+        # its own key (renamed from source_official alongside the field key -
+        # tv-show and cartoon keep the old header instead, since they DO have
+        # a legacy column to stay compatible with). Popped out in pull.py
+        # before the setattr loop, exactly like the anime/manga/novel/comic
+        # credit columns.
+        "original_source": parse_from_sheet(raw.get("original_source"), str),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
         "release_date_usa": release_date.normalize(parse_from_sheet(raw.get("release_date_usa"), str)),
         "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),

@@ -22,6 +22,8 @@ anime/non_anime split and the director_scope_for() that derived it are gone.
 
 from dataclasses import dataclass
 
+from app.utils.source_fields import PLATFORM_CATEGORY, SERIALIZATION_CATEGORY
+
 
 @dataclass(frozen=True)
 class CreditRole:
@@ -104,9 +106,29 @@ TAG_FIELDS: dict[str, TagField] = {
     # Production-quality tags (神作畫, 作畫崩壞, ...). Anime-only and, like
     # `label`, never a legacy column, so its sheet header is the key itself.
     "quality": TagField("quality", "Quality 品質", "Quality", ("anime",)),
-    "source_official": TagField(
-        "source_official", "Official Source", "Official Source",
+    # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
+    # on a streaming service the same day.
+    "original_source": TagField(
+        "original_source", "Original Source", PLATFORM_CATEGORY,
         ("tv-show", "cartoon", "movie"),
+    ),
+    # Which platform carries a work EXCLUSIVELY. Blank means not exclusive,
+    # which is a fact about the work, not a missing value. Single-valued: you
+    # cannot be exclusive to two platforms.
+    "exclusive_source": TagField(
+        "exclusive_source", "Exclusive Source", PLATFORM_CATEGORY,
+        ("anime", "anime-movie"),
+    ),
+    # Novel-only for now. Manga has a REAL `serialization_platform` column
+    # (dropped in Task 11, in the same migration that backfills its values
+    # into media_tag and widens this field to ("manga", "novel")). A TagField
+    # and a same-named real column must never coexist: attach_link_fields
+    # setattr()s the derived (currently empty) value onto the ORM entry under
+    # this same name, which would silently null the real column on every read
+    # until Task 11 lands. Do not "fix" this back to ("manga", "novel").
+    "serialization_platform": TagField(
+        "serialization_platform", "Serialization Platform",
+        SERIALIZATION_CATEGORY, ("novel",),
     ),
     "publisher_tw": TagField(
         "publisher_tw", "Publisher / Distributor TW",
@@ -168,7 +190,7 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # wrote under "distributor_tw" while manga/novel/comic wrote under
 # "publisher_tw" itself. The sheets predate this design and must keep reading
 # the same; only what sits behind the column changed. A pair absent here (for
-# example movie/source_official, which never had a legacy column) falls back
+# example movie/original_source, which never had a legacy column) falls back
 # to its own key as the header - see credits.sheet_link_headers.
 LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("anime", "studio"): "studio",
@@ -181,8 +203,8 @@ LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("anime-movie", "studio"): "studio",
     ("anime-movie", "director"): "director",
     ("movie", "director"): "director",
-    ("tv-show", "source_official"): "source_official",
-    ("cartoon", "source_official"): "source_official",
+    ("tv-show", "original_source"): "source_official",
+    ("cartoon", "original_source"): "source_official",
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
     ("manga", "publisher_tw"): "publisher_tw",
