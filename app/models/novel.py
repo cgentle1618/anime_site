@@ -95,6 +95,11 @@ class Novel(Base, NameFallbackMixin):
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
     anilist_link = Column(String, nullable=True)
+    # An Open Library *work* URL and the OL...W id derived from it. String, not
+    # Integer like comicvine_id: the trailing W is what separates a work from an
+    # edition (OL...M) or an author (OL...A).
+    openlibrary_link = Column(String, nullable=True)
+    openlibrary_id = Column(String, nullable=True)
 
     source_other = Column(JSONB, default=None, nullable=True)
 

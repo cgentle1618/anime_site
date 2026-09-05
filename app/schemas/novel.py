@@ -88,6 +88,8 @@ class NovelBase(BaseModel):
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
     anilist_link: Optional[str] = None
+    openlibrary_link: Optional[str] = None
+    openlibrary_id: Optional[str] = None
 
     source_other: Optional[dict] = None
 

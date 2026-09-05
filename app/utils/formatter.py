@@ -689,6 +689,8 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "anilist_link": parse_from_sheet(raw.get("anilist_link"), str),
+        "openlibrary_link": parse_from_sheet(raw.get("openlibrary_link"), str),
+        "openlibrary_id": parse_from_sheet(raw.get("openlibrary_id"), str),
         "source_other": _safe_json(raw.get("source_other")),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
