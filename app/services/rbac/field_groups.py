@@ -7,7 +7,7 @@ role_permission.permission, and a tuple of keys for validation.
 
 A group is the unit an admin toggles on a role, so it is named for what a
 reader would recognise ("Other Sources"), not for the storage behind it. That
-storage comes in four flavours and they are gated in different places:
+storage comes in five flavours and they are gated in different places:
 
   columns       real columns on a media table. Stripped from a COPY of the
                 response - nulling one on the live ORM instance would be
@@ -17,6 +17,9 @@ storage comes in four flavours and they are gated in different places:
                 attrs since the 26 comma-joined columns were dropped, so they
                 are simply not attached.
   note_sections rows in `note`, filtered in routers/note.py.
+  source_buckets  rows in `media_source`, filtered by
+                  services.domain.sources.attach_sources before the response
+                  is built.
   ui_block      a block the SPA hides itself, because the server cannot strip
                 what backs it. The permission travels to the browser in
                 /api/auth/me and the block checks it. This is presentation,
@@ -53,6 +56,11 @@ class FieldGroup:
     link_fields: dict[str, tuple[str, ...]] = field(default_factory=dict)
     # Keys in note_sections.NOTE_SECTIONS.
     note_sections: tuple[str, ...] = ()
+    # Values in media_source.bucket to filter out of the composed source list.
+    # Filtered at attach time rather than in field_gate.gate(): the gating is
+    # partial - a viewer may hold `other` and not `restricted` - so the
+    # attribute cannot simply be blanked.
+    source_buckets: tuple[str, ...] = ()
     # A frontend-only block, hidden by the SPA rather than stripped by the API.
     ui_block: str = ""
 
@@ -107,9 +115,16 @@ FIELD_GROUPS: dict[str, FieldGroup] = {
     "sources_other": FieldGroup(
         key="sources_other",
         label="Other Sources",
-        description="The free-form source_other links on every media entry.",
-        columns={ALL: ("source_other",)},
+        description="The free-form source list on every media entry.",
+        source_buckets=("other",),
         ui_block="info.SourcesCard.other",
+    ),
+    "sources_restricted": FieldGroup(
+        key="sources_restricted",
+        label="Restricted Sources",
+        description="The restricted free-form source list on every media entry.",
+        source_buckets=("restricted",),
+        ui_block="info.SourcesCard.restricted",
     ),
     "personal_notes": FieldGroup(
         key="personal_notes",

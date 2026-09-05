@@ -41,6 +41,7 @@ def test_group_covers_at_least_one_surface(key):
         any(columns_for(group, mt) for mt in MEDIA_TYPE_KEYS)
         or any(link_fields_for(group, mt) for mt in MEDIA_TYPE_KEYS)
         or group.note_sections
+        or group.source_buckets
         or group.ui_block
     )
     assert covers, f"{key} gates nothing"
@@ -80,10 +81,13 @@ def test_every_gated_note_section_exists(key):
 
 
 def test_source_other_is_gated_on_every_media_type():
-    """The motivating case: source_other is a real column on all eight."""
+    """
+    The motivating case: sources_other now gates the `other` media_source
+    bucket rather than a real column, but it still applies uniformly across
+    every media type since a bucket means the same thing on all eight.
+    """
     group = FIELD_GROUPS["sources_other"]
-    for media_type in MEDIA_TYPE_KEYS:
-        assert "source_other" in columns_for(group, media_type)
+    assert group.source_buckets == ("other",)
 
 
 def test_credits_group_gates_credits_but_not_tags():
@@ -93,3 +97,24 @@ def test_credits_group_gates_credits_but_not_tags():
     assert "director" in link_fields_for(group, "anime")
     assert "genre_main" not in link_fields_for(group, "anime")
     assert "era" not in link_fields_for(group, "comic")
+
+
+def test_every_gated_bucket_is_a_real_bucket():
+    from app.utils.source_fields import SOURCE_BUCKETS
+
+    for key, group in FIELD_GROUPS.items():
+        for bucket in group.source_buckets:
+            assert bucket in SOURCE_BUCKETS, f"{key} gates unknown bucket {bucket}"
+
+
+def test_the_two_source_groups_gate_different_buckets():
+    other = FIELD_GROUPS["sources_other"].source_buckets
+    restricted = FIELD_GROUPS["sources_restricted"].source_buckets
+    assert not set(other) & set(restricted)
+
+
+def test_sources_other_no_longer_gates_a_column():
+    from app.utils.media_resolver import MEDIA_TYPE_KEYS
+
+    for media_type in MEDIA_TYPE_KEYS:
+        assert columns_for(FIELD_GROUPS["sources_other"], media_type) == ()

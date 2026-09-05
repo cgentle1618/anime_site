@@ -9,10 +9,11 @@ different ways:
                 attributes that attach_link_fields sets on the instance, so
                 blanking one in place is free and harmless.
 
-  real columns  source_other, and anything added later. Nulling one on a live
-                ORM instance marks the entity dirty, and the next autoflush
-                would write the blank to disk - gating would become silent,
-                permanent data loss. So the response is built from a COPY.
+  real columns  created_at/updated_at, and anything added later. Nulling one
+                on a live ORM instance marks the entity dirty, and the next
+                autoflush would write the blank to disk - gating would become
+                silent, permanent data loss. So the response is built from a
+                COPY.
 
 Both paths return the input untouched when the viewer holds everything, which
 is the overwhelmingly common case and costs one set lookup.
@@ -56,8 +57,14 @@ def gated_link_fields(viewer: Optional[Viewer], media_type: str) -> tuple[str, .
 
 
 def gated_source_buckets(viewer: Optional[Viewer]) -> tuple[str, ...]:
-    """media_source buckets to withhold. Real implementation in Task 7."""
-    return ()
+    """
+    media_source buckets to withhold. Not per media type: a bucket means the
+    same thing on all eight, so the group names it once.
+    """
+    out: list[str] = []
+    for group in _withheld(viewer):
+        out.extend(group.source_buckets)
+    return tuple(dict.fromkeys(out))
 
 
 def gate(
