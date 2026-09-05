@@ -161,15 +161,20 @@ export const SEIYUU_STATUSES = ["Need", "Done"];
 // to be a hand-written literal inside OptionsAddTab.jsx with nothing enforcing
 // the match, which is the exact two-copies pattern the options redesign exists
 // to delete.
+//
+// Moving it here did not stop it drifting: it sat holding the PRE-COLLAPSE
+// keys (manga_author, novel_author, novel_illustrator, comic_writer,
+// comic_artist) long after the 2026-09-04 collapse replaced them with author
+// and illustrator, because the live API masks a wrong fallback. It is now
+// pinned by test_person_role_fallback_matches_python in
+// tests/unit/test_credit_roles.py.
 export const PERSON_ROLES = [
   "director",
   "producer",
   "composer",
-  "manga_author",
-  "novel_author",
-  "novel_illustrator",
-  "comic_writer",
-  "comic_artist",
+  "author",
+  "illustrator",
+  "seiyuu",
 ];
 
 // Hyphenated media type keys (MEDIA_TABLES in app/utils/media_resolver.py),

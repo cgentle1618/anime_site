@@ -310,3 +310,33 @@ def test_every_person_role_has_an_admin_sub_tab():
         "These person roles have no sub-tab in PersonSubTabBar.jsx, so they "
         f"cannot be chosen in the admin forms: {', '.join(missing)}"
     )
+
+
+def test_person_role_fallback_matches_python():
+    """
+    PERSON_ROLES in frontend/src/config/fieldOptions.js is the pre-fetch
+    fallback for GET /api/constants' person_role list.
+
+    A wrong fallback is invisible in normal use - the API overwrites it in
+    place a moment later - so this one sat holding the PRE-COLLAPSE keys
+    (manga_author, novel_author, novel_illustrator, comic_writer,
+    comic_artist) long after the 2026-09-04 collapse deleted them, and was
+    missing seiyuu as well. Its own comment warned that a hand-written copy
+    with nothing enforcing the match is the pattern to avoid; nothing was
+    enforcing the match. This is that enforcement.
+    """
+    import re
+    from pathlib import Path
+
+    from app.utils.credit_roles import PERSON_ROLES
+
+    source = Path("frontend/src/config/fieldOptions.js").read_text(encoding="utf-8")
+    block = re.search(
+        r"export const PERSON_ROLES = \[(.*?)\];", source, re.DOTALL
+    )
+    assert block, "PERSON_ROLES literal not found in fieldOptions.js"
+    listed = re.findall(r'"([^"]+)"', block.group(1))
+    assert listed == list(PERSON_ROLES), (
+        "fieldOptions.js PERSON_ROLES has drifted from app/utils/credit_roles.py: "
+        f"frontend has {listed}, Python has {list(PERSON_ROLES)}"
+    )
