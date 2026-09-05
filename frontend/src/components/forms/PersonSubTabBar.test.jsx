@@ -4,13 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import PersonSubTabBar, { PERSON_SUB_TABS } from "./PersonSubTabBar";
 
 describe("PersonSubTabBar", () => {
-  it("offers exactly the five person types", () => {
+  it("offers exactly the six person types", () => {
     expect(PERSON_SUB_TABS.map((t) => t.key)).toEqual([
       "director",
       "producer",
       "composer",
       "author",
       "illustrator",
+      "seiyuu",
     ]);
   });
 

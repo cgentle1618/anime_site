@@ -1,4 +1,4 @@
-// The five person types, shared by the admin Add / Modify / Delete pages so
+// The six person types, shared by the admin Add / Modify / Delete pages so
 // the three cannot drift apart — the same job OptionSubTabBar does for the
 // System Option tab.
 //
@@ -8,13 +8,18 @@
 // role × scope matrix.
 //
 // The keys are the collapsed person-role vocabulary in
-// app/utils/credit_roles.py. A sixth type added there needs a line here.
+// app/utils/credit_roles.py. A seventh type added there needs a line here —
+// this list is hand-maintained, and the seiyuu row below was missed for a
+// while precisely because nothing fails when it is out of date.
 export const PERSON_SUB_TABS = [
   { key: "director", label: "Director", icon: "fa-clapperboard" },
   { key: "producer", label: "Producer", icon: "fa-briefcase" },
   { key: "composer", label: "Music / Composer", icon: "fa-music" },
   { key: "author", label: "Author", icon: "fa-pen-nib" },
   { key: "illustrator", label: "Illustrator", icon: "fa-paintbrush" },
+  // Seiyuu hold no media_credit rows - their work lives in character_casting -
+  // but they are people like any other, so they get a sub-tab like any other.
+  { key: "seiyuu", label: "Seiyuu 聲優", icon: "fa-microphone" },
 ];
 
 export default function PersonSubTabBar({ active, onSelect }) {

@@ -285,3 +285,28 @@ def test_director_is_still_returned_for_anime():
     """Guards the credit_roles_for() filter against over-filtering."""
     assert "director" in {r.key for r in cr.credit_roles_for("anime")}
     assert "studio" in {r.key for r in cr.credit_roles_for("anime")}
+
+
+def test_every_person_role_has_an_admin_sub_tab():
+    """
+    PERSON_SUB_TABS in frontend/src/components/forms/PersonSubTabBar.jsx is a
+    hand-maintained list, and it drives four surfaces at once: the Person
+    Add / Modify / Delete sub-tabs and the /library/person type filter.
+
+    Nothing failed when it fell out of step, so `seiyuu` shipped without a
+    sub-tab and could not be picked in the admin forms at all - the role
+    existed, but there was no way to reach it. This test is the missing alarm:
+    add a person role in Python and the frontend list has to follow.
+    """
+    from pathlib import Path
+
+    from app.utils.credit_roles import PERSON_ROLES
+
+    source = Path("frontend/src/components/forms/PersonSubTabBar.jsx").read_text(
+        encoding="utf-8"
+    )
+    missing = [role for role in PERSON_ROLES if f'key: "{role}"' not in source]
+    assert not missing, (
+        "These person roles have no sub-tab in PersonSubTabBar.jsx, so they "
+        f"cannot be chosen in the admin forms: {', '.join(missing)}"
+    )
