@@ -41,6 +41,7 @@ from app.services.domain.derivation import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_novel_ids,
     apply_extract_season_from_title,
     derive_ep_previous_anime,
     derive_season_1_anime,
@@ -138,8 +139,12 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     """
     Core 'Replace' logic for a single Novel entry.
     No post_processing and nothing derived franchise-wide — novel has neither.
+
+    Both ids are derived, but only MAL is re-fetched: Replace is deliberately
+    not wired to Open Library. Deriving openlibrary_id here anyway keeps the id
+    in step with its link, so the next Fill has something to key off.
     """
-    apply_extract_mal_id_manga_novel(novel)
+    apply_extract_novel_ids(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
 
 
