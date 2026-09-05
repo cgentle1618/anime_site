@@ -2,11 +2,18 @@
 import { formatReleaseDate } from "./releaseDate";
 import { effectiveProgressDisplay } from "./novelUnits";
 
-export function isBaha(anime) {
-  return (
-    anime.source_baha === true ||
-    String(anime.source_baha).toLowerCase() === "true"
+// The Bahamut row now lives in `sources` (kind "access", bucket "main",
+// name "Bahamut") rather than the old boolean-plus-URL column pair the
+// entry table used to carry - see the identical lookup in MediaCard.jsx /
+// DashboardCard.jsx.
+export function getBahaRow(entry) {
+  return (entry.sources || []).find(
+    (s) => s.kind === "access" && s.name === "Bahamut",
   );
+}
+
+export function isBaha(entry) {
+  return getBahaRow(entry)?.available === true;
 }
 
 export function getReleaseFallback(entry) {

@@ -18,7 +18,7 @@ import { Link } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
-import { scopeChip } from "../../config/scopeColors";
+import { scopeChip, usageChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
 
 // Tier 3 is the one section with no endpoint that describes itself, because
@@ -356,6 +356,7 @@ function Tier2({ groups, loading }) {
                       <th className="text-left font-black px-3 py-2 w-16">#</th>
                       <th className="text-left font-black px-3 py-2">Value</th>
                       <th className="text-left font-black px-3 py-2">Scopes</th>
+                      <th className="text-left font-black px-3 py-2">Usages</th>
                       <th className="text-left font-black px-3 py-2">Remark</th>
                     </tr>
                   </thead>
@@ -378,6 +379,21 @@ function Tier2({ groups, loading }) {
                               {row.scopes.map((scope) => (
                                 <span key={scope} className={scopeChip(scope)}>
                                   {scope}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {(row.usages || []).length === 0 ? (
+                            <span className="text-xs text-text-faint italic">
+                              both
+                            </span>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {row.usages.map((usage) => (
+                                <span key={usage} className={usageChip(usage)}>
+                                  {usage}
                                 </span>
                               ))}
                             </span>

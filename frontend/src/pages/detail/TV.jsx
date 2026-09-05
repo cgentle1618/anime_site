@@ -274,7 +274,7 @@ export default function TV() {
             sources={show.sources}
             mediaType="tv-show"
             imdbLink={show.imdb_link}
-            originalSource={show.original_source}
+            originalSource={show.source_official}
           />
 
           {/* Related Entries */}

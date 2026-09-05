@@ -1,5 +1,7 @@
 // Frontend: add tab page file for TvShowAddTab.
 import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -8,7 +10,7 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   AIRING_STATUSES,
   IS_MAIN,
@@ -33,6 +35,7 @@ export default function TvShowAddTab({
   applyTvShowAutofill,
   allFranchises,
   seriesItemsForTvShow,
+  sources,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
@@ -322,11 +325,16 @@ export default function TvShowAddTab({
             ))}
           </select>
         </Field>
-        <Field label="Source Official">
-          <input
-            className={inputCls}
-            value={tvf.source_official}
-            onChange={(e) => utf("source_official", e.target.value)}
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "tv-show",
+              usage: "origin",
+            })}
+            value={tvf.original_source}
+            onChange={(v) => utf("original_source", v)}
             placeholder="e.g. Netflix, HBO"
           />
         </Field>
@@ -365,69 +373,15 @@ export default function TvShowAddTab({
             placeholder="https://www.imdb.com/title/tt..."
           />
         </Field>
-        <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-            Other Sources
-          </label>
-          <div className="space-y-2">
-            {tvf.source_other.map((entry, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  className={inputCls}
-                  placeholder="Source name (e.g. Disney+)"
-                  value={entry.name}
-                  onChange={(e) =>
-                    utf(
-                      "source_other",
-                      tvf.source_other.map((x, j) =>
-                        j === i ? { ...x, name: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <input
-                  className={inputCls}
-                  type="url"
-                  placeholder="https://... (optional)"
-                  value={entry.url}
-                  onChange={(e) =>
-                    utf(
-                      "source_other",
-                      tvf.source_other.map((x, j) =>
-                        j === i ? { ...x, url: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <button
-                  type="button"
-                  className="text-danger/70 hover:text-danger px-1 shrink-0"
-                  onClick={() =>
-                    utf(
-                      "source_other",
-                      tvf.source_other.filter((_, j) => j !== i),
-                    )
-                  }
-                >
-                  <i className="fas fa-times" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline mt-1"
-              onClick={() =>
-                utf("source_other", [
-                  ...tvf.source_other,
-                  { name: "", url: "" },
-                ])
-              }
-            >
-              + Add Source
-            </button>
-          </div>
-        </div>
       </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={tvf.sources}
+        onChange={(rows) => utf("sources", rows)}
+        mediaType="tv-show"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
       <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">

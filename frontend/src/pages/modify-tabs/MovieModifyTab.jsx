@@ -1,6 +1,7 @@
 // Frontend: modify tab page file for MovieModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -283,66 +284,28 @@ export default function MovieModifyTab({
             onChange={(e) => umm("imdb_link", e.target.value)}
           />
         </Field>
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "movie",
+              usage: "origin",
+            })}
+            value={mmf.original_source || ""}
+            onChange={(v) => umm("original_source", v)}
+            placeholder="Select original platform(s)..."
+          />
+        </Field>
       </div>
-      <Field label="Other Sources">
-        <div className="space-y-2">
-          {(mmf.source_other || []).map((entry, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className={inputCls}
-                placeholder="Platform name"
-                value={entry.name}
-                onChange={(e) =>
-                  umm(
-                    "source_other",
-                    mmf.source_other.map((x, j) =>
-                      j === i ? { ...x, name: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                type="url"
-                placeholder="https://..."
-                value={entry.url}
-                onChange={(e) =>
-                  umm(
-                    "source_other",
-                    mmf.source_other.map((x, j) =>
-                      j === i ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-danger/70 hover:text-danger px-1 shrink-0"
-                onClick={() =>
-                  umm(
-                    "source_other",
-                    mmf.source_other.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() =>
-              umm("source_other", [
-                ...(mmf.source_other || []),
-                { name: "", url: "" },
-              ])
-            }
-          >
-            + Add Source
-          </button>
-        </div>
-      </Field>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={mmf.sources}
+        onChange={(rows) => umm("sources", rows)}
+        mediaType="movie"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
       <Field label="Cover Image File">

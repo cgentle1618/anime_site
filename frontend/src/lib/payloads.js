@@ -18,30 +18,34 @@ const CREDITS_FIELD_MAP = {
       label: "label",
       quality: "quality",
       distributor_tw: "publisher_tw",
+      exclusive_source: "exclusive_source",
     },
   },
   "anime-movie": {
     credits: { studio: "studio", director: "director" },
-    tags: {},
+    tags: { exclusive_source: "exclusive_source" },
   },
   movie: {
     credits: { director: "director" },
-    tags: {},
+    tags: { original_source: "original_source" },
   },
   "tv-show": {
     credits: {},
-    tags: { source_official: "source_official" },
+    tags: { original_source: "original_source" },
   },
   cartoon: {
     credits: {},
-    tags: { source_official: "source_official" },
+    tags: { original_source: "original_source" },
   },
   manga: {
     credits: {
       author_plot: "manga_author_plot",
       author_draw: "manga_author_draw",
     },
-    tags: { publisher_tw: "publisher_tw" },
+    tags: {
+      publisher_tw: "publisher_tw",
+      serialization_platform: "serialization_platform",
+    },
   },
   novel: {
     credits: { author: "novel_author", illustrator: "novel_illustrator" },
@@ -149,30 +153,15 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
     mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
     mal_link: amf.mal_link || null,
-    anilist_link: amf.anilist_link || null,
-    official_link: amf.official_link || null,
-    twitter_link: amf.twitter_link || null,
-    source_baha:
-      amf.source_baha === "true"
-        ? true
-        : amf.source_baha === "false"
-          ? false
-          : null,
-    baha_link: amf.baha_link || null,
-    source_netflix:
-      amf.source_netflix === "true"
-        ? true
-        : amf.source_netflix === "false"
-          ? false
-          : null,
-    source_other:
-      amf.source_other.filter((e) => e.name.trim()).length > 0
-        ? Object.fromEntries(
-            amf.source_other
-              .filter((e) => e.name.trim())
-              .map((e) => [e.name.trim(), e.url.trim()]),
-          )
-        : null,
+    sources: (amf.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
     watch_next: amf.watch_next ?? null,
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
@@ -216,30 +205,15 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     is_main_entry: af.is_main_entry || null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
-    anilist_link: af.anilist_link || null,
-    official_link: af.official_link || null,
-    twitter_link: af.twitter_link || null,
-    source_baha:
-      af.source_baha === "true"
-        ? true
-        : af.source_baha === "false"
-          ? false
-          : null,
-    baha_link: af.baha_link || null,
-    source_netflix:
-      af.source_netflix === "true"
-        ? true
-        : af.source_netflix === "false"
-          ? false
-          : null,
-    source_other:
-      af.source_other.filter((e) => e.name.trim()).length > 0
-        ? Object.fromEntries(
-            af.source_other
-              .filter((e) => e.name.trim())
-              .map((e) => [e.name.trim(), e.url.trim()]),
-          )
-        : null,
+    sources: (af.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
     seiyuu: af.seiyuu || null,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,

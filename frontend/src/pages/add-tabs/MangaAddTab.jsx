@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -421,10 +422,14 @@ export default function MangaAddTab({
           />
         </Field>
         <Field label="Serialization Platform">
-          <input
-            className={inputCls}
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Serialization Platform",
+              scope: "manga",
+            })}
             value={mgf.serialization_platform}
-            onChange={(e) => umg("serialization_platform", e.target.value)}
+            onChange={(v) => umg("serialization_platform", v)}
             placeholder="e.g. 週刊少年ジャンプ"
           />
         </Field>
@@ -472,75 +477,15 @@ export default function MangaAddTab({
             placeholder="https://myanimelist.net/manga/..."
           />
         </Field>
-        <Field label="AniList Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={mgf.anilist_link}
-            onChange={(e) => umg("anilist_link", e.target.value)}
-            placeholder="https://anilist.co/manga/..."
-          />
-        </Field>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-          Other Sources
-        </label>
-        <div className="space-y-2">
-          {mgf.source_other.map((entry, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputCls}
-                placeholder="Source name"
-                value={entry.name}
-                onChange={(e) =>
-                  umg(
-                    "source_other",
-                    mgf.source_other.map((x, j) =>
-                      j === i ? { ...x, name: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                type="url"
-                placeholder="https://... (optional)"
-                value={entry.url}
-                onChange={(e) =>
-                  umg(
-                    "source_other",
-                    mgf.source_other.map((x, j) =>
-                      j === i ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-danger/70 hover:text-danger px-1 shrink-0"
-                onClick={() =>
-                  umg(
-                    "source_other",
-                    mgf.source_other.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() =>
-              umg("source_other", [...mgf.source_other, { name: "", url: "" }])
-            }
-          >
-            + Add Source
-          </button>
-        </div>
-      </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={mgf.sources}
+        onChange={(rows) => umg("sources", rows)}
+        mediaType="manga"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-flag" title="Flags" />
       <div className="flex flex-wrap gap-6 mt-2">

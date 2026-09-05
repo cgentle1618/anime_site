@@ -1,5 +1,7 @@
 // Frontend: modify tab page file for TvShowModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -7,7 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import TVShowNotes from "../detail/TVShowNotes";
 import {
   TV_REGIONS,
@@ -25,6 +27,7 @@ export default function TvShowModifyTab({
   allFranchises,
   seriesItemsForTvShow,
   editingItem,
+  sources,
 }) {
   return (
     <>
@@ -217,11 +220,16 @@ export default function TvShowModifyTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Official Source">
-          <input
-            className={inputCls}
-            value={tvmf.source_official || ""}
-            onChange={(e) => utv("source_official", e.target.value)}
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "tv-show",
+              usage: "origin",
+            })}
+            value={tvmf.original_source || ""}
+            onChange={(v) => utv("original_source", v)}
             placeholder="e.g. Netflix"
           />
         </Field>
@@ -290,69 +298,15 @@ export default function TvShowModifyTab({
             onChange={(e) => utv("imdb_link", e.target.value)}
           />
         </Field>
-        <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-            Other Sources
-          </label>
-          <div className="space-y-2">
-            {(tvmf.source_other || []).map((entry, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  className={inputCls}
-                  placeholder="Source name (e.g. Disney+)"
-                  value={entry.name}
-                  onChange={(e) =>
-                    utv(
-                      "source_other",
-                      tvmf.source_other.map((x, j) =>
-                        j === i ? { ...x, name: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <input
-                  className={inputCls}
-                  type="url"
-                  placeholder="https://... (optional)"
-                  value={entry.url}
-                  onChange={(e) =>
-                    utv(
-                      "source_other",
-                      tvmf.source_other.map((x, j) =>
-                        j === i ? { ...x, url: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <button
-                  type="button"
-                  className="text-danger/70 hover:text-danger px-1 shrink-0"
-                  onClick={() =>
-                    utv(
-                      "source_other",
-                      tvmf.source_other.filter((_, j) => j !== i),
-                    )
-                  }
-                >
-                  <i className="fas fa-times" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline mt-1"
-              onClick={() =>
-                utv("source_other", [
-                  ...(tvmf.source_other || []),
-                  { name: "", url: "" },
-                ])
-              }
-            >
-              + Add Source
-            </button>
-          </div>
-        </div>
       </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={tvmf.sources}
+        onChange={(rows) => utv("sources", rows)}
+        mediaType="tv-show"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-sticky-note" title="Notes" />
       <Field label="Cover Image File" hint="e.g. 5114.jpg">

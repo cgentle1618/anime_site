@@ -2,20 +2,23 @@
 // source_other and baha_link directly. Once sources arrive as rows, any
 // surviving reference is a bug.
 //
-// The walk is deliberately scoped to src/pages/detail and src/components
-// rather than all of src: add-tabs/, modify-tabs/, admin/,
-// config/formFactories.js, config/formFields/fieldMeta.js, lib/payloads.js
-// and lib/formatters.js still legitimately reference these dead field names
-// until a later task migrates them. That narrowness is temporary and
-// intentional, not an oversight — widen the walk root to "src" once that
-// migration lands.
-//
 // This test matches raw text, comments included, and that is deliberate: a
 // comment naming a dead field is itself a small piece of rot, and forcing
 // prose to avoid the token keeps the vocabulary clean. If this test ever
 // flags a comment rather than code, reword the comment - do not add an
 // exclusion. An exclusion silently removes a whole subtree from the guard,
 // which is far more expensive than a rephrased sentence.
+//
+// "source_official" is deliberately NOT in this list. It is not a dead
+// field - it is the LIVE response attribute for tv-show and cartoon's
+// original-source tag, under the same legacy-sheet-column convention that
+// exposes anime.publisher_tw as "distributor_tw" and manga.author as
+// "author_plot" (see sheet_column_for / legacy_link_fields in
+// app/utils/credit_roles.py and app/services/domain/credits.py). Movie
+// never had a legacy sheet column for this tag, so it alone is exposed
+// under the canonical key "original_source". Do not add "source_official"
+// back here - the two real dead names it could be confused with
+// (source_baha, source_netflix) are already listed below.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -29,10 +32,9 @@ const DEAD = [
   "anilist_link",
   "official_link",
   "twitter_link",
-  "source_official",
 ];
 
-const ROOTS = ["src/pages/detail", "src/components"];
+const ROOTS = ["src"];
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>

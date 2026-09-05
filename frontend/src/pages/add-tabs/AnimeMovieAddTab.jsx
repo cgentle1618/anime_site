@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -340,131 +341,29 @@ export default function AnimeMovieAddTab({
             placeholder="https://myanimelist.net/anime/..."
           />
         </Field>
-        <Field label="AniList Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={amf.anilist_link}
-            onChange={(e) => uam("anilist_link", e.target.value)}
-            placeholder="https://anilist.co/anime/..."
-          />
-        </Field>
-        <Field label="Official Website">
-          <input
-            className={inputCls}
-            type="url"
-            value={amf.official_link}
-            onChange={(e) => uam("official_link", e.target.value)}
-            placeholder="https://..."
-          />
-        </Field>
-        <Field label="Twitter Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={amf.twitter_link}
-            onChange={(e) => uam("twitter_link", e.target.value)}
-            placeholder="https://twitter.com/..."
+        <Field label="Exclusive Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "anime-movie",
+              usage: "origin",
+            })}
+            value={amf.exclusive_source}
+            onChange={(v) => uam("exclusive_source", v)}
+            placeholder="Select exclusive platform..."
+            limit={1}
           />
         </Field>
       </div>
 
-      <SectionHeader icon="fa-broadcast-tower" title="Source Availability" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Bahamut Source">
-          <select
-            className={selectCls}
-            value={amf.source_baha}
-            onChange={(e) => uam("source_baha", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">有 (Yes)</option>
-            <option value="false">無 (No)</option>
-          </select>
-        </Field>
-        <Field label="Bahamut Link">
-          <input
-            className={inputCls}
-            type="url"
-            value={amf.baha_link}
-            onChange={(e) => uam("baha_link", e.target.value)}
-            placeholder="https://ani.gamer.com.tw/..."
-          />
-        </Field>
-        <Field label="Netflix Source">
-          <select
-            className={selectCls}
-            value={amf.source_netflix}
-            onChange={(e) => uam("source_netflix", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="true">有 (Yes)</option>
-            <option value="false">無 (No)</option>
-          </select>
-        </Field>
-        <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-            Other Sources
-          </label>
-          <div className="space-y-2">
-            {amf.source_other.map((entry, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  className={inputCls}
-                  placeholder="Source name"
-                  value={entry.name}
-                  onChange={(e) =>
-                    uam(
-                      "source_other",
-                      amf.source_other.map((x, j) =>
-                        j === i ? { ...x, name: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <input
-                  className={inputCls}
-                  type="url"
-                  placeholder="https://... (optional)"
-                  value={entry.url}
-                  onChange={(e) =>
-                    uam(
-                      "source_other",
-                      amf.source_other.map((x, j) =>
-                        j === i ? { ...x, url: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <button
-                  type="button"
-                  className="text-danger/70 hover:text-danger px-1 shrink-0"
-                  onClick={() =>
-                    uam(
-                      "source_other",
-                      amf.source_other.filter((_, j) => j !== i),
-                    )
-                  }
-                >
-                  <i className="fas fa-times" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline mt-1"
-              onClick={() =>
-                uam("source_other", [
-                  ...amf.source_other,
-                  { name: "", url: "" },
-                ])
-              }
-            >
-              + Add Source
-            </button>
-          </div>
-        </div>
-      </div>
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={amf.sources}
+        onChange={(rows) => uam("sources", rows)}
+        mediaType="anime-movie"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
       <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">

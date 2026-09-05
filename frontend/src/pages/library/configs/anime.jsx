@@ -9,6 +9,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { releaseScore, releaseYear } from "../../../lib/releaseDate";
 import {
+  getBahaRow,
   getDisplayName,
   getSortName,
   isBaha,
@@ -159,18 +160,18 @@ const ANIME_LIBRARY_CONFIG = {
       tdClass: "text-center",
       stopPropagation: true,
       render: (item) => {
-        const hasBaha = isBaha(item);
-        if (!hasBaha) return "-";
+        if (!isBaha(item)) return "-";
+        const bahaRow = getBahaRow(item);
         const logo = (
           <img
             src="https://i2.bahamut.com.tw/anime/logo.svg"
-            className={`h-4 inline-block ${item.baha_link ? "opacity-90" : "opacity-50 grayscale"}`}
+            className={`h-4 inline-block ${bahaRow?.url ? "opacity-90" : "opacity-50 grayscale"}`}
             alt="Baha"
           />
         );
-        return item.baha_link ? (
+        return bahaRow?.url ? (
           <a
-            href={item.baha_link}
+            href={bahaRow.url}
             target="_blank"
             rel="noreferrer"
             className="hover:scale-110 transition-transform inline-block"

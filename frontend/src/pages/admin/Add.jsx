@@ -1394,14 +1394,15 @@ export default function Add() {
       release_date_tw: mf.release_date_tw || null,
       imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
       imdb_link: mf.imdb_link || null,
-      source_other:
-        mf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: mf.watch_next ?? null,
       to_rewatch: mf.to_rewatch ?? false,
       cover_image_file: mf.cover_image_file || null,
@@ -1555,14 +1556,15 @@ export default function Add() {
       release_date: tvf.release_date || null,
       imdb_id: tvf.imdb_id !== "" ? tvf.imdb_id : null,
       imdb_link: tvf.imdb_link || null,
-      source_other:
-        tvf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              tvf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (tvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: tvf.watch_next ?? null,
       to_rewatch: tvf.to_rewatch ?? false,
       cover_image_file: tvf.cover_image_file || null,
@@ -1699,14 +1701,15 @@ export default function Add() {
       release_date: cf.release_date || null,
       imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
       imdb_link: cf.imdb_link || null,
-      source_other:
-        cf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              cf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: cf.watch_next ?? null,
       cover_image_file: cf.cover_image_file || null,
       remark: cf.remark || null,
@@ -1850,18 +1853,17 @@ export default function Add() {
       release_date: mgf.release_date || null,
       end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
-      serialization_platform: mgf.serialization_platform || null,
       mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
       mal_link: mgf.mal_link || null,
-      anilist_link: mgf.anilist_link || null,
-      source_other:
-        mgf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mgf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mgf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: mgf.read_next ?? false,
       to_reread: mgf.to_reread ?? false,
       cover_image_file: mgf.cover_image_file || null,
@@ -2050,16 +2052,16 @@ export default function Add() {
         })),
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
-      anilist_link: nvf.anilist_link || null,
       openlibrary_link: nvf.openlibrary_link || null,
-      source_other:
-        nvf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              nvf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (nvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: nvf.read_next ?? false,
       to_reread: nvf.to_reread ?? false,
       cover_image_file: nvf.cover_image_file || null,
@@ -2235,14 +2237,15 @@ export default function Add() {
       read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
       my_rating: cmf.my_rating || null,
       comicvine_link: cmf.comicvine_link || null,
-      source_other:
-        cmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              cmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cmf.read_next ?? false,
       to_reread: cmf.to_reread ?? false,
       cover_image_file: cmf.cover_image_file || null,
@@ -2526,6 +2529,7 @@ export default function Add() {
             applyTvShowAutofill={applyTvShowAutofill}
             allFranchises={allFranchises}
             seriesItemsForTvShow={seriesItemsForTvShow}
+            sources={sources}
           />
         )}
 
@@ -2544,6 +2548,7 @@ export default function Add() {
             applyCartoonAutofill={applyCartoonAutofill}
             allFranchises={allFranchises}
             seriesItemsForCartoon={seriesItemsForCartoon}
+            sources={sources}
           />
         )}
 

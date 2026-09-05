@@ -110,25 +110,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     is_main_entry: anime.is_main_entry === true,
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
-    anilist_link: anime.anilist_link || "",
-    official_link: anime.official_link || "",
-    twitter_link: anime.twitter_link || "",
-    source_baha:
-      anime.source_baha === true
-        ? "true"
-        : anime.source_baha === false
-          ? "false"
-          : "",
-    baha_link: anime.baha_link || "",
-    source_netflix:
-      anime.source_netflix === true
-        ? "true"
-        : anime.source_netflix === false
-          ? "false"
-          : "",
-    source_other: Object.entries(anime.source_other || {}).map(
-      ([name, url]) => ({ name, url: url || "" }),
-    ),
+    sources: anime.sources || [],
     seiyuu: anime.seiyuu || "",
     watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
@@ -214,28 +196,7 @@ function movieToForm(movie, allFranchises, defaults) {
     // GET /api/credits/anime-movie/{id} via loadCreditsIntoForm(), not here.
     mal_id: movie.mal_id ?? "",
     mal_link: movie.mal_link || "",
-    anilist_link: movie.anilist_link || "",
-    official_link: movie.official_link || "",
-    twitter_link: movie.twitter_link || "",
-    source_baha:
-      movie.source_baha === true
-        ? "true"
-        : movie.source_baha === false
-          ? "false"
-          : "",
-    baha_link: movie.baha_link || "",
-    source_netflix:
-      movie.source_netflix === true
-        ? "true"
-        : movie.source_netflix === false
-          ? "false"
-          : "",
-    source_other: Object.entries(movie.source_other || {}).map(
-      ([name, url]) => ({
-        name,
-        url: url || "",
-      }),
-    ),
+    sources: movie.sources || [],
     watch_next: movie.watch_next ?? false,
     to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
@@ -640,10 +601,7 @@ export default function Modify() {
       // GET /api/credits/movie/{id} via loadCreditsIntoForm(), not here.
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
-      source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
-        name,
-        url: url || "",
-      })),
+      sources: m.sources || [],
       watch_next: m.watch_next ?? false,
       to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
@@ -666,7 +624,7 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       season_part: t.season_part || "",
       region: t.region || "",
-      // source_official: see the comment in animeToForm - loaded from
+      // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
       is_main: t.is_main || "",
       airing_status: t.airing_status || "",
@@ -680,10 +638,7 @@ export default function Modify() {
       imdb_link: t.imdb_link || "",
       watch_next: t.watch_next ?? false,
       to_rewatch: t.to_rewatch ?? false,
-      source_other: Object.entries(t.source_other || {}).map(([name, url]) => ({
-        name,
-        url: url || "",
-      })),
+      sources: t.sources || [],
       cover_image_file: t.cover_image_file || "",
       remark: t.remark || "",
     };
@@ -712,17 +667,12 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
       length_ep_min: c.length_ep_min ?? "",
-      // source_official: see the comment in animeToForm - loaded from
+      // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
       release_date: c.release_date || "",
       imdb_id: c.imdb_id ?? "",
       imdb_link: c.imdb_link || "",
-      source_other: Array.isArray(c.source_other)
-        ? c.source_other
-        : Object.entries(c.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: c.sources || [],
       watch_next: c.watch_next ?? false,
       cover_image_file: c.cover_image_file || "",
       remark: c.remark || "",
@@ -757,23 +707,16 @@ export default function Modify() {
       mal_rating: m.mal_rating ?? "",
       mal_rank: m.mal_rank ?? "",
       anilist_rating: m.anilist_rating ?? "",
-      // author_plot, author_draw, publisher_tw: see the comment in
-      // animeToForm - loaded from GET /api/credits/manga/{id} via
-      // loadCreditsIntoForm(), not here. anime_studio is a real column (it
-      // points at the adaptation, not a credit) and stays.
+      // author_plot, author_draw, publisher_tw, serialization_platform: see
+      // the comment in animeToForm - loaded from GET /api/credits/manga/{id}
+      // via loadCreditsIntoForm(), not here. anime_studio is a real column
+      // (it points at the adaptation, not a credit) and stays.
       release_date: m.release_date ?? "",
       end_date: m.end_date ?? "",
       anime_studio: m.anime_studio || "",
-      serialization_platform: m.serialization_platform || "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",
-      anilist_link: m.anilist_link || "",
-      source_other: Array.isArray(m.source_other)
-        ? m.source_other
-        : Object.entries(m.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: m.sources || [],
       read_next: m.read_next ?? false,
       to_reread: m.to_reread ?? false,
       cover_image_file: m.cover_image_file || "",
@@ -822,14 +765,8 @@ export default function Modify() {
       units: n.units || [],
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
-      anilist_link: n.anilist_link || "",
       openlibrary_link: n.openlibrary_link || "",
-      source_other: Array.isArray(n.source_other)
-        ? n.source_other
-        : Object.entries(n.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: n.sources || [],
       read_next: n.read_next ?? false,
       to_reread: n.to_reread ?? false,
       cover_image_file: n.cover_image_file || "",
@@ -865,12 +802,7 @@ export default function Modify() {
       is_main_entry: c.is_main_entry ?? false,
       read_order: c.read_order ?? "",
       comicvine_link: c.comicvine_link || "",
-      source_other: Array.isArray(c.source_other)
-        ? c.source_other
-        : Object.entries(c.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: c.sources || [],
       read_next: c.read_next ?? false,
       to_reread: c.to_reread ?? false,
       cover_image_file: c.cover_image_file || "",
@@ -1393,14 +1325,15 @@ export default function Modify() {
       release_date_tw: mmf.release_date_tw || null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
-      source_other:
-        mmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: mmf.watch_next ?? null,
       to_rewatch: mmf.to_rewatch ?? false,
       cover_image_file: mmf.cover_image_file || null,
@@ -1524,14 +1457,15 @@ export default function Modify() {
       release_date: tvmf.release_date || null,
       imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
       imdb_link: tvmf.imdb_link || null,
-      source_other:
-        tvmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              tvmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (tvmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: tvmf.watch_next ?? null,
       to_rewatch: tvmf.to_rewatch ?? false,
       cover_image_file: tvmf.cover_image_file || null,
@@ -1657,14 +1591,15 @@ export default function Modify() {
       release_date: cmf.release_date || null,
       imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
       imdb_link: cmf.imdb_link || null,
-      source_other:
-        (cmf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cmf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: cmf.watch_next ?? null,
       cover_image_file: cmf.cover_image_file || null,
       remark: cmf.remark || null,
@@ -1801,18 +1736,17 @@ export default function Modify() {
       release_date: cmgf.release_date || null,
       end_date: cmgf.end_date || null,
       anime_studio: cmgf.anime_studio || null,
-      serialization_platform: cmgf.serialization_platform || null,
       mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
       mal_link: cmgf.mal_link || null,
-      anilist_link: cmgf.anilist_link || null,
-      source_other:
-        (cmgf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cmgf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmgf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cmgf.read_next ?? false,
       to_reread: cmgf.to_reread ?? false,
       cover_image_file: cmgf.cover_image_file || null,
@@ -1995,16 +1929,16 @@ export default function Modify() {
         })),
       mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
       mal_link: cnvf.mal_link || null,
-      anilist_link: cnvf.anilist_link || null,
       openlibrary_link: cnvf.openlibrary_link || null,
-      source_other:
-        (cnvf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cnvf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cnvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cnvf.read_next ?? false,
       to_reread: cnvf.to_reread ?? false,
       cover_image_file: cnvf.cover_image_file || null,
@@ -2171,14 +2105,15 @@ export default function Modify() {
       read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
       my_rating: ccmf.my_rating || null,
       comicvine_link: ccmf.comicvine_link || null,
-      source_other:
-        (ccmf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (ccmf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (ccmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: ccmf.read_next ?? false,
       to_reread: ccmf.to_reread ?? false,
       cover_image_file: ccmf.cover_image_file || null,
@@ -3428,6 +3363,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForTvShow={seriesItemsForTvShow}
                 editingItem={editingItem}
+                sources={sources}
               />
             )}
 
@@ -3440,6 +3376,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForCartoon={seriesItemsForCartoon}
                 editingItem={editingItem}
+                sources={sources}
               />
             )}
 

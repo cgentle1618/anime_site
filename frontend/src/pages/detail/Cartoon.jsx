@@ -284,7 +284,7 @@ export default function Cartoon() {
             sources={cartoon.sources}
             mediaType="tv-show"
             imdbLink={cartoon.imdb_link}
-            originalSource={cartoon.original_source}
+            originalSource={cartoon.source_official}
           />
 
           {/* Related Entries */}

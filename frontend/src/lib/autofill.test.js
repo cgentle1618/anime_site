@@ -71,7 +71,7 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       series_id: null,
       airing_type: "TV",
       is_main: "本傳",
-      source_official: "Disney+",
+      original_source: "Disney+",
       season_part: "Season 1",
       imdb_link: "https://www.imdb.com/title/tt1865718/",
     };
@@ -86,7 +86,7 @@ describe("buildAutofillPatch — parity with the old per-type functions", () => 
       series_text: "",
       airing_type: "TV",
       is_main: "本傳",
-      source_official: "Disney+",
+      original_source: "Disney+",
       season_part: "Season 1",
       imdb_link: "https://www.imdb.com/title/tt1865718/",
     });

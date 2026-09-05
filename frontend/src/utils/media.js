@@ -20,6 +20,7 @@ export {
 } from "../lib/status";
 export {
   isBaha,
+  getBahaRow,
   getReleaseFallback,
   getRatingWeight,
   getSourceValues,

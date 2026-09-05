@@ -140,20 +140,32 @@ describe("getSortName", () => {
 // ---------------------------------------------------------------------------
 
 describe("isBaha", () => {
-  it("returns true when source_baha is boolean true", () => {
-    expect(isBaha({ source_baha: true })).toBe(true);
+  it("returns true when a main-access Bahamut row is available", () => {
+    expect(
+      isBaha({
+        sources: [
+          { kind: "access", bucket: "main", name: "Bahamut", available: true },
+        ],
+      }),
+    ).toBe(true);
   });
 
-  it("returns true when source_baha is string 'true'", () => {
-    expect(isBaha({ source_baha: "true" })).toBe(true);
+  it("returns false when the Bahamut row is marked not available", () => {
+    expect(
+      isBaha({
+        sources: [
+          { kind: "access", bucket: "main", name: "Bahamut", available: false },
+        ],
+      }),
+    ).toBe(false);
   });
 
-  it("returns false when source_baha is false", () => {
-    expect(isBaha({ source_baha: false })).toBe(false);
+  it("returns false when there is no Bahamut row", () => {
+    expect(isBaha({ sources: [] })).toBe(false);
   });
 
-  it("returns false when source_baha is null", () => {
-    expect(isBaha({ source_baha: null })).toBe(false);
+  it("returns false when sources is absent", () => {
+    expect(isBaha({})).toBe(false);
   });
 });
 
