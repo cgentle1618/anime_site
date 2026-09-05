@@ -96,7 +96,10 @@ per-machine details: **`docs/switching-environments.md`**.
   - Never assume uncommitted changes in a file were made by you. Unfamiliar edits are probably another session's in-progress work, not a bug or leftover cruft.
   - Do not revert, clean up, or "fix" changes you did not make, and do not run `git checkout --`, `git restore`, `git stash`, or `git reset` on shared files.
   - Do not use `git add -A` / `git commit -a`. Stage only the specific files (ideally the specific hunks) belonging to the task you were asked to do.
+  - **Never stage a directory pathspec.** `git add docs/`, `git add frontend/src/pages/detail/` and the like are how one session's commit swallows another's work — the directory contains their files too. Name every file explicitly, even when that means ten paths.
+  - **Stage and commit in one step, with no gap.** Do not leave files staged while you run tests, write a report, or do anything else: a neighbouring session's broad `git add` sweeps the index, not just the working tree, so staged-and-waiting is the most exposed a change can be. Run the tests first, then `git add <exact files> && git commit`.
   - Before committing, re-read the diff of the files you intend to stage and confirm every hunk belongs to your feature. If a file contains mixed changes, say so and ask how to proceed rather than committing the mix.
+  - If a file you must edit also holds another session's uncommitted work, stage only your own hunks (`git add -p` or an equivalent patch) and leave theirs in the working tree. Never "tidy" by committing the whole file.
   - A file may change under you between reads. If an edit fails to match, re-read the file instead of forcing the change.
 
 ## Rule
