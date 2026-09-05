@@ -248,6 +248,7 @@ export const defaultNovel = () => ({
   mal_id: "",
   mal_link: "",
   openlibrary_link: "",
+  openlibrary_id: "",
   sources: [],
   read_next: false,
   to_reread: false,

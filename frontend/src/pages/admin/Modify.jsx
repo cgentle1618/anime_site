@@ -766,6 +766,7 @@ export default function Modify() {
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
       openlibrary_link: n.openlibrary_link || "",
+      openlibrary_id: n.openlibrary_id || "",
       sources: n.sources || [],
       read_next: n.read_next ?? false,
       to_reread: n.to_reread ?? false,
@@ -1930,6 +1931,7 @@ export default function Modify() {
       mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
       mal_link: cnvf.mal_link || null,
       openlibrary_link: cnvf.openlibrary_link || null,
+      openlibrary_id: cnvf.openlibrary_id || null,
       sources: (cnvf.sources || [])
         .filter((s) => (s.name || "").trim())
         .map((s) => ({

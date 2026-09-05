@@ -2,7 +2,7 @@
 // A Light Novel and a Novel count volumes; derive_novel_progress() clears
 // their chapter and arc columns on save, so offering the inputs would invite
 // an edit that is silently discarded.
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import NovelModifyTab from "./NovelModifyTab";
@@ -102,5 +102,48 @@ describe("NovelModifyTab — the progress-display select is built per type", () 
     p.cnvf.progress_display = "vol_tw";
     render(<NovelModifyTab {...p} />);
     expect(values()).toContain("vol_tw");
+  });
+});
+
+// The Open Library work id is editable, like MAL ID on an anime. The link is
+// the truth whenever it is set — apply_extract_openlibrary_id rewrites the id
+// from it on every Fill — but with no link there is nothing to derive an id
+// from, and a stale id left behind by a cleared link can only be removed here.
+describe("NovelModifyTab — Open Library fields", () => {
+  it("offers both the link and the id", () => {
+    render(<NovelModifyTab {...props("Novel")} />);
+    expect(screen.getByText("Open Library Link")).toBeInTheDocument();
+    expect(screen.getByText("Open Library ID")).toBeInTheDocument();
+  });
+
+  it("shows the stored id and reports edits under openlibrary_id", () => {
+    const unv = vi.fn();
+    render(
+      <NovelModifyTab
+        {...props("Novel")}
+        cnvf={{ type: "Novel", units: [], openlibrary_id: "OL5738148W" }}
+        unv={unv}
+      />,
+    );
+
+    const input = screen.getByDisplayValue("OL5738148W");
+    fireEvent.change(input, { target: { value: "OL468431W" } });
+    expect(unv).toHaveBeenCalledWith("openlibrary_id", "OL468431W");
+  });
+
+  it("lets a stale id be cleared", () => {
+    const unv = vi.fn();
+    render(
+      <NovelModifyTab
+        {...props("Novel")}
+        cnvf={{ type: "Novel", units: [], openlibrary_id: "OL5738148W" }}
+        unv={unv}
+      />,
+    );
+
+    fireEvent.change(screen.getByDisplayValue("OL5738148W"), {
+      target: { value: "" },
+    });
+    expect(unv).toHaveBeenCalledWith("openlibrary_id", "");
   });
 });

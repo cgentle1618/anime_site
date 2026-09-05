@@ -589,6 +589,14 @@ export default function NovelAddTab({
             placeholder="https://openlibrary.org/works/OL..."
           />
         </Field>
+        <Field label="Open Library ID">
+          <input
+            className={inputCls}
+            value={nvf.openlibrary_id}
+            onChange={(e) => unv("openlibrary_id", e.target.value)}
+            placeholder="OL5738148W"
+          />
+        </Field>
       </div>
 
       <SectionHeader icon="fa-broadcast-tower" title="Sources" />

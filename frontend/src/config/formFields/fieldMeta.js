@@ -579,14 +579,18 @@ export const TYPE_FIELD_META = {
       },
       group: "Credits",
     },
-    // The Fill pipeline reads openlibrary_id, which the backend derives from
-    // this link — so the link is the only one the admin ever types. Novels
-    // with no MAL link have no other source.
+    // Novels with no MAL link have no other source. Fill reads
+    // openlibrary_id; apply_extract_openlibrary_id rewrites it from the link
+    // on every run, so whenever a link is set the link is the truth. The id
+    // stays editable anyway (as mal_id is): with no link there is nothing to
+    // derive it from, and a stale id left by a cleared link can only be
+    // removed here.
     openlibrary_link: {
       label: "Open Library Link",
       control: "url",
       group: "Links",
     },
+    openlibrary_id: { label: "Open Library ID", group: "Links" },
   },
 
   comic: {

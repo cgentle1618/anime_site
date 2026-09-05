@@ -2053,6 +2053,7 @@ export default function Add() {
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
       openlibrary_link: nvf.openlibrary_link || null,
+      openlibrary_id: nvf.openlibrary_id || null,
       sources: (nvf.sources || [])
         .filter((s) => (s.name || "").trim())
         .map((s) => ({
