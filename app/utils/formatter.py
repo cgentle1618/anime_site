@@ -903,6 +903,20 @@ def parse_system_option_scope_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_system_option_usage_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the System Option Usage sheet into typed
+    data ready for the Database. The System Options tab restores first, so
+    option_id round-trips as a plain UUID with no name-resolution step - the
+    same treatment other strict FK columns get.
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "option_id": _uuid_or_none(raw.get("option_id")),
+        "usage": parse_from_sheet(raw.get("usage"), str),
+    }
+
+
 def parse_media_source_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Media Source sheet into typed data ready

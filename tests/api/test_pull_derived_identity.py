@@ -35,6 +35,7 @@ PERSON_HEADERS = [
 ]
 STUDIO_HEADERS = ["system_id", "name_en", "name_cn", "name_jp", "name_alt", "my_rating"]
 SCOPE_HEADERS = ["id", "option_id", "scope"]
+USAGE_HEADERS = ["id", "option_id", "usage"]
 ROLE_HEADERS = ["id", "person_id", "role", "scope"]
 
 
@@ -307,6 +308,43 @@ def test_a_new_scope_for_a_known_option_still_inserts(db_session, sheets):
     assert result["status"] == "success"
     scopes = db_session.query(models.SystemOptionScope).all()
     assert {s.scope for s in scopes} == {"anime", "manga"}
+
+
+def test_usage_row_ignores_the_sheets_integer_id(db_session, sheets):
+    """
+    `system_option_usage.id` is autoincrement, so it is minted per database
+    too: the sheet's id=1 names a DIFFERENT row here. Honouring it updates
+    that unrelated row's option_id and collides with uq_system_option_usage.
+    These rows are identified by (option_id, usage), never by the sheet's id.
+    """
+    local = models.SystemOption(
+        system_id=uuid.uuid4(), category="Platform", value="Fox", sort_order=0
+    )
+    db_session.add(local)
+    db_session.flush()
+    db_session.add(models.SystemOptionUsage(option_id=local.system_id, usage="origin"))
+    db_session.flush()
+
+    sheet_option_uuid = str(uuid.uuid4())
+    sheets(
+        {
+            "System Options": [
+                OPTION_HEADERS,
+                [sheet_option_uuid, "Platform", "Fox", "0", ""],
+            ],
+            # id=1 belongs to a different row in this database.
+            "System Option Usage": [USAGE_HEADERS, ["1", sheet_option_uuid, "origin"]],
+        }
+    )
+
+    result = pull.execute_pull_specific(
+        db_session, "System Option Usage", log_action=False
+    )
+
+    assert result["status"] == "success"
+    usages = db_session.query(models.SystemOptionUsage).all()
+    assert len(usages) == 1
+    assert usages[0].option_id == local.system_id
 
 
 def test_person_role_ignores_the_sheets_integer_id(db_session, sheets):

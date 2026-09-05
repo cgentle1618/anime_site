@@ -92,6 +92,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
+    "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
     # These two mint their own uuid but cite entry ids, which the sheet does
     # carry and which are the same in every database - so only the row's own
@@ -127,6 +128,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
 # before it can be stored here.
 DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "System Option Scope": ("option_id", "System Options"),
+    "System Option Usage": ("option_id", "System Options"),
     "Person Role": ("person_id", "Person"),
 }
 
@@ -134,11 +136,12 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
 # an identity. The three parent tabs above key on a uuid: it is minted too, but
 # a uuid that misses is simply unknown, so trying it first costs nothing and
 # correctly follows a value RENAMED in the sheet to the row that already holds
-# it. These two key on an autoincrement integer instead, where the sheet's id=1
-# names a real but UNRELATED local row - a match that silently retargets the
-# wrong row and then collides. Their natural key is the only identity they have.
+# it. These three key on an autoincrement integer instead, where the sheet's
+# id=1 names a real but UNRELATED local row - a match that silently retargets
+# the wrong row and then collides. Their natural key is the only identity
+# they have.
 DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
-    {"System Option Scope", "Person Role"}
+    {"System Option Scope", "System Option Usage", "Person Role"}
 )
 
 
@@ -531,12 +534,13 @@ def execute_pull_specific(
                         )
                 clean_header_dict["option_id"] = option.system_id if option else None
 
-        # System Configs, Person Role and System Option Scope are
-        # autoincrement integer PKs and use 'id', Seasonal uses 'seasonal',
-        # others use 'system_id'. System Options used to have an 'id' PK too,
-        # but Task 4 reshaped it onto 'system_id' and Task 10 dropped the
-        # 'id' column outright - it belongs with the 'system_id' tabs now.
-        if tab_name in ("System Configs", "Person Role", "System Option Scope"):
+        # System Configs, Person Role, System Option Scope and System Option
+        # Usage are autoincrement integer PKs and use 'id', Seasonal uses
+        # 'seasonal', others use 'system_id'. System Options used to have an
+        # 'id' PK too, but Task 4 reshaped it onto 'system_id' and Task 10
+        # dropped the 'id' column outright - it belongs with the 'system_id'
+        # tabs now.
+        if tab_name in ("System Configs", "Person Role", "System Option Scope", "System Option Usage"):
             pk_field = "id"
         elif tab_name == "Seasonal":
             pk_field = "seasonal"
@@ -926,6 +930,7 @@ def execute_pull_specific(
         "System Configs": ("system_configs_id_seq", "system_configs"),
         "Person Role": ("person_role_id_seq", "person_role"),
         "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
+        "System Option Usage": ("system_option_usage_id_seq", "system_option_usage"),
     }
     if tab_name in id_sequences:
         sequence, table = id_sequences[tab_name]

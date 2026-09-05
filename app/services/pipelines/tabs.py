@@ -60,6 +60,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Vocabulary first; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
     SheetTab("System Option Scope", models.SystemOptionScope, f.parse_system_option_scope_from_sheet),
+    SheetTab("System Option Usage", models.SystemOptionUsage, f.parse_system_option_usage_from_sheet),
     # People and studios before every media tab: credits resolve against them.
     SheetTab("Person", models.Person, f.parse_person_from_sheet),
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),

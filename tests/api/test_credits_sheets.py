@@ -115,9 +115,24 @@ def test_person_studio_and_scope_get_their_own_tabs():
 
     # Backup and Pull both iterate this registry, so a tab listed here is
     # written and restored; entity tabs must precede the media tabs.
-    for tab in ("Person", "Person Role", "Studio", "System Option Scope"):
+    for tab in (
+        "Person",
+        "Person Role",
+        "Studio",
+        "System Option Scope",
+        "System Option Usage",
+    ):
         assert tab in TAB_NAMES
         assert TAB_NAMES.index(tab) < TAB_NAMES.index("Anime")
+
+
+def test_system_option_usage_restores_after_its_parent():
+    from app.services.pipelines.tabs import TAB_NAMES
+
+    # System Option Usage cites System Options by uuid, so the parent must
+    # restore first or option_id has nothing local to round-trip onto.
+    assert "System Option Usage" in TAB_NAMES
+    assert TAB_NAMES.index("System Options") < TAB_NAMES.index("System Option Usage")
 
 
 # ---------------------------------------------------------------------------
