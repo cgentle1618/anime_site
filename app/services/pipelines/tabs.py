@@ -13,7 +13,9 @@ Series -> entries; Watch Order List -> Section -> Item) or a FK-less
 """
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
+
+from sqlalchemy.orm import Session
 
 from app import models
 from app.utils import formatter as f
@@ -27,6 +29,31 @@ class SheetTab:
     # Hyphenated media_type key (app/utils/media_resolver.MEDIA_TABLES) for
     # entry tabs; they carry credit/tag link columns after the plain columns.
     media_type: Optional[str] = None
+    # Columns to drop from the derived header/value list (backup.py), and
+    # (header, fn) pairs to append after them. fn receives (row_instance, db)
+    # and returns a raw Python value, formatted the same way a plain column
+    # would be. Used by Media Source: option_id is database-local (see
+    # DERIVED_IDENTITY_KEYS in pull.py), so it is dropped and the option's
+    # (category, value) - resolved by db - travel in its place.
+    drop_columns: tuple[str, ...] = ()
+    extra_columns: tuple[tuple[str, Callable[[Any, Session], Any]], ...] = ()
+
+
+def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
+    """The system_option a Media Source row's option_id points at, if any."""
+    if row.option_id is None:
+        return None
+    return db.get(models.SystemOption, row.option_id)
+
+
+def _option_category(row: Any, db: Session) -> Optional[str]:
+    option = _resolved_option(row, db)
+    return option.category if option else None
+
+
+def _option_value(row: Any, db: Session) -> Optional[str]:
+    option = _resolved_option(row, db)
+    return option.value if option else None
 
 
 SHEET_TABS: tuple[SheetTab, ...] = (
@@ -65,6 +92,19 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
     SheetTab("Note", models.Note, f.parse_note_from_sheet),
+    # After every media tab and after System Options: cites an entry by id and
+    # an option by (category, value) rather than by option_id, which is
+    # database-local (see pull.py's DERIVED_IDENTITY_KEYS).
+    SheetTab(
+        "Media Source",
+        models.MediaSource,
+        f.parse_media_source_from_sheet,
+        drop_columns=("option_id",),
+        extra_columns=(
+            ("option_category", _option_category),
+            ("option_value", _option_value),
+        ),
+    ),
     SheetTab("Seasonal", models.Seasonal, f.parse_seasonal_from_sheet),
 )
 

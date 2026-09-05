@@ -20,6 +20,7 @@ from app.models import (
     Quote,
     Series,
     SystemConfigs,
+    SystemOption,
     TVShows,
     WatchOrderList,
 )
@@ -52,6 +53,7 @@ from app.services.pipelines.tabs import (
 from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
+    parse_from_sheet,
     parse_row_to_dict,
 )
 
@@ -102,6 +104,22 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "to_id",
     ),  # uq_media_relation_pair
     "Plan Next": ("kind", "scope", "target_id", "media_type"),  # uq_plan_next_target
+    # Mints its own uuid but cites an entry id, which is the same in every
+    # database. option_id IS part of the key (unlike the parent tabs above,
+    # whose own uuid never appears in it): two "main" rows on the same entry
+    # citing different platforms are two different rows even though both have
+    # name=NULL, and only option_id tells them apart. It is resolved from the
+    # sheet's option_category/option_value into a LOCAL option_id further
+    # down, before this match runs, so by the time it is used here it is
+    # already a same-database uuid, comparable the ordinary way.
+    "Media Source": (
+        "media_type",
+        "entry_id",
+        "kind",
+        "bucket",
+        "option_id",
+        "name",
+    ),  # uq_media_source_row
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -480,6 +498,38 @@ def execute_pull_specific(
                         f"Could not resolve series FK for: {sname}. Skipping row."
                     )
                     continue
+
+        # Media Source carries the option it targets as (category, value),
+        # not as a raw option_id - system_option mints a different uuid in
+        # every database (see DERIVED_IDENTITY_KEYS). Resolve it into a LOCAL
+        # option_id here, before the natural-key match below runs, so that
+        # match compares option_id the ordinary way. option_category/
+        # option_value are not real columns on the model (they never reach
+        # clean_header_dict, which parse_media_source_from_sheet never
+        # emits them into), so they are read straight out of the raw sheet
+        # row - the same source pending_credits/pending_tags read from above.
+        if tab_name == "Media Source":
+            if "option_category" in raw_header_dict or "option_value" in raw_header_dict:
+                category = parse_from_sheet(raw_header_dict.get("option_category"), str)
+                value = parse_from_sheet(raw_header_dict.get("option_value"), str)
+                option = None
+                if category and value:
+                    option = (
+                        db.query(SystemOption)
+                        .filter(
+                            SystemOption.category == category,
+                            SystemOption.value == value,
+                        )
+                        .first()
+                    )
+                    if option is None:
+                        logger.warning(
+                            "Could not resolve system_option (%s, %s) for the "
+                            "Media Source tab. Leaving option_id empty.",
+                            category,
+                            value,
+                        )
+                clean_header_dict["option_id"] = option.system_id if option else None
 
         # System Configs, Person Role and System Option Scope are
         # autoincrement integer PKs and use 'id', Seasonal uses 'seasonal',

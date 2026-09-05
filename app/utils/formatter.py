@@ -6,7 +6,7 @@ SQLAlchemy models and Google Sheets.
 
 import json
 from datetime import datetime, time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 # Imported rather than duplicated so the Sheets tab and the API agree on what
@@ -35,11 +35,20 @@ def format_for_sheet(val: Any, expected_type: type = str) -> str:
     return str(val)
 
 
-def format_model_for_sheet(instance: Any) -> list:
+def format_model_for_sheet(instance: Any, columns: Optional[List[str]] = None) -> list:
     """
     Dynamically extracts and formats all fields from a SQLAlchemy model instance.
     This guarantees the Google Sheet order is 100% identical to the Postgres Database order forever,
     preventing column-shifting bugs.
+
+    `columns`, when given, is the exact set (and order) of column names to
+    emit - everything else is skipped. This is what keeps a tab's header row
+    and its value rows aligned when a column is database-local and must not
+    reach the sheet (Media Source's option_id): backup.py computes ONE
+    filtered column-name list and passes it both to the header row and here,
+    so there is exactly one place that decides "is this column in the sheet"
+    and the two can never drift apart. Omitted (None), every column is
+    emitted, unchanged from before this parameter existed.
 
     Release date columns are prefixed with an apostrophe. The backup writes with
     value_input_option="USER_ENTERED", under which Sheets parses "2024-05-17"
@@ -55,6 +64,8 @@ def format_model_for_sheet(instance: Any) -> list:
     row_data = []
     # Loop through the exact columns in the exact order they appear in the database schema
     for column in instance.__class__.__table__.columns:
+        if columns is not None and column.name not in columns:
+            continue
         val = getattr(instance, column.name, None)
         cell = format_for_sheet(val)
         if column.name in date_columns and cell:
@@ -842,6 +853,38 @@ def parse_system_option_scope_from_sheet(raw: dict) -> dict:
         "id": parse_from_sheet(raw.get("id"), int),
         "option_id": _uuid_or_none(raw.get("option_id")),
         "scope": parse_from_sheet(raw.get("scope"), str),
+    }
+
+
+def parse_media_source_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Media Source sheet into typed data ready
+    for the Database.
+
+    option_id is deliberately absent. system_option mints a different uuid in
+    every database, so the sheet carries the option's category and value
+    instead and pull.py resolves them - the same treatment credits and tags
+    get. entry_id needs no such step: entry ids are identical everywhere.
+
+    option_category/option_value themselves are also absent here: they are
+    not Model columns, so parse_row_to_dict's raw dict (still available to
+    pull.py at that point) is where pull.py reads them from directly, the
+    same way it reads the header-named credit/tag columns before popping
+    them - see pull.py's handling of tab_name == "Media Source".
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # Preserved as written, not coerced: a kind or bucket added in a newer
+        # version must survive a round trip through an older one.
+        "kind": parse_from_sheet(raw.get("kind"), str),
+        "bucket": parse_from_sheet(raw.get("bucket"), str),
+        "name": parse_from_sheet(raw.get("name"), str),
+        "available": parse_from_sheet(raw.get("available"), bool),
+        "url": parse_from_sheet(raw.get("url"), str),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }
 
 
