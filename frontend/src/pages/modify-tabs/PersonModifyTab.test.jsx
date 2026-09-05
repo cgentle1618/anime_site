@@ -37,11 +37,44 @@ const DIRECTORS = [
     credit_count: 1,
     roles: [{ role: "director", scope: "anime" }],
   },
+  {
+    system_id: "p3",
+    name_en: "Makoto Shinkai",
+    name_cn: null,
+    name_jp: "新海誠",
+    name_alt: null,
+    display_name_field: null,
+    display_name: "Makoto Shinkai",
+    gender: null,
+    my_rating: null,
+    photo_file: null,
+    credit_count: 2,
+    roles: [{ role: "director", scope: "anime-movie" }],
+  },
+  {
+    system_id: "p4",
+    name_en: "Christopher Nolan",
+    name_cn: null,
+    name_jp: null,
+    name_alt: null,
+    display_name_field: null,
+    display_name: "Christopher Nolan",
+    gender: null,
+    my_rating: null,
+    photo_file: null,
+    credit_count: 5,
+    roles: [{ role: "director", scope: "movie" }],
+  },
 ];
+
+const ROLE_SCOPES = {
+  director: ["anime", "anime-movie", "movie"],
+  producer: ["anime"],
+};
 
 function respond(url) {
   if (url.startsWith("/api/person/p1")) return DIRECTORS[0];
-  if (url.startsWith("/api/person/role-scopes")) return {};
+  if (url.startsWith("/api/person/role-scopes")) return ROLE_SCOPES;
   if (url.startsWith("/api/person/?role=director")) return DIRECTORS;
   if (url.startsWith("/api/person/")) return [];
   return [];
@@ -106,4 +139,65 @@ it("filters the list by a non-displayed name field (e.g. Japanese)", async () =>
   expect(
     screen.getByRole("button", { name: "Hayao Miyazaki" }),
   ).toBeInTheDocument();
+});
+
+it("filters the list to the scopes ticked, matching any one of them", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Hayao Miyazaki" }),
+    ).toBeInTheDocument(),
+  );
+
+  // One scope: only the people holding the sub-tab's role in it.
+  await user.click(screen.getByRole("button", { name: "anime-movie" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Hayao Miyazaki" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole("button", { name: "Makoto Shinkai" }),
+  ).toBeInTheDocument();
+
+  // A second scope widens the list - in scope for EITHER is enough.
+  await user.click(screen.getByRole("button", { name: "anime" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Hayao Miyazaki" }),
+    ).toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole("button", { name: "Makoto Shinkai" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Christopher Nolan" }),
+  ).not.toBeInTheDocument();
+
+  // Unticking every scope goes back to showing everyone.
+  await user.click(screen.getByRole("button", { name: "anime-movie" }));
+  await user.click(screen.getByRole("button", { name: "anime" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Christopher Nolan" }),
+    ).toBeInTheDocument(),
+  );
+});
+
+it("offers no scope filter for a role with a single legal scope", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "anime-movie" }),
+    ).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: /Producer/ }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "anime-movie" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole("button", { name: "anime" })).not.toBeInTheDocument();
 });

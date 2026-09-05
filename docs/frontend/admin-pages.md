@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-05 (commit aad5a3e)
+Last verified: 2026-09-05 (commit 87728c4)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -182,8 +182,15 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
   the option tab's category — and every person holding it is listed in the
   same grid of display names, filtered in place by the same all-four-names
-  search. The form then edits the person's whole record, every type they hold
-  and not just the sub-tab's one, because `PUT` replaces the role set
+  search. Above that search sits a row of **scope chips** — the role's legal
+  media types, from `/api/person/role-scopes` — which narrow the grid to the
+  people holding the role in one of the ticked scopes; the match is OR, so a
+  director scoped to `anime` alone still shows under {anime, anime-movie}.
+  None ticked means any scope, switching sub-tab clears them, and a role with
+  a single legal scope (producer, composer) gets no chip row. The filtering is
+  client-side over the `roles` each listed person already carries, not the
+  endpoint's single-valued `?scope=`. The form then edits the person's whole
+  record, every type they hold and not just the sub-tab's one, because `PUT` replaces the role set
   wholesale.
 
 ## /delete (`Delete.jsx`)

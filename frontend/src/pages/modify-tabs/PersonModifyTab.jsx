@@ -41,6 +41,10 @@ export default function PersonModifyTab() {
 
   const [subTab, setSubTab] = useState("director");
   const [search, setSearch] = useState("");
+  // Which media-type scopes of the sub-tab's role the grid is narrowed to.
+  // Empty means "any scope" - the filter starts off, so the grid still lists
+  // everyone holding the role up front.
+  const [scopes, setScopes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [personForm, setPersonForm] = useState(null);
   const [roles, setRoles] = useState([]);
@@ -57,6 +61,18 @@ export default function PersonModifyTab() {
 
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
 
+  // The scopes this role may be held in. A role with one legal scope (producer,
+  // composer) gets no filter row at all - every person listed is in it.
+  const scopeChoices = legalScopes[subTab] || [];
+
+  function toggleScope(scope) {
+    setScopes((prev) =>
+      prev.includes(scope)
+        ? prev.filter((s) => s !== scope)
+        : [...prev, scope],
+    );
+  }
+
   // Everyone holding the sub-tab's role is listed up front, the way the System
   // Option tab lists a category's values - an admin should not have to already
   // know the name to reach the record. The search box filters that grid in
@@ -65,17 +81,30 @@ export default function PersonModifyTab() {
   // must work even when English is the configured display name.
   const filtered = useMemo(() => {
     const q = cleanString(search);
+    // Scope filtering is OR, not AND: a person shown for {anime, anime-movie}
+    // only has to be in scope for one of them, because a director scoped to
+    // anime alone is still an anime director. Done here rather than through
+    // the endpoint's ?scope= (which takes one value) - the list already
+    // carries every (role, scope) row each person holds.
+    const inScope =
+      scopes.length === 0
+        ? people
+        : people.filter((p) =>
+            (p.roles || []).some(
+              (r) => r.role === subTab && scopes.includes(r.scope),
+            ),
+          );
     const matched = q
-      ? people.filter((p) =>
+      ? inScope.filter((p) =>
           PERSON_NAME_FIELDS.some(
             ({ field }) => p[field] && cleanString(p[field]).includes(q),
           ),
         )
-      : people;
+      : inScope;
     return [...matched].sort((a, b) =>
       (a.display_name || "").localeCompare(b.display_name || ""),
     );
-  }, [people, search]);
+  }, [people, search, scopes, subTab]);
 
   async function selectPerson(person) {
     try {
@@ -141,9 +170,33 @@ export default function PersonModifyTab() {
             onSelect={(key) => {
               setSubTab(key);
               setSearch("");
+              // The scopes are the previous role's - "movie" means nothing to
+              // an author - so a sub-tab switch clears them.
+              setScopes([]);
             }}
           />
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 space-y-3">
+            {scopeChoices.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider mr-1">
+                  Scope
+                </span>
+                {scopeChoices.map((scope) => (
+                  <button
+                    key={scope}
+                    type="button"
+                    onClick={() => toggleScope(scope)}
+                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
+                      scopes.includes(scope)
+                        ? "bg-brand text-on-brand border-brand"
+                        : "bg-surface text-text-faint border-border hover:border-border-strong"
+                    }`}
+                  >
+                    {scope}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="relative">
               <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
               <input
@@ -177,7 +230,9 @@ export default function PersonModifyTab() {
           )}
           {!isLoading && people.length > 0 && filtered.length === 0 && (
             <p className="text-sm text-text-faint italic">
-              Nobody with this type matches that name.
+              {search
+                ? "Nobody with this type matches that name."
+                : "Nobody holds this type in the selected scopes."}
             </p>
           )}
         </>
