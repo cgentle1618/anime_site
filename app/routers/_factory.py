@@ -91,9 +91,12 @@ def make_media_router(spec) -> APIRouter:
             if key in payload
         }
 
-    def _write_nested(db: Session, entry, nested: dict) -> None:
+    def _write_nested(db: Session, entry, nested: dict, viewer=None) -> None:
+        # The viewer travels with the write: a whole-set replace must not
+        # delete rows the writer's own permissions hid from the form they
+        # filled in. See services.domain.sources.replace_sources.
         for key, value in nested.items():
-            spec.nested_collections[key](db, entry, value)
+            spec.nested_collections[key](db, entry, value, viewer)
 
     def _derive(db: Session, entry) -> None:
         if spec.progress_hook:
@@ -158,6 +161,7 @@ def make_media_router(spec) -> APIRouter:
         data: spec.create_schema,
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
@@ -168,7 +172,7 @@ def make_media_router(spec) -> APIRouter:
         db.add(entry)
         if nested or spec.progress_hook:
             db.flush()
-        _write_nested(db, entry, nested)
+        _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
         if spec.pre_commit_hook:
             spec.pre_commit_hook(db, entry)
@@ -187,7 +191,7 @@ def make_media_router(spec) -> APIRouter:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
             db.commit()
             db.refresh(entry)
-        return _finish(db, entry, None)
+        return _finish(db, entry, viewer)
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
     async def update(
@@ -195,6 +199,7 @@ def make_media_router(spec) -> APIRouter:
         data: spec.update_schema,
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
@@ -202,7 +207,7 @@ def make_media_router(spec) -> APIRouter:
         nested = _pop_nested(payload)
         for key, value in payload.items():
             setattr(entry, key, value)
-        _write_nested(db, entry, nested)
+        _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
@@ -219,7 +224,7 @@ def make_media_router(spec) -> APIRouter:
 
         await _run_write_hook(db, entry)
         db.refresh(entry)
-        return _finish(db, entry, None)
+        return _finish(db, entry, viewer)
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
     async def patch(
@@ -227,13 +232,14 @@ def make_media_router(spec) -> APIRouter:
         payload: dict = Body(...),
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
         apply_column_patch(entry, payload)
-        _write_nested(db, entry, nested)
+        _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
@@ -244,7 +250,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry, None)
+        return _finish(db, entry, viewer)
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
                  summary=f"Mark {spec.label} Entry as Completed")

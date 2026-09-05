@@ -42,7 +42,31 @@ from app.utils.tenrai_utils import (
 logger = logging.getLogger(__name__)
 
 
-def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) -> None:
+def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
+    """
+    Tenrai's Official site and Twitter links, as media_source reference rows.
+
+    They used to be the `official_link` / `twitter_link` columns. `db` is
+    optional only so the pure-mapping unit tests can call the autofills
+    without a session; every real call site passes one.
+    """
+    if db is None:
+        return
+    from app.services.domain.sources import upsert_main_source
+    from app.utils.source_fields import OFFICIAL_SITE_VALUE, TWITTER_VALUE
+
+    for value, key in (
+        (OFFICIAL_SITE_VALUE, "official_link"),
+        (TWITTER_VALUE, "twitter_link"),
+    ):
+        upsert_main_source(
+            db, media_type, entry.system_id, "reference", value, j_data.get(key)
+        )
+
+
+def autofill_anime_from_mal(
+    anime: Anime, force_replace_ratings: bool = True, db: Session = None
+) -> None:
     """
     Dedicated logic to fetch MAL data via Tenrai and enrich a single Anime entry.
     Fills empty fields and overwrites ratings/rankings if instructed.
@@ -73,10 +97,7 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
             anime.release_date = j_data.get("release_date")
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
-        if not anime.official_link:
-            anime.official_link = j_data.get("official_link")
-        if not anime.twitter_link:
-            anime.twitter_link = j_data.get("twitter_link")
+        _write_tenrai_reference_rows(db, "anime", anime, j_data)
 
         # Overwrite Ratings
         if force_replace_ratings or anime.mal_rating is None:
@@ -107,7 +128,9 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 
 
 def autofill_anime_movie_from_mal(
-    anime_movie: AnimeMovies, force_replace_ratings: bool = True
+    anime_movie: AnimeMovies,
+    force_replace_ratings: bool = True,
+    db: Session = None,
 ) -> None:
     """
     Fetches Tenrai data for a single AnimeMovies entry and fills/overwrites fields.
@@ -128,10 +151,7 @@ def autofill_anime_movie_from_mal(
             anime_movie.airing_status = j_data.get("airing_status")
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
-        if not anime_movie.official_link:
-            anime_movie.official_link = j_data.get("official_link")
-        if not anime_movie.twitter_link:
-            anime_movie.twitter_link = j_data.get("twitter_link")
+        _write_tenrai_reference_rows(db, "anime-movie", anime_movie, j_data)
 
         if force_replace_ratings or anime_movie.mal_rating is None:
             anime_movie.mal_rating = j_data.get("mal_rating") or anime_movie.mal_rating

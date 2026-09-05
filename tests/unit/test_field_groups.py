@@ -113,8 +113,20 @@ def test_the_two_source_groups_gate_different_buckets():
     assert not set(other) & set(restricted)
 
 
-def test_sources_other_no_longer_gates_a_column():
+def test_sources_other_still_gates_the_surviving_column():
+    """
+    The `other` bucket carries the links now, but `source_other` still exists
+    on all eight media tables and still holds the pre-migration copy the
+    backfill made, and every *Base schema still declares it. Until the drop
+    migration runs, withholding only the bucket would hand a gated viewer the
+    same links back through the column.
+    """
+    from app.models.anime import Anime
     from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
+    if "source_other" not in Anime.__table__.columns:
+        pytest.skip("source_other has been dropped; the column entry can go")
     for media_type in MEDIA_TYPE_KEYS:
-        assert columns_for(FIELD_GROUPS["sources_other"], media_type) == ()
+        assert columns_for(FIELD_GROUPS["sources_other"], media_type) == (
+            "source_other",
+        )

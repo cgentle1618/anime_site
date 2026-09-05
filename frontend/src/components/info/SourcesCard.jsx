@@ -77,12 +77,16 @@ function SourceEntry({ row }) {
     );
   }
 
-  if (row.available == null) {
-    return <SourceRow muted>{name}</SourceRow>;
-  }
-
+  // A URL is a link whatever the verdict says. `available` is NULL on every
+  // reference row and every other/restricted row by design - only main access
+  // rows carry the tristate - so gating the link on it hid every official
+  // site, Twitter, AniList, wiki and free-form source.
   if (row.url) {
     return <SourceLink href={row.url}>{name}</SourceLink>;
+  }
+
+  if (row.available == null) {
+    return <SourceRow muted>{name}</SourceRow>;
   }
 
   return <SourceRow>{name}</SourceRow>;

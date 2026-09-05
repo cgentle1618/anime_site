@@ -37,6 +37,11 @@ MONTH_MAP = {
     "DEC": "12",
 }
 
+# Column fields only. official_link and twitter_link used to be listed here;
+# Fill writes them as media_source reference rows now and the columns are
+# being dropped, so naming them would make getattr() return None forever and
+# mark every anime "needs Fill" on every run - the same trap the comment
+# below MOVIE_FIELDS_TO_FILL describes.
 ANIME_FIELDS_TO_FILL = [
     "airing_type",
     "airing_status",
@@ -45,8 +50,6 @@ ANIME_FIELDS_TO_FILL = [
     "mal_rating",
     "mal_rank",
     "ep_total",
-    "official_link",
-    "twitter_link",
     "cover_image_file",
 ]
 
@@ -55,8 +58,6 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
     "release_date_jp",
     "mal_rating",
     "mal_rank",
-    "official_link",
-    "twitter_link",
     "cover_image_file",
 ]
 

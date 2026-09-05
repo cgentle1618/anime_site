@@ -5,6 +5,7 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
+  getBahaRow,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 
@@ -52,9 +53,7 @@ export default function DashboardCard({
           : `/anime/${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaRow = (anime.sources || []).find(
-    (s) => s.kind === "access" && s.name === "Bahamut",
-  );
+  const bahaRow = getBahaRow(anime);
   const netflixRow = (anime.sources || []).find(
     (s) => s.kind === "access" && s.name === "Netflix",
   );

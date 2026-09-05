@@ -49,7 +49,10 @@ const CREDITS_FIELD_MAP = {
   },
   novel: {
     credits: { author: "novel_author", illustrator: "novel_illustrator" },
-    tags: { publisher_tw: "publisher_tw" },
+    tags: {
+      publisher_tw: "publisher_tw",
+      serialization_platform: "serialization_platform",
+    },
   },
   comic: {
     credits: { writer: "comic_writer", artist: "comic_artist" },

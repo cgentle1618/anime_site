@@ -246,10 +246,25 @@ def has_missing_values_comic(db, comic: Comic) -> bool:
 
 
 
-def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
-    """Sets source_baha=True if baha_link is present (and source_baha not already set)."""
-    if entry.baha_link and entry.source_baha is None:
-        entry.source_baha = True
+def apply_check_baha(
+    db: Session, entry: Union[Anime, AnimeMovies], media_type: str
+) -> None:
+    """
+    A Bahamut link means the entry is available on Bahamut.
+
+    The rule is unchanged; only its storage moved. The verdict used to be the
+    `source_baha` tristate beside a `baha_link` column, and is now `available`
+    on the entry's Bahamut `main` access row, which carries the url itself. An
+    existing verdict is never overwritten - someone said it deliberately.
+    """
+    from app.services.domain.sources import find_main_source
+    from app.utils.source_fields import BAHAMUT_VALUE
+
+    row = find_main_source(
+        db, media_type, entry.system_id, "access", BAHAMUT_VALUE
+    )
+    if row is not None and row.url and row.available is None:
+        row.available = True
 
 
 def find_duplicate_entities(db: Session) -> list[dict]:

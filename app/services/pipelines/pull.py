@@ -526,12 +526,19 @@ def execute_pull_specific(
                         .first()
                     )
                     if option is None:
+                        # Skipping the row, not blanking option_id: a `main`
+                        # row with neither option_id nor name violates
+                        # ck_media_source_one_target and rolls the WHOLE tab
+                        # back, so one value renamed on the other machine
+                        # would lose every source. Same treatment as an
+                        # unresolvable series FK above.
                         logger.warning(
                             "Could not resolve system_option (%s, %s) for the "
-                            "Media Source tab. Leaving option_id empty.",
+                            "Media Source tab. Skipping row.",
                             category,
                             value,
                         )
+                        continue
                 clean_header_dict["option_id"] = option.system_id if option else None
 
         # System Configs, Person Role, System Option Scope and System Option

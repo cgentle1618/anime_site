@@ -424,6 +424,17 @@ export default function NovelModifyTab({
           value={cnvf.end_date}
           onChange={(v) => unv("end_date", v)}
         />
+        <Field label="Serialization Platform">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Serialization Platform",
+              scope: "novel",
+            })}
+            value={cnvf.serialization_platform || ""}
+            onChange={(v) => unv("serialization_platform", v)}
+          />
+        </Field>
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}

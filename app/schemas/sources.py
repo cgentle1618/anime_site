@@ -10,6 +10,10 @@ class SourceRef(BaseModel):
     system_id: UUID
     kind: str
     bucket: str
+    # The vocabulary row a `main` row points at, so the SPA can find one
+    # (Bahamut, say) without string-matching a name an admin may rename.
+    # None on the free-form buckets, which carry typed text instead.
+    option_id: Optional[UUID] = None
     name: str
     available: Optional[bool] = None
     url: Optional[str] = None

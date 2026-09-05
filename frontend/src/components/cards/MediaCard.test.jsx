@@ -34,14 +34,14 @@ function mockAuthFetch() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(data) {
+function mount(data, type = "novel") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <AuthProvider>
         <ToastProvider>
           <MemoryRouter>
-            <MediaCard type="novel" data={data} isAdmin={false} />
+            <MediaCard type={type} data={data} isAdmin={false} />
           </MemoryRouter>
         </ToastProvider>
       </AuthProvider>
@@ -72,5 +72,47 @@ describe("MediaCard — novel progress (Decision G)", () => {
     });
 
     expect(await screen.findByText("arc 2 · 101/112 CH")).toBeInTheDocument();
+  });
+});
+
+
+// The Bahamut badge must come from the one shared predicate in
+// lib/formatters.js (kind "access" AND bucket "main"), not from a name match
+// re-implemented here - a typed free-form row named "Bahamut" is somebody's
+// note, not the platform.
+describe("MediaCard - the Bahamut badge", () => {
+  const base = {
+    system_id: "a1",
+    anime_name_en: "Test Anime",
+    watching_status: "Active Watching",
+  };
+
+  it("shows for a main access row marked available", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        ...base,
+        sources: [
+          { kind: "access", bucket: "main", name: "Bahamut", available: true },
+        ],
+      },
+      "anime",
+    );
+    expect(await screen.findByAltText("Baha")).toBeInTheDocument();
+  });
+
+  it("does not show for a free-form row typed 'Bahamut'", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        ...base,
+        sources: [
+          { kind: "access", bucket: "other", name: "Bahamut", available: true },
+        ],
+      },
+      "anime",
+    );
+    await screen.findByText("Test Anime");
+    expect(screen.queryByAltText("Baha")).toBeNull();
   });
 });

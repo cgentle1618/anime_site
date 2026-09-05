@@ -111,6 +111,28 @@ def test_a_holder_still_sees_the_bucket(client, anime_with_sources):
     assert {s["bucket"] for s in body["sources"]} == {"other"}
 
 
+def test_the_surviving_column_is_withheld_too(
+    no_sources_client, anime_with_sources, db_session
+):
+    """
+    source_other still exists and still holds the pre-migration copy of the
+    same links, so gating only the bucket would hand them straight back.
+    """
+    anime_with_sources.source_other = {"Bilibili": "https://example.invalid/watch"}
+    db_session.commit()
+
+    body = no_sources_client.get(
+        f"/api/anime/{anime_with_sources.system_id}"
+    ).json()
+    assert body["sources"] == []
+    assert body.get("source_other") in (None, {})
+
+    # ...and the gate must not have reached the database.
+    db_session.expire_all()
+    refreshed = db_session.get(models.Anime, anime_with_sources.system_id)
+    assert refreshed.source_other == {"Bilibili": "https://example.invalid/watch"}
+
+
 def test_admin_still_sees_the_bucket(admin_client, anime_with_sources):
     body = admin_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
     assert {s["bucket"] for s in body["sources"]} == {"other"}

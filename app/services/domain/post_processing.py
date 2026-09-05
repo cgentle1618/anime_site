@@ -66,7 +66,9 @@ def apply_single_replace_anime(
     after the loop instead of per entry.
     """
     apply_extract_mal_id_anime(anime)
-    autofill_anime_from_mal(anime, force_replace_ratings=force_replace_ratings)
+    autofill_anime_from_mal(
+        anime, force_replace_ratings=force_replace_ratings, db=db
+    )
     anime_post_processing(anime, db)
 
     if not bulk:
@@ -84,7 +86,7 @@ def apply_single_replace_anime_movie(
     """
     apply_extract_mal_id_anime(anime_movie)
     autofill_anime_movie_from_mal(
-        anime_movie, force_replace_ratings=force_replace_ratings
+        anime_movie, force_replace_ratings=force_replace_ratings, db=db
     )
     anime_movie_post_processing(anime_movie, db)
 
@@ -151,7 +153,7 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
 
 def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
-    apply_check_baha(anime)
+    apply_check_baha(db, anime, "anime")
 
     if (
         check_is_tv_completed(anime)
@@ -172,7 +174,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
-    apply_check_baha(anime_movie)
+    apply_check_baha(db, anime_movie, "anime-movie")
     if (
         check_is_movie_completed(anime_movie)
         and anime_movie.watching_status not in COMPLETED_WATCH_STATUSES

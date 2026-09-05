@@ -7,7 +7,6 @@ Uses SimpleNamespace to create mock Anime objects — no DB required.
 import types
 
 from app.services.domain import (
-    apply_check_baha,
     check_is_tv_completed,
     has_missing_values_anime,
 )
@@ -23,8 +22,6 @@ def make_anime(**kwargs):
         mal_rating=8.5,
         mal_rank="42",
         ep_total=12,
-        official_link="https://example.com",
-        twitter_link="https://twitter.com/show",
         cover_image_file="abc123.jpg",
         # ep_previous fields (only checked if TV/ONA + no ep_special + has season_part)
         ep_previous=0,
@@ -33,9 +30,6 @@ def make_anime(**kwargs):
         # For check_is_tv_completed
         watching_status="Active Watching",
         ep_fin=0,
-        # For apply_check_baha
-        baha_link=None,
-        source_baha=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)
@@ -60,11 +54,11 @@ class TestHasMissingValues:
         assert has_missing_values_anime(anime) is True
 
     def test_empty_string_treated_as_missing(self):
-        anime = make_anime(official_link="")
+        anime = make_anime(release_season="")
         assert has_missing_values_anime(anime) is True
 
     def test_whitespace_only_treated_as_missing(self):
-        anime = make_anime(twitter_link="   ")
+        anime = make_anime(release_season="   ")
         assert has_missing_values_anime(anime) is True
 
     def test_not_yet_aired_skips_mal_rating_check(self):
@@ -147,39 +141,38 @@ class TestCheckIsTvCompleted:
 
 
 # ---------------------------------------------------------------------------
-# apply_check_baha
+# The retired source columns
 # ---------------------------------------------------------------------------
 
 
-class TestApplyCheckBaha:
-    def test_sets_source_baha_true_when_conditions_met(self):
-        anime = make_anime(
-            baha_link="https://ani.gamer.com.tw/123",
-            airing_status="Airing",
-            source_baha=None,
-        )
-        apply_check_baha(anime)
-        assert anime.source_baha is True
+def test_no_fill_list_names_a_retired_source_column():
+    """
+    A dropped column read through getattr(..., None) is permanently blank, so
+    naming one here would mark every entry "needs Fill" forever - the trap the
+    comment above MOVIE_FIELDS_TO_FILL already warns about.
+    """
+    from app.utils import utils
 
-    def test_sets_source_baha_true_regardless_of_airing_status(self):
-        anime = make_anime(
-            baha_link="https://ani.gamer.com.tw/123",
-            airing_status="Finished Airing",
-            source_baha=None,
+    retired = {
+        "source_other",
+        "source_baha",
+        "baha_link",
+        "source_netflix",
+        "official_link",
+        "twitter_link",
+        "anilist_link",
+    }
+    for name in dir(utils):
+        if not name.endswith("_FIELDS_TO_FILL"):
+            continue
+        assert not retired & set(getattr(utils, name)), (
+            f"{name} names a retired source column"
         )
-        apply_check_baha(anime)
-        assert anime.source_baha is True
 
-    def test_does_not_set_when_no_link(self):
-        anime = make_anime(baha_link=None, airing_status="Airing", source_baha=None)
-        apply_check_baha(anime)
-        assert anime.source_baha is None
 
-    def test_does_not_overwrite_existing_value(self):
-        anime = make_anime(
-            baha_link="https://ani.gamer.com.tw/123",
-            airing_status="Airing",
-            source_baha=False,
-        )
-        apply_check_baha(anime)
-        assert anime.source_baha is False  # already set, not overwritten
+# ---------------------------------------------------------------------------
+# apply_check_baha
+# ---------------------------------------------------------------------------
+# Now a database rule - it writes `available` on the entry's Bahamut
+# media_source row rather than the retired source_baha column - so its tests
+# live in tests/api/test_check_baha_source.py.

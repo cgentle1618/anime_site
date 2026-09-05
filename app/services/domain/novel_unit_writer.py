@@ -12,7 +12,7 @@ import uuid
 from app.models import NovelUnit
 
 
-def write_novel_units(db, entry, units) -> None:
+def write_novel_units(db, entry, units, viewer=None) -> None:
     """
     Reconcile entry.units with the payload, in the caller's transaction.
 

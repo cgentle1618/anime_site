@@ -2,18 +2,31 @@
 import { formatReleaseDate } from "./releaseDate";
 import { effectiveProgressDisplay } from "./novelUnits";
 
-// The Bahamut row now lives in `sources` (kind "access", bucket "main",
-// name "Bahamut") rather than the old boolean-plus-URL column pair the
-// entry table used to carry - see the identical lookup in MediaCard.jsx /
-// DashboardCard.jsx.
-export function getBahaRow(entry) {
-  return (entry.sources || []).find(
-    (s) => s.kind === "access" && s.name === "Bahamut",
+// The Bahamut row lives in `sources` (kind "access", bucket "main") rather
+// than the old boolean-plus-URL column pair the entry table used to carry.
+// The ONE place that predicate is written - MediaCard, DashboardCard and the
+// library configs all call this rather than re-deriving it.
+//
+// A main row cites its vocabulary value by `option_id`, which survives an
+// admin renaming "Bahamut" to anything else, so that is what a caller holding
+// the Platform option id should match on. The name match is the fallback:
+// for a caller with no options bag to hand, and for a row whose option was
+// deleted out from under it.
+export const BAHAMUT_VALUE = "Bahamut";
+
+export function getBahaRow(entry, bahamutOptionId) {
+  const rows = (entry.sources || []).filter(
+    (s) => s.kind === "access" && s.bucket === "main",
   );
+  if (bahamutOptionId) {
+    const byId = rows.find((s) => s.option_id === bahamutOptionId);
+    if (byId) return byId;
+  }
+  return rows.find((s) => s.name === BAHAMUT_VALUE);
 }
 
-export function isBaha(entry) {
-  return getBahaRow(entry)?.available === true;
+export function isBaha(entry, bahamutOptionId) {
+  return getBahaRow(entry, bahamutOptionId)?.available === true;
 }
 
 export function getReleaseFallback(entry) {

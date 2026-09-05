@@ -25,6 +25,16 @@ PLATFORM_CATEGORY = "Platform"
 REFERENCE_CATEGORY = "Reference Source"
 SERIALIZATION_CATEGORY = "Serialization Platform"
 
+# The one Platform value code branches on: Check derives a Bahamut row's
+# `available` from its url the way it used to derive source_baha from
+# baha_link. Every other platform is pure vocabulary.
+BAHAMUT_VALUE = "Bahamut"
+
+# Reference Source values the Fill pipeline writes rows for, from the two
+# links Tenrai returns.
+OFFICIAL_SITE_VALUE = "Official site"
+TWITTER_VALUE = "Twitter"
+
 _CATEGORY_BY_KIND: dict[str, str] = {
     "access": PLATFORM_CATEGORY,
     "reference": REFERENCE_CATEGORY,

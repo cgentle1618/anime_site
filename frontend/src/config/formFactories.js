@@ -242,6 +242,7 @@ export const defaultNovel = () => ({
   illustrator: "",
   release_date: "",
   end_date: "",
+  serialization_platform: "",
   publisher_tw: "",
   read_order: "",
   units: [],

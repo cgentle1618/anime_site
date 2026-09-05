@@ -116,6 +116,13 @@ FIELD_GROUPS: dict[str, FieldGroup] = {
         key="sources_other",
         label="Other Sources",
         description="The free-form source list on every media entry.",
+        # The links live in the `other` bucket now, but `source_other` still
+        # exists on all eight media tables, still holds the copy the backfill
+        # made, and is still declared on every *Base schema - so withholding
+        # only the bucket would hand the same links back through the column.
+        # DELETE THIS `columns` ENTRY once the drop migration has removed
+        # source_other; the bucket alone is the intended gate.
+        columns={ALL: ("source_other",)},
         source_buckets=("other",),
         ui_block="info.SourcesCard.other",
     ),

@@ -569,6 +569,16 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "illustrator", scope: "novel" },
       group: "Credits",
     },
+    serialization_platform: {
+      label: "Serialization Platform",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Serialization Platform",
+        scope: "novel",
+      },
+      group: "Sources",
+    },
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",

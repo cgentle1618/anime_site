@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getReleaseFallback, getSourceValues, getNovelProgress } from "./formatters";
+import {
+  getBahaRow,
+  getReleaseFallback,
+  getSourceValues,
+  getNovelProgress,
+} from "./formatters";
 
 describe("getReleaseFallback", () => {
   it("prefers the season and year when both are known", () => {
@@ -297,5 +302,67 @@ describe("getNovelProgress", () => {
       ],
     };
     expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// getBahaRow
+// ---------------------------------------------------------------------------
+
+describe("getBahaRow", () => {
+  const ID = "11111111-1111-1111-1111-111111111111";
+
+  it("matches on option_id, so a renamed platform still resolves", () => {
+    const entry = {
+      sources: [
+        {
+          kind: "access",
+          bucket: "main",
+          option_id: ID,
+          name: "巴哈姆特",
+          available: true,
+        },
+      ],
+    };
+    expect(getBahaRow(entry, ID)?.available).toBe(true);
+  });
+
+  it("falls back to the name when the caller has no option id", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "main", option_id: ID, name: "Bahamut" },
+      ],
+    };
+    expect(getBahaRow(entry)).toBeTruthy();
+  });
+
+  it("falls back to the name for a row whose option was deleted", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "main", option_id: null, name: "Bahamut" },
+      ],
+    };
+    expect(getBahaRow(entry, ID)).toBeTruthy();
+  });
+
+  it("ignores a free-form row that happens to be typed 'Bahamut'", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "other", name: "Bahamut", available: true },
+      ],
+    };
+    expect(getBahaRow(entry)).toBeUndefined();
+  });
+
+  it("ignores a reference row", () => {
+    const entry = {
+      sources: [{ kind: "reference", bucket: "main", name: "Bahamut" }],
+    };
+    expect(getBahaRow(entry)).toBeUndefined();
+  });
+
+  it("is safe with no sources at all", () => {
+    expect(getBahaRow({})).toBeUndefined();
   });
 });

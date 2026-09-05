@@ -22,6 +22,7 @@ import {
   parseTypes,
   MEDIA_CONFIG,
   getNovelProgress,
+  getBahaRow,
 } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
@@ -74,9 +75,7 @@ function MetaLine({ children, className = "" }) {
 }
 
 function PosterBadges({ type, variant, data, franchiseDict }) {
-  const bahaRow = (data.sources || []).find(
-    (s) => s.kind === "access" && s.name === "Bahamut",
-  );
+  const bahaRow = getBahaRow(data);
   const bahaFlag =
     (type === "anime" || type === "anime-movie") && bahaRow?.available === true;
   const hasBahaLink = bahaFlag && bahaRow?.url;

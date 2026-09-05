@@ -302,7 +302,7 @@ def bulk_download_missing_covers(
         total += 1
         if anime.airing_type in ALLOWED_AIRING_TYPES:
             anime.cover_image_file = None
-            autofill_anime_from_mal(anime, force_replace_ratings=False)
+            autofill_anime_from_mal(anime, force_replace_ratings=False, db=db)
             if anime.cover_image_file:
                 downloaded += 1
         else:
@@ -312,7 +312,7 @@ def bulk_download_missing_covers(
     for am in _collect(am_query, AnimeMovies):
         total += 1
         am.cover_image_file = None
-        autofill_anime_movie_from_mal(am, force_replace_ratings=False)
+        autofill_anime_movie_from_mal(am, force_replace_ratings=False, db=db)
         if am.cover_image_file:
             downloaded += 1
 

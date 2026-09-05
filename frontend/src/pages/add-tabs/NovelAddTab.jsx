@@ -512,6 +512,18 @@ export default function NovelAddTab({
           value={nvf.end_date}
           onChange={(v) => unv("end_date", v)}
         />
+        <Field label="Serialization Platform">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Serialization Platform",
+              scope: "novel",
+            })}
+            value={nvf.serialization_platform}
+            onChange={(v) => unv("serialization_platform", v)}
+            placeholder="e.g. 小説家になろう"
+          />
+        </Field>
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}

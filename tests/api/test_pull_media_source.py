@@ -148,14 +148,34 @@ def test_full_pull_resolves_option_category_and_value_into_a_local_option_id(
     assert sources[0].available is True
 
 
-def test_full_pull_leaves_option_id_empty_for_an_unknown_option(
+def test_an_unresolvable_option_skips_its_row_not_the_whole_tab(
     db_session, sample_anime, monkeypatch
 ):
-    # name is set here purely so the row still satisfies
-    # ck_media_source_one_target (exactly one of option_id/name) once the
-    # unresolvable option leaves option_id NULL - not a realistic "main"
-    # bucket row, just enough to isolate the resolution behaviour under test.
-    row = [
+    """
+    A platform renamed on one machine must not fail the other machine's pull.
+    Leaving option_id NULL on a `main` row violates
+    ck_media_source_one_target and rolls the entire tab back, so the row is
+    logged and skipped - exactly what the Series-FK branch above it does.
+    """
+    netflix = models.SystemOption(category="Platform", value="Netflix", sort_order=1)
+    db_session.add(netflix)
+    db_session.commit()
+
+    good = [
+        str(uuid.uuid4()),
+        "anime",
+        str(sample_anime.system_id),
+        "access",
+        "main",
+        "Platform",
+        "Netflix",
+        "",
+        "TRUE",
+        "https://netflix.test",
+        "1",
+        "",
+    ]
+    bad = [
         str(uuid.uuid4()),
         "anime",
         str(sample_anime.system_id),
@@ -163,14 +183,14 @@ def test_full_pull_leaves_option_id_empty_for_an_unknown_option(
         "main",
         "Platform",
         "SomePlatformThisDatabaseHasNeverHeardOf",
-        "Legacy platform note",
         "",
         "",
+        "https://unknown.test",
         "0",
         "",
     ]
     monkeypatch.setattr(
-        pull, "get_all_raw_rows", lambda tab: [MEDIA_SOURCE_HEADERS, row]
+        pull, "get_all_raw_rows", lambda tab: [MEDIA_SOURCE_HEADERS, good, bad]
     )
 
     result = pull.execute_pull_specific(db_session, "Media Source", log_action=False)
@@ -178,4 +198,4 @@ def test_full_pull_leaves_option_id_empty_for_an_unknown_option(
     assert result["status"] == "success"
     sources = db_session.query(models.MediaSource).all()
     assert len(sources) == 1
-    assert sources[0].option_id is None
+    assert sources[0].option_id == netflix.system_id

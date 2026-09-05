@@ -77,7 +77,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         key="anime", label="Anime", model=Anime,
         extract_id=apply_extract_mal_id_anime,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime(e),
-        fill=lambda db, e: autofill_anime_from_mal(e, force_replace_ratings=True),
+        fill=lambda db, e: autofill_anime_from_mal(e, force_replace_ratings=True, db=db),
         fill_sleep=MAL_PAUSE,
         post_process=anime_post_processing,
         fill_after=(
@@ -97,7 +97,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         key="anime-movie", label="Anime Movie", model=AnimeMovies,
         extract_id=apply_extract_mal_id_anime,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime_movie(e),
-        fill=lambda db, e: autofill_anime_movie_from_mal(e, force_replace_ratings=True),
+        fill=lambda db, e: autofill_anime_movie_from_mal(e, force_replace_ratings=True, db=db),
         fill_sleep=MAL_PAUSE,
         post_process=anime_movie_post_processing,
         fill_after=(("Syncing system options...", run_sync_anime_movie),),

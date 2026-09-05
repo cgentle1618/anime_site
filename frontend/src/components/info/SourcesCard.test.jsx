@@ -44,6 +44,36 @@ describe("SourcesCard", () => {
     expect(screen.getByRole("link", { name: /myanimelist/i })).toBeInTheDocument();
   });
 
+  // `available` is NULL on every reference row and every free-form row by
+  // design - only main access rows carry the tristate. A row with a URL is a
+  // link regardless.
+  it("renders a reference row with a URL as a link", () => {
+    render(<SourcesCard sources={rows} mediaType="anime" />);
+    expect(
+      screen.getByRole("link", { name: /wikipedia/i }),
+    ).toHaveAttribute("href", "https://w.test");
+  });
+
+  it("renders a free-form row with a URL as a link", () => {
+    render(<SourcesCard sources={rows} mediaType="anime" />);
+    expect(
+      screen.getByRole("link", { name: /elsewhere/i }),
+    ).toHaveAttribute("href", "https://e.test");
+  });
+
+  it("leaves a row with neither a verdict nor a URL as plain text", () => {
+    render(
+      <SourcesCard
+        sources={[
+          { system_id: "9", kind: "reference", bucket: "main", name: "Fandom wiki" },
+        ]}
+        mediaType="anime"
+      />,
+    );
+    expect(screen.queryByRole("link", { name: /fandom/i })).toBeNull();
+    expect(screen.getByText("Fandom wiki")).toBeInTheDocument();
+  });
+
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();
