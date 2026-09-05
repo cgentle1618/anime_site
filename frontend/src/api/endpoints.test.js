@@ -65,6 +65,26 @@ describe("named endpoint groups", () => {
     expect(endpoints.system.testBucket()).toBe("/api/system/test-bucket");
   });
 
+  it("character", () => {
+    expect(endpoints.character.list()).toBe("/api/character/");
+    expect(endpoints.character.list("q=x")).toBe("/api/character/?q=x");
+    expect(endpoints.character.detail(7)).toBe("/api/character/7");
+    expect(endpoints.character.create()).toBe("/api/character/");
+    expect(endpoints.character.update(7)).toBe("/api/character/7");
+    expect(endpoints.character.remove(7, 2)).toBe("/api/character/7?castings=2");
+    expect(endpoints.character.merge(7)).toBe("/api/character/7/merge");
+    expect(endpoints.character.entries(7)).toBe("/api/character/7/entries");
+  });
+
+  it("casting", () => {
+    expect(endpoints.casting.get("anime-movie", 3)).toBe(
+      "/api/casting/anime-movie/3",
+    );
+    expect(endpoints.casting.replace("anime-movie", 3)).toBe(
+      "/api/casting/anime-movie/3",
+    );
+  });
+
   it("dataControl", () => {
     expect(endpoints.dataControl.fill("anime")).toBe("/api/data-control/fill/anime");
     expect(endpoints.dataControl.fillAll()).toBe("/api/data-control/fill/all");

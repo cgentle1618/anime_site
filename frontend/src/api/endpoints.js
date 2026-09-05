@@ -150,6 +150,23 @@ export const endpoints = {
     update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
   },
 
+  character: {
+    list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/character/${id}`,
+    create: () => "/api/character/",
+    update: (id) => `/api/character/${id}`,
+    // The casting count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
+    merge: (id) => `/api/character/${id}/merge`,
+    entries: (id) => `/api/character/${id}/entries`,
+  },
+
+  casting: {
+    get: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+    replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+  },
+
   studio: {
     list: () => "/api/studio/",
     detail: (id) => `/api/studio/${id}`,
