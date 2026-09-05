@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-05 (commit 050e165)
+Last verified: 2026-09-05
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -21,10 +21,11 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
 - [People, studios and links](#people-studios-and-links): person, person_role, studio, character, character_casting, media_credit, media_tag
+- [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
-- [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_configs, seasonal
+- [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label
 - [Logs](#logs): data_control_logs, deleted_record
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -203,7 +204,7 @@ Columns common to all eight entry tables (listed once here):
 | `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_id` | UUID | yes | | FK `series.system_id` ON DELETE SET NULL - **absent on `anime_movies`** |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `source_other` | JSONB | yes | | Free-form map of extra viewing/reading sources (label → URL). Gated by the `sources_other` field group. |
+| `source_other` | JSONB | yes | | Free-form map of extra viewing/reading sources (label → URL). **Superseded**: `media_source` `bucket='other'` rows are what every read and write path uses now (see [`media_source`](#media_source)); this column, `source_baha`/`baha_link`/`source_netflix` (anime, anime-movie only), `official_link`, `twitter_link` and `anilist_link` still exist on the tables as of this writing but are no longer read or written outside the Sheets round trip, pending a follow-up migration that drops them. |
 | `cover_image_file` | String | yes | | GCS object key of the cover image. |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed status (see `app/services/domain/completion.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
@@ -296,8 +297,11 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 | `imdb_id` | String | yes | | Derived from `imdb_link` |
 | `imdb_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`
-(credit link field).
+Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `director`,
+`original_source` (tag link fields; `original_source` has no
+`LEGACY_SHEET_COLUMN` entry for `movie`, so its response attribute is the
+field key itself - see the response-attribute note under
+[Virtual fields](#virtual-fields-on-media-entries)) and `sources`.
 
 ### `tv_shows`
 
@@ -318,7 +322,9 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `imdb_id` / `imdb_link` | String | yes | | |
 
 Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`,
-`source_official` (tag link field).
+`source_official` (the response attribute for the `original_source` tag
+field - `tv-show` kept its pre-rename sheet header, see the response-attribute
+note under [Virtual fields](#virtual-fields-on-media-entries)).
 
 ### `cartoons`
 
@@ -339,7 +345,9 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `display_name`, `source_official`.
+Virtual: `remark`, `watch_next`, `display_name`, `source_official` (the
+response attribute for the `original_source` tag field - `cartoon` also kept
+its pre-rename sheet header).
 
 ### `manga`
 
@@ -497,9 +505,30 @@ are not columns on the entry tables.
 | `cum_ep_fin`, `cum_ep_total` | Pydantic `computed_field` on `AnimeResponse`: `ep_previous + ep_fin` and `ep_previous + ep_total` (None if `ep_total` unknown). | anime |
 | `watch_next` / `read_next` | Boolean over `plan_next` (`kind = next`, `scope = entry`). The row's existence is the flag. | all 8 |
 | `to_rewatch` / `to_reread` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. | anime_movies, movies, tv_shows, manga, novel, comic |
-| Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
+| Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
 | `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies |
+| `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all 8 |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
+
+**A tag field's response attribute is not always its field key - and the rule
+is asymmetric per media type.** `sheet_column_for(media_type, key)` decides
+the attribute name: the legacy sheet header from `LEGACY_SHEET_COLUMN` when
+one exists for that `(media_type, key)` pair, otherwise the key itself. The
+same logical field can therefore surface under two different names depending
+on which entry it is read from - `movie.original_source` (no legacy pair, so
+the key is used verbatim) versus `tv_show.source_official` and
+`cartoon.source_official` (both keep the pre-rename sheet header, because
+Task 9 of the media-sources change renamed the field from `source_official`
+to `original_source` in code and vocabulary but deliberately left the sheet
+header - and therefore the API attribute - unchanged). Meanwhile
+`GET /api/credits/{media_type}/{entry_id}` returns tags keyed by the
+**canonical** field key (`field_spec.key`) for every media type, with no such
+substitution. A frontend page reading a tag off the entry payload and a page
+reading the same tag off `/api/credits` must therefore use two different
+keys for TV Show and Cartoon's original source. This shipped as a real bug
+once already (`TV.jsx`/`Cartoon.jsx` read `original_source`, which is
+`undefined` on those two types) before being caught and fixed - see
+[api.md](api.md#reading-credits-the-entry-payload-not-this-endpoint).
 
 ---
 
@@ -746,6 +775,71 @@ rather than category because one category can back several fields.
 Constraints: `uq_media_tag_row` UNIQUE (`media_type`, `entry_id`, `field`,
 `option_id`); index `ix_media_tag_entry`.
 
+### `media_source`
+
+Where one entry can be watched, read, or looked up. Shaped like
+`media_credit`: no single foreign key can span the eight media tables, so the
+`(media_type, entry_id)` pair is resolved at read time (see
+[Cross-table references](#cross-table-references-without-foreign-keys)).
+Model: `MediaSource` (`app/models/media_source.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK, indexed |
+| `media_type` | String | no | | Hyphenated MEDIA_TYPE_KEYS, no FK |
+| `entry_id` | UUID | no | | FK-less |
+| `kind` | String | no | | `access` (somewhere to watch/read) or `reference` (somewhere to read *about* it — a wiki, a database), indexed |
+| `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, gated by field group `sources_other`), or `restricted` (free-form, gated by `sources_restricted`), indexed |
+| `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
+| `name` | String | yes | | Free text. Set on `other` / `restricted` rows only |
+| `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows (the old `source_baha`); NULL on every `reference` row and every free-form row |
+| `url` | String | yes | | |
+| `position` | Integer | no | `0` (server default too) | `main` rows render in the pointed-at option's `sort_order` instead and never carry a meaningful `position`; `other`/`restricted` rows render in insertion order via this column |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `ck_media_source_one_target` CHECK `num_nonnulls(option_id, name)
+= 1`; `uq_media_source_row` UNIQUE (`media_type`, `entry_id`, `kind`, `bucket`,
+`option_id`, `name`) NULLS NOT DISTINCT — two free-form rows with the same
+name on one entry collide instead of both being stored, since `option_id` is
+NULL on both and the default NULL-is-distinct rule would let them through;
+index `ix_media_source_entry` (`media_type`, `entry_id`).
+
+**Read/write.** `services.domain.sources.attach_sources` sets `entry.sources`
+(a list of `SourceRef`, `app/schemas/sources.py`) on every list and detail
+response; `replace_sources` rewrites an entry's whole set on
+POST/PUT/PATCH via `MediaTypeSpec.nested_collections`, the same seam
+`write_novel_units` uses; `delete_sources_for` removes every row for an entry
+being deleted, since nothing cascades into an FK-less table. Bucket filtering
+by RBAC happens inside `attach_sources` itself, not in `field_gate.gate()`,
+because it is partial — a viewer can hold `other` and not `restricted` — see
+[authorization.md](authorization.md).
+
+**Coexists with older columns today.** `mal_id`/`mal_link`, `imdb_id`/
+`imdb_link` and `comicvine_id`/`comicvine_link` stay real columns — the Fill
+pipeline extracts an id out of them (`derivation.py`) and gates on their
+presence (`checking.py`, `calculation.py`). The guiding rule: **a link the
+system acts on is a column; a link that is only ever displayed is a
+`media_source` row.** The older per-type source columns this table replaces —
+`source_baha`, `baha_link`, `source_netflix`, `source_other`, `official_link`,
+`twitter_link`, `anilist_link` — are still present on the entry tables as of
+this writing (a follow-up migration drops them); the app no longer reads or
+writes them anywhere outside the Sheets round trip, so treat their survival as
+a pending cleanup rather than a second live mechanism.
+
+**Sheets.** Backed up and restored as its own tab, `Media Source`, after
+`Note` (both endpoints — the entry and, when set, the option — must already
+exist). `option_id` is not written to the sheet as a UUID: `system_option`
+mints a different id per database, so the tab instead carries the option's
+`category` and `value` strings (`option_category`/`option_value`, resolved
+back through the local vocabulary on Pull), the same treatment credits and
+tags already get. `entry_id` round-trips as a plain UUID because entry ids are
+identical across databases. `DERIVED_IDENTITY_KEYS["Media Source"]` is the six
+columns of `uq_media_source_row` (including `option_id`, resolved to the
+*local* id before the natural-key match runs) — without it, two `main` rows
+on one entry for different platforms would both have `name = NULL` and
+collide as duplicates on a second Pull. See
+[data-actions.md](data-actions.md) for the breaking-change note on this tab.
+
 ---
 
 ## Notes, quotes and memes
@@ -953,7 +1047,7 @@ live here. Model: `SystemOption` (`app/models/system.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `category` | String | no | | e.g. `Genre Main`, `Official Source` (OPTION_CATEGORIES), indexed |
+| `category` | String | no | | e.g. `Genre Main`, `Platform` (OPTION_CATEGORIES), indexed |
 | `value` | String | no | | |
 | `sort_order` | Integer | no | `0` (server default too) | |
 | `remark` | Text | yes | | |
@@ -975,6 +1069,35 @@ offered everywhere. Scopes are admin-managed data, never derived from usage.
 | `scope` | String | no | | One of MEDIA_TYPE_KEYS |
 
 Constraint: `uq_system_option_scope` UNIQUE (`option_id`, `scope`).
+
+### `system_option_usage`
+
+Which roles a vocabulary value may be used in — parallel to
+`system_option_scope`, which answers "in which media types" this answers "for
+what". A value with **no** usage rows serves every usage. Model:
+`SystemOptionUsage` (`app/models/system.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `id` | Integer | no | autoincrement | PK |
+| `option_id` | UUID | no | | FK `system_option` ON DELETE CASCADE, indexed |
+| `usage` | String | no | | `watch` or `origin` |
+
+Constraint: `uq_system_option_usage` UNIQUE (`option_id`, `usage`).
+
+Exists because the `Platform` category serves two different questions with
+one vocabulary: the `media_source` access rows ("where can I watch this")
+*and* the `original_source` / `exclusive_source` tag fields ("where did this
+first air / is it exclusive to"). Some values answer only one — Fox, ABC and
+The CW are places a show first aired, never places to go and watch it now, and
+that origin-only set keeps growing (NBC, CBS, AMC, FX for TV;
+Nickelodeon, Adult Swim, Cartoon Network for cartoons). A value with `usage =
+"origin"` is filtered out of every watch-source picker; a value with
+`usage = "watch"` (or no rows at all) is offered normally. **Not** backed up
+or restored through Google Sheets today — no `SHEET_TABS` entry reads or
+writes this table, unlike its `system_option_scope` sibling, so a
+`system_option_usage` row set on one machine does not travel to the other
+through Backup/Pull. See [data-actions.md](data-actions.md).
 
 ### `system_configs`
 
@@ -1137,7 +1260,7 @@ it at read time through `app/utils/media_resolver.py`:
 
 | Registry | Keys | Used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_credit`, `media_tag`, `media_content_label`, `media_relation` (both ends), `watch_order_item`, `quote` |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_credit`, `media_tag`, `media_content_label`, `media_relation` (both ends), `watch_order_item`, `quote`, `media_source`, `character_casting` (anime, anime-movie, manga, novel only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | `note`, `meme` (`owner_type` / `owner_id`), `plan_next` (`scope` + `media_type` + `target_id`) |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose

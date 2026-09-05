@@ -160,6 +160,16 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` |
 | Other status column | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) |
+| Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read |
+| Access `main` platforms | baha, netflix, disney_plus, prime, bilibili, crunchyroll | (same as anime) + Cinema | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | none | none | none |
+| Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom |
+| Origin/exclusivity tag field | `exclusive_source` (single) | `exclusive_source` (single) | `original_source` (multi) | `original_source` (multi) | `original_source` (multi) | `serialization_platform` (multi) | `serialization_platform` (multi) | — |
+
+Every type also gets `other` and `restricted` free-form access/reference
+buckets on `media_source`, gated by the `sources_other` / `sources_restricted`
+field groups. Table and column detail: [data-model.md](data-model.md#media_source);
+authorization: [authorization.md](authorization.md); the rule that decides
+column vs. `media_source` row: [business-rules.md](business-rules.md).
 
 Status values themselves are listed in [options.md](options.md). The frontend `MEDIA_CONFIG` (`frontend/src/config/mediaRegistry.js`) mirrors the status column as `statusField` and `statusType: "watch" | "read"`.
 

@@ -8,12 +8,17 @@ off the same starting point (`ms1o2u3r4c5e`).
   source tag-field vocabulary, seeded source vocabulary, and the migration
   that backfills `media_source`/`media_tag` rows from the old source columns.
 - `ol1b2k3s4 -> c1h2a3r4a5c6 -> v1o2l3o4n5l6` added openlibrary support to
-  novel, reshaped character data, and cleared the chapter/arc counters on
-  volume-only novels.
+  novel, created the `character` and `character_casting` tables, and cleared
+  the chapter/arc counters on volume-only novels.
 
 Revision ID: mg1e2r3g4e5
 Revises: bf1i2l3l4, v1o2l3o4n5l6
 Create Date: 2026-09-05
+
+`alembic downgrade -1` fails on this revision with "Ambiguous walk" - that is
+inherent to merge revisions (there are two parents to walk back to, not one),
+not a defect here. Downgrade to a named revision instead, e.g.
+`alembic downgrade bf1i2l3l4`.
 """
 
 revision = "mg1e2r3g4e5"

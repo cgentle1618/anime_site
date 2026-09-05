@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-05 (commit 9f14245)
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -55,29 +55,62 @@ Outcome:
 | 3 | `Person` | `Person` | |
 | 4 | `Person Role` | `PersonRole` | |
 | 5 | `Studio` | `Studio` | |
-| 6 | `System Configs` | `SystemConfigs` | |
-| 7 | `Collection` | `Collection` | |
-| 8 | `Franchise` | `Franchise` | |
-| 9 | `Series` | `Series` | |
-| 10 | `Anime` | `Anime` | `anime` |
-| 11 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 12 | `Movies` | `Movies` | `movie` |
-| 13 | `TV Shows` | `TVShows` | `tv-show` |
-| 14 | `Cartoons` | `Cartoon` | `cartoon` |
-| 15 | `Manga` | `Manga` | `manga` |
-| 16 | `Novel` | `Novel` | `novel` |
-| 17 | `Comic` | `Comic` | `comic` |
-| 18 | `Watch Order List` | `WatchOrderList` | |
-| 19 | `Watch Order Section` | `WatchOrderSection` | |
-| 20 | `Watch Order Item` | `WatchOrderItem` | |
-| 21 | `Media Relation` | `MediaRelation` | |
-| 22 | `Plan Next` | `PlanNext` | |
-| 23 | `Quote` | `Quote` | |
-| 24 | `Meme` | `Meme` | |
-| 25 | `Note` | `Note` | |
-| 26 | `Seasonal` | `Seasonal` | |
+| 6 | `Character` | `Character` | |
+| 7 | `System Configs` | `SystemConfigs` | |
+| 8 | `Collection` | `Collection` | |
+| 9 | `Franchise` | `Franchise` | |
+| 10 | `Series` | `Series` | |
+| 11 | `Anime` | `Anime` | `anime` |
+| 12 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 13 | `Movies` | `Movies` | `movie` |
+| 14 | `TV Shows` | `TVShows` | `tv-show` |
+| 15 | `Cartoons` | `Cartoon` | `cartoon` |
+| 16 | `Manga` | `Manga` | `manga` |
+| 17 | `Novel` | `Novel` | `novel` |
+| 18 | `Novel Unit` | `NovelUnit` | |
+| 19 | `Comic` | `Comic` | `comic` |
+| 20 | `Watch Order List` | `WatchOrderList` | |
+| 21 | `Watch Order Section` | `WatchOrderSection` | |
+| 22 | `Watch Order Item` | `WatchOrderItem` | |
+| 23 | `Media Relation` | `MediaRelation` | |
+| 24 | `Plan Next` | `PlanNext` | |
+| 25 | `Quote` | `Quote` | |
+| 26 | `Character Casting` | `CharacterCasting` | |
+| 27 | `Meme` | `Meme` | |
+| 28 | `Note` | `Note` | |
+| 29 | `Media Source` | `MediaSource` | |
+| 30 | `Seasonal` | `Seasonal` | |
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the eight entry tabs).
+
+`Media Source` sits after `Note` (both endpoints — the entry, and, when set,
+the option — must already exist) and before `Seasonal`.
+
+**As of this writing, `source_baha`, `baha_link`, `source_netflix`,
+`source_other`, `official_link`, `twitter_link` and `anilist_link` are still
+real columns**, still round-tripped by `formatter.py` and still present on
+every media tab alongside the new `Media Source` tab — a follow-up migration
+that drops them (and removes them from the eight media tabs and
+`formatter.py`) has not landed yet. Nothing in `app/services/` reads or
+writes them any more outside this Sheets round trip; `media_source` rows are
+what every other read and write path uses.
+
+**This is a breaking sheet change regardless.** The moment that follow-up
+migration lands, an old sheet (backed up before the `Media Source` tab
+existed) and the new schema stop agreeing on what a media entry's sources
+look like. Per [switching-environments.md](switching-environments.md), Backup
+and Pull All carry the *whole* database state each way with no merge — so
+**Backup must run from the machine with the newer data before the other
+machine runs Pull All**, once the column drop deploys. Pulling an old sheet
+into the dropped schema would silently lose every source on that machine: the
+columns it used to fill are gone, and an old sheet has no `Media Source` rows
+to replace them with.
+
+`system_option_usage` has **no sheet tab at all** — unlike its
+`system_option_scope` sibling, a `usage` row set through the Options page on
+one machine is not carried to the other by Backup/Pull. See
+[data-model.md](data-model.md#system_option_usage) and
+[options.md](options.md#tier-2-system-options).
 
 ---
 
@@ -122,7 +155,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
-   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): seven tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
+   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
 
      | Tab | Matched on | Sheet PK |
      |---|---|---|
@@ -130,11 +163,22 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | `Person`, `Studio` | `name_en` + `name_cn` + `name_jp` + `name_alt` | uuid — tried first |
      | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
      | `Plan Next` | `kind` + `scope` + `target_id` + `media_type` | uuid — tried first |
+     | `Media Source` | `media_type` + `entry_id` + `kind` + `bucket` + `option_id` + `name` (`uq_media_source_row`) | uuid — tried first |
      | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |
      | `Person Role` | `person_id` + `role` + `scope` | integer — **ignored** |
 
      A uuid that misses is merely unknown, so trying it first costs nothing and lets a value *renamed* in the sheet follow its existing row. The two autoincrement ids are ignored outright: the sheet's `id = 1` names a real but unrelated local row, and honouring it retargets the wrong row.
+
+     `Media Source` needs `option_id` in its own natural key, unlike the other
+     FK-less tabs above: two `main`-bucket rows on the same entry for two
+     different platforms both have `name = NULL`, so without `option_id` they
+     would collide with each other as duplicates on a second Pull. `option_id`
+     is resolved to the **local** option id (from the tab's `option_category`/
+     `option_value` columns, see below) before this match runs, so the
+     comparison is a plain local-to-local uuid check like every other column
+     in the key.
    - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id` and `Person Role.person_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
+   - **`Media Source`'s `option_id` is never written to the sheet as a uuid at all** — `system_option` mints a different id per database, so a raw `option_id` column would not survive the round trip the way `entry_id` does (entry ids *are* identical across databases). The tab instead carries the option's `category` and `value` as two extra string columns, `option_category` and `option_value` (`tabs.py`'s `extra_columns`, resolved by a small helper rather than being real model columns). Before the natural-key match above runs, Pull resolves `(option_category, option_value)` against the **local** `system_option` table and fills in a local `option_id`; when it cannot be resolved (the value does not exist on this machine), `option_id` is left `None`, which then trips `ck_media_source_one_target` and fails the whole tab's Pull — there is no per-row skip-with-warning here the way the neighbouring `Franchise`/`Series` lookups above have, so a Platform value renamed or deleted on one machine can block a `Media Source` Pull on the other until the vocabularies are reconciled.
    - **Target row**: `existing = query(Model).filter(pk == pk_value)` when a PK is present.
    - **INSERT-only defaults** (never applied to an UPDATE, so a sheet that omits a column cannot wipe a good value):
 

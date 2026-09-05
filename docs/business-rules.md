@@ -735,7 +735,57 @@ migrations. Each was confirmed by grep on 2026-08-30.
 
 The code rule is: OVA/Special cartoons are storable but never autofilled.
 
-### Removed by migrations
+---
+
+## 18. Media sources (`app/services/domain/sources.py`, `app/utils/credit_roles.py`)
+
+Where an entry can be watched, read, or looked up is split across a `media_source`
+row (see [data-model.md](data-model.md#media_source)) and, for the small set
+of links the app itself consumes, a handful of surviving columns. The split
+follows one rule, applied to every link in the codebase:
+
+> **A link the system acts on is a column. A link that is only ever displayed
+> is a `media_source` row.**
+
+`mal_link`, `imdb_link`, `comicvine_link` and `openlibrary_link` stay columns
+because they are acted on: `derivation.py` extracts an id out of each one,
+`autofill.py` fetches on that id, `checking.py` and `calculation.py` gate on
+whether the link is present, and Comic Vine's conflict logic reads
+`comicvine_id` directly. `official_link`, `twitter_link` and `anilist_link`
+became `media_source` reference rows instead — nothing in `app/services/`
+ever read them back, only wrote them (`autofill.py`) or displayed them
+(`SourcesCard`).
+
+On the RBAC side, gating a `media_source` bucket does much heavier lifting on
+the reading types than on the watching ones: a viewer holding neither
+`sources_other` nor `sources_restricted` sees a manga's Sources card with
+reference links only and **no reading sources at all** (manga and comic have
+no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
+where the same role still sees Bahamut and Netflix on an anime. That
+asymmetry is the intent of the restricted tier, not an oversight.
+
+See [Known issue](#known-issue-mediacarddashboardcard-match-a-source-by-name-not-by-a-stable-key)
+below for a follow-up this design surfaced but did not fix.
+
+### Known issue: `MediaCard`/`DashboardCard` match a source by name, not by a stable key
+
+`frontend/src/components/cards/MediaCard.jsx` and
+`frontend/src/components/tracker/DashboardCard.jsx` find the Bahamut / Netflix
+badge rows with `s.kind === "access" && s.name === "Bahamut"` (and
+`"Netflix"`) — string-matched against the vocabulary's human `value`.
+`SourceRef` (`app/schemas/sources.py`) exposes `system_id`, `kind`, `bucket`,
+`name`, `available`, `url`, `position` and no stable vocabulary key, so the
+frontend has nothing sturdier to match on today. Renaming the `Bahamut` or
+`Netflix` `Platform` option on the admin Options page silently drops the
+badge on every card, with no error anywhere. The fix is a deliberate
+cross-layer API change — adding `option_id` to `SourceRef`, to
+`attach_sources`, and to both cards — not a tail-end patch, so it is recorded
+here rather than applied inline. Failure mode is a missing badge, not data
+loss or a wrong value.
+
+---
+
+## 19. Removed by migrations
 
 | Rule / column                                                    | Migration                                                       | Replaced by                                                                                          |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |

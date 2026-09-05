@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-02
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -59,10 +59,36 @@ hyphenated keys survive.
 
 | Key | Label | What it gates | How |
 |---|---|---|---|
-| `sources_other` | Other Sources | `source_other` on every media type | real column, stripped from a copy |
+| `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, on every media type | fifth `FieldGroup` flavour, `source_buckets`; filtered inside `attach_sources` before the response is built (not `field_gate.gate()` — see below) |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, on every media type | same flavour, `source_buckets=("restricted",)` |
 | `personal_notes` | Personal Reviews | note section `personal_reviews` | note rows filtered in `routers/note.py` |
 | `system_info` | System Info | `created_at` / `updated_at` on every media type, plus the entry id printed down a detail page's poster spine | timestamps are real columns, stripped from a copy; the spine id is `ui_block` only |
 | `credits` | Credits | every credit-kind link field (studio, director, …), derived from `credit_roles` | link attrs blanked before response |
+
+`sources_other` keeps its pre-existing key across the media-sources change so
+existing role grants survive unchanged; only what it points at moved, from
+the `source_other` column to the `other` bucket of `media_source`.
+
+**`sources_restricted` is deliberately excluded from a fresh guest role.**
+`app/services/rbac/seed.py`'s `GUEST_WITHHELD_FIELD_GROUPS` (currently just
+`{"sources_restricted"}`) is subtracted from `default_guest_permissions()`,
+so a newly seeded guest role does not hold it — a field group whose whole
+point is to withhold something from ordinary viewers must not be granted by
+default, or it withholds nothing until an admin remembers to revoke it.
+Every other field group is still granted by default, matching "everything a
+viewer could see before this system existed". This only affects a *fresh*
+seed: `_ensure_role`'s `if not held:` guard means an already-established
+guest role is never re-granted a permission it doesn't hold, so an existing
+deployment's guest role is unaffected either way.
+
+**Gating a `media_source` bucket is not the "real columns" copy-and-strip
+path described below** — it happens earlier, inside
+`services.domain.sources.attach_sources`, because the filter is *partial*: a
+viewer may hold `sources_other` and not `sources_restricted`, so the whole
+`sources` attribute cannot simply be blanked the way `source_other` used to
+be. `attach_sources` queries `media_source` with the withheld buckets
+excluded and sets `entry.sources` to the result; `field_gate.gate()` itself
+is unchanged.
 
 Each `FieldGroup` may also carry a `ui_block` name for a block the SPA hides
 itself. `tests/unit/test_field_groups.py` asserts every declared column and
@@ -242,10 +268,15 @@ one entry or a list:
 
 - **Link fields** (credits) are plain attributes attached at read time by
   `attach_link_fields`, so they are blanked in place — nothing to flush.
-- **Real columns** (`source_other`) are stripped from a **copy**:
-  `schema.model_validate(entry).model_copy(update={col: None})`. Never
-  `setattr` on a live ORM row — autoflush would persist the blank and gating
-  would become silent data loss.
+- **Real columns** (`created_at`/`updated_at` under `system_info`) are
+  stripped from a **copy**: `schema.model_validate(entry).model_copy(update=
+  {col: None})`. Never `setattr` on a live ORM row — autoflush would persist
+  the blank and gating would become silent data loss.
+- **`media_source` buckets** are a fifth flavour, gated earlier and
+  differently: `attach_sources` (called before `gate()` runs) excludes the
+  withheld buckets at the query level, so `entry.sources` never carries the
+  rows in the first place. `gate()` and `gated_columns()` know nothing about
+  `source_buckets` — see [Field groups](#field-groups) above.
 - Returns the ORM instances untouched when nothing is withheld (the common case).
 - `gated_note_sections(viewer)` lists `note.section` values to withhold.
 

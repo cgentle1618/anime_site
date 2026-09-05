@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-05 (commit 050e165)
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -43,7 +43,7 @@ code.
 | Tier | Lives in | Who changes it | Read by the frontend via | Examples |
 |---|---|---|---|---|
 | 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.credits` |
-| 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Official Source` = `Disney+` |
+| 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
 The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
@@ -322,13 +322,29 @@ Tier 2 category:
 | `genre_sub` | Genre Sub | `Genre Sub` | anime |
 | `label` | 標籤 Label | `Label` | anime |
 | `quality` | Quality 品質 | `Quality` | anime |
-| `source_official` | Official Source | `Official Source` | tv-show, cartoon, movie |
+| `original_source` | Original Source | `Platform` | tv-show, cartoon, movie |
+| `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
+| `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
 | `publisher_tw` | Publisher / Distributor TW | `Publisher / Distributor TW` | anime, manga, novel, comic |
 | `comic_publisher` | Publisher | `Comic Publisher` | comic |
 | `comic_imprint` | Imprint | `Comic Imprint` | comic |
 | `comic_continuity` | Continuity | `Comic Continuity` | comic |
 | `comic_era` | Era | `Comic Era` | comic |
 | `comic_event` | Events | `Comic Event` | comic |
+
+`original_source` replaced `source_official` (renamed, not added — same
+category rename `Official Source` → `Platform`, since the vocabulary now also
+serves `media_source` access rows) and gained `movie` as a third media type
+during the media-sources change, which also added `exclusive_source` and
+widened `serialization_platform` from a real `manga.serialization_platform`
+column (dropped) to a shared `TagField` over `manga` and `novel`. See
+[data-model.md](data-model.md#manga) and
+[data-model.md](data-model.md#media_source). The RESPONSE attribute for
+`original_source` is not always its own key: `tv-show` and `cartoon` kept the
+legacy sheet header `source_official` (`LEGACY_SHEET_COLUMN`), while `movie`
+(new to the field, so nothing legacy to keep) surfaces it as
+`original_source` — see the response-attribute note in
+[data-model.md](data-model.md#virtual-fields-on-media-entries).
 
 `TAG_CATEGORIES` (served as `/api/constants` `tag_categories`): `Genre Main`,
 `Genre Sub`, `Label`, `Quality` — the subset of the categories below that the
@@ -337,13 +353,16 @@ of **Options**. The split is navigation only: both sub-tabs are the same form
 over the same `system_option` rows, and nothing in the data or the API marks
 a category as a tag. The list is written out, not derived — these four happen
 to be exactly the anime-only tag fields today, but what puts a category here
-is that its values read as tags *on* the work, while `Official Source`,
+is that its values read as tags *on* the work, while `Platform`,
 `Publisher / Distributor TW` and the Comic vocabularies name an outside
 party. A new anime-only category is therefore not automatically a tag.
 
-`FILTER_ONLY_CATEGORIES`: `Franchise for Filter` (a Tier 2 category with no
-tag field behind it). `OPTION_CATEGORIES` = the eleven categories above plus
-that one, served as `/api/constants` `option_categories` and unioned with the
+`FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
+2 categories with no `TagField` behind them — `Reference Source` instead
+backs `media_source` `kind='reference'` rows directly, resolved by
+`option_id` the same way `main`-bucket access rows are, never through
+`media_tag`). `OPTION_CATEGORIES` = the categories above plus these two,
+served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
 could not be picked at all, so the first value of a new tag field had nowhere
@@ -382,7 +401,8 @@ the bare `admin`, which implies everything.
 
 | Key | Label | Gates |
 |---|---|---|
-| `sources_other` | Other Sources | column `source_other` on every media type; UI block `info.SourcesCard.other` |
+| `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, every media type; UI block `info.SourcesCard.other` |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from `default_guest_permissions()` via `GUEST_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed.py`) — a fresh guest role does not hold it |
 | `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
 | `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
 | `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; UI block `info.CreditsCard` |
@@ -417,7 +437,9 @@ twelve in `OPTION_CATEGORIES`:
 | `Genre Sub` | anime | tag field `genre_sub` |
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
-| `Official Source` | tv-show, cartoon, movie | tag field `source_official` (merged the old `TV Show Official Source` / `Cartoon Official Source`) |
+| `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
+| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES` |
+| `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Publisher / Distributor TW` | anime, manga, novel, comic | tag field `publisher_tw` (merged `Distributor TW`, `Manga Publisher TW`, `Novel Publisher TW`) |
 | `Comic Publisher` | comic | tag field `comic_publisher` |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
@@ -425,6 +447,19 @@ twelve in `OPTION_CATEGORIES`:
 | `Comic Era` | comic | tag field `comic_era` |
 | `Comic Event` | comic | tag field `comic_event` |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
+
+**The `usage` axis (`system_option_usage`, model `SystemOptionUsage`)**
+narrows `Platform` further, orthogonally to scope: scope says *which media
+types* a value is offered on, usage says *for what*. A value with no usage
+rows serves both; `usage='origin'` values (Fox, ABC, The CW, and the same
+growing set of broadcast-only networks for TV and cartoons) are filtered out
+of every `media_source` access-row picker but still offered on
+`original_source`/`exclusive_source`; `usage='watch'` restricts the reverse
+way. `resolve_option`/the options router read it exactly like `scope` — see
+[data-model.md](data-model.md#system_option_usage). **Not currently
+round-tripped through Google Sheets** — see [data-actions.md](data-actions.md)
+— so a `usage` row set on one machine does not reach the other via
+Backup/Pull.
 
 **How scopes work.** One vocabulary per category; each value carries the
 media types it is offered in as `system_option_scope` rows. A value with
@@ -460,7 +495,9 @@ vocabulary stayed on screen long after its successor took over. Migration
 `o1r2p3h4a5n6` deletes the thirteen that nothing reads: `Distributor TW`,
 `Manga Publisher TW` and `Novel Publisher TW` (merged into
 `Publisher / Distributor TW`); `TV Official Source` and
-`Cartoon Official Source` (merged into `Official Source`); and `Director`,
+`Cartoon Official Source` (merged into `Official Source` — since renamed to
+`Platform` by the later media-sources migration `st1a2g3s4`, described
+above); and `Director`,
 `Studio`, `Manga Author`, `Novel Author`, `Novel Illustrator`, `Comic Writer`,
 `Music / Composer` and `Producer`, which are Tier 3 entities now. Three values
 existed only in a retired category and were moved first: `bilibili` into

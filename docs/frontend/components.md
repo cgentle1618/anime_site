@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-05 (commit 050e165)
+Last verified: 2026-09-05
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -149,9 +149,25 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `WatchOrderSection`, `WatchOrderGuide`, `WatchOrderEditor`.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`.
+  `SourcesCard` reads the entry's `sources` array (server-ordered — access
+  rows in `sort_order`/insertion order, never re-sorted client-side), splits
+  it into `access`/`reference` sections by `row.kind`, and renders the
+  column-backed `malLink`/`imdbLink`/`comicvineLink`/`openLibraryLink` props
+  beside the reference rows and the tag-field props (`originalSource`,
+  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
+  component composing from both the `media_source` table and the surviving
+  columns/tag fields, per the guiding rule in
+  [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
+  An `available === false` row still renders (muted, no link) — that state
+  means "known not to be there", not "hide this row".
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
-  `ContentLabelPicker`,
+  `ContentLabelPicker`, `SourcesEditor` (the one shared editor for every Add
+  and Modify tab's `sources` field, replacing eight copy-pasted
+  `source_other` editors; produces `access` rows for `main`/`other`/
+  `restricted` platform pickers and always-`{kind:"reference", bucket:"main"}`
+  rows for the Reference Source dropdown - which never takes a `usage` filter,
+  since `usage` is Platform-only),
   `DefaultValueControl`, `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
   — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
   kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
@@ -177,12 +193,12 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
-| `formatters.js` | `getSourceValues` and display formatters |
-| `payloads.js` | form state → request body for anime / anime movie |
+| `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
+| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
 | `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (local `/static/covers` vs GCS) |
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`) |
-| `sources.js` | source/link helpers for `SourcesCard` |
+| `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
 | `textFit.js` | width measurement for `FittedName` |
