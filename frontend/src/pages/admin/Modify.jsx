@@ -36,6 +36,7 @@ import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
+import CharacterModifyTab from "../modify-tabs/CharacterModifyTab";
 import StudioModifyTab from "../modify-tabs/StudioModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
@@ -3105,6 +3106,12 @@ export default function Modify() {
           matrix (see PersonModifyTab.jsx). ═══ */}
       {activeTab === "person" && <PersonModifyTab />}
 
+      {/* ═══ CHARACTER TAB — bypasses search/edit pattern for the same
+          reason Studio does; a character holds no roles, so unlike
+          PersonModifyTab it needs no role x scope matrix (see
+          CharacterModifyTab.jsx). ═══ */}
+      {activeTab === "character" && <CharacterModifyTab />}
+
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
         <Fav3x3ModifyTab
@@ -3125,7 +3132,8 @@ export default function Modify() {
       {!editorOpen &&
         activeTab !== "fav3x3" &&
         activeTab !== "studio" &&
-        activeTab !== "person" && (
+        activeTab !== "person" &&
+        activeTab !== "character" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -3288,7 +3296,8 @@ export default function Modify() {
         editingItem &&
         activeTab !== "fav3x3" &&
         activeTab !== "studio" &&
-        activeTab !== "person" && (
+        activeTab !== "person" &&
+        activeTab !== "character" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button

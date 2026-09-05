@@ -17,6 +17,7 @@ import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import PersonAddTab from "../add-tabs/PersonAddTab";
+import CharacterAddTab from "../add-tabs/CharacterAddTab";
 import StudioAddTab from "../add-tabs/StudioAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
@@ -47,6 +48,7 @@ import {
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
@@ -191,10 +193,23 @@ export default function Add() {
     mal_link: "",
     remark: "",
   });
+  const emptyCharacter = () => ({
+    name_en: "",
+    name_cn: "",
+    name_jp: "",
+    name_alt: "",
+    display_name_field: "",
+    gender: "",
+    my_rating: "",
+    photo_file: "",
+    remark: "",
+  });
   const [personForm, setPersonForm] = useState(emptyPerson());
   const [studioForm, setStudioForm] = useState(emptyStudio());
+  const [characterForm, setCharacterForm] = useState(emptyCharacter());
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
   const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
+  const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
@@ -630,6 +645,7 @@ export default function Add() {
       else if (activeTab === "options") await submitOptions();
       else if (activeTab === "studio") await submitStudio();
       else if (activeTab === "person") await submitPerson();
+      else if (activeTab === "character") await submitCharacter();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -1066,6 +1082,43 @@ export default function Add() {
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create person");
+    }
+  }
+
+  // POST /api/character always creates a new row, unlike POST /api/person's
+  // find-or-create: character names legitimately recur across unrelated
+  // works, so there is no dedupe/reuse step here to silently collapse into.
+  async function submitCharacter() {
+    const hasName = CHARACTER_NAME_FIELDS.some(
+      ({ field }) => characterForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A character needs at least one name.");
+      return;
+    }
+    const res = await fetch(endpoints.character.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_en: characterForm.name_en.trim() || null,
+        name_cn: characterForm.name_cn.trim() || null,
+        name_jp: characterForm.name_jp.trim() || null,
+        name_alt: characterForm.name_alt.trim() || null,
+        display_name_field: characterForm.display_name_field || null,
+        gender: characterForm.gender || null,
+        my_rating: characterForm.my_rating || null,
+        photo_file: characterForm.photo_file || null,
+        remark: characterForm.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Character appended successfully.");
+      setLastAdded(created.display_name);
+      setCharacterForm(emptyCharacter());
+    } else {
+      showToast("error", "Failed to create character");
     }
   }
 
@@ -2609,6 +2662,11 @@ export default function Add() {
           </div>
         )}
 
+        {/* ═══ CHARACTER TAB ═══ */}
+        {activeTab === "character" && (
+          <CharacterAddTab characterForm={characterForm} ucf={ucf} />
+        )}
+
         {/* Content labels - one control for every media tab. */}
         {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"].includes(activeTab) && (
           <div className="mt-6">
@@ -2632,6 +2690,10 @@ export default function Add() {
               (activeTab === "person" &&
                 !PERSON_NAME_FIELDS.some(
                   ({ field }) => personForm[field]?.trim(),
+                )) ||
+              (activeTab === "character" &&
+                !CHARACTER_NAME_FIELDS.some(
+                  ({ field }) => characterForm[field]?.trim(),
                 ))
             }
             className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"

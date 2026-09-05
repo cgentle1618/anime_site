@@ -90,15 +90,24 @@ export const ADMIN_TABS = [
     icon: "fa-user",
     label: "Person",
   },
+  {
+    key: "character",
+    group: "entity",
+    icon: "fa-user-ninja",
+    label: "Character",
+  },
 ];
 
 /**
  * Tabs backed by a form factory — everything but System Options, Quote,
- * Meme, Studio and Person. None of the five is a media entry, so none has
- * default field values to edit.
+ * Meme, Studio, Person and Character. None of the six is a media entry, so
+ * none has default field values to edit.
  */
 export const FORM_TABS = ADMIN_TABS.filter(
-  (t) => !["options", "quote", "meme", "studio", "person"].includes(t.key),
+  (t) =>
+    !["options", "quote", "meme", "studio", "person", "character"].includes(
+      t.key,
+    ),
 );
 
 /** The Fav 3x3 grid editor — only the Modify page offers it. */
