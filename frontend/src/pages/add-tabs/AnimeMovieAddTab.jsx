@@ -1,6 +1,7 @@
 // Frontend: add tab page file for AnimeMovieAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -308,6 +309,16 @@ export default function AnimeMovieAddTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/seiyuu/role rows, saved separately via
+          PUT /api/casting/anime-movie/{id} once the entry exists - never
+          part of the entry payload above. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="anime-movie"
+        value={amf.cast}
+        onChange={(rows) => uam("cast", rows)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

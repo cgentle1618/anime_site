@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -549,6 +550,17 @@ export default function AnimeAddTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/seiyuu/role rows, saved separately via
+          PUT /api/casting/anime/{id} once the entry exists - never part of
+          the entry payload above. Not the "Seiyuu" Need/Done flag further
+          down, which is an unrelated to-do status. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="anime"
+        value={af.cast}
+        onChange={(rows) => ua("cast", rows)}
+      />
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

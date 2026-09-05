@@ -51,6 +51,11 @@ import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
   saveEntryLabels,
 } from "../../components/forms/ContentLabelPicker";
+import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
+
+// The four media types character_casting supports, in their hyphenated key
+// form - see docs/superpowers/specs/2026-09-05-seiyuu-character-design.md.
+const CAST_MEDIA_TYPES = new Set(["anime", "anime-movie", "manga", "novel"]);
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -263,6 +268,12 @@ export default function Modify() {
   const [editingItem, setEditingItem] = useState(null);
   const [editingType, setEditingType] = useState("anime");
 
+  const replaceCasting = useReplaceCasting();
+  // The entry's cast, fetched only while a cast-supporting entry is open -
+  // see the effect below that merges it into the right form once it arrives.
+  const castMediaType = CAST_MEDIA_TYPES.has(editingType) ? editingType : null;
+  const { data: castData } = useCasting(castMediaType, editingItem?.system_id);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
@@ -345,6 +356,26 @@ export default function Modify() {
     }
   }
 
+  // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
+  // never part of the entry payload (see docs/superpowers/specs/
+  // 2026-09-05-seiyuu-character-design.md, Decision A) - it rides its own
+  // request once the entry has been updated. Surfaces a failure rather than
+  // swallowing it: the entry itself is already saved at this point.
+  async function saveCast(mediaType, entryId, form) {
+    try {
+      await replaceCasting.mutateAsync({
+        mediaType,
+        entryId,
+        cast: form.cast || [],
+      });
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || "Entry saved, but cast failed to save.",
+      );
+    }
+  }
+
   // Fetches an entry's current credits/tags and merges them into its open
   // form, so the Director/Genre/etc. fields show what's actually stored
   // instead of rendering blank. Called right after a *ToForm() seeds the form
@@ -384,6 +415,33 @@ export default function Modify() {
   const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
+
+  // Merges an entry's cast (fetched by the useCasting call above) into
+  // whichever form is currently open, exactly once per opened entry - a
+  // second merge after the admin has started editing rows would clobber
+  // their in-progress changes. Guarded by (type, id) rather than just id: a
+  // stale response for a previously open entry must not land on the entry
+  // opened after it.
+  const castLoadedForRef = useRef(null);
+  // Every time a different editor opens (or closes) the guard above must be
+  // allowed to fire again - otherwise reopening the entry that was last
+  // loaded (closeEditor discards af.cast along with the rest of the form)
+  // would leave the Cast section permanently empty.
+  useEffect(() => {
+    castLoadedForRef.current = null;
+  }, [editingItem]);
+  useEffect(() => {
+    if (!castMediaType || !editingItem?.system_id || !castData) return;
+    const key = `${castMediaType}:${editingItem.system_id}`;
+    if (castLoadedForRef.current === key) return;
+    castLoadedForRef.current = key;
+    const rows = castData.cast || [];
+    if (castMediaType === "anime") setAf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "anime-movie")
+      setAmf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
+  }, [castMediaType, editingItem, castData]);
 
   useEffect(() => {
     async function load() {
@@ -995,6 +1053,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("anime", updated.system_id, af);
+    await saveCast("anime", updated.system_id, af);
     setAllAnime((prev) =>
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
@@ -1228,6 +1287,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("anime-movie", updated.system_id, amf);
+    await saveCast("anime-movie", updated.system_id, amf);
     setAllAnimeMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
@@ -1773,6 +1833,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("manga", updated.system_id, cmgf);
+    await saveCast("manga", updated.system_id, cmgf);
     setAllMangas((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
@@ -1964,6 +2025,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("novel", updated.system_id, cnvf);
+    await saveCast("novel", updated.system_id, cnvf);
     setAllNovels((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );

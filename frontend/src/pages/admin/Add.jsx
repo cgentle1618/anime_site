@@ -28,6 +28,7 @@ import ContentLabelPicker, {
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import { useReplaceCasting } from "../../hooks/useCasting";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
@@ -53,6 +54,7 @@ import { enrichEntry } from "../../lib/enrich";
 
 export default function Add() {
   const { showToast } = useToast();
+  const replaceCasting = useReplaceCasting();
 
   const [allAnime, setAllAnime] = useState([]);
   const [allCollections, setAllCollections] = useState([]);
@@ -252,6 +254,27 @@ export default function Add() {
       showToast(
         "error",
         "Entry saved, but its content labels failed to save.",
+      );
+    }
+  }
+
+  // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
+  // never part of the entry payload (see docs/superpowers/specs/
+  // 2026-09-05-seiyuu-character-design.md, Decision A) - it can only be sent
+  // once the entry exists and its system_id is known, same as saveCredits.
+  // Surfaces a failure rather than swallowing it: the entry itself is
+  // already saved at this point.
+  async function saveCast(mediaType, entryId, form) {
+    try {
+      await replaceCasting.mutateAsync({
+        mediaType,
+        entryId,
+        cast: form.cast || [],
+      });
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || "Entry saved, but cast failed to save.",
       );
     }
   }
@@ -756,6 +779,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("anime", created.system_id, af);
+    await saveCast("anime", created.system_id, af);
 
     // Replace (enrich from MAL)
     const enriched = await enrichEntry("anime", created.system_id);
@@ -1178,6 +1202,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("anime-movie", created.system_id, amf);
+    await saveCast("anime-movie", created.system_id, amf);
 
     const enriched = await enrichEntry("anime-movie", created.system_id);
 
@@ -1806,6 +1831,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("manga", created.system_id, mgf);
+    await saveCast("manga", created.system_id, mgf);
     window.scrollTo(0, 0);
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
@@ -2003,6 +2029,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("novel", created.system_id, nvf);
+    await saveCast("novel", created.system_id, nvf);
     window.scrollTo(0, 0);
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");

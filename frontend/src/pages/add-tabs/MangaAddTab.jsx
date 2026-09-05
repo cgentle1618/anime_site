@@ -1,6 +1,7 @@
 // Frontend: add tab page file for MangaAddTab.
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -440,6 +441,16 @@ export default function MangaAddTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a manga), saved separately via PUT /api/casting/manga/{id} once
+          the entry exists - never part of the entry payload above. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="manga"
+        value={mgf.cast}
+        onChange={(v) => umg("cast", v)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

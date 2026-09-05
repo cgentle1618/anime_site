@@ -3,6 +3,7 @@ import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import { countsChapters } from "../../lib/novelUnits";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -510,6 +511,16 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a novel), saved separately via PUT /api/casting/novel/{id} once
+          the entry exists - never part of the entry payload above. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="novel"
+        value={nvf.cast}
+        onChange={(v) => unv("cast", v)}
+      />
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -359,6 +360,17 @@ export default function MangaModifyTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a manga), loaded from and saved back to
+          PUT /api/casting/manga/{id} separately from this form's own PUT -
+          see Modify.jsx's loading/saving of cmgf.cast. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="manga"
+        value={cmgf.cast}
+        onChange={(v) => umg("cast", v)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -4,6 +4,7 @@ import { countsChapters } from "../../lib/novelUnits";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
 import {
   CollectionNote,
   Field,
@@ -425,6 +426,17 @@ export default function NovelModifyTab({
           />
         </Field>
       </div>
+
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a novel), loaded from and saved back to
+          PUT /api/casting/novel/{id} separately from this form's own PUT -
+          see Modify.jsx's loading/saving of cnvf.cast. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="novel"
+        value={cnvf.cast}
+        onChange={(v) => unv("cast", v)}
+      />
 
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
