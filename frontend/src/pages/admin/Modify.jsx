@@ -3403,7 +3403,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
-                ribbonSection={novelRibbonSection}
                 sources={sources}
               />
             )}

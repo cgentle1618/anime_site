@@ -20,7 +20,6 @@ function props(type) {
     allFranchises: [],
     seriesItemsForNovel: [],
     editingItem: { system_id: "n1" },
-    ribbonSection: null,
     sources: [],
   };
 }

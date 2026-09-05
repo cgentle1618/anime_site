@@ -37,7 +37,6 @@ export default function NovelModifyTab({
   allFranchises,
   seriesItemsForNovel,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   const publisherOptions = getSourceValues(sources, {
@@ -49,8 +48,10 @@ export default function NovelModifyTab({
 
   return (
     <>
-      {ribbonSection}
-
+      {/* No "other entries in this franchise" ribbon here: Modify.jsx renders
+          one above the editor card for novels already, the same as it does
+          for anime, movie, tv-show and cartoon. Manga and comic keep their
+          in-form ribbonSection because they have no ribbon above the card. */}
       <SectionHeader icon="fa-book-open" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox
