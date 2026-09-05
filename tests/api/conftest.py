@@ -233,7 +233,12 @@ def anime(sample_anime):
 
 @pytest.fixture
 def character(db_session):
-    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika")
+    # photo_file is set to a real value (not None) so any test asserting the
+    # casting-router photo fallback actually exercises the fallback branch,
+    # rather than trivially matching None on both sides.
+    c = models.Character(
+        system_id=uuid.uuid4(), name_en="Ichika", photo_file="characters/ichika.jpg"
+    )
     db_session.add(c)
     db_session.flush()
     return c
