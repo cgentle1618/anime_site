@@ -28,6 +28,7 @@ from app.services.domain import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_novel_ids,
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
     apply_single_replace_cartoon,
@@ -42,6 +43,7 @@ from app.services.domain import (
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
+    autofill_novel_from_openlibrary,
     autofill_tv_show_from_imdb,
     cartoon_post_processing,
     derive_ep_previous_all_anime,
@@ -52,6 +54,7 @@ from app.services.domain import (
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
+    has_missing_values_novel_openlibrary,
     has_missing_values_tv_show,
     manga_post_processing,
     tv_show_post_processing,
@@ -155,10 +158,26 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     "novel": PipelineSpec(
         key="novel", label="Novel", model=Novel,
-        extract_id=apply_extract_mal_id_manga_novel,
-        # No mal_link means no source to fill from.
-        fill_eligible=lambda db, e: e.mal_link is not None and has_missing_values_novel(e),
-        fill=lambda db, e: autofill_novel_from_mal(e, force_replace_ratings=True),
+        # Novel is the one type with two sources, so both extractors run.
+        extract_id=apply_extract_novel_ids,
+        # A mal_link means Tenrai, which returns strictly more. Open Library
+        # covers only the novels MAL does not have. The `mal_link is None`
+        # guard on the second branch keeps eligibility identical to the
+        # routing below: without it, a MAL-complete novel with no author
+        # credit would be eligible forever and never progress.
+        fill_eligible=lambda db, e: (
+            (e.mal_link is not None and has_missing_values_novel(e))
+            or (
+                e.mal_link is None
+                and e.openlibrary_id is not None
+                and has_missing_values_novel_openlibrary(db, e)
+            )
+        ),
+        fill=lambda db, e: (
+            autofill_novel_from_mal(e, force_replace_ratings=True)
+            if e.mal_link
+            else autofill_novel_from_openlibrary(e, db)
+        ),
         fill_sleep=MAL_PAUSE,
         fill_after=(("Syncing system options...", run_sync_novel),),
         replace_select=_linked(Novel, Novel.mal_id, Novel.mal_link),
