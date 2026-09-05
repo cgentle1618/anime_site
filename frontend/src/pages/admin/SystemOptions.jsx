@@ -20,6 +20,7 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { scopeChip, usageChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
+import { groupTier1Keys } from "../../lib/enumGroups";
 
 // Tier 3 is the one section with no endpoint that describes itself, because
 // the interesting fact is historical: which old system_options categories each
@@ -93,6 +94,14 @@ function categoryId(category) {
     .replace(/^-|-$/g, "")}`;
 }
 
+// Anchor id for a Tier 1 group heading ("Airing Type" -> enum-group-airing-type).
+function groupId(title) {
+  return `enum-group-${title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
 // snake_case key -> the heading an admin recognises.
 function prettifyKey(key) {
   return key
@@ -108,7 +117,7 @@ function prettifyKey(key) {
 // smooth scrolling and the offset through CSS (scroll-mt-28 on each target,
 // clearing the sticky nav), and the URL keeps the section so a reload or a
 // shared link lands in the same place.
-function TitleBar({ tier1Keys, categories, activeId }) {
+function TitleBar({ tier1Sections, categories, activeId }) {
   const listRef = useRef(null);
   const activeRef = useRef(null);
 
@@ -163,16 +172,32 @@ function TitleBar({ tier1Keys, categories, activeId }) {
         >
           Tier 1 · Closed Enums
         </a>
+        {/* Two levels deep: the group heading, then the enums it holds. The
+            index mirrors the page exactly, so a reader scanning it learns the
+            grouping without scrolling the content. */}
         <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
-          {tier1Keys.map((key) => (
-            <a
-              key={key}
-              href={`#enum-${key}`}
-              className={linkClass(`enum-${key}`)}
-              {...linkProps(`enum-${key}`)}
-            >
-              {prettifyKey(key)}
-            </a>
+          {tier1Sections.map((section) => (
+            <div key={section.title}>
+              <a
+                href={`#${groupId(section.title)}`}
+                className={linkClass(groupId(section.title))}
+                {...linkProps(groupId(section.title))}
+              >
+                {section.title}
+              </a>
+              <div className="ml-2 border-l border-border pl-2">
+                {section.keys.map((key) => (
+                  <a
+                    key={key}
+                    href={`#enum-${key}`}
+                    className={linkClass(`enum-${key}`)}
+                    {...linkProps(`enum-${key}`)}
+                  >
+                    {prettifyKey(key)}
+                  </a>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
@@ -250,7 +275,36 @@ function ValueChip({ children }) {
   );
 }
 
-function Tier1({ constants, keys }) {
+// One enum card. Same markup whether it sits in a named group or under Other.
+function EnumCard({ enumKey, values }) {
+  return (
+    <div
+      id={`enum-${enumKey}`}
+      data-section-anchor
+      className="scroll-mt-28 border border-border rounded-xl p-4 flex flex-col"
+    >
+      <div className="flex items-baseline justify-between gap-2 mb-3">
+        <h4 className="text-sm font-black text-text">{prettifyKey(enumKey)}</h4>
+        <span className="text-[10px] font-bold text-text-faint">
+          {values.length}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {values.map((value) => (
+          <ValueChip key={value}>{value}</ValueChip>
+        ))}
+      </div>
+      {TIER1_NOTES[enumKey] && (
+        <p className="text-[11px] text-warning mt-3 leading-snug">
+          <i className="fas fa-triangle-exclamation mr-1"></i>
+          {TIER1_NOTES[enumKey]}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Tier1({ constants, sections }) {
   return (
     <section
       id="tier-1"
@@ -268,33 +322,29 @@ function Tier1({ constants, keys }) {
         </ReadOnlyNote>
       </SectionHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {keys.map((key) => (
+      <div className="space-y-7">
+        {sections.map((section) => (
           <div
-            key={key}
-            id={`enum-${key}`}
+            key={section.title}
+            id={groupId(section.title)}
             data-section-anchor
-            className="scroll-mt-28 border border-border rounded-xl p-4 flex flex-col"
+            className="scroll-mt-28"
           >
-            <div className="flex items-baseline justify-between gap-2 mb-3">
-              <h3 className="text-sm font-black text-text">
-                {prettifyKey(key)}
+            <div className="flex items-baseline gap-2 mb-3">
+              <h3 className="text-xs font-black text-text uppercase tracking-widest">
+                {section.title}
               </h3>
               <span className="text-[10px] font-bold text-text-faint">
-                {constants[key].length}
+                {section.keys.length} list
+                {section.keys.length === 1 ? "" : "s"}
               </span>
+              <span className="flex-1 h-px bg-border" />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {constants[key].map((value) => (
-                <ValueChip key={value}>{value}</ValueChip>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {section.keys.map((key) => (
+                <EnumCard key={key} enumKey={key} values={constants[key]} />
               ))}
             </div>
-            {TIER1_NOTES[key] && (
-              <p className="text-[11px] text-warning mt-3 leading-snug">
-                <i className="fas fa-triangle-exclamation mr-1"></i>
-                {TIER1_NOTES[key]}
-              </p>
-            )}
           </div>
         ))}
       </div>
@@ -557,8 +607,10 @@ export default function SystemOptions() {
 
   // Derived here, not inside the sections, so the title bar and the content
   // can never disagree about what exists or in what order.
-  const tier1Keys = useMemo(
-    () => Object.keys(constants || {}).sort(),
+  // Grouped, not alphabetical: enums an admin reads together (the two airing
+  // types, the three regions) belong side by side. See lib/enumGroups.js.
+  const tier1Sections = useMemo(
+    () => groupTier1Keys(Object.keys(constants || {})),
     [constants],
   );
 
@@ -623,7 +675,7 @@ export default function SystemOptions() {
       if (frame !== 0) cancelAnimationFrame(frame);
     };
     // Recompute once the fetched sections have rendered their anchors.
-  }, [tier1Keys, tier2Groups]);
+  }, [tier1Sections, tier2Groups]);
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8 pb-12">
@@ -650,13 +702,13 @@ export default function SystemOptions() {
           runs out of track after one screen of scrolling. */}
       <div className="flex gap-8">
         <TitleBar
-          tier1Keys={tier1Keys}
+          tier1Sections={tier1Sections}
           categories={tier2Groups.map(([category]) => category)}
           activeId={activeId}
         />
 
         <div className="flex-1 min-w-0 space-y-8">
-          <Tier1 constants={constants} keys={tier1Keys} />
+          <Tier1 constants={constants} sections={tier1Sections} />
           <Tier2 groups={tier2Groups} loading={tier2Loading} />
           <Tier3
             roleCounts={roleCounts}

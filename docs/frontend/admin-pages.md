@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-05 (commit c4e26eb)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -239,6 +239,14 @@ undo and scope reset. Details in [../systems/relations.md](../systems/relations.
 Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
 Add/Modify (Options tab) — see [../options.md](../options.md).
+
+Tier 1 is not one alphabetical wall: `lib/enumGroups.js` sorts the served keys
+into named groups (Airing Type holds anime + cartoon, Region holds tv + manga +
+novel, and so on), with everything unclaimed under a final **Other**. A group
+whose keys the endpoint no longer serves in pairs is demoted into Other rather
+than printed as a heading over one card, and the left-hand section index nests
+the same two levels, so index and page can never disagree. Grouping is
+presentation only — nothing reads it but this page.
 
 ## /roles, /users, /content-labels
 
