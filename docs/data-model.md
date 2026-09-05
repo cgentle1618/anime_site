@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-05
+Last verified: 2026-09-05 (commit 9f14245)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -405,6 +405,8 @@ Alembic revision `nv1u2n3i4t5s`.
 | `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
 | `mal_link` / `anilist_link` | String | yes | | |
+| `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
+| `openlibrary_link` | String | yes | | The pasted Open Library work URL; `openlibrary_id` is derived from it |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 `author` / `illustrator` / `publisher_tw` / `serialization_platform` link

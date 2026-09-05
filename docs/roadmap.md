@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05 (commit 9f14245)
 
 ## What this is for
 
@@ -14,6 +14,7 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 | When | Feature |
 |---|---|
+| 2026-09-05 | Open Library fill for novels: `openlibrary_link` / `openlibrary_id` on `novel`, a keyless client fetching a work plus (only when needed) its editions and authors, an anchor-book mapper writing year-precision `release_date`, cover and the `author` credit, and per-entry routing in `PIPELINES["novel"]` so novels with no MAL link are Fill-eligible for the first time; Replace, Google Books and per-volume ids deliberately deferred |
 | 2026-09-04 | Novel units and two-stage progress: `novel_unit` child table (volume/arc/story/chapter, `unit_key`/names/remark/`ch_count`) replacing the two parallel `novel_name_each_cn`/`_en` JSONB lists; `ch_fin_in_arc` added so `arc_fin`/`ch_fin_in_arc` form a two-stage reading cursor derived from arc rows on every write, with volume rows staying non-authoritative enrichment (Decision B); `MediaTypeSpec.nested_collections`/`progress_hook` generalise the router factory for a `units` payload key; `NovelUnitsEditor` replaces `BelongingNovelsEditor`; `progress_display` narrowed to the JP/KR-vs-TW volumes choice with legacy values still rendering; a `novelUnitKinds.test.js` drift guard pins the frontend kind map to `app/utils/constants.py` |
 | 2026-09-04 | Person as a public entity: one role vocabulary of five (director, producer, composer, author, illustrator) replacing the two lists, media-type-scoped and NOT NULL on `person_role`, with 原作 / Author / Writer derived from `(role, media_type)`; `person` reshaped to four optional names with a data-driven display choice; `credit_refs` with ids and labels on every media payload; `GET /api/person/{id}/entries` and a `?credits=N`-guarded delete; Entity → Person Add/Modify/Delete with a role × scope matrix; `/library/person` and `/person/:system_id`, linked from every credit row on the six detail pages |
 | 2026-09-04 | Studio as a public entity: `studio` reshaped to four optional names with a data-driven display choice and a profile (country, founded/defunct, website, MAL, logo); `GET /api/studio/{id}/entries`; `studio_refs` on anime and anime-movie payloads; `/library/studio` and `/studio/:system_id` pages, linked from the Studio row on both detail pages; studio Add/Modify/Delete moved into a new Entity admin group |

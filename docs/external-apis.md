@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-05 (commit 9f14245)
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Six outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga and novels; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Seven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga and novels; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
 
@@ -17,6 +17,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 - [OMDb](#omdb)
 - [IMDb orchestration (TMDB + OMDb together)](#imdb-orchestration-tmdb--omdb-together)
 - [Comic Vine](#comic-vine)
+- [Open Library](#open-library)
 - [Google Sheets](#google-sheets)
 - [Google Cloud Storage (cover images)](#google-cloud-storage-cover-images)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
@@ -30,10 +31,11 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
+| Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 | Google Cloud Storage | via `google-cloud-storage` | `settings.bucket_name` ← `GCP_BUCKET_NAME` (defaults to `cg1618-anime-covers` on Cloud Run only) | `app/services/integrations/image_manager.py`, `app/utils/gcp_utils.py` | — | cover images |
 
-A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source.
+A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
 
 ## Shared behaviour
 
@@ -185,6 +187,63 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 
 `end_date` is deliberately not mapped (it would cost a second request per entry). There is no bulk Replace for comics (`replace=None`, `in_replace_all=False`) and Fill Comic is excluded from Fill All (`in_fill_all=False`) to protect the hourly quota.
 
+## Open Library
+
+Open Library fills `novel` entries that MAL does not catalogue — mainly Western
+published books, the `Novel` bucket of `novel.type`. It is the first client in
+this app with **no API key at all**: no `_get_api_key`, no 401 branch, and none
+of the "environment variable is not set" logging every other client has.
+`OPENLIBRARY_USER_AGENT = "CG1618-Media-Tracker/1.0"` is still mandatory —
+Open Library throttles generic client agents, the same reason Comic Vine and
+Tenrai set one.
+
+An Open Library **work** is one book. A work id (`OL…W`) is distinct from an
+**edition** id (`OL…M`, one printing of a work) and an **author** id (`OL…A`).
+`novel.openlibrary_id` is a `String`, unlike Comic Vine's `Integer`
+`comicvine_id`, because the trailing letter is the only signal that the stored
+id names a work and not an edition or an author — storing the bare number
+would discard it.
+
+Because one novel entry can span several books (`Mistborn` is one entry and
+three novels), the stored work id names the entry's **anchor book** — book 1,
+or the only book — not "the entry". This is why the mapping below is narrow:
+see [Autofill](#autofill---appservicesdomainautofillpy) further down.
+
+| Item | Value |
+|---|---|
+| Endpoints | `GET /works/{id}.json` (always), `GET /works/{id}/editions.json?limit=1000` (only when `want_editions`), `GET /authors/{OL…A}.json` (only when `want_authors`, at most 3 authors) — all in `fetch_openlibrary_work(work_id, *, want_editions, want_authors)`. |
+| Why conditional | Unlike every other client here, which fetches unconditionally and lets the mapper discard what it does not need, this one takes two keyword-only flags. `editions.json?limit=1000` can return a thousand entries, and every write is fill-only, so an entry that already has a `release_date` can never use that response. The flags drop the steady-state cost to one call per entry. `autofill_novel_from_openlibrary` computes them: `want_editions = not novel.release_date`, `want_authors = not credit_names(db, "novel", ..., "author")`. |
+| Rate limiter | `OpenLibraryRateLimiter`: 100 requests per 60 s, the same in-memory sliding-window shape as the others. Open Library publishes no hard quota; this is politeness, not a ceiling they enforce. |
+| Pipeline pacing | `OPENLIBRARY_PAUSE` is not separate — novel's `fill_sleep` stays `MAL_PAUSE` (1 s) regardless of which branch ran. |
+| Retry / failure | Same shape as every other client: `@retry`, `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried on `requests.exceptions.RequestException` and a local `RateLimitExceeded` (HTTP 429). 404 → warning, `None`. 5xx → warning, `None`. |
+| Work id source | `openlibrary_id` on the row; `extract_openlibrary_id(url)` in `app/utils/openlibrary_utils.py` pulls it from `openlibrary_link` with `openlibrary\.org/works/(OL\d+W)`. An edition URL, an author URL, a bare id, `""` and `None` all return `None` — never a wrong id, mirroring `extract_comicvine_id`'s rejection of issue URLs. |
+
+### Mapping — `map_openlibrary_to_novel_data`
+
+| Source | Column | Rule |
+|---|---|---|
+| `editions[].publish_date` | `release_date` | `_earliest_edition_year`: regex `(1[4-9]\d\d\|20\d\d)` over each edition's `publish_date`, minimum year kept, anything after next year discarded, then `app.utils.release_date.normalize`. No editions → `None`. Deliberately **not** `work.first_publish_date` (unpopulated on every work checked) and **not** the search API's `first_publish_year` (wrong on 3 of the 4 entries probed) — the earliest edition year was right on both entries in scope. Written at **year precision**, exactly as Comic Vine's `start_year` already is written to `release_date`. |
+| `authors[].name` | `author` credit | comma-joined by the mapper, then split again by `split_names` in the autofill before `replace_credits`. |
+| `work.covers` | `cover_image_url` | first entry that is not `-1` → `https://covers.openlibrary.org/b/id/{id}-L.jpg`. Open Library uses `-1` as a "no cover here" sentinel inside the `covers` array rather than omitting the slot; an unfiltered `covers[0]` would eventually download a 404. All `-1` or an absent `covers` → `None`. |
+
+### Autofill — `autofill_novel_from_openlibrary`
+
+Fill-only, and deliberately narrow. It writes exactly three things:
+`release_date`, `cover_image_file` (via `download_cover_image`, same as every
+other client), and the `author` credit (`replace_credits`, only when the entry
+has no `author` credit yet — the same rule TMDB uses for `director`).
+
+It **never** writes `end_date`, `vol_total_original`, `ch_total`,
+`serialization_status`, `mal_rating`, `mal_rank`, or any `novel_name_*` column
+— all of those are true of the whole multi-book entry, not of the one anchor
+book the stored id names, and Open Library has no way to supply them (or, for
+the names, no business supplying them at all).
+
+**Replace is deliberately not wired.** `replace_select` for `novel` still only
+selects rows with `mal_id`/`mal_link` set, so an Open-Library-only novel is
+never picked up by bulk Replace. Every Open Library write here is fill-only,
+so there is nothing for Replace to re-fetch that Fill has not already done.
+
 ## Google Sheets
 
 Sheets is the backup target and restore source. `sheets.py` contains no database logic — it only moves matrices in and out of tabs.
@@ -247,7 +306,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb, GCS |
 | `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb, GCS |
 | `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal` | 1 s | Tenrai, GCS |
-| `novel` | `apply_extract_mal_id_manga_novel` (eligible only with a `mal_link`) | `autofill_novel_from_mal` | 1 s | Tenrai, GCS |
+| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library, plus GCS |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine, GCS |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page use GCS and, for missing covers, the autofill functions again.
@@ -259,6 +318,7 @@ Things the code does today that a reader might not expect. None is a documentati
 - `RetryError` is swallowed by every autofill, so a total outage looks like "nothing to fill" (see [Shared behaviour](#shared-behaviour)).
 - All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every deploy.
 - `fetch_tmdb_data`'s retry wraps both TMDB calls, so a flaky details call costs an extra Find call per attempt.
+- `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
 - `docs/dependencies.md` still lists gspread `5.12.0`.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.

@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-04 (commit 601ceb8)
+Last verified: 2026-09-05 (commit 9f14245)
 
 ## What this is for
 
@@ -189,10 +189,12 @@ Per type (verbatim from `specs.py`):
 | `tv-show` | `has_missing_values_tv_show` | `autofill_tv_show_from_imdb(e, db)` | 0 | `tv_show_post_processing` | `"Syncing system options..."` → `run_sync_tv_show` | — |
 | `cartoon` | `airing_type in {"Movie", "TV"}` and `has_missing_values_cartoon` | `autofill_cartoon_from_imdb(e, db)` | 0 | `cartoon_post_processing` | `"Syncing system options..."` → `run_sync_cartoon` | — |
 | `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
-| `novel` | `mal_link` set and `has_missing_values_novel` | `autofill_novel_from_mal(e, force_replace_ratings=True)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
+| `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
 
-`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga, novel), `apply_extract_comicvine_id` (comic).
+`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic).
+
+**Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
