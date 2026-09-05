@@ -171,3 +171,24 @@ it("defaults an unset country to Japan", async () => {
     expect(screen.getByDisplayValue("Japan")).toBeInTheDocument(),
   );
 });
+
+// A saved studio's toast lands at the top of the page, and the form is long
+// enough that the admin is usually scrolled past it - so a successful save
+// scrolls back up, the way every media tab already does.
+it("scrolls to the top after a successful save", async () => {
+  const user = userEvent.setup();
+  const scrollTo = vi.fn();
+  vi.stubGlobal("scrollTo", scrollTo);
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
+  );
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
+});

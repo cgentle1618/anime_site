@@ -129,6 +129,9 @@ export default function StudioModifyTab() {
       });
       await queryClient.invalidateQueries({ queryKey: ["studios-admin"] });
       setStudioForm(studioToForm(updated));
+      // Back to the top: the toast renders at the top of the page and
+      // the form is long enough to have scrolled it out of sight.
+      window.scrollTo(0, 0);
       showToast("success", "Studio updated.");
     } catch (err) {
       showToast("error", err.message || "Update failed.");

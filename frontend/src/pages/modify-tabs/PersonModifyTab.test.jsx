@@ -201,3 +201,24 @@ it("offers no scope filter for a role with a single legal scope", async () => {
   );
   expect(screen.queryByRole("button", { name: "anime" })).not.toBeInTheDocument();
 });
+
+// Same reason as the Studio tab: the toast sits at the top of a long form.
+it("scrolls to the top after a successful save", async () => {
+  const user = userEvent.setup();
+  const scrollTo = vi.fn();
+  vi.stubGlobal("scrollTo", scrollTo);
+  mount();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Hayao Miyazaki" }),
+    ).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Hayao Miyazaki" }));
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Hayao Miyazaki")).toBeInTheDocument(),
+  );
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
+});
