@@ -168,3 +168,95 @@ def test_generated_key_when_none_given(kind, position, expected):
 
 def test_explicit_key_wins():
     assert unit_display_key("volume", 1, "第一卷") == "第一卷"
+
+
+# --- type gates the counters ------------------------------------------------
+# A Light Novel or a Novel counts volumes and nothing else, so its chapter and
+# arc columns are not "empty", they are meaningless. derive_novel_progress
+# clears them on every write path (forms, tracker PATCH, Pull, Fill, Calculate)
+# so a stale value cannot come back in through any of them.
+
+
+def light_novel(**kw):
+    base = dict(
+        type="Light Novel",
+        units=[],
+        arc_total=3,
+        arc_fin=2,
+        ch_total=110,
+        ch_fin=44,
+        ch_fin_in_arc=7,
+        vol_fin=3,
+        vol_total_original=11,
+        vol_total_tw=11,
+    )
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+def test_light_novel_clears_chapter_and_arc_columns():
+    entry = light_novel()
+    derive_novel_progress(entry)
+    assert entry.ch_total is None
+    assert entry.arc_total is None
+    assert entry.ch_fin == 0
+    assert entry.arc_fin == 0
+    assert entry.ch_fin_in_arc == 0
+
+
+def test_light_novel_keeps_its_volume_columns():
+    entry = light_novel()
+    derive_novel_progress(entry)
+    assert entry.vol_fin == 3
+    assert entry.vol_total_original == 11
+    assert entry.vol_total_tw == 11
+
+
+def test_novel_type_clears_chapter_and_arc_columns_too():
+    entry = light_novel(type="Novel")
+    derive_novel_progress(entry)
+    assert entry.ch_total is None
+    assert entry.ch_fin == 0
+
+
+def test_clearing_is_idempotent():
+    entry = light_novel()
+    derive_novel_progress(entry)
+    derive_novel_progress(entry)
+    assert entry.ch_total is None
+    assert entry.ch_fin == 0
+    assert entry.vol_fin == 3
+
+
+def test_arc_rows_on_a_light_novel_do_not_resurrect_chapters():
+    # Arc rows cannot be created for this type through the editor, but a Pull
+    # from the sheet can carry them. The type wins: nothing is derived.
+    entry = light_novel(units=[arc(1, 100), arc(2, 112)])
+    derive_novel_progress(entry)
+    assert entry.ch_total is None
+    assert entry.arc_total is None
+    assert entry.ch_fin == 0
+
+
+def test_web_novel_keeps_its_flat_chapter_pair():
+    entry = light_novel(type="Web")
+    derive_novel_progress(entry)
+    assert entry.ch_total == 110
+    assert entry.ch_fin == 44
+    assert entry.ch_fin_in_arc == 0     # no arc rows, so the cursor is zeroed
+
+
+def test_web_novel_with_arcs_still_derives():
+    entry = light_novel(type="Web", units=[arc(1, 100), arc(2, 112)], arc_fin=1, ch_fin_in_arc=101)
+    derive_novel_progress(entry)
+    assert entry.arc_total == 2
+    assert entry.ch_total == 212
+    assert entry.ch_fin == 201
+
+
+def test_other_type_keeps_its_chapters():
+    # "Other" may count volumes, chapters or stories, so nothing is cleared.
+    entry = light_novel(type="Other")
+    derive_novel_progress(entry)
+    assert entry.ch_total == 110
+    assert entry.ch_fin == 44

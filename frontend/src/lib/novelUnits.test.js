@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  NOVEL_UNIT_KINDS_BY_TYPE,
+  NOVEL_VOLUME_ONLY_TYPES,
   arcStep,
+  countsChapters,
+  countsVolumes,
+  progressDisplayOptions,
+  wholeArcStep,
   effectiveProgressDisplay,
   kindsForType,
   unitDisplayKey,
@@ -133,17 +139,187 @@ describe("effectiveProgressDisplay", () => {
     );
   });
 
-  it("a stored progress_display always wins, even against a Web novel with arcs", () => {
+  // Superseded rule: a stored progress_display used to win outright, whatever
+  // the type. Now that the dropdown is built per type, an override the type
+  // cannot render (a volume counter on Web, a chapter counter on a light
+  // novel) would show a row that does not exist, so the type has the last
+  // word. See "the override must suit the type" below.
+  it("a stored progress_display wins whenever the type supports it", () => {
     expect(
       effectiveProgressDisplay({
         type: "Web",
         units: arcUnits,
+        progress_display: "ch",
+      }),
+    ).toBe("ch");
+    expect(
+      effectiveProgressDisplay({
+        type: "Light Novel",
+        units: [],
         progress_display: "vol_tw",
       }),
     ).toBe("vol_tw");
-    // Pre-Decision-G legacy values keep rendering exactly as before.
+  });
+});
+
+describe("countsChapters", () => {
+  it("is false for the volume-only types", () => {
+    expect(countsChapters({ type: "Light Novel" })).toBe(false);
+    expect(countsChapters({ type: "Novel" })).toBe(false);
+  });
+
+  it("is true for Web and Other", () => {
+    expect(countsChapters({ type: "Web" })).toBe(true);
+    expect(countsChapters({ type: "Other" })).toBe(true);
+  });
+
+  it("is true for an unset or unrecognised type, matching the server", () => {
+    expect(countsChapters({})).toBe(true);
+    expect(countsChapters({ type: "Serial" })).toBe(true);
+    expect(countsChapters(null)).toBe(true);
+  });
+});
+
+describe("NOVEL_VOLUME_ONLY_TYPES", () => {
+  it("is derived from the kind map, not typed a second time", () => {
+    expect([...NOVEL_VOLUME_ONLY_TYPES].sort()).toEqual(["Light Novel", "Novel"]);
+    for (const type of NOVEL_VOLUME_ONLY_TYPES) {
+      expect(NOVEL_UNIT_KINDS_BY_TYPE[type]).toEqual(["volume"]);
+    }
+  });
+});
+
+describe("countsVolumes", () => {
+  it("is false for Web, whose volume columns are kept but never shown", () => {
+    expect(countsVolumes({ type: "Web" })).toBe(false);
+  });
+
+  it("is true for every other type", () => {
+    for (const type of ["Light Novel", "Novel", "Other", "Serial", undefined]) {
+      expect(countsVolumes({ type })).toBe(true);
+    }
+    expect(countsVolumes(null)).toBe(true);
+  });
+});
+
+describe("progressDisplayOptions", () => {
+  const values = (novel) => progressDisplayOptions(novel).map((o) => o.value);
+  const arcs = [{ unit_kind: "arc", position: 1, ch_count: 100 }];
+
+  it("offers only volume counters for the volume-only types", () => {
+    expect(values({ type: "Light Novel", units: [] })).toEqual([
+      "",
+      "vol_original",
+      "vol_tw",
+    ]);
+    expect(values({ type: "Novel", units: [] })).toEqual([
+      "",
+      "vol_original",
+      "vol_tw",
+    ]);
+  });
+
+  it("offers only chapters for a Web novel with no arc rows yet", () => {
+    expect(values({ type: "Web", units: [] })).toEqual(["", "ch"]);
+  });
+
+  it("adds the arc counters once a Web novel has arc rows", () => {
+    expect(values({ type: "Web", units: arcs })).toEqual([
+      "",
+      "ch",
+      "arc",
+      "arc_ch",
+    ]);
+  });
+
+  it("never offers a volume counter for Web", () => {
+    expect(values({ type: "Web", units: arcs })).not.toContain("vol_tw");
+    expect(values({ type: "Web", units: arcs })).not.toContain("vol_original");
+  });
+
+  it("offers volumes and chapters for Other and for an unset type", () => {
+    const expected = ["", "vol_original", "vol_tw", "ch"];
+    expect(values({ type: "Other", units: [] })).toEqual(expected);
+    expect(values({ units: [] })).toEqual(expected);
+  });
+
+  it("labels the blank option with what it derives to", () => {
+    const [blank] = progressDisplayOptions({ type: "Web", units: [] });
+    expect(blank.value).toBe("");
+    expect(blank.label).toMatch(/default/i);
+    expect(blank.label).toMatch(/CH/i);
+  });
+
+  it("every option carries a label", () => {
+    for (const o of progressDisplayOptions({ type: "Web", units: arcs })) {
+      expect(o.label).toBeTruthy();
+    }
+  });
+});
+
+describe("effectiveProgressDisplay — the override must suit the type", () => {
+  it("honours an override the type supports", () => {
     expect(
-      effectiveProgressDisplay({ type: "Light Novel", progress_display: "ch" }),
+      effectiveProgressDisplay({ type: "Light Novel", units: [], progress_display: "vol_tw" }),
+    ).toBe("vol_tw");
+  });
+
+  it("ignores a volume override on a Web novel and derives instead", () => {
+    // Pull and Fill write this column; a Web novel has no volume row to show.
+    expect(
+      effectiveProgressDisplay({ type: "Web", units: [], progress_display: "vol_tw" }),
     ).toBe("ch");
+  });
+
+  it("ignores a chapter override on a volume-only type", () => {
+    expect(
+      effectiveProgressDisplay({ type: "Light Novel", units: [], progress_display: "ch" }),
+    ).toBe("vol_original");
+  });
+
+  it("ignores an arc override when the novel has no arc rows", () => {
+    expect(
+      effectiveProgressDisplay({ type: "Web", units: [], progress_display: "arc_ch" }),
+    ).toBe("ch");
+    expect(
+      effectiveProgressDisplay({ type: "Web", units: [], progress_display: "arc" }),
+    ).toBe("ch");
+  });
+
+  it("honours an arc override once arc rows exist", () => {
+    const units = [{ unit_kind: "arc", position: 1, ch_count: 100 }];
+    expect(
+      effectiveProgressDisplay({ type: "Web", units, progress_display: "arc" }),
+    ).toBe("arc");
+  });
+
+  it("ignores a value nothing recognises", () => {
+    expect(
+      effectiveProgressDisplay({ type: "Web", units: [], progress_display: "nonsense" }),
+    ).toBe("ch");
+  });
+});
+
+describe("wholeArcStep", () => {
+  const arcs = [
+    { unit_kind: "arc", position: 1, ch_count: 100 },
+    { unit_kind: "arc", position: 2, ch_count: 112 },
+    { unit_kind: "arc", position: 3, ch_count: 90 },
+  ];
+
+  it("finishes one more arc and resets the in-arc cursor", () => {
+    expect(wholeArcStep(arcs, 1, 40, 1)).toEqual({ arc_fin: 2, ch_fin_in_arc: 0 });
+  });
+
+  it("steps back a whole arc", () => {
+    expect(wholeArcStep(arcs, 2, 0, -1)).toEqual({ arc_fin: 1, ch_fin_in_arc: 0 });
+  });
+
+  it("clamps at zero", () => {
+    expect(wholeArcStep(arcs, 0, 0, -1)).toEqual({ arc_fin: 0, ch_fin_in_arc: 0 });
+  });
+
+  it("clamps at the last arc", () => {
+    expect(wholeArcStep(arcs, 3, 0, 1)).toEqual({ arc_fin: 3, ch_fin_in_arc: 0 });
   });
 });

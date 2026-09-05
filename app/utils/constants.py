@@ -103,6 +103,14 @@ NOVEL_UNIT_KINDS_BY_TYPE = {
     "Other": ("volume", "story", "chapter"),
 }
 
+# Types that count volumes and nothing else: chapter and arc columns are not
+# merely empty on them, they are meaningless. Derived from the map above so the
+# two cannot drift - a type that may only hold volume rows may only count
+# volumes. derive_novel_progress() clears the other columns for these types.
+NOVEL_VOLUME_ONLY_TYPES: tuple[str, ...] = tuple(
+    t for t, kinds in NOVEL_UNIT_KINDS_BY_TYPE.items() if kinds == ("volume",)
+)
+
 # Prefix used when a unit has no unit_key of its own.
 NOVEL_UNIT_KEY_PREFIX = {
     "volume": "Vol",

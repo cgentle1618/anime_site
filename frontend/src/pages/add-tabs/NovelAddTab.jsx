@@ -1,6 +1,10 @@
 // Frontend: add tab page file for NovelAddTab.
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
-import { countsChapters } from "../../lib/novelUnits";
+import {
+  countsChapters,
+  countsVolumes,
+  progressDisplayOptions,
+} from "../../lib/novelUnits";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
@@ -19,7 +23,6 @@ import {
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
   NOVEL_TYPES,
-  PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
@@ -328,8 +331,9 @@ export default function NovelAddTab({
           className={selectCls}
           value={nvf.progress_display}
           onChange={(e) => unv("progress_display", e.target.value)}
+          aria-label="Progress display"
         >
-          {PROGRESS_DISPLAY_OPTIONS.map(({ value, label }) => (
+          {progressDisplayOptions(nvf).map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -362,43 +366,56 @@ export default function NovelAddTab({
           </Field>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Total Volumes (JP/KR)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_total_original}
-            onChange={(e) => unv("vol_total_original", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Vol Total (TW)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_total_tw}
-            onChange={(e) => unv("vol_total_tw", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
+      {/* Volume counters - hidden for Web, see the same gate in
+          NovelModifyTab. */}
+      {countsVolumes(nvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Total Volumes (JP/KR)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_total_original}
+              onChange={(e) => unv("vol_total_original", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Vol Total (TW)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_total_tw}
+              onChange={(e) => unv("vol_total_tw", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+      )}
+      {/* Vol Finished sits with the arc counters, and either half can be
+          hidden, so the column count follows whatever actually renders. Both
+          class strings are written out in full for Tailwind's scanner. */}
       <div
         className={`grid grid-cols-1 ${
-          countsChapters(nvf) ? "md:grid-cols-3" : "md:grid-cols-1"
+          countsVolumes(nvf) && countsChapters(nvf)
+            ? "md:grid-cols-3"
+            : countsChapters(nvf)
+              ? "md:grid-cols-2"
+              : "md:grid-cols-1"
         } gap-4`}
       >
-        <Field label="Vol Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_fin}
-            onChange={(e) => unv("vol_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
+        {countsVolumes(nvf) && (
+          <Field label="Vol Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_fin}
+              onChange={(e) => unv("vol_fin", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        )}
         {countsChapters(nvf) && (
           <>
             <Field label="Arc Total">

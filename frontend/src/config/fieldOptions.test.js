@@ -157,39 +157,51 @@ describe("person field sources", () => {
   });
 });
 
-// Decision G: with the novel `type` driving structure (units/arcs), the only
-// genuine remaining choice for progress_display is JP/KR volumes vs TW
-// volumes. NovelModifyTab.jsx and NovelTrackerBlock.jsx used to keep their
-// own hand-written copies of this list, which had already drifted from
-// config/fieldOptions.js's — they must read this one shared list instead.
-describe("PROGRESS_DISPLAY_OPTIONS (Decision G narrowing)", () => {
-  it("offers only the default (JP/KR) and the TW alternative", () => {
-    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual(["", "vol_tw"]);
+// Superseded: this list used to be narrowed to {"", "vol_tw"} on the grounds
+// that type alone determined structure. Per-type option lists replaced that —
+// per-entry selects now build their own via progressDisplayOptions(novel), and
+// what survives here is the full vocabulary for the Form Defaults page, which
+// spans every novel type at once.
+describe("PROGRESS_DISPLAY_OPTIONS (Form Defaults vocabulary)", () => {
+  it("carries every progress display a novel can store", () => {
+    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual([
+      "",
+      "vol_original",
+      "vol_tw",
+      "ch",
+      "arc",
+      "arc_ch",
+    ]);
   });
 
-  it("no longer offers the retired ch/vol_original/arc_ch choices", () => {
-    const values = PROGRESS_DISPLAY_OPTIONS.map((o) => o.value);
-    expect(values).not.toContain("ch");
-    expect(values).not.toContain("vol_original");
-    expect(values).not.toContain("arc_ch");
+  it("labels every option", () => {
+    for (const o of PROGRESS_DISPLAY_OPTIONS) expect(o.label).toBeTruthy();
   });
 });
 
 describe("withLegacyProgressDisplay", () => {
-  it("returns the narrowed list unchanged when there is no stored value", () => {
-    expect(withLegacyProgressDisplay(null)).toBe(PROGRESS_DISPLAY_OPTIONS);
-    expect(withLegacyProgressDisplay("")).toBe(PROGRESS_DISPLAY_OPTIONS);
+  // The options it is handed are now per-entry, so the interesting case is a
+  // value the entry's own type does not offer - a light novel still holding
+  // "ch", a web novel still holding "vol_tw".
+  const options = [
+    { value: "", label: "- Default -" },
+    { value: "vol_tw", label: "VOL TW" },
+  ];
+
+  it("returns the given list unchanged when there is no stored value", () => {
+    expect(withLegacyProgressDisplay(options, null)).toBe(options);
+    expect(withLegacyProgressDisplay(options, "")).toBe(options);
   });
 
-  it("returns the narrowed list unchanged when the stored value is still offered", () => {
-    expect(withLegacyProgressDisplay("vol_tw")).toBe(PROGRESS_DISPLAY_OPTIONS);
+  it("returns the given list unchanged when the stored value is offered", () => {
+    expect(withLegacyProgressDisplay(options, "vol_tw")).toBe(options);
   });
 
-  it("appends a stored value from before the narrowing so it keeps rendering as selected", () => {
-    const withLegacy = withLegacyProgressDisplay("arc_ch");
-    expect(withLegacy).toHaveLength(PROGRESS_DISPLAY_OPTIONS.length + 1);
+  it("appends a stored value the list does not offer, so it renders as selected", () => {
+    const withLegacy = withLegacyProgressDisplay(options, "arc_ch");
+    expect(withLegacy).toHaveLength(options.length + 1);
     expect(withLegacy.find((o) => o.value === "arc_ch")).toBeTruthy();
-    // The narrowed list itself is untouched.
-    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual(["", "vol_tw"]);
+    // The list it was handed is untouched.
+    expect(options.map((o) => o.value)).toEqual(["", "vol_tw"]);
   });
 });

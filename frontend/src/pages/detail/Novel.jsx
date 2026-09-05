@@ -15,7 +15,7 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { countsChapters } from "../../lib/novelUnits";
+import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   Button,
   Chip,
@@ -300,20 +300,21 @@ export default function Novel() {
       franchise.franchise_name_roman
     : null;
 
-  // The rule along the cover counts whatever the type counts. A Light Novel
-  // or a Novel counts volumes; its chapter columns are cleared server-side, so
-  // reading them here produced the "CHAPTERS 0 / 110" a finished 11-volume
-  // light novel used to show. The volume denominator follows the same TW/JP
-  // preference the tracker uses.
-  const countsCh = countsChapters(novel);
-  const volDenominator = novel.progress_display === "vol_tw"
-    ? (novel.vol_total_tw ?? novel.vol_total_original ?? null)
-    : (novel.vol_total_original ?? novel.vol_total_tw ?? null);
-  const progressLabel = countsCh ? "Chapters" : "Volumes";
-  const progressFin = countsCh ? (novel.ch_fin ?? 0) : (novel.vol_fin ?? 0);
-  const progressTotal = countsCh
-    ? (novel.ch_total != null ? novel.ch_total : null)
-    : volDenominator;
+  // The rule along the cover shows whichever counter the entry is set to.
+  // It used to read ch_fin/ch_total unconditionally, which is how a finished
+  // 11-volume light novel came to display "CHAPTERS 0 / 110".
+  const progressMode = effectiveProgressDisplay(novel);
+  const arcCount = (novel.units || []).filter((u) => u.unit_kind === "arc").length;
+  const [progressLabel, progressFin, progressTotal] =
+    progressMode === "vol_tw"
+      ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_tw ?? novel.vol_total_original ?? null]
+      : progressMode === "vol_original"
+        ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_original ?? novel.vol_total_tw ?? null]
+        : progressMode === "arc"
+          ? ["Arcs", novel.arc_fin ?? 0, arcCount || null]
+          : // "ch" and "arc_ch" both read the absolute chapter pair; with arc
+            // rows it is derived from them, so the two agree by construction.
+            ["Chapters", novel.ch_fin ?? 0, novel.ch_total ?? null];
   const progress = progressTotal
     ? progressFin / progressTotal
     : progressFin > 0

@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -70,10 +70,70 @@ kinds the editor (`NovelUnitsEditor`) offers:
 
 | `novel.type` | Kinds offered | Structure |
 |---|---|---|
-| `Light Novel` | `volume` | Volumes only, for display (subtitles, per-volume remarks). Progress is tracked flat via `vol_fin` / `vol_total_original` / `vol_total_tw` — volume rows never feed those columns (Decision B). |
+| `Light Novel` | `volume` | Volumes only, for display (subtitles, per-volume remarks). Progress is tracked flat via `vol_fin` / `vol_total_original` / `vol_total_tw` — volume rows never feed those columns (Decision B). Counts **nothing else**: see "Volume-only types" below. |
 | `Novel` | `volume` | Same as Light Novel. |
 | `Web` | `arc` | Two-stage progress: `arc_fin` (arcs fully finished) and `ch_fin_in_arc` (chapters into the current arc). `arc_total`, `ch_total` and `ch_fin` are derived from the arc rows' `ch_count` on every write — see `app/services/domain/novel_units.py` and [business-rules.md](business-rules.md). |
 | `Other` | `volume`, `story`, `chapter` | Free-form structure for entries that fit neither pattern (e.g. a short-story collection); `story` and `chapter` rows are display-only, the same as `volume`. |
+
+### Which counter a novel shows
+
+`progress_display` picks the counter; the dropdown that sets it is built per
+entry by `progressDisplayOptions(novel)` (`frontend/src/lib/novelUnits.js`),
+never from a flat list, so a novel is only ever offered a counter it can
+actually render:
+
+| `novel.type` | Offered | Not offered |
+|---|---|---|
+| `Light Novel`, `Novel` | Default, `vol_original`, `vol_tw` | every chapter and arc counter |
+| `Web` | Default, `ch` — plus `arc` and `arc_ch` **once the entry has arc rows** | every volume counter |
+| `Other`, unset | Default, `vol_original`, `vol_tw`, `ch` | the arc counters (only Web holds arc rows) |
+
+The five counters render as:
+
+| Value | Tracker row | Cover rule |
+|---|---|---|
+| `vol_original` / `vol_tw` | `Volumes`, editable | `Volumes 3 / 11 · 27%` |
+| `ch` | `Chapters`, editable — **read-only when the novel has arc rows**, because `ch_fin` is derived from them and an edit here would be overwritten on the next save | `Chapters 21 / 87 · 24%` |
+| `arc` | `Arcs`: `arc 7 / 8 · 倒吊人` — the arc being read, its name, and the arc count. Stepping closes or reopens a whole arc and resets `ch_fin_in_arc` | `Arcs 6 / 8 · 75%` (arcs *finished*) |
+| `arc_ch` | `Arc / Chapter`, the two-stage stepper | `Chapters`, the derived absolute pair |
+
+`countsVolumes()` is the volume-side counterpart of `countsChapters()`, and
+the two are deliberately asymmetric. Chapters on a light novel are
+*meaningless*, so the server clears them. Volumes on a web novel are merely
+*not the counter in use* — a web novel can get a print run later — so for
+`Web` the columns are kept untouched and only hidden: no Volumes tracker row,
+no volume inputs in the Add and Modify forms. Change the type back and the
+numbers are still there.
+
+An override the type cannot render is ignored. `effectiveProgressDisplay()`
+falls back to the derived mode when the stored value is not in that entry's
+option list — a `Web` row still holding `vol_tw` after a type change or a
+Pull, say. The select still *shows* the stored value (appended by
+`withLegacyProgressDisplay`, labelled `(legacy)`) so it is visible rather
+than silently swapped, but nothing renders a row for it.
+
+### Volume-only types
+
+A type whose only allowed kind is `volume` — `Light Novel` and `Novel` — counts
+volumes and nothing else. Its `arc_total`, `ch_total`, `arc_fin`, `ch_fin` and
+`ch_fin_in_arc` are not empty, they are *meaningless*, so nothing renders or
+edits them: no chapter row in `NovelTrackerBlock`, no chapter total on the
+cover rule (it counts volumes instead), and no arc/chapter inputs in the Add
+and Modify forms.
+
+The rule is enforced where the data is, not only in the UI.
+`derive_novel_progress()` clears those five columns for these types on every
+write path — the forms, the tracker's inline PATCH, Pull, Fill and Calculate —
+so a value cannot come back in through any of them, including a sheet that
+still carries one. Arc rows arriving from a Pull are ignored for derivation and
+deleted by the migration; the editor cannot create them.
+
+The type list is `NOVEL_VOLUME_ONLY_TYPES` (`app/utils/constants.py`), derived
+from `NOVEL_UNIT_KINDS_BY_TYPE` rather than typed a second time, and mirrored
+in `frontend/src/lib/novelUnits.js` as `countsChapters()`. An unset or
+unrecognised type is *not* volume-only: it keeps its chapter pair, on both
+sides. Migration `v1o2l3o4n5l6` cleared the historical values once — it is not
+reversible, since nothing else records what `ch_total` was.
 
 Only `arc` rows are authoritative for derivation; every other kind is
 enrichment shown on the detail page via `display_key` (`unit_display_key` /
@@ -97,7 +157,7 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Default status | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Read"` | `"Might Read"` | `"Might Read"` |
 | Display-name fallback (model `display_name`) | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | **EN → CN → Alt** |
 | Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | en, cn, alt |
-| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` |
+| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` |
 | Other status column | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) |
 

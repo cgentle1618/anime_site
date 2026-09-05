@@ -102,6 +102,12 @@ export function getNovelProgress(novel) {
       return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
     case "vol_original":
       return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL JP/KR`;
+    case "arc": {
+      // Finished arcs over the arc count — the same "how far through" reading
+      // the volume displays give, one level up from arc_ch's chapter cursor.
+      const arcs = (novel.units || []).filter((u) => u.unit_kind === "arc");
+      return `${novel.arc_fin ?? 0} / ${arcs.length} ARC`;
+    }
     case "arc_ch": {
       const arcs = (novel.units || [])
         .filter((u) => u.unit_kind === "arc")

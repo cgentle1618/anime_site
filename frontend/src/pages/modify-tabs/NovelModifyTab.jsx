@@ -1,6 +1,10 @@
 // Frontend: modify tab page file for NovelModifyTab.
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
-import { countsChapters } from "../../lib/novelUnits";
+import {
+  countsChapters,
+  countsVolumes,
+  progressDisplayOptions,
+} from "../../lib/novelUnits";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -257,43 +261,52 @@ export default function NovelModifyTab({
           className={selectCls}
           value={cnvf.progress_display || ""}
           onChange={(e) => unv("progress_display", e.target.value)}
+          aria-label="Progress display"
         >
-          {withLegacyProgressDisplay(cnvf.progress_display).map((o) => (
+          {withLegacyProgressDisplay(
+            progressDisplayOptions(cnvf),
+            cnvf.progress_display,
+          ).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>
       </Field>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Total Volumes (JP/KR)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_total_original ?? ""}
-            onChange={(e) => unv("vol_total_original", e.target.value)}
-          />
-        </Field>
-        <Field label="Vol Total (TW)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_total_tw ?? ""}
-            onChange={(e) => unv("vol_total_tw", e.target.value)}
-          />
-        </Field>
-        <Field label="Vol Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_fin ?? ""}
-            onChange={(e) => unv("vol_fin", e.target.value)}
-          />
-        </Field>
-      </div>
+      {/* Volume counters. Hidden for Web, which is read in chapters — the
+          columns keep whatever they hold (a later print run, or a type change
+          back) but are not edited from here. */}
+      {countsVolumes(cnvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Total Volumes (JP/KR)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_total_original ?? ""}
+              onChange={(e) => unv("vol_total_original", e.target.value)}
+            />
+          </Field>
+          <Field label="Vol Total (TW)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_total_tw ?? ""}
+              onChange={(e) => unv("vol_total_tw", e.target.value)}
+            />
+          </Field>
+          <Field label="Vol Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_fin ?? ""}
+              onChange={(e) => unv("vol_fin", e.target.value)}
+            />
+          </Field>
+        </div>
+      )}
       {/* Arc and chapter counters exist only for the types that count them.
           A Light Novel or a Novel counts volumes, and the server clears these
           columns on save, so offering the inputs would invite an edit that is

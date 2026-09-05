@@ -6,7 +6,7 @@ Pure functions: no session, no queries. They are called from the router
 idempotent — running them twice on the same entry changes nothing.
 """
 
-from app.utils.constants import NOVEL_UNIT_KEY_PREFIX
+from app.utils.constants import NOVEL_UNIT_KEY_PREFIX, NOVEL_VOLUME_ONLY_TYPES
 
 
 def _num(val) -> float:
@@ -49,6 +49,20 @@ def normalize_arc_progress(arc_counts, arc_fin, ch_fin_in_arc):
     return fin, ch
 
 
+def clear_chapter_columns(entry) -> None:
+    """
+    Blank every chapter and arc column on a volume-only novel.
+
+    A Light Novel or a Novel is counted in volumes, so these columns carry no
+    meaning for it. Nullable totals go to None; the NOT NULL counters go to 0.
+    """
+    entry.arc_total = None
+    entry.ch_total = None
+    entry.arc_fin = 0
+    entry.ch_fin = 0
+    entry.ch_fin_in_arc = 0
+
+
 def derive_novel_progress(entry) -> None:
     """
     Recompute the derived progress columns from the entry's arc rows.
@@ -57,7 +71,15 @@ def derive_novel_progress(entry) -> None:
     enrichment, so vol_fin / vol_total_original / vol_total_tw are never
     touched here. A novel with no arc rows keeps its flat ch_fin / ch_total
     pair and only has the in-arc cursor zeroed.
+
+    The type gates all of it. A volume-only type is cleared outright and never
+    derives, even when arc rows are present - the editor cannot create those,
+    but a Pull from the sheet can carry them in.
     """
+    if getattr(entry, "type", None) in NOVEL_VOLUME_ONLY_TYPES:
+        clear_chapter_columns(entry)
+        return
+
     arcs = sorted(
         (u for u in (entry.units or []) if u.unit_kind == "arc"),
         key=lambda u: _num(u.position),

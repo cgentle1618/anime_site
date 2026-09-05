@@ -86,31 +86,32 @@ export const NOVEL_SERIALIZATION_STATUSES = [
 ];
 
 // Progress display uses {value, label} pairs — the stored value is a short code.
-// Decision G: with the novel `type` now driving structure (units/arcs), the
-// only genuine remaining choice is JP/KR volumes vs TW volumes, so this list
-// narrows to that. Older stored values (ch, vol_original, arc_ch) are still
-// rendered on the detail/card views (see getNovelProgress in lib/formatters.js
-// and MediaCard.jsx) — narrowing the offered choice must not blank them.
+// This is the FULL vocabulary, and it is only for the Form Defaults page,
+// which picks the default for novels of every type at once and so cannot be
+// narrowed to one entry. A per-entry <select> must use
+// progressDisplayOptions(novel) from lib/novelUnits.js instead, which offers
+// only what that novel's type and unit rows can actually render.
 export const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL JP/KR) —" },
+  { value: "", label: "— Default (derived from type) —" },
+  { value: "vol_original", label: "VOL JP/KR (Original Volumes)" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
+  { value: "ch", label: "CH (Chapters)" },
+  { value: "arc", label: "ARC (Arcs)" },
+  { value: "arc_ch", label: "ARC + CH (Arc and chapter)" },
 ];
 
-// A <select> bound to PROGRESS_DISPLAY_OPTIONS must still show a value stored
-// before the Decision G narrowing (e.g. "ch", "vol_original", "arc_ch")
-// instead of silently reverting to the default option. This appends it back
-// as a labelled, selectable entry when it isn't one of the current choices.
-export function withLegacyProgressDisplay(currentValue) {
-  if (
-    !currentValue ||
-    PROGRESS_DISPLAY_OPTIONS.some((o) => o.value === currentValue)
-  ) {
-    return PROGRESS_DISPLAY_OPTIONS;
+// A <select> must still show whatever is stored, even when the current option
+// list does not offer it — a value left behind by a type change, a Pull, or a
+// vocabulary that has since narrowed. This appends it back as a labelled,
+// selectable entry so the admin sees what the row actually holds instead of
+// the select silently reverting to the default option. Note that such a value
+// no longer *renders* as progress: effectiveProgressDisplay() falls back to
+// the derived mode when the type cannot support the stored one.
+export function withLegacyProgressDisplay(options, currentValue) {
+  if (!currentValue || options.some((o) => o.value === currentValue)) {
+    return options;
   }
-  return [
-    ...PROGRESS_DISPLAY_OPTIONS,
-    { value: currentValue, label: `${currentValue} (legacy)` },
-  ];
+  return [...options, { value: currentValue, label: `${currentValue} (legacy)` }];
 }
 
 export const RELEASE_SEASONS = ["WIN", "SPR", "SUM", "FAL"];
@@ -147,7 +148,7 @@ export const SEASON_NUMS = Array.from({ length: 10 }, (_, i) => String(i + 1));
 export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 
 // Yes/No selects that store the STRING "true"/"false" (never a real boolean),
-// with "" meaning "unset". Used by source_baha, source_netflix.
+// with "" meaning "unset".
 export const TRISTATE = ["true", "false"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];

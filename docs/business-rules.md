@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -233,11 +233,34 @@ counter: `arc_fin` counts arcs that are **fully finished**, and
 **Derivation** (`derive_novel_progress`, called unconditionally on every
 create/update/patch by the router, whether or not the write touched `units`):
 
+- **Volume-only type first** (`type` in `NOVEL_VOLUME_ONLY_TYPES`, i.e.
+  `Light Novel` and `Novel`): nothing is derived. `arc_total` and `ch_total`
+  go to null, `arc_fin`, `ch_fin` and `ch_fin_in_arc` to `0`, and the volume
+  columns are left alone. This branch wins even when arc rows are present —
+  the editor cannot create them for these types, but a sheet Pull can, and a
+  type that counts volumes has no chapter counter to derive. Because the rule
+  lives here rather than in the forms, it also holds for Pull, Fill and
+  Calculate.
 - With no arc rows: only `ch_fin_in_arc` is zeroed; `arc_total`, `arc_fin`,
   `ch_total`, `ch_fin` are left as stored (flat) values.
 - With arc rows: `arc_total = len(arcs)`, `ch_total = sum(ch_count over arcs)`,
   and `ch_fin = sum(ch_count of the arc_fin fully-finished arcs) + ch_fin_in_arc`.
   `arc_fin`/`ch_fin_in_arc` are first passed through the rollover rule below.
+
+**Choosing the counter** (`progressDisplayOptions` / `effectiveProgressDisplay`,
+`frontend/src/lib/novelUnits.js` - display only, no server component):
+`progress_display` may hold `vol_original`, `vol_tw`, `ch`, `arc` or `arc_ch`,
+but the dropdown offers only what the entry can render - volume counters
+except on `Web`, chapter counters except on the volume-only types, and the two
+arc counters only once the novel actually has arc rows. A stored value outside
+that set is ignored for rendering and the derived mode is used instead, so a
+`Web` row left holding `vol_tw` by a Pull or a type change cannot draw a
+volume row the type does not have.
+
+`arc` steps a whole arc at a time (`wholeArcStep`): `arc_fin` moves by one and
+`ch_fin_in_arc` resets to `0`, which keeps `ch_fin` exactly the sum of the
+finished arcs. It is clamped at both ends, unlike the chapter rollover below,
+which deliberately runs past the last recorded arc.
 
 **Rollover** (`normalize_arc_progress`, mirrored in the frontend as
 `arcStep` in `frontend/src/lib/novelUnits.js`): folds an out-of-range

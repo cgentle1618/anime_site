@@ -259,6 +259,31 @@ describe("getNovelProgress", () => {
     expect(getNovelProgress(novel)).toBe("3 / 9 VOL TW");
   });
 
+  it("renders the arc-only display as finished arcs over the arc count", () => {
+    const novel = {
+      type: "Web",
+      progress_display: "arc",
+      arc_fin: 1,
+      ch_fin_in_arc: 40,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+        { unit_kind: "arc", position: 3, ch_count: 90 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("1 / 3 ARC");
+  });
+
+  it("ignores an arc display on a novel with no arc rows", () => {
+    const novel = { type: "Web", progress_display: "arc", ch_fin: 12, ch_total: 40, units: [] };
+    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  });
+
+  it("ignores a volume display on a Web novel", () => {
+    const novel = { type: "Web", progress_display: "vol_tw", vol_fin: 3, ch_fin: 12, ch_total: 40, units: [] };
+    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  });
+
   it("a new Web novel with arc rows and no stored progress_display still renders the two-stage position (Decision G)", () => {
     const novel = {
       type: "Web",
