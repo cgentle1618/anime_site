@@ -112,6 +112,17 @@ NOVEL_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# Only what Open Library actually returns for a work. serialization_status,
+# end_date, mal_rating and mal_rank are in NOVEL_FIELDS_TO_FILL but have no
+# Open Library equivalent, so listing them here would leave every entry
+# permanently "needs filling" and re-request it on every run.
+NOVEL_OPENLIBRARY_FIELDS_TO_FILL = [
+    "release_date",
+    "cover_image_file",
+]
+
+NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL = [("credit", "author")]
+
 # Only the fields Comic Vine actually returns for a volume. imprint, continuity,
 # era, events, end_date and publisher_tw are deliberately excluded: Comic Vine
 # models none of them, so listing them here would leave every entry permanently

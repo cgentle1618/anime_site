@@ -27,6 +27,8 @@ from app.utils.utils import (
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
     NOVEL_FIELDS_TO_FILL,
+    NOVEL_OPENLIBRARY_FIELDS_TO_FILL,
+    NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     validate_ch_math,
     validate_episode_math,
@@ -207,6 +209,25 @@ def has_missing_values_novel(novel: Novel) -> bool:
             return True
 
     return False
+
+
+def has_missing_values_novel_openlibrary(db, novel: Novel) -> bool:
+    """
+    Returns True if anything Open Library can supply is still blank: the
+    release date, the cover, or the author credit.
+
+    Narrower than has_missing_values_novel on purpose — see
+    NOVEL_OPENLIBRARY_FIELDS_TO_FILL. There is no mal_link gate here: the
+    caller decides which source an entry belongs to.
+    """
+    for field in NOVEL_OPENLIBRARY_FIELDS_TO_FILL:
+        val = getattr(novel, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+
+    return _link_missing(
+        db, "novel", novel.system_id, NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL
+    )
 
 
 def has_missing_values_comic(db, comic: Comic) -> bool:

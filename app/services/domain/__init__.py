@@ -33,6 +33,7 @@ from app.services.domain.checking import (
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
+    has_missing_values_novel_openlibrary,
     has_missing_values_tv_show,
 )
 from app.services.domain.completion import (
@@ -158,6 +159,7 @@ __all__ = [
     "has_missing_values_manga",
     "has_missing_values_comic",
     "has_missing_values_novel",
+    "has_missing_values_novel_openlibrary",
     "apply_check_baha",
     "find_duplicate_entities",
     "check_is_tv_completed",
