@@ -52,7 +52,11 @@ EXPECTED_HEADERS = {
 # ---------------------------------------------------------------------------
 
 
-def test_the_vocabulary_is_six_entries():
+def test_the_vocabulary_is_seven_entries():
+    """
+    Was six before the seiyuu role was added (Task 1 of the seiyuu/character
+    work). Renamed from test_the_vocabulary_is_six_entries.
+    """
     assert set(cr.CREDIT_ROLES) == {
         "studio",
         "director",
@@ -60,6 +64,7 @@ def test_the_vocabulary_is_six_entries():
         "composer",
         "author",
         "illustrator",
+        "seiyuu",
     }
 
 
@@ -70,6 +75,7 @@ def test_person_roles_are_every_role_targeting_a_person():
         "composer",
         "author",
         "illustrator",
+        "seiyuu",
     }
     assert "studio" not in cr.PERSON_ROLES
 
@@ -244,3 +250,38 @@ def test_publisher_tw_is_one_category_across_four_media_types():
     field = cr.TAG_FIELDS["publisher_tw"]
     assert field.category == "Publisher / Distributor TW"
     assert set(field.media_types) == {"anime", "manga", "novel", "comic"}
+
+
+# ---------------------------------------------------------------------------
+# seiyuu and the credited_via axis
+# ---------------------------------------------------------------------------
+
+
+def test_seiyuu_is_a_person_role_scoped_to_the_two_anime_types():
+    assert "seiyuu" in cr.PERSON_ROLES
+    assert cr.CREDIT_ROLES["seiyuu"].target == "person"
+    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie")
+
+
+def test_seiyuu_credits_are_not_stored_in_media_credit():
+    """
+    Decision A: the cast list has exactly one home, character_casting. If
+    credit_roles_for() started returning seiyuu, /api/credits would ask for
+    media_credit rows that never exist and the entry forms would grow a
+    phantom Seiyuu dropdown.
+    """
+    assert cr.CREDIT_ROLES["seiyuu"].credited_via == "character_casting"
+    for media_type in ("anime", "anime-movie"):
+        assert "seiyuu" not in {r.key for r in cr.credit_roles_for(media_type)}
+
+
+def test_every_other_role_still_stores_credits_in_media_credit():
+    for key, role in cr.CREDIT_ROLES.items():
+        if key != "seiyuu":
+            assert role.credited_via == "media_credit"
+
+
+def test_director_is_still_returned_for_anime():
+    """Guards the credit_roles_for() filter against over-filtering."""
+    assert "director" in {r.key for r in cr.credit_roles_for("anime")}
+    assert "studio" in {r.key for r in cr.credit_roles_for("anime")}

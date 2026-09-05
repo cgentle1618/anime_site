@@ -5,12 +5,15 @@ Deliberately shaped like app/utils/relation_kinds.py and MEDIA_TABLES in
 app/utils/media_resolver.py: a frozen dataclass per entry, a dict keyed by the
 value stored in the column, and a tuple of keys for validation.
 
-ONE vocabulary. `media_credit.role` and `person_role.role` store the same five
+ONE vocabulary. `media_credit.role` and `person_role.role` store the same six
 person keys plus `studio`; the key a credit stores IS the person role it
 implies. Before the collapse these were two lists that disagreed - 原作 and
 作画 were separate credit keys sharing one `manga_author` dropdown, while
 `novel_author` and `comic_writer` were separate person roles meaning the same
 thing.
+
+One of the six, `seiyuu`, is a person role whose credits are NOT stored in
+`media_credit`: see `CreditRole.credited_via` below.
 
 What varies by media type is the LABEL, not the key: `author` reads 原作 on a
 manga, Author on a novel and Writer on a comic. credit_label() owns that.
@@ -39,6 +42,11 @@ class CreditRole:
     # For a person role this doubles as the set of legal person_role.scope
     # values, because the scope IS the media type.
     media_types: tuple[str, ...]
+    # Where this role's credits are STORED. "media_credit" for the six roles
+    # whose rows live there; "character_casting" for seiyuu, whose casting is
+    # a character-first fact - who voiced WHOM - and so cannot be a flat
+    # person->entry link. See the design spec's Decision A and B.
+    credited_via: str = "media_credit"
 
 
 CREDIT_ROLES: dict[str, CreditRole] = {
@@ -51,6 +59,13 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     "author": CreditRole("author", "Author", "person", ("manga", "novel", "comic")),
     "illustrator": CreditRole(
         "illustrator", "Illustrator", "person", ("manga", "novel", "comic")
+    ),
+    # Stored in character_casting, NOT media_credit: a seiyuu reaches an anime
+    # through the character they voice. credit_roles_for() filters this out for
+    # exactly that reason.
+    "seiyuu": CreditRole(
+        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie"),
+        credited_via="character_casting",
     ),
 }
 
@@ -228,8 +243,19 @@ def sheet_column_for(media_type: str, key: str) -> str:
 
 
 def credit_roles_for(media_type: str) -> tuple[CreditRole, ...]:
-    """Every credit role usable on entries of this media type."""
-    return tuple(r for r in CREDIT_ROLES.values() if media_type in r.media_types)
+    """
+    Every credit role usable on entries of this media type whose rows live in
+    `media_credit`.
+
+    The credited_via filter is not cosmetic: /api/credits and the sheet
+    link-column builder both walk this, and seiyuu has no media_credit rows to
+    find. A seiyuu's work is read through /api/casting instead.
+    """
+    return tuple(
+        r
+        for r in CREDIT_ROLES.values()
+        if media_type in r.media_types and r.credited_via == "media_credit"
+    )
 
 
 def tag_fields_for(media_type: str) -> tuple[TagField, ...]:

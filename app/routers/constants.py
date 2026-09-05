@@ -20,6 +20,10 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
 
+# What a character is to the work, from MAL's own two-way split. Nullable on
+# character_casting: an admin entering a cast by hand need not classify.
+CHARACTER_ROLES: tuple[str, ...] = ("Main", "Supporting")
+
 
 def _values(enum_cls) -> list[str]:
     return [member.value for member in enum_cls]
@@ -59,6 +63,7 @@ def get_constants() -> dict[str, list[str]]:
         "music_status": list(c.MUSIC_STATUSES),
         "seiyuu_status": list(c.SEIYUU_STATUSES),
         "watch_order_importance": list(ITEM_IMPORTANCE),
+        "character_role": list(CHARACTER_ROLES),
         # Two closed vocabularies the ADMIN forms need. person_role was
         # hand-duplicated in OptionsAddTab.jsx with nothing enforcing the
         # match; media_type is what the Options form's scope picker offers.
