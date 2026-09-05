@@ -64,6 +64,8 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Person", models.Person, f.parse_person_from_sheet),
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),
     SheetTab("Studio", models.Studio, f.parse_studio_from_sheet),
+    # Also before every media tab: Character Casting rows point at characters.
+    SheetTab("Character", models.Character, f.parse_character_from_sheet),
     # Key/value rows (announcements, form defaults) nothing else references.
     SheetTab("System Configs", models.SystemConfigs, f.parse_system_config_from_sheet),
     # Grouping tiers, parent first.
@@ -89,6 +91,13 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Media Relation", models.MediaRelation, f.parse_media_relation_from_sheet),
     SheetTab("Plan Next", models.PlanNext, f.parse_plan_next_from_sheet),
     SheetTab("Quote", models.Quote, f.parse_quote_from_sheet),
+    # After every media tab: a casting reaches its entry by the FK-less
+    # (media_type, entry_id) pair, so each entry must already exist.
+    SheetTab(
+        "Character Casting",
+        models.CharacterCasting,
+        f.parse_character_casting_from_sheet,
+    ),
     # Memes name quotes, so after them.
     SheetTab("Meme", models.Meme, f.parse_meme_from_sheet),
     SheetTab("Note", models.Note, f.parse_note_from_sheet),

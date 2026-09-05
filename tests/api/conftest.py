@@ -232,6 +232,20 @@ def anime(sample_anime):
 
 
 @pytest.fixture
+def manga(manga_entry):
+    """Alias for manga_entry, matching the character/casting test briefs."""
+    return manga_entry
+
+
+@pytest.fixture
+def person(db_session):
+    p = models.Person(system_id=uuid.uuid4(), name_en="Test Person")
+    db_session.add(p)
+    db_session.flush()
+    return p
+
+
+@pytest.fixture
 def character(db_session):
     # photo_file is set to a real value (not None) so any test asserting the
     # casting-router photo fallback actually exercises the fallback branch,

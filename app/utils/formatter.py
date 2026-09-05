@@ -803,6 +803,51 @@ def parse_person_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_character_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Character sheet into typed data ready for
+    the Database.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "name_en": parse_from_sheet(raw.get("name_en"), str),
+        "name_cn": parse_from_sheet(raw.get("name_cn"), str),
+        "name_jp": parse_from_sheet(raw.get("name_jp"), str),
+        "name_alt": parse_from_sheet(raw.get("name_alt"), str),
+        "display_name_field": parse_from_sheet(raw.get("display_name_field"), str),
+        "gender": parse_from_sheet(raw.get("gender"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_character_casting_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Character Casting sheet into typed data
+    ready for the Database. The Character, Person and every media tab restore
+    before this one (see SHEET_TABS), so character_id, person_id and entry_id
+    all round-trip as plain UUIDs with no name-resolution step.
+
+    person_id is blank on every manga and novel row - nobody voices anyone in
+    a manga - so it goes through _uuid_or_none rather than a strict parse.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "character_id": _uuid_or_none(raw.get("character_id")),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "role": parse_from_sheet(raw.get("role"), str),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "photo_file": parse_from_sheet(raw.get("photo_file"), str),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_person_role_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Person Role sheet into typed data ready
