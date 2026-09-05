@@ -1,55 +1,10 @@
-"""The character router."""
+"""
+The character router.
 
-import uuid
-
-import pytest
-
-from app import models
-
-
-@pytest.fixture
-def anime(sample_anime):
-    """Alias for sample_anime, matching the brief's fixture name."""
-    return sample_anime
-
-
-@pytest.fixture
-def character(db_session):
-    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika")
-    db_session.add(c)
-    db_session.flush()
-    return c
-
-
-@pytest.fixture
-def duplicate_character(db_session, anime):
-    """A second character row, cast on the same anime, standing in for a
-    duplicate the merge endpoint should fold into `character`."""
-    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika (dup)")
-    db_session.add(c)
-    db_session.flush()
-    db_session.add(
-        models.CharacterCasting(
-            character_id=c.system_id,
-            media_type="anime",
-            entry_id=anime.system_id,
-        )
-    )
-    db_session.commit()
-    return c
-
-
-@pytest.fixture
-def character_with_castings(db_session, character, anime):
-    db_session.add(
-        models.CharacterCasting(
-            character_id=character.system_id,
-            media_type="anime",
-            entry_id=anime.system_id,
-        )
-    )
-    db_session.commit()
-    return character
+Fixtures `anime`, `character`, `duplicate_character`, and
+`character_with_castings` live in tests/api/conftest.py, shared with
+test_casting_router.py.
+"""
 
 
 def test_create_character(admin_client):

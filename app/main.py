@@ -23,6 +23,7 @@ from app.routers import (
     announcements,
     auth,
     cartoon,
+    casting,
     character,
     collection,
     comic,
@@ -195,6 +196,7 @@ app.include_router(person.router)
 app.include_router(character.router)
 app.include_router(studio.router)
 app.include_router(credits.router)
+app.include_router(casting.router)
 app.include_router(roles.router)
 app.include_router(users.router)
 app.include_router(content_labels.router)

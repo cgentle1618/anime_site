@@ -14,6 +14,11 @@ from app.services.domain.autofill import (
     autofill_novel_from_mal,
     autofill_tv_show_from_imdb,
 )
+from app.services.domain.casting import (
+    CastingValidationError,
+    casting_rows,
+    replace_casting,
+)
 from app.services.domain.checking import (
     apply_check_baha,
     apply_validate_ch_math,
@@ -129,6 +134,9 @@ from app.services.domain.watch_order import (
 )
 
 __all__ = [
+    "casting_rows",
+    "replace_casting",
+    "CastingValidationError",
     "resolve_series_parent_hierarchy",
     "resolve_anime_parent_hierarchy",
     "resolve_anime_movie_parent_hierarchy",

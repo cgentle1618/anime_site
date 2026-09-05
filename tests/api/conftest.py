@@ -226,6 +226,51 @@ def sample_anime(db_session, sample_franchise):
 
 
 @pytest.fixture
+def anime(sample_anime):
+    """Alias for sample_anime, matching the character/casting test briefs."""
+    return sample_anime
+
+
+@pytest.fixture
+def character(db_session):
+    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika")
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
+def duplicate_character(db_session, anime):
+    """A second character row, cast on the same anime, standing in for a
+    duplicate the merge endpoint should fold into `character`."""
+    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika (dup)")
+    db_session.add(c)
+    db_session.flush()
+    db_session.add(
+        models.CharacterCasting(
+            character_id=c.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return c
+
+
+@pytest.fixture
+def character_with_castings(db_session, character, anime):
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return character
+
+
+@pytest.fixture
 def manga_entry(db_session, sample_franchise):
     """One committed manga with no credits, for the credit-resolution tests."""
     m = models.Manga(
