@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-05 (commit c4e26eb)
+Last verified: 2026-09-05 (commit 8a9e33a)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -169,9 +169,19 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and
   its own `PUT /api/studio/{id}`, rendering `StudioFields` from the Add tab.
-  The picker searches **all four** name fields, not just the one
+  The picker **lists every studio up front** in a grid of display names, the
+  way the System Option tab lists a category's values — an admin does not have
+  to already know a name to reach the record. The search box filters that grid
+  in place over **all four** name fields, not just the one
   `display_name_field` points at, so a studio configured to display its
   English name is still findable by its Japanese one.
+- **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
+  over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
+  the option tab's category — and every person holding it is listed in the
+  same grid of display names, filtered in place by the same all-four-names
+  search. The form then edits the person's whole record, every type they hold
+  and not just the sub-tab's one, because `PUT` replaces the role set
+  wholesale.
 
 ## /delete (`Delete.jsx`)
 

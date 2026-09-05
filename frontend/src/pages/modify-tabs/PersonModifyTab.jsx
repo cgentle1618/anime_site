@@ -41,7 +41,6 @@ export default function PersonModifyTab() {
 
   const [subTab, setSubTab] = useState("director");
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [personForm, setPersonForm] = useState(null);
   const [roles, setRoles] = useState([]);
@@ -58,24 +57,27 @@ export default function PersonModifyTab() {
 
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
 
-  // Searches all four name fields, not just whichever one display_name_field
-  // points at - an admin looking someone up by their Japanese name must find
-  // them even when English is the configured display name.
+  // Everyone holding the sub-tab's role is listed up front, the way the System
+  // Option tab lists a category's values - an admin should not have to already
+  // know the name to reach the record. The search box filters that grid in
+  // place, across all four name fields rather than just whichever one
+  // display_name_field points at: looking someone up by their Japanese name
+  // must work even when English is the configured display name.
   const filtered = useMemo(() => {
-    if (!search.trim()) return [];
     const q = cleanString(search);
-    return people
-      .filter((p) =>
-        PERSON_NAME_FIELDS.some(
-          ({ field }) => p[field] && cleanString(p[field]).includes(q),
-        ),
-      )
-      .slice(0, 10);
+    const matched = q
+      ? people.filter((p) =>
+          PERSON_NAME_FIELDS.some(
+            ({ field }) => p[field] && cleanString(p[field]).includes(q),
+          ),
+        )
+      : people;
+    return [...matched].sort((a, b) =>
+      (a.display_name || "").localeCompare(b.display_name || ""),
+    );
   }, [people, search]);
 
   async function selectPerson(person) {
-    setOpen(false);
-    setSearch(person.display_name || "");
     try {
       const fresh = await fetchJson(endpoints.person.detail(person.system_id));
       setSelectedId(fresh.system_id);
@@ -92,7 +94,6 @@ export default function PersonModifyTab() {
     setSelectedId(null);
     setPersonForm(null);
     setRoles([]);
-    setSearch("");
   }
 
   const hasAnyName = personForm
@@ -142,44 +143,43 @@ export default function PersonModifyTab() {
               setSearch("");
             }}
           />
-          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 relative">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <div className="relative">
               <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
               <input
                 className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
                 placeholder="Search people to modify..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setOpen(true);
-                }}
-                onFocus={() => search && setOpen(true)}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {open && filtered.length > 0 && (
-              <div className="absolute z-50 left-4 right-4 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto">
-                {filtered.map((p) => (
-                  <div
-                    key={p.system_id}
-                    className="px-4 py-2.5 hover:bg-brand/10 cursor-pointer"
-                    onMouseDown={() => selectPerson(p)}
-                  >
-                    <div className="font-bold text-text text-sm">
-                      {p.display_name}
-                    </div>
-                    <div className="text-[11px] text-text-faint">
-                      {p.credit_count} credit{p.credit_count === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!isLoading && people.length === 0 && (
-              <p className="text-sm text-text-faint italic mt-2">
-                Nobody holds this type yet.
-              </p>
-            )}
           </div>
+
+          {filtered.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {filtered.map((p) => (
+                <button
+                  key={p.system_id}
+                  type="button"
+                  onClick={() => selectPerson(p)}
+                  className="text-left px-3 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium text-text-muted hover:border-brand hover:text-brand hover:bg-brand-soft transition shadow-sm truncate"
+                >
+                  {p.display_name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && people.length === 0 && (
+            <p className="text-sm text-text-faint italic">
+              Nobody holds this type yet.
+            </p>
+          )}
+          {!isLoading && people.length > 0 && filtered.length === 0 && (
+            <p className="text-sm text-text-faint italic">
+              Nobody with this type matches that name.
+            </p>
+          )}
         </>
       )}
 
