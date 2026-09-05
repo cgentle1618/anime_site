@@ -51,6 +51,12 @@ export const NAV_SECTIONS = [
             to: "/library/person",
             matches: ["/person"],
           },
+          {
+            label: "Character",
+            icon: "fas fa-masks-theater",
+            to: "/library/character",
+            matches: ["/character"],
+          },
         ],
       },
       {
@@ -80,7 +86,11 @@ export const NAV_SECTIONS = [
             to: "/library/novel",
             matches: ["/novel"],
           },
-          { label: "Seiyuu", icon: "fas fa-microphone", dev: true },
+          {
+            label: "Seiyuu",
+            icon: "fas fa-microphone",
+            to: "/library/seiyuu",
+          },
         ],
       },
       {

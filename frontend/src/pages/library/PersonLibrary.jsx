@@ -18,7 +18,14 @@ import { endpoints } from "../../api/endpoints";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 
-export default function PersonLibrary() {
+// `role` is optional: when set (e.g. "seiyuu" for /library/seiyuu), the
+// request filters server-side to people holding that role via
+// GET /api/person/?role=<role>. Left unset, /library/person keeps its
+// current unfiltered behaviour. A person holding the role but never yet
+// cast still comes back from that filter and is deliberately not hidden
+// here — person_role exists so they can appear in a cast dropdown before
+// their first casting.
+export default function PersonLibrary({ role } = {}) {
   const [allPeople, setAllPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,7 +36,8 @@ export default function PersonLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(endpoints.person.list(), {
+        const qs = role ? `role=${encodeURIComponent(role)}` : "";
+        const res = await fetch(endpoints.person.list(qs), {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to load data");
@@ -41,7 +49,7 @@ export default function PersonLibrary() {
       }
     }
     load();
-  }, []);
+  }, [role]);
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);

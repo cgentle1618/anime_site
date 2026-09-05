@@ -35,10 +35,20 @@ const PEOPLE = [
   },
 ];
 
-function renderLibrary() {
+const SEIYUU = [
+  {
+    system_id: "5",
+    name_en: "Miyu Irino",
+    display_name: "Miyu Irino",
+    credit_count: 0,
+    roles: [{ role: "seiyuu", scope: "anime" }],
+  },
+];
+
+function renderLibrary(props) {
   return render(
     <MemoryRouter>
-      <PersonLibrary />
+      <PersonLibrary {...props} />
     </MemoryRouter>,
   );
 }
@@ -97,5 +107,34 @@ describe("PersonLibrary", () => {
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toContain("諫山創");
+  });
+
+  it("filters to seiyuu when rendered with role=\"seiyuu\"", async () => {
+    renderLibrary({ role: "seiyuu" });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url] = fetch.mock.calls[0];
+    expect(url).toBe("/api/person/?role=seiyuu");
+  });
+
+  it("does not filter /library/person when role is unset", async () => {
+    renderLibrary();
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url] = fetch.mock.calls[0];
+    expect(url).toBe("/api/person/");
+  });
+
+  it("lists a seiyuu who has never been cast", async () => {
+    fetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(SEIYUU) }),
+    );
+
+    renderLibrary({ role: "seiyuu" });
+
+    await waitFor(() =>
+      expect(screen.getByText("Miyu Irino")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("0 credits")).toBeInTheDocument();
   });
 });

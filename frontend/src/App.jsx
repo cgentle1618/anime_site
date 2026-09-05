@@ -103,6 +103,10 @@ export default function App() {
                 <Route path="/library/studio" element={<StudioLibrary />} />
                 <Route path="/library/person" element={<PersonLibrary />} />
                 <Route
+                  path="/library/seiyuu"
+                  element={<PersonLibrary role="seiyuu" />}
+                />
+                <Route
                   path="/library/character"
                   element={<CharacterLibrary />}
                 />
