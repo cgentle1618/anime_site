@@ -39,3 +39,17 @@ const FALLBACK = `${CHIP} bg-surface-2 border-border text-text-muted`;
 export function scopeChip(scope) {
   return SCOPE_CHIPS[scope] || FALLBACK;
 }
+
+// One hue per usage (watch / origin), for the same System Options table -
+// see UsagePicker.jsx for what the two values mean. Same exception to design
+// rule 5 as SCOPE_CHIPS above, and same reason the classes are spelled out
+// per key rather than built as `bg-usage-${key}`.
+export const USAGE_CHIPS = {
+  watch: `${CHIP} bg-scope-anime/12 border-scope-anime/40 text-scope-anime`,
+  origin: `${CHIP} bg-scope-manga/12 border-scope-manga/40 text-scope-manga`,
+};
+
+/** Chip classes for one system_option usage key. */
+export function usageChip(usage) {
+  return USAGE_CHIPS[usage] || FALLBACK;
+}

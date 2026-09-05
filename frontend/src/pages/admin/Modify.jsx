@@ -289,6 +289,7 @@ export default function Modify() {
   const [ccmf, setCcmf] = useState({});
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
+  const [optUsages, setOptUsages] = useState([]);
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
   // NULL. Held in a ref rather than state because the deep-link path opens an
@@ -856,6 +857,7 @@ export default function Modify() {
     } else if (type === "options") {
       setOptValue(item.value || "");
       setOptScopes(item.scopes ?? []);
+      setOptUsages(item.usages ?? []);
     }
     setEditorOpen(true);
   }
@@ -1138,7 +1140,7 @@ export default function Modify() {
   }
 
   async function saveOption() {
-    const res = await fetch(`/api/options/${editingItem.system_id}`, {
+    const res = await fetch(endpoints.options.update(editingItem.system_id), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1147,6 +1149,7 @@ export default function Modify() {
         sort_order: editingItem.sort_order ?? 0,
         remark: editingItem.remark ?? null,
         scopes: optScopes,
+        usages: optUsages,
       }),
       credentials: "include",
     });
@@ -3417,6 +3420,8 @@ export default function Modify() {
                 optScopes={optScopes}
                 setOptScopes={setOptScopes}
                 setOptValue={setOptValue}
+                optUsages={optUsages}
+                setOptUsages={setOptUsages}
               />
             )}
           </div>

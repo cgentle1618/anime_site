@@ -29,24 +29,32 @@ describe("getReleaseFallback", () => {
 describe("getSourceValues", () => {
   const sources = {
     options: [
-      { category: "Genre Main", value: "Action", scopes: [] },
-      { category: "Genre Main", value: "Comedy", scopes: [] },
+      { category: "Genre Main", value: "Action", scopes: [], usages: [] },
+      { category: "Genre Main", value: "Comedy", scopes: [], usages: [] },
       {
         category: "Publisher / Distributor TW",
         value: "Anime Only Publisher",
         scopes: ["anime"],
+        usages: [],
       },
       {
         category: "Publisher / Distributor TW",
         value: "Manga Only Publisher",
         scopes: ["manga"],
+        usages: [],
       },
       {
         category: "Publisher / Distributor TW",
         value: "Any Scope Publisher",
         scopes: [],
+        usages: [],
       },
-      { category: "Comic Era", value: "Modern Age", scopes: ["comic"] },
+      {
+        category: "Comic Era",
+        value: "Modern Age",
+        scopes: ["comic"],
+        usages: [],
+      },
     ],
     studios: [
       { display_name: "A-1 Pictures" },
@@ -154,6 +162,55 @@ describe("getSourceValues", () => {
         getSourceValues(sources, { kind: "studio" }),
       ).not.toContain("");
     });
+  });
+});
+
+describe("getSourceValues — usage", () => {
+  const sources = {
+    options: [
+      { category: "Platform", value: "Netflix", scopes: [], usages: [] },
+      { category: "Platform", value: "Fox", scopes: [], usages: ["origin"] },
+      { category: "Platform", value: "Bahamut", scopes: ["anime"], usages: [] },
+    ],
+  };
+
+  it("hides an origin-only value from a watch picker", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+      usage: "watch",
+    });
+    expect(values).toContain("Netflix");
+    expect(values).not.toContain("Fox");
+  });
+
+  it("offers a value with no usages for every usage", () => {
+    for (const usage of ["watch", "origin"]) {
+      const values = getSourceValues(sources, {
+        kind: "option",
+        category: "Platform",
+        usage,
+      });
+      expect(values).toContain("Netflix");
+    }
+  });
+
+  it("applies scope and usage together", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+      scope: "movie",
+      usage: "watch",
+    });
+    expect(values).toEqual(["Netflix"]);
+  });
+
+  it("ignores usage when none is asked for", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+    });
+    expect(values).toContain("Fox");
   });
 });
 

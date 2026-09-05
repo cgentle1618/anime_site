@@ -1,6 +1,7 @@
 // Frontend: modify tab page file for OptionsModifyTab.
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import ScopePicker from "../../components/forms/ScopePicker";
+import UsagePicker from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
 
 export default function OptionsModifyTab({
@@ -9,6 +10,8 @@ export default function OptionsModifyTab({
   setOptValue,
   optScopes,
   setOptScopes,
+  optUsages,
+  setOptUsages,
 }) {
   return (
     <>
@@ -34,6 +37,7 @@ export default function OptionsModifyTab({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
+      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
     </>
   );
 }

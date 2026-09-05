@@ -28,7 +28,7 @@ export function getRatingWeight(rating) {
  * studios } — see lib/sources.js).
  *
  * `kind` selects where the values come from:
- *   option -> sources.options, filtered by category (+ scope, when scoped)
+ *   option -> sources.options, filtered by category (+ scope and usage, when given)
  *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
  *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
  */
@@ -42,7 +42,11 @@ export function getSourceValues(sources, source) {
           (!source.scope ||
             !o.scopes ||
             o.scopes.length === 0 ||
-            o.scopes.includes(source.scope)),
+            o.scopes.includes(source.scope)) &&
+          (!source.usage ||
+            !o.usages ||
+            o.usages.length === 0 ||
+            o.usages.includes(source.usage)),
       )
       .map((o) => o.value);
   }

@@ -149,6 +149,10 @@ export default function Add() {
   // Explicit because a save no longer derives it - see Ruling R27 and
   // components/forms/ScopePicker.jsx.
   const [optScopes, setOptScopes] = useState([]);
+  // Which roles (watch / origin) the new values are offered in. Empty =
+  // both. Explicit for the same reason as optScopes - see Ruling R27 and
+  // components/forms/UsagePicker.jsx.
+  const [optUsages, setOptUsages] = useState([]);
 
   // The Options tab has two sub-tabs (Options / Tags) sharing one "System
   // Options" nav entry. Person and Studio are top-level tabs under the Entity
@@ -980,6 +984,7 @@ export default function Add() {
             category: optCategory.trim(),
             value: val.trim(),
             scopes: optScopes,
+            usages: optUsages,
           }),
           credentials: "include",
         }),
@@ -996,6 +1001,7 @@ export default function Add() {
         setOptCategory("");
         setOptValues([""]);
         setOptScopes([]);
+        setOptUsages([]);
       }
       setSources(await fetchAllSources());
     }
@@ -2551,6 +2557,8 @@ export default function Add() {
             optionCategories={optionCategories}
             optScopes={optScopes}
             setOptScopes={setOptScopes}
+            optUsages={optUsages}
+            setOptUsages={setOptUsages}
           />
         )}
 

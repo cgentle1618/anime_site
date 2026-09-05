@@ -10,6 +10,7 @@
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
+import UsagePicker from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
@@ -35,6 +36,8 @@ function OptionsForm({
   optionCategories,
   optScopes,
   setOptScopes,
+  optUsages,
+  setOptUsages,
 }) {
   return (
     <div className="space-y-4">
@@ -96,6 +99,7 @@ function OptionsForm({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
+      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
     </div>
   );
 }
@@ -110,6 +114,8 @@ export default function OptionsAddTab({
   optionCategories,
   optScopes,
   setOptScopes,
+  optUsages,
+  setOptUsages,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
@@ -129,6 +135,8 @@ export default function OptionsAddTab({
           )}
           optScopes={optScopes}
           setOptScopes={setOptScopes}
+          optUsages={optUsages}
+          setOptUsages={setOptUsages}
         />
       )}
     </div>
