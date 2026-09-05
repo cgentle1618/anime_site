@@ -3,7 +3,7 @@
 // owns `value` and receives every change through `onChange`. CastEditor
 // never calls the API to save a cast list — only to search/create the
 // characters and people its two comboboxes reference.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ComboBox from "./ComboBox";
 import { useConstants } from "../../config/useConstants";
@@ -17,6 +17,12 @@ const FALLBACK_CHARACTER_ROLES = ["Main", "Supporting"];
 // character's UUID, that stands for "mint a brand new character with this
 // typed name" rather than "select this existing character".
 const CREATE_CHARACTER_PREFIX = "__create_character__:";
+
+// Debounced the same way useGlobalMediaSearch debounces: one request per
+// keystroke is one too many, and GET /api/character/?name= is the whole
+// reason this component no longer has to download every character just to
+// offer suggestions.
+const CHARACTER_SEARCH_DEBOUNCE_MS = 250;
 
 // ck_casting_voice_scope: person_id IS NULL OR media_type IN
 // ('anime', 'anime-movie'). Nobody voices anyone in a manga or novel, so the
@@ -56,52 +62,21 @@ export default function CastEditor({ mediaType, value, onChange }) {
       ? constants.character_role
       : FALLBACK_CHARACTER_ROLES;
 
-  const [characters, setCharacters] = useState([]);
-  const [seiyuuList, setSeiyuuList] = useState([]);
+  // Per-row character search results, keyed by row index: {system_id,
+  // display_name, entryNames}[]. Populated only by typing (see
+  // scheduleCharacterSearch) — nothing is fetched for the character
+  // combobox on mount, and a row that already has a selection needs no
+  // fetch at all (see characterItems).
+  const [characterResults, setCharacterResults] = useState({});
+  const searchTimers = useRef({});
+  useEffect(
+    () => () => {
+      Object.values(searchTimers.current).forEach(clearTimeout);
+    },
+    [],
+  );
 
-  // Every character, annotated with the entries it already appears in.
-  // Decision G: character names legitimately recur across unrelated works —
-  // the database deliberately has no unique constraint on them — so the
-  // admin needs to see WHICH "Yuki" a match is before deciding whether to
-  // reuse it.
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch(endpoints.character.list(), {
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const list = await res.json();
-        const withEntries = await Promise.all(
-          (Array.isArray(list) ? list : []).map(async (c) => {
-            let entryNames = [];
-            try {
-              const eres = await fetch(endpoints.character.entries(c.system_id), {
-                credentials: "include",
-              });
-              if (eres.ok) {
-                const groups = await eres.json();
-                entryNames = (Array.isArray(groups) ? groups : []).flatMap((g) =>
-                  (g.entries || []).map((e) => e.display_name),
-                );
-              }
-            } catch {
-              /* best effort — a missing entries list just omits the hint */
-            }
-            return { ...c, entryNames };
-          }),
-        );
-        if (!cancelled) setCharacters(withEntries);
-      } catch {
-        /* best effort — the character combobox still works empty */
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [seiyuuList, setSeiyuuList] = useState([]);
 
   // Existing seiyuu, scoped to this media type exactly like every other
   // person source (PersonRoleIn.scope IS the media type). Not fetched at
@@ -147,16 +122,81 @@ export default function CastEditor({ mediaType, value, onChange }) {
     onChange(next.map((r, k) => ({ ...r, position: k })));
   };
 
-  function characterItems(row) {
+  // Searches GET /api/character/?name= (Fix round 1: this used to fetch the
+  // whole table). Debounced per row, and fetches /entries ONLY for the
+  // handful of candidates the search actually returns — never for a row's
+  // already-selected character, which needs no disambiguating any more.
+  function scheduleCharacterSearch(i, text) {
+    clearTimeout(searchTimers.current[i]);
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setCharacterResults((prev) => ({ ...prev, [i]: [] }));
+      return;
+    }
+    searchTimers.current[i] = setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams({ name: trimmed }).toString();
+        const res = await fetch(endpoints.character.list(qs), {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const list = await res.json();
+        const withEntries = await Promise.all(
+          (Array.isArray(list) ? list : []).map(async (c) => {
+            let entryNames = [];
+            try {
+              const eres = await fetch(endpoints.character.entries(c.system_id), {
+                credentials: "include",
+              });
+              if (eres.ok) {
+                const groups = await eres.json();
+                entryNames = (Array.isArray(groups) ? groups : []).flatMap((g) =>
+                  (g.entries || []).map((e) => e.display_name),
+                );
+              }
+            } catch {
+              /* best effort — a missing entries list just omits the hint */
+            }
+            return { ...c, entryNames };
+          }),
+        );
+        setCharacterResults((prev) => ({ ...prev, [i]: withEntries }));
+      } catch {
+        /* best effort — the character combobox still works empty */
+      }
+    }, CHARACTER_SEARCH_DEBOUNCE_MS);
+  }
+
+  function characterItems(row, i) {
     const typed = (row.character_name || "").trim();
-    const items = characters.map((c) => ({
-      id: c.system_id,
-      label:
-        c.entryNames && c.entryNames.length
-          ? `${c.display_name} — in: ${c.entryNames.join(", ")}`
-          : c.display_name,
-      searchText: c.display_name,
-    }));
+    const items = [];
+    // The already-selected character, if any, shown with its PLAIN name —
+    // the entries annotation is a search aid, not a persistent label (Fix
+    // round 1, finding 2). This needs no fetch: the row already carries
+    // both id and name locally.
+    if (row.character_id) {
+      items.push({
+        id: row.character_id,
+        label: row.character_name || "",
+        searchText: row.character_name || "",
+      });
+    }
+    // Server-searched candidates, annotated with the entries they already
+    // appear in (Decision G: the admin needs to see WHICH "Yuki" a match is
+    // before deciding whether to reuse it). searchText is pinned to the
+    // typed query rather than the candidate's own display_name, because the
+    // server may have matched through name_jp/name_cn/name_alt — a column
+    // ComboBox's own client-side re-filter never sees.
+    for (const c of characterResults[i] || []) {
+      items.push({
+        id: c.system_id,
+        label:
+          c.entryNames && c.entryNames.length
+            ? `${c.display_name} — in: ${c.entryNames.join(", ")}`
+            : c.display_name,
+        searchText: typed,
+      });
+    }
     // Decision G, the heart of this component: a name match is OFFERED,
     // never assumed. "Create new character named X" stays a separate,
     // deliberate option alongside any matches — even an exact one — because
@@ -185,7 +225,6 @@ export default function CastEditor({ mediaType, value, onChange }) {
         });
         if (!res.ok) return;
         const created = await res.json();
-        setCharacters((prev) => [...prev, { ...created, entryNames: [] }]);
         updateRow(i, {
           character_id: created.system_id,
           character_name: created.display_name || name,
@@ -195,7 +234,7 @@ export default function CastEditor({ mediaType, value, onChange }) {
       }
       return;
     }
-    const found = characters.find((c) => c.system_id === id);
+    const found = (characterResults[i] || []).find((c) => c.system_id === id);
     updateRow(i, {
       character_id: id,
       character_name: found?.display_name || "",
@@ -269,12 +308,18 @@ export default function CastEditor({ mediaType, value, onChange }) {
 
           <div className="flex-1 min-w-0" aria-label="Character">
             <ComboBox
-              items={characterItems(row)}
+              items={characterItems(row, i)}
               selectedId={row.character_id || null}
               inputText={row.character_name || ""}
               onSelect={(id) => handleCharacterSelect(i, id)}
-              onType={(text) => updateRow(i, { character_name: text })}
-              onClear={() => updateRow(i, { character_id: null, character_name: "" })}
+              onType={(text) => {
+                updateRow(i, { character_name: text });
+                scheduleCharacterSearch(i, text);
+              }}
+              onClear={() => {
+                updateRow(i, { character_id: null, character_name: "" });
+                setCharacterResults((prev) => ({ ...prev, [i]: [] }));
+              }}
               placeholder="Character name..."
             />
           </div>

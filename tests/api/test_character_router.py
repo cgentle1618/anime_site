@@ -69,3 +69,22 @@ def test_guest_cannot_create_a_character(client):
     assert (
         client.post("/api/character/", json={"name_en": "Ichika"}).status_code == 401
     )
+
+
+def test_name_search_matches_any_name_column_and_excludes_non_matches(admin_client):
+    """
+    The cast editor's character combobox searches by name instead of
+    downloading every character. A query must match ANY of the four name
+    columns - here, one character is only findable through name_jp - and
+    must not return characters whose names don't match at all.
+    """
+    admin_client.post(
+        "/api/character/", json={"name_en": "Yuki", "name_jp": "雪"}
+    )
+    admin_client.post("/api/character/", json={"name_en": "Souta"})
+
+    r = admin_client.get("/api/character/", params={"name": "雪"})
+    assert r.status_code == 200
+    names = [c["display_name"] for c in r.json()]
+    assert "Yuki" in names
+    assert "Souta" not in names

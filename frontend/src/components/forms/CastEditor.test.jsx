@@ -1,8 +1,11 @@
 // CastEditor's contracts that matter for a casting row: the seiyuu column
 // only exists where ck_casting_voice_scope allows a person_id (anime,
-// anime-movie), position stays contiguous after a removal, and — the heart
-// of Decision G — the character combobox never silently reuses or silently
-// mints a name match; it always offers both as separate, explicit choices.
+// anime-movie), position stays contiguous after a removal, the character
+// combobox never fetches anything until it is actually used (Fix round 1,
+// finding 1), the selected pill shows a plain name rather than the search
+// annotation (Fix round 1, finding 2), and — the heart of Decision G — the
+// character combobox never silently reuses or silently mints a name match;
+// it always offers both as separate, explicit choices.
 import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -59,6 +62,13 @@ function row(overrides = {}) {
 function mockFetch({ characters = [], entriesByCharacter = {}, createdCharacter } = {}) {
   return vi.fn((url, init) => {
     const method = init?.method || "GET";
+    // The name-searched endpoint the character combobox actually uses.
+    if (url.startsWith("/api/character/?name=") && method === "GET") {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(characters) });
+    }
+    // The bare, unfiltered endpoint. Fix round 1 exists so the character
+    // combobox never hits this on mount — kept here only so a regression
+    // would show up as unexpected data, not a network error.
     if (url === "/api/character/" && method === "GET") {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(characters) });
     }
@@ -103,7 +113,15 @@ it("hides the seiyuu column on manga", async () => {
   // not offer what the database will reject.
   render(<CastEditor mediaType="manga" value={[row()]} onChange={vi.fn()} />);
   expect(screen.queryByLabelText(/seiyuu/i)).not.toBeInTheDocument();
-  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  // Manga has no seiyuu column and the character box fetches nothing on
+  // mount (Fix round 1) — the only network call is useConstants'
+  // unconditional /api/constants, unrelated to this component's own fetch
+  // behaviour.
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const relevantCalls = fetch.mock.calls.filter(
+    ([url]) => url.startsWith("/api/character/") || url.startsWith("/api/person/"),
+  );
+  expect(relevantCalls).toHaveLength(0);
 });
 
 it("shows the seiyuu column on anime and anime-movie", async () => {
@@ -137,6 +155,50 @@ it("renumbers position after a row is removed", async () => {
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });
 
+it("fetches nothing for the character combobox until it is typed into", async () => {
+  // Fix round 1, finding 1: GET /api/character/ used to be fetched (plus one
+  // /entries call per character) on every mount, whether or not the
+  // dropdown was ever opened. A row that already has a selection should
+  // need no character fetch at all, and an untouched row needs none either.
+  render(
+    <CastEditor
+      mediaType="anime"
+      value={[row({ character_id: "c1", character_name: "Yuki" })]}
+      onChange={vi.fn()}
+    />,
+  );
+
+  // Let the seiyuu fetch (unrelated, and legitimate on mount) resolve.
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  const characterCalls = fetch.mock.calls.filter(([url]) =>
+    url.startsWith("/api/character/"),
+  );
+  expect(characterCalls).toHaveLength(0);
+  // The already-selected character still renders under its plain name with
+  // no network round-trip.
+  expect(screen.getByText("Yuki")).toBeInTheDocument();
+});
+
+it("shows the plain character name in the selected pill, not the entries annotation", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal(
+    "fetch",
+    mockFetch({ characters: [YUKI], entriesByCharacter: { c1: YUKI_ENTRIES } }),
+  );
+
+  render(<Controlled initialRows={[row()]} mediaType="anime" onChangeSpy={vi.fn()} />);
+
+  const input = screen.getByPlaceholderText("Character name...");
+  await user.type(input, "Yuki");
+  const existingOption = await screen.findByRole("button", { name: /Yuki.*Show A/ });
+  await user.click(existingOption);
+
+  // Fix round 1, finding 2: the entries annotation is a search aid, not a
+  // persistent label — once selected, the pill shows the clean name.
+  await waitFor(() => expect(screen.getByText("Yuki")).toBeInTheDocument());
+  expect(screen.queryByText(/Show A/)).not.toBeInTheDocument();
+});
+
 it("requires an explicit choice before minting a character with an existing name", async () => {
   const user = userEvent.setup();
   const created = { system_id: "c2", display_name: "Yuki" };
@@ -154,7 +216,6 @@ it("requires an explicit choice before minting a character with an existing name
     <Controlled initialRows={[row()]} mediaType="anime" onChangeSpy={onChange} />,
   );
 
-  // Wait for the existing "Yuki" to be loaded before typing.
   const input = screen.getByPlaceholderText("Character name...");
   await user.type(input, "Yuki");
 

@@ -11,10 +11,11 @@ loser, so no casting history is lost.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -70,11 +71,36 @@ def _to_response(
     "/", response_model=List[schemas.CharacterResponse], summary="Get All Characters"
 )
 def get_all_characters(
+    name: Optional[str] = Query(
+        default=None,
+        description="Case-insensitive substring match against any of the four name columns.",
+    ),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves every character."""
-    characters = db.query(models.Character).all()
+    """
+    Retrieves every character, or - when `name` is given - only those whose
+    name_en/name_cn/name_jp/name_alt contains it (case-insensitive).
+
+    The filter exists so the cast editor's character combobox never has to
+    download the whole table just to offer suggestions as an admin types.
+    Character names deliberately recur across unrelated works (no unique
+    constraint on purpose - see CharacterCreate), so this search, together
+    with the entries each match already appears in, is how an admin tells
+    one "Yuki" from another before reusing or minting one.
+    """
+    query = db.query(models.Character)
+    if name:
+        search_term = f"%{name}%"
+        query = query.filter(
+            or_(
+                models.Character.name_en.ilike(search_term),
+                models.Character.name_cn.ilike(search_term),
+                models.Character.name_jp.ilike(search_term),
+                models.Character.name_alt.ilike(search_term),
+            )
+        )
+    characters = query.all()
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
     characters.sort(key=lambda c: c.display_name.casefold())
