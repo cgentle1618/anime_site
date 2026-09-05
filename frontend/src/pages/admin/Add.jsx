@@ -1972,6 +1972,7 @@ export default function Add() {
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
       anilist_link: nvf.anilist_link || null,
+      openlibrary_link: nvf.openlibrary_link || null,
       source_other:
         nvf.source_other.filter((e) => e.name.trim()).length > 0
           ? Object.fromEntries(

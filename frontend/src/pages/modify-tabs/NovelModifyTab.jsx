@@ -1,5 +1,6 @@
 // Frontend: modify tab page file for NovelModifyTab.
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import { countsChapters } from "../../lib/novelUnits";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -292,46 +293,54 @@ export default function NovelModifyTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Arc Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.arc_total ?? ""}
-            onChange={(e) => unv("arc_total", e.target.value)}
-          />
-        </Field>
-        <Field label="Arc Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.arc_fin ?? ""}
-            onChange={(e) => unv("arc_fin", e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Ch Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.ch_total ?? ""}
-            onChange={(e) => unv("ch_total", e.target.value)}
-          />
-        </Field>
-        <Field label="Ch Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.ch_fin ?? ""}
-            onChange={(e) => unv("ch_fin", e.target.value)}
-          />
-        </Field>
-      </div>
+      {/* Arc and chapter counters exist only for the types that count them.
+          A Light Novel or a Novel counts volumes, and the server clears these
+          columns on save, so offering the inputs would invite an edit that is
+          discarded. Follows the Type dropdown live. */}
+      {countsChapters(cnvf) && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Arc Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.arc_total ?? ""}
+                onChange={(e) => unv("arc_total", e.target.value)}
+              />
+            </Field>
+            <Field label="Arc Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.arc_fin ?? ""}
+                onChange={(e) => unv("arc_fin", e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Ch Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.ch_total ?? ""}
+                onChange={(e) => unv("ch_total", e.target.value)}
+              />
+            </Field>
+            <Field label="Ch Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.ch_fin ?? ""}
+                onChange={(e) => unv("ch_fin", e.target.value)}
+              />
+            </Field>
+          </div>
+        </>
+      )}
 
       <SectionHeader icon="fa-star" title="Scores" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -461,6 +470,14 @@ export default function NovelModifyTab({
             type="url"
             value={cnvf.anilist_link || ""}
             onChange={(e) => unv("anilist_link", e.target.value)}
+          />
+        </Field>
+        <Field label="Open Library Link">
+          <input
+            className={inputCls}
+            type="url"
+            value={cnvf.openlibrary_link || ""}
+            onChange={(e) => unv("openlibrary_link", e.target.value)}
           />
         </Field>
       </div>

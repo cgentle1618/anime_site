@@ -210,3 +210,21 @@ describe("Novel detail page — units", () => {
     );
   });
 });
+
+describe("Novel detail page — sources", () => {
+  it("renders the Open Library link in the Sources card", async () => {
+    mockFetch({
+      ...BASE_NOVEL,
+      openlibrary_link: "https://openlibrary.org/works/OL5738148W",
+    });
+    mount();
+    expect(await screen.findByText("Open Library")).toBeInTheDocument();
+  });
+
+  it("renders no Open Library row when the link is absent", async () => {
+    mockFetch({ ...BASE_NOVEL, openlibrary_link: null });
+    mount();
+    await screen.findByRole("heading", { name: "Test Novel" });
+    expect(screen.queryByText("Open Library")).not.toBeInTheDocument();
+  });
+});

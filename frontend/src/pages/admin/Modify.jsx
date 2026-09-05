@@ -764,6 +764,7 @@ export default function Modify() {
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
       anilist_link: n.anilist_link || "",
+      openlibrary_link: n.openlibrary_link || "",
       source_other: Array.isArray(n.source_other)
         ? n.source_other
         : Object.entries(n.source_other || {}).map(([name, url]) => ({
@@ -1933,6 +1934,7 @@ export default function Modify() {
       mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
       mal_link: cnvf.mal_link || null,
       anilist_link: cnvf.anilist_link || null,
+      openlibrary_link: cnvf.openlibrary_link || null,
       source_other:
         (cnvf.source_other || []).filter((e) => e.name.trim()).length > 0
           ? Object.fromEntries(

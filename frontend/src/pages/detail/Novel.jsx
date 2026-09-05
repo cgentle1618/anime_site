@@ -15,6 +15,7 @@ import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { countsChapters } from "../../lib/novelUnits";
 import {
   Button,
   Chip,
@@ -250,10 +251,26 @@ export default function Novel() {
     ),
   );
 
-  const chFin = novel.ch_fin ?? 0;
-  const chTotal = novel.ch_total != null ? novel.ch_total : null;
-  const progress = chTotal ? chFin / chTotal : chFin > 0 ? 1 : 0;
-  const progressPct = chTotal ? Math.round(progress * 100) : null;
+  // The rule along the cover counts whatever the type counts. A Light Novel
+  // or a Novel counts volumes; its chapter columns are cleared server-side, so
+  // reading them here produced the "CHAPTERS 0 / 110" a finished 11-volume
+  // light novel used to show. The volume denominator follows the same TW/JP
+  // preference the tracker uses.
+  const countsCh = countsChapters(novel);
+  const volDenominator = novel.progress_display === "vol_tw"
+    ? (novel.vol_total_tw ?? novel.vol_total_original ?? null)
+    : (novel.vol_total_original ?? novel.vol_total_tw ?? null);
+  const progressLabel = countsCh ? "Chapters" : "Volumes";
+  const progressFin = countsCh ? (novel.ch_fin ?? 0) : (novel.vol_fin ?? 0);
+  const progressTotal = countsCh
+    ? (novel.ch_total != null ? novel.ch_total : null)
+    : volDenominator;
+  const progress = progressTotal
+    ? progressFin / progressTotal
+    : progressFin > 0
+      ? 1
+      : 0;
+  const progressPct = progressTotal ? Math.round(progress * 100) : null;
 
   const eyebrow = ["Novel", novel.region, novel.type, novel.serialization_status]
     .filter(Boolean)
@@ -355,9 +372,9 @@ export default function Novel() {
               {/* Progress rule along the bottom edge of the cover */}
               <ProgressRule value={progress} />
               <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
-                <span>Chapters</span>
+                <span>{progressLabel}</span>
                 <span className="text-text">
-                  {chFin} / {chTotal ?? "?"}
+                  {progressFin} / {progressTotal ?? "?"}
                   {progressPct != null ? ` · ${progressPct}%` : ""}
                 </span>
               </div>
@@ -369,6 +386,7 @@ export default function Novel() {
             twitterLink={twitterLink}
             malLink={novel.mal_link}
             anilistLink={novel.anilist_link}
+            openLibraryLink={novel.openlibrary_link}
             sourceOther={
               Object.keys(filteredSourceOther).length > 0
                 ? filteredSourceOther

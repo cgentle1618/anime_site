@@ -50,93 +50,136 @@ function SourceRow({ tag, children, muted = false }) {
   );
 }
 
+// Media types whose sources are things you read rather than watch.
+const READING_TYPES = new Set(["manga", "novel", "comic"]);
+
+function accessHeading(mediaType) {
+  return READING_TYPES.has(mediaType) ? "Where to Read" : "Where to Watch";
+}
+
+// A single `sources` row. `available` is a tristate:
+//  - true + url     -> a real link
+//  - true + no url  -> a plain row (known available, nothing to link to yet)
+//  - false          -> a muted row marked "not available" (a known absence
+//                      is information, not something to hide)
+//  - null/undefined -> a muted row with no claim either way
+function SourceEntry({ row }) {
+  const name = <span data-testid="source-name">{row.name}</span>;
+
+  if (row.available === false) {
+    return (
+      <SourceRow muted>
+        {name}
+        <span className="ml-2 text-[10px] uppercase tracking-wide">
+          (not available)
+        </span>
+      </SourceRow>
+    );
+  }
+
+  if (row.available == null) {
+    return <SourceRow muted>{name}</SourceRow>;
+  }
+
+  if (row.url) {
+    return <SourceLink href={row.url}>{name}</SourceLink>;
+  }
+
+  return <SourceRow>{name}</SourceRow>;
+}
+
 export default function SourcesCard({
-  showBaha,
-  bahaLink,
-  sourceNetflix,
-  sourceOther,
+  sources = [],
+  mediaType,
   malLink,
-  anilistLink,
-  officialLink,
-  twitterLink,
   imdbLink,
-  officialSource,
+  comicvineLink,
+  openLibraryLink,
+  originalSource,
+  exclusiveSource,
   serializationPlatform,
 }) {
-  const hasAny =
-    showBaha ||
-    sourceNetflix ||
-    officialSource ||
-    serializationPlatform ||
-    imdbLink ||
-    (sourceOther && Object.keys(sourceOther).length > 0) ||
-    malLink ||
-    anilistLink ||
-    officialLink ||
-    twitterLink;
+  // Never re-sort - the server already ordered these by `position`
+  // (vocabulary sort_order for `main` rows, insertion order for `other`/
+  // `restricted` rows).
+  const accessRows = sources.filter((row) => row.kind === "access");
+  const referenceRows = sources.filter((row) => row.kind === "reference");
 
-  return (
-    <Slip title="Sources" padded={false}>
-      {showBaha && bahaLink && (
-        <SourceLink href={bahaLink} title="Watch on Bahamut">
-          <span className="flex items-center gap-2">
-            <img
-              src="https://i2.bahamut.com.tw/anime/logo.svg"
-              className="h-3.5 opacity-80"
-              alt=""
-            />
-            Bahamut
-          </span>
-        </SourceLink>
-      )}
-      {showBaha && !bahaLink && (
-        <SourceRow muted>
-          <span className="flex items-center gap-2">
-            <img
-              src="https://i2.bahamut.com.tw/anime/logo.svg"
-              className="h-3.5 grayscale opacity-50"
-              alt=""
-            />
-            Bahamut (no link)
-          </span>
-        </SourceRow>
-      )}
-      {sourceNetflix && <SourceRow tag="N">Netflix</SourceRow>}
-      {officialSource && <SourceRow>{officialSource}</SourceRow>}
-      {serializationPlatform && <SourceRow>{serializationPlatform}</SourceRow>}
-      {imdbLink && (
-        <SourceLink href={imdbLink} tag="IMDb">
-          IMDb page
-        </SourceLink>
-      )}
-      {sourceOther &&
-        Object.entries(sourceOther).map(([name, url]) =>
-          url ? (
-            <SourceLink key={name} href={url}>
-              {name}
-            </SourceLink>
-          ) : (
-            <SourceRow key={name} muted>
-              {name}
-            </SourceRow>
-          ),
-        )}
-      {malLink && (
-        <SourceLink href={malLink} tag="MAL">
-          MyAnimeList
-        </SourceLink>
-      )}
-      {anilistLink && (
-        <SourceLink href={anilistLink} tag="AL">
-          AniList
-        </SourceLink>
-      )}
-      {officialLink && <SourceLink href={officialLink}>Official site</SourceLink>}
-      {twitterLink && <SourceLink href={twitterLink}>Twitter</SourceLink>}
-      {!hasAny && (
+  const tags = [originalSource, exclusiveSource, serializationPlatform].filter(
+    Boolean,
+  );
+
+  const hasAny =
+    accessRows.length > 0 ||
+    referenceRows.length > 0 ||
+    Boolean(malLink) ||
+    Boolean(imdbLink) ||
+    Boolean(comicvineLink) ||
+    Boolean(openLibraryLink) ||
+    tags.length > 0;
+
+  if (!hasAny) {
+    return (
+      <Slip title="Sources" padded={false}>
         <div className="px-4 py-3 text-sm text-text-faint">
           No sources recorded.
         </div>
+      </Slip>
+    );
+  }
+
+  return (
+    <Slip title="Sources" padded={false}>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-border">
+          {tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+        </div>
+      )}
+      {accessRows.length > 0 && (
+        <section aria-label={accessHeading(mediaType)}>
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            {accessHeading(mediaType)}
+          </div>
+          {accessRows.map((row) => (
+            <SourceEntry key={row.system_id} row={row} />
+          ))}
+        </section>
+      )}
+      {(referenceRows.length > 0 ||
+        malLink ||
+        imdbLink ||
+        comicvineLink ||
+        openLibraryLink) && (
+        <section aria-label="Where to Look Up">
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            Where to Look Up
+          </div>
+          {referenceRows.map((row) => (
+            <SourceEntry key={row.system_id} row={row} />
+          ))}
+          {malLink && (
+            <SourceLink href={malLink} tag="MAL">
+              MyAnimeList
+            </SourceLink>
+          )}
+          {imdbLink && (
+            <SourceLink href={imdbLink} tag="IMDb">
+              IMDb page
+            </SourceLink>
+          )}
+          {comicvineLink && (
+            <SourceLink href={comicvineLink} tag="CV">
+              Comic Vine
+            </SourceLink>
+          )}
+          {openLibraryLink && (
+            <SourceLink href={openLibraryLink} tag="OL">
+              Open Library
+            </SourceLink>
+          )}
+        </section>
       )}
     </Slip>
   );

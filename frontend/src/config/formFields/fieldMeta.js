@@ -585,6 +585,14 @@ export const TYPE_FIELD_META = {
       },
       group: "Credits",
     },
+    // The Fill pipeline reads openlibrary_id, which the backend derives from
+    // this link — so the link is the only one the admin ever types. Novels
+    // with no MAL link have no other source.
+    openlibrary_link: {
+      label: "Open Library Link",
+      control: "url",
+      group: "Links",
+    },
   },
 
   comic: {

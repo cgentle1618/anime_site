@@ -1,5 +1,6 @@
 // Frontend: add tab page file for NovelAddTab.
 import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import { countsChapters } from "../../lib/novelUnits";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import {
@@ -334,28 +335,32 @@ export default function NovelAddTab({
           ))}
         </select>
       </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Ch Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.ch_total}
-            onChange={(e) => unv("ch_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Ch Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.ch_fin}
-            onChange={(e) => unv("ch_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
+      {/* Arc and chapter counters exist only for the types that count them -
+          see the same gate in NovelModifyTab. */}
+      {countsChapters(nvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Ch Total">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.ch_total}
+              onChange={(e) => unv("ch_total", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Ch Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.ch_fin}
+              onChange={(e) => unv("ch_fin", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Total Volumes (JP/KR)">
           <input
@@ -378,7 +383,11 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div
+        className={`grid grid-cols-1 ${
+          countsChapters(nvf) ? "md:grid-cols-3" : "md:grid-cols-1"
+        } gap-4`}
+      >
         <Field label="Vol Finished">
           <input
             className={inputCls}
@@ -389,26 +398,30 @@ export default function NovelAddTab({
             placeholder="0"
           />
         </Field>
-        <Field label="Arc Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.arc_total}
-            onChange={(e) => unv("arc_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Arc Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.arc_fin}
-            onChange={(e) => unv("arc_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
+        {countsChapters(nvf) && (
+          <>
+            <Field label="Arc Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={nvf.arc_total}
+                onChange={(e) => unv("arc_total", e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+            <Field label="Arc Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={nvf.arc_fin}
+                onChange={(e) => unv("arc_fin", e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+          </>
+        )}
       </div>
 
       <SectionHeader icon="fa-star" title="Scores" />
@@ -545,6 +558,15 @@ export default function NovelAddTab({
             value={nvf.anilist_link}
             onChange={(e) => unv("anilist_link", e.target.value)}
             placeholder="https://anilist.co/manga/..."
+          />
+        </Field>
+        <Field label="Open Library Link">
+          <input
+            className={inputCls}
+            type="url"
+            value={nvf.openlibrary_link}
+            onChange={(e) => unv("openlibrary_link", e.target.value)}
+            placeholder="https://openlibrary.org/works/OL..."
           />
         </Field>
       </div>
