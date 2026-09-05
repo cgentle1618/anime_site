@@ -19,6 +19,7 @@ from app.services.domain.credits import credit_names, replace_credits, replace_t
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.image_manager import download_cover_image
 from app.services.integrations.imdb import fetch_imdb_data
+from app.services.integrations.openlibrary import fetch_openlibrary_work
 from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
@@ -30,6 +31,7 @@ from app.utils.imdb_utils import (
     map_imdb_to_tv_show_data,
 )
 from app.utils.name_normalize import split_names
+from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -247,6 +249,55 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
     except Exception as e:
         logger.error(
             f"MAL Autofill failed for Novel ID {novel.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
+    """
+    Enriches a single Novel entry with Open Library data. Does not commit —
+    caller is responsible.
+
+    For novels MAL does not have. Fill-only throughout, and deliberately narrow:
+    the stored work id names the entry's *anchor* book, so this writes only what
+    is true of the whole entry when read off book one — when it starts, who wrote
+    it, what it looks like. end_date, volume and chapter totals and serialization
+    status belong to the set, and are never touched.
+    """
+    work_id = novel.openlibrary_id
+    if not work_id:
+        return
+
+    try:
+        want_editions = not novel.release_date
+        want_authors = not credit_names(db, "novel", novel.system_id, "author")
+
+        raw_data = fetch_openlibrary_work(
+            work_id, want_editions=want_editions, want_authors=want_authors
+        )
+        if not raw_data:
+            return
+
+        ol_data = map_openlibrary_to_novel_data(raw_data)
+
+        if want_editions and ol_data.get("release_date"):
+            novel.release_date = ol_data.get("release_date")
+
+        if want_authors and ol_data.get("author"):
+            replace_credits(
+                db, "novel", novel.system_id, "author", split_names(ol_data.get("author"))
+            )
+
+        if not novel.cover_image_file and ol_data.get("cover_image_url"):
+            filename = download_cover_image(
+                ol_data.get("cover_image_url"), str(novel.system_id)
+            )
+            if filename:
+                novel.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"Open Library Autofill failed for Novel ID {novel.system_id} "
+            f"(Work {work_id}): {e}"
         )
 
 

@@ -12,6 +12,7 @@ from app.services.domain.autofill import (
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
+    autofill_novel_from_openlibrary,
     autofill_tv_show_from_imdb,
 )
 from app.services.domain.casting import (
@@ -209,6 +210,7 @@ __all__ = [
     "autofill_manga_from_mal",
     "autofill_comic_from_comicvine",
     "autofill_novel_from_mal",
+    "autofill_novel_from_openlibrary",
     "autofill_movie_from_imdb",
     "autofill_tv_show_from_imdb",
     "autofill_cartoon_from_imdb",
