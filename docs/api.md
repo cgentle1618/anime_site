@@ -655,7 +655,10 @@ hand, in `app/services/domain/search.py`. Note that `%` is on the stripped list
 and `_` is not, which is why the `LIKE` autoescapes.
 
 **Ordering.** Within a bucket, whole-title matches come first, then the type's
-name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending).
+name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending;
+`person` and `studio` sort on `COALESCE(name_en, name_cn, name_jp, name_alt)`,
+because their display name is a per-row choice among four nullable columns and
+no single column can order them).
 Sorting in SQL rather than after the fact means an exact match cannot be cut by
 `limit` before it is floated.
 
@@ -669,7 +672,7 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
     "collection": [...], "franchise": [...], "series": [...],
     "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
     "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
-    "seasonal": [...]
+    "seasonal": [...], "person": [...], "studio": [...]
   },
   "related_franchises": [...]
 }
@@ -678,6 +681,15 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
 Every bucket key is always present, empty for the types the scope did not ask
 about. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
+
+**People and studios.** `person` and `studio` are searchable across all four
+name columns and carry the same `PersonResponse` / `StudioResponse` the
+library endpoints return, `credit_count` included — computed here for the whole
+bucket in one `filter_visible_pairs` call rather than per row, so the number
+matches `/api/person/` and `/api/studio/` without the N+1. The rows themselves
+are public: a person carries no content label, so only the credit count is
+visibility-filtered. **Characters are deliberately not searchable** — there is
+no `character` bucket and `scope=character` is a `422`.
 
 **Franchise expansion.** At `scope=all`, a franchise whose name matched brings
 its anime with it, so searching a franchise name finds the shows in it even when

@@ -22,6 +22,8 @@ const SCOPES = [
   { key: "novel", label: "Novel" },
   { key: "comic", label: "Comic" },
   { key: "seasonal", label: "Seasonal" },
+  { key: "person", label: "Person" },
+  { key: "studio", label: "Studio" },
 ];
 
 // Short mono labels for the result rows. Text, not colour, names the type.
@@ -38,6 +40,8 @@ const TYPE_LABEL = {
   novel: "NOVEL",
   comic: "COMIC",
   seasonal: "SEASON",
+  person: "PERSON",
+  studio: "STUDIO",
 };
 
 function getDisplayName(item) {
@@ -106,6 +110,10 @@ function getDisplayName(item) {
   if (item.type === "tv-show")
     return item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "—";
   if (item.type === "seasonal") return item.seasonal || "—";
+  // People and studios ship the choice with the row: display_name is resolved
+  // server-side from display_name_field, so there is no fallback chain here.
+  if (item.type === "person" || item.type === "studio")
+    return item.display_name || "—";
   return (
     item.anime_name_cn ||
     item.anime_name_en ||
@@ -192,6 +200,11 @@ export default function NavSearch() {
         ["novel", 5],
         ["comic", 5],
         ["seasonal", 3],
+        // Last, and smallest: a query is usually about a title, so staff rows
+        // take the slots the media buckets left behind rather than claiming
+        // any of the first twenty.
+        ["person", 2],
+        ["studio", 2],
       ];
 
       let payload;
@@ -230,7 +243,9 @@ export default function NavSearch() {
       const isExact = (item) =>
         Object.entries(item).some(
           ([field, value]) =>
-            (field.includes("_name_") || field === "seasonal") &&
+            (field.includes("_name_") ||
+              field.startsWith("name_") ||
+              field === "seasonal") &&
             typeof value === "string" &&
             cleanString(value) === qClean,
         );
@@ -287,6 +302,8 @@ export default function NavSearch() {
     else if (item.type === "tv-show") navigate(`/tv-show/${item.system_id}`);
     else if (item.type === "seasonal")
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
+    else if (item.type === "person") navigate(`/person/${item.system_id}`);
+    else if (item.type === "studio") navigate(`/studio/${item.system_id}`);
     else navigate(`/anime/${item.system_id}`);
   }
 
@@ -365,7 +382,11 @@ export default function NavSearch() {
                 ? item.franchise_type
                 : item.type === "anime"
                   ? item.airing_type
-                  : null;
+                  : item.type === "person" || item.type === "studio"
+                    ? `${item.credit_count ?? 0} credit${
+                        (item.credit_count ?? 0) === 1 ? "" : "s"
+                      }`
+                    : null;
             return (
               <button
                 key={i}

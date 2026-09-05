@@ -4,9 +4,8 @@
 // /library/studio as a standalone component, outside LIBRARY_CONFIGS,
 // mirroring CollectionLibrary.jsx and FranchiseLibrary.jsx.
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { StudioCard } from "../../components/cards/StaffCard";
 import { cleanString, getRatingWeight } from "../../utils/media";
-import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
 
@@ -166,53 +165,5 @@ export default function StudioLibrary() {
         )}
       </div>
     </div>
-  );
-}
-
-function StudioCard({ studio }) {
-  const name = studio.display_name || "Unknown Studio";
-  const coverUrl = getCoverUrl(studio.logo_file);
-  const creditCount = studio.credit_count ?? 0;
-
-  return (
-    <Link
-      to={`/studio/${studio.system_id}`}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col cursor-pointer group"
-    >
-      <div className="flex">
-        <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
-          <span
-            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            Studio
-          </span>
-        </div>
-        <div
-          className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
-          style={{ aspectRatio: "2/3" }}
-        >
-          <img
-            src={coverUrl}
-            alt="Logo"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.src = FALLBACK_SVG;
-            }}
-          />
-        </div>
-      </div>
-      <div className="p-2.5 flex flex-col gap-1.5 flex-1 border-t border-border">
-        <h3
-          className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight"
-          title={name}
-        >
-          {name}
-        </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
-          {creditCount} credit{creditCount !== 1 ? "s" : ""}
-        </span>
-      </div>
-    </Link>
   );
 }

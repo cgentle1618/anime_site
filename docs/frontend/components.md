@@ -141,7 +141,9 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look.
 - **`components/cards`** — `MediaCard` (one card for all eight types,
-  `variant="future"`), `FranchiseCard`, `CollectionCard`.
+  `variant="future"`), `FranchiseCard`, `CollectionCard`, and `StaffCard`
+  (`PersonCard` / `StudioCard` over one shared body — the person and studio
+  libraries and the `/search` staff sections all draw it).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
   `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
   the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),

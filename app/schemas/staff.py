@@ -26,6 +26,13 @@ class PersonRoleIn(BaseModel):
     role: str
     scope: str
 
+    # from_attributes so a PersonRole ORM row validates straight into this.
+    # PersonResponse's own from_attributes does NOT reach a nested model in
+    # pydantic v2, so /api/search - which hands the ORM person to the response
+    # model rather than building it field by field the way person.py does -
+    # would fail on `roles` without this.
+    model_config = ConfigDict(from_attributes=True)
+
     @field_validator("role")
     @classmethod
     def _known_role(cls, v: str) -> str:

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
+import { PersonCard, StudioCard } from "../../components/cards/StaffCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
@@ -108,6 +109,8 @@ export default function Search() {
   const [matchedComics, setMatchedComics] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
+  const [matchedPeople, setMatchedPeople] = useState([]);
+  const [matchedStudios, setMatchedStudios] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -141,6 +144,8 @@ export default function Search() {
       setMatchedMangas([]);
       setMatchedNovels([]);
       setMatchedComics([]);
+      setMatchedPeople([]);
+      setMatchedStudios([]);
       return;
     }
     setMatchedCollections(results.collection);
@@ -155,6 +160,8 @@ export default function Search() {
     setMatchedMangas(results.manga);
     setMatchedNovels(results.novel);
     setMatchedComics(results.comic);
+    setMatchedPeople(results.person);
+    setMatchedStudios(results.studio);
     // Pills are the franchises the anime results belong to, which is not the
     // same set as the franchises whose own name matched.
     setFilterPillFranchises(searchQuery.data.related_franchises);
@@ -220,6 +227,8 @@ export default function Search() {
   const showManga = scope === "all" || scope === "manga";
   const showNovel = scope === "all" || scope === "novel";
   const showComic = scope === "all" || scope === "comic";
+  const showPerson = scope === "all" || scope === "person";
+  const showStudio = scope === "all" || scope === "studio";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -265,6 +274,8 @@ export default function Search() {
     showManga && ["manga", matchedMangas.length],
     showNovel && ["novel", matchedNovels.length],
     showComic && ["comics", matchedComics.length],
+    showPerson && ["people", matchedPeople.length],
+    showStudio && ["studios", matchedStudios.length],
   ].filter((entry) => entry && entry[1] > 0);
 
   const SCOPE_LABELS = {
@@ -281,6 +292,8 @@ export default function Search() {
     novel: "Novel",
     comic: "Comic",
     seasonal: "Seasonal",
+    person: "Person",
+    studio: "Studio",
   };
 
   if (loading) {
@@ -678,6 +691,51 @@ export default function Search() {
                   data={c}
                   onUpdated={handleComicUpdated}
                 />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* People and studios, last: a search is usually about a title, so a
+            name match on a credited person or studio is the weaker answer and
+            sits below every media section. Characters are not searchable. */}
+        {showPerson && matchedPeople.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                People
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedPeople.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedPeople.map((p) => (
+                <PersonCard key={p.system_id} person={p} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showStudio && matchedStudios.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Studios
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedStudios.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedStudios.map((st) => (
+                <StudioCard key={st.system_id} studio={st} />
               ))}
             </div>
           </div>

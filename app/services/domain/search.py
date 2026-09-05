@@ -23,7 +23,7 @@ from app import models, schemas
 from app.registry import MEDIA_REGISTRY
 from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import planned_entry_ids
-from app.services.rbac.enforcement import apply_entry_visibility
+from app.services.rbac.enforcement import apply_entry_visibility, filter_visible_pairs
 from app.services.rbac.field_gate import gate
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
 
@@ -64,6 +64,12 @@ class SearchableType:
     owner_type: Optional[str] = None
     # Seasonal reads newest-first; every name-sorted type reads A-Z.
     sort_desc: bool = False
+    # Columns tried, in order, when `sort_field` is NULL on a row. People and
+    # studios need it: their display name is a per-row CHOICE among four
+    # nullable columns (Person.display_name), so no single column can order
+    # them - a studio named only in Japanese would sort under NULL. COALESCE
+    # is the closest a single ORDER BY gets to that property.
+    sort_fallbacks: tuple[str, ...] = ()
 
 
 def _spec(key: str, registry_key: str, sort_field: str) -> SearchableType:
@@ -80,7 +86,7 @@ def _spec(key: str, registry_key: str, sort_field: str) -> SearchableType:
 
 
 # Ordered as the search page stacks its sections: grouping tiers, then entries,
-# then seasonal. The six registry-backed types read their name columns from the
+# then seasonal, then the staff types. The six registry-backed types read their name columns from the
 # registry so the two searches can never drift apart; the other six are
 # hand-written routers with no spec of their own, so they declare theirs here.
 SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
@@ -151,6 +157,26 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
         sort_field="seasonal",
         sort_desc=True,
     ),
+    # People and studios come last because they rank last: a query is usually
+    # about a title, so a name match is the weaker answer. The search page
+    # stacks their sections below every media section for the same reason.
+    # Characters are deliberately absent - they stay out of the universal bar.
+    SearchableType(
+        key="person",
+        model=models.Person,
+        response_schema=schemas.PersonResponse,
+        name_fields=("name_en", "name_cn", "name_jp", "name_alt"),
+        sort_field="name_en",
+        sort_fallbacks=("name_cn", "name_jp", "name_alt"),
+    ),
+    SearchableType(
+        key="studio",
+        model=models.Studio,
+        response_schema=schemas.StudioResponse,
+        name_fields=("name_en", "name_cn", "name_jp", "name_alt"),
+        sort_field="name_en",
+        sort_fallbacks=("name_cn", "name_jp", "name_alt"),
+    ),
 )
 
 SEARCHABLE_BY_KEY: dict[str, SearchableType] = {t.key: t for t in SEARCHABLE_TYPES}
@@ -196,6 +222,10 @@ def _run(
     if spec.owner_type is not None:
         query = apply_entry_visibility(query, spec.model, spec.owner_type, db, viewer)
     sort_column = getattr(spec.model, spec.sort_field)
+    if spec.sort_fallbacks:
+        sort_column = func.coalesce(
+            sort_column, *[getattr(spec.model, f) for f in spec.sort_fallbacks]
+        )
     order = sort_column.desc() if spec.sort_desc else sort_column.asc()
     return (
         query.filter(criteria)
@@ -205,8 +235,61 @@ def _run(
     )
 
 
+# The column on media_credit that points at each staff type. Person also draws
+# on character_casting, because a seiyuu has no media_credit row at all - the
+# same two stores app/routers/person.py counts.
+_CREDIT_OWNER_COLUMN = {
+    "person": models.MediaCredit.person_id,
+    "studio": models.MediaCredit.studio_id,
+}
+
+
+def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: list):
+    """
+    Set `credit_count` on person/studio rows, for every result at once.
+
+    The number the library cards show. person.py and studio.py compute it per
+    row because they answer about one; a search answers about up to `limit` of
+    them, so the credits are fetched in one query and put through ONE
+    filter_visible_pairs call - the same visibility rule, without the N+1.
+    """
+    ids = [entry.system_id for entry in entries]
+    if not ids:
+        return
+    owner_column = _CREDIT_OWNER_COLUMN[spec.key]
+    rows = [
+        (owner, media_type, entry_id)
+        for owner, media_type, entry_id in db.query(
+            owner_column, models.MediaCredit.media_type, models.MediaCredit.entry_id
+        ).filter(owner_column.in_(ids))
+        if media_type and entry_id
+    ]
+    if spec.key == "person":
+        rows += [
+            (owner, media_type, entry_id)
+            for owner, media_type, entry_id in db.query(
+                models.CharacterCasting.person_id,
+                models.CharacterCasting.media_type,
+                models.CharacterCasting.entry_id,
+            ).filter(models.CharacterCasting.person_id.in_(ids))
+            if media_type and entry_id
+        ]
+    visible = filter_visible_pairs(db, viewer, [(mt, eid) for _, mt, eid in rows])
+    # A set per owner, not a tally: a seiyuu credited AND cast on one entry is
+    # one credit, which is what the per-row endpoints report.
+    counted: dict = {}
+    for owner, media_type, entry_id in rows:
+        if (media_type, entry_id) in visible:
+            counted.setdefault(owner, set()).add((media_type, entry_id))
+    for entry in entries:
+        entry.credit_count = len(counted.get(entry.system_id, ()))
+
+
 def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
     """Attach the non-column fields the list endpoints attach, then field-gate."""
+    if spec.key in _CREDIT_OWNER_COLUMN:
+        _attach_credit_counts(db, viewer, spec, entries)
+        return entries
     if spec.owner_type is None:
         return entries
     for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):

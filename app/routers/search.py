@@ -2,7 +2,7 @@
 routers/search.py
 The cross-type search endpoint backing the nav dropdown and the /search page.
 
-One request, one bucket per media type. The frontend used to fetch up to 2000
+One request, one bucket per searchable type. The frontend used to fetch up to 2000
 rows from each of twelve tables and filter them in the browser; the filtering
 now happens in Postgres, so the response carries matches instead of the whole
 collection. Matching rules live in services/domain/search.py.
@@ -45,6 +45,10 @@ class SearchBuckets(BaseModel):
     novel: List[schemas.NovelResponse] = []
     comic: List[schemas.ComicResponse] = []
     seasonal: List[schemas.SeasonalResponse] = []
+    # Staff. Ranked below the media buckets by the frontend, and characters are
+    # deliberately not here - see services/domain/search.py.
+    person: List[schemas.PersonResponse] = []
+    studio: List[schemas.StudioResponse] = []
 
     # The bucket keys the frontend uses are hyphenated media-type keys, but
     # "anime-movie" is not a Python identifier. The aliases keep the wire format

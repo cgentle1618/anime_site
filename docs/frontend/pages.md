@@ -95,13 +95,20 @@ mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
 debounces 250 ms, discards stale responses by request id, and calls
 `GET /api/search/?q=…&limit=20[&scope=…]`. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic,
-seasonal. With scope `all`, `TYPE_QUOTAS` (collection 3, franchise 3, series 3,
-anime 10, anime-movie 3, movie 3, tv-show 3, cartoon 5, manga 5, novel 5,
-comic 5, seasonal 3) act as first-pass floors that `mergeBuckets` fills in
+seasonal, person, studio. With scope `all`, `TYPE_QUOTAS` (collection 3,
+franchise 3, series 3, anime 10, anime-movie 3, movie 3, tv-show 3, cartoon 5,
+manga 5, novel 5, comic 5, seasonal 3, person 2, studio 2) act as first-pass
+floors that `mergeBuckets` fills in
 order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 51, so
-they never all fill). Exact-title matches are lifted to the top. Enter
-navigates to `/search?q=…[&scope=…]`; a result click routes to the entry's
-page (`/seasonal/<encoded id>` for seasons). Comic display names are EN-first.
+they never all fill). Person and studio come last and smallest on purpose: a
+query is usually about a title, so a name match on a credited person or studio
+is the weaker answer and takes the slots the media buckets left behind. Exact
+matches are lifted to the top. Enter navigates to `/search?q=…[&scope=…]`; a
+result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
+`/person/:id` and `/studio/:id` for staff). Comic display names are EN-first;
+a person or studio row shows the server-resolved `display_name` and its credit
+count as the secondary line. **Characters are not searchable** — by design,
+there is no character scope.
 
 **Theme.** `ThemeContext` keeps `light | dark | system` in
 `localStorage["cg1618:theme"]` and stamps `<html data-theme>`; `index.html`
@@ -168,7 +175,7 @@ Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 File `pages/public/Search.jsx`. Reads `?q` and `?scope` (default `all`).
 `useApiQuery(["api","search"], "/api/search/", { params: { q, scope }, enabled: hasQuery })`
 → effective key `["api","search",{q,scope}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic}`
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, person, studio}`
 plus `related_franchises` (the franchises of the matched anime — used as
 filter pills, not name matches). Results are copied into local state so a
 card's `onUpdated` can replace a row without a refetch.
@@ -182,8 +189,13 @@ only when the scope allows and the bucket is non-empty: **Collections**
 `franchise_id`), **Franchises** (`TierCard` labelled "{franchise_type}
 Franchise"), **Series**, **Anime** (sub-grouped TV / ONA, Movies, Other by
 `airing_type`), **Anime Movies**, **Movies**, **TV Shows**, **Cartoons**,
-**Manga**, **Novel**, **Comic** — all `MediaCard` grids. Empty query shows a
-"No Search Query" card. Admin-only behaviour comes from `MediaCard` itself.
+**Manga**, **Novel**, **Comic** — all `MediaCard` grids — and last **People**
+and **Studios**, `PersonCard` / `StudioCard` grids (`components/cards/StaffCard.jsx`,
+the same cards the two libraries use) linking to `/person/:id` and
+`/studio/:id`. Staff sit below every media section because a name match ranks
+below a title match; characters have no section at all, being unsearchable by
+design. Empty query shows a "No Search Query" card. Admin-only behaviour comes
+from `MediaCard` itself.
 
 ### Library — `/library/:type`
 
@@ -269,8 +281,9 @@ no entry lists are needed. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
 Animation" finds a studio displayed as "KyoAni". Sort
 `name (default) | credit_count | my_rating`. No filter panel, no table view,
-no admin controls. Each `StudioCard` shows the logo, the display name and the
-credit count, and links to `/studio/:system_id`.
+no admin controls. Each `StudioCard` (`components/cards/StaffCard.jsx`, shared
+with `/search`) shows the logo, the display name and the credit count, and
+links to `/studio/:system_id`.
 
 ### PersonLibrary — `/library/person`
 
@@ -284,8 +297,8 @@ lets the **type filter** (All plus the five `PERSON_SUB_TABS`) run client-side
 — one request serves every filter, where a per-type request would refetch on
 each click. Search runs over all four name columns (`PERSON_NAME_FIELDS`), not
 just the displayed one. Sort `name (default) | credit_count | my_rating`. Each
-`PersonCard` shows the photo, display name and credit count, and links to
-`/person/:system_id`.
+`PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`) shows
+the photo, display name and credit count, and links to `/person/:system_id`.
 
 `/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
 `?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
