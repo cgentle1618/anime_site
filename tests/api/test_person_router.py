@@ -47,9 +47,8 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
 
 def test_unfiltered_list_returns_everyone(admin_client, client):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    # "seiyuu" is deliberately NOT a person role: anime.seiyuu is still a
-    # plain string column on the entry and no credit role implies it, so
-    # PersonRoleIn now rejects it. Use a real unscoped role instead.
+    # A second person under a different role, so the unfiltered list has
+    # someone to return besides the director above.
     _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
     assert len(client.get("/api/person/").json()) == 2
 
