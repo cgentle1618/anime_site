@@ -1,5 +1,6 @@
 // Frontend: form component for a novel's units (volumes, arcs, stories).
 import { kindsForType, unitDisplayKey } from "../../lib/novelUnits";
+import { MY_RATINGS } from "../../config/fieldOptions";
 
 const baseCls =
   "border border-border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface";
@@ -7,6 +8,7 @@ const keyInputCls = baseCls + " w-24 shrink-0";
 const nameInputCls = baseCls + " flex-1 min-w-0";
 const numInputCls = baseCls + " w-24 shrink-0";
 const kindSelectCls = baseCls + " w-28 shrink-0";
+const ratingSelectCls = baseCls + " w-20 shrink-0";
 
 export default function NovelUnitsEditor({ items, novelType, onChange }) {
   const kinds = kindsForType(novelType);
@@ -91,6 +93,11 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
               className={kindSelectCls}
               value={entry.unit_kind}
               onChange={(e) => updateKind(i, e.target.value)}
+              aria-label={`Kind for ${unitDisplayKey(
+                entry.unit_kind,
+                entry.position,
+                entry.unit_key,
+              )}`}
             >
               {!kinds.includes(entry.unit_kind) ? (
                 <option value={entry.unit_kind} disabled>
@@ -129,6 +136,29 @@ export default function NovelUnitsEditor({ items, novelType, onChange }) {
             value={entry.remark || ""}
             onChange={(e) => updateEntry(i, "remark", e.target.value)}
           />
+          {/* Each unit is rated on its own, on the same S..F scale as the
+              novel's my_rating. Every kind gets one - a volume is the usual
+              case, but an arc is just as ratable. Nothing derives from it. */}
+          <select
+            className={ratingSelectCls}
+            value={entry.my_rating || ""}
+            onChange={(e) =>
+              updateEntry(i, "my_rating", e.target.value || undefined)
+            }
+            aria-label={`Rating for ${unitDisplayKey(
+              entry.unit_kind,
+              entry.position,
+              entry.unit_key,
+            )}`}
+          >
+            <option value="">—</option>
+            {MY_RATINGS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+
           {entry.unit_kind === "arc" ? (
             <input
               className={numInputCls}

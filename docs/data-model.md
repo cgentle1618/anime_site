@@ -442,6 +442,7 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `name_cn` / `name_en` | String | yes | | |
 | `remark` | String | yes | | |
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
+| `my_rating` | String | yes | | This unit's own grade, one of `constants.MY_RATINGS`. Applies to every kind, not just volumes. No CHECK, matching `novel` / `character` / `staff` - the dropdown enforces the vocabulary, and a Pull must be able to carry an odd cell rather than fail the tab. **Nothing derives from it**: `novel.my_rating` stays hand-set and is not computed from the rated units |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Written through `POST`/`PUT /api/novel` via the `units` payload key (popped

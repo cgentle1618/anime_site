@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.novel import NovelBase, NovelUnitResponse, NovelUnitWrite
-from app.utils.constants import NOVEL_UNIT_KINDS
+from app.utils.constants import MY_RATINGS, NOVEL_UNIT_KINDS
 
 
 def test_write_accepts_a_new_unit_without_system_id():
@@ -74,3 +74,51 @@ def test_the_old_json_lists_are_gone():
 def test_unit_kind_literal_matches_the_constant():
     annotation = NovelUnitWrite.model_fields["unit_kind"].annotation
     assert get_args(annotation) == NOVEL_UNIT_KINDS
+
+
+# --- my_rating --------------------------------------------------------------
+# Each unit carries its own grade, on the same S..F scale as novel.my_rating.
+# Nothing derives from it: the novel's own rating stays hand-set.
+
+
+def test_write_accepts_a_rating():
+    unit = NovelUnitWrite(unit_kind="volume", position=1, my_rating="A+")
+    assert unit.my_rating == "A+"
+
+
+def test_write_defaults_the_rating_to_none():
+    assert NovelUnitWrite(unit_kind="volume", position=1).my_rating is None
+
+
+def test_write_accepts_every_grade():
+    for grade in MY_RATINGS:
+        assert NovelUnitWrite(unit_kind="volume", position=1, my_rating=grade).my_rating == grade
+
+
+def test_response_carries_the_rating():
+    resp = NovelUnitResponse(
+        system_id=uuid.uuid4(),
+        unit_kind="volume",
+        position=1,
+        unit_key=None,
+        name_cn=None,
+        name_en=None,
+        remark=None,
+        ch_count=None,
+        my_rating="S",
+    )
+    assert resp.my_rating == "S"
+
+
+def test_response_rating_is_optional():
+    resp = NovelUnitResponse(
+        system_id=uuid.uuid4(),
+        unit_kind="volume",
+        position=1,
+        unit_key=None,
+        name_cn=None,
+        name_en=None,
+        remark=None,
+        ch_count=None,
+    )
+    assert resp.my_rating is None

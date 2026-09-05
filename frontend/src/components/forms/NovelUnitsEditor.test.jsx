@@ -28,7 +28,8 @@ it("does not show a kind selector when the type offers only one kind", () => {
     />,
   );
 
-  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  // The rating select is always there; only the kind select is conditional.
+  expect(screen.queryByLabelText(/^Kind for /)).not.toBeInTheDocument();
   expect(screen.getByText("+ Add volume")).toBeInTheDocument();
 });
 
@@ -41,7 +42,7 @@ it("shows a kind selector when the type offers multiple kinds", () => {
     />,
   );
 
-  expect(screen.getByRole("combobox")).toBeInTheDocument();
+  expect(screen.getByLabelText(/^Kind for /)).toBeInTheDocument();
   expect(screen.getByText("+ Add unit")).toBeInTheDocument();
 });
 
@@ -108,7 +109,7 @@ it("clears ch_count when a row's kind is changed away from arc", () => {
   ];
   render(<NovelUnitsEditor items={items} novelType="Other" onChange={onChange} />);
 
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "volume" } });
+  fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "volume" } });
 
   expect(onChange).toHaveBeenCalledWith([
     expect.objectContaining({ unit_kind: "volume", ch_count: "" }),
@@ -125,7 +126,7 @@ it("does not force-clear ch_count when a row's kind is changed to arc", () => {
   ];
   render(<NovelUnitsEditor items={items} novelType="Web" onChange={onChange} />);
 
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "arc" } });
+  fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "arc" } });
 
   expect(onChange).toHaveBeenCalledWith([
     expect.objectContaining({ unit_kind: "arc", ch_count: "7" }),
@@ -143,8 +144,94 @@ it("shows a disabled, annotated option for a stranded kind the current type no l
 
   // Light Novel offers only "volume", yet the stranded "arc" row still gets
   // a reachable selector, with its own current kind shown disabled.
-  const select = screen.getByRole("combobox");
+  const select = screen.getByLabelText(/^Kind for /);
   expect(select.value).toBe("arc");
   const strandedOption = screen.getByText("arc (not valid for this type)");
   expect(strandedOption).toBeDisabled();
+});
+
+// Each unit carries its own grade, on the same S..F scale as the novel's own
+// my_rating. It applies to every kind, not just volumes, and nothing derives
+// from it.
+it("offers a rating select on every row, blank by default", () => {
+  render(
+    <NovelUnitsEditor
+      items={[{ unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "" }]}
+      novelType="Light Novel"
+      onChange={() => {}}
+    />,
+  );
+
+  const select = screen.getByLabelText("Rating for Vol 1");
+  expect(select.value).toBe("");
+  expect([...select.options].map((o) => o.value)).toEqual([
+    "",
+    "S",
+    "A+",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+  ]);
+});
+
+it("sends the chosen grade back on the row it belongs to", () => {
+  const onChange = vi.fn();
+  render(
+    <NovelUnitsEditor
+      items={[
+        { unit_kind: "volume", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "" },
+        { unit_kind: "volume", position: 2, unit_key: "", name_cn: "", name_en: "", remark: "" },
+      ]}
+      novelType="Light Novel"
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText("Rating for Vol 2"), {
+    target: { value: "A+" },
+  });
+
+  const [rows] = onChange.mock.calls[0];
+  expect(rows[1]).toEqual(expect.objectContaining({ position: 2, my_rating: "A+" }));
+  // The untouched row is passed through as it was - no rating key at all,
+  // rather than an explicit undefined.
+  expect(rows[0]).not.toHaveProperty("my_rating");
+});
+
+it("shows a stored grade as selected", () => {
+  render(
+    <NovelUnitsEditor
+      items={[
+        { unit_kind: "arc", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", my_rating: "S" },
+      ]}
+      novelType="Web"
+      onChange={() => {}}
+    />,
+  );
+
+  expect(screen.getByLabelText("Rating for Arc 1").value).toBe("S");
+});
+
+it("keeps the rating on a row whose kind changes", () => {
+  const onChange = vi.fn();
+  render(
+    <NovelUnitsEditor
+      items={[
+        { unit_kind: "chapter", position: 1, unit_key: "", name_cn: "", name_en: "", remark: "", my_rating: "B" },
+      ]}
+      novelType="Other"
+      onChange={onChange}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText(/^Kind for /), {
+    target: { value: "volume" },
+  });
+
+  expect(onChange).toHaveBeenCalledWith([
+    expect.objectContaining({ unit_kind: "volume", my_rating: "B" }),
+  ]);
 });

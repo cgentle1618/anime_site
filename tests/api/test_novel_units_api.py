@@ -172,3 +172,99 @@ def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
     # selectinload issues exactly one query for all novels' units, not one
     # query per novel.
     assert len(statements) == 1
+
+
+# --- per-unit rating --------------------------------------------------------
+
+
+def test_create_persists_a_unit_rating(admin_client):
+    resp = admin_client.post(
+        "/api/novel/",
+        json=_novel_payload(
+            units=[
+                {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "S"},
+                {"unit_kind": "arc", "position": 2, "unit_key": "arc 2", "ch_count": 112},
+            ]
+        ),
+    )
+    assert resp.status_code == 201
+    units = resp.json()["units"]
+    assert units[0]["my_rating"] == "S"
+    assert units[1]["my_rating"] is None
+
+
+def test_a_unit_rating_does_not_touch_the_novels_own_rating(admin_client):
+    body = admin_client.post(
+        "/api/novel/",
+        json=_novel_payload(
+            my_rating="C",
+            units=[
+                {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "S"},
+            ],
+        ),
+    ).json()
+    assert body["my_rating"] == "C"
+    assert body["units"][0]["my_rating"] == "S"
+
+
+def test_update_changes_and_clears_a_unit_rating(admin_client):
+    created = admin_client.post(
+        "/api/novel/",
+        json=_novel_payload(
+            units=[
+                {"unit_kind": "arc", "position": 1, "unit_key": "arc 1", "ch_count": 100, "my_rating": "B"},
+            ]
+        ),
+    ).json()
+    unit = created["units"][0]
+
+    changed = admin_client.put(
+        f"/api/novel/{created['system_id']}",
+        json={
+            "novel_name_cn": "測試小說",
+            "type": "Web",
+            "units": [
+                {
+                    "system_id": unit["system_id"],
+                    "unit_kind": "arc",
+                    "position": 1,
+                    "unit_key": "arc 1",
+                    "ch_count": 100,
+                    "my_rating": "A",
+                }
+            ],
+        },
+    ).json()
+    assert changed["units"][0]["my_rating"] == "A"
+
+    cleared = admin_client.put(
+        f"/api/novel/{created['system_id']}",
+        json={
+            "novel_name_cn": "測試小說",
+            "type": "Web",
+            "units": [
+                {
+                    "system_id": unit["system_id"],
+                    "unit_kind": "arc",
+                    "position": 1,
+                    "unit_key": "arc 1",
+                    "ch_count": 100,
+                }
+            ],
+        },
+    ).json()
+    assert cleared["units"][0]["my_rating"] is None
+
+
+def test_a_volume_row_can_be_rated_too(admin_client):
+    body = admin_client.post(
+        "/api/novel/",
+        json=_novel_payload(
+            type="Light Novel",
+            units=[
+                {"unit_kind": "volume", "position": 1, "name_cn": "第一卷", "my_rating": "A+"},
+            ],
+        ),
+    ).json()
+    assert body["units"][0]["my_rating"] == "A+"
+    assert body["units"][0]["display_key"] == "Vol 1"

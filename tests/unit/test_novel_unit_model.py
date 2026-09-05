@@ -16,6 +16,8 @@ def test_novel_unit_columns():
         "name_en",
         "remark",
         "ch_count",
+        # Per-unit grade on the MY_RATINGS scale; nothing derives from it.
+        "my_rating",
         "created_at",
         "updated_at",
     }

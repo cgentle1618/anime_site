@@ -715,6 +715,7 @@ def parse_novel_unit_from_sheet(raw: dict) -> dict:
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "ch_count": parse_from_sheet(raw.get("ch_count"), float),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

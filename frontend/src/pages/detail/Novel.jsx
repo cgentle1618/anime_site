@@ -165,6 +165,9 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
                     {u.ch_count} ch
                   </span>
                 )}
+                {u.my_rating && (
+                  <Chip className="shrink-0">{u.my_rating}</Chip>
+                )}
                 {u.remark && (
                   <span className="text-xs text-text-faint">{u.remark}</span>
                 )}

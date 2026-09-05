@@ -27,6 +27,7 @@ class NovelUnitWrite(BaseModel):
     name_en: Optional[str] = None
     remark: Optional[str] = None
     ch_count: Optional[float] = None
+    my_rating: Optional[str] = None
 
 
 class NovelUnitResponse(BaseModel):
@@ -38,6 +39,7 @@ class NovelUnitResponse(BaseModel):
     name_en: Optional[str] = None
     remark: Optional[str] = None
     ch_count: Optional[float] = None
+    my_rating: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

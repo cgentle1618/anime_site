@@ -174,6 +174,9 @@ class NovelUnit(Base):
     name_en = Column(String, nullable=True)
     remark = Column(String, nullable=True)
     ch_count = Column(Float, nullable=True)
+    # One of constants.MY_RATINGS. Per-unit and independent: nothing derives
+    # from it, and the novel's own my_rating stays hand-set.
+    my_rating = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

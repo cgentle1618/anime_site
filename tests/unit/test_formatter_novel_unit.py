@@ -60,3 +60,29 @@ def test_an_unresolvable_novel_id_becomes_none_not_a_string():
 def test_the_tab_restores_after_its_parent():
     assert "Novel Unit" in TAB_NAMES
     assert TAB_NAMES.index("Novel Unit") > TAB_NAMES.index("Novel")
+
+
+def test_parses_the_unit_rating():
+    parsed = parse_novel_unit_from_sheet(
+        {
+            "system_id": "11111111-1111-1111-1111-111111111111",
+            "novel_id": "22222222-2222-2222-2222-222222222222",
+            "unit_kind": "volume",
+            "position": "1",
+            "my_rating": "A+",
+        }
+    )
+    assert parsed["my_rating"] == "A+"
+
+
+def test_a_blank_rating_cell_becomes_none():
+    parsed = parse_novel_unit_from_sheet(
+        {
+            "system_id": "11111111-1111-1111-1111-111111111111",
+            "novel_id": "22222222-2222-2222-2222-222222222222",
+            "unit_kind": "volume",
+            "position": "1",
+            "my_rating": "",
+        }
+    )
+    assert parsed["my_rating"] is None

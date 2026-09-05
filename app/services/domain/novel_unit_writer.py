@@ -53,6 +53,7 @@ def write_novel_units(db, entry, units) -> None:
             # client that leaves a stale count on a re-kinded row cannot trip
             # the constraint.
             "ch_count": data.get("ch_count") if data.get("unit_kind") == "arc" else None,
+            "my_rating": data.get("my_rating"),
         }
 
         row = existing.get(unit_id) if unit_id else None
