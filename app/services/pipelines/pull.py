@@ -93,6 +93,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
     "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
+    "Content Label": ("key",),  # content_label.key is UNIQUE
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
     # These two mint their own uuid but cite entry ids, which the sheet does
     # carry and which are the same in every database - so only the row's own
@@ -121,6 +122,15 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "option_id",
         "name",
     ),  # uq_media_source_row
+    # Same shape as Media Source: mints its own uuid, cites an entry id that is
+    # the same everywhere, and a label_id that is NOT - but which the parent
+    # translation below has already turned into a local uuid by the time this
+    # match runs, so it compares the ordinary way.
+    "Media Content Label": (
+        "media_type",
+        "entry_id",
+        "label_id",
+    ),  # uq_media_content_label_row
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -130,6 +140,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "System Option Scope": ("option_id", "System Options"),
     "System Option Usage": ("option_id", "System Options"),
     "Person Role": ("person_id", "Person"),
+    "Media Content Label": ("label_id", "Content Label"),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as

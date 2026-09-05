@@ -928,6 +928,46 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_content_label_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Content Label sheet into typed data ready
+    for the Database.
+
+    `key` is the identity, not `system_id`: the labels are typed into the admin
+    page on each machine, so the uuid is minted per database - see pull.py's
+    DERIVED_IDENTITY_KEYS.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "key": parse_from_sheet(raw.get("key"), str),
+        "label": parse_from_sheet(raw.get("label"), str),
+        "description": parse_from_sheet(raw.get("description"), str),
+        "sort_order": parse_from_sheet(raw.get("sort_order"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_media_content_label_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Media Content Label sheet into typed data
+    ready for the Database.
+
+    label_id round-trips as a plain UUID: the Content Label tab restores first
+    and pull.py translates the other database's label uuid into the local one
+    before this row is stored. entry_id needs no such step - entry ids are
+    identical everywhere.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_config_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.

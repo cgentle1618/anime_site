@@ -37,6 +37,14 @@ Labels are deliberately **not** rows in `media_tag`: that table is keyed to
 `system_option` and written by the Fill/backfill pipelines, so a pipeline run
 could silently change who sees an entry.
 
+Both tables travel between machines on the `Content Label` and `Media Content
+Label` sheet tabs. They are the only tables whose absence from the sheet failed
+**open** — a Pull All restored every entry unlabelled, i.e. visible — so treat
+a Backup as part of labelling work, not an afterthought. `role` and
+`role_permission` have no tab: `ensure_rbac_seed` recreates guest and admin
+anywhere, but a role added or a grant removed by hand is per-machine. See
+[data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy).
+
 ## Permission catalog (code)
 
 `app/services/rbac/permissions.py`. A permission is `<family>.<key>`, except

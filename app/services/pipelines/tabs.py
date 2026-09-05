@@ -61,6 +61,11 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
     SheetTab("System Option Scope", models.SystemOptionScope, f.parse_system_option_scope_from_sheet),
     SheetTab("System Option Usage", models.SystemOptionUsage, f.parse_system_option_usage_from_sheet),
+    # Restriction labels. A vocabulary like the options above, but the one
+    # whose absence fails OPEN: with no tab, a Pull restored every entry
+    # unlabelled and therefore visible. Deliberately NOT system_option - see
+    # models/content_label.py.
+    SheetTab("Content Label", models.ContentLabel, f.parse_content_label_from_sheet),
     # People and studios before every media tab: credits resolve against them.
     SheetTab("Person", models.Person, f.parse_person_from_sheet),
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),
@@ -114,6 +119,14 @@ SHEET_TABS: tuple[SheetTab, ...] = (
             ("option_category", _option_category),
             ("option_value", _option_value),
         ),
+    ),
+    # After Content Label and after every media tab: cites a label by uuid
+    # (translated in pull.py, the label's own uuid being database-local) and an
+    # entry by the FK-less (media_type, entry_id) pair.
+    SheetTab(
+        "Media Content Label",
+        models.MediaContentLabel,
+        f.parse_media_content_label_from_sheet,
     ),
     SheetTab("Seasonal", models.Seasonal, f.parse_seasonal_from_sheet),
 )

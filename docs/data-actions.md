@@ -52,39 +52,44 @@ Outcome:
 |---|---|---|---|
 | 1 | `System Options` | `SystemOption` | |
 | 2 | `System Option Scope` | `SystemOptionScope` | |
-| 3 | `Person` | `Person` | |
-| 4 | `Person Role` | `PersonRole` | |
-| 5 | `Studio` | `Studio` | |
-| 6 | `Character` | `Character` | |
-| 7 | `System Configs` | `SystemConfigs` | |
-| 8 | `Collection` | `Collection` | |
-| 9 | `Franchise` | `Franchise` | |
-| 10 | `Series` | `Series` | |
-| 11 | `Anime` | `Anime` | `anime` |
-| 12 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 13 | `Movies` | `Movies` | `movie` |
-| 14 | `TV Shows` | `TVShows` | `tv-show` |
-| 15 | `Cartoons` | `Cartoon` | `cartoon` |
-| 16 | `Manga` | `Manga` | `manga` |
-| 17 | `Novel` | `Novel` | `novel` |
-| 18 | `Novel Unit` | `NovelUnit` | |
-| 19 | `Comic` | `Comic` | `comic` |
-| 20 | `Watch Order List` | `WatchOrderList` | |
-| 21 | `Watch Order Section` | `WatchOrderSection` | |
-| 22 | `Watch Order Item` | `WatchOrderItem` | |
-| 23 | `Media Relation` | `MediaRelation` | |
-| 24 | `Plan Next` | `PlanNext` | |
-| 25 | `Quote` | `Quote` | |
-| 26 | `Character Casting` | `CharacterCasting` | |
-| 27 | `Meme` | `Meme` | |
-| 28 | `Note` | `Note` | |
-| 29 | `Media Source` | `MediaSource` | |
-| 30 | `Seasonal` | `Seasonal` | |
+| 3 | `System Option Usage` | `SystemOptionUsage` | |
+| 4 | `Content Label` | `ContentLabel` | |
+| 5 | `Person` | `Person` | |
+| 6 | `Person Role` | `PersonRole` | |
+| 7 | `Studio` | `Studio` | |
+| 8 | `Character` | `Character` | |
+| 9 | `System Configs` | `SystemConfigs` | |
+| 10 | `Collection` | `Collection` | |
+| 11 | `Franchise` | `Franchise` | |
+| 12 | `Series` | `Series` | |
+| 13 | `Anime` | `Anime` | `anime` |
+| 14 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 15 | `Movies` | `Movies` | `movie` |
+| 16 | `TV Shows` | `TVShows` | `tv-show` |
+| 17 | `Cartoons` | `Cartoon` | `cartoon` |
+| 18 | `Manga` | `Manga` | `manga` |
+| 19 | `Novel` | `Novel` | `novel` |
+| 20 | `Novel Unit` | `NovelUnit` | |
+| 21 | `Comic` | `Comic` | `comic` |
+| 22 | `Watch Order List` | `WatchOrderList` | |
+| 23 | `Watch Order Section` | `WatchOrderSection` | |
+| 24 | `Watch Order Item` | `WatchOrderItem` | |
+| 25 | `Media Relation` | `MediaRelation` | |
+| 26 | `Plan Next` | `PlanNext` | |
+| 27 | `Quote` | `Quote` | |
+| 28 | `Character Casting` | `CharacterCasting` | |
+| 29 | `Meme` | `Meme` | |
+| 30 | `Note` | `Note` | |
+| 31 | `Media Source` | `MediaSource` | |
+| 32 | `Media Content Label` | `MediaContentLabel` | |
+| 33 | `Seasonal` | `Seasonal` | |
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the eight entry tabs).
 
 `Media Source` sits after `Note` (both endpoints — the entry, and, when set,
-the option — must already exist) and before `Seasonal`.
+the option — must already exist), and `Media Content Label` after it (both
+*its* endpoints — the entry, and the label on the `Content Label` tab — must
+already exist too), the two of them before `Seasonal`.
 
 **`source_baha`, `baha_link`, `source_netflix`, `source_other`,
 `official_link`, `twitter_link` and `anilist_link` are gone.** Migration
@@ -105,11 +110,27 @@ Pulling an old sheet into the dropped schema silently restores nothing for
 sources: the columns it used to fill no longer exist, and an old sheet has no
 `Media Source` rows to replace them with.
 
-`system_option_usage` has **no sheet tab at all** — unlike its
-`system_option_scope` sibling, a `usage` row set through the Options page on
-one machine is not carried to the other by Backup/Pull. See
+`system_option_usage` has had its own tab since it started drifting between
+machines — a `usage` row set through the Options page now round-trips exactly
+like its `system_option_scope` sibling. See
 [data-model.md](data-model.md#system_option_usage) and
 [options.md](options.md#tier-2-system-options).
+
+`content_label` and `media_content_label` have tabs for the same reason, and a
+sharper one: they are the only tables whose absence from the sheet fails
+**open**. A Pull All on a machine that had never been told which entries carry
+`nsfw` restored every one of them unlabelled — visible to every viewer — and
+nothing in the run reported a problem. Both tables mint their `system_id` per
+database (the labels are typed into the admin page on each machine), so both
+are derived-identity tabs: `Content Label` is identified by its unique `key`,
+`Media Content Label` by `(media_type, entry_id, label_id)`, and the `label_id`
+a sheet carries is translated through the `Content Label` tab before it is
+stored — the same treatment `System Option Scope` gets. A labelling whose label
+cannot be resolved is skipped with a warning rather than failing the tab.
+
+Still outside the sheet, deliberately: `users`, `role`, `role_permission`
+(`ensure_rbac_seed` recreates guest and admin on any machine, but a role added
+or narrowed by hand is per-machine), `data_control_logs` and `deleted_record`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-04
+Last verified: 2026-09-05
 
 ## What this is for
 
@@ -47,6 +47,7 @@ the moment either one is edited.
 | `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
 | Cover images (GCS) | **nothing** | GCS is unavailable while the GCP deployment is down |
+| Users, roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
 

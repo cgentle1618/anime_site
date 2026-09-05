@@ -456,10 +456,9 @@ growing set of broadcast-only networks for TV and cartoons) are filtered out
 of every `media_source` access-row picker but still offered on
 `original_source`/`exclusive_source`; `usage='watch'` restricts the reverse
 way. `resolve_option`/the options router read it exactly like `scope` — see
-[data-model.md](data-model.md#system_option_usage). **Not currently
-round-tripped through Google Sheets** — see [data-actions.md](data-actions.md)
-— so a `usage` row set on one machine does not reach the other via
-Backup/Pull.
+[data-model.md](data-model.md#system_option_usage). Round-tripped through the
+`System Option Usage` tab — see [data-actions.md](data-actions.md) — so a
+`usage` row set on one machine reaches the other via Backup/Pull.
 
 **How scopes work.** One vocabulary per category; each value carries the
 media types it is offered in as `system_option_scope` rows. A value with

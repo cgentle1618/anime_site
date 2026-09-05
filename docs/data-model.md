@@ -1091,11 +1091,10 @@ The CW are places a show first aired, never places to go and watch it now, and
 that origin-only set keeps growing (NBC, CBS, AMC, FX for TV;
 Nickelodeon, Adult Swim, Cartoon Network for cartoons). A value with `usage =
 "origin"` is filtered out of every watch-source picker; a value with
-`usage = "watch"` (or no rows at all) is offered normally. **Not** backed up
-or restored through Google Sheets today — no `SHEET_TABS` entry reads or
-writes this table, unlike its `system_option_scope` sibling, so a
-`system_option_usage` row set on one machine does not travel to the other
-through Backup/Pull. See [data-actions.md](data-actions.md).
+`usage = "watch"` (or no rows at all) is offered normally. Backed up and
+restored through the `System Option Usage` tab, like its
+`system_option_scope` sibling, so a row set on one machine reaches the other.
+See [data-actions.md](data-actions.md).
 
 ### `system_configs`
 
