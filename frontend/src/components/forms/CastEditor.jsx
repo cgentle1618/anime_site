@@ -149,8 +149,9 @@ export default function CastEditor({ mediaType, value, onChange }) {
                 credentials: "include",
               });
               if (eres.ok) {
-                const groups = await eres.json();
-                entryNames = (Array.isArray(groups) ? groups : []).flatMap((g) =>
+                const payload = await eres.json();
+                const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+                entryNames = groups.flatMap((g) =>
                   (g.entries || []).map((e) => e.display_name),
                 );
               }

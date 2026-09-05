@@ -80,9 +80,15 @@ function mockFetch({ characters = [], entriesByCharacter = {}, createdCharacter 
     }
     const entriesMatch = /^\/api\/character\/([^/]+)\/entries$/.exec(url);
     if (entriesMatch) {
+      // The real endpoint returns an OBJECT ({"groups": [...]}), never a
+      // bare array - Fix round: the CastEditor test used to mock a bare
+      // array here, which encoded the wrong contract and let CastEditor.jsx
+      // ship with `(Array.isArray(groups) ? groups : []).flatMap(...)`
+      // silently always-empty against the server's real shape.
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(entriesByCharacter[entriesMatch[1]] || []),
+        json: () =>
+          Promise.resolve({ groups: entriesByCharacter[entriesMatch[1]] || [] }),
       });
     }
     if (url.startsWith("/api/person/")) {

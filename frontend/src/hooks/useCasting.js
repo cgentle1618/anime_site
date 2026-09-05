@@ -27,11 +27,20 @@ export function useReplaceCasting() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Drops any row with no character_id before it ever reaches the server.
+    // CastEditor's emptyRow() starts every new row with character_id: null,
+    // and the PUT schema requires it - one unfilled trailing row used to
+    // 422 the WHOLE cast after the entry itself had already been saved
+    // (Add.jsx/Modify.jsx surface that as "Entry saved, but cast failed to
+    // save."). Filtering here, in the one place both callers share, means
+    // neither has to remember to do it itself.
     mutationFn: ({ mediaType, entryId, cast }) =>
       fetchJson(endpoints.casting.replace(mediaType, entryId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cast }),
+        body: JSON.stringify({
+          cast: (cast || []).filter((row) => row && row.character_id),
+        }),
       }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({

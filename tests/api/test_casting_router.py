@@ -204,3 +204,43 @@ def test_a_hidden_entry_answers_404(client, hidden_anime):
 
 def test_guest_cannot_replace_a_cast(client, anime):
     assert client.put(f"/api/casting/anime/{anime.system_id}", json={"cast": []}).status_code == 401
+
+
+def test_a_repeated_character_id_in_one_payload_is_a_422(admin_client, anime, character):
+    """
+    A payload naming the same character twice would collide with
+    uq_character_casting (character_id, media_type, entry_id) - CastEditor
+    currently lets an admin add the same character on two rows, so this is
+    an ordinary mistake, not a malicious payload, and must be rejected in
+    Python with a message naming the duplicate, not a generic 500.
+    """
+    body = {"cast": [
+        {"character_id": str(character.system_id), "position": 0},
+        {"character_id": str(character.system_id), "position": 1},
+    ]}
+    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    assert r.status_code == 422
+    assert str(character.system_id) in r.json()["detail"]
+
+
+def test_an_unknown_character_id_is_a_422(admin_client, anime):
+    """A character_id with no matching row would otherwise reach the
+    database and raise a raw FK violation (a 500)."""
+    unknown_id = uuid.uuid4()
+    body = {"cast": [{"character_id": str(unknown_id)}]}
+    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    assert r.status_code == 422
+    assert str(unknown_id) in r.json()["detail"]
+
+
+def test_an_unknown_person_id_is_a_422(admin_client, anime, character):
+    """A person_id with no matching row would otherwise reach the database
+    and raise a raw FK violation (a 500)."""
+    unknown_id = uuid.uuid4()
+    body = {"cast": [{
+        "character_id": str(character.system_id),
+        "person_id": str(unknown_id),
+    }]}
+    r = admin_client.put(f"/api/casting/anime/{anime.system_id}", json=body)
+    assert r.status_code == 422
+    assert str(unknown_id) in r.json()["detail"]

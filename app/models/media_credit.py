@@ -64,7 +64,9 @@ class MediaCredit(Base):
     # One of MEDIA_TYPE_KEYS (hyphenated).
     media_type = Column(String, nullable=False)
     entry_id = Column(UUID(as_uuid=True), nullable=False)
-    # One of credit_roles.CREDIT_ROLE_KEYS.
+    # One of credit_roles.CREDIT_ROLE_KEYS whose credited_via == "media_credit" -
+    # i.e. every key except "seiyuu", whose castings live in character_casting
+    # (see app/models/character.py) instead of this table.
     role = Column(String, nullable=False, index=True)
     person_id = Column(
         UUID(as_uuid=True),

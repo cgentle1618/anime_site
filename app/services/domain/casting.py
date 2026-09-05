@@ -106,6 +106,51 @@ def _validate_row(media_type: str, row: dict) -> None:
         )
 
 
+def _validate_rows(db: Session, rows: list[dict]) -> None:
+    """
+    Payload-wide checks _validate_row cannot do row-by-row: a repeated
+    character_id (would violate uq_character_casting), and a character_id or
+    person_id that does not exist (would violate a FK). Each check runs as
+    ONE query over every id the payload names, not one query per row -
+    CastEditor can hand this a cast list of any size.
+    """
+    character_ids = [row["character_id"] for row in rows if row.get("character_id")]
+    seen: set = set()
+    for character_id in character_ids:
+        if character_id in seen:
+            raise CastingValidationError(
+                f"Character {character_id} is cast twice in the same payload."
+            )
+        seen.add(character_id)
+
+    if character_ids:
+        found = {
+            c.system_id
+            for c in db.query(models.Character.system_id).filter(
+                models.Character.system_id.in_(set(character_ids))
+            )
+        }
+        missing = set(character_ids) - found
+        if missing:
+            raise CastingValidationError(
+                f"Unknown character id: {sorted(str(m) for m in missing)[0]}."
+            )
+
+    person_ids = {row["person_id"] for row in rows if row.get("person_id")}
+    if person_ids:
+        found = {
+            p.system_id
+            for p in db.query(models.Person.system_id).filter(
+                models.Person.system_id.in_(person_ids)
+            )
+        }
+        missing = person_ids - found
+        if missing:
+            raise CastingValidationError(
+                f"Unknown person id: {sorted(str(m) for m in missing)[0]}."
+            )
+
+
 def replace_casting(
     db: Session, media_type: str, entry_id: UUID, rows: list[dict]
 ) -> None:
@@ -115,15 +160,17 @@ def replace_casting(
     `position` is taken from list index when a row omits it, so callers may
     submit an ordered list without stamping positions themselves. Raises
     CastingValidationError - mapped to a 422 by the router - for a media type
-    outside CASTING_MEDIA_TYPES, a seiyuu on a non-voiced media type, or a
-    role outside CHARACTER_ROLES, so the CHECK constraint is never the first
-    line of defense.
+    outside CASTING_MEDIA_TYPES, a seiyuu on a non-voiced media type, a role
+    outside CHARACTER_ROLES, a character_id repeated within the payload, or a
+    character_id/person_id that does not exist, so a CHECK or FK violation is
+    never the first line of defense - and never a generic 500.
     """
     if media_type not in CASTING_MEDIA_TYPES:
         raise CastingValidationError(f"Unknown casting media type: {media_type}")
 
     for row in rows:
         _validate_row(media_type, row)
+    _validate_rows(db, rows)
 
     db.query(models.CharacterCasting).filter(
         models.CharacterCasting.media_type == media_type,
