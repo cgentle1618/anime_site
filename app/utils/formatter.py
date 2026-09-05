@@ -630,9 +630,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
         "anime_studio": parse_from_sheet(raw.get("anime_studio"), str),
-        "serialization_platform": parse_from_sheet(
-            raw.get("serialization_platform"), str
-        ),
         "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),

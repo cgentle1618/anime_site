@@ -78,7 +78,6 @@ class Manga(Base, NameFallbackMixin):
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
     anime_studio = Column(String, nullable=True)
-    serialization_platform = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)

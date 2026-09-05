@@ -134,16 +134,12 @@ TAG_FIELDS: dict[str, TagField] = {
         "exclusive_source", "Exclusive Source", PLATFORM_CATEGORY,
         ("anime", "anime-movie"),
     ),
-    # Novel-only for now. Manga has a REAL `serialization_platform` column
-    # (dropped in Task 11, in the same migration that backfills its values
-    # into media_tag and widens this field to ("manga", "novel")). A TagField
-    # and a same-named real column must never coexist: attach_link_fields
-    # setattr()s the derived (currently empty) value onto the ORM entry under
-    # this same name, which would silently null the real column on every read
-    # until Task 11 lands. Do not "fix" this back to ("manga", "novel").
+    # Manga's real `serialization_platform` column was dropped in Task 11, in
+    # the same migration that backfilled its values into media_tag - so this
+    # field can now safely cover both media types.
     "serialization_platform": TagField(
         "serialization_platform", "Serialization Platform",
-        SERIALIZATION_CATEGORY, ("novel",),
+        SERIALIZATION_CATEGORY, ("manga", "novel"),
     ),
     "publisher_tw": TagField(
         "publisher_tw", "Publisher / Distributor TW",

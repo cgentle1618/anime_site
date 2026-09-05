@@ -107,9 +107,7 @@ class MangaLinkFields(SourceFields):
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
     publisher_tw: Optional[str] = None
-    # No serialization_platform here: manga's real column of that name would
-    # collide with the derived link field. Joins in Task 11, once the column
-    # is dropped. See the comment on TAG_FIELDS["serialization_platform"].
+    serialization_platform: Optional[str] = None
 
 
 class NovelLinkFields(SourceFields):

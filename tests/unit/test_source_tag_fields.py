@@ -22,18 +22,15 @@ def test_exclusive_source_is_offered_on_the_anime_types():
     assert set(field.media_types) == {"anime", "anime-movie"}
 
 
-def test_serialization_platform_is_offered_on_novel_only_for_now():
+def test_serialization_platform_is_offered_on_manga_and_novel():
     """
-    Manga has a REAL `serialization_platform` column (not yet dropped), and a
-    TagField must never share a name with a real column - attach_link_fields
-    would setattr() the derived (empty, pre-Task-11) value onto the ORM entry
-    and silently null the live column on every read. Task 11 backfills
-    manga's column into media_tag, drops the column, and widens this field to
-    ("manga", "novel") in the same migration. Do not "fix" this back early.
+    Manga's real `serialization_platform` column was dropped in Task 11, in
+    the same migration that backfilled its values into media_tag - so this
+    field now covers both media types that can carry it.
     """
     field = TAG_FIELDS["serialization_platform"]
     assert field.category == SERIALIZATION_CATEGORY
-    assert set(field.media_types) == {"novel"}
+    assert set(field.media_types) == {"manga", "novel"}
 
 
 def test_the_two_platform_fields_never_overlap():

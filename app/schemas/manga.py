@@ -40,7 +40,6 @@ class MangaBase(BaseModel):
     release_date: Optional[str] = None
     end_date: Optional[str] = None
     anime_studio: Optional[str] = None
-    serialization_platform: Optional[str] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None

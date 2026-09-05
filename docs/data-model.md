@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-05
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -362,12 +362,14 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `mal_rank` / `anilist_rating` | String | yes | | |
 | `release_date` / `end_date` | String | yes | | |
 | `anime_studio` | String | yes | | Studio of the anime adaptation (plain text) |
-| `serialization_platform` | String | yes | | |
 | `mal_id` | Integer | yes | | Derived from `mal_link` (`MAL_MANGA_ID_PATTERN`) |
 | `mal_link` / `anilist_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
-`author_plot` / `author_draw` / `publisher_tw` link fields.
+`author_plot` / `author_draw` / `publisher_tw` / `serialization_platform`
+link fields. `serialization_platform` was a real column until Task 11 of the
+media-sources migration backfilled it into `media_tag` and dropped it - it is
+now a `TagField` shared with `novel` (`app/utils/credit_roles.py`).
 
 ### `novel`
 
@@ -390,10 +392,10 @@ Alembic revision `nv1u2n3i4t5s`.
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `novel_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `novel_unit` rows |
 | `vol_fin` | Float | **no** | `0` | Not derived |
-| `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows |
-| `arc_fin` | Float | **no** | `0` | Number of arcs fully finished. Together with `ch_fin_in_arc` this is the two-stage reading cursor; normalised (never left out of range) on every write |
-| `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows |
-| `ch_fin` | Float | **no** | `0` | **Derived**: `sum(ch_count of fully-finished arcs) + ch_fin_in_arc` |
+| `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows, and null on every volume-only type (see below) |
+| `arc_fin` | Float | **no** | `0` | Number of arcs fully finished. Together with `ch_fin_in_arc` this is the two-stage reading cursor; normalised (never left out of range) on every write; forced to `0` on every volume-only type |
+| `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows; null on every volume-only type |
+| `ch_fin` | Float | **no** | `0` | **Derived**: `sum(ch_count of fully-finished arcs) + ch_fin_in_arc`; forced to `0` on every volume-only type |
 | `ch_fin_in_arc` | Float | **no** | `0` | Chapters read into the arc currently being read (the arc at position `arc_fin`). Zero for every novel with no arc rows. Not clamped at the last recorded arc - see the rollover rule in business-rules.md |
 | `progress_display` | String | yes | | Which pair the UI shows. Canonical values (Decision G, narrowed to the JP/KR-vs-TW volume choice): `""` (default, VOL JP/KR) or `vol_tw`. Older stored values (`ch`, `vol_original`, `arc_ch`) still render on detail/card views - see PROGRESS_DISPLAY_OPTIONS and `withLegacyProgressDisplay` in `fieldOptions.js` |
 | `mal_rating` | Float | yes | | |
@@ -405,7 +407,8 @@ Alembic revision `nv1u2n3i4t5s`.
 | `mal_link` / `anilist_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
-`author` / `illustrator` / `publisher_tw` link fields, `units`
+`author` / `illustrator` / `publisher_tw` / `serialization_platform` link
+fields, `units`
 (`List[NovelUnitResponse]`, populated via `selectinload`).
 
 ### `novel_unit`
@@ -439,6 +442,17 @@ touch `units` - it is not a real column, so `apply_column_patch` silently
 ignores it. Every create/update/patch write runs `derive_novel_progress`,
 which recomputes `arc_total`/`ch_total`/`ch_fin` from the arc rows and
 normalises `arc_fin`/`ch_fin_in_arc` - see business-rules.md.
+
+`derive_novel_progress` reads `type` first. On a **volume-only type** - one
+whose only allowed `unit_kind` is `volume`, i.e. `Light Novel` and `Novel`
+(`NOVEL_VOLUME_ONLY_TYPES` in `app/utils/constants.py`) - it derives nothing
+and instead blanks all five chapter and arc columns: `arc_total` and
+`ch_total` to null, `arc_fin`, `ch_fin` and `ch_fin_in_arc` to `0`. The volume
+columns are untouched. This holds on every write path, so a chapter value
+cannot re-enter from a sheet Pull or a Fill. Migration `v1o2l3o4n5l6` cleared
+the historical values once and deleted any non-`volume` `novel_unit` rows
+belonging to these types; its downgrade is a deliberate no-op, because nothing
+else in the schema records what those values were.
 
 ### `comic`
 
