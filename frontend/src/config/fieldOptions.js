@@ -57,9 +57,8 @@ export const PLAYING_STATUSES = [
   "Won't Play",
 ];
 
-// The game vocabularies. Unlike the watch/read lists above, GET /api/constants
-// does not serve these yet, so they are literals here rather than a pre-fetch
-// fallback - keep them matching app/utils/constants.py by hand.
+// The game vocabularies. GET /api/constants serves all eight, so these are
+// the pre-fetch fallback like every list above - see CONSTANTS_FALLBACK.
 export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 
 export const COMPLETION_LEVELS = [
@@ -305,6 +304,13 @@ export const CONSTANTS_FALLBACK = {
   novel_region: NOVEL_REGIONS,
   novel_type: NOVEL_TYPES,
   comic_type: COMIC_TYPES,
+  game_type: GAME_TYPES,
+  completion_level: COMPLETION_LEVELS,
+  game_release_status: GAME_RELEASE_STATUSES,
+  game_storefront: GAME_STOREFRONTS,
+  game_ownership: GAME_OWNERSHIP_KINDS,
+  game_copy_format: GAME_COPY_FORMATS,
+  game_acquisition: GAME_ACQUISITION_KINDS,
   manga_serialization_status: MANGA_SERIALIZATION_STATUSES,
   novel_serialization_status: NOVEL_SERIALIZATION_STATUSES,
   day_of_week: WEEKDAYS,
