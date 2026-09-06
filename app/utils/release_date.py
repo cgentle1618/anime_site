@@ -58,6 +58,8 @@ DATE_COLUMNS: Dict[str, tuple] = {
     "manga": ("release_date", "end_date"),
     "novel": ("release_date", "end_date"),
     "comic": ("release_date", "end_date"),
+    "games": ("release_date",),
+    "game_copy": ("acquired_date",),
 }
 
 

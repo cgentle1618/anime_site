@@ -13,6 +13,8 @@ from app.models.collection import Collection
 from app.models.comic import Comic
 from app.models.content_label import ContentLabel, MediaContentLabel
 from app.models.franchise import Franchise, Series
+from app.models.game import Game
+from app.models.game_copy import GameCopy
 from app.models.manga import Manga
 from app.models.media_credit import MediaCredit, MediaTag
 from app.models.media_relation import MediaRelation
@@ -61,6 +63,8 @@ __all__ = [
     "Novel",
     "NovelUnit",
     "Comic",
+    "Game",
+    "GameCopy",
     "WatchOrderList",
     "WatchOrderItem",
     "WatchOrderSection",
@@ -114,6 +118,7 @@ _REMARK_OWNERS = (
     (Manga, "manga"),
     (Novel, "novel"),
     (Comic, "comic"),
+    (Game, "game"),
     (Series, "series"),
     (Franchise, "franchise"),
     (Collection, "collection"),
