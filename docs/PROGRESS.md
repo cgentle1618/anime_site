@@ -44,7 +44,6 @@ Unclaimed. None block using the app.
 | Games (and comics) absent from cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` | todo |
 | No Games tab | `FutureReleases.jsx` | todo |
 | Colour-token table holds pre-archive hexes | `docs/frontend/components.md` | todo |
-| Stale comment: "Fill reads igdb_id, which the backend derives from this link" | `frontend/src/config/formFields/fieldMeta.js:890` | todo |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` | todo |
 
 ## Environment

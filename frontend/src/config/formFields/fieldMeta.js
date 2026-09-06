@@ -918,9 +918,23 @@ export const TYPE_FIELD_META = {
       source: { kind: "option", category: "Label", scope: "game" },
       group: "Classification",
     },
-    // Fill reads igdb_id, which the backend derives from this link - so the
-    // link is the only one the admin ever types.
+    // Fill reads igdb_id. The IGDB picker on the Add page sets it, and it is
+    // typeable: the public link carries a slug, not the id, so a link pasted
+    // by hand identifies nothing on its own. No default can be set for either
+    // id - an identifier is per-entry by definition.
+    igdb_id: {
+      label: "IGDB ID",
+      control: "number",
+      defaultable: false,
+      group: "Links",
+    },
     igdb_link: { label: "IGDB Link", control: "url", group: "Links" },
+    steam_appid: {
+      label: "Steam AppID",
+      control: "number",
+      defaultable: false,
+      group: "Links",
+    },
     steam_link: { label: "Steam Link", control: "url", group: "Links" },
     // Repeatable copy rows, rendered by <GameCopiesEditor>.
     copies: {

@@ -883,6 +883,7 @@ export default function Modify() {
       my_rating: g.my_rating || "",
       igdb_id: g.igdb_id ?? "",
       igdb_link: g.igdb_link || "",
+      steam_appid: g.steam_appid ?? "",
       steam_link: g.steam_link || "",
       sources: g.sources || [],
       copies: g.copies || [],

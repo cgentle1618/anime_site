@@ -340,10 +340,12 @@ export const defaultGame = () => ({
   combat_mode: "",
   game_platform: "",
   label: "",
-  // Set by the IGDB picker, not by hand: Fill reads the id, and the link the
-  // picker stores carries only a slug.
+  // Fill's only handle on the game. The IGDB picker sets it, and it can also
+  // be typed in: the link the picker stores carries only a slug, so nothing
+  // can recover the id from a link pasted by hand.
   igdb_id: "",
   igdb_link: "",
+  steam_appid: "",
   steam_link: "",
   sources: [],
   // One row per copy owned or wanted; the nested-collection contract

@@ -543,10 +543,22 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
       </Field>
 
       <SectionHeader icon="fa-external-link-alt" title="Sources" />
+      {/* The id, not the link, is what Fill runs on. The public IGDB URL
+          carries a slug, so nothing can derive one from the other - both are
+          typed, or both come from the picker on the Add page. */}
       <Field
-        label="IGDB Link"
-        hint="Fill Game pulls genres, themes, companies, time-to-beat and the parent game from it"
+        label="IGDB ID"
+        hint="Fill Game pulls genres, themes, companies, time-to-beat and the parent game from it — the link alone is not enough"
       >
+        <input
+          type="number"
+          className={inputCls}
+          value={f.igdb_id}
+          onChange={(e) => u("igdb_id", e.target.value)}
+          placeholder="119133"
+        />
+      </Field>
+      <Field label="IGDB Link">
         <input
           className={inputCls}
           value={f.igdb_link}
@@ -554,7 +566,16 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
           placeholder="https://www.igdb.com/games/elden-ring"
         />
       </Field>
-      <Field label="Steam Link" hint="Reserved for the Steam sync">
+      <Field label="Steam AppID" hint="Reserved for the Steam sync">
+        <input
+          type="number"
+          className={inputCls}
+          value={f.steam_appid}
+          onChange={(e) => u("steam_appid", e.target.value)}
+          placeholder="1245620"
+        />
+      </Field>
+      <Field label="Steam Link">
         <input
           className={inputCls}
           value={f.steam_link}

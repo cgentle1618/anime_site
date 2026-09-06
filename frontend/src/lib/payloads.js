@@ -299,11 +299,13 @@ export function gameFieldsPayload(f) {
     metacritic_score: int(f.metacritic_score),
     metacritic_user_score: num(f.metacritic_user_score),
     my_rating: f.my_rating || null,
-    // The numeric id travels on its own: `igdb_link` holds the public
+    // Both numeric ids travel on their own. `igdb_link` holds the public
     // www.igdb.com URL, which carries a slug rather than an id, so the
-    // backend's link -> id derivation cannot recover it.
+    // backend's link -> id derivation cannot recover it; the Steam appid is
+    // typed in beside the store link for the same reason.
     igdb_id: int(f.igdb_id),
     igdb_link: f.igdb_link || null,
+    steam_appid: int(f.steam_appid),
     steam_link: f.steam_link || null,
     sources: (f.sources || [])
       .filter((s) => (s.name || "").trim())

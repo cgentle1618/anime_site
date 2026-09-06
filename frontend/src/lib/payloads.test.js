@@ -69,6 +69,25 @@ describe("game igdb_id", () => {
   });
 });
 
+// The Steam appid is typed in beside the store link, so a game IGDB has no
+// external_games row for can still be identified by hand.
+describe("game steam_appid", () => {
+  it("is sent alongside the link", () => {
+    const payload = gameFieldsPayload({
+      steam_appid: "1245620",
+      steam_link: "https://store.steampowered.com/app/1245620/",
+    });
+    expect(payload.steam_appid).toBe(1245620);
+    expect(payload.steam_link).toBe(
+      "https://store.steampowered.com/app/1245620/",
+    );
+  });
+
+  it("is null when the form never got one", () => {
+    expect(gameFieldsPayload({ steam_appid: "" }).steam_appid).toBeNull();
+  });
+});
+
 // The three completion flags are tristate selects: "" is "unknown", not false.
 describe("game completion flags", () => {
   it("sends all three as tristate booleans", () => {

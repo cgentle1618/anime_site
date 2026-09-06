@@ -336,7 +336,7 @@ Owned → Subscription → Free → Wishlist → Not Owned) is declared but **no
 populated by any read path yet**, so it comes back `null`.
 
 `steam_appid` / `steam_link` are reserved columns for the deferred Steam
-sync: nothing on this router reads or writes them. The IGDB search endpoint
+sync: the admin form writes both, but no pipeline reads them yet. The IGDB search endpoint
 under this prefix, and the Fill pipeline behind `igdb_id`, shipped in their
 own plan — see [external-apis.md](external-apis.md).
 

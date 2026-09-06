@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-06 (commit 203d33b)
+Last verified: 2026-09-06
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -141,13 +141,15 @@ is deliberately not `makeApply`'s shape: it always sets `igdb_id` and
 `igdb_link`, and fills `game_name_en` **only when the admin left it blank**.
 Nothing else is copied — the rest is Fill Game's job.
 
-**`igdb_id` is in the payload but has no input anywhere on the form** (only
-`igdb_link` does), and this is on purpose. The picker stores IGDB's public
-`www.igdb.com/games/<slug>` URL, while the backend's `extract_igdb_id` only
-parses the API shape `api.igdb.com/v4/games/<id>`. Without the separately
-carried id, a picked game would save with `igdb_id` null and Fill would have no
-handle on it. It is picker-set only; `gameFieldsPayload` coerces it to an int
-(`lib/payloads.js`).
+**`igdb_id` has its own input, beside `igdb_link`**, and both ids are typed
+rather than derived. The picker stores IGDB's public `www.igdb.com/games/<slug>`
+URL, while the backend's `extract_igdb_id` only parses the API shape
+`api.igdb.com/v4/games/<id>` — so a link pasted by hand identifies nothing, and
+without a separately carried id the entry saves with `igdb_id` null and Fill has
+no handle on it. `steam_appid` sits beside `steam_link` for the same reason
+(there is no Steam picker at all). `gameFieldsPayload` coerces both to ints
+(`lib/payloads.js`); `fieldMeta.js` marks them `defaultable: false`, since an
+identifier is per-entry by definition.
 
 The rest of the form is `GameFormBody`, exported from the same file: the five
 names, classification (game type plus a **Base Game** `ComboBox` that never
