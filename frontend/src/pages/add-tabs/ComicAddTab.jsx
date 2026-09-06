@@ -485,12 +485,12 @@ export default function ComicAddTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
+      <Field label="Cover Image File" hint="e.g. comic/5114.jpg">
         <input
           className={inputCls}
           value={cmf.cover_image_file}
           onChange={(e) => ucm("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="comic/5114.jpg"
         />
       </Field>
       <Field label="Remark">

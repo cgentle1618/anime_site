@@ -276,7 +276,7 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         if entry.cover_image_file:
-            delete_cover_image(entry_id)
+            delete_cover_image(spec.owner_type, entry_id)
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
         delete_links_for(db, spec.owner_type, entry.system_id)

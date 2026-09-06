@@ -384,12 +384,12 @@ export default function TvShowAddTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">
+      <Field label="Cover Image File" hint="e.g. tv-show/5114.jpg or https://...">
         <input
           className={inputCls}
           value={tvf.cover_image_file}
           onChange={(e) => utf("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="tv-show/5114.jpg"
         />
       </Field>
       <Field label="Remark">

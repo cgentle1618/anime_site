@@ -650,12 +650,12 @@ export default function NovelAddTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
+      <Field label="Cover Image File" hint="e.g. novel/5114.jpg">
         <input
           className={inputCls}
           value={nvf.cover_image_file}
           onChange={(e) => unv("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="novel/5114.jpg"
         />
       </Field>
       <Field label="Remark">

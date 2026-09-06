@@ -62,15 +62,17 @@ def test_delete_removes_the_publisher_and_its_logo(admin_client, monkeypatch):
 
     deleted = []
     monkeypatch.setattr(
-        publisher_router, "delete_cover_image", lambda sid: deleted.append(sid)
+        publisher_router,
+        "delete_cover_image",
+        lambda owner_type, sid: deleted.append((owner_type, sid)),
     )
     created = admin_client.post(
-        "/api/publisher/", json={"name_en": "Doomed", "logo_file": "x.jpg"}
+        "/api/publisher/", json={"name_en": "Doomed", "logo_file": "publisher/x.jpg"}
     ).json()
     assert (
         admin_client.delete(f"/api/publisher/{created['system_id']}").status_code == 200
     )
-    assert deleted == [created["system_id"]]
+    assert deleted == [("publisher", created["system_id"])]
 
 
 def test_merge_moves_credits_and_deletes_the_loser(admin_client, db_session):

@@ -163,7 +163,7 @@ class TestFillClosesTheEligibilityLoop:
         )
         monkeypatch.setattr(
             "app.services.domain.autofill.download_cover_image",
-            lambda url, system_id: "downloaded.jpg",
+            lambda url, owner_type, system_id: "downloaded.jpg",
         )
         novel = make_novel(db_session, mal_link="", openlibrary_id="OL5738148W")
         assert SPEC.fill_eligible(db_session, novel) is True

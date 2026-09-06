@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-06
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -217,7 +217,9 @@ JSON, with a 404/400 mapped from the result dict. Adding a type to
 
 At import time:
 
-1. `os.makedirs("static/covers")` and `static/quotes` (quote images are local-only).
+1. One `static/covers/<owner_type>/` directory per entry in
+   `image_manager.COVER_OWNERS`, plus `static/quotes` (quote images are
+   local-only and keep their own flat directory).
 2. `ensure_schema(engine)` (`app/schema_guard.py`): `migrated` -> nothing;
    `empty` -> `create_all` + warning to stamp Alembic; `unmanaged` (tables
    but no `alembic_version`) -> warning, nothing created. Alembic owns the

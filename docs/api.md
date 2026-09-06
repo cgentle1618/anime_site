@@ -1416,5 +1416,5 @@ row before serialisation (`docs/authorization.md`).
 **Accepted residuals**, documented rather than fixed: `seasonal` counts are
 precomputed over all entries and over-count for a restricted viewer;
 franchise/series/collection hubs carry no labels and may render as empty
-shells; `/static/covers/<entry_id>.*` is served straight from disk by
+shells; `/static/covers/<media_type>/<entry_id>.jpg` is served straight from disk by
 `StaticFiles`, so hiding an entry does not hide its cover.

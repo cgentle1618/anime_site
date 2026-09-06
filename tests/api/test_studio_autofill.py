@@ -37,7 +37,7 @@ def tenrai_calls(monkeypatch):
 
     monkeypatch.setattr(autofill_module, "fetch_tenrai_producer_data", fake_fetch)
     monkeypatch.setattr(
-        autofill_module, "download_cover_image", lambda url, system_id: "stored.jpg"
+        autofill_module, "download_cover_image", lambda url, owner_type, system_id: "stored.jpg"
     )
     return calls
 

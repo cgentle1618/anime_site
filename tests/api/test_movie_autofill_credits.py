@@ -58,7 +58,7 @@ def patched(monkeypatch):
         calls["fetch"].append(imdb_id)
         return {"tmdb_raw": TMDB_RAW, "omdb_raw": OMDB_RAW}
 
-    def fake_download(url, system_id):
+    def fake_download(url, owner_type, system_id):
         calls["download"].append((url, system_id))
         return "downloaded.jpg"
 

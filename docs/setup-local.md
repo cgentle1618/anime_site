@@ -118,7 +118,7 @@ list. Variable names are case-insensitive.
 | `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
-| `GCP_BUCKET_NAME` | unset locally | GCS bucket for cover images. Unset means covers are written to `static/covers/` on disk. |
+| `GCP_BUCKET_NAME` | unset locally | GCS bucket for cover images. Unset means covers are written to `static/covers/<owner_type>/` on disk. |
 | `K_SERVICE` | unset | Set by Cloud Run only. **Never set locally** (it turns on secure cookies, IAM GCS auth and the production config check). |
 
 Minimum for a working local app: the three `POSTGRES_*` values. Everything
@@ -286,4 +286,4 @@ Details of the tiers and fixtures are in `testing.md`.
 | `alembic upgrade head` says a table already exists | The server was started on an empty DB first (schema guard `create_all`). Use `alembic stamp head` or drop and recreate the DB. |
 | API tests fail with `password authentication failed` | `POSTGRES_PASSWORD` in `.env` does not match the server. |
 | `/` on :8000 returns "Frontend not built" | Run `cd frontend && npm run build`. |
-| Covers not showing locally | With `GCP_BUCKET_NAME` unset covers are files in `static/covers/`, served at `/static/covers/<id>.jpg`; make sure the pipeline has downloaded them. |
+| Covers not showing locally | With `GCP_BUCKET_NAME` unset covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`; make sure the pipeline has downloaded them, and that `scripts/migrate_cover_layout.py` has been run if this checkout predates the folder layout. |

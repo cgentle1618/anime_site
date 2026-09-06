@@ -55,7 +55,7 @@ def patched(monkeypatch):
         )
         return WORK_RESULT
 
-    def fake_download(url, system_id):
+    def fake_download(url, owner_type, system_id):
         calls["download"].append((url, system_id))
         return "downloaded.jpg"
 

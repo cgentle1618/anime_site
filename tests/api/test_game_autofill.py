@@ -56,7 +56,7 @@ def patched(monkeypatch):
     monkeypatch.setattr(
         autofill_module,
         "download_cover_image",
-        lambda url, sid: calls["download"].append(url) or "stored.jpg",
+        lambda url, owner_type, sid: calls["download"].append(url) or "stored.jpg",
     )
     return calls
 

@@ -366,12 +366,12 @@ export default function AnimeMovieAddTab({
       />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">
+      <Field label="Cover Image File" hint="e.g. anime-movie/5114.jpg or https://...">
         <input
           className={inputCls}
           value={amf.cover_image_file}
           onChange={(e) => uam("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="anime-movie/5114.jpg"
         />
       </Field>
       <Field label="Remark">

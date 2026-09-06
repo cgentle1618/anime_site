@@ -407,15 +407,15 @@ What goes in which tab, the tab order, and the credit/tag columns are described 
 
 ## Google Cloud Storage (cover images)
 
-Covers are stored as one flat object per entry, `"{system_id}.jpg"`, and the database column `cover_image_file` holds just that filename.
+Images are stored one per row at `"{owner_type}/{system_id}.jpg"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the thirteen folders: the nine media types plus `staff`, `character`, `publisher` and `studio`.
 
 | Item | Value |
 |---|---|
 | Client | `get_gcs_client()` in `app/utils/gcp_utils.py`: on Cloud Run (`settings.is_cloud_run`, i.e. `K_SERVICE` set) → `storage.Client()` with the instance's IAM identity; locally with `GOOGLE_CREDENTIALS_JSON` → service-account credentials; otherwise Application Default Credentials. |
-| Bucket vs disk | `get_active_bucket_name()` returns `settings.bucket_name`. When it is `None` (the local default) every function in `image_manager.py` reads and writes `COVER_DIR = "static/covers"` on disk instead; `app/main.py` creates that directory and mounts `/static`. |
-| `download_cover_image(url, system_id)` | Skips if the object/file already exists; otherwise `requests.get` with the MediaTracker User-Agent and a 15 s timeout, then `upload_from_string(..., content_type="image/jpeg")` or a local write. **No resizing or format conversion** — a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the filename, or `None` on any error (logged). |
-| `cover_image_exists`, `list_all_cover_images`, `delete_cover_image` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. |
-| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js`: on `localhost` → `/static/covers/{file}`, otherwise `https://storage.googleapis.com/cg1618-anime-covers/{file}` (the bucket name is hard-coded there). |
+| Bucket vs disk | `get_active_bucket_name()` returns `settings.bucket_name`. When it is `None` (the local default) every function in `image_manager.py` reads and writes `COVER_DIR = "static/covers"` on disk instead; `app/main.py` creates one subdirectory per owner type under it and mounts `/static`. |
+| `download_cover_image(url, owner_type, system_id)` | Skips if the object/file already exists; otherwise `requests.get` with the MediaTracker User-Agent and a 15 s timeout, then `upload_from_string(..., content_type="image/jpeg")` or a local write. **No resizing or format conversion** — a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the storage key to record on the row, or `None` on any error (logged). |
+| `cover_image_exists(owner_type, id)`, `list_all_cover_images(owner_type=None)`, `delete_cover_image(owner_type, id)` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. `list_all_cover_images` returns keys and ignores anything left at the storage root, so an un-migrated file belongs to no owner and is never matched to a row. |
+| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js`: on `localhost` → `/static/covers/{key}`, otherwise `https://storage.googleapis.com/cg1618-anime-covers/{key}` (the bucket name is hard-coded there). It concatenates whatever the column holds, so the folder comes along for free; the "convention filename" fallbacks for an entry with no stored key build `{media_type}/{system_id}.jpg` and need the caller to have tagged the entry with its media type (`withMediaType`). |
 
 ### Placeholder handling
 

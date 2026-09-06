@@ -56,6 +56,7 @@ from app.routers import (
     watch_order,
 )
 from app.schema_guard import ensure_schema
+from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.security import get_password_hash
 
@@ -65,7 +66,11 @@ logger = logging.getLogger(__name__)
 # SYSTEM INITIALIZATION
 # ==========================================
 
-os.makedirs("static/covers", exist_ok=True)
+# One folder per owner table: an image is stored at
+# static/covers/<owner_type>/<system_id>.jpg, since a system_id alone is
+# ambiguous across tables.
+for _owner in COVER_OWNERS:
+    os.makedirs(os.path.join(COVER_DIR, _owner), exist_ok=True)
 # Quote images are local-only for now; Cloud Run's filesystem is ephemeral,
 # so the frontend hides image controls off localhost.
 os.makedirs("static/quotes", exist_ok=True)

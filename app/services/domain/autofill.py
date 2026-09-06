@@ -124,11 +124,11 @@ def autofill_anime_from_mal(
 
         # Conditionally Download Cover Image
         if not anime.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(anime.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "anime", str(anime.system_id)
             )
-            if filename:
-                anime.cover_image_file = filename
+            if key:
+                anime.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -169,11 +169,11 @@ def autofill_anime_movie_from_mal(
             anime_movie.mal_rank = str(raw_rank) if raw_rank else anime_movie.mal_rank
 
         if not anime_movie.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(anime_movie.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "anime-movie", str(anime_movie.system_id)
             )
-            if filename:
-                anime_movie.cover_image_file = filename
+            if key:
+                anime_movie.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -219,11 +219,11 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
             manga.mal_rank = str(raw_rank) if raw_rank else manga.mal_rank
 
         if not manga.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(manga.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "manga", str(manga.system_id)
             )
-            if filename:
-                manga.cover_image_file = filename
+            if key:
+                manga.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -269,11 +269,11 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
             novel.mal_rank = str(raw_rank) if raw_rank else novel.mal_rank
 
         if not novel.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(novel.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "novel", str(novel.system_id)
             )
-            if filename:
-                novel.cover_image_file = filename
+            if key:
+                novel.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -317,11 +317,11 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
             )
 
         if not novel.cover_image_file and ol_data.get("cover_image_url"):
-            filename = download_cover_image(
-                ol_data.get("cover_image_url"), str(novel.system_id)
+            key = download_cover_image(
+                ol_data.get("cover_image_url"), "novel", str(novel.system_id)
             )
-            if filename:
-                novel.cover_image_file = filename
+            if key:
+                novel.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -377,11 +377,11 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
 
         # Download cover image if missing
         if movie.cover_image_file is None and mapped.get("cover_image_url"):
-            filename = download_cover_image(
-                mapped["cover_image_url"], str(movie.system_id)
+            key = download_cover_image(
+                mapped["cover_image_url"], "movie", str(movie.system_id)
             )
-            if filename:
-                movie.cover_image_file = filename
+            if key:
+                movie.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -434,11 +434,11 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 
         # Download cover image if missing
         if tv_show.cover_image_file is None and mapped.get("cover_image_url"):
-            filename = download_cover_image(
-                mapped["cover_image_url"], str(tv_show.system_id)
+            key = download_cover_image(
+                mapped["cover_image_url"], "tv-show", str(tv_show.system_id)
             )
-            if filename:
-                tv_show.cover_image_file = filename
+            if key:
+                tv_show.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -487,11 +487,11 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                         pass
 
             if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
-                filename = download_cover_image(
-                    mapped["cover_image_url"], str(cartoon.system_id)
+                key = download_cover_image(
+                    mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
-                if filename:
-                    cartoon.cover_image_file = filename
+                if key:
+                    cartoon.cover_image_file = key
 
         else:  # airing_type == "TV"
             tmdb_season_raw = None
@@ -522,11 +522,11 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                     cartoon.airing_status = derived_status
 
             if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
-                filename = download_cover_image(
-                    mapped["cover_image_url"], str(cartoon.system_id)
+                key = download_cover_image(
+                    mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
-                if filename:
-                    cartoon.cover_image_file = filename
+                if key:
+                    cartoon.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -572,11 +572,11 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             )
 
         if not comic.cover_image_file and cv_data.get("cover_image_url"):
-            filename = download_cover_image(
-                cv_data.get("cover_image_url"), str(comic.system_id)
+            key = download_cover_image(
+                cv_data.get("cover_image_url"), "comic", str(comic.system_id)
             )
-            if filename:
-                comic.cover_image_file = filename
+            if key:
+                comic.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -614,11 +614,11 @@ def autofill_studio_from_mal(studio: Studio) -> None:
 
         # Last, so a download failure cannot cost us the cheap columns above.
         if not studio.logo_file and j_data.get("logo_url"):
-            filename = download_cover_image(
-                j_data.get("logo_url"), str(studio.system_id)
+            key = download_cover_image(
+                j_data.get("logo_url"), "studio", str(studio.system_id)
             )
-            if filename:
-                studio.logo_file = filename
+            if key:
+                studio.logo_file = key
 
     except Exception as e:
         logger.error(
@@ -723,11 +723,11 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
 
         # Last, so a download failure cannot cost us the cheap columns above.
         if not game.cover_image_file and g_data.get("cover_image_url"):
-            filename = download_cover_image(
-                g_data.get("cover_image_url"), str(game.system_id)
+            key = download_cover_image(
+                g_data.get("cover_image_url"), "game", str(game.system_id)
             )
-            if filename:
-                game.cover_image_file = filename
+            if key:
+                game.cover_image_file = key
 
     except Exception as e:
         logger.error(

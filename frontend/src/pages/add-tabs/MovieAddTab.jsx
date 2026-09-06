@@ -378,12 +378,12 @@ export default function MovieAddTab({
       />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
+      <Field label="Cover Image File" hint="e.g. movie/5114.jpg">
         <input
           className={inputCls}
           value={mf.cover_image_file}
           onChange={(e) => umf("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="movie/5114.jpg"
         />
       </Field>
       <Field label="Remark">

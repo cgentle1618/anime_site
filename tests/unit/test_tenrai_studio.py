@@ -67,7 +67,7 @@ def patched_studio(monkeypatch):
         autofill_module, "fetch_tenrai_producer_data", lambda mal_id: MAPPA_RESULT
     )
     monkeypatch.setattr(
-        autofill_module, "download_cover_image", lambda url, system_id: "stored.jpg"
+        autofill_module, "download_cover_image", lambda url, owner_type, system_id: "stored.jpg"
     )
 
 

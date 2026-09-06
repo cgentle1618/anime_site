@@ -49,11 +49,34 @@ export function getEntryYear(entry) {
 }
 
 /**
+ * Tag a fetched entry list with the media type it was fetched as, which the
+ * API payloads do not carry. Only the cover fallback needs it.
+ */
+export function withMediaType(entries, mediaType) {
+  return entries.map((e) => ({ ...e, media_type: mediaType }));
+}
+
+/**
+ * Cover key for an entry that has no cover_image_file of its own.
+ * Callers must tag entries with the media type they were fetched as - the API
+ * payloads do not carry one, and without it there is no folder to look in.
+ */
+function conventionCover(entry) {
+  if (!entry.media_type) return FALLBACK_SVG;
+  return getCoverUrl(`${entry.media_type}/${entry.system_id}.jpg`);
+}
+
+/**
  * Resolve a franchise's cover:
  *   1. its explicitly chosen cover_entry_id
  *   2. else the newest member entry that has a cover image
  *   3. else the newest member entry by convention filename
  *   4. else the placeholder
+ *
+ * Covers live under owner-typed subfolders, so the convention filename is
+ * `<media_type>/<system_id>.jpg`: the id alone no longer names a file. An
+ * entry that arrives without a media_type falls through to the placeholder
+ * rather than to a guessed, broken URL.
  */
 export function getFranchiseCover(
   franchise,
@@ -63,11 +86,9 @@ export function getFranchiseCover(
   if (franchise.cover_entry_id) {
     const coverEntry = allEntriesDict[franchise.cover_entry_id];
     if (coverEntry) {
-      const file =
-        coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A"
-          ? coverEntry.cover_image_file
-          : `${coverEntry.system_id}.jpg`;
-      return getCoverUrl(file);
+      if (coverEntry.cover_image_file && coverEntry.cover_image_file !== "N/A")
+        return getCoverUrl(coverEntry.cover_image_file);
+      return conventionCover(coverEntry);
     }
   }
   const entries = allEntriesByFranchise[franchise.system_id] || [];
@@ -82,7 +103,7 @@ export function getFranchiseCover(
     const sorted = [...entries].sort(
       (a, b) => getEntryYear(b) - getEntryYear(a),
     );
-    return getCoverUrl(`${sorted[0].system_id}.jpg`);
+    return conventionCover(sorted[0]);
   }
   return FALLBACK_SVG;
 }

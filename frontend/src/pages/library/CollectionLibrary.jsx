@@ -4,7 +4,7 @@
 // Franchise library there is no type filter, because a collection has no type.
 import { useState, useEffect, useMemo } from "react";
 import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
-import { getCollectionCover } from "../../lib/covers";
+import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
 import { Eyebrow } from "../../components/ui/primitives";
 
@@ -54,15 +54,17 @@ export default function CollectionLibrary() {
           comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
+        // Tagged with the media type each list was fetched as: covers live
+        // in owner-typed folders, so the cover fallback needs it.
         const allEntries = [
-          ...anime,
-          ...animeMovies,
-          ...movies,
-          ...tvShows,
-          ...cartoons,
-          ...mangas,
-          ...novels,
-          ...comics,
+          ...withMediaType(anime, "anime"),
+          ...withMediaType(animeMovies, "anime-movie"),
+          ...withMediaType(movies, "movie"),
+          ...withMediaType(tvShows, "tv-show"),
+          ...withMediaType(cartoons, "cartoon"),
+          ...withMediaType(mangas, "manga"),
+          ...withMediaType(novels, "novel"),
+          ...withMediaType(comics, "comic"),
         ];
 
         setAllCollections(collections);

@@ -382,12 +382,12 @@ export default function CartoonAddTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg or https://...">
+      <Field label="Cover Image File" hint="e.g. cartoon/5114.jpg or https://...">
         <input
           className={inputCls}
           value={cf.cover_image_file}
           onChange={(e) => uc("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="cartoon/5114.jpg"
         />
       </Field>
       <Field label="Remark">

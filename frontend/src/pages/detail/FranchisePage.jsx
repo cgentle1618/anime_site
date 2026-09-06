@@ -15,7 +15,7 @@ import {
   parseTypes,
   COMPLETED_STATUSES,
 } from "../../utils/media";
-import { getFranchiseCover } from "../../lib/covers";
+import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import {
   HubLoading,
   HubError,
@@ -1177,17 +1177,19 @@ export default function FranchisePage() {
 
   // Combined flat entry list, used only for hero cover resolution. Every entry
   // loaded here already belongs to this franchise, so the by-franchise map the
-  // shared helper expects is a single bucket.
+  // shared helper expects is a single bucket. Each list is tagged with the
+  // media type it was fetched as: covers live in owner-typed folders, so the
+  // cover fallback cannot name a file without it.
   const allEntries = [
-    ...animeList,
-    ...animeMovieList,
-    ...movieList,
-    ...tvShowList,
-    ...cartoonList,
-    ...mangaList,
-    ...novelList,
-    ...comicList,
-    ...gameList,
+    ...withMediaType(animeList, "anime"),
+    ...withMediaType(animeMovieList, "anime-movie"),
+    ...withMediaType(movieList, "movie"),
+    ...withMediaType(tvShowList, "tv-show"),
+    ...withMediaType(cartoonList, "cartoon"),
+    ...withMediaType(mangaList, "manga"),
+    ...withMediaType(novelList, "novel"),
+    ...withMediaType(comicList, "comic"),
+    ...withMediaType(gameList, "game"),
   ];
   const coverUrl = getFranchiseCover(
     franchise,

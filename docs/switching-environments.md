@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 ## What this is for
 
@@ -87,8 +87,14 @@ tab; Pull All overwrites every table. So:
    the newest schema, and Pull matches columns by header name.
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.
-6. `cd frontend && npm run build` before checking anything on `:8000`.
-7. Re-read `docs/roadmap.md` and the doc for the area you were in.
+6. If this checkout predates the owner-typed cover folders (`static/covers/`
+   still holds loose `<uuid>.jpg` files), run
+   `venv/Scripts/python.exe -m scripts.migrate_cover_layout` and then the same
+   with `--apply`. `static/covers/` is gitignored, so each machine holds its own
+   copy of the images and each has to be moved once; the column values arrive
+   already migrated through Pull All, so the script only moves files here.
+7. `cd frontend && npm run build` before checking anything on `:8000`.
+8. Re-read `docs/roadmap.md` and the doc for the area you were in.
 
 ## 5. Quick checklist
 
@@ -105,4 +111,5 @@ tab; Pull All overwrites every table. So:
 - [ ] deps installed if `requirements.txt` / `package.json` moved
 - [ ] `alembic upgrade head`
 - [ ] Pull All (only if data changed elsewhere), then Calculate All if needed
+- [ ] `scripts/migrate_cover_layout.py --apply` if the covers are still flat here
 - [ ] `npm run build`

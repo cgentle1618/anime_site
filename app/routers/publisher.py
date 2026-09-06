@@ -241,7 +241,7 @@ def delete_publisher(
     # Studio's delete path never does this, so a deleted studio leaks its logo
     # (cleanup exists only for media entries: _factory.py:31,
     # calculation.py:278). Publisher does not inherit that gap.
-    delete_cover_image(str(system_id))
+    delete_cover_image("publisher", str(system_id))
 
     return {"status": "success", "message": "Publisher deleted successfully."}
 

@@ -33,7 +33,7 @@ def patched_tenrai(monkeypatch):
         autofill_module, "fetch_tenrai_producer_data", lambda mal_id: MAPPA_RESULT
     )
     monkeypatch.setattr(
-        autofill_module, "download_cover_image", lambda url, system_id: "stored.jpg"
+        autofill_module, "download_cover_image", lambda url, owner_type, system_id: "stored.jpg"
     )
     # The spec is frozen, so the registry's per-entry MAL pause is skipped by
     # neutering the runner's sleep rather than the spec's fill_sleep.
