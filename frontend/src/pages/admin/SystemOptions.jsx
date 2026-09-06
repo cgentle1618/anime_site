@@ -10,9 +10,15 @@
 //   Tier 3  entities in person / studio, credited via media_credit
 //
 // This page never writes. Tier 1 is not editable at all (renaming a value
-// there breaks business logic silently); Tier 2 is edited in the Options tab
-// of Add/Modify; Tier 3 records are managed on the person/studio forms. Each
-// section says so and links where the editing actually happens.
+// there breaks business logic silently); Tier 2 is edited under System →
+// System Option on Add/Modify; Tier 3 records are managed on the
+// person/studio forms. Each section says so and links where the editing
+// actually happens.
+//
+// Tier 2 values may also carry system_option_alias rows - what an external API
+// calls them. Those are a lookup rather than a vocabulary, so they have their
+// own inverted view on /aliases (pages/admin/Aliases.jsx) instead of a fourth
+// column here.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -436,17 +442,23 @@ function Tier2({ sections, loading }) {
       <SectionHeader
         tier="2"
         title="Open Vocabularies"
-        source="system_option / system_option_scope"
+        source="system_option / system_option_scope / system_option_alias"
         subtitle="Values only humans read. Nothing in the code compares against them, so they are safe to add, rename and reorder. One vocabulary per category; each value carries the media types it is offered in — a value with no scopes is offered everywhere."
       >
         <ReadOnlyNote>
-          View only here. Add, edit and rescope these in the Options tab of{" "}
+          View only here. Add, edit and rescope these under System → System
+          Option on{" "}
           <Link to="/add" className="underline font-bold">
             Add
           </Link>{" "}
           or{" "}
           <Link to="/modify" className="underline font-bold">
             Modify
+          </Link>
+          . A value can also carry the names external APIs know it by; those
+          are listed on{" "}
+          <Link to="/aliases" className="underline font-bold">
+            Alias Conversion
           </Link>
           .
         </ReadOnlyNote>

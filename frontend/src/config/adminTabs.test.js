@@ -7,7 +7,17 @@ describe("admin tab groups", () => {
       "entries",
       "structure",
       "entity",
+      "system",
     ]);
+  });
+
+  it("puts System Option and Alias in the System group", () => {
+    // Both edit system_option rows rather than anything a visitor browses,
+    // which is why they left Structure. Assert the tabs exist first: groupOf
+    // falls back to the first group for a key it has never heard of.
+    expect(ADMIN_TABS.map((t) => t.key)).toContain("alias");
+    expect(groupOf(ADMIN_TABS, "options")).toBe("system");
+    expect(groupOf(ADMIN_TABS, "alias")).toBe("system");
   });
 
   it("puts Studio in the Entity group", () => {
@@ -40,6 +50,7 @@ describe("admin tab groups", () => {
     // Quote and Meme have no defaultable fields.
     const keys = FORM_TABS.map((t) => t.key);
     expect(keys).not.toContain("options");
+    expect(keys).not.toContain("alias");
     expect(keys).not.toContain("quote");
     expect(keys).not.toContain("meme");
   });

@@ -65,6 +65,7 @@ const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
+const Aliases = lazy(() => import("./pages/admin/Aliases"));
 const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
@@ -168,6 +169,7 @@ export default function App() {
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
                   <Route path="/options" element={<SystemOptions />} />
+                  <Route path="/aliases" element={<Aliases />} />
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/content-labels" element={<ContentLabels />} />

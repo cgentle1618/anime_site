@@ -16,6 +16,11 @@ import CollectionAddTab, {
 } from "../add-tabs/CollectionAddTab";
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
+import {
+  categoryHasAliases,
+  cleanAliases,
+} from "../../components/forms/AliasPicker";
+import AliasTab from "../../components/forms/AliasTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
 import PersonAddTab, { defaultPerson } from "../add-tabs/PersonAddTab";
 import CharacterAddTab, {
@@ -166,6 +171,10 @@ export default function Add() {
   // both. Explicit for the same reason as optScopes - see Ruling R27 and
   // components/forms/UsagePicker.jsx.
   const [optUsages, setOptUsages] = useState([]);
+  // What external APIs call the new value. Only offered when a single value
+  // is being added: the form creates N values at once and an alias belongs to
+  // one value, not to the category. See components/forms/AliasPicker.jsx.
+  const [optAliases, setOptAliases] = useState([]);
 
   // The Options tab has two sub-tabs (Options / Tags) sharing one "System
   // Options" nav entry. Person and Studio are top-level tabs under the Entity
@@ -1026,6 +1035,14 @@ export default function Add() {
             value: val.trim(),
             scopes: optScopes,
             usages: optUsages,
+            // vals.length > 1 disables the picker, so this is empty in the
+            // bulk case rather than copied onto every value. The category
+            // check matters too: switching the category hides the picker but
+            // leaves what was typed in state, and sending it would 422.
+            aliases:
+              vals.length === 1 && categoryHasAliases(optCategory.trim())
+                ? cleanAliases(optAliases)
+                : [],
           }),
           credentials: "include",
         }),
@@ -1043,6 +1060,7 @@ export default function Add() {
         setOptValues([""]);
         setOptScopes([]);
         setOptUsages([]);
+        setOptAliases([]);
       }
       setSources(await fetchAllSources());
     }
@@ -2856,6 +2874,22 @@ export default function Add() {
         {/* ═══ MEME TAB ═══ */}
         {activeTab === "meme" && <MemeAddTab mf={memf} um={umeme} />}
 
+        {/* ═══ ALIAS TAB ═══ */}
+        {activeTab === "alias" && (
+          <AliasTab
+            options={sources.options}
+            showToast={showToast}
+            onSaved={(updated) =>
+              setSources((prev) => ({
+                ...prev,
+                options: prev.options.map((o) =>
+                  o.system_id === updated.system_id ? updated : o,
+                ),
+              }))
+            }
+          />
+        )}
+
         {/* ═══ OPTIONS TAB ═══ */}
         {activeTab === "options" && (
           <OptionsAddTab
@@ -2870,6 +2904,8 @@ export default function Add() {
             setOptScopes={setOptScopes}
             optUsages={optUsages}
             setOptUsages={setOptUsages}
+            optAliases={optAliases}
+            setOptAliases={setOptAliases}
           />
         )}
 
@@ -2910,8 +2946,13 @@ export default function Add() {
           </div>
         )}
 
-        {/* Submit button */}
-        <div className="mt-6 flex justify-end">
+        {/* Submit button. Hidden on the Alias tab, which saves through its
+            own button: an alias is a PUT on an option that already exists, so
+            there is nothing for "Append Entry" to append. */}
+        <div
+          className="mt-6 flex justify-end"
+          hidden={activeTab === "alias"}
+        >
           <button
             type="submit"
             disabled={

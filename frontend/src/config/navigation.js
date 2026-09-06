@@ -174,6 +174,14 @@ export const NAV_SECTIONS = [
         icon: "fas fa-list-check",
         to: "/options",
       },
+      // Beside System Options, not under Add/Modify: both are read-only views
+      // over the same system_option rows, differing only in which way the
+      // lookup runs. Editing lives on Add/Modify under System -> Alias.
+      {
+        label: "Alias Conversion",
+        icon: "fas fa-right-left",
+        to: "/aliases",
+      },
       { divider: true },
       { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
       { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },

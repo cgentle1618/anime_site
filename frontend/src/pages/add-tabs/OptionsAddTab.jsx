@@ -7,6 +7,9 @@
 // entities with their own public pages rather than closed vocabularies, and
 // both moved to the Entity tab group - see PersonAddTab.jsx and
 // StudioAddTab.jsx.
+import AliasPicker, {
+  categoryHasAliases,
+} from "../../components/forms/AliasPicker";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
@@ -39,7 +42,18 @@ function OptionsForm({
   setOptScopes,
   optUsages,
   setOptUsages,
+  optAliases,
+  setOptAliases,
 }) {
+  // An alias names ONE value, so it cannot be filled in while the form is
+  // adding several at once. Disabled rather than hidden: an admin who typed
+  // aliases and then added a second value should see why they greyed out.
+  const multipleValues = optValues.filter((v) => v.trim()).length > 1;
+  // Most categories carry no aliases at all, and the API rejects one that
+  // does not (ALIAS_CATEGORIES). Hidden rather than disabled here, because
+  // unlike the multi-value case there is nothing the admin could do to this
+  // form to make the picker apply.
+  const aliasable = categoryHasAliases(optCategory);
   return (
     <div className="space-y-4">
       <Field label="Category" required>
@@ -96,6 +110,19 @@ function OptionsForm({
         mediaTypes={MEDIA_TYPES}
       />
       <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {aliasable && (
+        <AliasPicker
+          aliases={optAliases}
+          setAliases={setOptAliases}
+          disabled={multipleValues}
+        />
+      )}
+      {aliasable && multipleValues && (
+        <p className="text-xs text-text-faint -mt-2">
+          Aliases are per value. Add one value at a time to give it an external
+          name, or attach the aliases afterwards on the Alias tab.
+        </p>
+      )}
     </div>
   );
 }
@@ -112,6 +139,8 @@ export default function OptionsAddTab({
   setOptScopes,
   optUsages,
   setOptUsages,
+  optAliases,
+  setOptAliases,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
@@ -133,6 +162,8 @@ export default function OptionsAddTab({
           setOptScopes={setOptScopes}
           optUsages={optUsages}
           setOptUsages={setOptUsages}
+          optAliases={optAliases}
+          setOptAliases={setOptAliases}
         />
       )}
     </div>

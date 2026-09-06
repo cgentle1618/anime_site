@@ -8,6 +8,10 @@ import AdminTabBar from "../../components/layout/AdminTabBar";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import {
+  ALIAS_CATEGORIES,
+  optionWithoutAlias,
+} from "../../components/forms/AliasPicker";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
@@ -84,6 +88,10 @@ function getDisplayTitle(item, type) {
       item.game_name_alt ||
       "Unknown"
     );
+  // An alias row has no name of its own; the conversion IS the identity, so
+  // the modal shows the arrow rather than either half alone.
+  if (type === "alias")
+    return `${item.alias_value} → ${item.value}`;
   if (
     type === "studio" ||
     type === "publisher" ||
@@ -253,6 +261,10 @@ export default function Delete() {
   const [characterMergeMode, setCharacterMergeMode] = useState(false);
   const [characterMergeTarget, setCharacterMergeTarget] = useState(null);
   const [optCategoryFilter, setOptCategoryFilter] = useState("");
+  // The Alias tab's own category filter. Separate from optCategoryFilter: the
+  // two tabs offer different category lists (ALIAS_CATEGORIES vs. every
+  // Tier 2 category), so one shared value would go stale on every switch.
+  const [aliasCategoryFilter, setAliasCategoryFilter] = useState("");
   // Which half of the System Option tab is showing. People and Studios are
   // not here: each is a top-level Entity tab with its own branch below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
@@ -621,6 +633,25 @@ export default function Delete() {
     const { type, item } = modal;
     setDeleting(true);
     try {
+      // An alias row has no endpoint of its own: it is removed by re-saving
+      // its option without it. optionWithoutAlias builds that body - see
+      // AliasPicker.jsx for why the rest of the option must go back with it.
+      if (type === "alias") {
+        const res = await fetch(`/api/options/${item.system_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            optionWithoutAlias(item, item.alias_source, item.alias_value),
+          ),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete alias");
+        showToast("success", "Alias deleted");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       if (type === "options") {
         const res = await fetch(`/api/options/${item.system_id}`, {
           method: "DELETE",
@@ -856,6 +887,25 @@ export default function Delete() {
   const filteredOptions = optCategoryFilter
     ? db.options.filter((o) => o.category === optCategoryFilter)
     : db.options;
+
+  // The categories that may hold aliases AND actually have values, in
+  // ALIAS_CATEGORIES order. Flattened to one row per alias, because the row is
+  // what gets deleted - an option with three aliases yields three cards.
+  const aliasCategories = ALIAS_CATEGORIES.filter((c) =>
+    db.options.some((o) => o.category === c),
+  );
+  const filteredAliases = aliasCategoryFilter
+    ? db.options
+        .filter((o) => o.category === aliasCategoryFilter)
+        .flatMap((o) =>
+          (o.aliases || []).map((a) => ({
+            ...o,
+            alias_source: a.source,
+            alias_value: a.value,
+          })),
+        )
+        .sort((a, b) => a.alias_value.localeCompare(b.alias_value, "en"))
+    : [];
 
   if (loading) {
     return (
@@ -2756,6 +2806,59 @@ export default function Delete() {
               ) : (
                 <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
                   No options in this category.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ALIAS TAB */}
+      {tab === "alias" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <p className="text-xs text-text-muted mb-3">
+              Deleting a conversion does not delete the value it points at —
+              only the external name. Once it is gone, a Fill run that meets
+              that name logs it as unmatched and skips it.
+            </p>
+            <OptionCategorySelect
+              className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand w-full"
+              categories={aliasCategories}
+              value={aliasCategoryFilter}
+              onChange={(e) => setAliasCategoryFilter(e.target.value)}
+              placeholder="— Select Category —"
+            />
+          </div>
+
+          {aliasCategoryFilter && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredAliases.length ? (
+                filteredAliases.map((row) => (
+                  <div
+                    key={`${row.system_id}:${row.alias_source}:${row.alias_value}`}
+                    className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center gap-2 hover:bg-danger/10 hover:border-danger/40 transition shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-mono text-xs text-text-muted truncate">
+                        {row.alias_source} · {row.alias_value}
+                      </div>
+                      <div className="font-bold text-text text-sm truncate">
+                        → {row.value}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => initDelete("alias", row)}
+                      aria-label={`Delete alias ${row.alias_value}`}
+                      className="text-text-faint hover:text-danger transition w-7 h-7 flex items-center justify-center rounded-md bg-surface shadow-sm border border-border shrink-0"
+                    >
+                      <i className="fas fa-trash-alt text-xs"></i>
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
+                  No alias conversions in this category.
                 </div>
               )}
             </div>

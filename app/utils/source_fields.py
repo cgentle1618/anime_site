@@ -20,6 +20,38 @@ FREE_FORM_BUCKETS: tuple[str, ...] = ("other", "restricted")
 # system_option_usage.usage. A value with no usage rows serves both.
 OPTION_USAGES: tuple[str, ...] = ("watch", "origin")
 
+# system_option_alias.source. The external APIs whose English is resolved back
+# to a vocabulary value on the way in. Closed, because a source is asked for by
+# name - autofill_game_from_igdb asks for "igdb" - so a value not on this list
+# can never be matched by anything and would sit in the table doing nothing.
+ALIAS_SOURCES: tuple[str, ...] = ("igdb",)
+
+# The system_option categories that may carry alias rows at all.
+#
+# Deliberately a constant rather than an admin-editable setting. An alias is
+# only useful where a pipeline actually asks for one, and the code that asks is
+# autofill_game_from_igdb - so opening a category to aliases means teaching a
+# pipeline to read them, which is a code change by definition. Left open, an
+# admin could attach "Shooter" to a Genre Main row and watch it do nothing
+# forever, with nothing anywhere to say why.
+#
+# These are exactly the four IGDB fields autofill_game_from_igdb resolves.
+# Combat Mode is the game category NOT here: PvE/PvP is a hand-made
+# classification IGDB does not model, so it carries no aliases at all.
+#
+# Game Platform is the odd one of the four. Its values are brand names, and
+# several IGDB names fold into each - "PlayStation 4" and "PlayStation 5" both
+# become PlayStation - so its rows are many-to-one where the other three are
+# mostly one-to-one. game_vocabulary.py seeds them; editing them by hand is
+# allowed, because a new console generation is exactly the case where waiting
+# for a code change would be silly.
+ALIAS_CATEGORIES: tuple[str, ...] = (
+    "Game Genre",
+    "Game Theme",
+    "Game Mode",
+    "Game Platform",
+)
+
 # system_option categories.
 PLATFORM_CATEGORY = "Platform"
 REFERENCE_CATEGORY = "Reference Source"

@@ -87,6 +87,16 @@ describe("NAV_SECTIONS", () => {
     expect(owners.map((s) => s.key)).toEqual(["admin"]);
   });
 
+  it("offers Alias Conversion beside System Options, admin-gated", () => {
+    // Both are read-only views over the same system_option rows, so they sit
+    // together in the dropdown. A page reachable only by typing its URL is a
+    // page nobody finds.
+    const owners = NAV_SECTIONS.filter((s) =>
+      sectionItems(s).some((i) => i.to === "/aliases"),
+    );
+    expect(owners.map((s) => s.key)).toEqual(["admin"]);
+  });
+
   it("marks Admin as the only permission-gated section", () => {
     const gated = NAV_SECTIONS.filter((s) => sectionRequirement(s) !== null);
     expect(gated.map((s) => s.key)).toEqual(["admin"]);

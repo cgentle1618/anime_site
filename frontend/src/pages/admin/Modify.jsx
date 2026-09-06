@@ -24,6 +24,8 @@ import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
 import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
+import { cleanAliases } from "../../components/forms/AliasPicker";
+import AliasTab from "../../components/forms/AliasTab";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
@@ -268,6 +270,9 @@ export default function Modify() {
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
   const [optUsages, setOptUsages] = useState([]);
+  // What external APIs call this value. Loaded and sent explicitly: the PUT
+  // replaces the alias rows wholesale, so an omitted list deletes them.
+  const [optAliases, setOptAliases] = useState([]);
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
   // NULL. Held in a ref rather than state because the deep-link path opens an
@@ -929,6 +934,7 @@ export default function Modify() {
       setOptValue(item.value || "");
       setOptScopes(item.scopes ?? []);
       setOptUsages(item.usages ?? []);
+      setOptAliases(item.aliases ?? []);
     }
     setEditorOpen(true);
   }
@@ -1223,6 +1229,7 @@ export default function Modify() {
         remark: editingItem.remark ?? null,
         scopes: optScopes,
         usages: optUsages,
+        aliases: cleanAliases(optAliases),
       }),
       credentials: "include",
     });
@@ -1235,6 +1242,9 @@ export default function Modify() {
         ),
       }));
       setEditingItem(updated);
+      // The server drops blank and duplicate rows; re-seed from its answer so
+      // the form shows what was actually stored.
+      setOptAliases(updated.aliases ?? []);
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -3315,6 +3325,24 @@ export default function Modify() {
           CharacterModifyTab.jsx). ═══ */}
       {activeTab === "character" && <CharacterModifyTab />}
 
+      {/* ═══ ALIAS TAB — bypasses search/edit pattern; an alias row has no
+          record of its own to search for, so the tab picks the option that
+          owns it and edits that option's list (see AliasTab.jsx). ═══ */}
+      {activeTab === "alias" && (
+        <AliasTab
+          options={sources.options}
+          showToast={showToast}
+          onSaved={(updated) =>
+            setSources((prev) => ({
+              ...prev,
+              options: prev.options.map((o) =>
+                o.system_id === updated.system_id ? updated : o,
+              ),
+            }))
+          }
+        />
+      )}
+
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
         <Fav3x3ModifyTab
@@ -3337,7 +3365,8 @@ export default function Modify() {
         activeTab !== "studio" &&
         activeTab !== "publisher" &&
         activeTab !== "person" &&
-        activeTab !== "character" && (
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -3496,7 +3525,8 @@ export default function Modify() {
         activeTab !== "studio" &&
         activeTab !== "publisher" &&
         activeTab !== "person" &&
-        activeTab !== "character" && (
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button
@@ -3710,6 +3740,8 @@ export default function Modify() {
                 setOptValue={setOptValue}
                 optUsages={optUsages}
                 setOptUsages={setOptUsages}
+                optAliases={optAliases}
+                setOptAliases={setOptAliases}
               />
             )}
           </div>

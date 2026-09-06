@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-06 (commit b17bb7d)
+Last verified: 2026-09-06 (commit 203d33b)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -25,6 +25,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor |
 | `/relations` | `pages/admin/Relations.jsx` | Relations canvas |
 | `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
+| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
 | `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
 
 ---
@@ -68,18 +69,23 @@ back to the owning franchise/series where the ids still exist.
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
 movie, TV show, cartoon, manga, novel, comic, game), **Structure** (collection,
-franchise, series, quote, meme, system option) and **Entity** (studio,
-publisher, person, character). Each
+franchise, series, quote, meme), **Entity** (studio, publisher, person,
+character) and **System** (system option, alias). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
+
+The **System** group holds the vocabulary tables themselves rather than
+anything a visitor browses. System Option moved here out of Structure, which
+had come to mean "grouping tiers plus a vocabulary editor"; Alias is new.
 
 The **Entity** group holds things that are credited *on* entries rather than
 being entries: studios, publishers, characters, and the people credited as
 director, producer, composer, author or illustrator. Both were sub-tabs of System Options and both
 moved out once each became a public entity with pages of its own. They are in
 `FORM_TABS`: an entity is not a media entry, but each has an Add form whose
-starting values are configurable on `/defaults`. Only options, quote and meme
-are excluded — those three have no factory in `config/formFactories.js`.
+starting values are configurable on `/defaults`. Only options, alias, quote
+and meme are excluded — those four have no factory in
+`config/formFactories.js`.
 
 **Data loaded on mount.** Every list the forms need for ComboBoxes and
 duplicate hints — franchises, series, collections, options and all nine
@@ -174,6 +180,43 @@ categories the Category picker offers differ (`TAG_CATEGORIES`, see
 [../options.md](../options.md)). All three pages now show the same two, so the
 Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
 **not** here — each has its own Entity tab.
+
+Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
+`source` + external-value rows. Its hint says the opposite of theirs on
+purpose: no scopes means *offered everywhere* and no usages means *every
+usage*, but no aliases means *nothing maps to this*.
+
+The picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
+Genre, Game Theme, Game Mode, Game Platform (`forms/AliasPicker.jsx`, mirroring
+`app/utils/source_fields.py`; see [../options.md](../options.md) for why the
+list is code). Hidden rather than disabled: unlike the multi-value case below,
+nothing the admin does to this form would make it apply. It **is** disabled,
+and explained, while more than one option value is being added — the form
+creates N values at once and an alias belongs to one value, not to the
+category.
+
+**Alias tab (System).** `forms/AliasTab.jsx`, shared verbatim with Modify.
+A `system_option_alias` row has no endpoint of its own, so the tab picks the
+option that owns it (category select, then value select) and `PUT`s that whole
+option. The category select offers only `ALIAS_CATEGORIES`, and only those of
+them that have values, in that constant's order rather than alphabetically. The body carries the option's `scopes`, `usages`, `sort_order` and
+`remark` back unchanged — the `PUT` replaces those lists wholesale too, so an
+aliases-only body would silently unscope the value. Choosing a different value
+re-seeds the picker rather than carrying the previous option's rows over. The
+page-level **Append Entry** button is hidden on this tab; the tab saves through
+its own.
+
+**Alias tab (Delete).** Not the shared component — the Delete page keeps its
+own list/confirm shape. A category filter over `ALIAS_CATEGORIES`, then one
+card per alias **row** (an option with three aliases yields three cards, since
+the row is what gets deleted), each opening the page's usual confirmation
+modal. Confirming calls `optionWithoutAlias(option, source, value)` from
+`AliasPicker.jsx` and `PUT`s the result: the row goes, the option and its
+scopes and usages stay. Deleting a conversion never deletes the value it points
+at — only the external name, after which a Fill run meeting that name logs it
+as unmatched and skips it. The match is on the `(source, value)` **pair**, not
+the external value alone, so a second API knowing a value by the same string
+keeps its own row.
 
 Category is a closed picker (`forms/OptionCategorySelect.jsx`), the same
 component and the same grouping the Modify and Delete pages browse with. Add
@@ -367,7 +410,23 @@ undo and scope reset. Details in [../systems/relations.md](../systems/relations.
 
 Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
-Add/Modify (Options tab) — see [../options.md](../options.md).
+Add/Modify under System → System Option — see [../options.md](../options.md).
+
+## /aliases (`Aliases.jsx`)
+
+Read-only, and the inverse of `/options`: that page answers "what values does
+this category offer?", this one answers the question Fill actually asks —
+"IGDB just said *Role-playing (RPG)*; what does that become?". Both read the
+same `GET /api/options/?limit=5000`; `lib/aliasGroups.js` turns the rows inside
+out into source → category → `{external, value, scopes}`, sorted by the
+external string so an admin can scan for what the API sent.
+
+A category appears under a source only if at least one of its values carries a
+row for it — otherwise every category would list under `igdb` with all its
+values unaliased, which says nothing (Combat Mode is not an IGDB field). Within
+a listed category, the values that carry **no** row are named underneath: those
+are the gap the page exists for, invisible from the options side, where a value
+with no aliases looks exactly like a value in a category no API touches.
 
 Neither Tier 1 nor Tier 2 is one alphabetical wall: `lib/optionsPageGroups.js`
 sorts each into named groups, with everything unclaimed under a final

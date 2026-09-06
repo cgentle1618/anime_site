@@ -795,17 +795,30 @@ enums — see the value-discrepancy note in `docs/options.md`.
 
 ## Options — `/api/options`
 
-Tier 2 open vocabularies (`system_option` / `system_option_scope`).
+Tier 2 open vocabularies (`system_option` / `system_option_scope` /
+`system_option_usage` / `system_option_alias`).
 
 | Method   | Path           | Auth   | Description                                                                     |
 | -------- | -------------- | ------ | ---------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List all system options across all categories. `?scope=` filters to values with no scope rows or a matching one. `?limit=&offset=` paginate. |
 | `GET`    | `/{category}`  | Public | List options for a specific category (e.g. `"Genre Main"`, `"Comic Publisher"`). Same `?scope=` filter. |
-| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...]}`). 400 if `(category, value)` already exists. |
-| `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope rows wholesale. 400 on a duplicate `(category, value)`. |
-| `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope` and `media_tag` rows. Logs to `deleted_record`.                  |
+| `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
+| `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
+| `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias` and `media_tag` rows. Logs to `deleted_record`.                  |
 
-**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...]}`)
+**Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...]}`)
+
+**Validation.** `scopes` must be `MEDIA_TYPE_KEYS`, `usages` must be
+`OPTION_USAGES`, and each alias `source` must be `ALIAS_SOURCES`
+(`app/utils/source_fields.py` — `igdb` today). A non-empty `aliases` list is
+rejected unless `category` is in `ALIAS_CATEGORIES` (`Game Genre`, `Game
+Theme`, `Game Mode`, `Game Platform` — the four IGDB fields Fill resolves) —
+the category itself saves fine, only its alias rows are refused. There is no
+per-alias endpoint: a single row is removed by `PUT`ting the option without
+it. All three drop duplicates,
+aliases on the `(source, value)` pair: the writes insert those rows directly,
+so a repeat would trip `uq_system_option_alias` and 500 the save. An unknown
+value in any of the three is a 422 naming what was expected.
 
 ---
 

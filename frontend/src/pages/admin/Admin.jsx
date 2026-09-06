@@ -1888,6 +1888,12 @@ export default function Admin() {
             Options
           </Link>
           <Link
+            to="/aliases"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
+          >
+            Aliases
+          </Link>
+          <Link
             to="/data-history"
             className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >

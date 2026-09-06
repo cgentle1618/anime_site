@@ -71,7 +71,7 @@ about styling.
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`), Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
-| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
+| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options, Alias Conversion ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime

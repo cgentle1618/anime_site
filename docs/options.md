@@ -604,10 +604,40 @@ the way in by `resolve_option_alias(db, category, source, value)` — matched
 within one category, since the same English word can name a genre in one
 vocabulary and a theme in another. **Absence is not permissive here**: a value
 with no alias rows is not "matched by everything", it simply cannot be
-resolved from an external string. `source` is `igdb` today and `steam` when
-that sync lands. Round-tripped through the `System Option Alias` tab; carried
-on `SystemOptionCreate`/`SystemOptionResponse` as `{source, value}` pairs,
-which `PUT` replaces wholesale like scopes and usages.
+resolved from an external string. `source` must be one of `ALIAS_SOURCES` in
+`app/utils/source_fields.py` — `igdb` today, `steam` when that sync lands;
+validated for the same reason scopes are, since a typo'd source saves happily
+and then never matches. Duplicate `(source, value)` pairs are dropped in the
+validator, because the writes insert these rows directly and a repeat would
+trip `uq_system_option_alias`. Round-tripped through the `System Option Alias`
+tab; carried on `SystemOptionCreate`/`SystemOptionResponse` as `{source,
+value}` pairs, which `PUT` replaces wholesale like scopes and usages.
+
+**Only four categories may carry aliases**: `Game Genre`, `Game Theme`,
+`Game Mode` and `Game Platform` — exactly the four IGDB fields
+`autofill_game_from_igdb` resolves — listed in `ALIAS_CATEGORIES`
+(`app/utils/source_fields.py`). An alias on any other category is a 422. The
+list is code rather than an admin setting because an alias is only useful where
+a pipeline asks for one; opening a category means teaching a pipeline to read
+it. Left open, an admin could attach `Shooter` to a `Genre Main` row and watch
+it do nothing forever, with nothing to say why.
+
+`Game Platform` is the many-to-one one: its values are brand names, and a whole
+console generation folds into each (`PlayStation 4` and `PlayStation 5` both
+become `PlayStation`). `game_vocabulary.py` seeds its rows, and they are
+editable by hand — a new console generation is exactly the case where waiting
+for a code change would be silly. `Combat Mode` is the game category with **no**
+aliases: PvE / PvP is a hand-made classification IGDB does not model.
+
+**Deleting a conversion** removes only the external name, never the value it
+points at. There is no alias endpoint, so it is a `PUT` of the option without
+that row (`optionWithoutAlias` in `frontend/src/components/forms/AliasPicker.jsx`),
+matched on the `(source, value)` pair. Once gone, a Fill run meeting that name
+logs it as unmatched and skips it.
+
+Aliases are read on **`/aliases`** (Alias Conversion) and edited under
+**System → Alias** on Add / Modify. See
+[frontend/admin-pages.md](frontend/admin-pages.md).
 
 **How scopes work.** One vocabulary per category; each value carries the
 media types it is offered in as `system_option_scope` rows. A value with
@@ -622,8 +652,9 @@ ordered by `category`, `sort_order`, `value`. Scopes must be one of
 `(category, value)` duplicate (`uq_system_option_value`); update replaces the
 scope, usage and alias lists wholesale with the ones in the payload; delete logs a tombstone to
 `deleted_record` under type `System Options` and cascades to the scope rows.
-Admins edit scopes in the Options tab of Add / Modify
-(`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`).
+Admins edit scopes under System → System Option on Add / Modify
+(`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`),
+alongside `UsagePicker.jsx` and `AliasPicker.jsx`.
 
 **Scopes are admin data, never derived from usage.** Saving a tag no longer
 stamps the entry's media type onto the value: doing so meant using an unscoped

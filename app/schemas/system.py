@@ -79,6 +79,54 @@ class SystemOptionCreate(SystemOptionBase):
     # empty list is not "everything" - it just means nothing maps to it.
     aliases: list[SystemOptionAliasIO] = []
 
+    @field_validator("aliases")
+    @classmethod
+    def _known_sources(cls, v: list[SystemOptionAliasIO], info) -> list[SystemOptionAliasIO]:
+        """
+        Validate the category and source, and drop duplicate (source, value)
+        pairs.
+
+        The category check comes first because it is the wider rule: only the
+        categories a pipeline actually reads may carry aliases at all. A row on
+        any other category would sit in the table doing nothing forever, with
+        nothing anywhere to say why - so opening one is a code change
+        (ALIAS_CATEGORIES), not an admin action.
+
+        A typo'd source is the mistake nothing downstream catches: the row
+        saves happily and then never resolves, because Fill asks for the source
+        by name. Deduping is not cosmetic either - the writes in
+        routers/options.py insert these rows directly, so a repeated pair
+        would trip uq_system_option_alias and 500 the whole save.
+
+        `category` is read from info.data, which holds the fields validated
+        before this one - it is declared on SystemOptionBase, so it is always
+        there unless it failed its own validation, in which case the request is
+        already rejected and this check is moot.
+        """
+        from app.utils.source_fields import ALIAS_CATEGORIES, ALIAS_SOURCES
+
+        category = (info.data or {}).get("category")
+        if v and category is not None and category not in ALIAS_CATEGORIES:
+            raise ValueError(
+                f"Category '{category}' does not carry aliases. "
+                "Expected any of: " + ", ".join(ALIAS_CATEGORIES)
+            )
+
+        unknown = [a.source for a in v if a.source not in ALIAS_SOURCES]
+        if unknown:
+            raise ValueError(
+                "Not alias sources: " + ", ".join(unknown)
+                + ". Expected any of: " + ", ".join(ALIAS_SOURCES)
+            )
+        seen: set[tuple[str, str]] = set()
+        unique: list[SystemOptionAliasIO] = []
+        for alias in v:
+            pair = (alias.source, alias.value)
+            if pair not in seen:
+                seen.add(pair)
+                unique.append(alias)
+        return unique
+
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
