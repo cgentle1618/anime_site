@@ -90,9 +90,9 @@ def gate(
 
     # Link fields are not columns, so blanking them in place cannot be flushed.
     # Most are Optional[str] = None, but the ref-carrying ones are shaped:
-    # studio_refs is a list and credit_refs a dict, and neither response field
-    # accepts None - so the blank value follows the field's own current type
-    # instead of a single constant.
+    # studio_refs and publisher_refs are lists and credit_refs a dict, and no
+    # such response field accepts None - so the blank value follows the
+    # field's own current type instead of a single constant.
     for entry in entries:
         for name in links:
             if hasattr(entry, name):

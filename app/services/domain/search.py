@@ -177,6 +177,14 @@ SEARCHABLE_TYPES: tuple[SearchableType, ...] = (
         sort_field="name_en",
         sort_fallbacks=("name_cn", "name_jp", "name_alt"),
     ),
+    SearchableType(
+        key="publisher",
+        model=models.Publisher,
+        response_schema=schemas.PublisherResponse,
+        name_fields=("name_en", "name_cn", "name_jp", "name_alt"),
+        sort_field="name_en",
+        sort_fallbacks=("name_cn", "name_jp", "name_alt"),
+    ),
 )
 
 SEARCHABLE_BY_KEY: dict[str, SearchableType] = {t.key: t for t in SEARCHABLE_TYPES}
@@ -241,12 +249,14 @@ def _run(
 _CREDIT_OWNER_COLUMN = {
     "person": models.MediaCredit.person_id,
     "studio": models.MediaCredit.studio_id,
+    "publisher": models.MediaCredit.publisher_id,
 }
 
 
 def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: list):
     """
-    Set `credit_count` on person/studio rows, for every result at once.
+    Set `credit_count` on person/studio/publisher rows, for every result at
+    once.
 
     The number the library cards show. person.py and studio.py compute it per
     row because they answer about one; a search answers about up to `limit` of

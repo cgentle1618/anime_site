@@ -52,6 +52,7 @@ VALID_MEDIA_TYPES = frozenset(
         "franchise",
         "series",
         "studio",
+        "publisher",
         "person",
         "character",
     }

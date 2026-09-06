@@ -13,6 +13,7 @@ from app.models import (
     Manga,
     Novel,
     Person,
+    Publisher,
     Studio,
     TVShows,
 )
@@ -308,7 +309,11 @@ def find_duplicate_entities(db: Session) -> list[dict]:
         return row.display_name
 
     found: list[dict] = []
-    for kind, model in (("person", Person), ("studio", Studio)):
+    for kind, model in (
+        ("person", Person),
+        ("studio", Studio),
+        ("publisher", Publisher),
+    ):
         rows = db.query(model).all()
         for members in cluster(rows, match=lambda a, b: bool(keys(a) & keys(b))):
             found.append(

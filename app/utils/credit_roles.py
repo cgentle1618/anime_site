@@ -6,11 +6,18 @@ app/utils/media_resolver.py: a frozen dataclass per entry, a dict keyed by the
 value stored in the column, and a tuple of keys for validation.
 
 ONE vocabulary. `media_credit.role` and `person_role.role` store the same six
-person keys plus `studio`; the key a credit stores IS the person role it
-implies. Before the collapse these were two lists that disagreed - 原作 and
-作画 were separate credit keys sharing one `manga_author` dropdown, while
-`novel_author` and `comic_writer` were separate person roles meaning the same
-thing.
+person keys plus the two company keys, `studio` and `publisher`; the key a
+credit stores IS the person role it implies. Before the collapse these were two
+lists that disagreed - 原作 and 作画 were separate credit keys sharing one
+`manga_author` dropdown, while `novel_author` and `comic_writer` were separate
+person roles meaning the same thing.
+
+Publishers used to be a `system_option` vocabulary rather than an entity. They
+are now the `publisher` table (app/models/staff.py), reached through the
+`publisher` credit role below, so `CreditRole.target` is a THREE-value axis.
+The `publisher_tw` TagField further down is unaffected and still backs anime,
+manga, novel and comic until a later migration converts those rows into
+publisher entities.
 
 One of the six, `seiyuu`, is a person role whose credits are NOT stored in
 `media_credit`: see `CreditRole.credited_via` below.
@@ -30,13 +37,14 @@ from app.utils.source_fields import PLATFORM_CATEGORY, SERIALIZATION_CATEGORY
 
 @dataclass(frozen=True)
 class CreditRole:
-    """One role a person or studio can be credited in."""
+    """One role a person, studio or publisher can be credited in."""
 
     # Value stored in media_credit.role AND, for people, person_role.role.
     key: str
     # Human label, used wherever the media type does not override it below.
     label: str
-    # Which entity table the credit points at: "person" or "studio".
+    # Which entity table the credit points at: "person", "studio" or
+    # "publisher".
     target: str
     # Media type keys (hyphenated, from MEDIA_TABLES) that may use this role.
     # For a person role this doubles as the set of legal person_role.scope
@@ -51,6 +59,11 @@ class CreditRole:
 
 CREDIT_ROLES: dict[str, CreditRole] = {
     "studio": CreditRole("studio", "Studio", "studio", ("anime", "anime-movie")),
+    # The third entity target. Games-only for now: the four existing media
+    # types keep publisher_tw as a TagField until a later migration.
+    "publisher": CreditRole(
+        "publisher", "Publisher", "publisher", ("game",)
+    ),
     "director": CreditRole(
         "director", "Director", "person", ("anime", "anime-movie", "movie")
     ),

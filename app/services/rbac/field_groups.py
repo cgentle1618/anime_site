@@ -35,6 +35,7 @@ tests/unit/test_field_groups.py asserts every declared name still exists.
 from dataclasses import dataclass, field
 
 from app.services.domain.credits import legacy_link_fields
+from app.utils.credit_roles import credit_roles_for
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 # Stands in for "every media type" in a columns / link_fields mapping.
@@ -88,7 +89,8 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
     these would be one more place to forget when a role is added, so they come
     from credit_roles through the same helper the response mixins use.
 
-    `credit_refs` (every type) and `studio_refs` (anime and anime-movie) ride
+    `credit_refs` (every type), `studio_refs` (anime and anime-movie) and
+    `publisher_refs` (types with a publisher role) ride
     beside the legacy strings (see `attach_link_fields`) - they name the same
     credits, just shaped for linking, so a viewer withheld from the Credits
     group must lose them too. Neither has a credit_roles entry of its own, so
@@ -108,6 +110,9 @@ def _credit_link_fields() -> dict[str, tuple[str, ...]]:
     for media_type in ("anime", "anime-movie"):
         if media_type in out:
             out[media_type] = out[media_type] + ("studio_refs",)
+    for media_type in out:
+        if any(r.key == "publisher" for r in credit_roles_for(media_type)):
+            out[media_type] = out[media_type] + ("publisher_refs",)
     return out
 
 

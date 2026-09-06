@@ -19,7 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models
-from app.schemas.link_fields import PersonRef, StudioRef
+from app.schemas.link_fields import PersonRef, PublisherRef, StudioRef
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
@@ -111,6 +111,11 @@ def find_studio(db: Session, name: str):
     return _find_by_name(db, models.Studio, name)
 
 
+def find_publisher(db: Session, name: str):
+    """The existing publisher whose stored name normalizes to `name`, or None."""
+    return _find_by_name(db, models.Publisher, name)
+
+
 def resolve_person(
     db: Session, name: str, *, role: str, scope: Optional[str] = None
 ) -> models.Person:
@@ -141,6 +146,16 @@ def resolve_studio(db: Session, name: str) -> models.Studio:
         db.add(studio)
         db.flush()
     return studio
+
+
+def resolve_publisher(db: Session, name: str) -> models.Publisher:
+    """Find or create the publisher, under its English name when new."""
+    publisher = _find_by_name(db, models.Publisher, name)
+    if publisher is None:
+        publisher = models.Publisher(name_en=name.strip())
+        db.add(publisher)
+        db.flush()
+    return publisher
 
 
 def resolve_option(
@@ -177,6 +192,22 @@ def resolve_option(
     return option
 
 
+# Target -> how a name becomes an entity, and which FK holds it. Tables
+# rather than an if/else chain: the old code read `if target == "studio" ...
+# else <person>`, so `else` MEANT person and a third target reaching it would
+# silently mint a Person row. A fourth target is now one line in each dict.
+_RESOLVERS = {
+    "person": resolve_person,
+    "studio": resolve_studio,
+    "publisher": resolve_publisher,
+}
+_TARGET_COLUMNS = {
+    "person": "person_id",
+    "studio": "studio_id",
+    "publisher": "publisher_id",
+}
+
+
 def replace_credits(
     db: Session, media_type: str, entry_id: UUID, role: str, names: list[str]
 ) -> None:
@@ -188,28 +219,22 @@ def replace_credits(
     ).delete(synchronize_session=False)
 
     for position, name in enumerate(names):
-        if spec.target == "studio":
-            target = resolve_studio(db, name)
-            row = models.MediaCredit(
-                media_type=media_type,
-                entry_id=entry_id,
-                role=role,
-                studio_id=target.system_id,
-                position=position,
-            )
-        else:
+        if spec.target == "person":
             # The scope is the media type - nothing left to derive. Before the
             # collapse, director alone was scoped, anime/non_anime, by
             # director_scope_for().
             target = resolve_person(db, name, role=role, scope=media_type)
-            row = models.MediaCredit(
+        else:
+            target = _RESOLVERS[spec.target](db, name)
+        db.add(
+            models.MediaCredit(
                 media_type=media_type,
                 entry_id=entry_id,
                 role=role,
-                person_id=target.system_id,
                 position=position,
+                **{_TARGET_COLUMNS[spec.target]: target.system_id},
             )
-        db.add(row)
+        )
     db.flush()
 
 
@@ -286,8 +311,10 @@ def credit_names(
     for row in rows:
         if row.person_id:
             entity = db.get(models.Person, row.person_id)
-        else:
+        elif row.studio_id:
             entity = db.get(models.Studio, row.studio_id)
+        else:
+            entity = db.get(models.Publisher, row.publisher_id)
         if entity is not None:
             # People and studios both choose their own shown name. This value
             # reaches the anime payload, the admin form and the Sheets column -
@@ -630,14 +657,14 @@ def legacy_link_fields(media_type: str) -> tuple[tuple[str, str, str], ...]:
 def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     """
     One query each for the credit rows, tag rows, and the entities they
-    reference (people, studios, options) for a batch of entries.
+    reference (people, studios, publishers, options) for a batch of entries.
 
     Shared by `link_values_for_entries` and `attach_link_fields`'s
     `studio_refs` build, so having both read from the same batch costs no
     extra queries - five total regardless of how many entries are passed.
     """
     if not entry_ids:
-        return [], [], {}, {}, {}
+        return [], [], {}, {}, {}, {}
 
     credit_rows = (
         db.query(models.MediaCredit)
@@ -660,6 +687,7 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
 
     person_ids = {r.person_id for r in credit_rows if r.person_id}
     studio_ids = {r.studio_id for r in credit_rows if r.studio_id}
+    publisher_ids = {r.publisher_id for r in credit_rows if r.publisher_id}
     option_ids = {r.option_id for r in tag_rows}
 
     people = (
@@ -682,6 +710,16 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
         if studio_ids
         else {}
     )
+    publishers = (
+        {
+            p.system_id: p
+            for p in db.query(models.Publisher)
+            .filter(models.Publisher.system_id.in_(publisher_ids))
+            .all()
+        }
+        if publisher_ids
+        else {}
+    )
     options = (
         {
             o.system_id: o.value
@@ -692,19 +730,24 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
         if option_ids
         else {}
     )
-    return credit_rows, tag_rows, people, studios, options
+    return credit_rows, tag_rows, people, studios, publishers, options
 
 
 def _values_from_rows(
-    entry_ids: list[UUID], credit_rows, tag_rows, people, studios, options
+    entry_ids: list[UUID], credit_rows, tag_rows, people, studios, publishers,
+    options,
 ) -> dict[UUID, dict[str, list[str]]]:
     out: dict[UUID, dict[str, list[str]]] = {eid: {} for eid in entry_ids}
 
     for row in credit_rows:
-        studio = studios.get(row.studio_id) if row.studio_id else None
-        name = people.get(row.person_id) if row.person_id else (
-            studio.display_name if studio else None
-        )
+        if row.person_id:
+            name = people.get(row.person_id)
+        elif row.studio_id:
+            studio = studios.get(row.studio_id)
+            name = studio.display_name if studio else None
+        else:
+            publisher = publishers.get(row.publisher_id)
+            name = publisher.display_name if publisher else None
         if name is None or row.entry_id not in out:
             continue
         out[row.entry_id].setdefault(row.role, []).append(name)
@@ -731,10 +774,17 @@ def link_values_for_entries(
     """
     if not entry_ids:
         return {}
-    credit_rows, tag_rows, people, studios, options = _link_rows_and_lookups(
-        db, media_type, entry_ids
+    (
+        credit_rows,
+        tag_rows,
+        people,
+        studios,
+        publishers,
+        options,
+    ) = _link_rows_and_lookups(db, media_type, entry_ids)
+    return _values_from_rows(
+        entry_ids, credit_rows, tag_rows, people, studios, publishers, options
     )
-    return _values_from_rows(entry_ids, credit_rows, tag_rows, people, studios, options)
 
 
 def attach_link_fields(db: Session, media_type: str, entries) -> None:
@@ -766,10 +816,17 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     spec = legacy_link_fields(media_type)
 
     entry_ids = [e.system_id for e in rows]
-    credit_rows, tag_rows, people, studios, options = _link_rows_and_lookups(
-        db, media_type, entry_ids
+    (
+        credit_rows,
+        tag_rows,
+        people,
+        studios,
+        publishers,
+        options,
+    ) = _link_rows_and_lookups(db, media_type, entry_ids)
+    values = _values_from_rows(
+        entry_ids, credit_rows, tag_rows, people, studios, publishers, options
     )
-    values = _values_from_rows(entry_ids, credit_rows, tag_rows, people, studios, options)
 
     credit_refs_by_entry: dict[UUID, dict[str, list[PersonRef]]] = {}
     for row in credit_rows:
@@ -801,6 +858,27 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
                 StudioRef(system_id=studio.system_id, display_name=studio.display_name)
             )
 
+    # Same idea as studio_refs, for the third entity target. Offered to any
+    # media type whose roles include a publisher, rather than to a hand-listed
+    # pair, so a new type gains it by declaring the role.
+    wants_publisher_refs = any(
+        r.key == "publisher" for r in credit_roles_for(media_type)
+    )
+    publisher_refs_by_entry: dict[UUID, list[PublisherRef]] = {}
+    if wants_publisher_refs:
+        for row in credit_rows:
+            if row.role != "publisher" or not row.publisher_id:
+                continue
+            publisher = publishers.get(row.publisher_id)
+            if publisher is None:
+                continue
+            publisher_refs_by_entry.setdefault(row.entry_id, []).append(
+                PublisherRef(
+                    system_id=publisher.system_id,
+                    display_name=publisher.display_name,
+                )
+            )
+
     for entry in rows:
         per_entry = values.get(entry.system_id, {})
         for attr, _kind, key in spec:
@@ -809,3 +887,5 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
         entry.credit_refs = credit_refs_by_entry.get(entry.system_id, {})
         if wants_studio_refs:
             entry.studio_refs = studio_refs_by_entry.get(entry.system_id, [])
+        if wants_publisher_refs:
+            entry.publisher_refs = publisher_refs_by_entry.get(entry.system_id, [])
