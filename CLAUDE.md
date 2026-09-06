@@ -17,6 +17,7 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
 - Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-gcp.md`.
 - Plan → `docs/roadmap.md`. Remind me to update it when we move to the next feature and I have not.
+- In-flight work → **`docs/PROGRESS.md`**. See "Progress tracking" below.
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.
 
@@ -101,6 +102,24 @@ per-machine details: **`docs/switching-environments.md`**.
   - Before committing, re-read the diff of the files you intend to stage and confirm every hunk belongs to your feature. If a file contains mixed changes, say so and ask how to proceed rather than committing the mix.
   - If a file you must edit also holds another session's uncommitted work, stage only your own hunks (`git add -p` or an equivalent patch) and leave theirs in the working tree. Never "tidy" by committing the whole file.
   - A file may change under you between reads. If an edit fails to match, re-read the file instead of forcing the change.
+
+## Progress tracking
+
+`docs/PROGRESS.md` is the live status of work in flight — one line per plan task,
+plus open items and the scratch test databases currently in use.
+
+- **Status only.** No prose, no summaries, no rationale. Reasoning belongs in the
+  spec, the plan, or the commit message; `docs/roadmap.md` records what shipped.
+- **Edit in place.** Change the Status cell; do not append a log.
+- Status values: `todo`, `wip <who>`, `done <sha>`, `blocked <one clause>`,
+  `skipped <one clause>`.
+- **Claim before you start.** Set a task to `wip <who>` before working on it, and
+  to `done <sha>` in the same commit as the work. `<who>` is a session or agent
+  label so two concurrent sessions never claim the same task.
+- Read it first when picking up work, and when a session starts and the working
+  tree looks unfamiliar — it says what someone else already has in hand.
+- When a plan is fully done, its table can be deleted; the roadmap keeps the
+  record.
 
 ## Rule
 
