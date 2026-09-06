@@ -159,3 +159,11 @@ def test_a_game_without_copies_reads_null_ownership(admin_client):
     assert created["ownership"] is None
     detail = admin_client.get(f"/api/game/{created['system_id']}").json()
     assert detail["ownership"] is None
+
+
+def test_the_duplicate_report_covers_games(db_session):
+    """find_all_duplicates is hand-maintained; a missing key means games are
+    never checked, silently."""
+    from app.services.domain.duplicates import find_all_duplicates
+
+    assert "game" in find_all_duplicates(db_session)
