@@ -55,9 +55,9 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | 4 | library page config | done `ab0bf35` |
 | 5 | detail page + tracker | done `22df112` |
 | 6 | copies editor + name_entries section | done `e2c3d65` |
-| 7 | admin add/modify | wip session-A |
-| 8 | plan, stats, search, dashboard (+ publisher `/search` gap) | wip session-A |
-| 9 | build + docs | todo |
+| 7 | admin add/modify | done `e70742a` |
+| 8 | plan, stats, search, dashboard (+ publisher `/search` gap) | done `417797b` |
+| 9 | build + docs | wip session-A |
 
 ### igdb-integration · `docs/superpowers/plans/2026-09-06-igdb-integration.md`
 
@@ -69,8 +69,8 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | 4 | autofill | done `7ec951e` |
 | 5 | real Fill pipeline | done `3737edd` |
 | 6a | search endpoint (backend) | done `e9ed228` |
-| 6b | search box (frontend) | todo |
-| 7 | docs | todo |
+| 6b | search box (frontend) | wip session-A |
+| 7 | docs | wip session-A |
 
 ### Post-plan gaps
 
@@ -92,7 +92,8 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | Migrate `publisher_tw` tag rows into the publisher entity | anime, manga, novel, comic | todo |
 | Steam Web API playtime sync | columns `steam_appid`/`steam_link` reserved | todo |
 | Stale Deferred line: "`system_option_usage` has no Sheets tab" | `docs/roadmap.md` | todo |
-| Stale "not served yet" rows for the game vocabularies | `docs/options.md` | todo |
+| Stale "not served yet" rows for the game vocabularies | `docs/options.md` | wip session-A |
+| Series page: no Game tab | `frontend/src/pages/detail/SeriesPage.jsx` | wip session-A |
 
 ## Test databases in use
 
