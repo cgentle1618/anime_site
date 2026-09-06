@@ -16,6 +16,7 @@ export {
   getStatusStyle,
   getNextStatus,
   getReadingButtonConfig,
+  getPlayingButtonConfig,
   getCardStatusConfig,
 } from "../lib/status";
 export {

@@ -52,9 +52,12 @@ function SourceRow({ tag, children, muted = false }) {
 
 // Media types whose sources are things you read rather than watch.
 const READING_TYPES = new Set(["manga", "novel", "comic"]);
+const PLAYING_TYPES = new Set(["game"]);
 
-function accessHeading(mediaType) {
-  return READING_TYPES.has(mediaType) ? "Where to Read" : "Where to Watch";
+export function accessHeading(mediaType) {
+  if (PLAYING_TYPES.has(mediaType)) return "Where to Play";
+  if (READING_TYPES.has(mediaType)) return "Where to Read";
+  return "Where to Watch";
 }
 
 // A single `sources` row. `available` is a tristate:

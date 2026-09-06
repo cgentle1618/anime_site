@@ -1,13 +1,14 @@
 // Frontend: table columns and sort comparators shared by every library config.
 //
 // Each library type declares its columns in pages/library/configs/*.jsx. The
-// columns below were copied into all eight of them; a change to how a rating
+// columns below were copied into all nine of them; a change to how a rating
 // chip or the watch/read toggle looks now happens once, here.
 //
 // Colour never encodes a category here: airing status and the toggle's
 // target are text in a chip, the rating figures are plain mono numerals.
 import {
   getRatingWeight,
+  getPlayingButtonConfig,
   getReadingButtonConfig,
   getStatusButtonConfig,
 } from "../../utils/media";
@@ -101,6 +102,10 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
   return {
     key,
     header,
+    // Echoed back so a caller (and a test) can read which field the column
+    // toggles without re-deriving it from the render closure.
+    statusField,
+    fallback,
     thClass: cls,
     tdClass: `text-center ${cls}`.trim(),
     stopPropagation: true,
@@ -149,6 +154,18 @@ export function readButtonColumn() {
     statusField: "reading_status",
     buttonConfig: getReadingButtonConfig,
     fallback: "Might Read",
+    hidden: "xl",
+  });
+}
+
+/** Same for playing_status (game). Collapses below xl. */
+export function playButtonColumn() {
+  return statusToggleColumn({
+    key: "play",
+    header: "Play",
+    statusField: "playing_status",
+    buttonConfig: getPlayingButtonConfig,
+    fallback: "Might Play",
     hidden: "xl",
   });
 }

@@ -15,8 +15,7 @@ import {
   getDisplayName,
   getCoverUrl,
   FALLBACK_SVG,
-  getStatusButtonConfig,
-  getReadingButtonConfig,
+  getCardStatusConfig,
   getReleaseFallback,
   formatLength,
   parseTypes,
@@ -35,6 +34,7 @@ const SPINE_LABEL = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  game: "Game",
 };
 
 const FUTURE_WATCHING_OPTIONS = [
@@ -436,6 +436,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     return <Count fin={issFin} total={issTotal} unit="iss" />;
   }
 
+  // A game has no episode/chapter counter - playtime against the main-story
+  // estimate is its progress. With neither figure there is nothing to show.
+  if (type === "game") {
+    if (data.hours_played == null && data.hltb_main == null) return null;
+    return (
+      <Count
+        fin={data.hours_played ?? 0}
+        total={data.hltb_main != null ? data.hltb_main : "?"}
+        unit="h"
+      />
+    );
+  }
+
   return null;
 }
 
@@ -497,8 +510,16 @@ const HAS_PROGRESS = new Set([
   "manga",
   "novel",
   "comic",
+  "game",
 ]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
+
+// The status a card shows when the entry has none yet, per status axis.
+const FALLBACK_STATUS = {
+  watch: "Might Watch",
+  read: "Might Read",
+  play: "Might Play",
+};
 
 export default function MediaCard({
   type,
@@ -521,12 +542,8 @@ export default function MediaCard({
 
   const title = getDisplayName(data, type);
   const imageUrl = getCoverUrl(data.cover_image_file);
-  const currentStatus =
-    data[statusField] || (statusType === "read" ? "Might Read" : "Might Watch");
-  const btnConfig =
-    statusType === "read"
-      ? getReadingButtonConfig(currentStatus)
-      : getStatusButtonConfig(currentStatus);
+  const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
+  const btnConfig = getCardStatusConfig(type, currentStatus);
   const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
 
   async function handleStatusToggle(e) {

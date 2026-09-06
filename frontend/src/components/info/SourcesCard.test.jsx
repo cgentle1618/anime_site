@@ -4,7 +4,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import SourcesCard from "./SourcesCard";
+import SourcesCard, { accessHeading } from "./SourcesCard";
 
 const rows = [
   { system_id: "1", kind: "access", bucket: "main", name: "Bahamut", url: "https://b.test", available: true },
@@ -77,5 +77,13 @@ describe("SourcesCard", () => {
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();
+  });
+});
+
+describe("accessHeading", () => {
+  it("is three-way", () => {
+    expect(accessHeading("anime")).toBe("Where to Watch");
+    expect(accessHeading("manga")).toBe("Where to Read");
+    expect(accessHeading("game")).toBe("Where to Play");
   });
 });

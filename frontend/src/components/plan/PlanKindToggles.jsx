@@ -16,15 +16,23 @@ const LABELS = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  game: "Game",
 };
 
-// Read types say "reread"; watch types say "rewatch".
+// Read types say "reread"; play types say "replay"; watch types say
+// "rewatch", which is also the label a mixed group falls back to.
 const READ_TYPES = new Set(["manga", "novel", "comic"]);
+const PLAY_TYPES = new Set(["game"]);
+
+function allIn(set, mediaTypes) {
+  return mediaTypes.length > 0 && mediaTypes.every((t) => set.has(t));
+}
 
 export function kindLabel(kind, mediaTypes) {
   if (kind === "next") return "Watch/Read Next";
-  const allRead = mediaTypes.length > 0 && mediaTypes.every((t) => READ_TYPES.has(t));
-  return allRead ? "To Reread" : "To Rewatch";
+  if (allIn(PLAY_TYPES, mediaTypes)) return "To Replay";
+  if (allIn(READ_TYPES, mediaTypes)) return "To Reread";
+  return "To Rewatch";
 }
 
 // The subset of `mediaTypes` that the kind/scope pair actually allows —
