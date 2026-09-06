@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -186,7 +186,10 @@ form for the entry just written.
 
 `COMPLETED_WATCH_STATUSES` and `COMPLETED_READ_STATUSES` are
 `{"Completed", "Completed (解說)"}` — the "explained via a summary video" status
-counts as completed everywhere.
+counts as completed everywhere. `COMPLETED_PLAY_STATUSES` is `{"Completed"}`:
+there is no games analogue of the 解說 status, but the frozenset is declared
+anyway so it reads beside its two siblings and a second completed-ish status
+later is a one-line change.
 
 ### Checks
 
@@ -215,10 +218,51 @@ not already in a completed status.
 | `mark_reading_completed` | (manga) `serialization_status = "完結"` unless it is `腰斬`; `reading_status = "Completed"`; `ch_fin = ch_total` and `vol_fin = vol_total` when those totals are truthy; `vol_fin_page = 0`.                                                                                  |
 | `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null. Arc handling branches on whether the novel has `novel_unit` arc rows: if it does, every arc is closed (`arc_fin = len(arcs)`, `ch_fin_in_arc = 0`) and `derive_novel_progress` recomputes `arc_total`/`ch_total`/`ch_fin` from them, so the totals cannot disagree with the rows; if it has none, the old max-rule applies to `arc_fin`/`arc_total` and `ch_fin`/`ch_total` (whichever are non-null) and `ch_fin_in_arc` is zeroed. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
 | `mark_comic_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`, `issue_fin`/`issue_total` set to the max of the two. Same: router-only.                                                                                                                                    |
+| `mark_game_completed`    | `playing_status = "Completed"` and **nothing else**. Unlike every helper above it sets no progress numbers, because a game's depth of finish is not a fraction — see the three axes below. Registry `mark_completed`, so the `POST /{id}/complete` action reaches it. |
 
 `apply_completion_timestamp(entry, status)` stamps `completed_at` with Taipei
 now the first time a write moves an entry into a completed status; it never
 overwrites an existing timestamp.
+
+### A game has three completion axes, and they are independent
+
+Every other media type answers "how far in am I" with one fraction. A game
+answers it with three columns that move separately, none derived from any
+other and none derived from `playing_status`:
+
+| Axis | Column(s) | Why it is its own axis |
+| --- | --- | --- |
+| Depth of content | `completion_level` (`Main Story` → `Main + Extras` → `Post-game` → `Completionist`) | A ladder of how much of the game was played. Independent of `playing_status`: `Active Playing` **plus** `Main Story` is the ordinary state of having rolled credits and still playing for achievements. |
+| Endings | `all_endings` (tristate boolean) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. |
+| Achievements | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
+
+Consequences worth stating plainly, because they are what makes games unlike
+the other eight types:
+
+- `playing_status = "Completed"` does **not** imply any particular
+  `completion_level`, and no `completion_level` implies `Completed`.
+- There is no check function (`check_is_game_completed` does not exist) and no
+  post-processing pass that infers completion from the numbers. Only the user
+  knows, so `mark_game_completed` sets the status and leaves the three axes
+  exactly as they were.
+- `hours_played` is not progress either: nothing compares it to
+  `hltb_main` / `hltb_main_extra` / `hltb_completionist`, which are reference
+  times, not totals to fill.
+
+### Ownership is derived from the copy rows
+
+A game has no `ownership` column. `derive_game_ownership(entry)`
+(`app/services/domain/game_copies.py`) reads the entry's `game_copy` rows and
+returns the first kind any of them carries, in the fixed precedence
+**Owned → Subscription → Free → Wishlist → Not Owned**, or `None` when there
+are no copies. Nothing to keep in sync: the copy rows are the only truth.
+
+The list filter `?ownership=` (registry `extra_filters=_game_ownership`) is
+therefore an `EXISTS` over `game_copy`, not a column comparison — it asks for
+games with at least one copy row saying that word, which is a slightly wider
+question than "the derived value equals it" for a game holding several kinds
+of copy. `GameResponse` declares an `ownership` field, but **no read path
+populates it today**, so it is `null` in every response.
 
 ---
 
@@ -575,6 +619,7 @@ cells.
 | manga                            | `ACG`                         |
 | novel                            | `Novel`                       |
 | comic                            | `Comic`                       |
+| game                             | `Game`                        |
 
 Note `"Anime"` is not in the `FRANCHISE_TYPES` dropdown tuple (which offers
 `ACG`, `Anime Movie`, …), so an auto-created anime franchise is invisible to the
@@ -606,6 +651,8 @@ Relations are rows in `media_relation` — `from (type, id) —kind→ to (type,
 | `renew`         | Renew             | Original                | equivalence |           |            |
 | `directors_cut` | Director's Cut    | Original                | equivalence |           |            |
 | `extended`      | Extended          | Original                | equivalence |           |            |
+| `remake`        | Remake            | Original                | equivalence |           |            |
+| `remaster`      | Remaster          | Original                | equivalence |           |            |
 | `side_story`    | Side Story        | Parent Story            | branch      |           |            |
 | `spin_off`      | Spin-off          | Main Story              | branch      |           |            |
 | `setting`       | Setting           | Main Story              | branch      |           |            |

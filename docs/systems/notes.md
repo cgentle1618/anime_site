@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-06
 
 ## What this is for
 
@@ -13,8 +13,8 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
-| `owner_type` | String, indexed | Hyphenated owner key: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `series`, `franchise`, `collection`. Values come from `OWNER_TABLES` in `app/utils/media_resolver.py` (`MEDIA_TABLES` + `TIER_TABLES`). |
-| `owner_id` | UUID, indexed | **No foreign key** — it points at whichever of the eleven owner tables `owner_type` names, and one FK cannot span them (same reasoning as `meme.owner_id`). Deleting an owner leaves orphan rows that `media_resolver` flags as missing. |
+| `owner_type` | String, indexed | Hyphenated owner key: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `series`, `franchise`, `collection`. Values come from `OWNER_TABLES` in `app/utils/media_resolver.py` (`MEDIA_TABLES` + `TIER_TABLES`). |
+| `owner_id` | UUID, indexed | **No foreign key** — it points at whichever of the twelve owner tables `owner_type` names, and one FK cannot span them (same reasoning as `meme.owner_id`). Deleting an owner leaves orphan rows that `media_resolver` flags as missing. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type, music cut). |
@@ -22,6 +22,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `title` | String | The name half of a `name_links` row, or the song name in music shapes. |
 | `content` | Text | The body. |
 | `links` | JSONB | A list of URL strings — always a list, even for shapes that allow one link, so multi-link support needs no migration. |
+| `entries` | JSONB | The `name_entries` shape's ordered items: each `{"type": "text"｜"link", "value": str, "label": str｜null}`, in array order. Deliberately **not** folded into `links`, which stays a plain list of URL strings for the seven sections that use it — one column meaning two things is how subtle bugs start. Added by `alembic/versions/g1a2m3e4s5_add_games.py`. |
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
 
@@ -36,7 +37,7 @@ Column declaration order is also the Google Sheets column order, because `format
 
 ### Shapes
 
-A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the seven stored ones are collected in `STORED_SHAPES`.
+A shape names which columns a section uses. Declared as constants at the top of `app/utils/note_sections.py`; the eight stored ones are collected in `STORED_SHAPES`.
 
 | Shape | Columns used | Rule of thumb |
 | --- | --- | --- |
@@ -45,6 +46,7 @@ A shape names which columns a section uses. Declared as constants at the top of 
 | `text_or_link` | `content` **xor** `links[0]` | Either what someone said or where they said it, never both. |
 | `episode_text` | `locator`, `content`, `kind` where declared | Anchored to an episode/chapter. |
 | `name_links` | `title`, `links` | A named resource. |
+| `name_entries` | `title`, `entries` | A named list whose items are each a line of text **or** a labelled link, in one ordered array. `name_links` can only hold URLs and `text_links` has no title, so neither could say "here is my Malenia plan: two notes and a video". |
 | `episode_name_links` | `locator`, `title`, `content`, `links`, `status` | The widest shape — used only by `insert_songs`. |
 | `music_track` | `title`, `kind`, `status`, `links`, `content` | One theme song; the only shape with two dropdowns. |
 | `external` | *(none — its own table)* | `quotes` → `quote` table, `memes` → `meme` table. Never a `note` row; `validate_note_payload` rejects writes to it. |
@@ -62,7 +64,7 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all eleven owners (`ALL_OWNERS`); "Entries" = the eight media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all twelve owners (`ALL_OWNERS`); "Entries" = the nine media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically — `game` reached `remark`, `resources`, `questions`, `memes` and the rest of the shared sections on the day it was registered, with no registry edit.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -72,10 +74,13 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `double_edged` | 優缺點 | text | reviews | All | — | — | — | no | no | no |
 | `public_reviews` | 大眾評價 Public Reviews | text_or_link | reviews | All | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All | — | — | — | no | no | no |
-| `episode_comments` | 各集評論 Episode Comments | text_links | reviews | anime, tv-show, cartoon | — | — | "Episode, e.g. ep 1" | **yes** | no | no |
+| `episode_comments` | 各集評論 Episode Comments (game: 各章評論 Part Reviews) | text_links | reviews | anime, tv-show, cartoon, game | — | — | "Episode, e.g. ep 1" (game: "Chapter / Part, e.g. Ch 3") | **yes** | no | no |
 | `highlights` | 神回/神片段 Highlights | episode_text | flat | anime | 神回, 神片段, 神篇章 | — | "Episode(s), e.g. ep 6" | **yes** | no | no |
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
+| `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
+| `guides` | 攻略 Guides | name_entries | flat | game | — | — | — | no | no | no |
+| `builds_and_mods` | 配裝/模組 Builds & Mods | name_entries | flat | game | Build, Mod, Tool | — | — | no | no | no |
 | `analysis` | 解析 Analysis | text_links | analysis_group | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
@@ -106,7 +111,9 @@ Design rules baked into the registry:
 | **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`, `insert_songs`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry` and `adaptation` reach series (and franchise for the last three) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
 | **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme.owner_id` already accepts all eleven. | `NOTE_SECTIONS["memes"]`. |
-| **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
+| **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
+| **A game's bookmark section is `builds_and_mods`, never `resources`.** The site-wide `resources` section (name_links, all owners, standalone) already existed and games inherit it for plain bookmarks; reusing the key would have shadowed it, and a second card also labelled "Resources" would be unreadable — hence a distinct key *and* a distinct label. Builds, mods and tools are one section with a `kind` rather than three near-identical ones, because they took the same shape once `guides` became `name_entries`; `guides` stays separate because it is filled for nearly every game and these are not. | `NOTE_SECTIONS["builds_and_mods"]` and its comment. |
+| **`episode_comments` was widened, not duplicated.** A game is cut into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so game gets a `labels` override (各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. | `NOTE_SECTIONS["episode_comments"]`. |
 | **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. | Comment above `op` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
 | `locator_required` is section-wide; `desc_required` is per owner. | `NoteSection` fields. |
@@ -125,7 +132,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
-| 9 | Emptiness, by shape: `name_links` needs content or title or links; `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `episode_name_links` needs any of content/locator/title/status/links; `music_track` allows at most one link and needs any of content/title/status/links (kind alone never counts, since it defaults to `normal`); every other shape needs content or links | Section '…' note is empty. |
+| 9 | Emptiness, by shape: `name_links` needs content or title or links; `name_entries` needs a title or at least one entry ("Section '…' needs a name or an entry." — a named bookmark with neither a name nor a single entry is nothing); `text_or_link` needs content or a non-blank link, forbids both ("takes text or a link, not both"), and allows at most one link ("takes one link per note"); `episode_text` needs content or locator; `episode_name_links` needs any of content/locator/title/status/links; `music_track` allows at most one link and needs any of content/title/status/links (kind alone never counts, since it defaults to `normal`); every other shape needs content or links | Section '…' note is empty. |
 
 Singleton uniqueness is **not** here — it needs a query, so `_reject_second_singleton` in `app/routers/note.py` does it (422 "This owner already has a 'remark' note.").
 
@@ -161,7 +168,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | Behaviour | How |
 | --- | --- |
 | Loads registry + rows in parallel (`fetchSections`, `fetchNotes`), then refetches only rows after a mutation; the registry is static for the session. | `useEffect` / `reloadNotes`. |
-| Dispatches on `section.shape` via the `SHAPES` map (7 stored shapes → components). `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
+| Dispatches on `section.shape` via the `SHAPES` map (7 of the 8 stored shapes → components; **`name_entries` has no component yet**, so `guides` and `builds_and_mods` render null until the frontend catches up). `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
 | `splitBlocks()` splits the registry into `flat` (ungrouped, non-standalone), `groups` (one card per group key, registry order), `standalone`. | `splitBlocks`. |
 | The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
@@ -178,6 +185,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | `TextOrLinkSection.jsx` (+ `textOrLink.js`) | text_or_link | content xor one link |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content |
 | `NameLinksSection.jsx` | name_links | title, links |
+| *(none yet)* | name_entries | title, `entries` — no component exists; the backend accepts and stores the rows, the notes page does not draw them |
 | `EpisodeNameLinksSection.jsx` | episode_name_links | locator, title, content, links, status |
 | `MusicTrackSection.jsx` | music_track | title, kind (starts on `default_kind`), status, link, content |
 | `QuoteSection.jsx` / `MemeSection.jsx` | external | adapt the long-lived quote/meme components; report counts |
@@ -199,9 +207,9 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 
 | Aspect | Detail |
 | --- | --- |
-| Columns | `note` column declaration order: `system_id, owner_type, owner_id, section, locator, kind, status, title, content, links, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links` is serialised as JSON text. |
+| Columns | `note` column declaration order: `system_id, owner_type, owner_id, section, locator, kind, status, title, content, links, entries, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links` and `entries` are serialised as JSON text. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
-| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. |
+| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **It has no `entries` key**: Backup writes the column (the formatter walks real columns) but Pull does not read it back, so a `guides` or `builds_and_mods` row loses its entries on a round trip. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |

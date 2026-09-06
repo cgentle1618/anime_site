@@ -17,7 +17,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 | Convention | Where | Behaviour |
 |---|---|---|
-| `limit` / `offset` on list endpoints | collection, franchise, series, all eight media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
+| `limit` / `offset` on list endpoints | collection, franchise, series, all nine media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it **no longer surfaces as a 500**, which used to make the SPA retry and create duplicates. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
@@ -39,6 +39,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Manga — `/api/manga`](#manga--apimanga)
 - [Novel — `/api/novel`](#novel--apinovel)
 - [Comic — `/api/comic`](#comic--apicomic)
+- [Game — `/api/game`](#game--apigame)
 - [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
@@ -292,6 +293,52 @@ Fill/Replace notes under Data Control below.
 | `GET`    | `/search-comicvine`   | Admin  | Search Comic Vine volumes by name so the right run can be identified. Params: `q` (required), `limit` (1-50, default 10). Returns `comicvine_id`, `name`, `start_year`, `publisher`, `issue_total`, `comicvine_link`, `cover_image_url`. |
 
 **Response model:** `ComicResponse`
+
+---
+
+## Game — `/api/game`
+
+One row is a **purchasable** — a base game, a DLC, an expansion or a bundle —
+not a work; a DLC is an ordinary game row carrying `base_game_id`. Generated
+by the router factory from `MEDIA_REGISTRY["game"]`, so it is the standard
+media-entry surface with two additions: an `ownership` list filter and a
+nested `copies` collection.
+
+| Method   | Path                   | Auth   | Description |
+| -------- | ---------------------- | ------ | ----------- |
+| `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
+| `GET`    | `/{entry_id}`          | Public | One game by UUID. |
+| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which fetches nothing (no external source is wired yet) and only re-extracts system options and logs the write. |
+| `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
+| `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, `all_endings` and the achievement pair are independent axes only the user can judge. |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete. Cascades to `game_copy`; logs to `deleted_record` under type `Game`. |
+
+**Response model:** `GameResponse` — the columns, `display_name`, `copies`,
+the `sources` / credit / tag link fields, and the two virtual plan flags
+`play_next` and `to_replay` (declared on the schema explicitly: the router
+factory sets them, but pydantic drops an undeclared field silently).
+
+**`copies`** is a nested collection, on the contract `units` established for
+novels: a `GameCopyIO` item with a `system_id` updates that row, one without
+inserts, and a row the payload omits is **deleted**. Omitting the key
+entirely (`null`) means "not supplied" and leaves the rows alone; `[]` clears
+them. `uq_game_copy_row` (`game_id`, `storefront`, `copy_format`) rejects the
+same edition bought twice on the same store.
+
+**`?ownership=Owned`** filters on the derived value rather than a column:
+there is no `games.ownership`, so the filter is an `EXISTS` over `game_copy`
+for a row whose `ownership` equals the value passed. A game with a Wishlist
+copy on one store and an Owned copy on another therefore matches **both**
+`?ownership=Owned` and `?ownership=Wishlist`. The `ownership` field on
+`GameResponse` (the single word `derive_game_ownership` computes, precedence
+Owned → Subscription → Free → Wishlist → Not Owned) is declared but **not
+populated by any read path yet**, so it comes back `null`.
+
+`steam_appid` / `steam_link` are reserved columns for the deferred Steam
+sync: nothing on this router reads or writes them. The IGDB search endpoint
+under this prefix, and the Fill pipeline behind `igdb_id`, shipped in their
+own plan — see [external-apis.md](external-apis.md).
 
 ---
 
