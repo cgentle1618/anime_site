@@ -51,7 +51,7 @@ TOKEN_EXPIRY_MARGIN = 60
 # for, so this list is the contract with app/utils/igdb_utils.py.
 GAME_FIELDS = (
     "name,summary,first_release_date,cover.url,genres.name,themes.name,"
-    "game_modes.name,involved_companies.company.name,"
+    "game_modes.name,platforms.name,involved_companies.company.name,"
     "involved_companies.developer,involved_companies.publisher,parent_game,url"
 )
 SEARCH_FIELDS = "name,summary,first_release_date,cover.url,url"

@@ -15,7 +15,13 @@ import pytest
 from app import models
 from app.utils.game_vocabulary import seed_game_vocabulary
 
-GAME_CATEGORIES = ("Game Genre", "Game Theme", "Game Mode", "Combat Mode")
+GAME_CATEGORIES = (
+    "Game Genre",
+    "Game Theme",
+    "Game Mode",
+    "Combat Mode",
+    "Game Platform",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +61,7 @@ def test_combat_mode_has_no_igdb_aliases(db_session):
 
 def test_game_reference_sources_are_seeded_and_scoped(db_session):
     """
-    SteamDB, Bahamut and HowLongToBeat are display-only links, so they are
+    SteamDB, HowLongToBeat and Metacritic are display-only links, so they are
     media_source reference rows drawn from this vocabulary - not columns.
     """
     values = {
@@ -65,21 +71,45 @@ def test_game_reference_sources_are_seeded_and_scoped(db_session):
         .all()
         if any(s.scope == "game" for s in o.scopes)
     }
-    assert {"SteamDB", "Bahamut", "HowLongToBeat"} <= values
+    assert {"SteamDB", "HowLongToBeat", "Metacritic", "Official site"} <= values
 
 
-def test_game_access_platforms_are_usable_as_access_rows(db_session):
+def test_games_seed_no_access_platforms(db_session):
     """
-    A Platform value with no `watch` usage row never reaches the access
-    picker - it would only be offered as an origin tag.
+    Where a game can be played is the `game_platform` tag, not a media_source
+    access row - so this seed adds nothing to the Platform vocabulary.
     """
-    game_pass = (
+    assert (
+        db_session.query(models.SystemOption).filter_by(category="Platform").count()
+        == 0
+    )
+
+
+def test_game_platform_folds_an_igdb_console_generation_into_its_family(db_session):
+    """IGDB names every model; the picker offers six families."""
+    values = [
+        o.value
+        for o in db_session.query(models.SystemOption)
+        .filter_by(category="Game Platform")
+        .order_by(models.SystemOption.sort_order)
+        .all()
+    ]
+    assert values == [
+        "PlayStation",
+        "Nintendo",
+        "Xbox",
+        "PC",
+        "Mobile",
+        "Browser",
+    ]
+
+    playstation = (
         db_session.query(models.SystemOption)
-        .filter_by(category="Platform", value="Game Pass")
+        .filter_by(category="Game Platform", value="PlayStation")
         .one()
     )
-    assert {s.scope for s in game_pass.scopes} == {"game"}
-    assert "watch" in {u.usage for u in game_pass.usages}
+    igdb = {a.value for a in playstation.aliases if a.source == "igdb"}
+    assert {"PlayStation 4", "PlayStation 5", "PlayStation Vita"} <= igdb
 
 
 def test_seeding_twice_is_a_no_op(db_session):

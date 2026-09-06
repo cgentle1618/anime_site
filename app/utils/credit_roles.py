@@ -177,15 +177,21 @@ TAG_FIELDS: dict[str, TagField] = {
     ),
     "comic_era": TagField("comic_era", "Era", "Comic Era", ("comic",)),
     "comic_event": TagField("comic_event", "Events", "Comic Event", ("comic",)),
-    # The four game vocabularies. Genre, theme and mode mirror IGDB's own three
-    # fields, which is why each has a system_option_alias row rather than an
-    # English value; combat mode (PvE/PvP) is not an IGDB field and is
-    # hand-entered.
+    # The five game vocabularies. Genre, theme, mode and platform mirror
+    # IGDB's own fields, which is why each has a system_option_alias row
+    # rather than an English value; combat mode (PvE/PvP) is not an IGDB field
+    # and is hand-entered.
     "game_genre": TagField("game_genre", "Genre", "Game Genre", ("game",)),
     "game_theme": TagField("game_theme", "Theme", "Game Theme", ("game",)),
     "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
     "combat_mode": TagField(
         "combat_mode", "Combat Mode", "Combat Mode", ("game",)
+    ),
+    # WHICH platform the game is on. Not a media_source access row: a game
+    # carries no availability tristate and no per-platform link, and where a
+    # copy was bought is game_copy.
+    "game_platform": TagField(
+        "game_platform", "Platform", "Game Platform", ("game",)
     ),
 }
 

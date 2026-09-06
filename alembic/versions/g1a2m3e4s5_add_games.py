@@ -46,8 +46,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Session
 
 from app.utils.game_vocabulary import (
-    GAME_ACCESS_PLATFORMS,
     GAME_REFERENCE_SOURCES,
+    GAME_SHARED_REFERENCE_SOURCES,
     GAME_VOCABULARY,
     seed_game_vocabulary,
 )
@@ -196,9 +196,9 @@ def downgrade() -> None:
         sa.text("DELETE FROM system_option WHERE category = ANY(:categories)"),
         {"categories": list(GAME_VOCABULARY)},
     )
-    # The two shared vocabularies keep their pre-existing values; only the ones
-    # this revision introduced are removed, and only where nothing but `game`
-    # scopes them.
+    # The shared Reference Source vocabulary keeps its pre-existing values;
+    # only the ones this revision introduced are removed, and only where
+    # nothing but `game` scopes them.
     conn.execute(
         sa.text(
             "DELETE FROM system_option o "
@@ -209,15 +209,16 @@ def downgrade() -> None:
         ),
         {"values": list(GAME_REFERENCE_SOURCES)},
     )
+    # "Official site" predates this revision; only the `game` scope it gained
+    # here goes.
     conn.execute(
         sa.text(
-            "DELETE FROM system_option o "
-            "WHERE o.category = 'Platform' AND o.value = ANY(:values) "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM system_option_scope s "
-            "  WHERE s.option_id = o.system_id AND s.scope <> 'game')"
+            "DELETE FROM system_option_scope s "
+            "USING system_option o "
+            "WHERE s.option_id = o.system_id AND s.scope = 'game' "
+            "AND o.category = 'Reference Source' AND o.value = ANY(:values)"
         ),
-        {"values": list(GAME_ACCESS_PLATFORMS)},
+        {"values": list(GAME_SHARED_REFERENCE_SOURCES)},
     )
 
     op.drop_column("note", "entries")

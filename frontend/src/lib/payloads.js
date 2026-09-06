@@ -79,6 +79,7 @@ const CREDITS_FIELD_MAP = {
       game_theme: "game_theme",
       game_mode: "game_mode",
       combat_mode: "combat_mode",
+      game_platform: "game_platform",
       label: "label",
     },
   },

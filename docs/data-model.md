@@ -522,7 +522,7 @@ CHECKs beyond the date one: `ck_games_base_no_parent`
 Virtual: `remark`, `play_next`, `to_replay`, `display_name`, `copies`,
 `ownership` (see `game_copy`), and the `studio` / `publisher` / `director` /
 `composer` / `game_genre` / `game_theme` / `game_mode` / `combat_mode` /
-`label` link fields.
+`game_platform` / `label` link fields.
 
 ### `game_copy`
 

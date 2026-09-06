@@ -423,11 +423,12 @@ Tier 2 category:
 | `game_theme` | Theme | `Game Theme` | game |
 | `game_mode` | Mode | `Game Mode` | game |
 | `combat_mode` | Combat Mode | `Combat Mode` | game |
+| `game_platform` | Platform | `Game Platform` | game |
 
-The four game fields mirror IGDB's own three fields plus one that is not an
-IGDB field: genre, theme and mode carry `system_option_alias` rows against
-source `igdb`, while combat mode (PvE / PvP) is hand-entered and alias-free.
-None of the four has a `LEGACY_SHEET_COLUMN` entry - **`LEGACY_SHEET_COLUMN`
+The five game fields mirror IGDB's own four fields plus one that is not an
+IGDB field: genre, theme, mode and platform carry `system_option_alias` rows
+against source `igdb`, while combat mode (PvE / PvP) is hand-entered and
+alias-free. None of the five has a `LEGACY_SHEET_COLUMN` entry - **`LEGACY_SHEET_COLUMN`
 has no `game` rows at all**, by design: games never had legacy comma-joined
 columns, so every game credit and tag surfaces under its own key, in the API
 and in the sheet alike.
@@ -539,7 +540,7 @@ eighteen in `OPTION_CATEGORIES`:
 | `Label` | anime | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Quality` | anime | tag field `quality` (品質: production-quality tags; ships with no values, an admin adds them through the Options Add page) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
-| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `Bahamut`, `HowLongToBeat`, `Official`, `Wiki` and `Fandom` for games |
+| `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
 | `Publisher / Distributor TW` | anime, manga, novel, comic | tag field `publisher_tw` (merged `Distributor TW`, `Manga Publisher TW`, `Novel Publisher TW`) |
 | `Comic Publisher` | comic | tag field `comic_publisher` |
@@ -551,15 +552,19 @@ eighteen in `OPTION_CATEGORIES`:
 | `Game Theme` | game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
+| `Game Platform` | game | tag field `game_platform`; `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each folding a whole IGDB console generation in through its aliases. Brand names, so English rather than Chinese |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 
 **The game vocabulary is seeded from code, not inline SQL.**
-`app/utils/game_vocabulary.py` holds `GAME_VOCABULARY` (the four tag
-categories above, Chinese values with their IGDB aliases),
-`GAME_REFERENCE_SOURCES` and `GAME_ACCESS_PLATFORMS` (`Game Pass`,
-`PlayStation Plus`, `GeForce Now`, `Browser` - where a game can be *played*,
-deliberately not storefronts, which live on `game_copy`; each gets a `watch`
-usage row or it would reach the origin tag fields only). `seed_game_vocabulary`
+`app/utils/game_vocabulary.py` holds `GAME_VOCABULARY` (the five tag
+categories above, Chinese values with their IGDB aliases - `Game Platform`
+excepted, whose values are brand names), `GAME_REFERENCE_SOURCES` (`SteamDB`,
+`HowLongToBeat`, `Metacritic`) and `GAME_SHARED_REFERENCE_SOURCES`
+(`Official site` - a value the seed does not own, which only gains a `game`
+scope). **Games seed no `Platform` values at all**: where a game can be
+*played* is the `game_platform` tag, and which copy was owned is `game_copy`,
+so a game has no `media_source` access row and the Sources editor hides that
+group for games. `seed_game_vocabulary`
 is called by migration `g1a2m3e4s5` **and** by the test fixtures, which is why
 the data lives outside the revision file: the suite builds its schema with
 `create_all` and never runs Alembic, so a seed buried in a revision could not
@@ -567,11 +572,11 @@ be tested at all. It is idempotent on every row.
 
 **The seed refuses to scope a value it did not create.** A `system_option`
 with no scope rows is offered *everywhere*, so adding a `game` scope to an
-already-shared unscoped value (`Bahamut`, `Official`, `Wiki`) would **narrow**
+already-shared unscoped value (`Wikipedia`, `Fandom wiki`) would **narrow**
 it to games and silently remove it from every other media type's picker.
 `_ensure_scope` therefore returns early for a value it did not create that
-carries no scopes; `_ensure_usage` guards the same way. Those values already
-reach games precisely by being unscoped.
+carries no scopes. Those values already reach games precisely by being
+unscoped.
 
 **The `usage` axis (`system_option_usage`, model `SystemOptionUsage`)**
 narrows `Platform` further, orthogonally to scope: scope says *which media

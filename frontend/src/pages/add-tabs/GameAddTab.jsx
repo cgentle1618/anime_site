@@ -314,7 +314,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Genre">
           {tagField(
             "game_genre",
@@ -327,6 +327,13 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             "game_theme",
             { kind: "option", category: "Game Theme", scope: "game" },
             "Select or type theme...",
+          )}
+        </Field>
+        <Field label="Platform" hint="Which platform the game is on">
+          {tagField(
+            "game_platform",
+            { kind: "option", category: "Game Platform", scope: "game" },
+            "PlayStation, PC...",
           )}
         </Field>
       </div>
@@ -520,11 +527,14 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
           placeholder="https://store.steampowered.com/app/1245620/"
         />
       </Field>
+      {/* No access group: where a game can be played is the Platform tag,
+          and which copy was bought is the Copies editor. */}
       <SourcesEditor
         value={f.sources}
         onChange={(rows) => u("sources", rows)}
         mediaType="game"
         sources={sources}
+        showAccess={false}
       />
 
       <SectionHeader icon="fa-flag" title="Flags" />

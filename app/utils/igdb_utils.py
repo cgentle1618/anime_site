@@ -4,8 +4,8 @@ Turns a raw IGDB game object into the shape `autofill_game_from_igdb` writes.
 
 Two deliberate non-translations live here:
 
-* Genres, themes and game modes come through as **raw English**. Turning
-  "Role-playing (RPG)" into the Chinese vocabulary value is the alias layer's
+* Genres, themes, game modes and platforms come through as **raw English**.
+  Turning "Role-playing (RPG)" into the vocabulary value is the alias layer's
   job (`system_option_alias` / `resolve_option_alias`), because an unmatched
   value must surface as a gap to fill rather than be silently invented here.
 * `parent_game` is carried as a bare IGDB id. Resolving it to a `system_id`
@@ -117,5 +117,6 @@ def map_igdb_to_game_data(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "genres": _names(raw.get("genres")),
         "themes": _names(raw.get("themes")),
         "game_modes": _names(raw.get("game_modes")),
+        "platforms": _names(raw.get("platforms")),
         "parent_igdb_id": raw.get("parent_game"),
     }

@@ -682,6 +682,7 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
             ("game_genre", "Game Genre", g_data.get("genres")),
             ("game_theme", "Game Theme", g_data.get("themes")),
             ("game_mode", "Game Mode", g_data.get("game_modes")),
+            ("game_platform", "Game Platform", g_data.get("platforms")),
         ):
             if tag_values(db, "game", game.system_id, field):
                 continue
@@ -696,7 +697,11 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
                         game.system_id,
                     )
                     continue
-                resolved.append(option.value)
+                # Many IGDB names fold into one value - "PlayStation 4" and
+                # "PlayStation 5" are both PlayStation - so the same value can
+                # resolve twice. replace_tags does not dedupe.
+                if option.value not in resolved:
+                    resolved.append(option.value)
             if resolved:
                 replace_tags(db, "game", game.system_id, field, resolved)
 

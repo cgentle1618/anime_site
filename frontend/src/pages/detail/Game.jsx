@@ -415,6 +415,11 @@ export default function Game() {
                   },
                 ],
                 [
+                  // The only vocabulary shown here: which platform the game is
+                  // on is the one a reader looks for on the page.
+                  { label: "Platform", value: game.game_platform },
+                ],
+                [
                   { label: "Release Status", value: game.release_status },
                   { label: "Release Date", value: game.release_date },
                   { label: "Current Patch", value: game.current_patch },

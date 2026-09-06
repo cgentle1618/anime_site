@@ -13,6 +13,7 @@ RAW = {
     "genres": [{"name": "Role-playing (RPG)"}],
     "themes": [{"name": "Fantasy"}, {"name": "Open world"}],
     "game_modes": [{"name": "Single player"}, {"name": "Multiplayer"}],
+    "platforms": [{"name": "PlayStation 5"}, {"name": "PC (Microsoft Windows)"}],
     "involved_companies": [
         {"company": {"name": "FromSoftware"}, "developer": True, "publisher": False},
         {"company": {"name": "Bandai Namco"}, "developer": False, "publisher": True},
@@ -48,6 +49,7 @@ def test_vocabularies_come_through_as_raw_english_for_the_alias_layer():
     assert mapped["genres"] == ["Role-playing (RPG)"]
     assert mapped["themes"] == ["Fantasy", "Open world"]
     assert mapped["game_modes"] == ["Single player", "Multiplayer"]
+    assert mapped["platforms"] == ["PlayStation 5", "PC (Microsoft Windows)"]
 
 
 def test_parent_game_is_carried_for_dlc_resolution():

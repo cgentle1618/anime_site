@@ -812,7 +812,7 @@ ever read them back, only wrote them (`autofill.py`) or displayed them
 On the RBAC side, gating a `media_source` bucket does much heavier lifting on
 the reading types than on the watching ones: a viewer holding neither
 `sources_other` nor `sources_restricted` sees a manga's Sources card with
-reference links only and **no reading sources at all** (manga and comic have
+reference links only and **no reading sources at all** (manga, comic and game have
 no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
 where the same role still sees Bahamut and Netflix on an anime. That
 asymmetry is the intent of the restricted tier, not an oversight.

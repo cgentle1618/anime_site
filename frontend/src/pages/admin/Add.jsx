@@ -2438,6 +2438,10 @@ export default function Add() {
         values: splitTags(gmf.combat_mode),
       },
       {
+        source: { kind: "option", category: "Game Platform", scope: "game" },
+        values: splitTags(gmf.game_platform),
+      },
+      {
         source: { kind: "option", category: "Label", scope: "game" },
         values: splitTags(gmf.label),
       },

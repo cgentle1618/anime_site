@@ -2331,6 +2331,10 @@ export default function Modify() {
         values: splitTags(cgmf.combat_mode),
       },
       {
+        source: { kind: "option", category: "Game Platform", scope: "game" },
+        values: splitTags(cgmf.game_platform),
+      },
+      {
         source: { kind: "option", category: "Label", scope: "game" },
         values: splitTags(cgmf.label),
       },

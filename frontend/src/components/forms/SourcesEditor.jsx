@@ -162,7 +162,18 @@ function FreeTextRows({ indices, bucket, label, addLabel, onChange, value }) {
   );
 }
 
-export default function SourcesEditor({ value, onChange, mediaType, sources }) {
+// `showAccess` false drops the access group entirely - games have no "where
+// can I play this" source: that is the Platform tag, and which copy was bought
+// is game_copy. It is a prop rather than a media-type check here because the
+// unscoped Platform values (Netflix, Prime Video) would otherwise still be
+// offered on a game, an empty vocabulary being no signal at all.
+export default function SourcesEditor({
+  value,
+  onChange,
+  mediaType,
+  sources,
+  showAccess = true,
+}) {
   const rows = value || [];
   const mainIndices = [];
   const referenceIndices = [];
@@ -197,25 +208,27 @@ export default function SourcesEditor({ value, onChange, mediaType, sources }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-          Main Sources
-        </label>
-        <VocabRows
-          indices={mainIndices}
-          names={platforms}
-          showAvailability
-          onChange={onChange}
-          value={rows}
-        />
-        <button
-          type="button"
-          className="text-xs text-brand hover:underline mt-1"
-          onClick={() => onChange([...rows, addRow("main", "access")])}
-        >
-          + Add main source
-        </button>
-      </div>
+      {showAccess && (
+        <div>
+          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+            Main Sources
+          </label>
+          <VocabRows
+            indices={mainIndices}
+            names={platforms}
+            showAvailability
+            onChange={onChange}
+            value={rows}
+          />
+          <button
+            type="button"
+            className="text-xs text-brand hover:underline mt-1"
+            onClick={() => onChange([...rows, addRow("main", "access")])}
+          >
+            + Add main source
+          </button>
+        </div>
+      )}
       <div>
         <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
           Reference Sources

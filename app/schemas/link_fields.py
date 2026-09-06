@@ -149,6 +149,7 @@ class GameLinkFields(SourceFields):
     game_theme: Optional[str] = None
     game_mode: Optional[str] = None
     combat_mode: Optional[str] = None
+    game_platform: Optional[str] = None
     label: Optional[str] = None
 
 

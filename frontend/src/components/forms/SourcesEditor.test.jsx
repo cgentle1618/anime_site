@@ -107,6 +107,27 @@ describe("SourcesEditor", () => {
     expect(options).not.toContain("Netflix");
   });
 
+  it("drops the access group entirely when the media type has no access sources", () => {
+    // A game is played on a platform, not watched on one - and the unscoped
+    // Platform values would otherwise still be offered.
+    render(
+      <SourcesEditor
+        value={[]}
+        onChange={vi.fn()}
+        mediaType="game"
+        sources={sources}
+        showAccess={false}
+      />,
+    );
+    expect(screen.queryByText(/main sources/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /add main source/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add reference source/i }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps a reference row and an access row with the same name from colliding", () => {
     const rows = [
       { kind: "access", bucket: "main", name: "Netflix", url: "", available: null },

@@ -846,8 +846,9 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "composer", scope: "game" },
       group: "Credits",
     },
-    // The four game vocabularies. Values are Chinese; the IGDB English
-    // strings live in system_option_alias rows, never here.
+    // The five game vocabularies. Values are Chinese (Game Platform is
+    // brand names); the IGDB English strings live in system_option_alias
+    // rows, never here.
     game_genre: {
       label: "Genre",
       control: "tags",
@@ -870,6 +871,14 @@ export const TYPE_FIELD_META = {
       label: "Combat Mode",
       control: "tags",
       source: { kind: "option", category: "Combat Mode", scope: "game" },
+      group: "Classification",
+    },
+    // Which platform the game is on. A tag, not a source row: a game carries
+    // no availability tristate and no per-platform link.
+    game_platform: {
+      label: "Platform",
+      control: "tags",
+      source: { kind: "option", category: "Game Platform", scope: "game" },
       group: "Classification",
     },
     label: {

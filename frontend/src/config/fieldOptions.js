@@ -278,6 +278,7 @@ export const OPTION_CATEGORIES = [
   "Game Theme",
   "Game Mode",
   "Combat Mode",
+  "Game Platform",
   "Franchise for Filter",
 ];
 

@@ -334,6 +334,7 @@ export const defaultGame = () => ({
   game_theme: "",
   game_mode: "",
   combat_mode: "",
+  game_platform: "",
   label: "",
   // Set by the IGDB picker, not by hand: Fill reads the id, and the link the
   // picker stores carries only a slug.

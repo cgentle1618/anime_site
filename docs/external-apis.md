@@ -335,6 +335,7 @@ integration — come from IGDB.
 | `involved_companies` where `developer` | `developers` | `media_credit` role `studio` | only when the entry has no studio credit yet — a game's developer **is** its studio |
 | `involved_companies` where `publisher` | `publishers` | `media_credit` role `publisher` | only when the entry has no publisher credit yet |
 | `genres.name` / `themes.name` / `game_modes.name` | `genres` / `themes` / `game_modes` | `media_tag` fields `game_genre` / `game_theme` / `game_mode` | raw **English**, translated by the alias layer — see below |
+| `platforms.name` | `platforms` | `media_tag` field `game_platform` | raw **English**; the alias rows fold a whole console generation into one family, so `PlayStation 4` and `PlayStation 5` both resolve to `PlayStation` and the duplicate is dropped |
 | `parent_game` | `parent_igdb_id` | `games.base_game_id` | a bare IGDB id; resolved against the database by the autofill |
 
 A company that is neither a developer nor a publisher (a porting or supporting
@@ -349,7 +350,7 @@ every other autofill does, with the same consequence noted under
 [Shared behaviour](#shared-behaviour).
 
 The one rule unique to games is the **alias translation**. IGDB speaks English;
-the tag vocabulary is Chinese. Each genre/theme/mode value goes through
+the tag vocabulary is Chinese. Each genre/theme/mode/platform value goes through
 `resolve_option_alias(db, category, "igdb", english)`, and a value with **no
 `system_option_alias` row is logged and skipped** — never stored raw, never
 invented, never dropped silently. A new IGDB genre is supposed to surface as a

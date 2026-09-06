@@ -7,10 +7,12 @@ create_all), so a seed buried in a revision file could not be tested at all;
 and the same rows have to exist in every database that was created by
 create_all rather than by upgrade.
 
-Values are Chinese, because that is what the pickers show. An external API's
-English is a wire format and lives in `system_option_alias` - see
-app/models/system.py. Genre, theme and mode mirror IGDB's own three fields and
-so carry aliases; Combat Mode is not an IGDB field and carries none.
+Values are Chinese, because that is what the pickers show - except Game
+Platform, whose values are brand names. An external API's English is a wire
+format and lives in `system_option_alias` - see
+app/models/system.py. Genre, theme, mode and platform mirror IGDB's own
+fields and so carry aliases; Combat Mode is not an IGDB field and carries
+none.
 
 Every row is scoped to `game`. That is the load-bearing part: a system_option
 with NO scope rows is offered in EVERY media type's picker, so an unscoped
@@ -84,34 +86,103 @@ GAME_VOCABULARY: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("PvE", ()),
         ("PvP", ()),
     ),
+    # WHICH platform the game is on - a family, not a console. IGDB names
+    # every model separately ("PlayStation 4", "Nintendo Switch"), so the
+    # aliases fold a generation each into its family. The values are English
+    # rather than Chinese because they are brand names; PC, Mobile and Browser
+    # keep the same register.
+    #
+    # Deliberately not storefronts and not subscriptions: which copy was
+    # bought lives in game_copy.
+    "Game Platform": (
+        (
+            "PlayStation",
+            (
+                "PlayStation",
+                "PlayStation 2",
+                "PlayStation 3",
+                "PlayStation 4",
+                "PlayStation 5",
+                "PlayStation Portable",
+                "PlayStation Vita",
+                "PlayStation VR",
+                "PlayStation VR2",
+            ),
+        ),
+        (
+            "Nintendo",
+            (
+                "Nintendo Switch",
+                "Nintendo Switch 2",
+                "Wii",
+                "Wii U",
+                "Nintendo GameCube",
+                "Nintendo 64",
+                "Super Nintendo Entertainment System",
+                "Super Famicom",
+                "Nintendo Entertainment System",
+                "Family Computer",
+                "Nintendo DS",
+                "Nintendo DSi",
+                "Nintendo 3DS",
+                "New Nintendo 3DS",
+                "Game Boy",
+                "Game Boy Color",
+                "Game Boy Advance",
+            ),
+        ),
+        (
+            "Xbox",
+            (
+                "Xbox",
+                "Xbox 360",
+                "Xbox One",
+                "Xbox Series X|S",
+            ),
+        ),
+        (
+            "PC",
+            (
+                "PC (Microsoft Windows)",
+                "Mac",
+                "Linux",
+                "DOS",
+            ),
+        ),
+        (
+            "Mobile",
+            (
+                "iOS",
+                "Android",
+                "Windows Phone",
+            ),
+        ),
+        ("Browser", ("Web browser",)),
+    ),
 }
 
-# Two vocabularies that already exist gain game-scoped values, so the Sources
+# One vocabulary that already exists gains game-scoped values, so the Sources
 # card has something to offer on a game.
 #
 # The documented rule is that a link a pipeline fetches on is a column
 # (games.igdb_link, games.steam_link) and a link that is only ever displayed is
 # a media_source reference row - which is what these are.
+#
+# Games have no ACCESS sources at all: where a game can be played is the
+# `game_platform` tag above, and which copy was bought is game_copy. The
+# Sources card hides its access group for games (SourcesEditor.jsx).
 GAME_REFERENCE_SOURCES: tuple[str, ...] = (
     "SteamDB",
-    "Bahamut",
     "HowLongToBeat",
-    "Official",
-    "Wiki",
-    "Fandom",
+    "Metacritic",
 )
 
-# Where a game can be PLAYED. Deliberately not storefronts: which copies were
-# bought lives in game_copy. Each needs a `watch` usage row, or it reaches the
-# origin tag fields only and never the access picker.
-GAME_ACCESS_PLATFORMS: tuple[str, ...] = (
-    "Game Pass",
-    "PlayStation Plus",
-    "GeForce Now",
-    "Browser",
-)
-
-_ACCESS_USAGE = "watch"
+# Reference Source values this seed does NOT own. "Official site" already
+# exists scoped to anime, anime-movie and comic, so it gains a `game` scope
+# here; "Wikipedia" and "Fandom wiki" carry no scopes at all, which means they
+# are already offered on every media type - _ensure_scope leaves those alone
+# rather than narrowing them to games.
+GAME_SHARED_REFERENCE_SOURCES: tuple[str, ...] = ("Official site",)
 
 
 def _option(
@@ -130,7 +201,7 @@ def _ensure_scope(db: Session, option, scope: str, created: bool) -> None:
 
     A system_option with NO scope rows is offered in EVERY media type's picker.
     So for a value this seed did not create and that carries no scopes yet
-    (Bahamut, Official, Wiki - already shared vocabulary), adding one would
+    (Wikipedia, Fandom wiki - already shared vocabulary), adding one would
     NARROW it to games alone. Leave those exactly as they are: they already
     reach games.
     """
@@ -143,19 +214,6 @@ def _ensure_scope(db: Session, option, scope: str, created: bool) -> None:
     )
     if exists is None:
         db.add(models.SystemOptionScope(option_id=option.system_id, scope=scope))
-
-
-def _ensure_usage(db: Session, option, usage: str, created: bool) -> None:
-    """The usage analogue of _ensure_scope, and narrowing the same way."""
-    if not created and not option.usages:
-        return
-    exists = (
-        db.query(models.SystemOptionUsage)
-        .filter_by(option_id=option.system_id, usage=usage)
-        .first()
-    )
-    if exists is None:
-        db.add(models.SystemOptionUsage(option_id=option.system_id, usage=usage))
 
 
 def _ensure_alias(db: Session, option, source: str, value: str) -> None:
@@ -194,7 +252,9 @@ def seed_game_vocabulary(db: Session) -> None:
             for alias in aliases:
                 _ensure_alias(db, option, "igdb", alias)
 
-    for sort_order, value in enumerate(GAME_REFERENCE_SOURCES):
+    for sort_order, value in enumerate(
+        GAME_REFERENCE_SOURCES + GAME_SHARED_REFERENCE_SOURCES
+    ):
         option = _option(db, "Reference Source", value)
         created = option is None
         if created:
@@ -204,17 +264,5 @@ def seed_game_vocabulary(db: Session) -> None:
             db.add(option)
             db.flush()
         _ensure_scope(db, option, "game", created)
-
-    for sort_order, value in enumerate(GAME_ACCESS_PLATFORMS):
-        option = _option(db, "Platform", value)
-        created = option is None
-        if created:
-            option = models.SystemOption(
-                category="Platform", value=value, sort_order=sort_order
-            )
-            db.add(option)
-            db.flush()
-        _ensure_scope(db, option, "game", created)
-        _ensure_usage(db, option, _ACCESS_USAGE, created)
 
     db.flush()

@@ -30,14 +30,14 @@ Unclaimed. None block using the app.
 | Games (and comics) absent from cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` | todo |
 | No Games tab | `FutureReleases.jsx` | todo |
 | Colour-token table holds pre-archive hexes | `docs/frontend/components.md` | todo |
-| Stale comment: "Fill reads igdb_id, which the backend derives from this link" | `frontend/src/config/formFields/fieldMeta.js:881` | todo |
+| Stale comment: "Fill reads igdb_id, which the backend derives from this link" | `frontend/src/config/formFields/fieldMeta.js:890` | todo |
 | `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` | todo |
 
 ## Environment
 
 | | |
 |---|---|
-| Dev db | migrated to `g1a2m3e4s5` on 2026-09-06 |
+| Dev db | at `g1a2m3e4s5` (re-run 2026-09-06 after the revision was edited in place for the game platform tag + reference vocabulary). The one `games` row was dumped and restored; the superseded option rows the downgrade could no longer name (`Reference Source` Bahamut/Official/Wiki/Fandom, `Platform` Game Pass/PlayStation Plus/GeForce Now/Browser - all game-scoped and unreferenced) were deleted by hand |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` |
 | `.env` gap | `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` unset - IGDB Fill is a logged no-op until set |
-| Droppable test dbs | `anime_site_test_pubbe` `anime_site_test_gameb` `anime_site_test_gamec` `anime_site_test_igdb` `anime_site_test_gamefix` |
+| Droppable test dbs | `anime_site_test_pubbe` `anime_site_test_gameb` `anime_site_test_gamec` `anime_site_test_igdb` `anime_site_test_gamefix` `anime_site_test_gameplat` |

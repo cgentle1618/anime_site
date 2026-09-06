@@ -27,10 +27,12 @@ def test_game_tag_fields():
         "game_theme",
         "game_mode",
         "combat_mode",
+        "game_platform",
         "label",
     }
     assert fields["game_genre"].category == "Game Genre"
     assert fields["combat_mode"].category == "Combat Mode"
+    assert fields["game_platform"].category == "Game Platform"
 
 
 def test_label_is_still_offered_to_anime():

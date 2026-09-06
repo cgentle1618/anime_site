@@ -192,7 +192,8 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `source_other` editors; produces `access` rows for `main`/`other`/
   `restricted` platform pickers and always-`{kind:"reference", bucket:"main"}`
   rows for the Reference Source dropdown - which never takes a `usage` filter,
-  since `usage` is Platform-only),
+  since `usage` is Platform-only; `showAccess={false}` drops the access group
+  outright, which is how a game gets a Sources card with references only),
   `DefaultValueControl`, `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
   — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
   kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
