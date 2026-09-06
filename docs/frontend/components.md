@@ -187,6 +187,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   means "known not to be there", not "hide this row".
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
+  `OptionCategorySelect`,
   `ContentLabelPicker`, `SourcesEditor` (the one shared editor for every Add
   and Modify tab's `sources` field, replacing eight copy-pasted
   `source_other` editors; produces `access` rows for `main`/`other`/
@@ -268,6 +269,7 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 |---|---|
 | `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Add / Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all four. It filters a list and preselects a type; it never scopes the editor, because a person is one row that may hold several types. |
 | `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
+| `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them, the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
 | `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. Generalised over its detail route rather than copied for the third entity: `StudioLinks` takes a `base` prop (default `/studio`), `studioValue(item)` reads `studio_refs`, and `publisherValue(item)` reads `publisher_refs` with `base="/publisher"`. A game's Production card uses both — Developer through `studioValue` (a developer *is* a studio), Publisher through `publisherValue`. |

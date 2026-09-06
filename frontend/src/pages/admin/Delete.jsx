@@ -7,6 +7,7 @@ import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
@@ -2724,18 +2725,13 @@ export default function Delete() {
                 setOptCategoryFilter("");
               }}
             />
-            <select
+            <OptionCategorySelect
               className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand w-full"
+              categories={categoriesForSubTab(optCategories, optionsSubTab)}
               value={optCategoryFilter}
               onChange={(e) => setOptCategoryFilter(e.target.value)}
-            >
-              <option value="">— Select Category —</option>
-              {categoriesForSubTab(optCategories, optionsSubTab).map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              placeholder="— Select Category —"
+            />
           </div>
 
           {optCategoryFilter && (

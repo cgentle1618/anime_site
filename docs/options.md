@@ -467,7 +467,13 @@ served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
 could not be picked at all, so the first value of a new tag field had nowhere
-to go. `LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
+to go — and since that picker is now closed (`OptionCategorySelect`, no typing
+a name in), declaring one here is the only way an admin brings a new category
+into existence through the UI. A Pull still writes whatever categories the
+sheet holds. Delete's picker unions nothing: it lists the categories that have
+rows, because an empty one has nothing to delete.
+
+`LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
 Sheets header it has always used (e.g. `("anime", "composer")` -> `music`,
 `("anime", "publisher_tw")` -> `distributor_tw`).
 

@@ -171,10 +171,22 @@ rejects. Submit is blocked until at least one name is filled, matching
 **Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
 Delete): **Options** and **Tags**, both creating system options (category +
 value + scopes). They are the same form posting to the same endpoint; only the
-categories the Category box suggests differ (`TAG_CATEGORIES`, see
+categories the Category picker offers differ (`TAG_CATEGORIES`, see
 [../options.md](../options.md)). All three pages now show the same two, so the
 Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
 **not** here — each has its own Entity tab.
+
+Category is a closed picker (`forms/OptionCategorySelect.jsx`), the same
+component and the same grouping the Modify and Delete pages browse with. Add
+used to render a text box with a `datalist` of suggestions, which made it the
+one place a category could be coined by typing — and a typo there made a
+category of its own that no other page would list. `POST /api/system-option`
+still accepts any category string; the restriction is the form's. The picker
+arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
+see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
+categories under **Other**; a list that yields a single section — the Tags
+sub-tab, whose four categories are one group — renders flat rather than under
+a heading repeating the sub-tab's own name.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
@@ -375,8 +387,12 @@ the group headings, not the enums and categories inside them; listing every
 leaf ran to forty-odd links, taller than the viewport on its own. Individual
 cards and tables keep their ids for saved links, but only the tiers and their
 groups carry `data-section-anchor`, since those are the entries the index can
-highlight. Grouping is presentation only — nothing reads it but this page, and
-a category no group claims still appears, under Other.
+highlight. Grouping is presentation only — no business logic reads it, and
+a category no group claims still appears, under Other. `TIER2_GROUPS` is not
+this page's alone: the Add / Modify / Delete category picker
+(`forms/OptionCategorySelect.jsx`) arranges its dropdown with the same
+`groupTier2Categories`, so a category sits in the same company wherever an
+admin meets it.
 
 ## /roles, /users, /content-labels
 

@@ -18,7 +18,7 @@ import MovieNotes from "../detail/MovieNotes";
 import TVShowNotes from "../detail/TVShowNotes";
 import CartoonNotes from "../detail/CartoonNotes";
 import MangaNotes from "../detail/MangaNotes";
-import { selectCls } from "../../components/forms/FormField";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
@@ -3406,20 +3406,14 @@ export default function Modify() {
               <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
                 Select Category
               </label>
-              <select
-                className={selectCls}
+              <OptionCategorySelect
+                categories={categoriesForSubTab(
+                  optionCategories,
+                  optionsSubTab,
+                )}
                 value={optCatFilter}
                 onChange={(e) => setOptCatFilter(e.target.value)}
-              >
-                <option value="">— Choose a category —</option>
-                {categoriesForSubTab(optionCategories, optionsSubTab).map(
-                  (c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ),
-                )}
-              </select>
+              />
             </div>
           )}
 

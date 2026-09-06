@@ -8,6 +8,7 @@
 // both moved to the Entity tab group - see PersonAddTab.jsx and
 // StudioAddTab.jsx.
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
 import UsagePicker from "../../components/forms/UsagePicker";
@@ -42,20 +43,15 @@ function OptionsForm({
   return (
     <div className="space-y-4">
       <Field label="Category" required>
-        {/* The examples come from the sub-tab's own categories: a hard-coded
-            placeholder named Comic Publisher while Tags was showing. */}
-        <input
-          className={inputCls}
+        {/* A picker, not a text box with suggestions. The categories are a
+            declared vocabulary (app/utils/credit_roles.py), and typing here
+            used to be the only way to coin a new one - a typo made a category
+            of its own that no other page would ever list. */}
+        <OptionCategorySelect
+          categories={optionCategories}
           value={optCategory}
           onChange={(e) => setOptCategory(e.target.value)}
-          placeholder={`e.g. ${optionCategories.slice(0, 3).join(", ")}...`}
-          list="opt-categories"
         />
-        <datalist id="opt-categories">
-          {optionCategories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
       </Field>
       <div className="space-y-2">
         <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
@@ -122,7 +118,7 @@ export default function OptionsAddTab({
       <SectionHeader icon="fa-cog" title="System Options" />
       <OptionSubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
       {/* Tags and Options are the same form; only the categories the
-          Category box suggests differ. */}
+          Category picker offers differ. */}
       {(optionsSubTab === "options" || optionsSubTab === "tags") && (
         <OptionsForm
           optCategory={optCategory}
