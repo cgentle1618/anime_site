@@ -1208,6 +1208,10 @@ def parse_note_from_sheet(raw: dict) -> dict:
         "title": parse_from_sheet(raw.get("title"), str),
         "content": parse_from_sheet(raw.get("content"), str),
         "links": json.loads(raw["links"]) if raw.get("links") else None,
+        # The name_entries shape, parsed exactly like `links` beside it. Absent
+        # here, Backup would still write the column and Pull would drop it -
+        # every guides / builds_and_mods item lost on the round trip.
+        "entries": json.loads(raw["entries"]) if raw.get("entries") else None,
         "sort_index": parse_from_sheet(raw.get("sort_index"), float),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

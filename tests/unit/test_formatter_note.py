@@ -1,5 +1,6 @@
 """Unit tests for the Note sheet parser."""
 
+import json
 import uuid
 
 from app.utils.formatter import parse_note_from_sheet
@@ -58,3 +59,22 @@ def test_locator_wins_over_a_stale_episode_column():
         {"section": "highlights", "locator": "ep 6", "episode": "ep 1"}
     )
     assert parsed["locator"] == "ep 6"
+
+
+def test_entries_round_trip_through_the_sheet():
+    # Backup writes `entries` because the headers derive from the model's
+    # columns; a parser that drops it loses every guides / builds_and_mods
+    # item on the machine-to-machine round trip this project runs on.
+    raw = [
+        {"type": "text", "value": "Kill the boss first", "label": None},
+        {"type": "link", "value": "https://example.com/build", "label": "Build"},
+    ]
+    parsed = parse_note_from_sheet(
+        {"section": "guides", "entries": json.dumps(raw, ensure_ascii=False)}
+    )
+    assert parsed["entries"] == raw
+
+
+def test_blank_entries_cell_becomes_none():
+    parsed = parse_note_from_sheet({"section": "guides", "entries": ""})
+    assert parsed["entries"] is None
