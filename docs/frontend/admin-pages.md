@@ -358,13 +358,25 @@ Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
 category with their scopes, Tier 3 people and studios. Editing happens on
 Add/Modify (Options tab) — see [../options.md](../options.md).
 
-Tier 1 is not one alphabetical wall: `lib/enumGroups.js` sorts the served keys
-into named groups (Airing Type holds anime + cartoon, Region holds tv + manga +
-novel, and so on), with everything unclaimed under a final **Other**. A group
-whose keys the endpoint no longer serves in pairs is demoted into Other rather
-than printed as a heading over one card, and the left-hand section index nests
-the same two levels, so index and page can never disagree. Grouping is
-presentation only — nothing reads it but this page.
+Neither Tier 1 nor Tier 2 is one alphabetical wall: `lib/optionsPageGroups.js`
+sorts each into named groups, with everything unclaimed under a final
+**Other**. Tier 1 (`TIER1_GROUPS`, keyed by enum name) puts the "what kind of
+work is this" lists together under Entry Type, files the game lists by the
+question they answer (`game_release_status` under Publication Status,
+`playing_status` under My Progress) and keeps only the game_copy vocabularies
+in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
+reads as Tags, Game, Comic and Source & Platform — the last holding
+`Publisher / Distributor TW` alongside the platform and reference vocabularies,
+since all of them name an outside party.
+
+A group left with a single member is demoted into Other rather than printed as
+a heading over one card. The left-hand section index lists one level per tier —
+the group headings, not the enums and categories inside them; listing every
+leaf ran to forty-odd links, taller than the viewport on its own. Individual
+cards and tables keep their ids for saved links, but only the tiers and their
+groups carry `data-section-anchor`, since those are the entries the index can
+highlight. Grouping is presentation only — nothing reads it but this page, and
+a category no group claims still appears, under Other.
 
 ## /roles, /users, /content-labels
 
