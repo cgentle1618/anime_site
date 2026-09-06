@@ -78,8 +78,8 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 |---|---|---|
 | G1 | `GameResponse.ownership` never populated | done `4a72058` |
 | G2 | note `entries` dropped by Pull | done `7411593` |
-| G3 | game vocabularies absent from `/api/constants` | wip session-A |
-| G4 | game missing from watch-order + duplicate maps | wip session-A |
+| G3 | game vocabularies absent from `/api/constants` | done `1bd3193` |
+| G4 | game missing from watch-order + duplicate maps | done `866e2a6` |
 
 ---
 
@@ -92,6 +92,7 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | Migrate `publisher_tw` tag rows into the publisher entity | anime, manga, novel, comic | todo |
 | Steam Web API playtime sync | columns `steam_appid`/`steam_link` reserved | todo |
 | Stale Deferred line: "`system_option_usage` has no Sheets tab" | `docs/roadmap.md` | todo |
+| Stale "not served yet" rows for the game vocabularies | `docs/options.md` | todo |
 
 ## Test databases in use
 
