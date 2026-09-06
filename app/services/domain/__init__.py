@@ -44,6 +44,7 @@ from app.services.domain.completion import (
     check_is_reading_completed,
     check_is_tv_completed,
     mark_comic_completed,
+    mark_game_completed,
     mark_movie_completed,
     mark_novel_completed,
     mark_reading_completed,
@@ -78,11 +79,16 @@ from app.services.domain.duplicates import (
     find_duplicate_system_options,
     find_duplicate_tv_show,
 )
+from app.services.domain.game_copies import (
+    derive_game_ownership,
+    write_game_copies,
+)
 from app.services.domain.hierarchy import (
     resolve_anime_movie_parent_hierarchy,
     resolve_anime_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -151,6 +157,7 @@ __all__ = [
     "resolve_manga_parent_hierarchy",
     "resolve_novel_parent_hierarchy",
     "resolve_comic_parent_hierarchy",
+    "resolve_game_parent_hierarchy",
     "apply_validate_episode_math",
     "apply_validate_vol_math",
     "apply_validate_ch_math",
@@ -174,6 +181,7 @@ __all__ = [
     "mark_reading_completed",
     "mark_novel_completed",
     "mark_comic_completed",
+    "mark_game_completed",
     "apply_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",
@@ -242,4 +250,6 @@ __all__ = [
     "normalize_arc_progress",
     "unit_display_key",
     "write_novel_units",
+    "write_game_copies",
+    "derive_game_ownership",
 ]

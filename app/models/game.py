@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -131,6 +132,13 @@ class Game(Base, NameFallbackMixin):
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    copies = relationship(
+        "GameCopy",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="GameCopy.position",
+    )
 
     @property
     def names_dict(self) -> dict:

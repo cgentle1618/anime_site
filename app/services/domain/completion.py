@@ -146,6 +146,17 @@ def mark_novel_completed(entry: Novel) -> None:
                 entry.ch_total = ch_max
 
 
+def mark_game_completed(entry) -> None:
+    """
+    Sets a game to Completed without touching how deep the finish went.
+
+    completion_level, all_endings and the achievement pair are three
+    independent axes and only the user knows their values, so unlike the
+    watch/read helpers this sets no progress numbers.
+    """
+    entry.playing_status = "Completed"
+
+
 def mark_comic_completed(entry: Comic) -> None:
     """Sets a comic entry to a fully finished reading state."""
     entry.serialization_status = "完結"

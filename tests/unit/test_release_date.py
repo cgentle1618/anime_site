@@ -127,6 +127,8 @@ def test_date_columns_cover_every_media_table():
         "manga",
         "novel",
         "comic",
+        "games",
+        "game_copy",
     }
 
 
