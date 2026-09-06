@@ -39,6 +39,28 @@ COMPLETED_READ_STATUSES = frozenset(
 )
 
 
+class PlayStatus(str, Enum):
+    MIGHT_PLAY = "Might Play"
+    PLAN_TO_PLAY = "Plan to Play"
+    # The analogue of WatchStatus.WATCH_WHEN_AIRS, and more load-bearing here:
+    # a pre-ordered or wishlisted unreleased title is a normal state in a
+    # collection organised by purchasable.
+    PLAY_WHEN_RELEASED = "Play When Released"
+    ACTIVE_PLAYING = "Active Playing"
+    PASSIVE_PLAYING = "Passive Playing"
+    PAUSED = "Paused"
+    COMPLETED = "Completed"
+    TEMP_DROPPED = "Temp Dropped"
+    DROPPED = "Dropped"
+    WONT_PLAY = "Won't Play"
+
+
+# There is no games analogue of "Completed (解說)", so this holds one value.
+# Declared anyway, so it reads beside COMPLETED_WATCH_STATUSES and so a second
+# completed-ish status later is a one-line change rather than a new concept.
+COMPLETED_PLAY_STATUSES = frozenset({PlayStatus.COMPLETED})
+
+
 class AiringStatus(str, Enum):
     NOT_YET_AIRED = "Not Yet Aired"
     AIRING = "Airing"
@@ -64,6 +86,7 @@ class FranchiseType(str, Enum):
     COMIC = "Comic"
     ACG = "ACG"
     NOVEL = "Novel"
+    GAME = "Game"
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +188,7 @@ FRANCHISE_TYPES: tuple[str, ...] = (
     "Cartoon",
     "Comic",
     "Novel",
+    "Game",
 )
 
 ANIME_AIRING_TYPES: tuple[str, ...] = (
@@ -175,4 +199,52 @@ ANIME_AIRING_TYPES: tuple[str, ...] = (
     "OAD",
     "Special",
     "Other",
+)
+
+
+GAME_TYPES: tuple[str, ...] = ("Base Game", "DLC", "Expansion", "Bundle")
+
+# How deep a finish went. Deliberately a ladder of content depth only: whether
+# every ending was seen (games.all_endings) and how many achievements were
+# earned (games.achievements_*) are separate axes, because they move
+# independently of this one. Speedrun and glitch categories are out of scope.
+COMPLETION_LEVELS: tuple[str, ...] = (
+    "Main Story",
+    "Main + Extras",
+    "Post-game",
+    "Completionist",
+)
+
+GAME_RELEASE_STATUSES: tuple[str, ...] = (
+    "Released",
+    "Early Access",
+    "Announced",
+    "Delayed",
+    "Cancelled",
+)
+
+GAME_STOREFRONTS: tuple[str, ...] = (
+    "Steam",
+    "Nintendo eShop",
+    "PlayStation Store",
+    "Xbox Store",
+    "GOG",
+    "Epic Games Store",
+    "Physical",
+    "Other",
+)
+GAME_OWNERSHIP_KINDS: tuple[str, ...] = (
+    "Owned",
+    "Wishlist",
+    "Subscription",
+    "Free",
+    "Not Owned",
+)
+GAME_COPY_FORMATS: tuple[str, ...] = ("Digital", "Physical")
+GAME_ACQUISITION_KINDS: tuple[str, ...] = (
+    "Bought",
+    "Gifted",
+    "Free",
+    "Bundled",
+    "Subscription",
 )
