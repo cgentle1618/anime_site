@@ -91,6 +91,9 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "System Options": ("category", "value"),  # uq_system_option_value
     "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
+    "Publisher": (
+        "name_en", "name_cn", "name_jp", "name_alt",
+    ),  # uq_publisher_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
     "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
     "Content Label": ("key",),  # content_label.key is UNIQUE
