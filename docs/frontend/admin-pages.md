@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-06 (commit 0bea262)
+Last verified: 2026-09-06 (commit b17bb7d)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -67,7 +67,7 @@ back to the owning franchise/series where the ids still exist.
 ## /add (`Add.jsx`)
 
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
-movie, TV show, cartoon, manga, novel, comic), **Structure** (collection,
+movie, TV show, cartoon, manga, novel, comic, game), **Structure** (collection,
 franchise, series, quote, meme, system option) and **Entity** (studio,
 publisher, person, character). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
@@ -82,7 +82,7 @@ starting values are configurable on `/defaults`. Only options, quote and meme
 are excluded — those three have no factory in `config/formFactories.js`.
 
 **Data loaded on mount.** Every list the forms need for ComboBoxes and
-duplicate hints — franchises, series, collections, options and all eight
+duplicate hints — franchises, series, collections, options and all nine
 media lists — each with `limit=2000`.
 
 **Form defaults.** A fresh form comes from `freshForm(type)`
@@ -93,7 +93,8 @@ media lists — each with `limit=2000`.
 novel, comic).** Typing filters the loaded list client-side; picking a row
 copies its fields into the form (`lib/autofill.js`, driven by
 `config/formFields/fieldMeta.js`). Nothing is fetched from external APIs at
-this point.
+this point. **Game is the exception** — its box searches IGDB instead, see the
+Game tab below.
 
 **Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
 opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
@@ -110,6 +111,50 @@ and TV Show toasts never claim enrichment (they are not enriched on Add).
 Content labels reset only after a successful submit; a validation
 early-return or a failed POST keeps the selection. Network failures surface
 as an error toast.
+
+**Game tab.** `GameAddTab.jsx`. The one media tab whose search box is not the
+client-side "copy an existing entry" picker: `IgdbSearchBox` queries
+`GET /api/game/search-igdb?q=&limit=10` (`endpoints.game.searchIgdb`) and lists
+IGDB's own hits. It debounces 350 ms (IGDB is rate-limited), fires nothing under
+two characters, and its effect cleanup marks in-flight answers cancelled, so a
+slow reply to an earlier query can never overwrite a newer one. The rows read
+IGDB's **raw** objects — `name`, `first_release_date` (Unix seconds UTC, shown
+as a year) and `cover.url` (protocol-relative, so `https:` is prefixed) — because
+the endpoint does not reshape them. The widget never touches form state; it
+hands the raw object to `onPick`.
+
+`applyGameAutofill` (in `Add.jsx`) is what turns that object into fields, and it
+is deliberately not `makeApply`'s shape: it always sets `igdb_id` and
+`igdb_link`, and fills `game_name_en` **only when the admin left it blank**.
+Nothing else is copied — the rest is Fill Game's job.
+
+**`igdb_id` is in the payload but has no input anywhere on the form** (only
+`igdb_link` does), and this is on purpose. The picker stores IGDB's public
+`www.igdb.com/games/<slug>` URL, while the backend's `extract_igdb_id` only
+parses the API shape `api.igdb.com/v4/games/<id>`. Without the separately
+carried id, a picked game would save with `igdb_id` null and Fill would have no
+handle on it. It is picker-set only; `gameFieldsPayload` coerces it to an int
+(`lib/payloads.js`).
+
+The rest of the form is `GameFormBody`, exported from the same file: the five
+names, classification (game type plus a **Base Game** `ComboBox` that never
+offers the row being edited — `ck_games_not_self_parent` — and the four game
+vocabularies), status, progress and the three HLTB tiers, credits (Developer is
+a **studio** row, Publisher a **publisher** row; director and composer are
+people scoped to `game`), release date and the six price fields, **Copies**,
+sources, flags and notes. Submit needs a CN or EN name, `POST /api/game/` then
+`saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
+appended successfully."
+
+**Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
+owned or wanted (storefront, ownership, format, acquisition, price paid +
+currency, acquired date, remark), with move-up/down and remove. It is fully
+controlled on the `NovelUnitsEditor` contract: no internal state, the parent
+owns `items`, the array handed in is never mutated, and every change goes out
+through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
+not `<input type="date">`, because it carries the same partial precision
+`release_date` does (invalid values are flagged with a danger border). The
+entry's Ownership is derived from these rows, not typed.
 
 **Person tab (Entity).** `PersonAddTab.jsx`. A `PersonSubTabBar` of the five
 types (Director, Producer, Music / Composer, Author, Illustrator) sits above
@@ -177,6 +222,14 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
   shows the *enriched* row (not the pre-enrichment one) and warns if
   enrichment failed. Other types save without enrichment.
+- **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
+  `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
+  the two tabs cannot drift; the only differences are the ribbon section Modify
+  puts above the form and `excludeGameId`, which drops the row being edited from
+  its own Base Game picker. This is a deliberate divergence from the **comic**
+  pair, which still keeps two near-identical files. The Modify tab has **no IGDB
+  search box** — identification happens once, on Add — and it saves with
+  `PATCH /api/game/{id}`, without enrichment.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
@@ -227,7 +280,11 @@ confirmation modal with the consequences:
 | Series | Cascade over every media type holding that `series_id`. |
 | Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
 
-Counts are computed across all eight media types (`entriesIn`,
+The **Game tab**'s panel adds one line of its own: when the selected game has
+copy rows it warns how many will be deleted with it. Its DLC and expansion rows
+are not cascaded — they survive with `base_game_id` set to `NULL`.
+
+Counts are computed across all nine media types (`entriesIn`,
 `standaloneEntriesIn`). Deletion order is children first, then the row, then
 any orphaned parents the admin ticked. Every delete goes through the type's
 `DELETE` endpoint, which also removes cover images, plan rows, credit links and
@@ -272,6 +329,10 @@ rule); values are stored per type via `/api/form-defaults/<type>` and applied
 by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
 defaults for that type. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+`game` is present here like any other media type, but its Add form has no
+"copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
+on the Game tab currently drive nothing.
 
 The Entity tabs (studio, publisher, person, character) are defaults-only: their Add forms
 have no "auto-fill from an existing record" search, so every one of their
