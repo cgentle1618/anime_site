@@ -862,10 +862,10 @@ def test_name_entries_is_a_stored_shape():
 def test_game_sections_exist_with_the_right_shapes():
     by_key = {s.key: s for s in ns.NOTE_SECTIONS}
     assert by_key["guides"].shape == ns.SHAPE_NAME_ENTRIES
-    assert by_key["resources"].shape == ns.SHAPE_NAME_ENTRIES
-    assert by_key["resources"].kinds == ("Build", "Mod", "Tool")
+    assert by_key["builds_and_mods"].shape == ns.SHAPE_NAME_ENTRIES
+    assert by_key["builds_and_mods"].kinds == ("Build", "Mod", "Tool")
     assert by_key["highlight_moments"].shape == ns.SHAPE_EPISODE_TEXT
-    for key in ("guides", "resources", "highlight_moments"):
+    for key in ("guides", "builds_and_mods", "highlight_moments"):
         assert "game" in by_key[key].owners
 
 
@@ -936,9 +936,14 @@ New sections (place `guides`/`resources` after the reviews group, `highlight_mom
         owners=("game",),
     ),
     NoteSection(
-        key="resources",
+        # NOT `resources`: a site-wide `resources` section already exists
+        # (name_links, ALL_OWNERS, standalone), which games already inherit for
+        # plain bookmarks. Reusing the key would silently shadow it, and a
+        # second card also labelled "Resources" would be unreadable - hence a
+        # distinct key AND a distinct label.
+        key="builds_and_mods",
         shape=SHAPE_NAME_ENTRIES,
-        label="資源 Resources",
+        label="配裝/模組 Builds & Mods",
         owners=("game",),
         # Builds, mods and tools took the same shape once guides became
         # name_entries, so they are one section with a kind rather than three
