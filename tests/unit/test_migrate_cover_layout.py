@@ -166,3 +166,74 @@ def test_empty_column_is_skipped(covers):
     assert report.owners["anime"]["moved"] == 0
     assert report.owners["anime"]["missing"] == 0
     assert row.cover_image_file is None
+
+
+# ---------------------------------------------------------------------------
+# --prune-orphans
+#
+# Files no row references. The admin "delete orphaned covers" action can only
+# see the ones inside an owner folder - list_all_cover_images ignores the
+# storage root - so anything left flat has to be cleaned up here.
+# ---------------------------------------------------------------------------
+
+
+def test_prune_deletes_unreferenced_root_files(covers):
+    row = anime_row("aaa.jpg")
+    flat_file(covers, "aaa.jpg")
+    stray = flat_file(covers, "stray.jpg")
+    db = FakeSession({models.Anime: [row]})
+
+    report = mig.migrate(db, mig.LocalStore(), apply=True, prune_orphans=True)
+
+    assert not stray.exists()
+    assert (covers / "anime" / "aaa.jpg").exists()
+    assert report.orphans == ["stray.jpg"]
+    assert report.pruned == 1
+
+
+def test_prune_deletes_unreferenced_files_inside_owner_folders(covers):
+    row = anime_row("aaa.jpg")
+    flat_file(covers, "aaa.jpg")
+    (covers / "studio").mkdir()
+    duplicate = covers / "studio" / "copy.jpg"
+    duplicate.write_bytes(b"a stray logo")
+    db = FakeSession({models.Anime: [row]})
+
+    report = mig.migrate(db, mig.LocalStore(), apply=True, prune_orphans=True)
+
+    assert not duplicate.exists()
+    assert report.folder_orphans == ["studio/copy.jpg"]
+    assert report.pruned == 1
+
+
+def test_prune_keeps_every_referenced_file(covers):
+    row = anime_row("aaa.jpg")
+    flat_file(covers, "aaa.jpg")
+    db = FakeSession({models.Anime: [row]})
+
+    report = mig.migrate(db, mig.LocalStore(), apply=True, prune_orphans=True)
+
+    assert (covers / "anime" / "aaa.jpg").exists()
+    assert report.pruned == 0
+
+
+def test_prune_without_apply_deletes_nothing(covers):
+    stray = flat_file(covers, "stray.jpg")
+    db = FakeSession({})
+
+    report = mig.migrate(db, mig.LocalStore(), apply=False, prune_orphans=True)
+
+    assert stray.exists()
+    assert report.orphans == ["stray.jpg"]
+    assert report.pruned == 0
+
+
+def test_orphans_are_left_alone_without_the_prune_flag(covers):
+    stray = flat_file(covers, "stray.jpg")
+    db = FakeSession({})
+
+    report = mig.migrate(db, mig.LocalStore(), apply=True)
+
+    assert stray.exists()
+    assert report.orphans == ["stray.jpg"]
+    assert report.pruned == 0

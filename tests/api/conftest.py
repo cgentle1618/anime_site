@@ -18,6 +18,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
+from app.services.integrations import image_manager
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
@@ -69,6 +70,31 @@ def test_engine():
 
     yield engine
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_cover_downloads(monkeypatch):
+    """
+    Stop a test from reaching the network for a cover image.
+
+    image_manager writes to the developer's real static/covers, so a route that
+    fills from an external API - PUT /api/studio/{id} runs autofill_studio_from_mal
+    on every update - silently left one downloaded file per test run behind. They
+    were invisible while every image sat in one flat directory.
+
+    The raised error does NOT fail the test: every autofill wraps its work in
+    `except Exception` and logs, so this stops the download and the test carries
+    on. It is a backstop, not a detector - a test that means to exercise a fill
+    still stubs the fetcher or download_cover_image itself.
+    """
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "A test tried to download a cover image. Stub the fetcher or "
+            "download_cover_image instead of reaching the network."
+        )
+
+    monkeypatch.setattr(image_manager.requests, "get", _blocked)
 
 
 @pytest.fixture(autouse=True)

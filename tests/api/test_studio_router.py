@@ -91,7 +91,14 @@ def test_list_is_sorted_by_display_name(admin_client, client):
     assert names == ["MAPPA", "WIT STUDIO"]
 
 
-def test_profile_columns_round_trip(admin_client):
+def test_profile_columns_round_trip(admin_client, monkeypatch):
+    # The update route fills from MAL, and mal_id 569 is a real producer: without
+    # this stub the test fetches Tenrai and downloads MAPPA's logo into the
+    # developer's static/covers on every run.
+    monkeypatch.setattr(
+        "app.services.domain.autofill.fetch_tenrai_producer_data",
+        lambda mal_id: None,
+    )
     created = admin_client.post("/api/studio/", json={"name_en": "MAPPA"}).json()
     r = admin_client.put(
         f"/api/studio/{created['system_id']}",

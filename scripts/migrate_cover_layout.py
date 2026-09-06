@@ -14,9 +14,12 @@ because the second dev machine pulls the migrated column values from the
 backup sheet and then only needs the files moved.
 
 What it deliberately does NOT do:
-  * Files with no row are left exactly where they are and only listed. They are
-    what the admin "check unused cover images" action reports as orphans;
-    moving them into an owner folder would hide them from that check.
+  * Files with no row are left exactly where they are and only listed, unless
+    --prune-orphans is given. Moving one into an owner folder would make it
+    look owned; deleting it is a separate, explicit decision. Note the admin
+    "check unused cover images" action cannot see a file left at the storage
+    root - list_all_cover_images ignores anything outside an owner folder - so
+    --prune-orphans is the only sweep that reaches those.
   * Rows whose file is missing are reported and left alone - inventing a key
     for a file that does not exist would only make the dangling reference
     harder to see.
@@ -26,6 +29,7 @@ Usage (dry run is the default; nothing changes without --apply):
     venv/Scripts/python.exe -m scripts.migrate_cover_layout
     venv/Scripts/python.exe -m scripts.migrate_cover_layout --apply
     venv/Scripts/python.exe -m scripts.migrate_cover_layout --gcs --apply
+    venv/Scripts/python.exe -m scripts.migrate_cover_layout --prune-orphans --apply
 
 WARNING: the --gcs branch is UNTESTED against a live bucket. The GCP
 deployment was down when this was written, so that path has only been reviewed,
@@ -119,6 +123,28 @@ class LocalStore:
             if f.lower().endswith(".jpg") and os.path.isfile(self._flat_path(f))
         )
 
+    def list_keys(self) -> list[str]:
+        """Every `<owner_type>/<file>.jpg` present, whatever the folder."""
+        if not os.path.isdir(self.root):
+            return []
+        keys = []
+        for owner in sorted(os.listdir(self.root)):
+            folder = os.path.join(self.root, owner)
+            if not os.path.isdir(folder):
+                continue
+            keys.extend(
+                f"{owner}/{f}"
+                for f in sorted(os.listdir(folder))
+                if f.lower().endswith(".jpg")
+            )
+        return keys
+
+    def delete_flat(self, filename: str) -> None:
+        os.remove(self._flat_path(filename))
+
+    def delete_key(self, key: str) -> None:
+        os.remove(self._key_path(key))
+
 
 class GcsStore:
     """
@@ -159,6 +185,19 @@ class GcsStore:
             if "/" not in b.name and b.name.lower().endswith(".jpg")
         )
 
+    def list_keys(self) -> list[str]:
+        return sorted(
+            b.name
+            for b in self._bucket.list_blobs()
+            if "/" in b.name and b.name.lower().endswith(".jpg")
+        )
+
+    def delete_flat(self, filename: str) -> None:
+        self._bucket.blob(filename).delete()
+
+    def delete_key(self, key: str) -> None:
+        self._bucket.blob(key).delete()
+
 
 # ---------------------------------------------------------------------------
 # Migration
@@ -170,8 +209,12 @@ class Report:
     owners: dict[str, Counter] = field(default_factory=dict)
     # (owner_type, filename) for every row whose file is nowhere to be found.
     missing: list[tuple[str, str]] = field(default_factory=list)
-    # Flat files no row points at. Left in place on purpose.
+    # Flat files no row points at. Left in place unless --prune-orphans.
     orphans: list[str] = field(default_factory=list)
+    # Files inside an owner folder that no row points at, same treatment.
+    folder_orphans: list[str] = field(default_factory=list)
+    # How many of the two lists above were actually deleted.
+    pruned: int = 0
 
     def counts(self, owner_type: str) -> Counter:
         return self.owners.setdefault(owner_type, Counter())
@@ -189,11 +232,15 @@ def _stem(value: str) -> str:
     return os.path.splitext(os.path.basename(value.replace("\\", "/")))[0]
 
 
-def migrate(db, store, apply: bool = False) -> Report:
+def migrate(db, store, apply: bool = False, prune_orphans: bool = False) -> Report:
     """
     Move every referenced file into its owner folder and rewrite the column.
 
     With apply=False nothing is written: the returned Report is the plan.
+    With prune_orphans, files no row points at are deleted rather than only
+    listed - both the ones left at the storage root and the ones sitting in an
+    owner folder. The admin "delete orphaned covers" action covers the second
+    kind only, because list_all_cover_images ignores the root.
     """
     report = Report()
     for owner_type in owner_types():
@@ -241,6 +288,26 @@ def migrate(db, store, apply: bool = False) -> Report:
         db.commit()
 
     report.orphans = sorted(flat_at_start - referenced)
+    referenced_keys = {
+        cover_key(source.owner_type, _stem(value))
+        for source in OWNER_SOURCES
+        for value in (getattr(row, source.column, None) for row in db.query(source.model).all())
+        if value
+    }
+    report.folder_orphans = sorted(set(store.list_keys()) - referenced_keys)
+
+    if prune_orphans:
+        for filename in report.orphans:
+            print(f"  prune  {filename}")
+            if apply:
+                store.delete_flat(filename)
+                report.pruned += 1
+        for key in report.folder_orphans:
+            print(f"  prune  {key}")
+            if apply:
+                store.delete_key(key)
+                report.pruned += 1
+
     return report
 
 
@@ -271,12 +338,18 @@ def format_report(report: Report, store, apply: bool) -> str:
             lines.append(f"  {owner_type:<14}{filename}")
 
     lines.append("")
-    if report.orphans:
-        lines.append(
-            f"Files with no row ({len(report.orphans)}) - left where they are, "
-            "so 'check unused cover images' still reports them:"
-        )
-        for filename in report.orphans:
+    strays = report.orphans + report.folder_orphans
+    if strays:
+        if report.pruned:
+            note = "DELETED"
+        else:
+            note = (
+                "left where they are; only the ones in an owner folder are "
+                "visible to 'check unused cover images', so pass "
+                "--prune-orphans --apply to delete both kinds"
+            )
+        lines.append(f"Files with no row ({len(strays)}) - {note}:")
+        for filename in strays:
             lines.append(f"  {filename}")
     else:
         lines.append("Files with no row: none.")
@@ -295,6 +368,12 @@ def main(argv=None) -> int:
         action="store_true",
         help="target the GCS bucket instead of local disk (UNTESTED - see docstring)",
     )
+    parser.add_argument(
+        "--prune-orphans",
+        action="store_true",
+        help="delete images no row points at, at the root and in owner folders "
+             "(needs --apply; without it they are only listed)",
+    )
     args = parser.parse_args(argv)
 
     store = GcsStore() if args.gcs else LocalStore()
@@ -303,7 +382,9 @@ def main(argv=None) -> int:
 
     db = SessionLocal()
     try:
-        report = migrate(db, store, apply=args.apply)
+        report = migrate(
+            db, store, apply=args.apply, prune_orphans=args.prune_orphans
+        )
     except Exception:
         db.rollback()
         raise

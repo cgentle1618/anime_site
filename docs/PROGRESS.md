@@ -35,7 +35,6 @@ Unclaimed. None block using the app.
 | Item | Where | Status |
 |---|---|---|
 | Backup not yet run since the cover-folder migration - the sheet still holds flat filenames | `/system` -> Backup, before the other machine pulls | todo |
-| The API test suite writes 2 real studio logos into the working `static/covers/studio/` | a fill test reaching the network | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Startup dies when stdout is not UTF-8 - emoji prints, and the error handler itself throws, hiding the real cause | `app/main.py` 108/118/123/129 | todo |
 | `delete_studio` never calls `delete_cover_image` (logo leak; publisher does) | `app/routers/studio.py` | todo |
