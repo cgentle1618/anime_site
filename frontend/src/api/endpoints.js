@@ -220,6 +220,14 @@ export const endpoints = {
     remove: (id) => `/api/meme/${id}`,
   },
 
+  // Game CRUD comes from resource("game"); this group holds the one endpoint
+  // that is not CRUD — the admin's IGDB picker, which answers with IGDB's raw
+  // game objects (id, name, first_release_date, cover.url, url).
+  game: {
+    searchIgdb: (q, limit = 10) =>
+      `/api/game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
   dataControl: {
     fill: (type) => `/api/data-control/fill/${type}`,
     fillAll: () => "/api/data-control/fill/all",

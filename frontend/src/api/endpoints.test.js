@@ -90,6 +90,15 @@ describe("named endpoint groups", () => {
     );
   });
 
+  it("game", () => {
+    expect(endpoints.game.searchIgdb("elden")).toBe(
+      "/api/game/search-igdb?q=elden&limit=10",
+    );
+    expect(endpoints.game.searchIgdb("elden ring", 5)).toBe(
+      "/api/game/search-igdb?q=elden%20ring&limit=5",
+    );
+  });
+
   it("dataControl", () => {
     expect(endpoints.dataControl.fill("anime")).toBe("/api/data-control/fill/anime");
     expect(endpoints.dataControl.fillAll()).toBe("/api/data-control/fill/all");

@@ -292,6 +292,10 @@ export function gameFieldsPayload(f) {
     price_current_jp: num(f.price_current_jp),
     price_current_tw: num(f.price_current_tw),
     my_rating: f.my_rating || null,
+    // The numeric id travels on its own: `igdb_link` holds the public
+    // www.igdb.com URL, which carries a slug rather than an id, so the
+    // backend's link -> id derivation cannot recover it.
+    igdb_id: int(f.igdb_id),
     igdb_link: f.igdb_link || null,
     steam_link: f.steam_link || null,
     sources: (f.sources || [])

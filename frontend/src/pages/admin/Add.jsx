@@ -606,6 +606,19 @@ export default function Add() {
     setMovieFillQuery,
     setMovieFillOpen,
   );
+  // The game tab's picker is not makeApply's shape: the item is a raw IGDB
+  // object rather than an existing entry, so it identifies the game (id and
+  // link, always) and fills a name only where the admin left one blank.
+  const applyGameAutofill = (game) => {
+    setGmf((p) => ({
+      ...p,
+      igdb_id: game.id ?? p.igdb_id,
+      igdb_link: game.url || p.igdb_link,
+      game_name_en: p.game_name_en || game.name || "",
+    }));
+    showToast("success", `Linked to IGDB: ${game.name || game.id}`);
+  };
+
   const applyTvShowAutofill = makeApply(
     setTvf,
     "tv-show",
@@ -2816,6 +2829,7 @@ export default function Add() {
             allGames={allGames}
             seriesItemsForGame={seriesItemsForGame}
             sources={sources}
+            applyGameAutofill={applyGameAutofill}
           />
         )}
 

@@ -4,6 +4,7 @@ import {
   buildAnimePayload,
   buildCreditsPayload,
   creditsResponseToForm,
+  gameFieldsPayload,
 } from "./payloads";
 
 describe("source rows in the payload", () => {
@@ -47,5 +48,23 @@ describe("novel serialization_platform", () => {
       tags: { serialization_platform: ["Kakuyomu"] },
     });
     expect(form.serialization_platform).toBe("Kakuyomu");
+  });
+});
+
+// The IGDB numeric id is Fill's only handle on a game, and the public
+// www.igdb.com link the picker stores carries a slug rather than the id - so
+// the id the admin picked has to travel in the payload of its own accord.
+describe("game igdb_id", () => {
+  it("is sent alongside the link", () => {
+    const payload = gameFieldsPayload({
+      igdb_id: "119133",
+      igdb_link: "https://www.igdb.com/games/elden-ring",
+    });
+    expect(payload.igdb_id).toBe(119133);
+    expect(payload.igdb_link).toBe("https://www.igdb.com/games/elden-ring");
+  });
+
+  it("is null when the form never got one", () => {
+    expect(gameFieldsPayload({ igdb_id: "" }).igdb_id).toBeNull();
   });
 });

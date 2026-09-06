@@ -1,8 +1,11 @@
 // Frontend: add tab page file for GameAddTab.
 //
-// No "auto-fill from an existing entry" search at the top, unlike the comic
-// pair: a game's metadata comes from IGDB through the Fill pipeline, and the
-// one field worth copying between entries (the base game) has its own picker.
+// The search at the top is not the comic tab's "auto-fill from an existing
+// entry": a game is identified against IGDB instead, because the IGDB id it
+// stores is Fill's only handle on the game. Everything else still comes from
+// the Fill pipeline, and the one field worth copying between entries (the base
+// game) has its own picker.
+import { useEffect, useRef, useState } from "react";
 import ComboBox from "../../components/forms/ComboBox";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
@@ -24,8 +27,154 @@ import {
   PLAYING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
+import { endpoints } from "../../api/endpoints";
 
 export { defaultGame } from "../../config/formFactories";
+
+// The endpoint answers with IGDB's raw game objects, so the three fields the
+// dropdown shows are read here rather than on the server.
+const IGDB_DEBOUNCE_MS = 350;
+
+/** IGDB's `first_release_date` is Unix seconds UTC; only the year is shown. */
+function igdbYear(seconds) {
+  if (seconds == null) return null;
+  const date = new Date(Number(seconds) * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.getUTCFullYear();
+}
+
+/** IGDB cover URLs are protocol-relative; the thumb size is what search returns. */
+function igdbCover(game) {
+  const url = game?.cover?.url;
+  if (!url) return null;
+  return url.startsWith("//") ? `https:${url}` : url;
+}
+
+/**
+ * Identifies the game against IGDB before it is saved. `onPick` receives the
+ * raw IGDB object; turning it into form fields is the page's job, so this
+ * widget never touches the form state itself.
+ */
+export function IgdbSearchBox({ onPick }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const boxRef = useRef(null);
+
+  // Debounced: IGDB is rate-limited, so a request goes out only once the
+  // typing settles. The cleanup also drops the answer to a stale query.
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(endpoints.game.searchIgdb(term, 10), {
+          credentials: "include",
+        });
+        const data = res.ok ? await res.json() : [];
+        if (!cancelled) setResults(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, IGDB_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  // Clicking anywhere else closes the dropdown, as the comic picker does.
+  useEffect(() => {
+    function onDocClick(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  return (
+    <div ref={boxRef} className="relative mb-4">
+      <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
+        <i className="fas fa-magic text-brand text-sm"></i>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search IGDB — type a game name to link and auto-fill..."
+          className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
+          autoComplete="off"
+        />
+        {loading && (
+          <i className="fas fa-spinner fa-spin text-brand text-xs"></i>
+        )}
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setOpen(false);
+            }}
+            className="text-text-faint hover:text-text-muted"
+            aria-label="Clear IGDB search"
+          >
+            <i className="fas fa-times text-xs"></i>
+          </button>
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+          {results.map((g) => {
+            const cover = igdbCover(g);
+            const year = igdbYear(g.first_release_date);
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onPick(g);
+                  setQuery("");
+                  setOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  {cover ? (
+                    <img
+                      src={cover}
+                      alt={g.name}
+                      className="w-8 h-11 object-cover rounded shrink-0"
+                    />
+                  ) : (
+                    <span className="w-8 h-11 rounded bg-surface-2 shrink-0" />
+                  )}
+                  <span className="text-sm font-bold text-text">{g.name}</span>
+                  {year && (
+                    <span className="text-[11px] font-semibold text-text-faint shrink-0">
+                      {year}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Every field below the franchise/series pickers, shared verbatim by the
@@ -522,9 +671,12 @@ export default function GameAddTab({
   allGames,
   seriesItemsForGame,
   sources,
+  applyGameAutofill,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      {/* IGDB search */}
+      <IgdbSearchBox onPick={applyGameAutofill} />
       <SectionHeader icon="fa-gamepad" title="Titles & Naming" />
       <GameLineageFields
         f={gmf}

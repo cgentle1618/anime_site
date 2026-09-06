@@ -872,6 +872,7 @@ export default function Modify() {
       price_current_jp: g.price_current_jp ?? "",
       price_current_tw: g.price_current_tw ?? "",
       my_rating: g.my_rating || "",
+      igdb_id: g.igdb_id ?? "",
       igdb_link: g.igdb_link || "",
       steam_link: g.steam_link || "",
       sources: g.sources || [],
