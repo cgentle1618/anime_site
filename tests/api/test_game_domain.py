@@ -127,3 +127,35 @@ def test_a_listed_game_carries_its_plan_flags(admin_client):
     entry = admin_client.get("/api/game/").json()[0]
     assert entry["play_next"] is False
     assert entry["to_replay"] is False
+
+
+def test_reads_carry_the_derived_ownership(admin_client):
+    """
+    ownership is declared on GameResponse but derived from the copy rows, so a
+    read that never derives it returns null - which reads as "not owned"
+    rather than as "unknown", and is worse than the field being absent.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Owned On Read",
+            "copies": [
+                {"storefront": "Nintendo eShop", "ownership": "Wishlist"},
+                {"storefront": "Steam", "ownership": "Owned"},
+            ],
+        },
+    ).json()
+    assert created["ownership"] == "Owned"
+
+    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    assert detail["ownership"] == "Owned"
+
+    listed = {e["system_id"]: e for e in admin_client.get("/api/game/").json()}
+    assert listed[created["system_id"]]["ownership"] == "Owned"
+
+
+def test_a_game_without_copies_reads_null_ownership(admin_client):
+    created = admin_client.post("/api/game/", json={"game_name_en": "No Copies"}).json()
+    assert created["ownership"] is None
+    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    assert detail["ownership"] is None

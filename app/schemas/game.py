@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 from app.schemas.link_fields import GameLinkFields
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
+from app.services.domain.game_copies import derive_game_ownership
 
 
 class GameCopyIO(BaseModel):
@@ -103,12 +104,23 @@ class GameUpdate(GameBase, SourceWriteFields):
 class GameResponse(GameBase, GameLinkFields):
     system_id: UUID
     copies: List[GameCopyIO] = []
-    # Derived from the copy rows, never stored - see derive_game_ownership.
-    ownership: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def ownership(self) -> Optional[str]:
+        """
+        Derived from the copy rows, never stored.
+
+        Computed here rather than attached by the router because `copies` is a
+        real relationship: the factory selectinloads it on the list path and
+        the ORM loads it on the detail path, so the rows are always present by
+        the time the response is built.
+        """
+        return derive_game_ownership(self)
 
     @computed_field
     @property
