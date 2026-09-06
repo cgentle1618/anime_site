@@ -5,11 +5,17 @@ These are the values business logic branches on - "Not Yet Aired" makes Fill
 skip mal_rating, "完結" gates the novel volume checks - so they live in code and
 are never editable rows. The endpoint exists so the frontend stops keeping a
 second copy of each list; see docs/options.md for the canonical documentation.
+
+/external-apis is the other read-only inventory served from here: which
+external API writes which field, and whether it fills or replaces it. It is
+admin-only and lives in app/services/integrations/catalog.py.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.dependencies import get_current_admin
 from app.services.domain.watch_order import ITEM_IMPORTANCE
+from app.services.integrations.catalog import catalog_payload
 from app.utils import constants as c
 from app.utils.credit_roles import (
     OPTION_CATEGORIES,
@@ -99,3 +105,21 @@ def get_constants() -> dict[str, list[str]]:
         # Navigation only: both sub-tabs write the same system_option rows.
         "tag_categories": list(TAG_CATEGORIES),
     }
+
+
+@router.get("/external-apis", summary="Get External API Field Coverage")
+def get_external_api_coverage(
+    _admin=Depends(get_current_admin),
+) -> dict:
+    """
+    Which external API writes which field, and whether it fills or replaces it.
+
+    Admin-only, unlike the enum endpoint above: it is an inventory of the
+    integrations rather than a vocabulary any form needs, and it names the
+    environment variable behind each service.
+
+    Read-only by design - every rule it reports is a property of the code in
+    app/services/domain/autofill.py, so there is nothing here an admin could
+    edit that would change what a Fill run does.
+    """
+    return catalog_payload()

@@ -37,6 +37,9 @@ export const endpoints = {
   // Tier 1 closed enums. Read-only by design - they live in Python.
   constants: {
     list: () => "/api/constants",
+    // Admin-only, unlike the enum list above: the external-API field
+    // inventory behind /external-apis.
+    externalApis: () => "/api/constants/external-apis",
   },
 
   options: {

@@ -26,6 +26,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/relations` | `pages/admin/Relations.jsx` | Relations canvas |
 | `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
 | `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
+| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
 | `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
 
 ---
@@ -451,6 +452,44 @@ this page's alone: the Add / Modify / Delete category picker
 (`forms/OptionCategorySelect.jsx`) arranges its dropdown with the same
 `groupTier2Categories`, so a category sits in the same company wherever an
 admin meets it.
+
+## /external-apis (`ExternalApis.jsx`)
+
+Read-only, and the third of the inventory pages: `/options` says what the
+vocabulary offers, `/aliases` says what an API's English becomes, and this one
+says which **columns** an external API writes at all — and whether it fills
+each or replaces it. Served by `GET /api/constants/external-apis` from
+`app/services/integrations/catalog.py`; the prose version, with the mapping
+rules the catalog omits, is [../external-apis.md](../external-apis.md).
+
+The distinction the page is built around, and the reason it is not laid out as
+a Fill column beside a Replace column: **Replace does not write a different set
+of fields from Fill**. `apply_single_replace_*` calls the same `autofill_*`
+function with the same `force_replace_ratings=True`; the two pipelines differ
+only in which entries they select. A two-column table would print every value
+twice and teach the wrong model, so the page states one rule per field and
+calls out the overwrite list once, up front. That list is computed from the
+catalog rather than written into the page — a stale summary here would be worse
+than none.
+
+One section per media type, in `PIPELINES` order, each holding the id it is
+keyed on, the requests it costs per entry, chips for the pipelines it actually
+has, and one table per source. A type with several sources says how they
+combine: Movie / TV Show / Cartoon are `merged` (TMDB and OMDb both fetched,
+OMDb winning on `imdb_rating`, the only key they share), Novel is `either-or`
+(a `mal_link` routes to Tenrai, otherwise Open Library). Below the sections, a
+service table with the env var and rate limit behind each API, and a legend for
+the six rules.
+
+Colour carries one thing only: `overwrite` takes the brand chip, everything
+else is muted — design rule 1, and the whole point of the page in one glance.
+The media-type key reuses `config/scopeColors.js`; Studio has no hue because
+it is not a media entry.
+
+The four pipeline chips (`in Fill All`, `bulk Replace`, `fill only`, `stops on
+quota`) are derived server-side from `PIPELINES`, never declared in the
+catalog, so flipping `in_replace_all` on a spec lights the page up without
+anyone remembering this file.
 
 ## /roles, /users, /content-labels
 

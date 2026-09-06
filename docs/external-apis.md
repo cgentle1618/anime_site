@@ -6,6 +6,8 @@ Last verified: 2026-09-06
 
 The app never asks you to type metadata that a public database already knows. Eight outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** fills games; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
+**In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
+
 A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
 
 ## Table of contents
@@ -156,7 +158,7 @@ TMDB (The Movie Database) is reached through its **Find** endpoint, so the looku
 | `air_date` | `release_date` | `release_date` (fill-only) |
 | `len(episodes)` | `ep_total` | `ep_total` (fill-only, and only when non-zero) |
 | `poster_path` | `cover_image_url` | cover download; falls back to the **show-level** `poster_path` when the season has none |
-| most common `episodes[].runtime` | `length_ep_min` | cartoon only (fill via mapper; falls back to show-level `episode_run_time[0]`) |
+| most common `episodes[].runtime` | `length_ep_min` | cartoon only, and **mapped but never written** — `autofill_cartoon_from_imdb` does not set the column, so it stays manual (falls back to show-level `episode_run_time[0]` inside the mapper). See [business-rules.md](business-rules.md) § known gaps. |
 | `air_date`, `episodes` | `_season_air_date`, `_episodes` | private; used by `_derive_tv_season_airing_status` |
 
 `airing_status` is **derived**, fill-only: movie / movie-cartoon compare TMDB's `release_date` with today (`<= today` → `"Finished Airing"`, else `"Not Yet Aired"`); TV / TV-cartoon use `_derive_tv_season_airing_status` — future season air date → `"Not Yet Aired"`, any episode missing a date or dated in the future → `"Airing"`, otherwise `"Finished Airing"`. Worked example: [notes/autofill-tv-show-example.md](notes/autofill-tv-show-example.md).
@@ -203,8 +205,8 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 | `start_year` | `release_date` | `comic.release_date` | year-precision canonical date, e.g. `1963`; fill-only |
 | `count_of_issues` | `issue_total` | `comic.issue_total` | fill-only |
 | `publisher.name` | `publisher` | `media_tag` field `comic_publisher` via `replace_tags` | only if the entry has no publisher tag yet |
-| `person_credits` with role token `writer` | `writer` | `media_credit` role `comic_writer` via `replace_credits` | only if no writer credit yet; names comma-joined, deduplicated, matched on whole tokens (`ARTIST_ROLES = ("penciler", "penciller", "artist")`, so `inker` never matches) |
-| `person_credits` with penciler / penciller / artist | `artist` | `media_credit` role `comic_artist` | same |
+| `person_credits` with role token `writer` | `writer` | `media_credit` role `author` via `replace_credits` | only if no author credit yet; names comma-joined, deduplicated, matched on whole tokens (`ARTIST_ROLES = ("penciler", "penciller", "artist")`, so `inker` never matches) |
+| `person_credits` with penciler / penciller / artist | `artist` | `media_credit` role `illustrator` | same |
 | `image` | `cover_image_url` | cover download | fill-only |
 
 `end_date` is deliberately not mapped (it would cost a second request per entry). There is no bulk Replace for comics (`replace=None`, `in_replace_all=False`) and Fill Comic is excluded from Fill All (`in_fill_all=False`) to protect the hourly quota.

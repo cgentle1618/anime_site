@@ -760,9 +760,10 @@ own copies of `frontend/src/config/weekdays.js` and the hardcoded status
 lists. `docs/options.md` remains the canonical documentation of what each
 value means; this endpoint just serves them.
 
-| Method | Path | Auth   | Description                                                        |
-| ------ | ---- | ------ | ------------------------------------------------------------------- |
-| `GET`  | `/`  | Public | Every Tier 1 enum as `{snake_case_field_name: [values...]}`.        |
+| Method | Path             | Auth   | Description                                                                 |
+| ------ | ---------------- | ------ | --------------------------------------------------------------------------- |
+| `GET`  | `/`              | Public | Every Tier 1 enum as `{snake_case_field_name: [values...]}`.                 |
+| `GET`  | `/external-apis` | Admin  | Which external API writes which field, and whether it fills or replaces it.  |
 
 Keys served: `watching_status`, `reading_status`, `airing_status`,
 `anime_airing_type`, `cartoon_airing_type`, `franchise_type`,
@@ -790,6 +791,37 @@ and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
 enums — see the value-discrepancy note in `docs/options.md`.
+
+### `GET /api/constants/external-apis`
+
+Admin-only, unlike the enum list above: it is an inventory of the integrations
+rather than a vocabulary a form needs, and it names the environment variable
+behind each service. Read-only in the strong sense — every rule it reports is a
+property of the code in `app/services/domain/autofill.py`, so there is nothing
+here an admin could edit that would change what a Fill run does. Rendered by
+the **External APIs** admin page (`/external-apis`).
+
+Served from `EXTERNAL_APIS` in `app/services/integrations/catalog.py`. Body:
+
+| Key | What it holds |
+|---|---|
+| `services` | One row per API — `key`, `label`, `base_url`, `auth` (the env var), `rate_limit`, `docs_anchor`, and `feeds`, the media keys it supplies. |
+| `media` | One row per `PIPELINES` key: `keyed_by` (the column the lookup runs on), `combination` (`single` / `merged` / `either-or`), `requests_per_entry`, `note`, and a `sources` list of `{source, label, writes}`. Each write is `{field, target, rule, note}`. |
+| `rules`, `targets`, `combinations` | The vocabularies the three fields above draw on, each with a description, so the page needs no second copy. |
+| `key_missing_behaviour` | One sentence: a missing key is never fatal. |
+
+A write's `rule` is the answer to "filled or replaced": `fill-only` (written
+only into an empty column), `overwrite` (rewritten every run), `conditional`
+(fill-only behind a further gate), `if-absent` (a credit / tag / source row
+added only when none exists), `if-empty` (an image downloaded only when there
+is no file), `never` (mapped but deliberately not stored). Only `overwrite`
+can change something already there, and only three fields carry it:
+`mal_rating`, `mal_rank` and `imdb_rating`.
+
+Each `media` row also carries `in_fill_all`, `has_bulk_replace`, `fill_only`
+and `budget_limited`. Those four are **read off `PIPELINES` at request time**,
+never declared in the catalog, so flipping a flag on a spec changes the page
+without anyone editing this inventory.
 
 ---
 
