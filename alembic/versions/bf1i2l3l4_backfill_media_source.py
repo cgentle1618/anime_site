@@ -75,6 +75,12 @@ SOURCE_COLUMNS: dict[str, tuple[SourceColumn, ...]] = {
     "manga": (SourceColumn("AniList", "reference", "anilist_link"),),
     "novel": (SourceColumn("AniList", "reference", "anilist_link"),),
     "comic": (),
+    # `games` postdates this revision and never had legacy source columns, so
+    # there is nothing here to lift. The entry exists only so the map stays a
+    # complete statement about every media type - the guard in
+    # _backfill_media_source is what keeps upgrade() from touching a table
+    # that does not exist at this revision.
+    "game": (),
 }
 
 TABLE_FOR_TYPE = {
@@ -100,7 +106,12 @@ def _option_ids(conn) -> dict[tuple[str, str], uuid.UUID]:
 
 def _backfill_media_source(conn, options: dict[tuple[str, str], uuid.UUID]) -> None:
     for media_type, columns in SOURCE_COLUMNS.items():
-        table = TABLE_FOR_TYPE[media_type]
+        table = TABLE_FOR_TYPE.get(media_type)
+        # A media type introduced after this revision has no table here yet and
+        # no legacy columns to lift; skipping it keeps the map above readable as
+        # "every media type" without making upgrade() query the future.
+        if table is None:
+            continue
 
         # --- named columns -> main rows ---------------------------------
         for column in columns:

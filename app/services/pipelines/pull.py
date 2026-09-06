@@ -28,6 +28,7 @@ from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -96,6 +97,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),  # uq_publisher_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
     "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
+    "System Option Alias": (
+        "option_id",
+        "source",
+        "value",
+    ),  # uq_system_option_alias
     "Content Label": ("key",),  # content_label.key is UNIQUE
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
     # These two mint their own uuid but cite entry ids, which the sheet does
@@ -142,6 +148,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
 DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "System Option Scope": ("option_id", "System Options"),
     "System Option Usage": ("option_id", "System Options"),
+    "System Option Alias": ("option_id", "System Options"),
     "Person Role": ("person_id", "Person"),
     "Media Content Label": ("label_id", "Content Label"),
 }
@@ -150,12 +157,17 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
 # an identity. The three parent tabs above key on a uuid: it is minted too, but
 # a uuid that misses is simply unknown, so trying it first costs nothing and
 # correctly follows a value RENAMED in the sheet to the row that already holds
-# it. These three key on an autoincrement integer instead, where the sheet's
+# it. The tabs below key on an autoincrement integer instead, where the sheet's
 # id=1 names a real but UNRELATED local row - a match that silently retargets
 # the wrong row and then collides. Their natural key is the only identity
 # they have.
 DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
-    {"System Option Scope", "System Option Usage", "Person Role"}
+    {
+        "System Option Scope",
+        "System Option Usage",
+        "System Option Alias",
+        "Person Role",
+    }
 )
 
 
@@ -412,6 +424,21 @@ def execute_pull_specific(
             }
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_comic_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Game uses resolve_game_parent_hierarchy (auto-creates franchise with
+        # type "Game", looks up series)
+        elif tab_name == "Game" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("game_name_en"),
+                "cn": clean_header_dict.get("game_name_cn"),
+                "roman": clean_header_dict.get("game_name_roman"),
+                "jp": clean_header_dict.get("game_name_jp"),
+                "alt": clean_header_dict.get("game_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_game_parent_hierarchy(db, fid, sid, name_fields)
             )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
@@ -864,6 +891,13 @@ def execute_pull_specific(
             if tab_name in ("Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons"):
                 if clean_header_dict.get("watching_status") is None:
                     clean_header_dict["watching_status"] = "Might Watch"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Game":
+                if clean_header_dict.get("playing_status") is None:
+                    clean_header_dict["playing_status"] = "Might Play"
                 if clean_header_dict.get("created_at") is None:
                     clean_header_dict["created_at"] = get_taipei_now()
                 if clean_header_dict.get("updated_at") is None:

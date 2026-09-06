@@ -61,6 +61,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
     SheetTab("System Option Scope", models.SystemOptionScope, f.parse_system_option_scope_from_sheet),
     SheetTab("System Option Usage", models.SystemOptionUsage, f.parse_system_option_usage_from_sheet),
+    SheetTab("System Option Alias", models.SystemOptionAlias, f.parse_system_option_alias_from_sheet),
     # Restriction labels. A vocabulary like the options above, but the one
     # whose absence fails OPEN: with no tab, a Pull restored every entry
     # unlabelled and therefore visible. Deliberately NOT system_option - see
@@ -90,6 +91,9 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # After Novel: novel_id is a real FK, so the parent rows must exist first.
     SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
     SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic"),
+    SheetTab("Game", models.Game, f.parse_game_from_sheet, "game"),
+    # After Game: game_id is a real FK, so the parent rows must exist first.
+    SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.
     SheetTab("Watch Order List", models.WatchOrderList, f.parse_watch_order_list_from_sheet),
     SheetTab("Watch Order Section", models.WatchOrderSection, f.parse_watch_order_section_from_sheet),

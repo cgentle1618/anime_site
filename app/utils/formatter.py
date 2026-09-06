@@ -6,6 +6,7 @@ SQLAlchemy models and Google Sheets.
 
 import json
 from datetime import datetime, time
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -134,6 +135,13 @@ def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
         try:
             return float(val_str)
         except ValueError:
+            return None
+    elif expected_type == Decimal:
+        # Money columns (games.price_*, game_copy.price_paid) are Numeric, so
+        # they are parsed exactly rather than through float.
+        try:
+            return Decimal(val_str)
+        except InvalidOperation:
             return None
     elif expected_type == bool:
         lower_val = val_str.lower()
@@ -741,6 +749,85 @@ def parse_comic_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_game_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Game sheet into typed data ready for the
+    Database.
+
+    franchise_id, series_id and base_game_id may each be a UUID or a raw string
+    name: the first two are resolved by the hierarchy resolver on Pull, and a
+    base game entered by title is left for a later edit rather than dropped.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "game_name_en": parse_from_sheet(raw.get("game_name_en"), str),
+        "game_name_cn": parse_from_sheet(raw.get("game_name_cn"), str),
+        "game_name_roman": parse_from_sheet(raw.get("game_name_roman"), str),
+        "game_name_jp": parse_from_sheet(raw.get("game_name_jp"), str),
+        "game_name_alt": parse_from_sheet(raw.get("game_name_alt"), str),
+        "game_type": parse_from_sheet(raw.get("game_type"), str),
+        "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
+        "playing_status": parse_from_sheet(raw.get("playing_status"), str)
+        or "Might Play",
+        "completion_level": parse_from_sheet(raw.get("completion_level"), str),
+        "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
+        "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
+        "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
+        "release_status": parse_from_sheet(raw.get("release_status"), str),
+        "release_date": release_date.normalize(
+            parse_from_sheet(raw.get("release_date"), str)
+        ),
+        "current_patch": parse_from_sheet(raw.get("current_patch"), str),
+        "hours_played": parse_from_sheet(raw.get("hours_played"), float),
+        "hltb_main": parse_from_sheet(raw.get("hltb_main"), float),
+        "hltb_main_extra": parse_from_sheet(raw.get("hltb_main_extra"), float),
+        "hltb_completionist": parse_from_sheet(raw.get("hltb_completionist"), float),
+        "price_original_us": parse_from_sheet(raw.get("price_original_us"), Decimal),
+        "price_original_jp": parse_from_sheet(raw.get("price_original_jp"), Decimal),
+        "price_original_tw": parse_from_sheet(raw.get("price_original_tw"), Decimal),
+        "price_current_us": parse_from_sheet(raw.get("price_current_us"), Decimal),
+        "price_current_jp": parse_from_sheet(raw.get("price_current_jp"), Decimal),
+        "price_current_tw": parse_from_sheet(raw.get("price_current_tw"), Decimal),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
+        "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
+        "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
+        "steam_link": parse_from_sheet(raw.get("steam_link"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_game_copy_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Game Copy sheet into typed data ready for
+    the Database.
+
+    game_id is a real foreign key with no name-resolution step - the Game tab
+    restores first, so an unparseable cell is an error, not a title to look up.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "game_id": _uuid_or_none(raw.get("game_id")),
+        "storefront": parse_from_sheet(raw.get("storefront"), str),
+        "ownership": parse_from_sheet(raw.get("ownership"), str),
+        "copy_format": parse_from_sheet(raw.get("copy_format"), str),
+        "acquisition": parse_from_sheet(raw.get("acquisition"), str),
+        "price_paid": parse_from_sheet(raw.get("price_paid"), Decimal),
+        "price_currency": parse_from_sheet(raw.get("price_currency"), str),
+        "acquired_date": release_date.normalize(
+            parse_from_sheet(raw.get("acquired_date"), str)
+        ),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "position": parse_from_sheet(raw.get("position"), int) or 0,
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_option_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Options sheet into typed data ready for the Database.
@@ -921,6 +1008,21 @@ def parse_system_option_usage_from_sheet(raw: dict) -> dict:
         "id": parse_from_sheet(raw.get("id"), int),
         "option_id": _uuid_or_none(raw.get("option_id")),
         "usage": parse_from_sheet(raw.get("usage"), str),
+    }
+
+
+def parse_system_option_alias_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the System Option Alias sheet into typed data
+    ready for the Database. The System Options tab restores before this one, so
+    option_id round-trips as a plain UUID with no name-resolution step - the
+    same treatment its two sibling tabs get.
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "option_id": _uuid_or_none(raw.get("option_id")),
+        "source": parse_from_sheet(raw.get("source"), str),
+        "value": parse_from_sheet(raw.get("value"), str),
     }
 
 
