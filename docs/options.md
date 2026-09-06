@@ -93,7 +93,7 @@ file's own comment calls this Ruling R10). See
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | `game_type` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
-| `GAME_RELEASE_STATUSES` | `Released`, `Early Access`, `Announced`, `Delayed`, `Cancelled` | `games.release_status` | `game_release_status` |
+| `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status` | `game_release_status` |
 | `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
 | `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
 | `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |

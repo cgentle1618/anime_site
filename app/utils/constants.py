@@ -215,11 +215,18 @@ COMPLETION_LEVELS: tuple[str, ...] = (
     "Completionist",
 )
 
+# A lifecycle ladder, ordered from "does not exist yet" to "over". "Released"
+# is out and static; "Ongoing" is out and still receiving content or running
+# servers, and it is the one that later becomes "Discontinued" (關服: servers
+# shut down, or support and sales ended). "Cancelled" is death before release,
+# "Discontinued" death after it.
 GAME_RELEASE_STATUSES: tuple[str, ...] = (
-    "Released",
+    "Rumored",
+    "Unreleased",
     "Early Access",
-    "Announced",
-    "Delayed",
+    "Released",
+    "Ongoing",
+    "Discontinued",
     "Cancelled",
 )
 

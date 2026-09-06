@@ -69,10 +69,12 @@ export const COMPLETION_LEVELS = [
 ];
 
 export const GAME_RELEASE_STATUSES = [
-  "Released",
+  "Rumored",
+  "Unreleased",
   "Early Access",
-  "Announced",
-  "Delayed",
+  "Released",
+  "Ongoing",
+  "Discontinued",
   "Cancelled",
 ];
 

@@ -42,10 +42,12 @@ def test_game_vocabularies():
         "Completionist",
     )
     assert c.GAME_RELEASE_STATUSES == (
-        "Released",
+        "Rumored",
+        "Unreleased",
         "Early Access",
-        "Announced",
-        "Delayed",
+        "Released",
+        "Ongoing",
+        "Discontinued",
         "Cancelled",
     )
     assert c.GAME_OWNERSHIP_KINDS == (

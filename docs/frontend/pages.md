@@ -711,7 +711,7 @@ lost it once `/library/seiyuu` shipped.
   `FranchiseLibrary`, `CollectionLibrary` and `CollectionPage` all fetch eight
   entry lists, not nine.
 - `FutureReleases` has no Games tab, so an unreleased game (`release_status`
-  `Announced` / `Delayed`, playing status `Play When Released`) shows up
+  `Rumored` / `Unreleased`, playing status `Play When Released`) shows up
   nowhere on that page.
 - `SeasonalDetail` refetches on id change without a cancellation flag;
   `SeasonalOverall`, `CollectionLibrary`, `FranchiseLibrary` fetch once.

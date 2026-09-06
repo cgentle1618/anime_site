@@ -506,7 +506,7 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `completion_level` | String | yes | | COMPLETION_LEVELS (Main Story / Main + Extras / Post-game / Completionist). Independent of `playing_status`. |
 | `all_endings` | Boolean | yes | | Tristate, orthogonal to `completion_level` |
 | `achievements_earned` / `achievements_total` | Integer | yes | | The third completion axis |
-| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Released / Early Access / Announced / Delayed / Cancelled) |
+| `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
 | `hours_played` | Float | yes | | |
