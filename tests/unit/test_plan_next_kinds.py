@@ -148,12 +148,20 @@ class TestEntryRewatchFieldInvariant:
     if and only if "entry" is one of its allowed rewatch scopes
     (ALLOWED_SCOPES["rewatch"]). This is enforced by an assertion at import
     time in plan_next_kinds.py; these tests pin down both directions
-    explicitly, by name, for all eight media types, so a future edit that
+    explicitly, by name, for all nine media types, so a future edit that
     breaks the invariant fails here with a readable message instead of only
     an assert at import time.
     """
 
-    EXPECTED_MEMBERS = {"anime-movie", "movie", "tv-show", "manga", "novel", "comic"}
+    EXPECTED_MEMBERS = {
+        "anime-movie",
+        "movie",
+        "tv-show",
+        "manga",
+        "novel",
+        "comic",
+        "game",
+    }
     EXPECTED_NON_MEMBERS = {"anime", "cartoon"}
 
     def test_expected_and_non_member_sets_cover_all_media_types(self):

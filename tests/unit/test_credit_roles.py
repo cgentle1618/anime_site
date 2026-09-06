@@ -167,21 +167,10 @@ def test_legal_scopes_match_media_types():
     assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic")
 
 
-# Media types this vocabulary already names but MEDIA_TABLES does not yet
-# register. The `publisher` role landed with the publisher entity, ahead of the
-# `game` table it exists for, so "game" is a real key that is simply not
-# registered yet - not the typo this guard is here to catch. Delete the entry
-# (and the `or mt in _PENDING_MEDIA_TYPES` below) once the game media type is
-# registered; leaving it would let a genuine typo through under that one name.
-_PENDING_MEDIA_TYPES = {"game"}
-
-
 def test_every_media_type_named_by_a_role_is_a_known_key():
     for role in cr.CREDIT_ROLES.values():
         for mt in role.media_types:
-            assert (
-                mt in MEDIA_TYPE_KEYS or mt in _PENDING_MEDIA_TYPES
-            ), f"{role.key}: {mt}"
+            assert mt in MEDIA_TYPE_KEYS, f"{role.key}: {mt}"
     for field in cr.TAG_FIELDS.values():
         for mt in field.media_types:
             assert mt in MEDIA_TYPE_KEYS, f"{field.key}: {mt}"

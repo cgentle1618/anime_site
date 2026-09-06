@@ -51,7 +51,7 @@ def make_entry(entry_id, name="Some Entry"):
 
 
 class TestMediaTables:
-    def test_covers_all_eight_media_types(self):
+    def test_covers_all_nine_media_types(self):
         assert set(MEDIA_TYPE_KEYS) == {
             "anime",
             "anime-movie",
@@ -61,6 +61,7 @@ class TestMediaTables:
             "manga",
             "novel",
             "comic",
+            "game",
         }
 
     def test_uses_hyphenated_spelling(self):

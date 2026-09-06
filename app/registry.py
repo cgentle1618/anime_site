@@ -14,12 +14,13 @@ movie has no series and no hook at all.
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from sqlalchemy import func
+from sqlalchemy import exists, func
 
 from app import models, schemas
 from app.services.domain import (
     derive_novel_progress,
     mark_comic_completed,
+    mark_game_completed,
     mark_movie_completed,
     mark_novel_completed,
     mark_reading_completed,
@@ -28,10 +29,12 @@ from app.services.domain import (
     resolve_anime_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
+    write_game_copies,
     write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
@@ -98,6 +101,23 @@ def _anime_airing_season(query, params):
     return query.filter(
         models.Anime.release_season == parts[0],
         func.substr(models.Anime.release_date, 1, 4) == parts[1],
+    )
+
+
+def _game_ownership(query, params):
+    """?ownership=Owned -> games with at least one copy row saying so.
+
+    Ownership is derived from the copy rows rather than stored, so the filter
+    is an EXISTS over game_copy instead of a column comparison.
+    """
+    wanted = params.get("ownership")
+    if not wanted:
+        return query
+    return query.filter(
+        exists().where(
+            models.GameCopy.game_id == models.Game.system_id,
+            models.GameCopy.ownership == wanted,
+        )
     )
 
 
@@ -255,5 +275,27 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_comic_completed,
         write_hook=execute_replace_single_comic,
         nested_collections={"sources": media_sources_writer("comic")},
+    ),
+    "game": MediaTypeSpec(
+        key="game",
+        owner_type="game",
+        label="Game",
+        route="game",
+        model=models.Game,
+        create_schema=schemas.GameCreate,
+        update_schema=schemas.GameUpdate,
+        response_schema=schemas.GameResponse,
+        status_field="playing_status",
+        list_filters=("franchise_id", "series_id", "playing_status", "release_status", "game_type"),
+        hierarchy_names={"en": "game_name_en", "cn": "game_name_cn", "roman": "game_name_roman",
+                         "jp": "game_name_jp", "alt": "game_name_alt"},
+        search_fields=("game_name_en", "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
+        resolve_hierarchy=resolve_game_parent_hierarchy,
+        mark_completed=mark_game_completed,
+        extra_filters=_game_ownership,
+        nested_collections={
+            "copies": write_game_copies,
+            "sources": media_sources_writer("game"),
+        },
     ),
 }
