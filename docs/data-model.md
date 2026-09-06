@@ -514,6 +514,8 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `hours_played` | Float | yes | | |
 | `hltb_main` / `hltb_main_extra` / `hltb_completionist` | Float | yes | | The three public time-to-beat tiers, sourced from IGDB (HowLongToBeat publishes no official API) |
 | `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | The game's **market** prices. What I paid is per-copy, on `game_copy`. The first `Numeric` columns in the schema. |
+| `metacritic_score` | Integer | yes | | Metacritic's critic metascore, out of 100. Typed in - nothing fills it automatically yet |
+| `metacritic_user_score` | Float | yes | | Metacritic's user score, out of 10. A second column rather than a second reading of the first: the two scales differ, and neither is `my_rating` |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | The external pair Fill fetches on; `igdb_id` is derived from `igdb_link` - see [data-actions.md](data-actions.md). |
 | `steam_appid` / `steam_link` | Integer / String | yes | | Reserved for the deferred Steam sync so it needs no migration of its own. **Nothing reads or writes these.** |
 

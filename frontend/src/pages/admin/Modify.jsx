@@ -878,6 +878,8 @@ export default function Modify() {
       price_current_us: g.price_current_us ?? "",
       price_current_jp: g.price_current_jp ?? "",
       price_current_tw: g.price_current_tw ?? "",
+      metacritic_score: g.metacritic_score ?? "",
+      metacritic_user_score: g.metacritic_user_score ?? "",
       my_rating: g.my_rating || "",
       igdb_id: g.igdb_id ?? "",
       igdb_link: g.igdb_link || "",

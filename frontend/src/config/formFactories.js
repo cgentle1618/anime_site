@@ -327,6 +327,8 @@ export const defaultGame = () => ({
   price_current_us: "",
   price_current_jp: "",
   price_current_tw: "",
+  metacritic_score: "",
+  metacritic_user_score: "",
   my_rating: "",
   studio: "",
   publisher: "",

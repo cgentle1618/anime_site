@@ -130,6 +130,12 @@ as a year) and `cover.url` (protocol-relative, so `https:` is prefixed) — beca
 the endpoint does not reshape them. The widget never touches form state; it
 hands the raw object to `onPick`.
 
+Its sections run Classification → **Rating** → Status → Progress → Credits →
+Release & Prices → Copies → Sources → Flags → Notes. Rating holds `my_rating`
+and the two Metacritic scores together, which is why the registry groups all
+three under `Ratings` (`fieldMeta.js`) rather than leaving `my_rating` in the
+shared `Status` group — /defaults reads those groups and is meant to match.
+
 `applyGameAutofill` (in `Add.jsx`) is what turns that object into fields, and it
 is deliberately not `makeApply`'s shape: it always sets `igdb_id` and
 `igdb_link`, and fills `game_name_en` **only when the admin left it blank**.

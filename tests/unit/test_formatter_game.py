@@ -56,3 +56,15 @@ def test_the_completion_flags_parse_as_tristate_booleans():
     assert parsed["all_endings"] is True
     assert parsed["all_achievements"] is False
     assert parsed["all_collected"] is None
+
+
+def test_the_metacritic_scores_keep_their_two_scales():
+    """The metascore is an integer out of 100; the user score is a float out of 10."""
+    parsed = parse_game_from_sheet(
+        {"metacritic_score": "96", "metacritic_user_score": "8.4"}
+    )
+    assert parsed["metacritic_score"] == 96
+    assert parsed["metacritic_user_score"] == 8.4
+    blank = parse_game_from_sheet({})
+    assert blank["metacritic_score"] is None
+    assert blank["metacritic_user_score"] is None

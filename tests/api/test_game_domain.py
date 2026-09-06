@@ -195,3 +195,27 @@ def test_the_three_completion_flags_round_trip(admin_client):
     # user set, because it is not derived.
     assert patched["all_collected"] is True
     assert patched["all_achievements"] is False
+
+
+def test_the_metacritic_scores_round_trip_and_are_independent(admin_client):
+    """
+    Two separate figures on two separate scales - critics out of 100, users
+    out of 10. Neither is derived from the other or from my_rating.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Disco Elysium",
+            "metacritic_score": 91,
+            "metacritic_user_score": 8.6,
+        },
+    ).json()
+    assert created["metacritic_score"] == 91
+    assert created["metacritic_user_score"] == 8.6
+
+    patched = admin_client.patch(
+        f"/api/game/{created['system_id']}",
+        json={"metacritic_user_score": 7.9},
+    ).json()
+    assert patched["metacritic_user_score"] == 7.9
+    assert patched["metacritic_score"] == 91

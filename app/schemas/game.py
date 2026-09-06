@@ -74,6 +74,11 @@ class GameBase(BaseModel):
     price_current_jp: Optional[Decimal] = None
     price_current_tw: Optional[Decimal] = None
 
+    # Critics out of 100, users out of 10 - see the model for why they are two
+    # columns rather than one.
+    metacritic_score: Optional[int] = None
+    metacritic_user_score: Optional[float] = None
+
     my_rating: Optional[str] = None
     cover_image_file: Optional[str] = None
 

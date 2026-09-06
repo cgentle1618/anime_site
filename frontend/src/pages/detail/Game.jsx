@@ -44,6 +44,20 @@ function hours(value) {
   return Number.isFinite(n) ? `${n} h` : null;
 }
 
+/**
+ * A score with its denominator: "96 / 100", "8.6 / 10".
+ *
+ * Metacritic's two figures sit on different scales, so the denominator has to
+ * travel with the number - a bare "8.6" beside a bare "96" reads as a
+ * catastrophe rather than a good user score. Returns null when there is no
+ * score, so the InfoCard drops the row instead of showing a zero.
+ */
+export function outOf(value, max) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? `${n} / ${max}` : null;
+}
+
 // Tristate: null is "never recorded", and the InfoCard drops a null field
 // rather than showing a misleading "No".
 export function yesNo(value) {
@@ -443,6 +457,18 @@ export default function Game() {
                     value: yesNo(game.all_achievements),
                   },
                   { label: "All Collected", value: yesNo(game.all_collected) },
+                ],
+                [
+                  // Metacritic's public verdict, not mine - my_rating is the
+                  // stamp on the cover.
+                  {
+                    label: "Metacritic",
+                    value: outOf(game.metacritic_score, 100),
+                  },
+                  {
+                    label: "Metacritic User",
+                    value: outOf(game.metacritic_user_score, 10),
+                  },
                 ],
                 [
                   // Derived from the copy rows server-side, never stored.

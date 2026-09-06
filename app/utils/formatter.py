@@ -792,6 +792,10 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "price_current_us": parse_from_sheet(raw.get("price_current_us"), Decimal),
         "price_current_jp": parse_from_sheet(raw.get("price_current_jp"), Decimal),
         "price_current_tw": parse_from_sheet(raw.get("price_current_tw"), Decimal),
+        "metacritic_score": parse_from_sheet(raw.get("metacritic_score"), int),
+        "metacritic_user_score": parse_from_sheet(
+            raw.get("metacritic_user_score"), float
+        ),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),

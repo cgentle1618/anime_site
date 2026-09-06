@@ -34,6 +34,14 @@ function hoursValue(g) {
   return Number.isFinite(n) ? n : -1;
 }
 
+// -1 for an unscored game, so it sorts below a genuinely bad one rather than
+// tying with a zero.
+function metacriticValue(g) {
+  if (g.metacritic_score == null || g.metacritic_score === "") return -1;
+  const n = Number(g.metacritic_score);
+  return Number.isFinite(n) ? n : -1;
+}
+
 // ---------------------------------------------------------------------------
 // Game library config
 // ---------------------------------------------------------------------------
@@ -109,6 +117,11 @@ const GAME_LIBRARY_CONFIG = {
       key: "hours_played",
       label: "Playtime",
       compare: (a, b) => hoursValue(b) - hoursValue(a),
+    },
+    {
+      key: "metacritic_score",
+      label: "Metacritic",
+      compare: (a, b) => metacriticValue(b) - metacriticValue(a),
     },
     myRatingSort,
   ],

@@ -124,6 +124,14 @@ class Game(Base, NameFallbackMixin):
     price_current_jp = Column(Numeric(10, 2), nullable=True)
     price_current_tw = Column(Numeric(10, 2), nullable=True)
 
+    # Metacritic publishes two separate figures on two separate scales: the
+    # critic metascore is an integer out of 100, the user score a float out of
+    # 10. Neither is derived from the other, and neither is my_rating - that
+    # stays my own judgement. Both are typed in for now; an IGDB
+    # aggregated_rating autofill is a later change.
+    metacritic_score = Column(Integer, nullable=True)
+    metacritic_user_score = Column(Float, nullable=True)
+
     my_rating = Column(String, nullable=True)
     cover_image_file = Column(String, nullable=True)
 

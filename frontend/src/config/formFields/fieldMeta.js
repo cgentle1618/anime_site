@@ -840,6 +840,21 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Release",
     },
+    // The Rating group, which the Add/Modify form draws as its own section
+    // under Classification: my S..F verdict plus Metacritic's own two scales -
+    // a whole metascore out of 100 and a decimal user score out of 10.
+    // my_rating is grouped with them here, overriding the shared "Status".
+    my_rating: { group: "Ratings" },
+    metacritic_score: {
+      label: "Metacritic",
+      control: "number",
+      group: "Ratings",
+    },
+    metacritic_user_score: {
+      label: "Metacritic User",
+      control: "number",
+      group: "Ratings",
+    },
     // Developer is a Studio row and publisher a Publisher row - two entity
     // tables, not vocabulary values. COMMON_FIELD_META already shapes
     // `publisher`; `studio` is relabelled here because for a game the studio

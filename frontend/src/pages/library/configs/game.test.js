@@ -15,6 +15,7 @@ const GAMES = [
     playing_status: "Active Playing",
     ownership: "Owned",
     hours_played: 32.5,
+    metacritic_score: 96,
   },
   {
     system_id: "2",
@@ -47,5 +48,16 @@ describe("game library config", () => {
   it("sorts by playtime, longest first", () => {
     const sort = GAME_LIBRARY_CONFIG.sortDefs.find((s) => s.key === "hours_played");
     expect([...GAMES].sort(sort.compare)[0].system_id).toBe("1");
+  });
+
+  // A game nobody scored must not outrank a bad one, so an absent score
+  // sorts last rather than as a zero.
+  it("sorts by metacritic score, highest first, unscored last", () => {
+    const sort = GAME_LIBRARY_CONFIG.sortDefs.find(
+      (s) => s.key === "metacritic_score",
+    );
+    const sorted = [...GAMES].sort(sort.compare);
+    expect(sorted[0].system_id).toBe("1");
+    expect(sorted[1].system_id).toBe("2");
   });
 });

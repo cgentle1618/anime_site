@@ -294,6 +294,10 @@ export function gameFieldsPayload(f) {
     price_current_us: num(f.price_current_us),
     price_current_jp: num(f.price_current_jp),
     price_current_tw: num(f.price_current_tw),
+    // Two scales: the metascore is a whole number out of 100, the user score
+    // a decimal out of 10.
+    metacritic_score: int(f.metacritic_score),
+    metacritic_user_score: num(f.metacritic_user_score),
     my_rating: f.my_rating || null,
     // The numeric id travels on its own: `igdb_link` holds the public
     // www.igdb.com URL, which carries a slug rather than an id, so the

@@ -361,8 +361,31 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
         </Field>
       </div>
 
-      <SectionHeader icon="fa-chart-bar" title="Status" />
+      {/* Rating sits directly under Classification: the verdicts on a game -
+          mine and the public's - read before its play state does. My rating
+          is the S..F scale; the two Metacritic figures are Metacritic's own. */}
+      <SectionHeader icon="fa-star" title="Rating" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="My Rating">
+          <select
+            className={selectCls}
+            value={f.my_rating}
+            onChange={(e) => u("my_rating", e.target.value)}
+          >
+            <option value="">—</option>
+            {MY_RATINGS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {num("metacritic_score", "Metacritic", "Critic metascore, 0-100")}
+        {num("metacritic_user_score", "Metacritic User", "User score, 0-10")}
+      </div>
+
+      <SectionHeader icon="fa-chart-bar" title="Status" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Release Status">
           <select
             className={selectCls}
@@ -384,20 +407,6 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("playing_status", e.target.value)}
           >
             <StatusOptions statuses={PLAYING_STATUSES} />
-          </select>
-        </Field>
-        <Field label="My Rating">
-          <select
-            className={selectCls}
-            value={f.my_rating}
-            onChange={(e) => u("my_rating", e.target.value)}
-          >
-            <option value="">—</option>
-            {MY_RATINGS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
           </select>
         </Field>
       </div>

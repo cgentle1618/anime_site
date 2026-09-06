@@ -5,7 +5,7 @@
 // so the block must render nothing at all rather than a misleading "0 h".
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { GameProgress, yesNo } from "./Game";
+import { GameProgress, outOf, yesNo } from "./Game";
 
 describe("GameProgress", () => {
   it("shows playtime against the main-story estimate", () => {
@@ -38,5 +38,21 @@ describe("yesNo", () => {
     expect(yesNo(false)).toBe("No");
     expect(yesNo(null)).toBeNull();
     expect(yesNo(undefined)).toBeNull();
+  });
+});
+
+// The two Metacritic figures sit on different scales — critics out of 100,
+// users out of 10 — so each carries its denominator, and an unscored game
+// drops the row rather than showing a zero.
+describe("outOf", () => {
+  it("keeps each score on its own scale", () => {
+    expect(outOf(96, 100)).toBe("96 / 100");
+    expect(outOf(8.6, 10)).toBe("8.6 / 10");
+  });
+
+  it("drops a missing or unreadable score", () => {
+    expect(outOf(null, 100)).toBeNull();
+    expect(outOf("", 10)).toBeNull();
+    expect(outOf("n/a", 100)).toBeNull();
   });
 });
