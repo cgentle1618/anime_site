@@ -16,6 +16,7 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -218,6 +219,20 @@ PIPELINES: dict[str, PipelineSpec] = {
         replace_select=None,
         replace=None,
         single_after=(run_sync_comic,),
+        in_replace_all=False,
+    ),
+    "game": PipelineSpec(
+        key="game", label="Game", model=Game,
+        # IGDB lands in its own plan. Until it does nothing is eligible, so a
+        # Fill run reports "No entries need filling" rather than failing. The
+        # spec exists now because MEDIA_TABLES membership requires one: both
+        # test_sheet_tabs and the data-control route builder assume it.
+        extract_id=None,
+        fill_eligible=lambda db, e: False,
+        fill=lambda db, e: None,
+        in_fill_all=False,
+        replace_select=None,
+        replace=None,
         in_replace_all=False,
     ),
     "studio": PipelineSpec(

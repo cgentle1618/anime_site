@@ -29,6 +29,7 @@ execute_fill_cartoon = _bind("cartoon")
 execute_fill_manga = _bind("manga")
 execute_fill_novel = _bind("novel")
 execute_fill_comic = _bind("comic")
+execute_fill_game = _bind("game")
 execute_fill_studio = _bind("studio")
 
 

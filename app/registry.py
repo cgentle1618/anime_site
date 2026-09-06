@@ -42,6 +42,7 @@ from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
+    execute_replace_single_game,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
@@ -293,6 +294,9 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_game_parent_hierarchy,
         mark_completed=mark_game_completed,
         extra_filters=_game_ownership,
+        # Nothing external is fetched yet, so this only re-runs the shared
+        # post-write step; the name exists from Task 9's pipeline spec.
+        write_hook=execute_replace_single_game,
         nested_collections={
             "copies": write_game_copies,
             "sources": media_sources_writer("game"),

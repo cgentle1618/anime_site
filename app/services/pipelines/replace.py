@@ -37,6 +37,9 @@ execute_replace_single_novel = _single("novel")
 # Comics fetch nothing on the write hook: the spec has no `replace`, so this
 # only re-syncs system options and logs the write like every other type.
 execute_replace_single_comic = _single("comic")
+# Games have no external fetch yet; the hook exists so the registry write path
+# and the data-control route builder have the name they require.
+execute_replace_single_game = _single("game")
 
 execute_replace_anime = _bulk("anime")
 execute_replace_anime_movie = _bulk("anime-movie")

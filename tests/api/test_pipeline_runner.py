@@ -100,8 +100,24 @@ def test_replace_all_skips_comic_and_studio():
     ]
 
 
+def test_game_is_registered_but_fetches_nothing_yet():
+    """
+    Games need a spec the moment "game" enters MEDIA_TABLES, because
+    test_sheet_tabs and the data-control route builder both require one. IGDB
+    lands in its own plan; until then nothing is fill-eligible, which is
+    deliberate and not a bug.
+    """
+    from app.services.pipelines.specs import PIPELINES
+
+    spec = PIPELINES["game"]
+    assert spec.fill_eligible(None, None) is False
+    assert spec.replace is None
+    assert spec.in_fill_all is False
+    assert spec.in_replace_all is False
+
+
 def test_public_entry_points_still_exist():
-    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "novel", "comic"):
+    for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "novel", "comic", "game"):
         assert callable(getattr(fill, f"execute_fill_{key}"))
         assert callable(getattr(replace, f"execute_replace_single_{key}"))
     for key in ("anime", "anime_movie", "movie", "tv_show", "cartoon", "manga", "novel"):
