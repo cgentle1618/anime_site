@@ -82,4 +82,17 @@ export function StudioCard({ studio }) {
   );
 }
 
+export function PublisherCard({ publisher }) {
+  return (
+    <StaffCard
+      to={`/publisher/${publisher.system_id}`}
+      label="Publisher"
+      name={publisher.display_name || "Unknown Publisher"}
+      imageFile={publisher.logo_file}
+      imageAlt="Logo"
+      creditCount={publisher.credit_count}
+    />
+  );
+}
+
 export default StaffCard;

@@ -59,6 +59,7 @@ describe("NAV_SECTIONS", () => {
     const entities = library.columns.find((c) => c.heading === "Entities");
     expect(entities.items.map((i) => i.label)).toEqual([
       "Studio",
+      "Publisher",
       "Person",
       "Character",
     ]);

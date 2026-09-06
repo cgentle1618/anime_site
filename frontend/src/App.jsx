@@ -31,6 +31,10 @@ import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
 const StudioLibrary = lazy(() => import("./pages/library/StudioLibrary"));
 const Studio = lazy(() => import("./pages/detail/Studio"));
+const PublisherLibrary = lazy(
+  () => import("./pages/library/PublisherLibrary"),
+);
+const Publisher = lazy(() => import("./pages/detail/Publisher"));
 const PersonLibrary = lazy(() => import("./pages/library/PersonLibrary"));
 const Person = lazy(() => import("./pages/detail/Person"));
 const CharacterLibrary = lazy(() => import("./pages/library/CharacterLibrary"));
@@ -101,6 +105,10 @@ export default function App() {
                   element={<FranchiseLibrary />}
                 />
                 <Route path="/library/studio" element={<StudioLibrary />} />
+                <Route
+                  path="/library/publisher"
+                  element={<PublisherLibrary />}
+                />
                 <Route path="/library/person" element={<PersonLibrary />} />
                 <Route
                   path="/library/seiyuu"
@@ -127,6 +135,7 @@ export default function App() {
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />
                 <Route path="/studio/:system_id" element={<Studio />} />
+                <Route path="/publisher/:system_id" element={<Publisher />} />
                 <Route path="/person/:system_id" element={<Person />} />
                 <Route path="/character/:system_id" element={<Character />} />
                 <Route path="/watch-order/:system_id" element={<WatchOrder />} />

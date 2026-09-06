@@ -167,6 +167,16 @@ export const endpoints = {
     replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
   },
 
+  publisher: {
+    list: () => "/api/publisher/",
+    detail: (id) => `/api/publisher/${id}`,
+    create: () => "/api/publisher/",
+    update: (id) => `/api/publisher/${id}`,
+    remove: (id) => `/api/publisher/${id}`,
+    merge: (id) => `/api/publisher/${id}/merge`,
+    entries: (id) => `/api/publisher/${id}/entries`,
+  },
+
   studio: {
     list: () => "/api/studio/",
     detail: (id) => `/api/studio/${id}`,

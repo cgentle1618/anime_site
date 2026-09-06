@@ -46,6 +46,12 @@ export const NAV_SECTIONS = [
             matches: ["/studio"],
           },
           {
+            label: "Publisher",
+            icon: "fas fa-copyright",
+            to: "/library/publisher",
+            matches: ["/publisher"],
+          },
+          {
             label: "Person",
             icon: "fas fa-user",
             to: "/library/person",
