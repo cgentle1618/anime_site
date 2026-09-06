@@ -20,6 +20,13 @@ def _check_field_key(key: str) -> None:
         raise ValueError(f"Invalid field key '{key}'.")
 
 
+class SystemOptionAliasIO(BaseModel):
+    """What one external source calls a vocabulary value."""
+
+    source: str
+    value: str
+
+
 class SystemOptionBase(BaseModel):
     category: str
     value: str
@@ -68,6 +75,10 @@ class SystemOptionCreate(SystemOptionBase):
             )
         return list(dict.fromkeys(v))
 
+    # What external sources call this value. Unlike scopes and usages, an
+    # empty list is not "everything" - it just means nothing maps to it.
+    aliases: list[SystemOptionAliasIO] = []
+
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
@@ -91,6 +102,16 @@ class SystemOptionResponse(SystemOptionBase):
         # ORM gives SystemOptionUsage rows; the API contract is plain strings.
         if v and not isinstance(v[0], str):
             return [u.usage for u in v]
+        return v
+
+    aliases: list[SystemOptionAliasIO] = []
+
+    @field_validator("aliases", mode="before")
+    @classmethod
+    def _flatten_aliases(cls, v):
+        # ORM gives SystemOptionAlias rows; the contract is source/value pairs.
+        if v and not isinstance(v[0], (dict, SystemOptionAliasIO)):
+            return [{"source": a.source, "value": a.value} for a in v]
         return v
 
 

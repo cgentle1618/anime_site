@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -51,6 +52,12 @@ class SystemOption(Base):
     )
     usages = relationship(
         "SystemOptionUsage",
+        back_populates="option",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    aliases = relationship(
+        "SystemOptionAlias",
         back_populates="option",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -112,6 +119,43 @@ class SystemOptionUsage(Base):
     usage = Column(String, nullable=False)
 
     option = relationship("SystemOption", back_populates="usages")
+
+
+class SystemOptionAlias(Base):
+    """
+    What an external source calls this vocabulary value.
+
+    The third sibling of SystemOptionScope ("in which media types") and
+    SystemOptionUsage ("for what"): this answers "what does IGDB call it".
+    Values are stored in Chinese; an external API's English is a wire format,
+    resolved through here on the way in.
+
+    Unlike its two siblings, absence is NOT permissive. A value with no scope
+    rows is offered everywhere; a value with no alias rows simply cannot be
+    resolved from an external string, which is why this is read by an explicit
+    lookup rather than by _filter_by_child.
+    """
+
+    __tablename__ = "system_option_alias"
+    __table_args__ = (
+        UniqueConstraint(
+            "option_id", "source", "value", name="uq_system_option_alias"
+        ),
+        Index("ix_system_option_alias_lookup", "source", "value"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # "igdb" now; "steam" when the Steam sync lands.
+    source = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+
+    option = relationship("SystemOption", back_populates="aliases")
 
 
 class SystemConfigs(Base):

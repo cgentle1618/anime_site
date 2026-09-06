@@ -112,6 +112,26 @@ def get_system_options(
 # ==========================================
 
 
+def resolve_option_alias(db: Session, category: str, source: str, value: str):
+    """
+    The option one external source's string names, or None.
+
+    Scoped by category on purpose: the same English word can name a genre in
+    one vocabulary and a theme in another, and an unscoped match would import
+    it into the wrong one.
+    """
+    return (
+        db.query(models.SystemOption)
+        .join(models.SystemOptionAlias)
+        .filter(
+            models.SystemOption.category == category,
+            models.SystemOptionAlias.source == source,
+            models.SystemOptionAlias.value == value,
+        )
+        .first()
+    )
+
+
 @router.post("/", response_model=schemas.SystemOptionResponse, summary="Add System Option")
 def add_system_option(
     payload: schemas.SystemOptionCreate,
@@ -145,6 +165,10 @@ def add_system_option(
     ]
     new_option.usages = [
         models.SystemOptionUsage(usage=u) for u in payload.usages
+    ]
+    new_option.aliases = [
+        models.SystemOptionAlias(source=a.source, value=a.value)
+        for a in payload.aliases
     ]
     db.add(new_option)
     db.commit()
@@ -221,6 +245,16 @@ def update_system_option(
     )
     for usage in payload.usages:
         db.add(models.SystemOptionUsage(option_id=option_id, usage=usage))
+
+    db.query(models.SystemOptionAlias).filter_by(option_id=option_id).delete(
+        synchronize_session=False
+    )
+    for alias in payload.aliases:
+        db.add(
+            models.SystemOptionAlias(
+                option_id=option_id, source=alias.source, value=alias.value
+            )
+        )
 
     db.commit()
     db.refresh(db_option)
