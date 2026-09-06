@@ -79,6 +79,11 @@ class GameBase(BaseModel):
     steam_appid: Optional[int] = None
     steam_link: Optional[str] = None
 
+    # Virtual: the router factory sets these from plan_next rows (see
+    # PLAN_FLAG_FIELDS). Declared here so the response actually carries them -
+    # an undeclared field is dropped without a word.
+    play_next: Optional[bool] = None
+    to_replay: Optional[bool] = None
     remark: Optional[str] = None
     completed_at: Optional[datetime] = None
 

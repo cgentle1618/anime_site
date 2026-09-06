@@ -160,9 +160,9 @@ def test_manga_illustrator_uses_the_traditional_form():
 
 
 def test_legal_scopes_match_media_types():
-    assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie")
+    assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie", "game")
     assert cr.legal_scopes("producer") == ("anime",)
-    assert cr.legal_scopes("composer") == ("anime",)
+    assert cr.legal_scopes("composer") == ("anime", "game")
     assert cr.legal_scopes("author") == ("manga", "novel", "comic")
     assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic")
 
@@ -176,11 +176,14 @@ def test_every_media_type_named_by_a_role_is_a_known_key():
             assert mt in MEDIA_TYPE_KEYS, f"{field.key}: {mt}"
 
 
-def test_director_credit_covers_three_media_types():
+def test_director_credit_covers_four_media_types():
+    # Games joined the three it already covered: a game has a director in the
+    # same sense a film does.
     assert set(cr.CREDIT_ROLES["director"].media_types) == {
         "anime",
         "anime-movie",
         "movie",
+        "game",
     }
 
 

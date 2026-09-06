@@ -58,17 +58,24 @@ class CreditRole:
 
 
 CREDIT_ROLES: dict[str, CreditRole] = {
-    "studio": CreditRole("studio", "Studio", "studio", ("anime", "anime-movie")),
+    # A game's developer IS its studio: one company that made the work, the
+    # same fact the anime role records. A separate `developer` key would split
+    # one studio's anime and game credits across two vocabularies.
+    "studio": CreditRole(
+        "studio", "Studio", "studio", ("anime", "anime-movie", "game")
+    ),
     # The third entity target. Games-only for now: the four existing media
     # types keep publisher_tw as a TagField until a later migration.
     "publisher": CreditRole(
         "publisher", "Publisher", "publisher", ("game",)
     ),
     "director": CreditRole(
-        "director", "Director", "person", ("anime", "anime-movie", "movie")
+        "director", "Director", "person", ("anime", "anime-movie", "movie", "game")
     ),
     "producer": CreditRole("producer", "Producer", "person", ("anime",)),
-    "composer": CreditRole("composer", "Music / Composer", "person", ("anime",)),
+    "composer": CreditRole(
+        "composer", "Music / Composer", "person", ("anime", "game")
+    ),
     "author": CreditRole("author", "Author", "person", ("manga", "novel", "comic")),
     "illustrator": CreditRole(
         "illustrator", "Illustrator", "person", ("manga", "novel", "comic")
@@ -130,7 +137,7 @@ TAG_FIELDS: dict[str, TagField] = {
     "genre_sub": TagField("genre_sub", "Genre Sub", "Genre Sub", ("anime",)),
     # Viewing-experience tags (會跳OP, 很多福利, ...). No legacy column ever
     # held these, so no LEGACY_SHEET_COLUMN entry: the sheet header is the key.
-    "label": TagField("label", "標籤 Label", "Label", ("anime",)),
+    "label": TagField("label", "標籤 Label", "Label", ("anime", "game")),
     # Production-quality tags (神作畫, 作畫崩壞, ...). Anime-only and, like
     # `label`, never a legacy column, so its sheet header is the key itself.
     "quality": TagField("quality", "Quality 品質", "Quality", ("anime",)),
@@ -170,6 +177,16 @@ TAG_FIELDS: dict[str, TagField] = {
     ),
     "comic_era": TagField("comic_era", "Era", "Comic Era", ("comic",)),
     "comic_event": TagField("comic_event", "Events", "Comic Event", ("comic",)),
+    # The four game vocabularies. Genre, theme and mode mirror IGDB's own three
+    # fields, which is why each has a system_option_alias row rather than an
+    # English value; combat mode (PvE/PvP) is not an IGDB field and is
+    # hand-entered.
+    "game_genre": TagField("game_genre", "Genre", "Game Genre", ("game",)),
+    "game_theme": TagField("game_theme", "Theme", "Game Theme", ("game",)),
+    "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
+    "combat_mode": TagField(
+        "combat_mode", "Combat Mode", "Combat Mode", ("game",)
+    ),
 }
 
 TAG_FIELD_KEYS: tuple[str, ...] = tuple(TAG_FIELDS.keys())

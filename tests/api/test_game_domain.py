@@ -114,3 +114,16 @@ def test_the_list_endpoint_filters_on_derived_ownership(admin_client):
     ]
     assert owned["system_id"] in ids
     assert len(ids) == 1
+
+
+def test_a_listed_game_carries_its_plan_flags(admin_client):
+    """
+    PLAN_FLAG_FIELDS["game"] names play_next/to_replay and the router factory
+    setattrs both onto every listed entry - but a response schema that does not
+    declare them drops them silently, which is exactly the sort of blanking the
+    link-field tripwire exists for.
+    """
+    admin_client.post("/api/game/", json={"game_name_en": "Flagged"})
+    entry = admin_client.get("/api/game/").json()[0]
+    assert entry["play_next"] is False
+    assert entry["to_replay"] is False

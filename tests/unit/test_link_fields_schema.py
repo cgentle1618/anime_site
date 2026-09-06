@@ -23,6 +23,7 @@ RESPONSE_SCHEMAS = {
     "manga": schemas.MangaResponse,
     "novel": schemas.NovelResponse,
     "comic": schemas.ComicResponse,
+    "game": schemas.GameResponse,
 }
 
 CREATE_SCHEMAS = {
@@ -34,6 +35,7 @@ CREATE_SCHEMAS = {
     "manga": schemas.MangaCreate,
     "novel": schemas.NovelCreate,
     "comic": schemas.ComicCreate,
+    "game": schemas.GameCreate,
 }
 
 
@@ -44,7 +46,7 @@ CREATE_SCHEMAS = {
 # than joined strings; `sources` is unrelated to credits/tags entirely - it is
 # attached by services.domain.sources.attach_sources, see SourceFields in
 # app/schemas/link_fields.py.
-NON_SHEET_FIELDS = {"studio_refs", "credit_refs", "sources"}
+NON_SHEET_FIELDS = {"studio_refs", "publisher_refs", "credit_refs", "sources"}
 
 
 @pytest.mark.parametrize("media_type", sorted(LINK_FIELD_MIXINS))
