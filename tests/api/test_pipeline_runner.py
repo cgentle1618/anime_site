@@ -87,9 +87,12 @@ def test_the_registry_holds_nothing_but_media_types_and_the_known_extras():
     assert set(PIPELINES) - set(MEDIA_TABLES) == NON_MEDIA_KEYS
 
 
-def test_fill_all_skips_comic_but_includes_studio():
+def test_fill_all_skips_comic_but_includes_game_and_studio():
+    # Comic is the only exclusion, and only because of Comic Vine's 200/hour
+    # quota. IGDB has no such quota, so Game rides along with the rest.
     assert [s.key for s in FILL_ALL] == [
-        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "studio",
+        "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+        "game", "studio",
     ]
 
 
@@ -100,19 +103,20 @@ def test_replace_all_skips_comic_and_studio():
     ]
 
 
-def test_game_is_registered_but_fetches_nothing_yet():
+def test_game_fills_from_igdb_but_never_bulk_replaces():
     """
-    Games need a spec the moment "game" enters MEDIA_TABLES, because
-    test_sheet_tabs and the data-control route builder both require one. IGDB
-    lands in its own plan; until then nothing is fill-eligible, which is
-    deliberate and not a bug.
+    Fill Game is a real pipeline and joins Fill All - IGDB has no hourly quota
+    to exhaust, unlike Comic Vine. There is still no bulk Replace: an IGDB
+    record carries no score or rank that drifts, so a re-fetch would only
+    rewrite what Fill already wrote.
     """
     from app.services.pipelines.specs import PIPELINES
 
     spec = PIPELINES["game"]
-    assert spec.fill_eligible(None, None) is False
+    assert spec.in_fill_all is True
+    assert spec.fill_sleep
     assert spec.replace is None
-    assert spec.in_fill_all is False
+    assert spec.replace_select is None
     assert spec.in_replace_all is False
 
 

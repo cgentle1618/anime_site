@@ -522,6 +522,14 @@ def run_sync_comic(db: Session) -> dict:
     }
 
 
+def run_sync_game(db: Session) -> dict:
+    extract_system_options(db)
+    return {
+        "status": "success",
+        "message": "Game sync completed.",
+    }
+
+
 def run_calculate_all(db: Session) -> dict:
     try:
         run_post_processing(db)

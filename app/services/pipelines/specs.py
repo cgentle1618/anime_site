@@ -28,6 +28,7 @@ from app.services.calculation import (
     run_sync_anime_movie,
     run_sync_cartoon,
     run_sync_comic,
+    run_sync_game,
     run_sync_manga,
     run_sync_novel,
     run_sync_tv_show,
@@ -36,6 +37,7 @@ from app.services.domain import (
     anime_movie_post_processing,
     anime_post_processing,
     apply_extract_comicvine_id,
+    apply_extract_igdb_id,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
@@ -52,6 +54,7 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_game_from_igdb,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -64,6 +67,7 @@ from app.services.domain import (
     has_missing_values_anime_movie,
     has_missing_values_cartoon,
     has_missing_values_comic,
+    has_missing_values_game,
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
@@ -79,6 +83,7 @@ from app.services.pipelines.runner import PipelineSpec
 # Tenrai (MAL) asks for ~1 request/second from unauthenticated clients.
 MAL_PAUSE = 1
 COMICVINE_PAUSE = 1
+IGDB_PAUSE = 0.25
 
 
 def _linked(model, *columns):
@@ -223,16 +228,21 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     "game": PipelineSpec(
         key="game", label="Game", model=Game,
-        # IGDB lands in its own plan. Until it does nothing is eligible, so a
-        # Fill run reports "No entries need filling" rather than failing. The
-        # spec exists now because MEDIA_TABLES membership requires one: both
-        # test_sheet_tabs and the data-control route builder assume it.
-        extract_id=None,
-        fill_eligible=lambda db, e: False,
-        fill=lambda db, e: None,
-        in_fill_all=False,
+        extract_id=apply_extract_igdb_id,
+        fill_eligible=lambda db, e: e.igdb_id is not None and has_missing_values_game(e),
+        fill=lambda db, e: autofill_game_from_igdb(e, db),
+        # 4 requests/second. A sliding-window limiter inside the client already
+        # enforces it, so this is the polite spacing, not the guard - and there
+        # is no `budget`: unlike Comic Vine's 200/hour there is no quota to
+        # exhaust mid-run.
+        fill_sleep=IGDB_PAUSE,
+        fill_after=(("Syncing system options...", run_sync_game),),
+        # No bulk Replace: an IGDB record carries no score or rank that drifts,
+        # so a re-fetch would only rewrite what Fill already wrote - the same
+        # reasoning as Studio's fill_only.
         replace_select=None,
         replace=None,
+        single_after=(run_sync_game,),
         in_replace_all=False,
     ),
     "studio": PipelineSpec(
