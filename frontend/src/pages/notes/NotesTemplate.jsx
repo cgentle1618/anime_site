@@ -11,6 +11,7 @@ import TextLinksSection from "./sections/TextLinksSection";
 import TextOrLinkSection from "./sections/TextOrLinkSection";
 import EpisodeTextSection from "./sections/EpisodeTextSection";
 import NameLinksSection from "./sections/NameLinksSection";
+import NameEntriesSection from "./sections/NameEntriesSection";
 import EpisodeNameLinksSection from "./sections/EpisodeNameLinksSection";
 import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
@@ -23,13 +24,14 @@ const SHAPES = {
   text_or_link: TextOrLinkSection,
   episode_text: EpisodeTextSection,
   name_links: NameLinksSection,
+  name_entries: NameEntriesSection,
   episode_name_links: EpisodeNameLinksSection,
   music_track: MusicTrackSection,
 };
 
 // The first of two deliberate, scoped exceptions to "the frontend never names
 // sections". (The second is the `hideSections` prop below.)
-// The six shapes above are fully registry-driven: the backend can add, drop or
+// The seven shapes above are fully registry-driven: the backend can add, drop or
 // relabel a `text` section and this file never changes. An `external` section
 // cannot work that way - quotes and memes are backed by their own tables, their
 // own endpoints and their own long-lived components, so rendering one means

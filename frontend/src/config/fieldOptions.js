@@ -57,6 +57,60 @@ export const PLAYING_STATUSES = [
   "Won't Play",
 ];
 
+// The game vocabularies. Unlike the watch/read lists above, GET /api/constants
+// does not serve these yet, so they are literals here rather than a pre-fetch
+// fallback - keep them matching app/utils/constants.py by hand.
+export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
+
+export const COMPLETION_LEVELS = [
+  "Main Story",
+  "Main + Extras",
+  "Post-game",
+  "Completionist",
+];
+
+export const GAME_RELEASE_STATUSES = [
+  "Released",
+  "Early Access",
+  "Announced",
+  "Delayed",
+  "Cancelled",
+];
+
+export const GAME_STOREFRONTS = [
+  "Steam",
+  "Nintendo eShop",
+  "PlayStation Store",
+  "Xbox Store",
+  "GOG",
+  "Epic Games Store",
+  "Physical",
+  "Other",
+];
+
+export const GAME_OWNERSHIP_KINDS = [
+  "Owned",
+  "Wishlist",
+  "Subscription",
+  "Free",
+  "Not Owned",
+];
+
+export const GAME_COPY_FORMATS = ["Digital", "Physical"];
+
+export const GAME_ACQUISITION_KINDS = [
+  "Bought",
+  "Gifted",
+  "Free",
+  "Bundled",
+  "Subscription",
+];
+
+// The currencies a copy's price_paid can be recorded in. Not a backend
+// vocabulary - price_currency is a free string there - so this list is a
+// picking aid, and the three the price columns already use lead it.
+export const PRICE_CURRENCIES = ["USD", "JPY", "TWD", "EUR", "GBP", "KRW", "CNY"];
+
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
