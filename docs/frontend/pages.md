@@ -70,18 +70,25 @@ about styling.
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`), Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
-| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
-| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options, Alias Conversion ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
+| `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
+| `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
+| `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
+| `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue ┃ Users, Roles, Content Labels |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
 library item; Franchise also owns `/series` and `/watch-order`), `dev` (routes
-to `/under-development`) and `divider` (admin menu only). Helpers:
+to `/under-development`), `divider` (a rule between item groups) and
+`requires` (a per-row permission). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
 so `/library/anime` does not claim `/library/anime-movie`),
-`sectionRequirement` (`adminOnly: true` is the legacy spelling of
-`requires: "admin"`) and `visibleSections(sections, has)` — the Admin tab is
-gated by `has("admin")` from `useAuth()`.
+`sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
+spelling of `requires: "admin"`) and `visibleSections(sections, has)` — which
+drops both the sections and the individual rows the viewer lacks the
+permission for, then drops any section left holding nothing but dividers. It
+hands back the original item objects, since Nav marks the current row by
+identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
+`useAuth()`, as are the Relations and Watch Orders rows inside Insights.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
 `<NavSearch/>`, session controls) and a paper tab strip. Mega-panel behaviour:

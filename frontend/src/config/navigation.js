@@ -11,6 +11,8 @@
 //            detail page (/anime/123) lights up the library tab it belongs to
 //   dev      true for placeholders that route to /under-development
 //   divider  true for a rule between item groups (admin menu only)
+//   requires the permission a viewer must hold to see this one row, for the
+//            admin-only pages that sit inside a tab everyone may open
 //
 // Sections either carry `items` (a single list) or `columns` (a mega-panel).
 
@@ -157,6 +159,58 @@ export const NAV_SECTIONS = [
       { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics" },
       { label: "Quotes", icon: "fas fa-quote-left", to: "/quote" },
       { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme" },
+      // Relations and Watch Orders are ways of reading the collection, so they
+      // belong here rather than in Admin — but only an admin may open them, so
+      // the rows (and the rule above them) carry their own permission.
+      { divider: true, requires: "admin" },
+      {
+        label: "Relations",
+        icon: "fas fa-diagram-project",
+        to: "/relations",
+        requires: "admin",
+      },
+      {
+        label: "Watch Orders",
+        icon: "fas fa-list-ol",
+        to: "/watch-orders",
+        requires: "admin",
+      },
+    ],
+  },
+  {
+    key: "entry",
+    label: "Entry",
+    requires: "admin",
+    items: [
+      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
+      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
+      { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
+      { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
+    ],
+  },
+  {
+    key: "note",
+    label: "Note",
+    requires: "admin",
+    // The three read-only inventories of how the data is described: the
+    // vocabulary, its translations, and which columns each external API
+    // writes. Editing lives on Add/Modify under System.
+    items: [
+      {
+        label: "System Options",
+        icon: "fas fa-list-check",
+        to: "/options",
+      },
+      {
+        label: "Alias Conversion",
+        icon: "fas fa-right-left",
+        to: "/aliases",
+      },
+      {
+        label: "External APIs",
+        icon: "fas fa-cloud-arrow-down",
+        to: "/external-apis",
+      },
     ],
   },
   {
@@ -169,26 +223,6 @@ export const NAV_SECTIONS = [
       { label: "Control Center", icon: "fas fa-cog", to: "/system" },
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
-      {
-        label: "System Options",
-        icon: "fas fa-list-check",
-        to: "/options",
-      },
-      // Beside System Options, not under Add/Modify: both are read-only views
-      // over the same system_option rows, differing only in which way the
-      // lookup runs. Editing lives on Add/Modify under System -> Alias.
-      {
-        label: "Alias Conversion",
-        icon: "fas fa-right-left",
-        to: "/aliases",
-      },
-      { divider: true },
-      { label: "Add Entry", icon: "fas fa-plus-circle", to: "/add" },
-      { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
-      { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
-      { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
-      { divider: true },
-      { label: "Relations", icon: "fas fa-diagram-project", to: "/relations" },
       { divider: true },
       { label: "Users", icon: "fas fa-users", to: "/users" },
       { label: "Roles", icon: "fas fa-user-shield", to: "/roles" },
@@ -197,7 +231,6 @@ export const NAV_SECTIONS = [
         icon: "fas fa-tags",
         to: "/content-labels",
       },
-      { label: "Watch Orders", icon: "fas fa-list-ol", to: "/watch-orders" },
     ],
   },
 ];
@@ -206,7 +239,7 @@ export const NAV_SECTIONS = [
 export function sectionItems(section) {
   return section.columns
     ? section.columns.flatMap((c) => c.items)
-    : section.items;
+    : (section.items ?? []);
 }
 
 // A prefix owns a path when it is the path itself or a parent segment of it.
@@ -238,10 +271,49 @@ export function sectionRequirement(section) {
   return section.requires ?? (section.adminOnly ? "admin" : null);
 }
 
-// The sections a viewer may see. `has` comes from useAuth().
-export function visibleSections(sections, has) {
-  return sections.filter((section) => {
-    const needed = sectionRequirement(section);
+// The permission a single row needs, or null when anyone may see it.
+export function itemRequirement(item) {
+  return item.requires ?? (item.adminOnly ? "admin" : null);
+}
+
+// The rows of one list a viewer may see.
+export function visibleItems(items, has) {
+  return items.filter((item) => {
+    const needed = itemRequirement(item);
     return !needed || has(needed);
   });
+}
+
+// The same section with the rows this viewer may not see removed. Returns the
+// section itself when nothing was dropped, and always hands back the original
+// item objects — Nav marks the current row by identity.
+function withVisibleItems(section, has) {
+  if (section.columns) {
+    const columns = section.columns
+      .map((col) => ({ ...col, items: visibleItems(col.items, has) }))
+      .filter((col) => col.items.length > 0);
+    const kept = columns.reduce((n, col) => n + col.items.length, 0);
+    return kept === sectionItems(section).length
+      ? section
+      : { ...section, columns };
+  }
+  if (!section.items) return section;
+  const items = visibleItems(section.items, has);
+  return items.length === section.items.length ? section : { ...section, items };
+}
+
+// The sections a viewer may see, each trimmed to the rows they may see. A
+// section left with nothing but dividers is dropped along with them.
+export function visibleSections(sections, has) {
+  return sections
+    .filter((section) => {
+      const needed = sectionRequirement(section);
+      return !needed || has(needed);
+    })
+    .map((section) => withVisibleItems(section, has))
+    .filter(
+      (section) =>
+        !(section.items || section.columns) ||
+        sectionItems(section).some((item) => !item.divider),
+    );
 }
