@@ -36,6 +36,7 @@ def get_constants() -> dict[str, list[str]]:
     return {
         "watching_status": _values(c.WatchStatus),
         "reading_status": _values(c.ReadStatus),
+        "playing_status": _values(c.PlayStatus),
         "airing_status": _values(c.AiringStatus),
         # Served from the FRANCHISE_TYPES / ANIME_AIRING_TYPES tuples, not the
         # enum, because the frontend dropdown has diverged from the Enum
@@ -57,6 +58,16 @@ def get_constants() -> dict[str, list[str]]:
         "novel_region": list(c.NOVEL_REGIONS),
         "novel_type": list(c.NOVEL_TYPES),
         "comic_type": list(c.COMIC_TYPES),
+        "game_type": list(c.GAME_TYPES),
+        "completion_level": list(c.COMPLETION_LEVELS),
+        "game_release_status": list(c.GAME_RELEASE_STATUSES),
+        # The four game_copy vocabularies. Prefixed game_ where the column
+        # name alone (storefront, ownership, acquisition) would say nothing
+        # about which table it belongs to in one flat map.
+        "game_storefront": list(c.GAME_STOREFRONTS),
+        "game_ownership": list(c.GAME_OWNERSHIP_KINDS),
+        "game_copy_format": list(c.GAME_COPY_FORMATS),
+        "game_acquisition": list(c.GAME_ACQUISITION_KINDS),
         "manga_serialization_status": list(c.MANGA_SERIALIZATION_STATUSES),
         "novel_serialization_status": list(c.NOVEL_SERIALIZATION_STATUSES),
         "day_of_week": list(c.WEEKDAYS),
