@@ -61,6 +61,7 @@ from app.schemas.franchise import (
     SeriesSheetSync,
     SeriesUpdate,
 )
+from app.schemas.link_fields import PublisherRef
 from app.schemas.manga import (
     MangaBase,
     MangaCreate,
@@ -115,6 +116,12 @@ from app.schemas.novel import (
 from app.schemas.plan_next import (
     PlanNextCreate,
     PlanNextRead,
+)
+from app.schemas.publisher import (
+    PublisherBase,
+    PublisherCreate,
+    PublisherResponse,
+    PublisherUpdate,
 )
 from app.schemas.quote import (
     QuoteBase,
@@ -357,5 +364,10 @@ __all__ = [
     "StudioCreate",
     "StudioUpdate",
     "StudioResponse",
+    "PublisherBase",
+    "PublisherCreate",
+    "PublisherUpdate",
+    "PublisherResponse",
+    "PublisherRef",
     "MergeRequest",
 ]

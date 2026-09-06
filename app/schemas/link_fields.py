@@ -44,6 +44,13 @@ class StudioRef(BaseModel):
     display_name: str
 
 
+class PublisherRef(BaseModel):
+    """A publisher a page can link to, shaped exactly like StudioRef."""
+
+    system_id: UUID
+    display_name: str
+
+
 class PersonRef(BaseModel):
     """
     One credited person a page can link to.
