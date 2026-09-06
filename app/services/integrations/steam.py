@@ -197,6 +197,19 @@ def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[An
             )
             return None
 
+        if response.status_code == 400:
+            # A malformed steamid, not a transient fault. Retrying it five
+            # times with backoff only delays the answer by ~30 seconds and
+            # buries the cause under a tenacity RetryError, so this is caught
+            # here and named. STEAM_ID must be the 64-bit form - 17 digits
+            # beginning 7656119, the number in a /profiles/ URL - not the
+            # vanity name from a /id/ URL and not a display name.
+            logger.warning(
+                f"Steam rejected the Web API request for {context} (400). "
+                f"STEAM_ID is probably not a 64-bit steamid."
+            )
+            return None
+
         if response.status_code >= 500:
             logger.warning(f"Steam Web API server error for {context}.")
             return None

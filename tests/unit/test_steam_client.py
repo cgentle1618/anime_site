@@ -1,5 +1,7 @@
 """Steam transport: throttling, the two hosts, and how failures degrade."""
 
+import logging
+
 import pytest
 import requests
 
@@ -93,6 +95,30 @@ class TestStoreFailures:
 
 
 class TestWebApi:
+    def test_a_malformed_steamid_is_named_not_retried(self, monkeypatch, caplog):
+        """
+        Steam answers 400 for a steamid that is not the 64-bit form. Retrying
+        that five times with backoff buries the cause under a RetryError and
+        costs ~30 seconds; the point is to say what is wrong and stop.
+        """
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "notasteamid")
+        calls = {"n": 0}
+
+        def fake_get(url, **kwargs):
+            calls["n"] += 1
+            return FakeResponse(400)
+
+        monkeypatch.setattr(steam.requests, "get", fake_get)
+
+        with caplog.at_level(logging.WARNING):
+            assert steam.fetch_owned_games() is None
+
+        assert calls["n"] == 1, "a 400 is a bad request, not a transient fault"
+        assert any("STEAM_ID" in r.message for r in caplog.records), (
+            "the warning must name the variable the admin has to fix"
+        )
+
     def test_without_credentials_the_progress_calls_are_skipped(self, monkeypatch):
         monkeypatch.setattr(steam.settings, "steam_api_key", None)
         monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
