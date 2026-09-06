@@ -35,6 +35,13 @@ export const NAMING_CONFIGS = {
   // EN first: Western comics are known by their English titles. Every other
   // type leads with CN.
   comic: ["comic_name_en", "comic_name_cn", "comic_name_alt"],
+  game: [
+    "game_name_cn",
+    "game_name_en",
+    "game_name_roman",
+    "game_name_jp",
+    "game_name_alt",
+  ],
   collection: [
     "collection_name_cn",
     "collection_name_en",

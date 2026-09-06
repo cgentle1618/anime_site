@@ -13,6 +13,7 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     manga: "/api/manga",
     novel: "/api/novel",
     comic: "/api/comic",
+    game: "/api/game",
     franchise: "/api/franchise",
     series: "/api/series",
   };
@@ -29,6 +30,10 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
       expect(r.complete("X")).toBe(`${base}/X/complete`);
     });
   }
+
+  it("derives the game resource from MEDIA_CONFIG", () => {
+    expect(resource("game").list()).toBe("/api/game/");
+  });
 
   it("throws on unknown type", () => {
     expect(() => resource("nope")).toThrow();

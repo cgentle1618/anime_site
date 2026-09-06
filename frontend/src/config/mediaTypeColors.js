@@ -1,4 +1,4 @@
-// Frontend: media-type chip styling for anywhere eight types share a view.
+// Frontend: media-type chip styling for anywhere nine types share a view.
 //
 // The relations canvas is the first such place: a graph can hold anime, movies
 // and manga side by side. Colour does not encode the category (design rule 5,
@@ -18,6 +18,7 @@ export const MEDIA_TYPE_COLORS = Object.fromEntries(
     "manga",
     "novel",
     "comic",
+    "game",
   ].map((k) => [k, { chip: CHIP, dot: DOT }]),
 );
 

@@ -65,6 +65,14 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
+  it("lists Game in the ACG column - ACG is anime, comic and games", () => {
+    const library = NAV_SECTIONS.find((s) => s.key === "library");
+    const acg = library.columns.find((c) => c.heading === "ACG");
+    expect(acg.items.map((i) => i.label)).toContain("Game");
+    expect(activeItem("/library/game").item.label).toBe("Game");
+    expect(activeItem("/game/12").item.label).toBe("Game");
+  });
+
   it("keeps Watch Orders and Relations in Admin only", () => {
     const owners = NAV_SECTIONS.filter((s) =>
       sectionItems(s).some((i) => i.to === "/watch-orders"),

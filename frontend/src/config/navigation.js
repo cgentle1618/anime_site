@@ -93,6 +93,12 @@ export const NAV_SECTIONS = [
             matches: ["/novel"],
           },
           {
+            label: "Game",
+            icon: "fas fa-gamepad",
+            to: "/library/game",
+            matches: ["/game"],
+          },
+          {
             label: "Seiyuu",
             icon: "fas fa-microphone",
             to: "/library/seiyuu",

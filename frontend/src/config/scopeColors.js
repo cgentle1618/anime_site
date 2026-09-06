@@ -6,7 +6,7 @@
 // and config/mediaTypeColors.js still honours that everywhere else: a relation
 // graph mixes types but shows a handful at a time, each read from its label.
 // The System Options table is the case the rule does not serve. It runs the
-// same eight keys down one narrow column across hundreds of rows, where the
+// same nine keys down one narrow column across hundreds of rows, where the
 // question is "which of these two values is offered in the same places?" -
 // a shape comparison, answered instantly by hue and slowly by reading
 // "anime-movie" against "anime". Colour is the index here, not decoration.
@@ -28,6 +28,7 @@ export const SCOPE_CHIPS = {
   manga: `${CHIP} bg-scope-manga/12 border-scope-manga/40 text-scope-manga`,
   novel: `${CHIP} bg-scope-novel/12 border-scope-novel/40 text-scope-novel`,
   comic: `${CHIP} bg-scope-comic/12 border-scope-comic/40 text-scope-comic`,
+  game: `${CHIP} bg-scope-game/12 border-scope-game/40 text-scope-game`,
 };
 
 // A scope row can hold a key this build has never heard of - an older
