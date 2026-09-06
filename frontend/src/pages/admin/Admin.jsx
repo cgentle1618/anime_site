@@ -2002,6 +2002,10 @@ export default function Admin() {
                 // ~200 requests/hour, so a bulk comic fill is triggered on
                 // purpose rather than riding along with every full run.
                 { label: "Comic", url: "/api/data-control/fill/comic" },
+                // Unlike Comic, Game rides along in Fill All too - IGDB has no
+                // hourly quota to protect. The button is for filling one type
+                // after linking an igdb_id, without a full run.
+                { label: "Game", url: "/api/data-control/fill/game" },
                 // The only non-media type here: a studio fills its logo and
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
