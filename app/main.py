@@ -42,6 +42,7 @@ from app.routers import (
     options,
     person,
     plan_next,
+    publisher,
     quote,
     roles,
     search,
@@ -194,6 +195,7 @@ app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
 app.include_router(character.router)
+app.include_router(publisher.router)
 app.include_router(studio.router)
 app.include_router(credits.router)
 app.include_router(casting.router)
