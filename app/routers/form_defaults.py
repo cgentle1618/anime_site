@@ -48,6 +48,7 @@ VALID_MEDIA_TYPES = frozenset(
         "manga",
         "novel",
         "comic",
+        "game",
         "collection",
         "franchise",
         "series",

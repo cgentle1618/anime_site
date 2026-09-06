@@ -1151,8 +1151,11 @@ initial value of each Add-form field and which fields auto-fill copies. Like
 announcements, it reuses `system_configs` — one row per media type, keyed
 `form_defaults:<media_type>`, with a JSON blob as `config_value`. No dedicated table.
 
-`media_type` is one of the nine `MEDIA_CONFIG` slugs (`anime`, `anime-movie`, `movie`,
-`tv-show`, `cartoon`, `manga`, `novel`, `franchise`, `series`); anything else is 400.
+`media_type` is one of the form tabs — the nine media slugs (`anime`, `anime-movie`,
+`movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`), the grouping tiers
+(`collection`, `franchise`, `series`) and the entities (`studio`, `publisher`, `person`,
+`character`); anything else is 400. The list mirrors `FORM_TABS` in
+`frontend/src/config/adminTabs.js`.
 
 | Method   | Path            | Auth  | Description                                                                     |
 | -------- | --------------- | ----- | ------------------------------------------------------------------------------- |

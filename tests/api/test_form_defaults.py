@@ -159,6 +159,7 @@ def test_unknown_media_type_rejected(admin_client, method):
         "manga",
         "novel",
         "comic",
+        "game",
         "collection",
         "franchise",
         "series",
