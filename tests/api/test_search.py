@@ -233,3 +233,60 @@ class TestStaff:
         """Characters stay out of the universal bar — the scope is rejected."""
         assert client.get("/api/search/?q=Ichika&scope=character").status_code == 422
         assert "character" not in client.get("/api/search/?q=Ichika").json()["results"]
+
+
+class TestGameAndPublisherBuckets:
+    """
+    Every SearchableType must have a SearchBuckets field.
+
+    A type the service searches but the response model does not declare is
+    dropped silently on the way out, and the frontend indexes buckets by type
+    with no translation table - so the missing key reads as `undefined` and
+    crashes the results page on `.length`. That is exactly how `game` and
+    `publisher` shipped broken.
+    """
+
+    def test_every_searchable_type_has_a_bucket(self):
+        from app.routers.search import SearchBuckets
+        from app.services.domain.search import SEARCHABLE_BY_KEY
+
+        declared = {
+            f.alias or name
+            for name, f in SearchBuckets.model_fields.items()
+        }
+        missing = set(SEARCHABLE_BY_KEY) - declared
+        assert not missing, f"searchable but undeclared: {sorted(missing)}"
+
+    def test_games_are_searchable(self, client, db_session, sample_franchise):
+        game = models.Game(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            game_name_en="Elden Ring",
+            game_name_cn="艾爾登法環",
+        )
+        db_session.add(game)
+        db_session.flush()
+
+        body = client.get("/api/search/?q=elden").json()
+        assert [g["system_id"] for g in body["results"]["game"]] == [str(game.system_id)]
+
+    def test_game_scope_narrows_to_games(self, client, db_session, sample_franchise, sample_anime):
+        db_session.add(
+            models.Game(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                game_name_en="Test Entry",
+            )
+        )
+        db_session.flush()
+        body = client.get("/api/search/?q=test&scope=game").json()
+        assert body["results"]["game"]
+        assert body["results"]["anime"] == []
+
+    def test_publishers_are_searchable(self, client, db_session):
+        pub = models.Publisher(system_id=uuid.uuid4(), name_en="Bandai Namco")
+        db_session.add(pub)
+        db_session.flush()
+
+        body = client.get("/api/search/?q=bandai").json()
+        assert [p["system_id"] for p in body["results"]["publisher"]] == [str(pub.system_id)]

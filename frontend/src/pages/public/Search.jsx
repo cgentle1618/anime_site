@@ -179,22 +179,25 @@ export default function Search() {
       setMatchedPublishers([]);
       return;
     }
-    setMatchedCollections(results.collection);
-    setMatchedSeasonal(results.seasonal);
-    setMatchedFranchises(results.franchise);
-    setMatchedSeries(results.series);
-    setMatchedAnime(results.anime);
-    setMatchedAnimeMovies(results["anime-movie"]);
-    setMatchedMovies(results.movie);
-    setMatchedTvShows(results["tv-show"]);
-    setMatchedCartoons(results.cartoon);
-    setMatchedMangas(results.manga);
-    setMatchedNovels(results.novel);
-    setMatchedComics(results.comic);
-    setMatchedGames(results.game);
-    setMatchedPeople(results.person);
-    setMatchedStudios(results.studio);
-    setMatchedPublishers(results.publisher);
+    // `?? []` on every bucket: the API adding a searchable type without a
+    // matching SearchBuckets field once made this page crash outright on
+    // `undefined.length`. A missing bucket should render as empty instead.
+    setMatchedCollections(results.collection ?? []);
+    setMatchedSeasonal(results.seasonal ?? []);
+    setMatchedFranchises(results.franchise ?? []);
+    setMatchedSeries(results.series ?? []);
+    setMatchedAnime(results.anime ?? []);
+    setMatchedAnimeMovies(results["anime-movie"] ?? []);
+    setMatchedMovies(results.movie ?? []);
+    setMatchedTvShows(results["tv-show"] ?? []);
+    setMatchedCartoons(results.cartoon ?? []);
+    setMatchedMangas(results.manga ?? []);
+    setMatchedNovels(results.novel ?? []);
+    setMatchedComics(results.comic ?? []);
+    setMatchedGames(results.game ?? []);
+    setMatchedPeople(results.person ?? []);
+    setMatchedStudios(results.studio ?? []);
+    setMatchedPublishers(results.publisher ?? []);
     // Pills are the franchises the anime results belong to, which is not the
     // same set as the franchises whose own name matched.
     setFilterPillFranchises(searchQuery.data.related_franchises);

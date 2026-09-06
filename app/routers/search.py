@@ -44,11 +44,13 @@ class SearchBuckets(BaseModel):
     manga: List[schemas.MangaResponse] = []
     novel: List[schemas.NovelResponse] = []
     comic: List[schemas.ComicResponse] = []
+    game: List[schemas.GameResponse] = []
     seasonal: List[schemas.SeasonalResponse] = []
     # Staff. Ranked below the media buckets by the frontend, and characters are
     # deliberately not here - see services/domain/search.py.
     person: List[schemas.PersonResponse] = []
     studio: List[schemas.StudioResponse] = []
+    publisher: List[schemas.PublisherResponse] = []
 
     # The bucket keys the frontend uses are hyphenated media-type keys, but
     # "anime-movie" is not a Python identifier. The aliases keep the wire format
