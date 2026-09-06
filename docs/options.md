@@ -74,7 +74,7 @@ file's own comment calls this Ruling R10). See
 | `ReadStatus` (Enum) | `Might Read`, `Plan to Read`, `Active Reading`, `Passive Reading`, `Paused`, `Completed`, `Completed (解說)`, `Temp Dropped`, `Dropped`, `Won't Read` | `reading_status` on manga, novel, comic | `reading_status` |
 | `COMPLETED_WATCH_STATUSES` | `{Completed, Completed (解說)}` | completion checks (`Completed (解說)` = finished via a summary/commentary video; counts as completed everywhere) | not served |
 | `COMPLETED_READ_STATUSES` | `{Completed, Completed (解說)}` | same, for reading types | not served |
-| `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable | **not served yet** |
+| `PlayStatus` (Enum) | `Might Play`, `Plan to Play`, `Play When Released`, `Active Playing`, `Passive Playing`, `Paused`, `Completed`, `Temp Dropped`, `Dropped`, `Won't Play` | `playing_status` on games. `Play When Released` is `Watch When Airs`'s analogue and more load-bearing here: a pre-ordered or wishlisted unreleased title is an ordinary state in a collection organised by purchasable | `playing_status` |
 | `COMPLETED_PLAY_STATUSES` | `{Completed}` | completion checks for games. One value: there is no games analogue of `Completed (解說)`. Declared anyway so it reads beside its two siblings | not served |
 | `AiringStatus` (Enum) | `Not Yet Aired`, `Airing`, `Finished Airing`, `Canceled`, `Rumored` | `airing_status` (business logic compares string literals, the Enum itself is only served) | `airing_status` |
 | `AnimeAiringType` (Enum) | `TV`, `ONA`, `OVA`, `OAD`, `Special`, `Movie` | backend-internal only | not served |
@@ -91,13 +91,13 @@ file's own comment calls this Ruling R10). See
 | `NOVEL_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `novel.region` | `novel_region` |
 | `NOVEL_TYPES` | `Light Novel`, `Novel`, `Web`, `Other` | `novel.novel_type`; also the Plan page novel grouping | `novel_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
-| `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | **not served yet** |
-| `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | **not served yet** |
-| `GAME_RELEASE_STATUSES` | `Released`, `Early Access`, `Announced`, `Delayed`, `Cancelled` | `games.release_status` | **not served yet** |
-| `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | **not served yet** |
-| `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | **not served yet** |
-| `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | **not served yet** |
-| `GAME_ACQUISITION_KINDS` | `Bought`, `Gifted`, `Free`, `Bundled`, `Subscription` | `game_copy.acquisition` | **not served yet** |
+| `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | `game_type` |
+| `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
+| `GAME_RELEASE_STATUSES` | `Released`, `Early Access`, `Announced`, `Delayed`, `Cancelled` | `games.release_status` | `game_release_status` |
+| `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
+| `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
+| `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
+| `GAME_ACQUISITION_KINDS` | `Bought`, `Gifted`, `Free`, `Bundled`, `Subscription` | `game_copy.acquisition` | `game_acquisition` |
 | `MANGA_SERIALIZATION_STATUSES` | `連載中`, `停更`, `腰斬`, `完結` | `manga.serialization_status` | `manga_serialization_status` |
 | `NOVEL_SERIALIZATION_STATUSES` | `連載中`, `連載中 (不穩定)`, `連載中 (有生之年)`, `停更`, `完結`, `腰斬`, `可能更多`, `未出` | `novel.serialization_status`; `完結` gates the volume/chapter checks | `novel_serialization_status` |
 | `WEEKDAYS` | `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` | `anime.broadcast_day`, `anime.my_watch_day` (plain strings, no validator) | `day_of_week` |
@@ -113,13 +113,23 @@ and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
 
-**None of the eight game lists reaches `/api/constants` yet.** They exist in
-`constants.py` and the models default against them, but `get_constants()`
-(`app/routers/constants.py`) has no `playing_status`, `game_type`,
+**All eight game lists reach `/api/constants`.** They shipped with the games
+backend but were not served until commit `1bd3193`; `get_constants()`
+(`app/routers/constants.py`) now returns `playing_status`, `game_type`,
 `completion_level`, `game_release_status`, `game_storefront`,
-`game_ownership`, `game_copy_format` or `game_acquisition` key. Two derived
-keys did widen automatically: `franchise_type` now carries `Game`, and
-`media_type` carries `game`, because both are built from lists that grew.
+`game_ownership`, `game_copy_format` and `game_acquisition`. The four
+`game_copy` vocabularies are prefixed `game_` because the column name alone
+(storefront, ownership, acquisition) would not say which table it belongs to
+in one flat map. Two derived keys widened automatically when the games backend
+landed: `franchise_type` now carries `Game`, and `media_type` carries `game`,
+because both are built from lists that grew.
+
+Only `playing_status` is wired into the frontend fallback map, though. It is
+the one game list in `CONSTANTS_FALLBACK` in
+`frontend/src/config/fieldOptions.js`, so it is the one `applyConstants()`
+overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
+`GAME_RELEASE_STATUSES` and the four `game_copy` arrays are still
+hand-maintained literals in that file, kept matching `constants.py` by hand.
 
 `/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),

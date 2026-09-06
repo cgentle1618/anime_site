@@ -252,7 +252,7 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 
 Steps:
 
-1. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine id out of the pasted link) and commit.
+1. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine / IGDB id out of the pasted link) and commit.
 2. Queue = entries where `spec.fill_eligible(db, entry)` is true. Empty queue → one progress message `"No entries need filling."`.
 3. Per queued entry: check the client is still connected; if `spec.budget` exists and returns `False`, stop and remember how many were left; emit progress with the entry's `display_name`; run `spec.fill` in a worker thread (`run_in_threadpool`, so the event loop and other requests stay alive during the synchronous `requests` calls) and commit. One failing entry is rolled back and logged; the run continues. Then `asyncio.sleep(spec.fill_sleep)` if set.
 4. If `spec.post_process` exists, emit `"Running post-processing..."` and run it on **every** entry of the type (not just the queue), then commit.
@@ -271,9 +271,10 @@ Per type (verbatim from `specs.py`):
 | `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
 | `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
+| `game` | `igdb_id` set and `has_missing_values_game(e)` | `autofill_game_from_igdb(e, db)` | `IGDB_PAUSE` = 0.25 s | — | `"Syncing system options..."` → `run_sync_game` | — |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
-`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
+`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_igdb_id` (game — from `igdb_link`; a `www.igdb.com` **slug** URL carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
 
 **Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
 
@@ -283,14 +284,29 @@ because `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the
 data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Until IGDB landed (its own plan, right
 after) `fill_eligible` returned `False` for every row, so a Fill run reported
-"No entries need filling" rather than erroring. Games still have **no bulk
-Replace** (`replace_select` and `replace` are `None`, `in_replace_all=False`).
+"No entries need filling" rather than erroring. **That stub is gone**: Fill
+Game now calls `autofill_game_from_igdb`, and games are in Fill All. What has
+**not** changed is that games still have **no bulk Replace**
+(`replace_select` and `replace` are `None`, `in_replace_all=False`) — an IGDB
+record carries no score or rank that drifts, the same reasoning that makes
+Studio `fill_only`.
+
+**Game Fill has no budget guard**, unlike Comic. IGDB's limit is 4
+requests/second with no hourly quota, so the client's sliding-window limiter
+paces the run and nothing ever has to abandon it part-way; `IGDB_PAUSE` (0.25 s)
+is polite spacing on top, not the guard. `has_missing_values_game` looks only at
+`GAME_FIELDS_TO_FILL` (`igdb_link`, `release_date`, `cover_image_file`,
+`hltb_main`, `hltb_main_extra`, `hltb_completionist`) — deliberately **not** at
+the genre/theme/mode tags, because an IGDB value with no `system_option_alias`
+row is logged and skipped rather than stored, so a game with an un-aliased
+genre would otherwise be "needs filling" forever. See
+[external-apis.md](external-apis.md#igdb).
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
 **Studio is the only non-media type in the registry.** It fills from MAL's producer endpoint (logo, `mal_link`, `founded_date`, `name_jp`, `website_url` — all fill-only; see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data)) and carries `fill_only=True`, so `_register_replace_routes` is skipped for it entirely: there is no bulk or single Replace for a studio, because a producer record holds no score or rank that drifts. The same autofill also runs inside `POST` / `PUT /api/studio` on save, so a studio you enter with a MAL id is filled without visiting this page at all.
 
-**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel, studio — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
+**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel, game, studio — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
 
 ---
 
@@ -348,7 +364,7 @@ All in `calculation.py`; storage helpers come from `app/services/integrations/im
 | `bulk_check_cover_image(db, entry_type)` | `GET /calculate/check-cover-image` | Lists entries whose `cover_image_file` is set but whose file is missing in storage. With `entry_type` only Anime rows with that `airing_type` are checked; without it all eight types are. Also embeds `bulk_check_unused_cover_images`: files in storage referenced by no row, split into `should_use` (file stem is a known `system_id`) and `orphaned` (unknown stem). | `total_checked`, `missing_count`, `missing[]` (`system_id`, `name`, `entry_type`), `entry_type`, `should_use[]`, `should_use_count`, `orphaned[]`, `orphaned_count` |
 | `bulk_set_cover_image_fields(db)` | `POST /calculate/set-cover-image-fields` | For every entry (all eight types) with `cover_image_file` null whose file exists in storage, sets `cover_image_file = "{system_id}.jpg"`. | `updated_count` |
 | `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` file from the check above. | `deleted_count` |
-| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`. One commit at the end. | `message`: `"Downloaded X of Y missing cover images."` plus `"N skipped (no Tenrai source for this type)."` when any were skipped |
+| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`. **Games are not walked at all** — the function hand-lists eight models and `Game` was never added, so a game with a missing cover file is neither downloaded nor counted. One commit at the end. | `message`: `"Downloaded X of Y missing cover images."` plus `"N skipped (no Tenrai source for this type)."` when any were skipped |
 
 ---
 

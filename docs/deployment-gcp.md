@@ -1,6 +1,6 @@
 # Deployment (Google Cloud)
 
-Last verified: 2026-09-02 (commit e14dba6)
+Last verified: 2026-09-06
 
 > ## ⚠️ Status: the GCP deployment is down (as of 2026-09-02)
 >
@@ -145,6 +145,7 @@ sensitive ones:
 | `GOOGLE_SHEET_ID` | for Backup/Pull | |
 | `GCP_BUCKET_NAME` | optional | Defaults to `cg1618-anime-covers`. |
 | `TMDB_API_KEY`, `OMDB_API_KEY`, `COMICVINE_API_KEY` | for Fill | Missing keys make those fills fail per entry, not the app. |
+| `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` | for Fill Game | Twitch application credentials, not an IGDB key — IGDB authenticates through Twitch. Both or neither: with one missing the client logs and skips, so Fill Game fills nothing. The bearer token is fetched and refreshed at runtime and is **not** an env var. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES`, `ALGORITHM` | optional | Defaults 1440 / HS256. |
 
 Do not set `K_SERVICE` or `DATABASE_URL` yourself.

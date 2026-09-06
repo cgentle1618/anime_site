@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-06
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -114,6 +114,8 @@ list. Variable names are case-insensitive.
 | `TMDB_API_KEY` | unset | TMDB: movie/TV cover, release date, director |
 | `OMDB_API_KEY` | unset | OMDb: IMDb rating |
 | `COMICVINE_API_KEY` | unset | Comic Vine: comic run metadata and covers |
+| `IGDB_CLIENT_ID` | unset | IGDB (games): Twitch application client id |
+| `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
 | `GCP_BUCKET_NAME` | unset locally | GCS bucket for cover images. Unset means covers are written to `static/covers/` on disk. |
@@ -129,7 +131,13 @@ for the integrations you have not configured.
 - **OMDb**: free key from omdbapi.com (1,000 requests/day on the free tier).
 - **Comic Vine**: sign in to a GameSpot account, then the key is shown at
   comicvine.gamespot.com/api/.
-- **Tenrai** (MAL metadata) needs no key.
+- **IGDB**: there is no IGDB key. IGDB authenticates through **Twitch**:
+  register an application at dev.twitch.tv/console/apps and use its client id
+  and client secret. The app exchanges them at `id.twitch.tv/oauth2/token` for
+  a bearer token and refreshes it on its own — nothing to rotate by hand. Set
+  **both** or the client logs `"IGDB_CLIENT_ID / IGDB_CLIENT_SECRET are not
+  both set."` and skips every call.
+- **Tenrai** (MAL metadata) and **Open Library** need no key.
 
 ### Google service account (`credentials.json`)
 

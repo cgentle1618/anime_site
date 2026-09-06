@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Seven outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Eight outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** fills games; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
 
@@ -18,6 +18,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 - [IMDb orchestration (TMDB + OMDb together)](#imdb-orchestration-tmdb--omdb-together)
 - [Comic Vine](#comic-vine)
 - [Open Library](#open-library)
+- [IGDB](#igdb)
 - [Google Sheets](#google-sheets)
 - [Google Cloud Storage (cover images)](#google-cloud-storage-cover-images)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
@@ -32,6 +33,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
+| IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 | Google Cloud Storage | via `google-cloud-storage` | `settings.bucket_name` ← `GCP_BUCKET_NAME` (defaults to `cg1618-anime-covers` on Cloud Run only) | `app/services/integrations/image_manager.py`, `app/utils/gcp_utils.py` | — | cover images |
 
@@ -39,14 +41,14 @@ A missing key is never fatal: each client logs `"<NAME> environment variable is 
 
 ## Shared behaviour
 
-The four metadata clients (Tenrai, TMDB, OMDb, Comic Vine) are built the same way.
+The metadata clients (Tenrai, TMDB, OMDb, Comic Vine, Open Library, IGDB) are built the same way. IGDB is the one that departs from the shape in two places, both called out in its own section: it POSTs an APIcalypse body instead of GETting query params, and it carries a refreshed OAuth bearer token instead of a static key.
 
 | Concern | Behaviour |
 |---|---|
 | HTTP library | `requests`, synchronous, `timeout=15` seconds on every call (also on the cover-image download in `image_manager.py`). |
-| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`). Each is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers or two Cloud Run instances do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
+| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). Each is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers or two Cloud Run instances do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
 | Retry | `tenacity` decorator: `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried only on `requests.exceptions.RequestException` (network / timeout) and the client's own `RateLimitExceeded` (raised on HTTP 429, plus 420 for Comic Vine). `reraise=False`. |
-| Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key). |
+| Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key); IGDB's 401 additionally **clears the cached token** so the next call refetches one. |
 | When the 5 attempts run out | Because `reraise=False`, tenacity raises its own `tenacity.RetryError`. Every `autofill_*` function in `app/services/domain/autofill.py` wraps its whole body in `try: … except Exception as e: logger.error(...)`, so the `RetryError` is **swallowed**: the entry is left untouched, an error line is logged, and the pipeline moves on as if the entry had simply had nothing to fetch. Nothing in the UI distinguishes "no data" from "the network was down five times in a row". |
 
 ## Tenrai (MyAnimeList)
@@ -264,6 +266,112 @@ selects rows with `mal_id`/`mal_link` set, so an Open-Library-only novel is
 never picked up by bulk Replace. Every Open Library write here is fill-only,
 so there is nothing for Replace to re-fetch that Fill has not already done.
 
+## IGDB
+
+IGDB fills `games`. It is the only integration here whose credentials belong to
+a **different company**: IGDB authenticates through Twitch, so the two secrets
+come from a developer application registered at
+[dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps), not from
+igdb.com, and both must be set or the client fails closed to `None` without
+calling out.
+
+Three things make `igdb.py` a genuinely different client rather than a copy of
+`comicvine.py`, and its module docstring says so:
+
+1. **Queries are POSTs with an APIcalypse body**, not GETs with query params.
+   The body is a small DSL — `fields a,b; where id = 5; limit 10;` — sent as
+   the raw request body.
+2. **Auth is a refreshed OAuth bearer token**, not a static key. `_get_token()`
+   POSTs `client_id` / `client_secret` / `grant_type=client_credentials` to
+   `https://id.twitch.tv/oauth2/token`, caches `{token, expires_at}` in a
+   module-level dict, and refetches only once the token is within
+   `TOKEN_EXPIRY_MARGIN` (60 s) of expiry — so a Fill run over 300 games costs
+   one Twitch call, not 300. Every IGDB request then sends both
+   `Client-ID: <client id>` and `Authorization: Bearer <token>`. No other
+   client in this app refreshes anything.
+3. **The rate limit is 4 requests/second** — Tenrai's shape, not Comic Vine's
+   hourly quota — so `IGDBRateLimiter` is a sliding window and the pipeline
+   spec gets **no `budget`**: there is no quota to exhaust part-way through a
+   run.
+
+| Item | Value |
+|---|---|
+| Endpoints | `POST /v4/games` twice over: `fields …; where id = {igdb_id}; limit 1;` (`fetch_igdb_game`) and `search "{term}"; fields …; limit {n};` (`search_igdb_games`, exposed to admins at `GET /api/game/search-igdb?q=&limit=`, `limit` 1–50). Plus `POST /v4/game_time_to_beats` (`fetch_igdb_time_to_beat`). |
+| Field lists | `GAME_FIELDS` and `SEARCH_FIELDS` are the contract with `igdb_utils.py`: IGDB returns nothing you do not ask for, so a new mapped field means editing both. |
+| ID from link | `extract_igdb_id` matches `api\.igdb\.com/v\d+/games/(\d+)`. A public `www.igdb.com` URL carries only a **slug**, no id, and deliberately yields `None` — a slug URL is a link, not an identifier. `apply_extract_igdb_id` runs it over `igdb_link` on every entry at the start of a Fill run. |
+| Search-term safety | An APIcalypse `search` term is a quoted string, so `search_igdb_games` strips every `"` from the query before interpolating it; a stray quote would terminate the term. |
+| Failure codes | 401 → clear the token cache, log, return `None`. 404 → warning, `None`. 429 → `RateLimitExceeded`, retried. 5xx → warning, `None`, no retries. Same `@retry(stop_after_attempt(5), wait_exponential(1, 2, 10), reraise=False)` as every other client. |
+
+### Time to beat — verified against the live IGDB reference on 2026-09-06
+
+This is the part that is easy to get wrong, and all three details were checked
+against IGDB's published reference:
+
+- The resource is **`game_time_to_beats`**, plural. The singular `time_to_beat`
+  resource of earlier API versions **no longer exists**.
+- It is filtered on **`game_id`**, not `id` — `id` is the time-to-beat
+  record's own primary key, so `where id = <game id>` silently returns the
+  wrong row or none.
+- `hastily`, `normally` and `completely` are **integers in SECONDS**.
+  `fetch_igdb_time_to_beat` divides each by `SECONDS_PER_HOUR = 3600.0` and
+  rounds to one decimal before returning `hltb_main` / `hltb_main_extra` /
+  `hltb_completionist`, because those columns are hours. Storing them raw
+  would put `162000` in `hltb_main`.
+
+Most games have no submissions at all, so `None` here is ordinary and not a
+failure. **HowLongToBeat itself is never called**: it publishes no official
+API, and these figures — despite the `hltb_*` column names, which predate the
+integration — come from IGDB.
+
+### Mapping — `map_igdb_to_game_data`
+
+| IGDB field | Mapped key | Written to | Rule |
+|---|---|---|---|
+| `name` | `name` | nothing | Mapped but **never written**: `game_name_en` is the entry's identity and often a deliberate shorthand. |
+| `summary` | `summary` | nothing | Mapped but **not stored** — `games` has no summary column by design; a synopsis belongs in the entry's notes, written by hand. |
+| `first_release_date` | `release_date` | `games.release_date` | Unix seconds read as **UTC** (a local-time read would shift a midnight release by a day), then `app.utils.release_date.normalize`; fill-only |
+| `url` | `igdb_link` | `games.igdb_link` | fill-only |
+| `cover.url` | `cover_image_url` | cover download | `t_thumb` swapped for `t_cover_big_2x` in the path, protocol-relative `//` prefixed with `https:`; fill-only, and done **last** so a download failure cannot cost the cheap columns |
+| `involved_companies` where `developer` | `developers` | `media_credit` role `studio` | only when the entry has no studio credit yet — a game's developer **is** its studio |
+| `involved_companies` where `publisher` | `publishers` | `media_credit` role `publisher` | only when the entry has no publisher credit yet |
+| `genres.name` / `themes.name` / `game_modes.name` | `genres` / `themes` / `game_modes` | `media_tag` fields `game_genre` / `game_theme` / `game_mode` | raw **English**, translated by the alias layer — see below |
+| `parent_game` | `parent_igdb_id` | `games.base_game_id` | a bare IGDB id; resolved against the database by the autofill |
+
+A company that is neither a developer nor a publisher (a porting or supporting
+studio) is dropped: it is not a credit this project keeps, and crediting it as
+a developer would be wrong.
+
+### Autofill — `autofill_game_from_igdb`
+
+**Fill-only throughout**, and the whole body sits in one
+`try: … except Exception as e: logger.error(...)` — the same swallow-and-log
+every other autofill does, with the same consequence noted under
+[Shared behaviour](#shared-behaviour).
+
+The one rule unique to games is the **alias translation**. IGDB speaks English;
+the tag vocabulary is Chinese. Each genre/theme/mode value goes through
+`resolve_option_alias(db, category, "igdb", english)`, and a value with **no
+`system_option_alias` row is logged and skipped** — never stored raw, never
+invented, never dropped silently. A new IGDB genre is supposed to surface as a
+gap to fill on the Options admin page.
+
+That choice is why `has_missing_values_game` (`app/services/domain/checking.py`)
+reads **columns only** — `GAME_FIELDS_TO_FILL` is `igdb_link`, `release_date`,
+`cover_image_file` and the three `hltb_*` columns — and takes no `db` argument.
+Including the genre/theme/mode tags would leave a game whose genre has no alias
+yet permanently "needs filling", re-requested on every single run.
+
+`parent_game` is why IGDB was chosen over RAWG: when the parent game is already
+in the database (matched on `igdb_id`, excluding the row itself), Fill sets
+`base_game_id` and the DLC links itself up. A parent not yet entered leaves the
+column null, which is exactly why `base_game_id` is nullable even for a DLC.
+
+**No bulk Replace.** `replace_select` and `replace` are `None` and
+`in_replace_all=False`, on the same reasoning as Studio's `fill_only`: an IGDB
+record carries no score or rank that drifts, so a re-fetch would only rewrite
+what Fill already wrote. Games **are** in Fill All, unlike comics — there is no
+hourly quota to protect.
+
 ## Google Sheets
 
 Sheets is the backup target and restore source. `sheets.py` contains no database logic — it only moves matrices in and out of tabs.
@@ -329,6 +437,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library, plus GCS |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai, GCS |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine, GCS |
+| `game` | `apply_extract_igdb_id` | `autofill_game_from_igdb`; no budget (no hourly quota); in Fill All; no bulk Replace | `IGDB_PAUSE` (0.25 s) | IGDB (+ Twitch for the token), GCS |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page use GCS and, for missing covers, the autofill functions again.
 
@@ -337,7 +446,8 @@ Bulk Replace (`_linked(...)`) re-fetches only entries that already have an exter
 Things the code does today that a reader might not expect. None is a documentation error — they are worth knowing before changing the code.
 
 - `RetryError` is swallowed by every autofill, so a total outage looks like "nothing to fill" (see [Shared behaviour](#shared-behaviour)).
-- All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every deploy.
+- All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every deploy. The IGDB **token** cache is per-process too, so N instances mean N Twitch token requests — harmless, since Twitch issues one per client-credentials grant regardless.
+- IGDB company enrichment is not built: Fill creates or links `studio` and `publisher` rows **by name only**, so a game company has no logo, country or founding date until someone types one in.
 - `fetch_tmdb_data`'s retry wraps both TMDB calls, so a flaky details call costs an extra Find call per attempt.
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
