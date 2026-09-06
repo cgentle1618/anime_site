@@ -8,6 +8,7 @@ import cartoon from "./cartoon";
 import manga from "./manga";
 import novel from "./novel";
 import comic from "./comic";
+import game from "./game";
 
 export const LIBRARY_CONFIGS = {
   anime,
@@ -18,4 +19,5 @@ export const LIBRARY_CONFIGS = {
   manga,
   novel,
   comic,
+  game,
 };
