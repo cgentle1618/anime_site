@@ -18,6 +18,14 @@ describe("admin tab groups", () => {
     expect(groupOf(ADMIN_TABS, "publisher")).toBe("entity");
   });
 
+  it("puts game in the entries group", () => {
+    // groupOf falls back to the first group for an unknown key, so assert the
+    // tab exists before asserting where it sits - otherwise this passes on a
+    // registry that has never heard of games.
+    expect(ADMIN_TABS.map((t) => t.key)).toContain("game");
+    expect(groupOf(ADMIN_TABS, "game")).toBe("entries");
+  });
+
   it("gives every Entity tab a form-defaults tab", () => {
     // Studio, Person and Character are not media entries, but each has an Add
     // form whose starting values the admin configures on /defaults.

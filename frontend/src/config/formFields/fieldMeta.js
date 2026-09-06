@@ -28,6 +28,7 @@ import {
   ANIME_AIRING_TYPES,
   CARTOON_AIRING_TYPES,
   COMIC_TYPES,
+  COMPLETION_LEVELS,
   FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
   IS_MAIN,
@@ -37,12 +38,16 @@ import {
   MY_RATINGS,
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES,
+  GAME_RELEASE_STATUSES,
+  GAME_TYPES,
   NOVEL_TYPES,
   PART_NUMS,
+  PLAYING_STATUSES,
   PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
   RELEASE_SEASONS,
   SEASON_NUMS,
+  TRISTATE,
   TV_REGIONS,
   WATCHING_STATUSES,
 } from "../fieldOptions";
@@ -105,6 +110,12 @@ export const COMMON_FIELD_META = {
     label: "Reading Status",
     control: "select",
     options: READING_STATUSES,
+    group: "Status",
+  },
+  playing_status: {
+    label: "Playing Status",
+    control: "select",
+    options: PLAYING_STATUSES,
     group: "Status",
   },
   is_main: {
@@ -198,6 +209,8 @@ export const COMMON_FIELD_META = {
   to_rewatch: { label: "To Rewatch", control: "checkbox", group: "Flags" },
   read_next: { label: "Read Next", control: "checkbox", group: "Flags" },
   to_reread: { label: "To Reread", control: "checkbox", group: "Flags" },
+  play_next: { label: "Play Next", control: "checkbox", group: "Flags" },
+  to_replay: { label: "To Replay", control: "checkbox", group: "Flags" },
 
   // ---- Media & notes ---------------------------------------------------
   cover_image_file: {
@@ -724,6 +737,160 @@ export const TYPE_FIELD_META = {
     },
   },
 
+  game: {
+    game_name_cn: { label: "Name (CN)", group: "Names" },
+    game_name_en: { label: "Name (EN)", group: "Names" },
+    game_name_roman: { label: "Name (Romaji)", group: "Names" },
+    game_name_jp: { label: "Name (JP)", group: "Names" },
+    game_name_alt: { label: "Name (Alt)", group: "Names" },
+    game_type: {
+      label: "Game Type",
+      control: "select",
+      options: GAME_TYPES,
+      group: "Classification",
+    },
+    // The parent a DLC or expansion hangs off. An entity picker over the
+    // games list, so there is nothing sensible to default it to.
+    base_game_id: {
+      label: "Base Game",
+      control: "none",
+      defaultable: false,
+      group: "Relations",
+    },
+    release_status: {
+      label: "Release Status",
+      control: "select",
+      options: GAME_RELEASE_STATUSES,
+      group: "Status",
+    },
+    completion_level: {
+      label: "Completion Level",
+      control: "select",
+      options: COMPLETION_LEVELS,
+      group: "Status",
+    },
+    all_endings: {
+      label: "All Endings",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    current_patch: { label: "Current Patch", group: "Status" },
+    achievements_earned: {
+      label: "Achievements Earned",
+      control: "number",
+      group: "Progress",
+    },
+    achievements_total: {
+      label: "Achievements Total",
+      control: "number",
+      group: "Progress",
+    },
+    hours_played: {
+      label: "Hours Played",
+      control: "number",
+      group: "Progress",
+    },
+    // The three How-Long-To-Beat tiers IGDB serves, in hours.
+    hltb_main: { label: "HLTB Main", control: "number", group: "Progress" },
+    hltb_main_extra: {
+      label: "HLTB Main + Extra",
+      control: "number",
+      group: "Progress",
+    },
+    hltb_completionist: {
+      label: "HLTB Completionist",
+      control: "number",
+      group: "Progress",
+    },
+    // price_original_* is MSRP; price_current_* is a snapshot Fill overwrites.
+    // Neither is what YOU paid - that is game_copy.price_paid.
+    price_original_us: { label: "MSRP (US)", control: "number", group: "Release" },
+    price_original_jp: { label: "MSRP (JP)", control: "number", group: "Release" },
+    price_original_tw: { label: "MSRP (TW)", control: "number", group: "Release" },
+    price_current_us: {
+      label: "Current Price (US)",
+      control: "number",
+      group: "Release",
+    },
+    price_current_jp: {
+      label: "Current Price (JP)",
+      control: "number",
+      group: "Release",
+    },
+    price_current_tw: {
+      label: "Current Price (TW)",
+      control: "number",
+      group: "Release",
+    },
+    // Developer is a Studio row and publisher a Publisher row - two entity
+    // tables, not vocabulary values. COMMON_FIELD_META already shapes
+    // `publisher`; `studio` is relabelled here because for a game the studio
+    // IS the developer.
+    studio: {
+      label: "Developer",
+      control: "tags",
+      source: { kind: "studio" },
+      group: "Credits",
+    },
+    director: {
+      label: "Director",
+      control: "tags",
+      source: { kind: "person", role: "director", scope: "game" },
+      group: "Credits",
+    },
+    composer: {
+      label: "Composer",
+      control: "tags",
+      source: { kind: "person", role: "composer", scope: "game" },
+      group: "Credits",
+    },
+    // The four game vocabularies. Values are Chinese; the IGDB English
+    // strings live in system_option_alias rows, never here.
+    game_genre: {
+      label: "Genre",
+      control: "tags",
+      source: { kind: "option", category: "Game Genre", scope: "game" },
+      group: "Classification",
+    },
+    game_theme: {
+      label: "Theme",
+      control: "tags",
+      source: { kind: "option", category: "Game Theme", scope: "game" },
+      group: "Classification",
+    },
+    game_mode: {
+      label: "Mode",
+      control: "tags",
+      source: { kind: "option", category: "Game Mode", scope: "game" },
+      group: "Classification",
+    },
+    combat_mode: {
+      label: "Combat Mode",
+      control: "tags",
+      source: { kind: "option", category: "Combat Mode", scope: "game" },
+      group: "Classification",
+    },
+    label: {
+      label: "Label",
+      control: "tags",
+      source: { kind: "option", category: "Label", scope: "game" },
+      group: "Classification",
+    },
+    // Fill reads igdb_id, which the backend derives from this link - so the
+    // link is the only one the admin ever types.
+    igdb_link: { label: "IGDB Link", control: "url", group: "Links" },
+    steam_link: { label: "Steam Link", control: "url", group: "Links" },
+    // Repeatable copy rows, rendered by <GameCopiesEditor>.
+    copies: {
+      label: "Copies",
+      control: "none",
+      defaultable: false,
+      group: "Sources",
+    },
+  },
+
   collection: {
     collection_name_en: { label: "Name (EN)", group: "Names" },
     collection_name_cn: { label: "Name (CN)", group: "Names" },
@@ -1014,6 +1181,18 @@ export const BUILTIN_AUTOFILL = {
     "continuity",
     "era",
     "comic_type",
+  ],
+  game: [
+    "game_name_cn",
+    "game_name_en",
+    "game_name_roman",
+    "game_name_jp",
+    "game_name_alt",
+    "franchise_id",
+    "series_id",
+    "game_type",
+    "base_game_id",
+    "release_status",
   ],
   franchise: [],
   series: [],

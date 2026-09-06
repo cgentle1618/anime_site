@@ -7,6 +7,7 @@ import {
   buildAnimePayload,
   buildAnimeMoviePayload,
   buildCreditsPayload,
+  gameFieldsPayload,
 } from "../../utils/media";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
@@ -38,6 +39,7 @@ import { useReplaceCasting } from "../../hooks/useCasting";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
+import GameAddTab, { defaultGame } from "../add-tabs/GameAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
@@ -75,6 +77,7 @@ export default function Add() {
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
   const [allComics, setAllComics] = useState([]);
+  const [allGames, setAllGames] = useState([]);
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
@@ -143,6 +146,7 @@ export default function Add() {
   const [mgf, setMgf] = useState(defaultManga());
   const [nvf, setNvf] = useState(defaultNovel());
   const [cmf, setCmf] = useState(defaultComic());
+  const [gmf, setGmf] = useState(defaultGame());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
@@ -196,6 +200,7 @@ export default function Add() {
   const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
+  const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
@@ -283,6 +288,7 @@ export default function Add() {
           mgRes,
           nvRes,
           cmRes,
+          gmRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
@@ -295,6 +301,7 @@ export default function Add() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: a form-defaults failure must not break the page,
         // it just means every form falls back to its built-in values.
@@ -314,6 +321,7 @@ export default function Add() {
           mangas,
           novels,
           comics,
+          games,
         ] = await Promise.all([
           aRes.json(),
           colRes.json(),
@@ -326,6 +334,7 @@ export default function Add() {
           mgRes.json(),
           nvRes.json(),
           cmRes.json(),
+          gmRes.json(),
         ]);
         setAllAnime(anime);
         setAllCollections(collections);
@@ -339,6 +348,7 @@ export default function Add() {
         setAllMangas(mangas);
         setAllNovels(novels);
         setAllComics(comics);
+        setAllGames(games);
 
         // Seed every form from the configured defaults. Safe to do here rather
         // than in the useState initializers: the page renders a spinner until
@@ -352,6 +362,7 @@ export default function Add() {
         setMgf(resolveDefaults("manga", fd));
         setNvf(resolveDefaults("novel", fd));
         setCmf(resolveDefaults("comic", fd));
+        setGmf(resolveDefaults("game", fd));
         setColf(resolveDefaults("collection", fd));
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
@@ -618,6 +629,7 @@ export default function Add() {
       else if (activeTab === "manga") await submitManga();
       else if (activeTab === "novel") await submitNovel();
       else if (activeTab === "comic") await submitComic();
+      else if (activeTab === "game") await submitGame();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
@@ -2296,6 +2308,159 @@ export default function Add() {
     setAllComics((prev) => [...prev, created]);
   }
 
+  async function submitGame() {
+    if (!gmf.game_name_cn && !gmf.game_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!gmf.franchise_id && !gmf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = gmf.franchise_id;
+    if (!franchiseId && gmf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Game",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: gmf.game_name_cn || null,
+          franchise_name_en: gmf.game_name_en || null,
+          franchise_name_roman: gmf.game_name_roman || null,
+          franchise_name_jp: gmf.game_name_jp || null,
+          franchise_name_alt: gmf.game_name_alt || null,
+          franchise_type: "Game",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = gmf.series_id;
+    if (!seriesId && gmf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: gmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: gmf.game_name_cn || null,
+          series_name_en: gmf.game_name_en || null,
+          series_name_alt: gmf.game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing entities for every game credit/tag field. Developer
+    // and publisher resolve to entity rows; the four vocabularies do not.
+    await ensureSourceValues([
+      { source: { kind: "studio" }, values: splitTags(gmf.studio) },
+      { source: { kind: "publisher" }, values: splitTags(gmf.publisher) },
+      {
+        source: { kind: "person", role: "director", scope: "game" },
+        values: splitTags(gmf.director),
+      },
+      {
+        source: { kind: "person", role: "composer", scope: "game" },
+        values: splitTags(gmf.composer),
+      },
+      {
+        source: { kind: "option", category: "Game Genre", scope: "game" },
+        values: splitTags(gmf.game_genre),
+      },
+      {
+        source: { kind: "option", category: "Game Theme", scope: "game" },
+        values: splitTags(gmf.game_theme),
+      },
+      {
+        source: { kind: "option", category: "Game Mode", scope: "game" },
+        values: splitTags(gmf.game_mode),
+      },
+      {
+        source: { kind: "option", category: "Combat Mode", scope: "game" },
+        values: splitTags(gmf.combat_mode),
+      },
+      {
+        source: { kind: "option", category: "Label", scope: "game" },
+        values: splitTags(gmf.label),
+      },
+    ]);
+
+    const payload = {
+      ...gameFieldsPayload(gmf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      playing_status: gmf.playing_status || freshForm("game").playing_status,
+    };
+
+    const res = await fetch("/api/game/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    await saveCredits("game", created.system_id, gmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Game appended successfully.");
+    setLastAdded(created.game_name_cn || created.game_name_en || "New Game");
+    setGmf(freshForm("game"));
+    setContentLabels([]);
+    setAllGames((prev) => [...prev, created]);
+  }
+
   // franchise system_id -> the name of the collection it belongs to, so every
   // tab with a franchise picker can name the wider grouping.
   const franchiseCollections = Object.fromEntries(
@@ -2398,6 +2563,18 @@ export default function Add() {
   const seriesItemsForNovel = (
     nvf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForGame = (
+    gmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === gmf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2625,6 +2802,19 @@ export default function Add() {
             applyComicAutofill={applyComicAutofill}
             allFranchises={allFranchises}
             seriesItemsForComic={seriesItemsForComic}
+            sources={sources}
+          />
+        )}
+
+        {/* ═══ GAME TAB ═══ */}
+        {activeTab === "game" && (
+          <GameAddTab
+            franchiseCollections={franchiseCollections}
+            gmf={gmf}
+            ugm={ugm}
+            allFranchises={allFranchises}
+            allGames={allGames}
+            seriesItemsForGame={seriesItemsForGame}
             sources={sources}
           />
         )}

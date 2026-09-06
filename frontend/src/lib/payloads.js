@@ -65,6 +65,23 @@ const CREDITS_FIELD_MAP = {
       publisher_tw: "publisher_tw",
     },
   },
+  // The third credit target: `publisher` resolves to a Publisher row the way
+  // `studio` resolves to a Studio one, so both sit under credits, not tags.
+  game: {
+    credits: {
+      studio: "studio",
+      publisher: "publisher",
+      director: "director",
+      composer: "composer",
+    },
+    tags: {
+      game_genre: "game_genre",
+      game_theme: "game_theme",
+      game_mode: "game_mode",
+      combat_mode: "combat_mode",
+      label: "label",
+    },
+  },
 };
 
 // Form fields that hold an array value directly (comic.events, via its
@@ -221,5 +238,88 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     remark: af.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Game
+// ---------------------------------------------------------------------------
+
+const num = (v) => (v === "" || v == null ? null : Number(v));
+const int = (v) => (v === "" || v == null ? null : parseInt(v, 10));
+// The tristate convention every form uses: "" is unset, "true"/"false" the two
+// answers. A real boolean can also arrive here, straight off a GET response.
+const tri = (v) => {
+  if (v === "" || v == null) return null;
+  if (typeof v === "boolean") return v;
+  return v === "true";
+};
+
+/**
+ * The scalar half of a game's create/update body — everything but the
+ * franchise and series ids, which the caller resolves (and may have just
+ * created) before calling.
+ *
+ * `copies` follows GameCopyIO's nested-collection contract: rows the payload
+ * omits are deleted, so a row with nothing in it is dropped here rather than
+ * sent as an empty copy the server would have to store.
+ */
+export function gameFieldsPayload(f) {
+  return {
+    game_name_cn: f.game_name_cn || null,
+    game_name_en: f.game_name_en || null,
+    game_name_roman: f.game_name_roman || null,
+    game_name_jp: f.game_name_jp || null,
+    game_name_alt: f.game_name_alt || null,
+    game_type: f.game_type || null,
+    // ck_games_base_no_parent: a Base Game may never carry one.
+    base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
+    completion_level: f.completion_level || null,
+    all_endings: tri(f.all_endings),
+    achievements_earned: int(f.achievements_earned),
+    achievements_total: int(f.achievements_total),
+    release_status: f.release_status || null,
+    release_date: f.release_date || null,
+    current_patch: f.current_patch || null,
+    hours_played: num(f.hours_played),
+    hltb_main: num(f.hltb_main),
+    hltb_main_extra: num(f.hltb_main_extra),
+    hltb_completionist: num(f.hltb_completionist),
+    price_original_us: num(f.price_original_us),
+    price_original_jp: num(f.price_original_jp),
+    price_original_tw: num(f.price_original_tw),
+    price_current_us: num(f.price_current_us),
+    price_current_jp: num(f.price_current_jp),
+    price_current_tw: num(f.price_current_tw),
+    my_rating: f.my_rating || null,
+    igdb_link: f.igdb_link || null,
+    steam_link: f.steam_link || null,
+    sources: (f.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
+    copies: (f.copies || [])
+      .filter((c) => c.storefront || c.ownership || c.copy_format)
+      .map((c, i) => ({
+        ...(c.system_id ? { system_id: c.system_id } : {}),
+        storefront: c.storefront || null,
+        ownership: c.ownership || null,
+        copy_format: c.copy_format || null,
+        acquisition: c.acquisition || null,
+        price_paid: num(c.price_paid),
+        price_currency: c.price_currency || null,
+        acquired_date: c.acquired_date || null,
+        remark: c.remark || null,
+        position: i + 1,
+      })),
+    play_next: f.play_next ?? false,
+    to_replay: f.to_replay ?? false,
+    cover_image_file: f.cover_image_file || null,
+    remark: f.remark || null,
   };
 }

@@ -43,6 +43,12 @@ export const ADMIN_TABS = [
     label: "Comic Entry",
   },
   {
+    key: "game",
+    group: "entries",
+    icon: "fa-gamepad",
+    label: "Game Entry",
+  },
+  {
     key: "collection",
     group: "structure",
     icon: "fa-boxes-stacked",

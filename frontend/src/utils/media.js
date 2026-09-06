@@ -34,4 +34,5 @@ export {
   buildAnimePayload,
   buildCreditsPayload,
   creditsResponseToForm,
+  gameFieldsPayload,
 } from "../lib/payloads";

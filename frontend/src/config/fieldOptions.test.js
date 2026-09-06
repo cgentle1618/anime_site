@@ -107,10 +107,11 @@ describe("declared option categories", () => {
 // and the field silently offers an empty list - the failure this block exists
 // to catch, since nothing else in the app reads these strings until a user
 // opens the form.
+// Mirrors CREDIT_ROLES in app/utils/credit_roles.py.
 const LEGAL = {
-  director: ["anime", "anime-movie", "movie"],
+  director: ["anime", "anime-movie", "movie", "game"],
   producer: ["anime"],
-  composer: ["anime"],
+  composer: ["anime", "game"],
   author: ["manga", "novel", "comic"],
   illustrator: ["manga", "novel", "comic"],
 };
@@ -150,10 +151,14 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for eleven distinct role/scope pairs", () => {
+  it("asks for thirteen distinct role/scope pairs", () => {
+    // Eleven before games; director|game and composer|game are the two the
+    // ninth media type adds.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(11);
-    expect(keys).toHaveLength(11);
+    expect(new Set(keys).size).toBe(13);
+    expect(keys).toHaveLength(13);
+    expect(keys).toContain("director|game");
+    expect(keys).toContain("composer|game");
   });
 });
 
