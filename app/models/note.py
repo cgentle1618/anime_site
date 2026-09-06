@@ -66,6 +66,11 @@ class Note(Base):
     # List of URLs. A list even where the old shape held one, so `resources`
     # gains multi-link support without another migration.
     links = Column(JSONB, nullable=True)
+    # A list of mixed items for the name_entries shape: each is
+    # {"type": "text"|"link", "value": str, "label": str|None}, in array order.
+    # Distinct from `links`, which is a plain list of URL strings for seven
+    # other sections - one column meaning two things is how subtle bugs start.
+    entries = Column(JSONB, nullable=True)
 
     # --- Ordering within (owner, section) ---
     sort_index = Column(Float, nullable=True)

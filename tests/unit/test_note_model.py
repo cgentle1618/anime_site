@@ -18,6 +18,7 @@ def test_column_order_is_the_sheet_order():
         "title",
         "content",
         "links",
+        "entries",
         "sort_index",
         "created_at",
         "updated_at",

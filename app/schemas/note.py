@@ -11,6 +11,7 @@ from app.utils.note_sections import (
     SHAPE_EPISODE_NAME_LINKS,
     SHAPE_EPISODE_TEXT,
     SHAPE_MUSIC_TRACK,
+    SHAPE_NAME_ENTRIES,
     SHAPE_NAME_LINKS,
     SHAPE_TEXT_OR_LINK,
     STORED_SHAPES,
@@ -34,6 +35,10 @@ class NoteBase(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     links: Optional[List[str]] = None
+    # The name_entries shape's ordered items: each is
+    # {"type": "text"|"link", "value": str, "label": str|None}. Kept apart from
+    # `links`, which is a plain list of URL strings.
+    entries: Optional[List[dict]] = None
     sort_index: Optional[float] = None
 
 
@@ -174,6 +179,10 @@ def validate_note_payload(payload: NoteBase) -> None:
     if section.shape == SHAPE_NAME_LINKS:
         if not content and not (payload.title or "").strip() and not payload.links:
             raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_NAME_ENTRIES:
+        # A named bookmark with neither a name nor a single entry is nothing.
+        if not (payload.title or "").strip() and not payload.entries:
+            raise ValueError(f"Section '{section.key}' needs a name or an entry.")
     elif section.shape == SHAPE_TEXT_OR_LINK:
         links = [l for l in (payload.links or []) if l.strip()]
         if not content and not links:

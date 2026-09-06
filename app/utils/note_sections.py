@@ -30,6 +30,10 @@ SHAPE_TEXT_LINKS = "text_links"  # content, links, optional episode
 SHAPE_TEXT_OR_LINK = "text_or_link"  # content or links[0], never both
 SHAPE_EPISODE_TEXT = "episode_text"  # episode, content, kind where declared
 SHAPE_NAME_LINKS = "name_links"  # title, links
+# A named list whose items are each either a line of text or a labelled link,
+# in one ordered array. name_links can only hold URLs, and text_links has no
+# title, so neither can say "here is my Malenia plan: two notes and a video".
+SHAPE_NAME_ENTRIES = "name_entries"  # title, entries
 # The widest shape: the episode a song plays in, its name, what it does there,
 # where to hear it, and how far tracking it has got. text_links has no title and
 # name_links has no episode or body, so neither can say all of it. The status is
@@ -53,6 +57,7 @@ STORED_SHAPES = frozenset(
         SHAPE_TEXT_OR_LINK,
         SHAPE_EPISODE_TEXT,
         SHAPE_NAME_LINKS,
+        SHAPE_NAME_ENTRIES,
         SHAPE_EPISODE_NAME_LINKS,
         SHAPE_MUSIC_TRACK,
     }
@@ -212,9 +217,35 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         locator_required=True,
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
-        owners=("anime", "tv-show", "cartoon"),
+        owners=("anime", "tv-show", "cartoon", "game"),
+        # A game is cut into chapters or parts rather than episodes, but the
+        # section is the same one: a comment on one segment of the work.
+        labels={"game": "各章評論 Part Reviews"},
         locator_placeholder="Episode, e.g. ep 1",
+        locator_placeholders={"game": "Chapter / Part, e.g. Ch 3"},
         group="reviews",
+    ),
+    NoteSection(
+        key="guides",
+        shape=SHAPE_NAME_ENTRIES,
+        label="攻略 Guides",
+        owners=("game",),
+    ),
+    NoteSection(
+        # NOT `resources`: a site-wide `resources` section already exists
+        # (name_links, ALL_OWNERS, standalone), which games already inherit for
+        # plain bookmarks. Reusing the key would silently shadow it, and a
+        # second card also labelled "Resources" would be unreadable - hence a
+        # distinct key AND a distinct label.
+        key="builds_and_mods",
+        shape=SHAPE_NAME_ENTRIES,
+        label="配裝/模組 Builds & Mods",
+        owners=("game",),
+        # Builds, mods and tools took the same shape once guides became
+        # name_entries, so they are one section with a kind rather than three
+        # near-identical ones. Guides stays separate: it is filled for nearly
+        # every game, these are not.
+        kinds=("Build", "Mod", "Tool"),
     ),
     NoteSection(
         key="highlights",
@@ -245,6 +276,14 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="神片段",
         owners=("novel",),
+    ),
+    NoteSection(
+        key="highlight_moments",
+        locator_required=True,
+        shape=SHAPE_EPISODE_TEXT,
+        label="神場景 Highlights",
+        owners=("game",),
+        locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
     NoteSection(
         key="analysis",
