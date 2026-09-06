@@ -37,7 +37,7 @@ from app.services.domain import (
     anime_movie_post_processing,
     anime_post_processing,
     apply_extract_comicvine_id,
-    apply_extract_igdb_id,
+    apply_extract_game_ids,
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
@@ -46,6 +46,7 @@ from app.services.domain import (
     apply_single_replace_anime,
     apply_single_replace_anime_movie,
     apply_single_replace_cartoon,
+    apply_single_replace_game,
     apply_single_replace_manga,
     apply_single_replace_movie,
     apply_single_replace_novel,
@@ -55,6 +56,7 @@ from app.services.domain import (
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
     autofill_game_from_igdb,
+    autofill_game_from_steam,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -68,6 +70,7 @@ from app.services.domain import (
     has_missing_values_cartoon,
     has_missing_values_comic,
     has_missing_values_game,
+    has_missing_values_game_steam,
     has_missing_values_manga,
     has_missing_values_movie,
     has_missing_values_novel,
@@ -78,17 +81,44 @@ from app.services.domain import (
     tv_show_post_processing,
 )
 from app.services.integrations.comicvine import comicvine_rate_limiter
+from app.services.integrations.steam import (
+    reset_owned_games_cache,
+    steam_store_rate_limiter,
+)
 from app.services.pipelines.runner import PipelineSpec
 
 # Tenrai (MAL) asks for ~1 request/second from unauthenticated clients.
 MAL_PAUSE = 1
 COMICVINE_PAUSE = 1
 IGDB_PAUSE = 0.25
+STEAM_PAUSE = 0.5
 
 
 def _linked(model, *columns):
     """Bulk Replace only re-fetches entries that already carry an external id/link."""
     return lambda db: db.query(model).filter(or_(*[c.isnot(None) for c in columns])).all()
+
+
+def _fill_game(db, entry) -> None:
+    """Both of game's sources, in order: IGDB supplies the appid that Steam
+    then keys off, so a brand-new entry is complete after one pass."""
+    autofill_game_from_igdb(entry, db)
+    autofill_game_from_steam(entry, db)
+
+
+def _start_game_run(db) -> None:
+    """
+    Drops the cached Steam library so a run reads today's playtime.
+
+    The cache exists so one run costs one library request instead of one per
+    game. In a long-lived uvicorn process it would otherwise outlive the run
+    that filled it, and a Replace started tomorrow would write yesterday's
+    hours. Wired as `pre_run` on the game spec so it fires exactly once, at
+    the start of a Fill or a Replace, before any entry is queued - never
+    once per entry, and never for the single-entry write hook, which touches
+    one already-fetched entry and does not walk the library at all.
+    """
+    reset_owned_games_cache()
 
 
 PIPELINES: dict[str, PipelineSpec] = {
@@ -228,22 +258,37 @@ PIPELINES: dict[str, PipelineSpec] = {
     ),
     "game": PipelineSpec(
         key="game", label="Game", model=Game,
-        extract_id=apply_extract_igdb_id,
-        fill_eligible=lambda db, e: e.igdb_id is not None and has_missing_values_game(e),
-        fill=lambda db, e: autofill_game_from_igdb(e, db),
-        # 4 requests/second. A sliding-window limiter inside the client already
-        # enforces it, so this is the polite spacing, not the guard - and there
-        # is no `budget`: unlike Comic Vine's 200/hour there is no quota to
-        # exhaust mid-run.
-        fill_sleep=IGDB_PAUSE,
+        extract_id=apply_extract_game_ids,
+        # Two sources with independent gates. IGDB's half is fill-only and
+        # stops when its columns are full; Steam's runs while it has written
+        # nothing at all. The two clauses are not independent in practice,
+        # though: `_fill_game` always calls both autofills, and
+        # autofill_game_from_igdb only skips on a missing igdb_id - not on
+        # already-complete columns - so an entry admitted solely by the
+        # Steam clause still spends its two IGDB requests. That is accepted
+        # rather than gated: has_missing_values_game reads columns only, and
+        # gating IGDB on it would also skip the credit/tag/Steam-pair writes
+        # that legitimately still run once the columns are full.
+        fill_eligible=lambda db, e: (
+            (e.igdb_id is not None and has_missing_values_game(e))
+            or has_missing_values_game_steam(e)
+        ),
+        fill=_fill_game,
+        pre_run=_start_game_run,
+        # IGDB paces at 4/second; the Steam storefront's window is far
+        # tighter, so it sets the pace of a game run.
+        fill_sleep=STEAM_PAUSE,
         fill_after=(("Syncing system options...", run_sync_game),),
-        # No bulk Replace: an IGDB record carries no score or rank that drifts,
-        # so a re-fetch would only rewrite what Fill already wrote - the same
-        # reasoning as Studio's fill_only.
-        replace_select=None,
-        replace=None,
+        # ~200 requests/5 minutes: stop when the window is gone rather than
+        # block, the same bargain Comic Vine makes with its hourly quota.
+        budget=steam_store_rate_limiter.has_capacity,
+        # Game's first Replace. Steam only - the current prices and the
+        # Metacritic score drift, and nothing in an IGDB record does.
+        replace_select=_linked(Game, Game.steam_appid, Game.steam_link),
+        replace=lambda db, e, bulk: apply_single_replace_game(db, e, bulk=bulk),
+        replace_sleep=STEAM_PAUSE,
+        replace_after=(("Syncing system options...", run_sync_game),),
         single_after=(run_sync_game,),
-        in_replace_all=False,
     ),
     "studio": PipelineSpec(
         key="studio", label="Studio", model=Studio,

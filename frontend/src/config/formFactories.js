@@ -312,6 +312,7 @@ export const defaultGame = () => ({
   all_endings: "",
   all_achievements: "",
   all_collected: "",
+  steam_progress_sync: "",
   achievements_earned: "",
   achievements_total: "",
   release_status: "",

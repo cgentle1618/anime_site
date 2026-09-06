@@ -108,9 +108,23 @@ unparseable link never clears an existing ID.
 | `apply_extract_mal_id_studio`     | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/producer/(\d+)` — a studio's MAL URL is `/anime/producer/56/A-1_Pictures`. The anime pattern above cannot match it (it wants digits straight after `/anime/` and meets the word `producer`), and this one cannot match a plain anime link, so the two never poach each other |
 | `apply_extract_imdb_id`           | `imdb_link`       | `imdb_id` (str)| `imdb.com/title/tt(\d+)` → stored as `"tt…"`   |
 | `apply_extract_comicvine_id`      | `comicvine_link`  | `comicvine_id` | `comicvine.gamespot.com/<slug>/4050-(\d+)` — the `4050-` prefix means "volume"; issue (`4000-`) and character (`4005-`) URLs are rejected |
+| `apply_extract_igdb_id`           | `igdb_link`       | `igdb_id` (int)| `api\.igdb\.com/v\d+/games/(\d+)` — a public `www.igdb.com` URL carries only a slug, no id, and is rejected |
+| `apply_extract_steam_appid`       | `steam_link`      | `steam_appid` (int) | `store\.steampowered\.com/app/(\d+)` — a `steamcommunity.com` hub link uses the same `/app/<id>/` shape but is rejected, since it is not the store page the prices and Metacritic score come from |
 
 `imdb_id` is a **string** like `tt7660850`, never an integer and never
 zero-padded by the app.
+
+`apply_extract_game_ids` runs both game extractors — IGDB then Steam — and
+returns True when either set an id, rather than short-circuiting on the
+first: a game can carry an IGDB link, a Steam link, or both, and the two
+sources are independent. Where the id itself comes from differs by source:
+`igdb_id`/`igdb_link` are typed in or set by the IGDB picker; `steam_appid`/
+`steam_link` are normally adopted as a pair from IGDB's own `external_games`
+data (fill-only, and only when the entry has neither yet, so a hand-typed
+Steam link is never paired with an IGDB appid for a different edition) —
+`apply_extract_steam_appid` only comes into play when a `steam_link` was
+hand-typed ahead of any IGDB Fill. See
+[external-apis.md](external-apis.md#steam).
 
 ### Season / Part from the title
 
@@ -365,6 +379,7 @@ in `app/utils/utils.py`.
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
 | Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `comic_publisher` tag. Imprint, continuity, era, events, `end_date`, `publisher_tw` are manual and never required — Comic Vine does not model them.                                                          |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
+| Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |
 
 The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 `credit_names` / `tag_values`; the dropped `director` / `writer` / `artist` /

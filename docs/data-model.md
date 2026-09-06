@@ -507,17 +507,18 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `all_endings` | Boolean | yes | | Tristate, orthogonal to `completion_level` |
 | `all_achievements` | Boolean | yes | | Tristate. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against |
 | `all_collected` | Boolean | yes | | Tristate: every in-game collectible found |
-| `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements` |
+| `steam_progress_sync` | Boolean | yes | | Tristate, built as a straight copy of `all_achievements`. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
+| `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
 | `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
 | `current_patch` | String | yes | | What is installed, not what changed in it: "1.6.1", "Update 7" |
-| `hours_played` | Float | yes | | |
+| `hours_played` | Float | yes | | Steam-fillable, overwrite, guarded by `steam_progress_sync` and a zero/unknown check (minutes ÷ 60 from `GetOwnedGames`) - see [external-apis.md](external-apis.md#steam) |
 | `hltb_main` / `hltb_main_extra` / `hltb_completionist` | Float | yes | | The three public time-to-beat tiers, sourced from IGDB (HowLongToBeat publishes no official API) |
-| `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | The game's **market** prices. What I paid is per-copy, on `game_copy`. The first `Numeric` columns in the schema. |
-| `metacritic_score` | Integer | yes | | Metacritic's critic metascore, out of 100. Typed in - nothing fills it automatically yet |
+| `price_original_us` / `_jp` / `_tw`, `price_current_us` / `_jp` / `_tw` | Numeric(10,2) | yes | | The game's **market** prices. What I paid is per-copy, on `game_copy`. The first `Numeric` columns in the schema. Steam-fillable: `price_original_*` is the undiscounted list price (fill-only), `price_current_*` is overwritten on every run - what a sale moves. |
+| `metacritic_score` | Integer | yes | | Metacritic's critic metascore, out of 100. Steam-fillable, overwrite |
 | `metacritic_user_score` | Float | yes | | Metacritic's user score, out of 10. A second column rather than a second reading of the first: the two scales differ, and neither is `my_rating` |
 | `igdb_id` / `igdb_link` | Integer / String | yes | | The external pair Fill fetches on. `igdb_id` is what Fill runs on and is typed in or set by the IGDB picker; `apply_extract_igdb_id` recovers it only from an `api.igdb.com` link, never from the public slug URL - see [data-actions.md](data-actions.md). |
-| `steam_appid` / `steam_link` | Integer / String | yes | | Reserved for the deferred Steam sync. Both are editable on the game form; **nothing else reads or writes them yet.** |
+| `steam_appid` / `steam_link` | Integer / String | yes | | Written by **IGDB**, not by Steam: `map_igdb_to_game_data` reads `external_games` and adopts the pair fill-only, only when the entry has neither, so a hand-typed `steam_link` is never paired with IGDB's appid for a different edition. `apply_extract_steam_appid` also recovers `steam_appid` from a hand-typed `steam_link` (`store.steampowered.com/app/<id>`), the same way `apply_extract_igdb_id` does for `igdb_link` - see [business-rules.md](business-rules.md) section 2. Steam itself only ever *reads* `steam_appid`; it never writes either column. |
 
 CHECKs beyond the date one: `ck_games_base_no_parent`
 (`game_type <> 'Base Game' OR base_game_id IS NULL`) and
@@ -1257,7 +1258,7 @@ What an external source calls a vocabulary value. The third sibling of
 |---|---|:-:|---|---|
 | `id` | Integer | no | autoincrement | PK |
 | `option_id` | UUID | no | | FK `system_option` ON DELETE CASCADE, indexed |
-| `source` | String | no | | `igdb` today; `steam` when the Steam sync lands |
+| `source` | String | no | | `igdb` today. Steam writes columns only - no tag, no credit - so it never touches this table |
 | `value` | String | no | | The external string, e.g. `Role-playing (RPG)` |
 
 Constraint and index: `uq_system_option_alias` UNIQUE (`option_id`, `source`,

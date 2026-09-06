@@ -271,10 +271,10 @@ Per type (verbatim from `specs.py`):
 | `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
 | `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
-| `game` | `igdb_id` set and `has_missing_values_game(e)` | `autofill_game_from_igdb(e, db)` | `IGDB_PAUSE` = 0.25 s | — | `"Syncing system options..."` → `run_sync_game` | — |
+| `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
-`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_igdb_id` (game — from `igdb_link`; a `www.igdb.com` **slug** URL carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
+`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_game_ids` (game — runs both `apply_extract_igdb_id`, from `igdb_link`, and `apply_extract_steam_appid`, from `steam_link`, unconditionally, since a game can carry an IGDB link, a Steam link, or both; a `www.igdb.com` **slug** URL or a `steamcommunity.com` hub link carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
 
 **Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
 
@@ -285,22 +285,30 @@ data-control route builder, which generates `/api/data-control/fill/game` and
 `/replace/game/...` from the registry. Until IGDB landed (its own plan, right
 after) `fill_eligible` returned `False` for every row, so a Fill run reported
 "No entries need filling" rather than erroring. **That stub is gone**: Fill
-Game now calls `autofill_game_from_igdb`, and games are in Fill All. What has
-**not** changed is that games still have **no bulk Replace**
-(`replace_select` and `replace` are `None`, `in_replace_all=False`) — an IGDB
-record carries no score or rank that drifts, the same reasoning that makes
-Studio `fill_only`.
+Game now calls `autofill_game_from_igdb` then `autofill_game_from_steam`, and
+games are in Fill All. **Game also gained a bulk Replace**, its first
+(`replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
+`in_replace_all=True`): it runs the Steam half only, since nothing in an IGDB
+record drifts — the same reasoning that makes Studio `fill_only` stays true
+of IGDB's own half, and is now false of the type as a whole.
 
-**Game Fill has no budget guard**, unlike Comic. IGDB's limit is 4
-requests/second with no hourly quota, so the client's sliding-window limiter
-paces the run and nothing ever has to abandon it part-way; `IGDB_PAUSE` (0.25 s)
-is polite spacing on top, not the guard. `has_missing_values_game` looks only at
-`GAME_FIELDS_TO_FILL` (`igdb_link`, `release_date`, `cover_image_file`,
-`hltb_main`, `hltb_main_extra`, `hltb_completionist`) — deliberately **not** at
-the genre/theme/mode tags, because an IGDB value with no `system_option_alias`
-row is logged and skipped rather than stored, so a game with an un-aliased
-genre would otherwise be "needs filling" forever. See
-[external-apis.md](external-apis.md#igdb).
+**IGDB's half of Fill Game has no budget guard**, unlike Comic. IGDB's limit
+is 4 requests/second with no hourly quota, so the client's sliding-window
+limiter paces the run and nothing ever has to abandon it part-way;
+`has_missing_values_game` looks only at `GAME_FIELDS_TO_FILL` (`igdb_link`,
+`release_date`, `cover_image_file`, `hltb_main`, `hltb_main_extra`,
+`hltb_completionist`) — deliberately **not** at the genre/theme/mode tags,
+because an IGDB value with no `system_option_alias` row is logged and skipped
+rather than stored, so a game with an un-aliased genre would otherwise be
+"needs filling" forever. **Steam's half does have a budget guard**: its
+storefront allows ~200 requests per 5 minutes per IP, observed rather than
+published, so `steam_store_rate_limiter.has_capacity` is wired as the game
+spec's `budget` and stops a run cleanly once the window is spent, reporting
+the remainder — the same bargain Comic Vine makes with its hourly quota.
+`STEAM_PAUSE` (0.5 s) is polite spacing on top of that limiter, not the guard
+itself, and it now paces the whole game pipeline since Steam's window is far
+tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
+[external-apis.md](external-apis.md#steam).
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
@@ -314,15 +322,16 @@ genre would otherwise be "needs filling" forever. See
 
 ### 5.1 Bulk — `run_replace(spec, ...)` (SSE)
 
-1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel) or `imdb_id`/`imdb_link` (movie, tv-show) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for comics.
+0. If the spec has `pre_run`, it runs first — game's `_start_game_run` drops the cached Steam owned-games library so the run reads today's playtime rather than a stale in-memory copy (also wired ahead of Fill Game, for the same reason).
+1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel), `imdb_id`/`imdb_link` (movie, tv-show), or `steam_appid`/`steam_link` (game) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for comics.
 2. Zero entries → logs `Success` with `rows_updated=0` and emits an `info` event `"No {type} entries found to replace"`.
-3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the four MAL types, 0 for TMDB/OMDb types).
+3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the four MAL types, 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game).
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — Steam only; re-fetches `autofill_game_from_steam`, never `autofill_game_from_igdb`.
 
-**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the seven types with `in_replace_all=True` (comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
+**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the eight types with `in_replace_all=True` — game included now that it has a bulk Replace — (comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 
 ### 5.2 Single entry — `run_replace_single(spec, db, entry_id, ...)`
 
@@ -330,10 +339,10 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 
 1. Look up `spec.model.system_id == entry_id`; missing → logs `Failed` (`"{label} not found 404"`) and returns `status_code: 404`.
 2. If the spec has `replace`, run it with `bulk=False` in a worker thread; commit.
-3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`. Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
+3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`. Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic and game (`execute_replace_single_game` fetches nothing — with no `replace` on the spec it only re-syncs system options and logs the write): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic and game (`execute_replace_single_game` now calls `apply_single_replace_game`, so a game saved with a `steam_appid` picks up its Steam data immediately, not just on the next Replace run): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 
@@ -437,7 +446,7 @@ All routes require admin (`get_current_admin`). `{key}` is a pipeline key: the h
 | POST | `/fill/all` | — | SSE | Fill All (seven media types plus studio, no comic) then Auto Backup |
 | POST | `/replace/all` | — | SSE | Replace All (seven types, no comic) then Auto Backup |
 | POST | `/fill/{key}` | — | SSE | Fill one type (all nine keys, studio included) |
-| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) |
+| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` is registered (Steam only) |
 | POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the eight media keys; **not registered for `studio`**) |
 | POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |

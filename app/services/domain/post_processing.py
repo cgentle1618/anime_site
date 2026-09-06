@@ -8,6 +8,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -17,6 +18,7 @@ from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
+    autofill_game_from_steam,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -43,6 +45,7 @@ from app.services.domain.derivation import (
     apply_extract_mal_id_manga_novel,
     apply_extract_novel_ids,
     apply_extract_season_from_title,
+    apply_extract_steam_appid,
     derive_ep_previous_anime,
     derive_season_1_anime,
     derive_season_1_cartoon,
@@ -149,6 +152,18 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     apply_extract_novel_ids(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
 
+
+def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single Game entry.
+
+    Steam only. IGDB carries nothing that drifts - its half of the game Fill is
+    fill-only throughout - so re-fetching it would rewrite exactly what Fill
+    already wrote. `bulk` is accepted for signature parity with the other
+    media types.
+    """
+    apply_extract_steam_appid(game)
+    autofill_game_from_steam(game, db)
 
 
 def anime_post_processing(anime: Anime, db: Session) -> None:

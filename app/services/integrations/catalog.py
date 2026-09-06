@@ -6,10 +6,19 @@ the pipeline at Tenrai, so what did it just change? Two different answers hide
 behind that, and they are the reason the catalog exists:
 
   * Per FIELD - the write rule. Nearly every column is fill-only, written only
-    when it is None. Exactly three are overwritten on every run: mal_rating,
-    mal_rank and imdb_rating. Those three ARE "what gets replaced".
-  * Per MEDIA TYPE - which pipelines exist at all. Comic, Game and Studio have
-    no bulk Replace; Comic is out of Fill All to protect its hourly quota.
+    when it is None. Nine are overwritten on every run, and the set is still
+    deliberately small and shaped, not arbitrary: the three ratings
+    (mal_rating, mal_rank, imdb_rating), the Metacritic score, the three
+    current prices (price_current_us/jp/tw), and the two personal-progress
+    columns (hours_played, achievements_earned). Those nine ARE "what gets
+    replaced" - everything else stays fill-only, so a pipeline never rewrites
+    something a person typed by hand. The two progress columns carry extra
+    guards on top of being overwrite fields: steam_progress_sync=False skips
+    both outright, and a zero or unknown value never overwrites a real one -
+    see autofill_game_from_steam.
+  * Per MEDIA TYPE - which pipelines exist at all. Comic and Studio have no
+    bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
+    bulk Replace runs its Steam half only - nothing in an IGDB record drifts.
 
 Note what Replace is NOT: a different set of writes. `apply_single_replace_*`
 in post_processing.py calls the same `autofill_*` function Fill calls, with the
@@ -178,6 +187,18 @@ SERVICES: dict[str, Service] = {
         ),
         rate_limit="4 / second",
         docs_anchor="igdb",
+    ),
+    "steam": Service(
+        key="steam",
+        label="Steam",
+        module="app.services.integrations.steam",
+        base_url="https://store.steampowered.com/api (+ api.steampowered.com)",
+        auth=(
+            "none for the storefront; STEAM_API_KEY + STEAM_ID for playtime "
+            "and achievements earned"
+        ),
+        rate_limit="~200 requests / 5 minutes per IP, observed not documented",
+        docs_anchor="steam",
     ),
 }
 
@@ -575,13 +596,22 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
     Coverage(
         key="game",
         keyed_by="igdb_id",
-        combination="single",
-        requests_per_entry="2 - the game, then its time-to-beat record",
+        combination="merged",
+        requests_per_entry=(
+            "6 - the IGDB game and its time-to-beat, three Steam storefronts, "
+            "and one achievement call, skipped entirely when "
+            "steam_progress_sync is false; the Steam library is fetched once "
+            "a run"
+        ),
         note=(
-            "Fill-only throughout, so there is no bulk Replace. The tag writes go "
-            "through the alias layer: IGDB speaks English and the vocabulary is "
-            "Chinese, and a term with no alias row is logged and skipped, never "
-            "stored raw - see the Alias Conversion page."
+            "Two sources keyed on different columns: IGDB on igdb_id, Steam "
+            "on steam_appid - supplied by IGDB's external_games, or read "
+            "from a hand-typed steam_link, both written by IGDB rather than "
+            "Steam itself. The tag writes go through the alias layer: IGDB "
+            "speaks English and the vocabulary is Chinese, and a term with "
+            "no alias row is logged and skipped, never stored raw - see the "
+            "Alias Conversion page. Steam writes columns only and never "
+            "touches that layer."
         ),
         sources=(
             SourceBlock(
@@ -642,6 +672,75 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "never",
                         "games has no summary column by design; a synopsis belongs "
                         "in the entry's notes",
+                    ),
+                    Write(
+                        "steam_appid",
+                        "column",
+                        "fill-only",
+                        "from IGDB's external_games; the appid and steam_link are "
+                        "adopted as a pair, and only when the entry carries "
+                        "neither - a hand-typed link with a still-blank appid is "
+                        "never paired with IGDB's appid, which can name a "
+                        "different app entirely",
+                    ),
+                    Write("steam_link", "column", "fill-only"),
+                ),
+            ),
+            SourceBlock(
+                source="steam",
+                writes=(
+                    Write(
+                        "metacritic_score",
+                        "column",
+                        "overwrite",
+                        "the critic metascore; Steam does not publish the user "
+                        "score, so metacritic_user_score stays hand-typed",
+                    ),
+                    Write(
+                        "price_original_us",
+                        "column",
+                        "fill-only",
+                        "the undiscounted list price, not the launch price - a "
+                        "permanent price cut is not chased",
+                    ),
+                    Write("price_original_jp", "column", "fill-only"),
+                    Write("price_original_tw", "column", "fill-only"),
+                    Write(
+                        "price_current_us",
+                        "column",
+                        "overwrite",
+                        "what it costs today; this is what a game Replace is for",
+                    ),
+                    Write("price_current_jp", "column", "overwrite"),
+                    Write("price_current_tw", "column", "overwrite"),
+                    Write("achievements_total", "column", "fill-only"),
+                    Write(
+                        "hours_played",
+                        "column",
+                        "overwrite",
+                        "from the Steam library, in hours; skipped entirely when "
+                        "steam_progress_sync is false, and a zero never "
+                        "overwrites a hand-typed figure",
+                    ),
+                    Write(
+                        "achievements_earned",
+                        "column",
+                        "overwrite",
+                        "same two guards as hours_played; an unknown count is "
+                        "not a zero",
+                    ),
+                    Write(
+                        "metacritic_user_score",
+                        "none",
+                        "never",
+                        "Steam does not publish it",
+                    ),
+                    Write(
+                        "genres",
+                        "none",
+                        "never",
+                        "IGDB already owns the game vocabulary through the "
+                        "alias layer; a second one would fight it",
                     ),
                 ),
             ),

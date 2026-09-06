@@ -264,6 +264,24 @@ def has_missing_values_game(game) -> bool:
     return False
 
 
+def has_missing_values_game_steam(entry) -> bool:
+    """
+    True when Steam has an appid to work with and has written nothing to this
+    entry yet.
+
+    Deliberately not folded into GAME_FIELDS_TO_FILL. A free game has no
+    price, an obscure one no Metacritic score, and many have no achievements,
+    so testing those columns individually would leave such entries eligible
+    for ever. Testing whether Steam has landed *anything* bounds that to the
+    genuinely empty case; refreshing what is already there is Replace's job.
+    """
+    return (
+        entry.steam_appid is not None
+        and entry.metacritic_score is None
+        and entry.price_original_us is None
+        and entry.achievements_total is None
+    )
+
 
 def apply_check_baha(
     db: Session, entry: Union[Anime, AnimeMovies], media_type: str

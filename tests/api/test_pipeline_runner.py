@@ -98,26 +98,29 @@ def test_fill_all_skips_comic_but_includes_game_and_studio():
 
 def test_replace_all_skips_comic_and_studio():
     # Studio is fill_only: a producer record carries nothing that drifts.
+    # Game now joins the rest - Steam's prices and Metacritic score drift,
+    # even though nothing in an IGDB record does.
     assert [s.key for s in REPLACE_ALL] == [
         "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel",
+        "game",
     ]
 
 
-def test_game_fills_from_igdb_but_never_bulk_replaces():
+def test_game_fills_from_igdb_and_bulk_replaces_via_steam():
     """
     Fill Game is a real pipeline and joins Fill All - IGDB has no hourly quota
-    to exhaust, unlike Comic Vine. There is still no bulk Replace: an IGDB
-    record carries no score or rank that drifts, so a re-fetch would only
-    rewrite what Fill already wrote.
+    to exhaust, unlike Comic Vine. It now has a bulk Replace too: an IGDB
+    record carries no score or rank that drifts, but Steam's current prices
+    and Metacritic score do, so Replace re-fetches those through Steam.
     """
     from app.services.pipelines.specs import PIPELINES
 
     spec = PIPELINES["game"]
     assert spec.in_fill_all is True
     assert spec.fill_sleep
-    assert spec.replace is None
-    assert spec.replace_select is None
-    assert spec.in_replace_all is False
+    assert spec.replace is not None
+    assert spec.replace_select is not None
+    assert spec.in_replace_all is True
 
 
 def test_public_entry_points_still_exist():
@@ -212,6 +215,19 @@ async def test_bulk_replace_overwrites_every_selected_entry(db_session, movies):
 async def test_bulk_replace_with_nothing_linked_is_an_info_event(db_session):
     out = await events(run_replace(movie_spec(), db_session, FakeRequest()))
     assert out == [{"status": "info", "message": "No movie entries found to replace", "total": 0, "processed": 0}]
+
+
+@pytest.mark.anyio
+async def test_replace_exhausted_budget_stops_early_and_says_how_many_are_left(db_session, movies):
+    # Mirrors test_exhausted_budget_stops_early_and_says_how_many_are_left
+    # above: Replace must honour spec.budget exactly like Fill does, so a
+    # storefront window that runs out mid-Replace stops cleanly instead of
+    # blocking on the rate limiter's sleep for every remaining entry.
+    spec = movie_spec(budget=lambda: False)
+    out = await events(run_replace(spec, db_session, FakeRequest()))
+    assert out[-1]["status"] == "success"
+    assert out[-1]["processed"] == 0
+    assert "2 entries skipped" in out[-1]["message"]
 
 
 @pytest.mark.anyio

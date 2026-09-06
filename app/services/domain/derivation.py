@@ -27,6 +27,7 @@ from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
 from app.utils.igdb_utils import extract_igdb_id
 from app.utils.openlibrary_utils import extract_openlibrary_id
+from app.utils.steam_utils import extract_steam_appid
 from app.utils.utils import (
     PART_PATTERN,
     SEASON_PATTERN,
@@ -119,6 +120,27 @@ def apply_extract_igdb_id(entry) -> bool:
         entry.igdb_id = igdb_id
         return True
     return False
+
+
+def apply_extract_steam_appid(entry) -> bool:
+    """Extracts the numeric Steam appid from steam_link and writes it to
+    steam_appid. Returns True if set. An unparseable link leaves any existing
+    id untouched - the appid is the Steam pipeline's only handle on the entry,
+    and a community or slug URL legitimately carries none."""
+    steam_appid = extract_steam_appid(entry.steam_link)
+    if steam_appid:
+        entry.steam_appid = steam_appid
+        return True
+    return False
+
+
+def apply_extract_game_ids(entry) -> bool:
+    """Both of a game's external ids. A game can carry an IGDB link, a Steam
+    link, or both, and the two sources are independent - so this returns True
+    when either extractor did, rather than short-circuiting on the first."""
+    igdb = apply_extract_igdb_id(entry)
+    steam = apply_extract_steam_appid(entry)
+    return igdb or steam
 
 
 def apply_extract_imdb_id(entry: Union[Movies, TVShows, Cartoon]) -> bool:

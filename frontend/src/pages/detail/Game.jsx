@@ -457,6 +457,10 @@ export default function Game() {
                     value: yesNo(game.all_achievements),
                   },
                   { label: "All Collected", value: yesNo(game.all_collected) },
+                  {
+                    label: "Steam Progress Sync",
+                    value: yesNo(game.steam_progress_sync),
+                  },
                 ],
                 [
                   // Metacritic's public verdict, not mine - my_rating is the

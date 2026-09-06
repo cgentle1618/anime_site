@@ -37,8 +37,6 @@ execute_replace_single_novel = _single("novel")
 # Comics fetch nothing on the write hook: the spec has no `replace`, so this
 # only re-syncs system options and logs the write like every other type.
 execute_replace_single_comic = _single("comic")
-# Games have no external fetch yet; the hook exists so the registry write path
-# and the data-control route builder have the name they require.
 execute_replace_single_game = _single("game")
 
 execute_replace_anime = _bulk("anime")
@@ -48,6 +46,7 @@ execute_replace_tv_show = _bulk("tv-show")
 execute_replace_cartoon = _bulk("cartoon")
 execute_replace_manga = _bulk("manga")
 execute_replace_novel = _bulk("novel")
+execute_replace_game = _bulk("game")
 
 
 async def execute_replace_all(db: Session, request: Request, action_type: str = "Manual"):

@@ -308,7 +308,7 @@ nested `copies` collection.
 | -------- | ---------------------- | ------ | ----------- |
 | `GET`    | `/`                    | Public | List all games. Optional params: `franchise_id`, `series_id`, `playing_status`, `release_status`, `game_type`, `search_query`, plus **`ownership`** (see below). |
 | `GET`    | `/{entry_id}`          | Public | One game by UUID. |
-| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which fetches nothing (no external source is wired yet) and only re-extracts system options and logs the write. |
+| `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which calls `apply_single_replace_game` (Steam only, keyed on `steam_appid`) and re-extracts system options, then logs the write. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
@@ -815,8 +815,12 @@ only into an empty column), `overwrite` (rewritten every run), `conditional`
 (fill-only behind a further gate), `if-absent` (a credit / tag / source row
 added only when none exists), `if-empty` (an image downloaded only when there
 is no file), `never` (mapped but deliberately not stored). Only `overwrite`
-can change something already there, and only three fields carry it:
-`mal_rating`, `mal_rank` and `imdb_rating`.
+can change something already there, and only nine fields carry it: the three
+ratings `mal_rating`, `mal_rank` and `imdb_rating`; the game `metacritic_score`;
+the three current prices `price_current_us`, `price_current_jp`,
+`price_current_tw`; and the two personal-progress columns `hours_played` and
+`achievements_earned` (the latter two carry extra guards on top — see
+[external-apis.md](external-apis.md#steam)).
 
 Each `media` row also carries `in_fill_all`, `has_bulk_replace`, `fill_only`
 and `budget_limited`. Those four are **read off `PIPELINES` at request time**,

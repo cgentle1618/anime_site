@@ -101,3 +101,13 @@ describe("game completion flags", () => {
     expect(payload.all_collected).toBeNull();
   });
 });
+
+// Not a completion flag: this one decides whether Steam may write playtime
+// and achievements earned over what is already there.
+describe("steam progress sync", () => {
+  it("sends the lock as a tristate boolean", () => {
+    expect(gameFieldsPayload({ steam_progress_sync: "false" }).steam_progress_sync).toBe(false);
+    expect(gameFieldsPayload({ steam_progress_sync: "true" }).steam_progress_sync).toBe(true);
+    expect(gameFieldsPayload({ steam_progress_sync: "" }).steam_progress_sync).toBeNull();
+  });
+});

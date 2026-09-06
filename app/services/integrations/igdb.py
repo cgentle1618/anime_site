@@ -52,7 +52,12 @@ TOKEN_EXPIRY_MARGIN = 60
 GAME_FIELDS = (
     "name,summary,first_release_date,cover.url,genres.name,themes.name,"
     "game_modes.name,platforms.name,involved_companies.company.name,"
-    "involved_companies.developer,involved_companies.publisher,parent_game,url"
+    "involved_companies.developer,involved_companies.publisher,parent_game,url,"
+    # The Steam appid, which is what the whole Steam integration keys off.
+    # Both spellings are requested: `category` is the legacy enum (Steam = 1)
+    # and `external_game_source` its replacement. Asking for both is the safe
+    # superset while IGDB migrates.
+    "external_games.category,external_games.external_game_source,external_games.uid"
 )
 SEARCH_FIELDS = "name,summary,first_release_date,cover.url,url"
 

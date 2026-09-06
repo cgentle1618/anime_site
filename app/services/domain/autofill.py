@@ -23,6 +23,11 @@ from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_b
 from app.services.integrations.image_manager import download_cover_image
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.openlibrary import fetch_openlibrary_work
+from app.services.integrations.steam import (
+    fetch_owned_games,
+    fetch_player_achievements,
+    fetch_steam_appdetails,
+)
 from app.services.integrations.tenrai import (
     fetch_tenrai_anime_data,
     fetch_tenrai_manga_novel_data,
@@ -40,6 +45,7 @@ from app.utils.imdb_utils import (
 )
 from app.utils.name_normalize import split_names
 from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
+from app.utils.steam_utils import REGIONS, map_steam_to_game_data
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
@@ -657,6 +663,15 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
             if not getattr(game, column, None) and g_data.get(column):
                 setattr(game, column, g_data[column])
 
+        # The appid and the link are one identity, not two columns: adopt
+        # IGDB's Steam pair only when the entry carries neither. A hand-typed
+        # link whose appid is still blank must not be paired with IGDB's
+        # appid, which can name a different app entirely - a different
+        # edition, or a bundle.
+        if not game.steam_appid and not game.steam_link and g_data.get("steam_appid"):
+            game.steam_appid = g_data["steam_appid"]
+            game.steam_link = g_data["steam_link"]
+
         # A separate resource, and most games have none — a missing record is
         # ordinary, not a failure.
         times = fetch_igdb_time_to_beat(igdb_id) or {}
@@ -733,3 +748,94 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
         logger.error(
             f"IGDB Autofill failed for Game ID {game.system_id} (IGDB {igdb_id}): {e}"
         )
+
+
+# Written only when the column is empty.
+STEAM_FILL_ONLY_COLUMNS = (
+    "price_original_us",
+    "price_original_jp",
+    "price_original_tw",
+    "achievements_total",
+)
+
+# Rewritten on every run. These are what the game Replace exists for.
+STEAM_OVERWRITE_COLUMNS = (
+    "price_current_us",
+    "price_current_jp",
+    "price_current_tw",
+    "metacritic_score",
+)
+
+
+def autofill_game_from_steam(game: Game, db: Session) -> None:
+    """
+    Enriches a single Game entry with Steam data. Does not commit — the caller
+    is responsible.
+
+    Columns only: no tag and no credit, so this never touches the alias layer
+    and cannot produce an untranslated term. `metacritic_user_score` is
+    deliberately absent — Steam does not publish it.
+
+    Unlike the IGDB half this is not fill-only. The current prices and the
+    Metacritic score are rewritten on every run, which is what makes a bulk
+    Replace worth having for games.
+
+    The two progress columns pass two guards first. `steam_progress_sync` is
+    False for a game owned here but played elsewhere, and stops them outright.
+    A zero or unknown value is then skipped even when the lock is open: a game
+    owned but never launched on Steam reports 0 minutes, and writing that over
+    a hand-typed figure would destroy the only record of it.
+    """
+    appid = game.steam_appid
+    if not appid:
+        return
+
+    try:
+        payloads = {}
+        for cc in REGIONS:
+            data = fetch_steam_appdetails(appid, cc=cc)
+            if data:
+                payloads[cc] = data
+
+        if not payloads:
+            return
+
+        s_data = map_steam_to_game_data(payloads)
+
+        for column in STEAM_FILL_ONLY_COLUMNS:
+            if getattr(game, column, None) is None and s_data.get(column) is not None:
+                setattr(game, column, s_data[column])
+
+        for column in STEAM_OVERWRITE_COLUMNS:
+            if s_data.get(column) is not None:
+                setattr(game, column, s_data[column])
+
+        # is_free is not written to any column (there is no such column to
+        # write); it exists only to make a free game's null prices legible in
+        # the logs rather than looking like a fetch that silently came back
+        # empty. Debug, not info/warning: a normal library has enough free
+        # games that one line per game per run would drown out everything
+        # else, and a null price here is never itself an error to flag.
+        if s_data.get("is_free"):
+            logger.debug(
+                f"Steam app {appid} is free; its null prices are expected, not missing data."
+            )
+
+        # Guard one: an entry marked "played elsewhere" keeps its hand-typed
+        # progress untouched. None (never asked) is not the same as False and
+        # is treated as permission.
+        if game.steam_progress_sync is False:
+            return
+
+        # Guard two: even with the lock open, a zero or unknown value must
+        # not overwrite a real one already on the entry.
+        minutes = (fetch_owned_games() or {}).get(appid)
+        if minutes:
+            game.hours_played = round(minutes / 60, 1)
+
+        earned = fetch_player_achievements(appid)
+        if earned:
+            game.achievements_earned = earned
+
+    except Exception as e:
+        logger.error(f"Steam autofill failed for app {appid}: {e}")

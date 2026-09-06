@@ -863,6 +863,7 @@ export default function Modify() {
       all_endings: tri(g.all_endings),
       all_achievements: tri(g.all_achievements),
       all_collected: tri(g.all_collected),
+      steam_progress_sync: tri(g.steam_progress_sync),
       achievements_earned: g.achievements_earned ?? "",
       achievements_total: g.achievements_total ?? "",
       release_status: g.release_status || "",

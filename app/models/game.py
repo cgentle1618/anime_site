@@ -101,6 +101,9 @@ class Game(Base, NameFallbackMixin):
     # (no published achievement list, or the numbers not looked up yet).
     all_achievements = Column(Boolean, nullable=True)
     all_collected = Column(Boolean, nullable=True)
+    # Whether Steam may write this entry's progress. Not a completion flag:
+    # it is about the source, not about the game. See the migration.
+    steam_progress_sync = Column(Boolean, nullable=True)
     achievements_earned = Column(Integer, nullable=True)
     achievements_total = Column(Integer, nullable=True)
 

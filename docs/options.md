@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07
 
 ## What this is for
 
@@ -605,9 +605,12 @@ within one category, since the same English word can name a genre in one
 vocabulary and a theme in another. **Absence is not permissive here**: a value
 with no alias rows is not "matched by everything", it simply cannot be
 resolved from an external string. `source` must be one of `ALIAS_SOURCES` in
-`app/utils/source_fields.py` — `igdb` today, `steam` when that sync lands;
-validated for the same reason scopes are, since a typo'd source saves happily
-and then never matches. Duplicate `(source, value)` pairs are dropped in the
+`app/utils/source_fields.py` — `igdb` only. The Steam sync that landed
+alongside IGDB writes columns only (prices, Metacritic score, playtime,
+achievements) with no tags or credits, so it never resolves a vocabulary
+value and `ALIAS_SOURCES` gained no `steam` entry for it; validated for the
+same reason scopes are, since a typo'd source saves happily and then never
+matches. Duplicate `(source, value)` pairs are dropped in the
 validator, because the writes insert these rows directly and a repeat would
 trip `uq_system_option_alias`. Round-tripped through the `System Option Alias`
 tab; carried on `SystemOptionCreate`/`SystemOptionResponse` as `{source,

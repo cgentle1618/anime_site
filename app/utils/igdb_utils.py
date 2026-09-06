@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from app.utils.release_date import normalize
+from app.utils.steam_utils import steam_link_for
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,35 @@ def _cover_url(cover: Optional[Dict[str, Any]]) -> Optional[str]:
     return url
 
 
+# IGDB's external_games category for Steam, in the legacy enum.
+IGDB_EXTERNAL_STEAM = 1
+
+
+def _steam_appid(rows: Optional[List[Dict[str, Any]]]) -> Optional[int]:
+    """
+    The Steam appid out of IGDB's external_games list.
+
+    Accepts either spelling of the discriminator: `category` is the legacy
+    enum, `external_game_source` its replacement. During IGDB's migration,
+    the legacy key may be present but null — dict.get() returns null in that
+    case, not the default — so we check for None explicitly and fall back only
+    then. A uid that is not a plain integer is ignored - IGDB carries store
+    slugs for some platforms in the same field.
+    """
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        source = row.get("category")
+        if source is None:
+            source = row.get("external_game_source")
+        if source != IGDB_EXTERNAL_STEAM:
+            continue
+        uid = str(row.get("uid") or "")
+        if uid.isdigit():
+            return int(uid)
+    return None
+
+
 def _companies(raw: Dict[str, Any]) -> Dict[str, List[str]]:
     """
     Partitions `involved_companies` on its two booleans. A company that is
@@ -104,6 +134,7 @@ def map_igdb_to_game_data(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Maps one raw IGDB game object onto the columns and credits Fill writes."""
     raw = raw or {}
     companies = _companies(raw)
+    steam_appid = _steam_appid(raw.get("external_games"))
 
     return {
         "igdb_id": raw.get("id"),
@@ -119,4 +150,6 @@ def map_igdb_to_game_data(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "game_modes": _names(raw.get("game_modes")),
         "platforms": _names(raw.get("platforms")),
         "parent_igdb_id": raw.get("parent_game"),
+        "steam_appid": steam_appid,
+        "steam_link": steam_link_for(steam_appid) if steam_appid else None,
     }

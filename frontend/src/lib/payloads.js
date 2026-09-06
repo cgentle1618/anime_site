@@ -279,6 +279,7 @@ export function gameFieldsPayload(f) {
     all_endings: tri(f.all_endings),
     all_achievements: tri(f.all_achievements),
     all_collected: tri(f.all_collected),
+    steam_progress_sync: tri(f.steam_progress_sync),
     achievements_earned: int(f.achievements_earned),
     achievements_total: int(f.achievements_total),
     release_status: f.release_status || null,

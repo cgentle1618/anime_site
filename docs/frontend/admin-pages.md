@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -146,8 +146,16 @@ rather than derived. The picker stores IGDB's public `www.igdb.com/games/<slug>`
 URL, while the backend's `extract_igdb_id` only parses the API shape
 `api.igdb.com/v4/games/<id>` — so a link pasted by hand identifies nothing, and
 without a separately carried id the entry saves with `igdb_id` null and Fill has
-no handle on it. `steam_appid` sits beside `steam_link` for the same reason
-(there is no Steam picker at all). `gameFieldsPayload` coerces both to ints
+no handle on it. `steam_appid` sits beside `steam_link` for the same
+reason — there is no Steam picker at all, so a hand-typed `steam_link` still
+needs its own id extracted before Fill can use it — but unlike `igdb_id` it
+rarely stays null in practice: `steam_appid` is also written automatically,
+either by `extract_steam_appid` parsing a store URL out of a hand-typed
+`steam_link` before every Fill, or by Fill Game itself, whose IGDB half reads
+the appid from `external_games` and writes the pair when the entry has
+neither yet. Steam itself never writes `steam_appid`/`steam_link` — it only
+reads the appid IGDB (or the admin) already supplied. `gameFieldsPayload`
+coerces both to ints
 (`lib/payloads.js`); `fieldMeta.js` marks them `defaultable: false`, since an
 identifier is per-entry by definition.
 

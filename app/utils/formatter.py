@@ -775,6 +775,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
         "all_achievements": parse_from_sheet(raw.get("all_achievements"), bool),
         "all_collected": parse_from_sheet(raw.get("all_collected"), bool),
+        "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
         "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
         "release_status": parse_from_sheet(raw.get("release_status"), str),

@@ -100,10 +100,11 @@ def test_pipeline_flags_are_derived_from_the_spec():
         assert entry["label"] == spec.label
 
 
-def test_comic_and_game_have_no_bulk_replace():
+def test_comic_has_no_bulk_replace():
+    """Game gained one with the Steam source; Comic still has none."""
     by_key = {e["key"]: e for e in catalog_payload()["media"]}
     assert by_key["comic"]["has_bulk_replace"] is False
-    assert by_key["game"]["has_bulk_replace"] is False
+    assert by_key["game"]["has_bulk_replace"] is True
     assert by_key["studio"]["fill_only"] is True
     assert by_key["comic"]["in_fill_all"] is False
 
@@ -129,15 +130,29 @@ def test_imdb_rating_is_overwritten_and_comes_from_omdb():
     assert _rule_for("movie", "omdb", "imdb_rating") == "overwrite"
 
 
-def test_only_ratings_are_ever_overwritten():
-    """The whole overwrite list, so a new one cannot slip in unnoticed."""
+def test_only_volatile_numbers_are_ever_overwritten():
+    """
+    The overwrite set is small on purpose: a rating, a rank, a live price and
+    this collection's own progress. Everything else is fill-only, so nothing a
+    person typed is ever rewritten by a pipeline.
+    """
     overwritten = {
         write.field
         for coverage in EXTERNAL_APIS
         for _b, write in _writes(coverage)
         if write.rule == "overwrite"
     }
-    assert overwritten == {"mal_rating", "mal_rank", "imdb_rating"}
+    assert overwritten == {
+        "mal_rating",
+        "mal_rank",
+        "imdb_rating",
+        "metacritic_score",
+        "price_current_us",
+        "price_current_jp",
+        "price_current_tw",
+        "hours_played",
+        "achievements_earned",
+    }
 
 
 def test_studio_is_fill_only_everywhere():

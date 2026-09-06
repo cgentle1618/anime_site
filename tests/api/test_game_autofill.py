@@ -175,3 +175,94 @@ def test_swallows_fetch_errors_so_one_bad_entry_cannot_abort_a_run(
 
     monkeypatch.setattr(autofill_module, "fetch_igdb_game", boom)
     autofill_game_from_igdb(make_game(db_session), db_session)  # must not raise
+
+
+def test_the_steam_appid_and_link_are_written_from_igdb(db_session, patched, monkeypatch):
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(
+            MAPPED,
+            steam_appid=1245620,
+            steam_link="https://store.steampowered.com/app/1245620/",
+        ),
+    )
+    game = make_game(db_session, igdb_id=119133)
+
+    autofill_game_from_igdb(game, db_session)
+
+    assert game.steam_appid == 1245620
+    assert game.steam_link == "https://store.steampowered.com/app/1245620/"
+
+
+def test_a_hand_typed_steam_link_is_not_replaced_by_igdb(db_session, patched, monkeypatch):
+    """Fill-only: the admin's link is the identity, exactly as igdb_link is."""
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(
+            MAPPED,
+            steam_appid=999,
+            steam_link="https://store.steampowered.com/app/999/",
+        ),
+    )
+    game = make_game(
+        db_session,
+        igdb_id=119133,
+        steam_link="https://store.steampowered.com/app/1245620/",
+    )
+
+    autofill_game_from_igdb(game, db_session)
+
+    assert game.steam_link == "https://store.steampowered.com/app/1245620/"
+    assert game.steam_appid is None, (
+        "IGDB's appid must not be paired with a link that names another app"
+    )
+
+
+def test_a_hand_typed_appid_is_not_given_igdbs_link(db_session, patched, monkeypatch):
+    """The mirror case: the pair is adopted only when BOTH are empty."""
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(
+            MAPPED,
+            steam_appid=999,
+            steam_link="https://store.steampowered.com/app/999/",
+        ),
+    )
+    game = make_game(
+        db_session,
+        igdb_id=119133,
+        steam_appid=1245620,
+    )
+
+    autofill_game_from_igdb(game, db_session)
+
+    assert game.steam_appid == 1245620
+    assert game.steam_link is None
+
+
+def test_a_game_with_no_steam_presence_keeps_null_columns(db_session, patched):
+    """MAPPED carries no steam keys, which is the console-only case."""
+    game = make_game(db_session, igdb_id=119133)
+
+    autofill_game_from_igdb(game, db_session)
+
+    assert game.steam_appid is None
+    assert game.steam_link is None
+
+
+def test_extracting_ids_reads_both_links(db_session):
+    from app.services.domain.derivation import apply_extract_game_ids
+
+    game = make_game(
+        db_session,
+        igdb_link="https://api.igdb.com/v4/games/119133",
+        steam_link="https://store.steampowered.com/app/1245620/",
+    )
+
+    apply_extract_game_ids(game)
+
+    assert game.igdb_id == 119133
+    assert game.steam_appid == 1245620

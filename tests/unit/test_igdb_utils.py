@@ -70,3 +70,49 @@ def test_extract_igdb_id_from_a_slug_url():
     )
     assert extract_igdb_id("https://api.igdb.com/v4/games/1029") == 1029
     assert extract_igdb_id(None) is None
+
+
+STEAM_ROW = {
+    "id": 119133,
+    "name": "Elden Ring",
+    "external_games": [
+        {"category": 1, "uid": "1245620"},
+        {"category": 11, "uid": "somexboxid"},
+    ],
+}
+
+
+def test_the_steam_appid_is_read_from_external_games():
+    assert map_igdb_to_game_data(STEAM_ROW)["steam_appid"] == 1245620
+
+
+def test_a_canonical_steam_link_is_synthesised_from_the_appid():
+    mapped = map_igdb_to_game_data(STEAM_ROW)
+    assert mapped["steam_link"] == "https://store.steampowered.com/app/1245620/"
+
+
+def test_a_game_with_no_steam_row_yields_neither():
+    raw = {"id": 5, "external_games": [{"category": 11, "uid": "xbox"}]}
+    mapped = map_igdb_to_game_data(raw)
+    assert mapped["steam_appid"] is None
+    assert mapped["steam_link"] is None
+
+
+def test_a_game_with_no_external_games_at_all_yields_neither():
+    mapped = map_igdb_to_game_data({"id": 5, "name": "Bare"})
+    assert mapped["steam_appid"] is None
+    assert mapped["steam_link"] is None
+
+
+def test_a_non_numeric_uid_is_ignored_rather_than_crashing():
+    raw = {"id": 5, "external_games": [{"category": 1, "uid": "not-a-number"}]}
+    assert map_igdb_to_game_data(raw)["steam_appid"] is None
+
+
+def test_the_appid_is_found_when_category_is_null_but_the_new_field_is_set():
+    """IGDB mid-migration: the legacy key is sent as null, not omitted."""
+    raw = {
+        "id": 5,
+        "external_games": [{"category": None, "external_game_source": 1, "uid": "1245620"}],
+    }
+    assert map_igdb_to_game_data(raw)["steam_appid"] == 1245620

@@ -2038,6 +2038,10 @@ export default function Admin() {
                 { label: "Cartoon", url: "/api/data-control/replace/cartoon" },
                 { label: "Manga", url: "/api/data-control/replace/manga" },
                 { label: "Novel", url: "/api/data-control/replace/novel" },
+                // Replace for games runs against Steam only: the live
+                // prices, the Metacritic score, and this collection's own
+                // playtime. IGDB carries nothing that drifts.
+                { label: "Game", url: "/api/data-control/replace/game" },
               ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}

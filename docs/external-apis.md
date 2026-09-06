@@ -4,9 +4,11 @@ Last verified: 2026-09-06
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Eight outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** fills games; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
+
+Nine fields are overwritten on every run, not three: `mal_rating`, `mal_rank`, `imdb_rating`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)).
 
 A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
 
@@ -21,6 +23,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 - [Comic Vine](#comic-vine)
 - [Open Library](#open-library)
 - [IGDB](#igdb)
+- [Steam](#steam)
 - [Google Sheets](#google-sheets)
 - [Google Cloud Storage (cover images)](#google-cloud-storage-cover-images)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
@@ -36,6 +39,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
+| Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 | Google Cloud Storage | via `google-cloud-storage` | `settings.bucket_name` ← `GCP_BUCKET_NAME` (defaults to `cg1618-anime-covers` on Cloud Run only) | `app/services/integrations/image_manager.py`, `app/utils/gcp_utils.py` | — | cover images |
 
@@ -369,11 +373,141 @@ in the database (matched on `igdb_id`, excluding the row itself), Fill sets
 `base_game_id` and the DLC links itself up. A parent not yet entered leaves the
 column null, which is exactly why `base_game_id` is nullable even for a DLC.
 
-**No bulk Replace.** `replace_select` and `replace` are `None` and
-`in_replace_all=False`, on the same reasoning as Studio's `fill_only`: an IGDB
-record carries no score or rank that drifts, so a re-fetch would only rewrite
-what Fill already wrote. Games **are** in Fill All, unlike comics — there is no
-hourly quota to protect.
+**IGDB itself still has no bulk Replace path of its own** — nothing in an IGDB
+record drifts, the same reasoning that makes Studio `fill_only`. What changed
+is that `game` as a whole now has a bulk Replace: it runs the Steam half only.
+See [Steam](#steam) and the game row in [Which pipeline calls which
+service](#which-pipeline-calls-which-service). Games **are** in Fill All, as
+they were before — there is no hourly quota to protect.
+
+## Steam
+
+Steam fills the columns IGDB cannot: live prices, the Metacritic critic score,
+the achievement total, and — for this collection specifically — hours played
+and achievements earned. It never writes `steam_appid` or `steam_link`
+itself; those are IGDB's job (see [IGDB](#igdb) and the mapping table there) —
+Steam only ever *reads* the appid IGDB (or a hand-typed link) already put on
+the row. Getting this backwards was a real bug in an early draft of this
+integration.
+
+### Two hosts, two auth stories
+
+| Host | Auth | Used for |
+|---|---|---|
+| `store.steampowered.com/api/appdetails` | **none** | prices, the Metacritic score, the achievement total |
+| `api.steampowered.com` | `settings.steam_api_key` (`STEAM_API_KEY`) + `settings.steam_id` (`STEAM_ID`) | playtime, achievements earned |
+
+This split is deliberate and gives graceful degradation: **the storefront
+half needs no configuration whatsoever.** A missing key, a missing steamid, or
+a private profile skips only the progress half (`hours_played`,
+`achievements_earned`) and logs one warning; prices, the Metacritic score and
+the achievement total keep filling normally. As of this writing `STEAM_API_KEY`
+/ `STEAM_ID` are unset in this deployment's `.env`, so the progress columns
+stay `null` until they are set.
+
+### Requests per game
+
+`appdetails` returns `metacritic`, `achievements` and `price_overview` in one
+response, so the non-price payload rides along with the `cc=us` call and the
+other two regions are fetched for their prices alone — three storefront calls
+per game, not four:
+
+| Call | Count |
+|---|---|
+| `appdetails?cc=us` | 1 (prices + Metacritic + achievement total) |
+| `appdetails?cc=jp`, `cc=tw` | 2 (prices only) |
+| `GetPlayerAchievements` | 1, only when credentials are set |
+| `GetOwnedGames` | **once per run**, not per game |
+
+`GetOwnedGames` returns the whole library's `playtime_forever` in a single
+response, so `app/services/pipelines/specs.py` fetches and caches it once at
+the start of a Fill or Replace run (`_start_game_run`, wired as `pre_run` on
+the game spec) rather than once per entry — playtime therefore costs nothing
+extra per game. A run that outlives the in-memory cache's `OWNED_CACHE_TTL`
+(300 s) pays one more library request and gets fresher data in exchange.
+
+### Throttling
+
+The storefront's ceiling is ~200 requests per 5 minutes per IP — observed,
+not published, so `SteamStoreRateLimiter` (the shape of `IGDBRateLimiter`) is
+deliberately conservative. At three calls per game that is ~66 games per 5
+minutes, so **Steam, not IGDB, sets the pace of Fill Game and Replace Game.**
+`STEAM_PAUSE = 0.5` seconds in `specs.py` is polite spacing on top of the
+limiter, not the guard itself; the guard is the `budget` hook
+(`steam_store_rate_limiter.has_capacity`), which stops a run cleanly and
+reports the remainder once the window is spent — the same bargain Comic Vine
+makes with its hourly quota.
+
+### Mapping — `map_steam_to_game_data`
+
+Columns only. Steam writes no tag and no credit, so it never touches the
+alias layer.
+
+| Steam field | Column | Rule | Note |
+|---|---|---|---|
+| `metacritic.score` | `metacritic_score` | overwrite | 0-100 int |
+| — | `metacritic_user_score` | never | not published by Steam; stays hand-typed |
+| `price_overview.initial` | `price_original_{us,jp,tw}` | fill-only | list price, not the launch price |
+| `price_overview.final` | `price_current_{us,jp,tw}` | overwrite | the number a sale moves |
+| `achievements.total` | `achievements_total` | fill-only | absent for many games |
+| `playtime_forever` (from `GetOwnedGames`, minutes ÷ 60) | `hours_played` | overwrite, guarded | see below |
+| unlocked count (from `GetPlayerAchievements`) | `achievements_earned` | overwrite, guarded | see below |
+| `name`, `short_description` | nothing | never | name is identity; no summary column, as with IGDB |
+| `genres`, `categories` | nothing | never | IGDB already owns the game vocabulary |
+
+**Currency.** Steam returns every price as an integer with two implied
+decimals, regardless of currency — yen included, despite yen having no minor
+unit in the real world. `PRICE_SCALE = 100` in `app/utils/steam_utils.py`
+divides uniformly. Verified against the live storefront on 2026-09-06 with
+app 1245620: USD `5999` → $59.99, JPY `902000` → ¥9,020, TWD `179000` →
+NT$1,790. `map_steam_to_game_data` also asserts the returned `currency`
+matches what the requested `cc` should answer in (USD / JPY / TWD) and drops
+that region's prices with a warning on a mismatch, so a silent region
+redirect can never write a US price into `price_current_jp`.
+
+**Absent prices are normal.** A free or unreleased game has no
+`price_overview` at all; the price columns stay `null` and `is_free` is
+recorded in the mapped data, so a null price reads as explainable rather than
+broken.
+
+### The two progress guards
+
+Every write to `hours_played` / `achievements_earned` passes both, in order,
+inside `autofill_game_from_steam`:
+
+1. `steam_progress_sync is False` → skip both columns entirely. `None` does
+   **not** block — it means "never asked" and counts as permission, the same
+   as `all_achievements`'s tristate.
+2. A value that is `0` or unknown (`None`) → skip that column. A game owned
+   but never launched on Steam reports `playtime_forever = 0`, and without
+   this guard the first run would erase a hand-typed figure before anyone had
+   reason to set the lock.
+
+`steam_progress_sync` exists for the game owned on Steam but played
+elsewhere — 200 hours on PS5, 2 on Steam — where without the lock a Replace
+run would overwrite 200 with 2.
+
+### Eligibility and Replace
+
+`has_missing_values_game_steam` (`app/services/domain/checking.py`) is
+deliberately **not** folded into `GAME_FIELDS_TO_FILL`: a free game has no
+price, an obscure one no Metacritic score, and many have no achievements, so
+testing those columns individually would leave such an entry eligible
+forever. It instead asks whether the entry has an appid and Steam has written
+**nothing at all** yet — `steam_appid is not None and metacritic_score is
+None and price_original_us is None and achievements_total is None` — which
+bounds the retry to the genuinely empty case. Game's `fill_eligible` is an OR
+of this and IGDB's own missing-values check, but the two sources are not
+independent in practice: `_fill_game` always calls both autofills, and
+`autofill_game_from_igdb` only skips on a missing `igdb_id`, not on
+already-complete columns. So an entry admitted *solely* by the Steam clause
+(IGDB columns already full) still spends `autofill_game_from_igdb`'s two IGDB
+requests before Steam's three run.
+
+Refreshing what is already there is Replace's job: **game's first bulk
+Replace**, `replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
+runs `autofill_game_from_steam` only — nothing in an IGDB record drifts, so
+Replace never re-fetches it.
 
 ## Google Sheets
 
@@ -440,7 +574,7 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 | `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library, plus GCS |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai, GCS |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine, GCS |
-| `game` | `apply_extract_igdb_id` | `autofill_game_from_igdb`; no budget (no hourly quota); in Fill All; no bulk Replace | `IGDB_PAUSE` (0.25 s) | IGDB (+ Twitch for the token), GCS |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam, GCS |
 
 Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page use GCS and, for missing covers, the autofill functions again.
 

@@ -436,7 +436,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
       </div>
       {/* Three tristate axes, independent of the ladder above and of each
           other. "All Achievements" is not read from the counts below. */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="All Endings" hint="Separate axis from completion level">
           <select
             className={selectCls}
@@ -464,6 +464,17 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             className={selectCls}
             value={f.all_collected}
             onChange={(e) => u("all_collected", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </Field>
+        <Field label="Steam Progress Sync" hint="Off: Steam never writes playtime here">
+          <select
+            className={selectCls}
+            value={f.steam_progress_sync}
+            onChange={(e) => u("steam_progress_sync", e.target.value)}
           >
             <option value="">—</option>
             <option value="true">Yes</option>

@@ -792,6 +792,15 @@ export const TYPE_FIELD_META = {
       coerce: "tristate",
       group: "Status",
     },
+    // Not a completion flag: it decides whether Steam Fill/Replace may write
+    // hours_played and achievements_earned over what is already there.
+    steam_progress_sync: {
+      label: "Steam Progress Sync",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
     current_patch: { label: "Current Patch", group: "Status" },
     achievements_earned: {
       label: "Achievements Earned",
