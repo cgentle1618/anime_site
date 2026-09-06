@@ -40,6 +40,22 @@ export const READING_STATUS_GROUP = {
 };
 
 /**
+ * Maps raw playing_status values to display groups used by library filters.
+ */
+export const PLAYING_STATUS_GROUP = {
+  "Plan to Play":       "Planned",
+  "Play When Released": "Planned",
+  "Active Playing":     "Playing",
+  "Passive Playing":    "Playing",
+  Paused:               "Playing",
+  Completed:            "Completed",
+  "Temp Dropped":       "Dropped",
+  Dropped:              "Dropped",
+  "Won't Play":         "Dropped",
+  "Might Play":         "Might Play",
+};
+
+/**
  * Tailwind class strings for airing_status badge colours.
  * Use: AIRING_STATUS_CLS[item.airing_status] ?? AIRING_STATUS_CLS._default
  */
@@ -61,9 +77,9 @@ export const AIRING_STATUS_CLS = {
 export const STATUS_PICKER_GROUPS = ["Not Released", "On-Going", "Done"];
 
 /**
- * Maps every watching_status AND reading_status value to its picker group.
- * One map covers both vocabularies because no value is shared between them
- * with a different meaning — "Paused" is "Paused" either way.
+ * Maps every watching_status, reading_status AND playing_status value to its
+ * picker group. One map covers all three vocabularies because no value is
+ * shared between them with a different meaning — "Paused" is "Paused" any way.
  */
 export const STATUS_PICKER_GROUP = {
   "Might Watch":      "Not Released",
@@ -71,10 +87,15 @@ export const STATUS_PICKER_GROUP = {
   "Watch When Airs":  "Not Released",
   "Might Read":       "Not Released",
   "Plan to Read":     "Not Released",
+  "Might Play":       "Not Released",
+  "Plan to Play":     "Not Released",
+  "Play When Released": "Not Released",
   "Active Watching":  "On-Going",
   "Passive Watching": "On-Going",
   "Active Reading":   "On-Going",
   "Passive Reading":  "On-Going",
+  "Active Playing":   "On-Going",
+  "Passive Playing":  "On-Going",
   Paused:             "On-Going",
   "Temp Dropped":     "On-Going",
   Completed:          "Done",
@@ -82,6 +103,7 @@ export const STATUS_PICKER_GROUP = {
   Dropped:            "Done",
   "Won't Watch":      "Done",
   "Won't Read":       "Done",
+  "Won't Play":       "Done",
 };
 
 /**

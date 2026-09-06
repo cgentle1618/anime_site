@@ -44,6 +44,19 @@ export const READING_STATUSES = [
   "Won't Read",
 ];
 
+export const PLAYING_STATUSES = [
+  "Might Play",
+  "Plan to Play",
+  "Play When Released",
+  "Active Playing",
+  "Passive Playing",
+  "Paused",
+  "Completed",
+  "Temp Dropped",
+  "Dropped",
+  "Won't Play",
+];
+
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -189,6 +202,7 @@ export const MEDIA_TYPES = [
   "manga",
   "novel",
   "comic",
+  "game",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -207,6 +221,10 @@ export const OPTION_CATEGORIES = [
   "Comic Continuity",
   "Comic Era",
   "Comic Event",
+  "Game Genre",
+  "Game Theme",
+  "Game Mode",
+  "Combat Mode",
   "Franchise for Filter",
 ];
 
@@ -219,6 +237,7 @@ export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label", "Quality"];
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
   reading_status: READING_STATUSES,
+  playing_status: PLAYING_STATUSES,
   airing_status: AIRING_STATUSES,
   anime_airing_type: ANIME_AIRING_TYPES,
   cartoon_airing_type: CARTOON_AIRING_TYPES,

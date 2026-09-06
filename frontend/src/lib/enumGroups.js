@@ -35,7 +35,7 @@ export const TIER1_GROUPS = [
   },
   {
     title: "My Progress",
-    keys: ["watching_status", "reading_status"],
+    keys: ["watching_status", "reading_status", "playing_status"],
   },
   {
     title: "Production Status",

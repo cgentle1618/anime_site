@@ -151,8 +151,30 @@ export function getReadingButtonConfig(status) {
   return READING_BUTTON_CONFIG[status] || READING_BUTTON_CONFIG["Might Read"];
 }
 
+const PLAYING_BUTTON_CONFIG = {
+  "Might Play": { symbol: "+", cls: "bg-surface-2 text-text-faint border-border", target: "Plan to Play" },
+  "Plan to Play": { symbol: "…", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  "Play When Released": { symbol: "…", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  "Active Playing": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  "Passive Playing": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  Paused: { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  Completed: { symbol: "✓", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  "Temp Dropped": { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Play" },
+  Dropped: { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Play" },
+  "Won't Play": { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Play" },
+};
+
+export function getPlayingButtonConfig(status) {
+  return PLAYING_BUTTON_CONFIG[status] || PLAYING_BUTTON_CONFIG["Might Play"];
+}
+
+// The three status axes, as sets rather than a chain of ||: a ninth media
+// type should be one entry here, not another arm on a ternary.
+const READ_TYPES = new Set(["manga", "novel", "comic"]);
+const PLAY_TYPES = new Set(["game"]);
+
 export function getCardStatusConfig(type, status) {
-  if (type === "manga" || type === "novel" || type === "comic")
-    return getReadingButtonConfig(status);
+  if (PLAY_TYPES.has(type)) return getPlayingButtonConfig(status);
+  if (READ_TYPES.has(type)) return getReadingButtonConfig(status);
   return getStatusButtonConfig(status);
 }
