@@ -156,6 +156,20 @@ COMIC_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# What IGDB actually returns for a game. Genres, themes and modes are NOT here:
+# they are tags, and IGDB's English only becomes a stored value when the alias
+# table already knows it - so a game whose genre has no alias yet would be
+# re-requested on every run forever. No summary column exists to fill, and the
+# price, patch and achievement columns are personal data IGDB does not model.
+GAME_FIELDS_TO_FILL = [
+    "igdb_link",
+    "release_date",
+    "cover_image_file",
+    "hltb_main",
+    "hltb_main_extra",
+    "hltb_completionist",
+]
+
 # ==========================================
 # VALIDATION
 # ==========================================

@@ -24,6 +24,7 @@ from app.utils.utils import (
     CARTOON_TV_FIELDS_TO_FILL,
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
+    GAME_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
@@ -245,6 +246,22 @@ def has_missing_values_comic(db, comic: Comic) -> bool:
         if val is None or str(val).strip() == "":
             return True
     return _link_missing(db, "comic", comic.system_id, COMIC_LINK_FIELDS_TO_FILL)
+
+
+def has_missing_values_game(game) -> bool:
+    """
+    Returns True if any IGDB-fillable Game column is blank.
+
+    Columns only, and no `db` argument: the genre/theme/mode tags are excluded
+    on purpose. IGDB English only lands as a tag when `system_option_alias`
+    already knows the term, so a game whose genre has no alias yet would stay
+    permanently "needs filling" and be re-requested on every single run.
+    """
+    for field in GAME_FIELDS_TO_FILL:
+        val = getattr(game, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
 
 
 

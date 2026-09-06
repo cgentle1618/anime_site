@@ -10,6 +10,7 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -18,6 +19,7 @@ from app.models import (
 )
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
 from app.services.integrations.comicvine import fetch_comicvine_volume
+from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import download_cover_image
 from app.services.integrations.imdb import fetch_imdb_data
 from app.services.integrations.openlibrary import fetch_openlibrary_work
@@ -28,6 +30,7 @@ from app.services.integrations.tenrai import (
 )
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
+from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
     _parse_season_number,
@@ -620,4 +623,108 @@ def autofill_studio_from_mal(studio: Studio) -> None:
     except Exception as e:
         logger.error(
             f"MAL Autofill failed for Studio ID {studio.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_game_from_igdb(game: Game, db: Session) -> None:
+    """
+    Enriches a single Game entry with IGDB data. Does not commit — the caller
+    is responsible.
+
+    Fill-only throughout: nothing already set by the admin is replaced. That
+    includes game_name_en, which is the entry's identity and often a deliberate
+    shorthand, so it is never touched at all.
+
+    IGDB's `summary` is mapped but not stored: the games table has no summary
+    column by design — a synopsis lives in the entry's notes, written by hand.
+    """
+    # Imported here rather than at module scope: app.routers.options imports
+    # app.schemas, which imports this module back.
+    from app.routers.options import resolve_option_alias
+
+    igdb_id = game.igdb_id
+    if not igdb_id:
+        return
+
+    try:
+        raw_data = fetch_igdb_game(igdb_id)
+        if not raw_data:
+            return
+
+        g_data = map_igdb_to_game_data(raw_data)
+
+        for column in ("release_date", "igdb_link"):
+            if not getattr(game, column, None) and g_data.get(column):
+                setattr(game, column, g_data[column])
+
+        # A separate resource, and most games have none — a missing record is
+        # ordinary, not a failure.
+        times = fetch_igdb_time_to_beat(igdb_id) or {}
+        for column in ("hltb_main", "hltb_main_extra", "hltb_completionist"):
+            if getattr(game, column, None) is None and times.get(column) is not None:
+                setattr(game, column, times[column])
+
+        # A game's developer IS its studio; the publisher is the third entity
+        # target, which is why the publisher credit role exists.
+        if not credit_names(db, "game", game.system_id, "studio"):
+            replace_credits(
+                db, "game", game.system_id, "studio", g_data.get("developers") or []
+            )
+        if not credit_names(db, "game", game.system_id, "publisher"):
+            replace_credits(
+                db, "game", game.system_id, "publisher", g_data.get("publishers") or []
+            )
+
+        # IGDB speaks English; the vocabulary is Chinese. An unmatched value is
+        # LOGGED, never stored raw and never dropped silently - a new IGDB
+        # genre should surface as a gap to fill in the Options admin page.
+        for field, category, values in (
+            ("game_genre", "Game Genre", g_data.get("genres")),
+            ("game_theme", "Game Theme", g_data.get("themes")),
+            ("game_mode", "Game Mode", g_data.get("game_modes")),
+        ):
+            if tag_values(db, "game", game.system_id, field):
+                continue
+            resolved = []
+            for english in values or []:
+                option = resolve_option_alias(db, category, "igdb", english)
+                if option is None:
+                    logger.warning(
+                        "IGDB %s '%s' has no alias row; skipped for game %s",
+                        category,
+                        english,
+                        game.system_id,
+                    )
+                    continue
+                resolved.append(option.value)
+            if resolved:
+                replace_tags(db, "game", game.system_id, field, resolved)
+
+        # parent_game is why IGDB was chosen over RAWG: it resolves the DLC
+        # link automatically. A parent not yet in the database leaves the
+        # column null - the user can fill it in later, which is exactly why
+        # base_game_id is nullable for a DLC.
+        parent_igdb_id = g_data.get("parent_igdb_id")
+        if game.base_game_id is None and parent_igdb_id:
+            parent = (
+                db.query(Game)
+                .filter(
+                    Game.igdb_id == parent_igdb_id, Game.system_id != game.system_id
+                )
+                .first()
+            )
+            if parent is not None:
+                game.base_game_id = parent.system_id
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if not game.cover_image_file and g_data.get("cover_image_url"):
+            filename = download_cover_image(
+                g_data.get("cover_image_url"), str(game.system_id)
+            )
+            if filename:
+                game.cover_image_file = filename
+
+    except Exception as e:
+        logger.error(
+            f"IGDB Autofill failed for Game ID {game.system_id} (IGDB {igdb_id}): {e}"
         )

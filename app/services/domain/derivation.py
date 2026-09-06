@@ -25,6 +25,7 @@ from app.models import (
 from app.utils import release_date
 from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
+from app.utils.igdb_utils import extract_igdb_id
 from app.utils.openlibrary_utils import extract_openlibrary_id
 from app.utils.utils import (
     PART_PATTERN,
@@ -104,6 +105,18 @@ def apply_extract_comicvine_id(entry: Comic) -> bool:
     comicvine_id = extract_comicvine_id(entry.comicvine_link)
     if comicvine_id:
         entry.comicvine_id = comicvine_id
+        return True
+    return False
+
+
+def apply_extract_igdb_id(entry) -> bool:
+    """Extracts the numeric IGDB game ID from igdb_link and writes it to
+    igdb_id. Returns True if set. An unparseable link leaves any existing ID
+    untouched - the ID is the fill pipeline's only handle on the entry, and a
+    www.igdb.com slug URL legitimately carries no id at all."""
+    igdb_id = extract_igdb_id(entry.igdb_link)
+    if igdb_id:
+        entry.igdb_id = igdb_id
         return True
     return False
 
