@@ -94,9 +94,12 @@ export function getFranchiseCover(
  *   3. else the placeholder
  *
  * Unlike getFranchiseCover, entries are passed as a single combined list -
- * SeriesPage loads six flat entry arrays (anime, movies, TV shows, cartoons,
- * manga, novels) with no per-franchise grouping, so there is no "convention
- * filename" fallback to key off.
+ * SeriesPage loads one flat array per media type it can hold (anime, movies,
+ * TV shows, cartoons, manga, novels, comics, games) with no per-franchise
+ * grouping, so there is no "convention filename" fallback to key off. The
+ * caller must pass every one of them: a series whose chosen cover_entry_id
+ * points at a type left out of the list silently falls back to the
+ * placeholder.
  */
 export function getSeriesCover(series, entries) {
   if (series.cover_entry_id) {

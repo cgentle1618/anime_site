@@ -3,12 +3,39 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import MediaCard from "../../components/cards/MediaCard";
-import { PersonCard, StudioCard } from "../../components/cards/StaffCard";
+import {
+  PersonCard,
+  PublisherCard,
+  StudioCard,
+} from "../../components/cards/StaffCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
+
+// The scopes the page can be narrowed to, in the order NavSearch offers them.
+// Exported so a test can assert the page and the API agree on the bucket keys
+// without rendering the whole page.
+export const SCOPE_LABELS = {
+  all: "All",
+  collection: "Collection",
+  franchise: "Franchise",
+  series: "Series",
+  anime: "Anime",
+  "anime-movie": "Anime Movie",
+  movie: "Movie",
+  "tv-show": "TV Show",
+  cartoon: "Cartoon",
+  manga: "Manga",
+  novel: "Novel",
+  comic: "Comic",
+  game: "Game",
+  seasonal: "Seasonal",
+  person: "Person",
+  studio: "Studio",
+  publisher: "Publisher",
+};
 
 const GRID_CLS =
   "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3";
@@ -107,10 +134,12 @@ export default function Search() {
   const [matchedMangas, setMatchedMangas] = useState([]);
   const [matchedNovels, setMatchedNovels] = useState([]);
   const [matchedComics, setMatchedComics] = useState([]);
+  const [matchedGames, setMatchedGames] = useState([]);
   const [matchedSeasonal, setMatchedSeasonal] = useState([]);
   const [matchedCollections, setMatchedCollections] = useState([]);
   const [matchedPeople, setMatchedPeople] = useState([]);
   const [matchedStudios, setMatchedStudios] = useState([]);
+  const [matchedPublishers, setMatchedPublishers] = useState([]);
   const [selectedFranchise, setSelectedFranchise] = useState("all");
 
   const stickyBarRef = useRef(null);
@@ -144,8 +173,10 @@ export default function Search() {
       setMatchedMangas([]);
       setMatchedNovels([]);
       setMatchedComics([]);
+      setMatchedGames([]);
       setMatchedPeople([]);
       setMatchedStudios([]);
+      setMatchedPublishers([]);
       return;
     }
     setMatchedCollections(results.collection);
@@ -160,8 +191,10 @@ export default function Search() {
     setMatchedMangas(results.manga);
     setMatchedNovels(results.novel);
     setMatchedComics(results.comic);
+    setMatchedGames(results.game);
     setMatchedPeople(results.person);
     setMatchedStudios(results.studio);
+    setMatchedPublishers(results.publisher);
     // Pills are the franchises the anime results belong to, which is not the
     // same set as the franchises whose own name matched.
     setFilterPillFranchises(searchQuery.data.related_franchises);
@@ -215,6 +248,12 @@ export default function Search() {
     );
   }, []);
 
+  const handleGameUpdated = useCallback((updated) => {
+    setMatchedGames((prev) =>
+      prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
+    );
+  }, []);
+
   const showSeasonal = scope === "all" || scope === "seasonal";
   const showCollection = scope === "all" || scope === "collection";
   const showFranchise = scope === "all" || scope === "franchise";
@@ -227,8 +266,10 @@ export default function Search() {
   const showManga = scope === "all" || scope === "manga";
   const showNovel = scope === "all" || scope === "novel";
   const showComic = scope === "all" || scope === "comic";
+  const showGame = scope === "all" || scope === "game";
   const showPerson = scope === "all" || scope === "person";
   const showStudio = scope === "all" || scope === "studio";
+  const showPublisher = scope === "all" || scope === "publisher";
   const showFranchisePills =
     (scope === "all" ||
       scope === "anime" ||
@@ -274,27 +315,11 @@ export default function Search() {
     showManga && ["manga", matchedMangas.length],
     showNovel && ["novel", matchedNovels.length],
     showComic && ["comics", matchedComics.length],
+    showGame && ["games", matchedGames.length],
     showPerson && ["people", matchedPeople.length],
     showStudio && ["studios", matchedStudios.length],
+    showPublisher && ["publishers", matchedPublishers.length],
   ].filter((entry) => entry && entry[1] > 0);
-
-  const SCOPE_LABELS = {
-    all: "All",
-    collection: "Collection",
-    franchise: "Franchise",
-    series: "Series",
-    anime: "Anime",
-    "anime-movie": "Anime Movie",
-    movie: "Movie",
-    "tv-show": "TV Show",
-    cartoon: "Cartoon",
-    manga: "Manga",
-    novel: "Novel",
-    comic: "Comic",
-    seasonal: "Seasonal",
-    person: "Person",
-    studio: "Studio",
-  };
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Searching..." />;
@@ -696,6 +721,33 @@ export default function Search() {
           </div>
         )}
 
+        {/* Game */}
+        {showGame && matchedGames.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Game
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedGames.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedGames.map((g) => (
+                <MediaCard
+                  key={g.system_id}
+                  type="game"
+                  data={g}
+                  onUpdated={handleGameUpdated}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* People and studios, last: a search is usually about a title, so a
             name match on a credited person or studio is the weaker answer and
             sits below every media section. Characters are not searchable. */}
@@ -736,6 +788,27 @@ export default function Search() {
             <div className={GRID_CLS}>
               {matchedStudios.map((st) => (
                 <StudioCard key={st.system_id} studio={st} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showPublisher && matchedPublishers.length > 0 && (
+          <div>
+            <div
+              className="flex items-baseline justify-between gap-3 mb-6 pb-2 border-b border-border-strong sticky z-20 bg-canvas"
+              style={{ top: sectionHeaderTop }}
+            >
+              <h2 className="font-display text-2xl font-semibold text-text leading-none">
+                Publishers
+              </h2>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {matchedPublishers.length} results
+              </span>
+            </div>
+            <div className={GRID_CLS}>
+              {matchedPublishers.map((pb) => (
+                <PublisherCard key={pb.system_id} publisher={pb} />
               ))}
             </div>
           </div>

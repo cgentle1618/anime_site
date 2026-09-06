@@ -17,6 +17,7 @@ export default function StatsCompletions({
   allManga,
   allNovel,
   allComic,
+  allGame,
   franchiseMap,
 }) {
   const [completionsTab, setCompletionsTab] = useState("anime");
@@ -39,6 +40,7 @@ export default function StatsCompletions({
   const [mangaCompletionPages, setMangaCompletionPages] = useState({});
   const [novelCompletionPages, setNovelCompletionPages] = useState({});
   const [comicCompletionPages, setComicCompletionPages] = useState({});
+  const [gameCompletionPages, setGameCompletionPages] = useState({});
 
   return (
     <section>
@@ -60,6 +62,7 @@ export default function StatsCompletions({
           { key: "manga", label: "Manga" },
           { key: "novel", label: "Novel" },
           { key: "comic", label: "Comic" },
+          { key: "game", label: "Game" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -1326,6 +1329,165 @@ export default function StatsCompletions({
           );
         })()}
 
+      {/* Game tab */}
+      {completionsTab === "game" &&
+        (() => {
+          // A game is complete when its playing_status says so. The completion
+          // LEVEL (Main Story .. Completionist) is a separate axis and is shown
+          // per row rather than used to filter, so a Main Story finish still
+          // counts as finished.
+          const completed = (allGame || [])
+            .filter((g) => g.playing_status === "Completed" && g.completed_at)
+            .sort(
+              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
+            );
+
+          // Grouped by completion level, on the closed COMPLETION_LEVELS
+          // ladder, with the unrecorded ones last.
+          const LEVELS = [
+            "Main Story",
+            "Main + Extras",
+            "Post-game",
+            "Completionist",
+          ];
+          const byLevel = {};
+          completed.forEach((g) => {
+            const key = LEVELS.includes(g.completion_level)
+              ? g.completion_level
+              : "Unrecorded";
+            if (!byLevel[key]) byLevel[key] = [];
+            byLevel[key].push(g);
+          });
+          const GAME_GROUPS = [...LEVELS, "Unrecorded"]
+            .filter((key) => byLevel[key]?.length)
+            .map((key) => ({ key, label: key }));
+
+          if (completed.length === 0) {
+            return (
+              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+                <p className="text-sm text-text-muted">
+                  No game completions recorded yet.
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-8">
+              {GAME_GROUPS.map(({ key, label }) => {
+                const items = byLevel[key];
+                const PAGE_SIZE = 10;
+                const page = gameCompletionPages[key] ?? 0;
+                const totalPages = Math.ceil(items.length / PAGE_SIZE);
+                const pageItems = items.slice(
+                  page * PAGE_SIZE,
+                  (page + 1) * PAGE_SIZE,
+                );
+                const setPage = (p) =>
+                  setGameCompletionPages((prev) => ({ ...prev, [key]: p }));
+
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
+                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                        {label}
+                      </h3>
+                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
+                        {items.length}
+                      </span>
+                    </div>
+                    <div className="bg-surface border border-border">
+                      {pageItems.map((g, idx) => {
+                        const globalIdx = page * PAGE_SIZE + idx;
+                        const franchise = franchiseMap[String(g.franchise_id)];
+                        const name =
+                          g.game_name_cn || g.game_name_en || "—";
+                        const franchiseName = franchise
+                          ? franchise.franchise_name_cn ||
+                            franchise.franchise_name_en ||
+                            franchise.franchise_name_roman
+                          : null;
+                        const dateStr = new Date(
+                          g.completed_at,
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        });
+                        return (
+                          <Link
+                            key={g.system_id}
+                            to={`/game/${g.system_id}`}
+                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
+                              idx < pageItems.length - 1
+                                ? "border-b border-border"
+                                : ""
+                            }`}
+                          >
+                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
+                              {globalIdx + 1}
+                            </span>
+                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
+                              <img
+                                src={getCoverUrl(g.cover_image_file)}
+                                alt={name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = FALLBACK_SVG;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display text-base leading-tight text-text truncate">
+                                {name}
+                              </p>
+                              {franchiseName && (
+                                <p className="font-mono text-[11px] text-text-faint truncate">
+                                  {franchiseName}
+                                </p>
+                              )}
+                            </div>
+                            {g.hours_played != null && (
+                              <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block tabular-nums">
+                                {g.hours_played} h
+                              </span>
+                            )}
+                            <RatingStamp rating={g.my_rating} />
+                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
+                              {dateStr}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-3 px-1">
+                        <Button
+                          size="sm"
+                          onClick={() => setPage(page - 1)}
+                          disabled={page === 0}
+                        >
+                          Previous
+                        </Button>
+                        <span className="font-mono text-[11px] text-text-faint">
+                          Page {page + 1} of {totalPages}
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => setPage(page + 1)}
+                          disabled={page >= totalPages - 1}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
       {/* Under-development tabs */}
       {![
         "anime",
@@ -1336,6 +1498,7 @@ export default function StatsCompletions({
         "manga",
         "novel",
         "comic",
+        "game",
       ].includes(completionsTab) && (
         <div className="border border-dashed border-border-strong px-4 py-10 text-center">
           <Eyebrow className="mb-1">Under development</Eyebrow>

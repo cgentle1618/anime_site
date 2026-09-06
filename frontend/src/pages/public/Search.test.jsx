@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
-import Search from "./Search";
+import Search, { SCOPE_LABELS } from "./Search";
 
 const EMPTY_BUCKETS = {
   collection: [],
@@ -22,9 +22,11 @@ const EMPTY_BUCKETS = {
   manga: [],
   novel: [],
   comic: [],
+  game: [],
   seasonal: [],
   person: [],
   studio: [],
+  publisher: [],
 };
 
 const RESULTS = {
@@ -49,12 +51,28 @@ const RESULTS = {
         credit_count: 4,
       },
     ],
+    game: [
+      {
+        system_id: "g1",
+        game_name_cn: "魔女宅急便",
+        game_name_en: "Ghibli Game",
+        playing_status: "Might Play",
+      },
+    ],
     studio: [
       {
         system_id: "s1",
         name_en: "Studio Ghibli",
         display_name: "Studio Ghibli",
         credit_count: 12,
+      },
+    ],
+    publisher: [
+      {
+        system_id: "pb1",
+        name_en: "Ghibli Publishing",
+        display_name: "Ghibli Publishing",
+        credit_count: 3,
       },
     ],
   },
@@ -127,7 +145,13 @@ describe("Search page — staff results", () => {
     const headings = screen
       .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
-    expect(headings).toEqual(["Anime", "People", "Studios"]);
+    expect(headings).toEqual([
+      "Anime",
+      "Game",
+      "People",
+      "Studios",
+      "Publishers",
+    ]);
   });
 
   it("counts people and studios in the result summary", async () => {
@@ -136,5 +160,21 @@ describe("Search page — staff results", () => {
     // The counts are split across nested spans, so read the rendered text.
     expect(document.body.textContent).toContain("1 people");
     expect(document.body.textContent).toContain("1 studios");
+  });
+});
+
+describe("Search page — scopes", () => {
+  it("offers game as a search scope", () => {
+    expect(SCOPE_LABELS.game).toBe("Game");
+  });
+
+  it("offers publisher as a search scope, matching the API bucket", () => {
+    expect(SCOPE_LABELS.publisher).toBe("Publisher");
+  });
+
+  it("shows matching publishers, linked to their detail page", async () => {
+    renderPage();
+    const link = (await screen.findByText("Ghibli Publishing")).closest("a");
+    expect(link).toHaveAttribute("href", "/publisher/pb1");
   });
 });

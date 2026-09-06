@@ -21,6 +21,7 @@ const SCOPES = [
   { key: "manga", label: "Manga" },
   { key: "novel", label: "Novel" },
   { key: "comic", label: "Comic" },
+  { key: "game", label: "Game" },
   { key: "seasonal", label: "Seasonal" },
   { key: "person", label: "Person" },
   { key: "studio", label: "Studio" },
@@ -40,6 +41,7 @@ const TYPE_LABEL = {
   manga: "MANGA",
   novel: "NOVEL",
   comic: "COMIC",
+  game: "GAME",
   seasonal: "SEASON",
   person: "PERSON",
   studio: "STUDIO",
@@ -205,6 +207,7 @@ export default function NavSearch() {
         ["manga", 5],
         ["novel", 5],
         ["comic", 5],
+        ["game", 5],
         ["seasonal", 3],
         // Last, and smallest: a query is usually about a title, so staff rows
         // take the slots the media buckets left behind rather than claiming
@@ -303,6 +306,7 @@ export default function NavSearch() {
     else if (item.type === "manga") navigate(`/manga/${item.system_id}`);
     else if (item.type === "novel") navigate(`/novel/${item.system_id}`);
     else if (item.type === "comic") navigate(`/comic/${item.system_id}`);
+    else if (item.type === "game") navigate(`/game/${item.system_id}`);
     else if (item.type === "anime-movie")
       navigate(`/anime-movie/${item.system_id}`);
     else if (item.type === "movie") navigate(`/movie/${item.system_id}`);

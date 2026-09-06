@@ -74,6 +74,15 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
+  if (type === "game")
+    return (
+      item.game_name_cn ||
+      item.game_name_en ||
+      item.game_name_roman ||
+      item.game_name_jp ||
+      item.game_name_alt ||
+      "Unknown"
+    );
   if (
     type === "studio" ||
     type === "publisher" ||
@@ -177,6 +186,7 @@ export default function Delete() {
     manga: [],
     novel: [],
     comic: [],
+    game: [],
     collection: [],
     franchise: [],
     series: [],
@@ -193,7 +203,7 @@ export default function Delete() {
   // orphan checks count all of them: the old anime-only counts offered to
   // delete franchises that still held movies/comics and cascaded past
   // non-anime children, leaving them with franchise_id = NULL.
-  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"];
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
   const standaloneEntriesIn = (franchiseId) =>
@@ -220,6 +230,7 @@ export default function Delete() {
   const [selectedManga, setSelectedManga] = useState(null);
   const [selectedNovel, setSelectedNovel] = useState(null);
   const [selectedComic, setSelectedComic] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -271,6 +282,7 @@ export default function Delete() {
         mgRes,
         nvRes,
         cmRes,
+        gmRes,
         stRes,
         puRes,
         peRes,
@@ -289,12 +301,13 @@ export default function Delete() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
           fetch(endpoints.studio.list(), { credentials: "include" }),
           fetch(endpoints.publisher.list(), { credentials: "include" }),
           fetch(endpoints.person.list(), { credentials: "include" }),
           fetch(endpoints.character.list(), { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st, pu, pe, ch] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, gm, st, pu, pe, ch] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -307,6 +320,7 @@ export default function Delete() {
         mgRes.json(),
         nvRes.json(),
         cmRes.json(),
+        gmRes.json(),
         stRes.json(),
         puRes.json(),
         peRes.json(),
@@ -321,6 +335,7 @@ export default function Delete() {
         manga: mg,
         novel: nv,
         comic: cm,
+        game: gm,
         collection: col,
         franchise: f,
         series: s,
@@ -744,6 +759,13 @@ export default function Delete() {
         return;
       }
 
+      if (type === "game") {
+        const res = await fetch(`/api/game/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete game");
+      }
       if (type === "comic") {
         const res = await fetch(`/api/comic/${item.system_id}`, {
           method: "DELETE",
@@ -1633,6 +1655,104 @@ export default function Delete() {
                   </button>
                   <button
                     onClick={() => initDelete("comic", selectedComic)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GAME TAB */}
+      {tab === "game" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search game to delete..."
+              items={db.game}
+              type="game"
+              onSelect={setSelectedGame}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "game")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.game_type ? ` · ${item.game_type}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedGame && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedGame.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-text text-base truncate">
+                    {getDisplayTitle(selectedGame, "game")}
+                  </h3>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedGame.game_type && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.game_type}
+                      </span>
+                    )}
+                    {selectedGame.playing_status && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.playing_status}
+                      </span>
+                    )}
+                    {selectedGame.ownership && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.ownership}
+                      </span>
+                    )}
+                    {selectedGame.hours_played != null && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.hours_played} H PLAYED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-faint mt-1">
+                    {getFranchiseTitle(selectedGame.franchise_id)}
+                    {selectedGame.series_id &&
+                      ` / ${getSeriesTitle(selectedGame.series_id)}`}
+                  </p>
+                  {/* Deleting a base game cascades to its copies; its DLC rows
+                      keep existing with base_game_id set to NULL. */}
+                  {selectedGame.copies?.length > 0 && (
+                    <p className="text-xs italic text-text-faint mt-1">
+                      {selectedGame.copies.length} copy row(s) will be deleted
+                      with it.
+                    </p>
+                  )}
+                  <p className="text-xs font-mono text-text-faint">
+                    {selectedGame.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedGame(null)}
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("game", selectedGame)}
                     className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
                   >
                     <i className="fas fa-trash-alt"></i> Delete

@@ -847,6 +847,7 @@ export default function SeriesPage() {
     ...cartoonList,
     ...mangaList,
     ...novelList,
+    ...comicList,
   ];
   const coverUrl = getSeriesCover(series, allEntries);
 

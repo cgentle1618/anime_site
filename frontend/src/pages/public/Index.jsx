@@ -7,6 +7,7 @@ import { getSortName } from "../../lib/naming";
 import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
 import ComicDashboardCard from "../../components/tracker/ComicDashboardCard";
+import GameDashboardCard from "../../components/tracker/GameDashboardCard";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
@@ -45,7 +46,15 @@ function readingSortName(item) {
   );
 }
 
-const MEDIA_TYPES = ["Anime", "TV Show", "Cartoon", "Manga", "Novel", "Comic"];
+const MEDIA_TYPES = [
+  "Anime",
+  "TV Show",
+  "Cartoon",
+  "Manga",
+  "Novel",
+  "Comic",
+  "Game",
+];
 
 // Single-select media-type filter shared by the Watching and Reading
 // divisions; the same state renders under both headers. While a type is
@@ -109,6 +118,10 @@ const TOC_ITEMS = [
   { id: "reading-active", label: "Active", level: 2 },
   { id: "reading-passive", label: "Passive", level: 2 },
   { id: "reading-paused", label: "Paused", level: 2 },
+  { id: "playing", label: "Playing", level: 1 },
+  { id: "playing-active", label: "Active", level: 2 },
+  { id: "playing-passive", label: "Passive", level: 2 },
+  { id: "playing-paused", label: "Paused", level: 2 },
 ];
 
 function DashboardTOC({ activeId }) {
@@ -323,6 +336,54 @@ function ReadingSection({
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
+/**
+ * One playing sub-section. Simpler than ReadingSection: the Playing division
+ * holds exactly one media type, so there is no per-type grouping to do and no
+ * progress callback - a game has no unit to step, so GameDashboardCard reads
+ * playtime rather than editing it.
+ */
+function PlayingSection({
+  id,
+  title,
+  count,
+  items,
+  franchiseData,
+  headerTop,
+}) {
+  return (
+    <div id={id}>
+      <div
+        style={{ top: headerTop }}
+        className="sticky z-20 bg-canvas flex items-baseline justify-between pb-2 mb-2 border-b border-border-strong"
+      >
+        <h2 className="font-display text-2xl font-semibold text-text leading-none">
+          {title}
+        </h2>
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          {count} entries
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
+          <p className="text-sm text-text-faint">Nothing filed here right now.</p>
+        </div>
+      ) : (
+        <div className="pt-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {items.map((item) => (
+            <GameDashboardCard
+              key={item.system_id}
+              game={item}
+              franchise={franchiseData.find(
+                (f) => f.system_id === item.franchise_id,
+              )}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Index() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
@@ -334,6 +395,7 @@ export default function Index() {
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
+  const gameQuery = useMediaList("game", LIST_OPTIONS);
   // Announcements are intentionally kept out of the combined loading/error state
   // below — a failed board must never block the rest of the dashboard.
   const announcementQuery = useApiQuery(
@@ -348,6 +410,7 @@ export default function Index() {
   const mangaData = mangaQuery.data || [];
   const novelData = novelQuery.data || [];
   const comicData = comicQuery.data || [];
+  const gameData = gameQuery.data || [];
   const loading =
     animeQuery.isLoading ||
     franchiseQuery.isLoading ||
@@ -355,7 +418,8 @@ export default function Index() {
     cartoonQuery.isLoading ||
     mangaQuery.isLoading ||
     novelQuery.isLoading ||
-    comicQuery.isLoading;
+    comicQuery.isLoading ||
+    gameQuery.isLoading;
   const error =
     animeQuery.error?.message ||
     franchiseQuery.error?.message ||
@@ -364,6 +428,7 @@ export default function Index() {
     mangaQuery.error?.message ||
     novelQuery.error?.message ||
     comicQuery.error?.message ||
+    gameQuery.error?.message ||
     null;
   const [activeSection, setActiveSection] = useState("announcements");
   // One type filter shared by Watching and Reading: null shows every type;
@@ -599,6 +664,7 @@ export default function Index() {
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
   const novelTagged = novelData.map((n) => ({ ...n, _ui_type: "Novel" }));
   const comicTagged = comicData.map((c) => ({ ...c, _ui_type: "Comic" }));
+  const gameTagged = gameData.map((g) => ({ ...g, _ui_type: "Game" }));
 
   // Weekly schedule sources. `_media_type` is a MEDIA_CONFIG key, which the
   // schedule uses for display names and detail links. Append other media types
@@ -665,6 +731,28 @@ export default function Index() {
   );
   const pausedReading = readingShown.filter(
     (m) => m.reading_status === "Paused",
+  );
+
+  // Playing sorts by rating then CN title, the way Reading does; games all
+  // keep their titles under one prefix, so no per-type name helper is needed.
+  const playingSorted = [...gameTagged].sort((a, b) => {
+    const ratingDiff =
+      (RATING_WEIGHT[a.my_rating || "Unrated"] ?? 8) -
+      (RATING_WEIGHT[b.my_rating || "Unrated"] ?? 8);
+    if (ratingDiff !== 0) return ratingDiff;
+    return getSortName(a, "game").localeCompare(getSortName(b, "game"));
+  });
+  const playingShown = typeFilter
+    ? playingSorted.filter((i) => i._ui_type === typeFilter)
+    : playingSorted;
+  const activePlaying = playingShown.filter(
+    (g) => g.playing_status === "Active Playing",
+  );
+  const passivePlaying = playingShown.filter(
+    (g) => g.playing_status === "Passive Playing",
+  );
+  const pausedPlaying = playingShown.filter(
+    (g) => g.playing_status === "Paused",
   );
 
   return (
@@ -860,6 +948,62 @@ in progress
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
                 onComicProgressChange={handleComicProgressChange}
+              />
+            </div>
+          </div>
+
+          {/* Playing Division */}
+          <div id="playing">
+            <div
+              data-division-header
+              className="sticky top-[var(--nav-h)] z-30 bg-canvas flex items-end justify-between gap-3 pb-2 border-b border-border-strong"
+            >
+              <div>
+                <Eyebrow className="mb-1">Game</Eyebrow>
+                <h2 className="font-display text-3xl font-semibold text-text leading-none">
+                  Playing
+                </h2>
+              </div>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                {activePlaying.length +
+                  passivePlaying.length +
+                  pausedPlaying.length}{" "}
+                in progress
+              </span>
+            </div>
+            <TypeFilterBar
+              id="playing-filter"
+              types={MEDIA_TYPES}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              sticky={!!typeFilter}
+              top={divisionTop}
+              onHeightChange={setFilterBarH}
+            />
+            <div className="pt-8 space-y-12">
+              <PlayingSection
+                id="playing-active"
+                title="Active playing"
+                count={activePlaying.length}
+                items={activePlaying}
+                franchiseData={franchiseData}
+                headerTop={subHeaderTop}
+              />
+              <PlayingSection
+                id="playing-passive"
+                title="Passive playing"
+                count={passivePlaying.length}
+                items={passivePlaying}
+                franchiseData={franchiseData}
+                headerTop={subHeaderTop}
+              />
+              <PlayingSection
+                id="playing-paused"
+                title="Paused"
+                count={pausedPlaying.length}
+                items={pausedPlaying}
+                franchiseData={franchiseData}
+                headerTop={subHeaderTop}
               />
             </div>
           </div>
