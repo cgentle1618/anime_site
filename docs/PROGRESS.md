@@ -88,6 +88,7 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | Item | Where | Status |
 |---|---|---|
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing, not from this work | todo |
+| Startup dies if stdout is not UTF-8: emoji prints, and the error handler itself throws | `app/main.py` 108/118/123/129 | todo |
 | `delete_studio` never calls `delete_cover_image` (logo leak) | `app/routers/studio.py` | todo |
 | Migrate `publisher_tw` tag rows into the publisher entity | anime, manga, novel, comic | todo |
 | Steam Web API playtime sync | columns `steam_appid`/`steam_link` reserved | todo |
@@ -115,6 +116,6 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 
 ## Dev database
 
-Behind head as of 2026-09-06: at `u1n2i3t4r5a6`, head is `g1a2m3e4s5`.
-Pending: `dc1o2l3s4d5` (irreversible), `p1u2b3l4i5s6`, `g1a2m3e4s5`.
-`alembic upgrade head` required before the app will serve any page with credits.
+Migrated to `g1a2m3e4s5` on 2026-09-06. Pre-migration dump:
+`~/anime_site_pre_games_20260906_134907.sql` (2.8 MB, 41 tables).
+Smoke-tested after: `/api/constants`, `/api/anime/`, `/api/game/`, `/api/publisher/` all 200.
