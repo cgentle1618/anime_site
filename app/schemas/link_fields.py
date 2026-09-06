@@ -137,6 +137,21 @@ class ComicLinkFields(SourceFields):
     publisher_tw: Optional[str] = None
 
 
+class GameLinkFields(SourceFields):
+    credit_refs: dict[str, list[PersonRef]] = {}
+    studio_refs: list[StudioRef] = []
+    publisher_refs: list[PublisherRef] = []
+    studio: Optional[str] = None
+    publisher: Optional[str] = None
+    director: Optional[str] = None
+    composer: Optional[str] = None
+    game_genre: Optional[str] = None
+    game_theme: Optional[str] = None
+    game_mode: Optional[str] = None
+    combat_mode: Optional[str] = None
+    label: Optional[str] = None
+
+
 # media_type key (hyphenated) -> mixin, for the drift test.
 LINK_FIELD_MIXINS: dict[str, type[BaseModel]] = {
     "anime": AnimeLinkFields,
@@ -147,4 +162,5 @@ LINK_FIELD_MIXINS: dict[str, type[BaseModel]] = {
     "manga": MangaLinkFields,
     "novel": NovelLinkFields,
     "comic": ComicLinkFields,
+    "game": GameLinkFields,
 }

@@ -61,6 +61,14 @@ from app.schemas.franchise import (
     SeriesSheetSync,
     SeriesUpdate,
 )
+from app.schemas.game import (
+    GameBase,
+    GameCopyIO,
+    GameCreate,
+    GameResponse,
+    GameSheetSync,
+    GameUpdate,
+)
 from app.schemas.link_fields import PublisherRef
 from app.schemas.manga import (
     MangaBase,
@@ -289,6 +297,12 @@ __all__ = [
     "ComicUpdate",
     "ComicResponse",
     "ComicSheetSync",
+    "GameBase",
+    "GameCreate",
+    "GameUpdate",
+    "GameResponse",
+    "GameSheetSync",
+    "GameCopyIO",
     "MovieBase",
     "MovieCreate",
     "MovieUpdate",
