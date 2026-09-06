@@ -23,7 +23,7 @@ from app.models.note import Note
 from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
-from app.models.staff import Person, PersonRole, Studio
+from app.models.staff import Person, PersonRole, Publisher, Studio
 from app.models.system import (
     DataControlLog,
     DeletedRecord,
@@ -68,6 +68,7 @@ __all__ = [
     "Person",
     "PersonRole",
     "Studio",
+    "Publisher",
     "MediaCredit",
     "MediaTag",
     "MediaSource",
