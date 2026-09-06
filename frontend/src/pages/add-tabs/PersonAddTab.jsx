@@ -12,9 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
-import PersonSubTabBar, {
-  PERSON_SUB_TABS,
-} from "../../components/forms/PersonSubTabBar";
+import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
@@ -204,38 +202,16 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes }) 
   );
 }
 
-export default function PersonAddTab({
-  personForm,
-  upf,
-  roles,
-  setRoles,
-  subTab,
-  setSubTab,
-}) {
+export default function PersonAddTab({ personForm, upf, roles, setRoles }) {
   const legalScopes = useRoleScopes();
 
   return (
-    <div>
-      {/* The sub-tab preselects the type a new person is being added as; the
-          form below still shows every type, because one person may hold
-          several. */}
-      <PersonSubTabBar
-        active={subTab}
-        onSelect={(key) => {
-          setSubTab(key);
-          const legal = legalScopes[key] || [];
-          if (!(roles || []).some((r) => r.role === key) && legal.length) {
-            setRoles([...(roles || []), { role: key, scope: legal[0] }]);
-          }
-        }}
-      />
-      <PersonFields
-        personForm={personForm}
-        upf={upf}
-        roles={roles}
-        setRoles={setRoles}
-        legalScopes={legalScopes}
-      />
-    </div>
+    <PersonFields
+      personForm={personForm}
+      upf={upf}
+      roles={roles}
+      setRoles={setRoles}
+      legalScopes={legalScopes}
+    />
   );
 }

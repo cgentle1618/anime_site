@@ -156,10 +156,9 @@ not `<input type="date">`, because it carries the same partial precision
 `release_date` does (invalid values are flagged with a danger border). The
 entry's Ownership is derived from these rows, not typed.
 
-**Person tab (Entity).** `PersonAddTab.jsx`. A `PersonSubTabBar` of the five
-types (Director, Producer, Music / Composer, Author, Illustrator) sits above
-the form: it preselects the type a new person is being added as, and never
-narrows what the form edits. `PersonFields` holds the four name fields with a
+**Person tab (Entity).** `PersonAddTab.jsx`. No `PersonSubTabBar` here — the
+bar filters a list, and Add has no list; the role × scope matrix inside the
+form already says which types a new person holds. `PersonFields` holds the four name fields with a
 "Display name" select, the **role × scope matrix**, and gender, rating, photo
 key and remark. Ticking a type selects its first legal media type, because a
 scopeless role is a 422; the legal types per role come from

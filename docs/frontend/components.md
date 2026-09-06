@@ -267,7 +267,7 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 
 | Component | What it is |
 |---|---|
-| `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Add / Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all four. It filters a list and preselects a type; it never scopes the editor, because a person is one row that may hold several types. |
+| `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. |
 | `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
 | `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |

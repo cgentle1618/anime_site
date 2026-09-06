@@ -1,11 +1,12 @@
-// The six person types, shared by the admin Add / Modify / Delete pages so
-// the three cannot drift apart — the same job OptionSubTabBar does for the
-// System Option tab.
+// The six person types, shared by the admin Modify / Delete pages and the
+// person library so they cannot drift apart — the same job OptionSubTabBar
+// does for the System Option tab.
 //
-// The sub-tab filters WHICH PEOPLE ARE LISTED and preselects the type for a
-// new person. It deliberately does not scope the form: a person is one row and
-// may hold several types, so the person editor always shows their full
-// role × scope matrix.
+// The sub-tab filters WHICH PEOPLE ARE LISTED, which is why the Add page has
+// no bar: there is nothing to filter, and the role × scope matrix in the form
+// already says which types the new person holds. It deliberately does not
+// scope the form either: a person is one row and may hold several types, so
+// the person editor always shows their full role × scope matrix.
 //
 // The keys are the collapsed person-role vocabulary in
 // app/utils/credit_roles.py. A seventh type added there needs a line here —

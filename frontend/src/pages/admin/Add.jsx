@@ -171,9 +171,6 @@ export default function Add() {
   // Options" nav entry. Person and Studio are top-level tabs under the Entity
   // group (see adminTabs.js), each with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
-  // Which person type the Person tab is filtered to; it preselects the type a
-  // new person is given, and never narrows what the form can edit.
-  const [personSubTab, setPersonSubTab] = useState("director");
   const [personRoles, setPersonRoles] = useState([]);
   // The three entity forms start from their factories in config/formFactories.js
   // like every other tab, so the admin's /defaults overrides reach them through
@@ -2894,8 +2891,6 @@ export default function Add() {
               upf={upf}
               roles={personRoles}
               setRoles={setPersonRoles}
-              subTab={personSubTab}
-              setSubTab={setPersonSubTab}
             />
           </div>
         )}
