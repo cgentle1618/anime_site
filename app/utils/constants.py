@@ -205,9 +205,11 @@ ANIME_AIRING_TYPES: tuple[str, ...] = (
 GAME_TYPES: tuple[str, ...] = ("Base Game", "DLC", "Expansion", "Bundle")
 
 # How deep a finish went. Deliberately a ladder of content depth only: whether
-# every ending was seen (games.all_endings) and how many achievements were
-# earned (games.achievements_*) are separate axes, because they move
-# independently of this one. Speedrun and glitch categories are out of scope.
+# every ending was seen, every achievement earned and every collectible found
+# (games.all_endings / all_achievements / all_collected) and how many
+# achievements were earned (games.achievements_*) are separate axes, because
+# they move independently of this one. Speedrun and glitch categories are out
+# of scope.
 COMPLETION_LEVELS: tuple[str, ...] = (
     "Main Story",
     "Main + Extras",

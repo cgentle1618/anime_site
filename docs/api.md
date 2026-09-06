@@ -311,7 +311,7 @@ nested `copies` collection.
 | `POST`   | `/`                    | Admin  | Create. Body: `GameCreate` — every `games` column plus `copies` and the shared source-write fields. Auto-runs `execute_replace_single_game` after creation, which fetches nothing (no external source is wired yet) and only re-extracts system options and logs the write. |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update. Body: `GameUpdate`. Same write hook. |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update, raw JSON dict. `copies` is honoured here too — the nested writer coerces a copy's `system_id` from a JSON string, since a PATCH body never passes through the schema. |
-| `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, `all_endings` and the achievement pair are independent axes only the user can judge. |
+| `POST`   | `/{entry_id}/complete` | Admin  | Sets `playing_status = "Completed"` and **nothing else**: `completion_level`, the three `all_*` flags and the achievement pair are independent axes only the user can judge. |
 | `DELETE` | `/{entry_id}`          | Admin  | Delete. Cascades to `game_copy`; logs to `deleted_record` under type `Game`. |
 
 **Response model:** `GameResponse` — the columns, `display_name`, `copies`,

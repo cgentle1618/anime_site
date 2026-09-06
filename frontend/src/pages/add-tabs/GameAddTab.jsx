@@ -416,6 +416,18 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             ))}
           </select>
         </Field>
+        <Field label="Current Patch" hint="e.g. 1.6.2">
+          <input
+            className={inputCls}
+            value={f.current_patch}
+            onChange={(e) => u("current_patch", e.target.value)}
+            placeholder="1.6.2"
+          />
+        </Field>
+      </div>
+      {/* Three tristate axes, independent of the ladder above and of each
+          other. "All Achievements" is not read from the counts below. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="All Endings" hint="Separate axis from completion level">
           <select
             className={selectCls}
@@ -427,13 +439,27 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             <option value="false">No</option>
           </select>
         </Field>
-        <Field label="Current Patch" hint="e.g. 1.6.2">
-          <input
-            className={inputCls}
-            value={f.current_patch}
-            onChange={(e) => u("current_patch", e.target.value)}
-            placeholder="1.6.2"
-          />
+        <Field label="All Achievements">
+          <select
+            className={selectCls}
+            value={f.all_achievements}
+            onChange={(e) => u("all_achievements", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </Field>
+        <Field label="All Collected" hint="Every in-game collectible">
+          <select
+            className={selectCls}
+            value={f.all_collected}
+            onChange={(e) => u("all_collected", e.target.value)}
+          >
+            <option value="">—</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
         </Field>
       </div>
 

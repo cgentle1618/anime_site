@@ -856,6 +856,8 @@ export default function Modify() {
       playing_status: g.playing_status || md("game").playing_status,
       completion_level: g.completion_level || "",
       all_endings: tri(g.all_endings),
+      all_achievements: tri(g.all_achievements),
+      all_collected: tri(g.all_collected),
       achievements_earned: g.achievements_earned ?? "",
       achievements_total: g.achievements_total ?? "",
       release_status: g.release_status || "",

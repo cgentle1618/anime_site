@@ -68,3 +68,17 @@ describe("game igdb_id", () => {
     expect(gameFieldsPayload({ igdb_id: "" }).igdb_id).toBeNull();
   });
 });
+
+// The three completion flags are tristate selects: "" is "unknown", not false.
+describe("game completion flags", () => {
+  it("sends all three as tristate booleans", () => {
+    const payload = gameFieldsPayload({
+      all_endings: "true",
+      all_achievements: "false",
+      all_collected: "",
+    });
+    expect(payload.all_endings).toBe(true);
+    expect(payload.all_achievements).toBe(false);
+    expect(payload.all_collected).toBeNull();
+  });
+});

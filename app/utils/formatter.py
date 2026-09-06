@@ -773,6 +773,8 @@ def parse_game_from_sheet(raw: dict) -> dict:
         or "Might Play",
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
         "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
+        "all_achievements": parse_from_sheet(raw.get("all_achievements"), bool),
+        "all_collected": parse_from_sheet(raw.get("all_collected"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
         "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
         "release_status": parse_from_sheet(raw.get("release_status"), str),

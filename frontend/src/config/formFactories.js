@@ -310,6 +310,8 @@ export const defaultGame = () => ({
   completion_level: "",
   // Tristate: "" is unset, "true"/"false" are the two answers.
   all_endings: "",
+  all_achievements: "",
+  all_collected: "",
   achievements_earned: "",
   achievements_total: "",
   release_status: "",

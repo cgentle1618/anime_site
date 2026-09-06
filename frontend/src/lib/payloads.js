@@ -277,6 +277,8 @@ export function gameFieldsPayload(f) {
     base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
     completion_level: f.completion_level || null,
     all_endings: tri(f.all_endings),
+    all_achievements: tri(f.all_achievements),
+    all_collected: tri(f.all_collected),
     achievements_earned: int(f.achievements_earned),
     achievements_total: int(f.achievements_total),
     release_status: f.release_status || null,

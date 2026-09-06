@@ -150,7 +150,7 @@ def mark_game_completed(entry) -> None:
     """
     Sets a game to Completed without touching how deep the finish went.
 
-    completion_level, all_endings and the achievement pair are three
+    completion_level, the three all_* flags and the achievement pair are
     independent axes and only the user knows their values, so unlike the
     watch/read helpers this sets no progress numbers.
     """

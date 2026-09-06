@@ -167,3 +167,31 @@ def test_the_duplicate_report_covers_games(db_session):
     from app.services.domain.duplicates import find_all_duplicates
 
     assert "game" in find_all_duplicates(db_session)
+
+
+def test_the_three_completion_flags_round_trip(admin_client):
+    """All Endings / All Achievements / All Collected are independent axes.
+
+    Nothing derives them from each other or from the achievement counts.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Nier Automata",
+            "all_endings": True,
+            "all_achievements": False,
+            "all_collected": None,
+        },
+    ).json()
+    assert created["all_endings"] is True
+    assert created["all_achievements"] is False
+    assert created["all_collected"] is None
+
+    patched = admin_client.patch(
+        f"/api/game/{created['system_id']}",
+        json={"all_collected": True, "achievements_earned": 3, "achievements_total": 50},
+    ).json()
+    # The counts say "not everything earned"; the flag is still whatever the
+    # user set, because it is not derived.
+    assert patched["all_collected"] is True
+    assert patched["all_achievements"] is False

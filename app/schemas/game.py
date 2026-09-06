@@ -53,6 +53,8 @@ class GameBase(BaseModel):
     playing_status: str = "Might Play"
     completion_level: Optional[str] = None
     all_endings: Optional[bool] = None
+    all_achievements: Optional[bool] = None
+    all_collected: Optional[bool] = None
     achievements_earned: Optional[int] = None
     achievements_total: Optional[int] = None
 

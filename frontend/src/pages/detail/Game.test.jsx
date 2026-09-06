@@ -5,7 +5,7 @@
 // so the block must render nothing at all rather than a misleading "0 h".
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { GameProgress } from "./Game";
+import { GameProgress, yesNo } from "./Game";
 
 describe("GameProgress", () => {
   it("shows playtime against the main-story estimate", () => {
@@ -27,5 +27,16 @@ describe("GameProgress", () => {
   it("renders nothing rather than a zero when there is no playtime", () => {
     const { container } = render(<GameProgress game={{}} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+// The three completion flags are tristate. Unknown must stay blank on the
+// page: rendering "No" would claim the endings were missed.
+describe("yesNo", () => {
+  it("renders the two answers and drops the unknown", () => {
+    expect(yesNo(true)).toBe("Yes");
+    expect(yesNo(false)).toBe("No");
+    expect(yesNo(null)).toBeNull();
+    expect(yesNo(undefined)).toBeNull();
   });
 });

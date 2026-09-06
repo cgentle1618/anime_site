@@ -47,3 +47,12 @@ def test_alias_parses_its_three_columns():
         {"id": "3", "option_id": "not-a-uuid", "source": "igdb", "value": "RPG"}
     )
     assert parsed == {"id": 3, "option_id": None, "source": "igdb", "value": "RPG"}
+
+
+def test_the_completion_flags_parse_as_tristate_booleans():
+    parsed = parse_game_from_sheet(
+        {"all_endings": "TRUE", "all_achievements": "FALSE", "all_collected": ""}
+    )
+    assert parsed["all_endings"] is True
+    assert parsed["all_achievements"] is False
+    assert parsed["all_collected"] is None

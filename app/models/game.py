@@ -93,9 +93,14 @@ class Game(Base, NameFallbackMixin):
     # plus "Main Story" is the ordinary state of having rolled credits and
     # still playing for achievements.
     completion_level = Column(String, nullable=True)
-    # Tristate, and orthogonal to completion_level: every ending can be seen on
-    # a main-story-only run, and missed on a Completionist one.
+    # Three tristate flags, orthogonal to completion_level and to each other:
+    # every ending can be seen on a main-story-only run, and a collectible
+    # missed on a Completionist one.
     all_endings = Column(Boolean, nullable=True)
+    # Stored, never derived from the counts below - they are often unknown
+    # (no published achievement list, or the numbers not looked up yet).
+    all_achievements = Column(Boolean, nullable=True)
+    all_collected = Column(Boolean, nullable=True)
     achievements_earned = Column(Integer, nullable=True)
     achievements_total = Column(Integer, nullable=True)
 

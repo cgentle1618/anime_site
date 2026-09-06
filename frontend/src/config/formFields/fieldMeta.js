@@ -776,6 +776,22 @@ export const TYPE_FIELD_META = {
       coerce: "tristate",
       group: "Status",
     },
+    // Stored, not derived from achievements_earned / achievements_total: a
+    // game often publishes no achievement list to count against.
+    all_achievements: {
+      label: "All Achievements",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    all_collected: {
+      label: "All Collected",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
     current_patch: { label: "Current Patch", group: "Status" },
     achievements_earned: {
       label: "Achievements Earned",

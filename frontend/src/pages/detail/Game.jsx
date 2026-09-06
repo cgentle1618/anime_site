@@ -44,6 +44,13 @@ function hours(value) {
   return Number.isFinite(n) ? `${n} h` : null;
 }
 
+// Tristate: null is "never recorded", and the InfoCard drops a null field
+// rather than showing a misleading "No".
+export function yesNo(value) {
+  if (value == null) return null;
+  return value ? "Yes" : "No";
+}
+
 /**
  * Playtime against the main-story estimate, and achievements when the game
  * reports a total.
@@ -427,15 +434,15 @@ export default function Game() {
                 [
                   { label: "Playing Status", value: game.playing_status },
                   { label: "Completion Level", value: game.completion_level },
+                ],
+                [
+                  // Three independent axes; null is "unknown", not "no".
+                  { label: "All Endings", value: yesNo(game.all_endings) },
                   {
-                    label: "All Endings",
-                    value:
-                      game.all_endings == null
-                        ? null
-                        : game.all_endings
-                          ? "Yes"
-                          : "No",
+                    label: "All Achievements",
+                    value: yesNo(game.all_achievements),
                   },
+                  { label: "All Collected", value: yesNo(game.all_collected) },
                 ],
                 [
                   // Derived from the copy rows server-side, never stored.

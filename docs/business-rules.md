@@ -224,17 +224,19 @@ not already in a completed status.
 now the first time a write moves an entry into a completed status; it never
 overwrites an existing timestamp.
 
-### A game has three completion axes, and they are independent
+### A game has five completion axes, and they are independent
 
 Every other media type answers "how far in am I" with one fraction. A game
-answers it with three columns that move separately, none derived from any
+answers it with five columns that move separately, none derived from any
 other and none derived from `playing_status`:
 
 | Axis | Column(s) | Why it is its own axis |
 | --- | --- | --- |
 | Depth of content | `completion_level` (`Main Story` → `Main + Extras` → `Post-game` → `Completionist`) | A ladder of how much of the game was played. Independent of `playing_status`: `Active Playing` **plus** `Main Story` is the ordinary state of having rolled credits and still playing for achievements. |
 | Endings | `all_endings` (tristate boolean) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. |
-| Achievements | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
+| Achievements, judged | `all_achievements` (tristate boolean) | Deliberately not derived from the counts below. The counts are frequently unknown - platforms that publish no achievement list, or a row entered before the numbers were looked up - so "did I get them all" is answered directly. |
+| Collectibles | `all_collected` (tristate boolean) | Every in-game collectible gathered. A Completionist run can still miss one. |
+| Achievements, counted | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
 
 Consequences worth stating plainly, because they are what makes games unlike
 the other eight types:
