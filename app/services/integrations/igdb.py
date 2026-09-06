@@ -254,6 +254,58 @@ def fetch_igdb_game(igdb_id: int) -> Optional[Dict[str, Any]]:
     ),
     reraise=False,
 )
+def fetch_igdb_time_to_beat(igdb_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Average completion times for one game, keyed by the `hltb_*` columns and
+    converted to HOURS.
+
+    Verified against the live IGDB API reference on 2026-09-06: the resource is
+    `game_time_to_beats` (the singular `time_to_beat` endpoint of earlier API
+    versions no longer exists), it is filtered on `game_id`, and `hastily` /
+    `normally` / `completely` are integers in SECONDS. Storing them unconverted
+    would silently put 162000 in `hltb_main`.
+
+    Returns None when IGDB has no submissions for the game — most games have
+    none, and that is not an error.
+    """
+    if not igdb_id:
+        return None
+
+    results = _request(
+        "game_time_to_beats",
+        f"fields {TIME_TO_BEAT_FIELDS}; where game_id = {int(igdb_id)}; limit 1;",
+        context=f"time to beat for game {igdb_id}",
+    )
+
+    if not results:
+        return None
+
+    record = results[0] or {}
+
+    def hours(seconds: Any) -> Optional[float]:
+        if seconds in (None, 0):
+            return None
+        try:
+            return round(float(seconds) / SECONDS_PER_HOUR, 1)
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "hltb_main": hours(record.get("hastily")),
+        "hltb_main_extra": hours(record.get("normally")),
+        "hltb_completionist": hours(record.get("completely")),
+    }
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
 def search_igdb_games(query: str, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Searches games by name so the admin can pick the right entry and store its
