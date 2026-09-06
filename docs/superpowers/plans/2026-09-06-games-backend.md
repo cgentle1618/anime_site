@@ -1363,6 +1363,8 @@ Register in `app/main.py`: add `game` to the `from app.routers import (...)` blo
 
 In `app/utils/data_control_utils.py`, add the `game` branch to `log_deleted_record`'s name extraction (CN-first, matching `Game.display_name`), which `test_media_crud.py::test_delete_removes_and_logs` asserts.
 
+**Delete the `_PENDING_MEDIA_TYPES` allowlist** in `tests/unit/test_credit_roles.py`, along with the `or mt in _PENDING_MEDIA_TYPES` clause in `test_every_media_type_named_by_a_role_is_a_known_key`. The publisher plan added it because the `publisher` credit role names `"game"` before `MEDIA_TABLES` registers it — a real ordering conflict between the two plans. This task is what registers it, so the escape hatch closes here. Leaving it in would let a genuine typo through under that one name, which is exactly what the guard exists to catch.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `POSTGRES_DB=anime_site_test_<suffix> venv/Scripts/python.exe -m pytest tests/api/test_media_crud.py tests/api/test_game_domain.py tests/unit/test_media_resolver.py -v`
