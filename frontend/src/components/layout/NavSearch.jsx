@@ -5,7 +5,7 @@
 // many rows of each to show. Enter opens the full results page.
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { cleanString } from "../../utils/media";
+import { cleanString, getDisplayName } from "../../utils/media";
 import { Chip } from "../ui/primitives";
 
 const SCOPES = [
@@ -48,87 +48,29 @@ const TYPE_LABEL = {
   publisher: "PUBLISH",
 };
 
-function getDisplayName(item) {
-  if (item.type === "collection")
-    return (
-      item.collection_name_cn ||
-      item.collection_name_en ||
-      item.collection_name_roman ||
-      item.collection_name_jp ||
-      "—"
-    );
-  if (item.type === "franchise")
-    return (
-      item.franchise_name_cn ||
-      item.franchise_name_en ||
-      item.franchise_name_roman ||
-      item.franchise_name_jp ||
-      "—"
-    );
-  if (item.type === "series")
-    return (
-      item.series_name_cn || item.series_name_en || item.series_name_alt || "—"
-    );
-  if (item.type === "cartoon")
-    return (
-      item.cartoon_name_cn ||
-      item.cartoon_name_en ||
-      item.cartoon_name_alt ||
-      "—"
-    );
-  if (item.type === "manga")
-    return (
-      item.manga_name_cn ||
-      item.manga_name_en ||
-      item.manga_name_roman ||
-      item.manga_name_jp ||
-      "—"
-    );
-  if (item.type === "novel")
-    return (
-      item.novel_name_cn ||
-      item.novel_name_en ||
-      item.novel_name_roman ||
-      item.novel_name_jp ||
-      "—"
-    );
-  // EN first, then CN, then Alt. Every other type in this list leads with CN;
-  // comic does not, because these are Western runs whose English title is the
-  // one they are known by.
-  if (item.type === "comic")
-    return (
-      item.comic_name_en || item.comic_name_cn || item.comic_name_alt || "—"
-    );
-  if (item.type === "anime-movie")
-    return (
-      item.anime_movie_name_cn ||
-      item.anime_movie_name_en ||
-      item.anime_movie_name_roman ||
-      item.anime_movie_name_jp ||
-      "—"
-    );
-  if (item.type === "movie")
-    return (
-      item.movie_name_cn || item.movie_name_en || item.movie_name_alt || "—"
-    );
-  if (item.type === "tv-show")
-    return item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "—";
+// Types whose display name is data rather than a fixed fallback chain: the row
+// arrives with display_name already resolved server-side from
+// display_name_field, so there is nothing to choose here.
+const SELF_NAMED = new Set(["person", "studio", "publisher"]);
+
+// What lib/naming.js returns when every name column is empty. The dropdown
+// shows a dash instead: the rows are one line tall and a placeholder sentence
+// reads as a title.
+const PLACEHOLDERS = new Set(["Unknown Title", "Unknown Series"]);
+
+/**
+ * The label one result row shows.
+ *
+ * Media and grouping tiers go through the app-wide fallback chain in
+ * lib/naming.js. The dropdown used to carry its own per-type copy of that
+ * chain, which is how `game` ended up with no branch at all and every game
+ * result rendered as a dash.
+ */
+export function getResultName(item) {
   if (item.type === "seasonal") return item.seasonal || "—";
-  // People and studios ship the choice with the row: display_name is resolved
-  // server-side from display_name_field, so there is no fallback chain here.
-  if (
-    item.type === "person" ||
-    item.type === "studio" ||
-    item.type === "publisher"
-  )
-    return item.display_name || "—";
-  return (
-    item.anime_name_cn ||
-    item.anime_name_en ||
-    item.anime_name_roman ||
-    item.anime_name_jp ||
-    "—"
-  );
+  if (SELF_NAMED.has(item.type)) return item.display_name || "—";
+  const name = getDisplayName(item, item.type);
+  return PLACEHOLDERS.has(name) ? "—" : name;
 }
 
 // Rows one query may put in the dropdown. The panel scrolls, so this caps the
@@ -412,7 +354,7 @@ export default function NavSearch() {
                 <Chip className="mr-2">{TYPE_LABEL[item.type]}</Chip>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-text truncate">
-                    {getDisplayName(item)}
+                    {getResultName(item)}
                   </div>
                   {secondary && (
                     <div className="font-mono text-[10px] text-text-faint truncate">
