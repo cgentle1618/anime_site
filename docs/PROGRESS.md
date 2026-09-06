@@ -57,7 +57,7 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | 6 | copies editor + name_entries section | done `e2c3d65` |
 | 7 | admin add/modify | done `e70742a` |
 | 8 | plan, stats, search, dashboard (+ publisher `/search` gap) | done `417797b` |
-| 9 | build + docs | done `d97d976` (build wip) |
+| 9 | build + docs | done `d97d976` |
 
 ### igdb-integration · `docs/superpowers/plans/2026-09-06-igdb-integration.md`
 
@@ -99,14 +99,22 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 
 | Item | Where | Status |
 |---|---|---|
-| No Game Entry tab documented | `docs/frontend/admin-pages.md` | todo |
+| No Game Entry tab documented | `docs/frontend/admin-pages.md` | done `8b77257` |
 | `bulk_download_missing_covers` has no Game branch | `app/services/calculation.py` | todo |
 | Games (and comics) absent from cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` | todo |
 | No Games tab | `FutureReleases.jsx` | todo |
-| 7 game arrays hand-synced, not `/api/constants` fallback; comment stale | `frontend/src/config/fieldOptions.js` | todo |
-| Duplicate `--c-scope-game` in the dark block | `frontend/src/index.css` | todo |
+| 7 game arrays hand-synced, not `/api/constants` fallback; comment stale | `frontend/src/config/fieldOptions.js` | done `b17bb7d` |
+| Duplicate `--c-scope-game` in the dark block | `frontend/src/index.css` | done `b17bb7d` |
 | Colour-token table holds pre-archive hexes | `docs/frontend/components.md` | todo |
+| Stale comment: "Fill reads igdb_id, which the backend derives from this link" | `frontend/src/config/formFields/fieldMeta.js:881` | todo |
+| `/defaults` shows an inert auto-fill column for Game | `frontend/src/config/formFields/fieldMeta.js` | todo |
 
-## Test databases in use
+## Test databases — safe to drop
 
-`anime_site_test_pubbe` · `anime_site_test_gameb` · `anime_site_test_gamec` · `anime_site_test_igdb` · `anime_site_test_gamefix` — drop when the work is done.
+`anime_site_test_pubbe` · `anime_site_test_gameb` · `anime_site_test_gamec` · `anime_site_test_igdb` · `anime_site_test_gamefix`
+
+## Dev database
+
+Behind head as of 2026-09-06: at `u1n2i3t4r5a6`, head is `g1a2m3e4s5`.
+Pending: `dc1o2l3s4d5` (irreversible), `p1u2b3l4i5s6`, `g1a2m3e4s5`.
+`alembic upgrade head` required before the app will serve any page with credits.
