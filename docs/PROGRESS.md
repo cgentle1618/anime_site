@@ -57,7 +57,7 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | 6 | copies editor + name_entries section | done `e2c3d65` |
 | 7 | admin add/modify | done `e70742a` |
 | 8 | plan, stats, search, dashboard (+ publisher `/search` gap) | done `417797b` |
-| 9 | build + docs | wip session-A |
+| 9 | build + docs | done `d97d976` (build wip) |
 
 ### igdb-integration · `docs/superpowers/plans/2026-09-06-igdb-integration.md`
 
@@ -69,8 +69,8 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | 4 | autofill | done `7ec951e` |
 | 5 | real Fill pipeline | done `3737edd` |
 | 6a | search endpoint (backend) | done `e9ed228` |
-| 6b | search box (frontend) | wip session-A |
-| 7 | docs | wip session-A |
+| 6b | search box (frontend) | done `11e50d7` |
+| 7 | docs | done `d97d976` |
 
 ### Post-plan gaps
 
@@ -91,9 +91,21 @@ Spec: `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 | `delete_studio` never calls `delete_cover_image` (logo leak) | `app/routers/studio.py` | todo |
 | Migrate `publisher_tw` tag rows into the publisher entity | anime, manga, novel, comic | todo |
 | Steam Web API playtime sync | columns `steam_appid`/`steam_link` reserved | todo |
-| Stale Deferred line: "`system_option_usage` has no Sheets tab" | `docs/roadmap.md` | todo |
-| Stale "not served yet" rows for the game vocabularies | `docs/options.md` | wip session-A |
-| Series page: no Game tab | `frontend/src/pages/detail/SeriesPage.jsx` | wip session-A |
+| Stale Deferred line: "`system_option_usage` has no Sheets tab" | `docs/roadmap.md` | done `d97d976` |
+| Stale "not served yet" rows for the game vocabularies | `docs/options.md` | done `d97d976` |
+| Series page: no Game tab | `frontend/src/pages/detail/SeriesPage.jsx` | done `2669067` |
+
+### Found by the docs pass, not yet fixed
+
+| Item | Where | Status |
+|---|---|---|
+| No Game Entry tab documented | `docs/frontend/admin-pages.md` | todo |
+| `bulk_download_missing_covers` has no Game branch | `app/services/calculation.py` | todo |
+| Games (and comics) absent from cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` | todo |
+| No Games tab | `FutureReleases.jsx` | todo |
+| 7 game arrays hand-synced, not `/api/constants` fallback; comment stale | `frontend/src/config/fieldOptions.js` | todo |
+| Duplicate `--c-scope-game` in the dark block | `frontend/src/index.css` | todo |
+| Colour-token table holds pre-archive hexes | `docs/frontend/components.md` | todo |
 
 ## Test databases in use
 
