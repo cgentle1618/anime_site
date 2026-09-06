@@ -15,6 +15,8 @@ import {
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
+import { PLAYING_STATUS_GROUP } from "../../config/statusGroups";
+import { GAME_TYPES } from "../../config/fieldOptions";
 import {
   HubLoading,
   HubError,
@@ -106,6 +108,7 @@ export default function SeriesPage() {
   const [mangaList, setMangaList] = useState([]);
   const [novelList, setNovelList] = useState([]);
   const [comicList, setComicList] = useState([]);
+  const [gameList, setGameList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -154,6 +157,15 @@ export default function SeriesPage() {
     readingStatus: new Set(),
   });
 
+  // ── Game tab state ────────────────────────────────────────────────────────
+  // Sorted by release date by default: a series of games is read as a release
+  // line, and the DLC sits after the base game it hangs off.
+  const [gameSort, setGameSort] = useState("release_date");
+  const [gameFilters, setGameFilters] = useState({
+    gameType: new Set(),
+    playingStatus: new Set(),
+  });
+
   // ── Movies tab state ──────────────────────────────────────────────────────
   const [movSort, setMovSort] = useState("release_date");
   const [movFilters, setMovFilters] = useState({
@@ -177,7 +189,7 @@ export default function SeriesPage() {
   });
 
   // ── fetch ─────────────────────────────────────────────────────────────────
-  // Seven entry lists, not eight: anime_movies has no series_id column, so an
+  // Eight entry lists, not nine: anime_movies has no series_id column, so an
   // anime movie can only ever be reached through its franchise.
   useEffect(() => {
     let cancelled = false;
@@ -185,7 +197,7 @@ export default function SeriesPage() {
     setError(null);
     async function load() {
       try {
-        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
+        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, gmRes, pnRes] =
           await Promise.all([
           fetch(endpoints.resource("series").detail(system_id), {
             credentials: "include",
@@ -211,6 +223,9 @@ export default function SeriesPage() {
           fetch(buildUrl(endpoints.resource("comic").list(), { series_id: system_id }), {
             credentials: "include",
           }),
+          fetch(buildUrl(endpoints.resource("game").list(), { series_id: system_id }), {
+            credentials: "include",
+          }),
           fetch("/api/plan-next/?scope=series&kind=rewatch", {
             credentials: "include",
           }),
@@ -221,8 +236,8 @@ export default function SeriesPage() {
         // body into a list state would hand the filter memos a non-array and
         // blank the whole page, so each list degrades to empty instead.
         const s = await sRes.json();
-        const [a, m, tv, c, mg, nv, cm] = await Promise.all(
-          [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes].map(asList),
+        const [a, m, tv, c, mg, nv, cm, gm] = await Promise.all(
+          [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, gmRes].map(asList),
         );
         const pn = pnRes.ok ? await pnRes.json() : [];
         if (cancelled) return;
@@ -234,6 +249,7 @@ export default function SeriesPage() {
         setMangaList(mg);
         setNovelList(nv);
         setComicList(cm);
+        setGameList(gm);
         setRewatchMarked(
           new Set(
             pn
@@ -268,6 +284,7 @@ export default function SeriesPage() {
     if (mangaList.length) list.push("manga");
     if (novelList.length) list.push("novel");
     if (comicList.length) list.push("comic");
+    if (gameList.length) list.push("game");
     return list;
   }, [
     animeList,
@@ -277,6 +294,7 @@ export default function SeriesPage() {
     mangaList,
     novelList,
     comicList,
+    gameList,
   ]);
 
   const seriesApplicableRewatchTypes = useMemo(
@@ -294,6 +312,7 @@ export default function SeriesPage() {
       mangaList.length && "Manga",
       novelList.length && "Novel",
       comicList.length && "Comic",
+      gameList.length && "Game",
       movieList.length && "Movies",
       tvShowList.length && "TV Shows",
       cartoonList.length && "Cartoons",
@@ -304,6 +323,7 @@ export default function SeriesPage() {
     mangaList,
     novelList,
     comicList,
+    gameList,
     movieList,
     tvShowList,
     cartoonList,
@@ -358,6 +378,12 @@ export default function SeriesPage() {
   const handleComicUpdated = useCallback(
     (u) =>
       setComicList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
+    [],
+  );
+
+  const handleGameUpdated = useCallback(
+    (u) =>
+      setGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
     [],
   );
 
@@ -643,6 +669,40 @@ export default function SeriesPage() {
     return result;
   }, [comicList, comicFilters, comicSort]);
 
+  // ── Game memos ────────────────────────────────────────────────────────────
+  // Game type is a filter of its own, unlike the other tabs: a series usually
+  // mixes a base game with its DLC, and looking at one without the other is
+  // the common case. The title sort leads with the Chinese name, the way the
+  // game display name does.
+  const filteredAndSortedGame = useMemo(() => {
+    let result = gameList.filter((g) => {
+      if (
+        gameFilters.gameType.size > 0 &&
+        !gameFilters.gameType.has(g.game_type || "")
+      )
+        return false;
+      if (gameFilters.playingStatus.size > 0) {
+        const group =
+          PLAYING_STATUS_GROUP[g.playing_status || "Might Play"] ||
+          "Might Play";
+        if (!gameFilters.playingStatus.has(group)) return false;
+      }
+      return true;
+    });
+    result.sort((a, b) => {
+      if (gameSort === "my_rating")
+        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
+      if (gameSort === "hours_played")
+        return (b.hours_played || 0) - (a.hours_played || 0);
+      if (gameSort === "title")
+        return (a.game_name_cn || a.game_name_en || "").localeCompare(
+          b.game_name_cn || b.game_name_en || "",
+        );
+      return releaseScore(a.release_date) - releaseScore(b.release_date);
+    });
+    return result;
+  }, [gameList, gameFilters, gameSort]);
+
   // ── Movies memos ──────────────────────────────────────────────────────────
   const filteredAndSortedMovies = useMemo(() => {
     let result = movieList.filter((m) => {
@@ -820,6 +880,7 @@ export default function SeriesPage() {
       Movies: movieList.length,
       "TV Shows": tvShowList.length,
       Cartoons: cartoonList.length,
+      Game: gameList.length,
     };
     return map[tab] ?? 0;
   }
@@ -848,6 +909,7 @@ export default function SeriesPage() {
     ...mangaList,
     ...novelList,
     ...comicList,
+    ...gameList,
   ];
   const coverUrl = getSeriesCover(series, allEntries);
 
@@ -1393,6 +1455,73 @@ export default function SeriesPage() {
                   data={c}
                   isAdmin={isAdmin}
                   onUpdated={handleComicUpdated}
+                />
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Game tab content ──────────────────────────────────────────────── */}
+      {activeTab === "Game" && gameList.length > 0 && (
+        <Section
+          title="Game"
+          subtitle="Base games, DLC &amp; expansions"
+          count={filteredAndSortedGame.length}
+        >
+
+          <div className="flex flex-wrap gap-2 mb-4 items-center">
+            <select
+              value={gameSort}
+              onChange={(e) => setGameSort(e.target.value)}
+              className={SELECT_CLS}
+            >
+              <option value="release_date">Sort: release date</option>
+              <option value="title">Sort: title</option>
+              <option value="my_rating">Sort: my rating</option>
+              <option value="hours_played">Sort: hours played</option>
+            </select>
+
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
+
+            {GAME_TYPES.map((v) => (
+              <button
+                key={v}
+                onClick={() => toggleSetFilter(setGameFilters, "gameType", v)}
+                className={pillCls(gameFilters.gameType.has(v))}
+              >
+                {v}
+              </button>
+            ))}
+
+            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
+
+            {["Planned", "Playing", "Completed", "Dropped", "Might Play"].map(
+              (v) => (
+                <button
+                  key={v}
+                  onClick={() =>
+                    toggleSetFilter(setGameFilters, "playingStatus", v)
+                  }
+                  className={pillCls(gameFilters.playingStatus.has(v))}
+                >
+                  {v}
+                </button>
+              ),
+            )}
+          </div>
+
+          {filteredAndSortedGame.length === 0 ? (
+            <FilterEmpty />
+          ) : (
+            <div className={GRID_CLS}>
+              {filteredAndSortedGame.map((g) => (
+                <MediaCard
+                  key={g.system_id}
+                  type="game"
+                  data={g}
+                  isAdmin={isAdmin}
+                  onUpdated={handleGameUpdated}
                 />
               ))}
             </div>
