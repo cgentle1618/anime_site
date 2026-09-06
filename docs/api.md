@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -51,6 +51,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Options — `/api/options`](#options--apioptions)
 - [Person — `/api/person`](#person--apiperson)
 - [Studio — `/api/studio`](#studio--apistudio)
+- [Publisher — `/api/publisher`](#publisher--apipublisher)
 - [Credits — `/api/credits`](#credits--apicredits)
 - [Character — `/api/character`](#character--apicharacter)
 - [Casting — `/api/casting`](#casting--apicasting)
@@ -656,7 +657,8 @@ and `_` is not, which is why the `LIKE` autoescapes.
 
 **Ordering.** Within a bucket, whole-title matches come first, then the type's
 name column ascending (`comic` sorts on `comic_name_en`, `seasonal` descending;
-`person` and `studio` sort on `COALESCE(name_en, name_cn, name_jp, name_alt)`,
+`person`, `studio` and `publisher` sort on
+`COALESCE(name_en, name_cn, name_jp, name_alt)`,
 because their display name is a per-row choice among four nullable columns and
 no single column can order them).
 Sorting in SQL rather than after the fact means an exact match cannot be cut by
@@ -672,7 +674,7 @@ Sorting in SQL rather than after the fact means an exact match cannot be cut by
     "collection": [...], "franchise": [...], "series": [...],
     "anime": [...], "anime-movie": [...], "movie": [...], "tv-show": [...],
     "cartoon": [...], "manga": [...], "novel": [...], "comic": [...],
-    "seasonal": [...], "person": [...], "studio": [...]
+    "seasonal": [...], "person": [...], "studio": [...], "publisher": [...]
   },
   "related_franchises": [...]
 }
@@ -682,8 +684,9 @@ Every bucket key is always present, empty for the types the scope did not ask
 about. Rows carry the same response schema as that type's own list endpoint —
 plan flags, link fields, RBAC visibility, and field gating all included.
 
-**People and studios.** `person` and `studio` are searchable across all four
-name columns and carry the same `PersonResponse` / `StudioResponse` the
+**People, studios and publishers.** `person`, `studio` and `publisher` are
+searchable across all four name columns and carry the same
+`PersonResponse` / `StudioResponse` / `PublisherResponse` the
 library endpoints return, `credit_count` included — computed here for the whole
 bucket in one `filter_visible_pairs` call rather than per row, so the number
 matches `/api/person/` and `/api/studio/` without the N+1. The rows themselves
@@ -867,7 +870,8 @@ response carries `credit_refs`:
 
 keyed by credit role, in stored order, with the label that credit has on that
 media type. Anime and anime-movie also carry `studio_refs`, the same idea for
-studios (a bare list — studio is a single role). Both are built inside
+studios (a bare list — studio is a single role), and any media type whose
+credit roles include `publisher` carries `publisher_refs` in the same shape. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
 field group: a viewer without that permission gets `{}` / `[]`, because a
@@ -905,6 +909,53 @@ secret — its credits are.
 
 ---
 
+## Publisher — `/api/publisher`
+
+Tier 3 entity CRUD for publishers and distributors — a games publisher, or a
+Taiwanese licensor — plus the reverse-credit read the public publisher page
+uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
+with two differences noted below.
+
+| Method   | Path                  | Auth   | Description                                                                       |
+| -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
+| `GET`    | `/`                   | Public | List all publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). |
+| `GET`    | `/{system_id}`        | Public | Get one publisher by UUID. 404 if absent.                                        |
+| `GET`    | `/{system_id}/entries`| Public | The entries this publisher is credited on, grouped by media type. 404 only if the publisher is absent. |
+| `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`); metadata on an existing row is left untouched. Body: `PublisherCreate`. |
+| `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
+| `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
+
+**Response model:** `PublisherResponse` (`app/schemas/publisher.py`) —
+`PublisherBase` fields (the four names, `display_name_field`, `my_rating`,
+`logo_file`, `remark`, `founded_date`, `defunct_date`, `country`,
+`website_url`) plus `system_id`, the resolved `display_name`, and
+`credit_count`. `PublisherBase` rejects a payload with no name at all and a
+`display_name_field` outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
+`ck_publisher_has_a_name`.
+
+**No MAL enrichment, unlike `/api/studio`.** There are no `mal_id` / `mal_link`
+fields on the schema at all, and neither `POST` nor `PUT` calls an autofill:
+MAL has no record of a games publisher or a Taiwanese distributor, so there is
+nothing to fetch. There is no `POST /api/data-control/fill/publisher` either.
+
+**`DELETE` removes the logo; `DELETE /api/studio/{id}` does not.** The
+publisher delete path calls `delete_cover_image(str(system_id))` after the row
+is gone. The studio path never has, so a deleted studio leaves its logo behind
+in GCS — object cleanup was only ever wired into the media-entry routes. The
+divergence is deliberate and pinned by
+`tests/api/test_publisher_router.py::test_delete_removes_the_publisher_and_its_logo`.
+Neither delete takes a `?credits=N` guard, unlike `DELETE /api/person/{id}`.
+
+**`credit_count` counts only credits on entries the viewer may see**, through
+the same `filter_visible_pairs` call `/entries` uses, so the number on the card
+and the list on the page cannot disagree. `GET /{id}/entries` answers with
+empty `groups` rather than a 404 when every credit is hidden: a publisher
+carries no content label of its own, so the publisher is not the secret — its
+credits are.
+
+---
+
 ## Credits — `/api/credits`
 
 Read and replace one media entry's `media_credit` / `media_tag` rows as a
@@ -914,7 +965,7 @@ field's values at once.
 | Method | Path                        | Auth   | Description                                                                    |
 | ------ | --------------------------- | ------ | ---------------------------------------------------------------------------------- |
 | `GET`  | `/{media_type}/{entry_id}`  | Public | Returns `{credits: {role: [names...]}, tags: {field: [values...]}}` — only roles/fields with rows are included; a bare entry returns two empty maps. 400 for an unknown `media_type`, 404 if the entry doesn't exist. |
-| `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`system_option` row, creating on miss. 400 for a role/field not valid on this `media_type`. |
+| `PUT`  | `/{media_type}/{entry_id}`  | Admin  | Replaces the named roles/fields. Body: `{credits: {role: [names...]}, tags: {field: [values...]}}`. A role/field absent from the body is left untouched; one present with an empty list is cleared. Resolves each name to a `person`/`studio`/`publisher`/`system_option` row, creating on miss (dispatched on the role's `target`, which is a three-value axis). 400 for a role/field not valid on this `media_type`. |
 
 `media_type` is one of the hyphenated `MEDIA_TABLES` keys (`anime`,
 `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`).

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -20,7 +20,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [People, studios and links](#people-studios-and-links): person, person_role, studio, character, character_casting, media_credit, media_tag
+- [People, studios and links](#people-studios-and-links): person, person_role, studio, publisher, character, character_casting, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
@@ -504,6 +504,7 @@ are not columns on the entry tables.
 | `to_rewatch` / `to_reread` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. | anime_movies, movies, tv_shows, manga, novel, comic |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
 | `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies |
+| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name}` per publisher, the `studio_refs` idea for the third entity target. Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Gated with `publisher` in the Credits field group. | any type with a `publisher` credit role (`game`, once that table exists) |
 | `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all 8 |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
@@ -593,9 +594,13 @@ collapsed role keys and made `scope` NOT NULL.
 ### `studio`
 
 One anime production studio, and a public entity with a page of its own.
-Publishers and distributors are deliberately **not** here - they need no
-profile, so they stay a single "Publisher / Distributor TW" `system_option`
-vocabulary.
+Publishers and distributors are **not** here - they have their own
+[`publisher`](#publisher) table. The earlier ruling recorded in this file (that
+they need no profile and stay a single "Publisher / Distributor TW"
+`system_option` vocabulary) was reversed on 2026-09-06. That vocabulary still
+exists and still backs the `publisher_tw` tag field on anime, manga, novel and
+comic; what changed is that a publisher can now be an entity with a profile of
+its own.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -637,6 +642,59 @@ Migration `s1t2u3d4i5o6` reshaped the table: the old required `name_native`
 became `name_en` (verified lossless against the 77 production rows - every
 value was already a Latin/romanised name), and the profile columns above were
 added.
+
+### `publisher`
+
+One publisher or distributor - a games publisher, or a Taiwanese licensor -
+and a public entity with a page of its own. Model: `Publisher`
+(`app/models/staff.py`), added 2026-09-06 alongside the `publisher` credit
+role; see `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
+Decision K.
+
+Deliberately a separate table rather than a `publisher` role pointing at
+`studio`. The overlap is real - Bandai Namco and Kadokawa both develop and
+publish, and will exist as two unlinked rows - but the bulk of
+publisher/distributor values are distributors (木棉花, 曼迪) that never
+developed anything, and putting them on `/library/studio` would make that page
+mean something vaguer than it does.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `name_en` | String | yes | | Indexed |
+| `name_cn` / `name_jp` / `name_alt` | String | yes | | |
+| `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
+| `my_rating` | String | yes | | MY_RATINGS |
+| `logo_file` | String | yes | | GCS object key. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
+| `remark` | Text | yes | | |
+| `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
+| `country` | String | yes | | |
+| `website_url` | String | yes | | |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+**No `mal_id` / `mal_link` columns**, unlike `studio`. MAL knows nothing about
+a games publisher or a Taiwanese distributor, so there is nothing to derive an
+id from and nothing to enrich; `app/routers/publisher.py` therefore carries no
+autofill call either. `tests/api/test_publisher_model.py` asserts the absence.
+
+`display_name` and `names_dict` behave exactly as on `studio`:
+`display_name_field` names the winner and the EN → CN → JP → Alt chain is only
+the fallback.
+
+Constraints:
+
+- `uq_publisher_name` UNIQUE (`name_en`, `name_cn`, `name_jp`, `name_alt`)
+  **NULLS NOT DISTINCT** - load-bearing for the same reason as
+  `uq_studio_name`: three of the four columns are NULL on a typical row, and
+  without it the constraint is inert.
+- `ck_publisher_has_a_name` CHECK `num_nonnulls(name_en, name_cn, name_jp,
+  name_alt) >= 1`. Mirrored in `PublisherBase` (`app/schemas/publisher.py`) so
+  a nameless publisher is a 422, not a 500.
+- `ck_publisher_founded_date` / `ck_publisher_defunct_date` CHECK the value
+  matches `^\d{4}(-\d{2}(-\d{2})?)?$` when it is not NULL.
+
+Migration `p1u2b3l4i5s6` creates the table and adds
+`media_credit.publisher_id`.
 
 ### `character`
 
@@ -733,9 +791,10 @@ legal `PERSON_ROLES` value with no migration of its own - see
 
 ### `media_credit`
 
-One person **or** studio credited on one media entry. Model: `MediaCredit`
-(`app/models/media_credit.py`). Replaces the 26 comma-joined credit columns
-the entry tables used to carry.
+One person, studio **or** publisher credited on one media entry. Model:
+`MediaCredit` (`app/models/media_credit.py`). Replaces the 26 comma-joined
+credit columns the entry tables used to carry. The target axis was a
+person/studio pair until 2026-09-06, when `publisher_id` widened it to three.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -745,14 +804,18 @@ the entry tables used to carry.
 | `role` | String | no | | One of CREDIT_ROLE_KEYS, indexed |
 | `person_id` | UUID | yes | | FK `person.system_id` ON DELETE CASCADE |
 | `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE |
+| `publisher_id` | UUID | yes | | FK `publisher.system_id` ON DELETE CASCADE, indexed. Added by migration `p1u2b3l4i5s6` |
 | `position` | Integer | no | `0` (server default too) | Order the names had in the old comma-joined column |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
 Constraints: `ck_media_credit_one_target` CHECK `num_nonnulls(person_id,
-studio_id) = 1`; `uq_media_credit_row` UNIQUE (`media_type`, `entry_id`,
-`role`, `person_id`, `studio_id`) NULLS NOT DISTINCT; index
-`ix_media_credit_entry` (`media_type`, `entry_id`).
+studio_id, publisher_id) = 1` - exactly one target, so a row naming both a
+studio and a publisher has no single meaning and is rejected;
+`uq_media_credit_row` UNIQUE (`media_type`, `entry_id`, `role`, `person_id`,
+`studio_id`, `publisher_id`) NULLS NOT DISTINCT; index `ix_media_credit_entry`
+(`media_type`, `entry_id`). Migration `p1u2b3l4i5s6` drops and recreates both
+the CHECK and the unique constraint to take the third column in.
 
 ### `media_tag`
 

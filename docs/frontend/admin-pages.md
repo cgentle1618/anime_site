@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-05 (commit aad5a3e)
+Last verified: 2026-09-06 (commit 0bea262)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -69,13 +69,13 @@ back to the owning franchise/series where the ids still exist.
 A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
 movie, TV show, cartoon, manga, novel, comic), **Structure** (collection,
 franchise, series, quote, meme, system option) and **Entity** (studio,
-person). Each
+publisher, person, character). Each
 tab is a form component in `pages/add-tabs/`; the page owns the state objects,
 submit handlers and the shared modals.
 
 The **Entity** group holds things that are credited *on* entries rather than
-being entries: studios, and the people credited as director, producer,
-composer, author or illustrator. Both were sub-tabs of System Options and both
+being entries: studios, publishers, characters, and the people credited as
+director, producer, composer, author or illustrator. Both were sub-tabs of System Options and both
 moved out once each became a public entity with pages of its own. They are in
 `FORM_TABS`: an entity is not a media entry, but each has an Add form whose
 starting values are configurable on `/defaults`. Only options, quote and meme
@@ -143,6 +143,18 @@ studio rather than splitting its credits, and leaves its metadata untouched.
 `StudioFields` is exported from this file so the Modify tab renders the exact
 same inputs.
 
+**Publisher tab (Entity).** `PublisherAddTab.jsx`, the publisher twin of the
+studio tab and split the same way (`PublisherFields` exported beside the page
+wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
+fields with the "Display name" select — it is the third consumer of the shared
+`STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
+rating, logo key, country, founded/defunct `ReleaseDateInput`s, website and
+remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+carries no MAL columns, because MAL has no record of a games publisher or a
+Taiwanese distributor. Submit is blocked until at least one name is filled,
+matching `ck_publisher_has_a_name`, and `POST /api/publisher/` is
+find-or-create exactly as studio's is.
+
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
 `MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).
 
@@ -179,6 +191,14 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   English name is still findable by its Japanese one. Opening a studio whose
   `country` is unset seeds the field with **Japan** — the overwhelmingly
   common case here — so saving without touching it records Japan.
+- **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the
+  same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
+  picker listing every publisher up front, the same all-four-names filter, and
+  its own `PUT /api/publisher/{id}` rendering `PublisherFields` from the Add
+  tab. Two `activeTab !== "publisher"` guards on the page suppress the generic
+  entry search bar and save footer, as the studio and person tabs do. Unlike
+  the studio tab it seeds **no default country**: "nearly every studio here is
+  Japanese" is not true of publishers and distributors.
 - **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
   the option tab's category — and every person holding it is listed in the
@@ -233,6 +253,16 @@ repoints the credits onto the survivor first, and is the correct fix for a
 duplicate. Delete itself is two-step (confirm, then execute) and writes no
 `deleted_record`.
 
+**Publisher tab (Entity).** The same shape as the studio tab above: a picker
+over `/api/publisher/` showing display name, id and credit count; a warning
+that `media_credit.publisher_id` is `ON DELETE CASCADE`, so deleting destroys
+this publisher's *n* credits; **Merge Into Another Publisher**
+(`POST /api/publisher/{keep}/merge` with the selected publisher as
+`source_id`) offered beside Delete as the correct fix for a duplicate; and a
+two-step delete writing no `deleted_record`. The one thing the studio path
+does not do: the publisher `DELETE` endpoint also removes the publisher's logo
+object from GCS — see [../api.md](../api.md#publisher--apipublisher).
+
 ## /defaults (`FormDefaults.jsx`)
 
 One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
@@ -243,7 +273,7 @@ by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
 defaults for that type. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
-The Entity tabs (studio, person, character) are defaults-only: their Add forms
+The Entity tabs (studio, publisher, person, character) are defaults-only: their Add forms
 have no "auto-fill from an existing record" search, so every one of their
 fields is `autofillable: false` and `DefaultsTab` drops the auto-fill column
 for them entirely.

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -32,6 +32,7 @@ are a large share of the bundle and never needed on first paint.
 | `/library/collection` | `CollectionLibrary` — `library/CollectionLibrary.jsx` | eager |
 | `/library/franchise` | `FranchiseLibrary` — `library/FranchiseLibrary.jsx` | eager |
 | `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy |
+| `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy |
 | `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy |
 | `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy |
@@ -41,6 +42,7 @@ are a large share of the bundle and never needed on first paint.
 | `/franchise/:system_id` | `detail/Franchise.jsx` → `FranchisePage.jsx` | eager |
 | `/series/:system_id` | `detail/Series.jsx` → `SeriesPage.jsx` | eager |
 | `/studio/:system_id` | `detail/Studio.jsx` | lazy |
+| `/publisher/:system_id` | `detail/Publisher.jsx` | lazy |
 | `/person/:system_id` | `detail/Person.jsx` | lazy |
 | `/character/:system_id` | `detail/Character.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
@@ -66,7 +68,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
 | `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` |
 | `admin` | Admin | flat, `requires: "admin"` | Control Center `/system`, Data History, Review Queue, System Options ┃ Add, Modify, Delete, Form Defaults ┃ Relations ┃ Users, Roles, Content Labels, Watch Orders |
@@ -95,19 +97,21 @@ mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
 debounces 250 ms, discards stale responses by request id, and calls
 `GET /api/search/?q=…&limit=20[&scope=…]`. Scopes: all, collection, franchise,
 series, anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic,
-seasonal, person, studio. With scope `all`, `TYPE_QUOTAS` (collection 3,
-franchise 3, series 3, anime 10, anime-movie 3, movie 3, tv-show 3, cartoon 5,
-manga 5, novel 5, comic 5, seasonal 3, person 2, studio 2) act as first-pass
+seasonal, person, studio, publisher. With scope `all`, `TYPE_QUOTAS`
+(collection 3, franchise 3, series 3, anime 10, anime-movie 3, movie 3,
+tv-show 3, cartoon 5, manga 5, novel 5, comic 5, seasonal 3, person 2,
+studio 2, publisher 2) act as first-pass
 floors that `mergeBuckets` fills in
 order then round-robins up to `MAX_RESULTS = 20` (the quotas sum to 51, so
-they never all fill). Person and studio come last and smallest on purpose: a
-query is usually about a title, so a name match on a credited person or studio
-is the weaker answer and takes the slots the media buckets left behind. Exact
+they never all fill). Person, studio and publisher come last and smallest on
+purpose: a query is usually about a title, so a name match on a credited
+person, studio or publisher is the weaker answer and takes the slots the media
+buckets left behind. Exact
 matches are lifted to the top. Enter navigates to `/search?q=…[&scope=…]`; a
 result click routes to the entry's page (`/seasonal/<encoded id>` for seasons,
-`/person/:id` and `/studio/:id` for staff). Comic display names are EN-first;
-a person or studio row shows the server-resolved `display_name` and its credit
-count as the secondary line. **Characters are not searchable** — by design,
+`/person/:id`, `/studio/:id` and `/publisher/:id` for entities). Comic display
+names are EN-first; a person, studio or publisher row shows the
+server-resolved `display_name` and its credit count as the secondary line. **Characters are not searchable** — by design,
 there is no character scope.
 
 **Theme.** `ThemeContext` keeps `light | dark | system` in
@@ -175,7 +179,7 @@ Cards cap at the total and toast "Cannot exceed total episodes/volumes/…".
 File `pages/public/Search.jsx`. Reads `?q` and `?scope` (default `all`).
 `useApiQuery(["api","search"], "/api/search/", { params: { q, scope }, enabled: hasQuery })`
 → effective key `["api","search",{q,scope}]`. The response is
-`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, person, studio}`
+`results.{collection, seasonal, franchise, series, anime, "anime-movie", movie, "tv-show", cartoon, manga, novel, comic, person, studio, publisher}`
 plus `related_franchises` (the franchises of the matched anime — used as
 filter pills, not name matches). Results are copied into local state so a
 card's `onUpdated` can replace a row without a refetch.
@@ -194,7 +198,9 @@ and **Studios**, `PersonCard` / `StudioCard` grids (`components/cards/StaffCard.
 the same cards the two libraries use) linking to `/person/:id` and
 `/studio/:id`. Staff sit below every media section because a name match ranks
 below a title match; characters have no section at all, being unsearchable by
-design. Empty query shows a "No Search Query" card. Admin-only behaviour comes
+design. **`results.publisher` is returned by the API but this page renders no
+Publishers section** — only the nav dropdown (`NavSearch`) surfaces publisher
+hits so far; adding the section here is a one-block change nobody has made. Empty query shows a "No Search Query" card. Admin-only behaviour comes
 from `MediaCard` itself.
 
 ### Library — `/library/:type`
@@ -285,6 +291,24 @@ no admin controls. Each `StudioCard` (`components/cards/StaffCard.jsx`, shared
 with `/search`) shows the logo, the display name and the credit count, and
 links to `/studio/:system_id`.
 
+### PublisherLibrary — `/library/publisher`
+
+File `pages/library/PublisherLibrary.jsx`. Same shape and the same reasoning as
+`StudioLibrary`: a publisher is a public **entity**, not a media type, so it
+sits outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
+
+One raw `fetch`, but through `endpoints.publisher.list()` rather than the
+literal URL `StudioLibrary` still hardcodes — the deliberate divergence, so the
+route lives in one place. The response already carries `display_name`,
+`credit_count` and `logo_file`, so there is no per-publisher request. Search
+reuses `STUDIO_NAME_FIELDS` (`lib/naming.js`, now shared by studio, person and
+publisher) and runs over **all four** name fields, so a publisher displayed as
+木棉花 is still found by typing "Muse Communication". Sort
+`name (default) | credit_count | my_rating`. No filter panel, no table view, no
+admin controls. Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside
+`StudioCard`) shows the logo, the display name and the credit count, and links
+to `/publisher/:system_id`.
+
 ### PersonLibrary — `/library/person`
 
 File `pages/library/PersonLibrary.jsx`. Same shape and the same reasoning as
@@ -359,6 +383,22 @@ also names the seiyuu who voiced the character there (`seiyuu_display_name`
 the point of looking a character up, unlike a person's own credits. A group
 the viewer may see no entries of still renders, with "Nothing you can see
 here" inside it, same rule the person and studio pages follow.
+
+### Publisher — `/publisher/:system_id`
+
+File `pages/detail/Publisher.jsx`. The public profile for one publisher or
+distributor, copied from `Studio.jsx` and behaving identically: two raw fetches
+in one `Promise.all` (`GET /api/publisher/{id}` and
+`GET /api/publisher/{id}/entries`), the profile call failing being the page's
+404 while the entries call failing is not, a breadcrumb back to
+`/library/publisher`, the logo-plus-rating left column with an "Other names"
+card, and one section per group the entries endpoint returned rendered as the
+same local `CreditCard`.
+
+The one difference from the studio page: the "Profile" `InfoCard` has **no MAL
+row** — `PublisherResponse` carries no `mal_id` / `mal_link` at all, because
+MAL has no record of a games publisher or a TW distributor. Country,
+founded/defunct, website and remark are unchanged.
 
 ### Studio — `/studio/:system_id`
 

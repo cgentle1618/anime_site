@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-05
+Last verified: 2026-09-06
 
 ## What this is for
 
@@ -276,6 +276,7 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | Key | Label | Target | Media types |
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie |
+| `publisher` | Publisher | publisher | game |
 | `director` | Director | person | anime, anime-movie, movie |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime |
@@ -284,7 +285,37 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 | `seiyuu` | Seiyuu 聲優 | person | anime, anime-movie |
 
 `PERSON_ROLES` (derived, served as `/api/constants` `person_role`): `director`,
-`producer`, `composer`, `author`, `illustrator`, `seiyuu`.
+`producer`, `composer`, `author`, `illustrator`, `seiyuu` - `CREDIT_ROLES`
+filtered to `target == "person"`, which excludes both company keys.
+
+**`target` became a three-value axis on 2026-09-06.** It was `"person"` or
+`"studio"`; the `publisher` role added `"publisher"`, pointing at the new
+`publisher` table (see [data-model.md](data-model.md#publisher)) rather than at
+a `system_option` vocabulary. Every reader of the axis dispatches on all three
+explicitly - a two-way branch whose `else` meant "person" would have minted a
+`Person` row for a publisher credit.
+
+**The `publisher` role names `game`, which `MEDIA_TABLES` does not register
+yet.** The role shipped with the publisher entity, ahead of the `game` media
+type it exists for. `tests/unit/test_credit_roles.py` therefore carries a
+temporary allowlist:
+
+```python
+_PENDING_MEDIA_TYPES = {"game"}
+```
+
+so its "every media type named by a role is a known key" guard accepts `game`
+as a real-but-unregistered key rather than the typo the guard is there to
+catch. It is deleted - along with the `or mt in _PENDING_MEDIA_TYPES` clause -
+by Task 7 of the games-backend plan, once `game` is in `MEDIA_TABLES`. Leaving
+it after that would let a genuine typo through under that one name.
+
+**`publisher_tw` is unaffected and remains a tag field.** The entity does not
+replace the vocabulary: anime, manga, novel and comic still write `media_tag`
+rows against the `Publisher / Distributor TW` category, exactly as before, and
+nothing on those four types changed. Converting those rows into `publisher`
+entities is a later migration, tracked in
+[roadmap.md](roadmap.md#deferred--known-debt).
 
 `seiyuu` is the one row whose credits are **not** stored in `media_credit`:
 `CreditRole` carries a `credited_via` field, `"media_credit"` for the other
@@ -405,7 +436,7 @@ the bare `admin`, which implies everything.
 | `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from `default_guest_permissions()` via `GUEST_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed.py`) — a fresh guest role does not hold it |
 | `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
 | `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
-| `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; UI block `info.CreditsCard` |
+| `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; also `studio_refs` (types with a `studio` role) and `publisher_refs` (types with a `publisher` role); UI block `info.CreditsCard` |
 
 See [authorization.md](authorization.md) for roles, enforcement and content
 labels.
