@@ -197,7 +197,15 @@ happens to be keyed by storefront, and putting it on a table shared by nine
 media types would mean six columns that mean nothing for eight of them.
 
 So `game_copy` is its own table with a real foreign key, and `media_source` is
-**unchanged**. For games, `media_source` carries `reference` rows only.
+**unchanged** — no new column on it at all.
+
+Games still use `media_source` for what it is actually for. Its `reference`
+rows hold the databases and wikis (Decision I), and its `access` rows hold
+*where a game can be played* under a "Where to Play" heading — a Game Pass or
+cloud-streaming entitlement is exactly the "can I get at this right now"
+question `available` already answers for streaming. What `media_source` does
+**not** hold is which copies were bought, for how much, in what format: that is
+`game_copy`, and the split is where-can-I-play versus what-do-I-own.
 
 Entry-level ownership is **derived**, not stored: a virtual field that is
 `Owned` when any copy row is, filtered in list queries through the registry's
@@ -322,12 +330,42 @@ developed anything and are not studios in any meaningful sense; putting them on
 The duplicate-row cost is accepted, and it is narrow: a handful of companies
 will exist as an unlinked `Studio` row and `Publisher` row.
 
-**This widens `CreditRole.target`.** Its docstring says the target is
-`"person"` or `"studio"`; it becomes a three-value axis. Everything that
-branches on it — `/api/credits`, the sheet link-column builder, `PERSON_ROLES`
-(derived as `target == "person"`, so unaffected in value but not in reasoning),
-the credit picker and the entity resolver — gains a third case. This is the
-second-most cross-cutting part of the change after `statusType: "play"`.
+**This widens `CreditRole.target`, and that is not only registry data — it is a
+schema change.** `media_credit` today holds two nullable entity FKs guarded by
+`CheckConstraint("num_nonnulls(person_id, studio_id) = 1")`
+(`app/models/media_credit.py:41`), with the same pair inside `uq_media_credit_row`
+(`:54`). A third target therefore requires:
+
+- a `publisher_id` column, FK → `publisher.system_id` `ON DELETE CASCADE`,
+  matching `studio_id`'s cascade;
+- the CHECK widened to `num_nonnulls(person_id, studio_id, publisher_id) = 1`;
+- `publisher_id` added to `uq_media_credit_row`.
+
+The code sites that branch on the axis, each needing a third case:
+
+| Site | Why it breaks |
+|---|---|
+| `app/services/domain/credits.py:191` | `if spec.target == "studio": … else:` — `else` **means person**, so a publisher role would silently create a `Person` |
+| `credits.py:288-290` | reads a credit back as Person-or-Studio |
+| `credits.py:662-682`, `:704-706` | batched entity lookup and value building |
+| `credits.py:791-801` | `studio_refs` construction — needs a parallel `publisher_refs` |
+| `app/services/domain/search.py:240-244` | `_CREDIT_OWNER_COLUMN` map |
+| `app/services/domain/checking.py:311` | duplicate-entity check tuple |
+| `app/services/rbac/field_groups.py:110`, `field_gate.py:93` | ref-list field gating |
+| `app/schemas/link_fields.py:64-65, 79-80` | payload ref lists |
+| `app/services/pipelines/pull.py:93` | derived-identity map for sheet restore |
+| `tests/unit/test_credit_roles.py:85` | asserts `role.target in ("person", "studio")` — a closed set that must be widened |
+
+`PERSON_ROLES` is derived as `target == "person"` and so keeps its value, but the
+reasoning behind it changes: it now excludes two targets rather than one.
+
+This is the second-most cross-cutting part of the change after
+`statusType: "play"`.
+
+**One inherited gap to fix rather than copy:** deleting a studio does **not**
+call `delete_cover_image` — that cleanup exists only for media entries
+(`app/routers/_factory.py:31`, `app/services/calculation.py:278`). `Publisher`
+must not inherit the leak; its delete path calls `delete_cover_image`.
 
 **The four existing media types are not migrated here.** `publisher_tw` stays a
 tag field on anime, manga, novel and comic until a later spec converts those
@@ -595,6 +633,8 @@ Registries touched, each additively:
 | `app/utils/note_sections.py` | `SHAPE_NAME_ENTRIES`, the three new sections, the `episode_comments` widening |
 | `app/models/staff.py` | `Publisher`; the `Studio` docstring's "publishers are deliberately NOT here" paragraph corrected |
 | `app/models/system.py` | `SystemOptionAlias`, beside its two siblings, plus the `aliases` relationship on `SystemOption` |
+| `app/models/media_credit.py` | `publisher_id` FK; `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `publisher_id` in `uq_media_credit_row` |
+| `app/services/domain/credits.py` | the third target case in `replace_credits`, `credit_names`, `_link_rows_and_lookups`, `_values_from_rows`, and `publisher_refs` beside `studio_refs` |
 | `app/services/domain/hierarchy.py` | `FRANCHISE_TYPE_FOR["game"] = FranchiseType.GAME` |
 | `app/services/pipelines/tabs.py` | `SheetTab("System Option Alias", …)` immediately after System Option Usage (it FKs into `system_option`); `SheetTab("Publisher", …)` beside Studio (before every media tab — credits resolve against it); `SheetTab("Game", …, media_type="game")` after Series; `SheetTab("Game Copy", …)` after it. Restore order is strict and `game_copy` FKs into `games` |
 | `app/services/pipelines/specs.py` | Fill / Replace spec for game |
@@ -603,7 +643,8 @@ Registries touched, each additively:
 | `app/config.py`, `.env.example` | `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` |
 
 One Alembic migration covers `games`, `game_copy`, `publisher`,
-`system_option_alias`, `note.entries` and the seeded game vocabulary.
+`system_option_alias`, `note.entries`, the `media_credit.publisher_id` column
+with its widened CHECK and unique constraint, and the seeded game vocabulary.
 
 ### IGDB integration
 
