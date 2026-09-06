@@ -14,6 +14,10 @@ describe("admin tab groups", () => {
     expect(groupOf(ADMIN_TABS, "studio")).toBe("entity");
   });
 
+  it("puts publisher in the entity group", () => {
+    expect(groupOf(ADMIN_TABS, "publisher")).toBe("entity");
+  });
+
   it("gives every Entity tab a form-defaults tab", () => {
     // Studio, Person and Character are not media entries, but each has an Add
     // form whose starting values the admin configures on /defaults.

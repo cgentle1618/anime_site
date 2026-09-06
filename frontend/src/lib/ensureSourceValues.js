@@ -41,6 +41,20 @@ export function buildCreateRequest(source, value) {
       },
     ];
   }
+  if (source.kind === "publisher") {
+    // Same one-name shape as a studio: a publisher is little more than its
+    // names, and which of the four columns a typed value belongs in is the
+    // admin's call on the Add tab, not this quick-create's.
+    return [
+      endpoints.publisher.create(),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name_en: value }),
+        credentials: "include",
+      },
+    ];
+  }
   if (source.kind === "person") {
     return [
       endpoints.person.create(),

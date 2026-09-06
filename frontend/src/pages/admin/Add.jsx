@@ -21,6 +21,9 @@ import CharacterAddTab, {
   defaultCharacter,
 } from "../add-tabs/CharacterAddTab";
 import StudioAddTab, { defaultStudio } from "../add-tabs/StudioAddTab";
+import PublisherAddTab, {
+  defaultPublisher,
+} from "../add-tabs/PublisherAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
@@ -173,9 +176,13 @@ export default function Add() {
   // the same freshForm() path.
   const [personForm, setPersonForm] = useState(defaultPerson());
   const [studioForm, setStudioForm] = useState(defaultStudio());
+  const [publisherForm, setPublisherForm] = useState(defaultPublisher());
   const [characterForm, setCharacterForm] = useState(defaultCharacter());
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
   const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
+  // `upf` is already the person updater on this page, so the publisher one is
+  // named for its state and passed in as the tab's `upf` prop.
+  const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
@@ -349,6 +356,7 @@ export default function Add() {
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
         setStudioForm(resolveDefaults("studio", fd));
+        setPublisherForm(resolveDefaults("publisher", fd));
         setPersonForm(resolveDefaults("person", fd));
         setCharacterForm(resolveDefaults("character", fd));
       } catch {
@@ -614,6 +622,7 @@ export default function Add() {
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
       else if (activeTab === "studio") await submitStudio();
+      else if (activeTab === "publisher") await submitPublisher();
       else if (activeTab === "person") await submitPerson();
       else if (activeTab === "character") await submitCharacter();
     } catch (e) {
@@ -1129,6 +1138,46 @@ export default function Add() {
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create studio");
+    }
+  }
+
+  // Mirrors submitStudio() minus the two MAL columns - a publisher has no
+  // MAL record to carry.
+  async function submitPublisher() {
+    const hasName = STUDIO_NAME_FIELDS.some(
+      ({ field }) => publisherForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A publisher needs at least one name.");
+      return;
+    }
+    const res = await fetch(endpoints.publisher.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_en: publisherForm.name_en.trim() || null,
+        name_cn: publisherForm.name_cn.trim() || null,
+        name_jp: publisherForm.name_jp.trim() || null,
+        name_alt: publisherForm.name_alt.trim() || null,
+        display_name_field: publisherForm.display_name_field || null,
+        my_rating: publisherForm.my_rating || null,
+        logo_file: publisherForm.logo_file || null,
+        country: publisherForm.country || null,
+        website_url: publisherForm.website_url || null,
+        founded_date: publisherForm.founded_date || null,
+        defunct_date: publisherForm.defunct_date || null,
+        remark: publisherForm.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Publisher appended successfully.");
+      setLastAdded(created.display_name);
+      setPublisherForm(freshForm("publisher"));
+      setSources(await fetchAllSources());
+    } else {
+      showToast("error", "Failed to create publisher");
     }
   }
 
@@ -2624,6 +2673,11 @@ export default function Add() {
           <StudioAddTab studioForm={studioForm} usf={usf} />
         )}
 
+        {/* ═══ PUBLISHER TAB ═══ */}
+        {activeTab === "publisher" && (
+          <PublisherAddTab publisherForm={publisherForm} upf={upubf} />
+        )}
+
         {/* ═══ PERSON TAB ═══ */}
         {activeTab === "person" && (
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
@@ -2662,6 +2716,10 @@ export default function Add() {
               (activeTab === "studio" &&
                 !STUDIO_NAME_FIELDS.some(
                   ({ field }) => studioForm[field]?.trim(),
+                )) ||
+              (activeTab === "publisher" &&
+                !STUDIO_NAME_FIELDS.some(
+                  ({ field }) => publisherForm[field]?.trim(),
                 )) ||
               (activeTab === "person" &&
                 !PERSON_NAME_FIELDS.some(

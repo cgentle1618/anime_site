@@ -24,6 +24,7 @@ const SCOPES = [
   { key: "seasonal", label: "Seasonal" },
   { key: "person", label: "Person" },
   { key: "studio", label: "Studio" },
+  { key: "publisher", label: "Publisher" },
 ];
 
 // Short mono labels for the result rows. Text, not colour, names the type.
@@ -42,6 +43,7 @@ const TYPE_LABEL = {
   seasonal: "SEASON",
   person: "PERSON",
   studio: "STUDIO",
+  publisher: "PUBLISH",
 };
 
 function getDisplayName(item) {
@@ -112,7 +114,11 @@ function getDisplayName(item) {
   if (item.type === "seasonal") return item.seasonal || "—";
   // People and studios ship the choice with the row: display_name is resolved
   // server-side from display_name_field, so there is no fallback chain here.
-  if (item.type === "person" || item.type === "studio")
+  if (
+    item.type === "person" ||
+    item.type === "studio" ||
+    item.type === "publisher"
+  )
     return item.display_name || "—";
   return (
     item.anime_name_cn ||
@@ -205,6 +211,7 @@ export default function NavSearch() {
         // any of the first twenty.
         ["person", 2],
         ["studio", 2],
+        ["publisher", 2],
       ];
 
       let payload;
@@ -304,6 +311,8 @@ export default function NavSearch() {
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
     else if (item.type === "person") navigate(`/person/${item.system_id}`);
     else if (item.type === "studio") navigate(`/studio/${item.system_id}`);
+    else if (item.type === "publisher")
+      navigate(`/publisher/${item.system_id}`);
     else navigate(`/anime/${item.system_id}`);
   }
 
@@ -382,7 +391,9 @@ export default function NavSearch() {
                 ? item.franchise_type
                 : item.type === "anime"
                   ? item.airing_type
-                  : item.type === "person" || item.type === "studio"
+                  : item.type === "person" ||
+                      item.type === "studio" ||
+                      item.type === "publisher"
                     ? `${item.credit_count ?? 0} credit${
                         (item.credit_count ?? 0) === 1 ? "" : "s"
                       }`

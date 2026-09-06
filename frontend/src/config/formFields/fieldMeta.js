@@ -153,6 +153,15 @@ export const COMMON_FIELD_META = {
     source: { kind: "studio" },
     group: "Credits",
   },
+  // A publisher is an entity in its own table, not a system_option value -
+  // see app/models/staff.py's Publisher. The tags control quick-creates one
+  // through /api/publisher the way `studio` does through /api/studio.
+  publisher: {
+    label: "Publisher",
+    control: "tags",
+    source: { kind: "publisher" },
+    group: "Credits",
+  },
   director: {
     label: "Director",
     control: "tags",
@@ -801,6 +810,45 @@ export const TYPE_FIELD_META = {
     },
     mal_id: { autofillable: false },
     mal_link: { autofillable: false },
+    remark: { autofillable: false },
+  },
+
+  // The studio block minus mal_id/mal_link: a publisher has no MAL record.
+  publisher: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    my_rating: { autofillable: false },
+    country: { label: "Country", group: "Classification", autofillable: false },
+    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    // Free text for the same reason the studio columns are: YYYY, YYYY-MM and
+    // YYYY-MM-DD are all legal, which a native date picker cannot express.
+    founded_date: {
+      label: "Founded Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    defunct_date: {
+      label: "Defunct Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    website_url: {
+      label: "Website URL",
+      control: "url",
+      group: "Links",
+      autofillable: false,
+    },
     remark: { autofillable: false },
   },
 

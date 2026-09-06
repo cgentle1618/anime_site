@@ -68,6 +68,12 @@ describe("buildCreateRequest", () => {
     expect(JSON.parse(init.body)).toEqual({ name_en: "New Studio" });
   });
 
+  it("posts a publisher as { name_en }", () => {
+    const [url, init] = buildCreateRequest({ kind: "publisher" }, "Devolver");
+    expect(url).toBe("/api/publisher/");
+    expect(JSON.parse(init.body)).toEqual({ name_en: "Devolver" });
+  });
+
   it("posts a person as an unslotted { name } with role AND scope", () => {
     const [url, init] = buildCreateRequest(
       { kind: "person", role: "director", scope: "anime" },

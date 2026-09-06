@@ -354,6 +354,24 @@ export const defaultStudio = () => ({
   remark: "",
 });
 
+// A publisher carries the same shape as a studio minus the two MAL columns:
+// MAL has no record of a games publisher or a Taiwanese distributor, so there
+// is nothing to autofill from.
+export const defaultPublisher = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  my_rating: "",
+  logo_file: "",
+  country: "",
+  website_url: "",
+  founded_date: "",
+  defunct_date: "",
+  remark: "",
+});
+
 export const defaultPerson = () => ({
   name_en: "",
   name_cn: "",
@@ -396,6 +414,7 @@ export const FORM_FACTORIES = {
   franchise: defaultFranchise,
   series: defaultSeries,
   studio: defaultStudio,
+  publisher: defaultPublisher,
   person: defaultPerson,
   character: defaultCharacter,
 };

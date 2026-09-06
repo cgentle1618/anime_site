@@ -38,6 +38,7 @@ import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
 import CharacterModifyTab from "../modify-tabs/CharacterModifyTab";
 import StudioModifyTab from "../modify-tabs/StudioModifyTab";
+import PublisherModifyTab from "../modify-tabs/PublisherModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
@@ -3038,6 +3039,11 @@ export default function Modify() {
           owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
       {activeTab === "studio" && <StudioModifyTab />}
 
+      {/* ═══ PUBLISHER TAB — bypasses search/edit pattern for the same reason
+          Studio does; a publisher is a public entity with its own picker,
+          load and save (see PublisherModifyTab.jsx). ═══ */}
+      {activeTab === "publisher" && <PublisherModifyTab />}
+
       {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
           Studio does; a person is a credited entity with its own role x scope
           matrix (see PersonModifyTab.jsx). ═══ */}
@@ -3069,6 +3075,7 @@ export default function Modify() {
       {!editorOpen &&
         activeTab !== "fav3x3" &&
         activeTab !== "studio" &&
+        activeTab !== "publisher" &&
         activeTab !== "person" &&
         activeTab !== "character" && (
         <div className="space-y-6">
@@ -3233,6 +3240,7 @@ export default function Modify() {
         editingItem &&
         activeTab !== "fav3x3" &&
         activeTab !== "studio" &&
+        activeTab !== "publisher" &&
         activeTab !== "person" &&
         activeTab !== "character" && (
         <form onSubmit={handleSave}>

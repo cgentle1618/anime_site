@@ -74,7 +74,12 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
-  if (type === "studio" || type === "person" || type === "character")
+  if (
+    type === "studio" ||
+    type === "publisher" ||
+    type === "person" ||
+    type === "character"
+  )
     return item.display_name || "Unknown";
   if (type === "collection")
     return (
@@ -177,6 +182,7 @@ export default function Delete() {
     series: [],
     options: [],
     studio: [],
+    publisher: [],
     person: [],
     character: [],
   });
@@ -217,6 +223,10 @@ export default function Delete() {
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedPublisher, setSelectedPublisher] = useState(null);
+  const [publisherConfirm, setPublisherConfirm] = useState(false);
+  const [publisherMergeMode, setPublisherMergeMode] = useState(false);
+  const [publisherMergeTarget, setPublisherMergeTarget] = useState(null);
   const [selectedStudio, setSelectedStudio] = useState(null);
   const [studioConfirm, setStudioConfirm] = useState(false);
   const [studioMergeMode, setStudioMergeMode] = useState(false);
@@ -262,6 +272,7 @@ export default function Delete() {
         nvRes,
         cmRes,
         stRes,
+        puRes,
         peRes,
         chRes,
       ] =
@@ -279,10 +290,11 @@ export default function Delete() {
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
           fetch(endpoints.studio.list(), { credentials: "include" }),
+          fetch(endpoints.publisher.list(), { credentials: "include" }),
           fetch(endpoints.person.list(), { credentials: "include" }),
           fetch(endpoints.character.list(), { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st, pe, ch] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st, pu, pe, ch] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -296,6 +308,7 @@ export default function Delete() {
         nvRes.json(),
         cmRes.json(),
         stRes.json(),
+        puRes.json(),
         peRes.json(),
         chRes.json(),
       ]);
@@ -313,6 +326,7 @@ export default function Delete() {
         series: s,
         options: o,
         studio: st,
+        publisher: pu,
         person: pe,
         character: ch,
       });
@@ -388,6 +402,27 @@ export default function Delete() {
       if (!res.ok) throw new Error("Failed to delete studio");
       setSelectedStudio(null);
       setStudioConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // Mirrors executeStudioDelete: media_credit.publisher_id is ON DELETE
+  // CASCADE, so this destroys the publisher's credit history too.
+  async function executePublisherDelete(item) {
+    setDeleting(true);
+    try {
+      const res = await fetch(endpoints.publisher.remove(item.system_id), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete publisher");
+      setSelectedPublisher(null);
+      setPublisherConfirm(false);
       showToast("success", "Deletion successful");
       await loadDb();
     } catch (e) {
@@ -500,6 +535,33 @@ export default function Delete() {
         "success",
         `Merged - ${data.castings_moved} casting(s) moved.`,
       );
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePublisherMerge() {
+    if (!selectedPublisher || !publisherMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.publisher.merge(publisherMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedPublisher.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge publishers");
+      const data = await res.json();
+      setSelectedPublisher(null);
+      setPublisherMergeMode(false);
+      setPublisherMergeTarget(null);
+      showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
       await loadDb();
     } catch (e) {
       showToast("error", e.message);
@@ -812,6 +874,10 @@ export default function Delete() {
           setStudioConfirm(false);
           setStudioMergeMode(false);
           setStudioMergeTarget(null);
+          setSelectedPublisher(null);
+          setPublisherConfirm(false);
+          setPublisherMergeMode(false);
+          setPublisherMergeTarget(null);
         }}
       />
 
@@ -1977,6 +2043,181 @@ export default function Delete() {
                     onClick={() => {
                       setStudioMergeMode(false);
                       setStudioMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PUBLISHER TAB — same shape as Studio above: delete cascades credit
+          rows, so Merge is offered first. */}
+      {tab === "publisher" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search publisher to delete..."
+              items={db.publisher}
+              type="publisher"
+              onSelect={(item) => {
+                setSelectedPublisher(item);
+                setPublisherConfirm(false);
+                setPublisherMergeMode(false);
+                setPublisherMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "publisher")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.credit_count} credit
+                    {item.credit_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedPublisher && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedPublisher, "publisher")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedPublisher.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedPublisher.credit_count} credit
+                    {selectedPublisher.credit_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPublisher(null);
+                    setPublisherConfirm(false);
+                    setPublisherMergeMode(false);
+                    setPublisherMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i>{" "}
+                  Deleting destroys this publisher's credit history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  media_credit.publisher_id is ON DELETE CASCADE: deleting this
+                  publisher permanently deletes its{" "}
+                  {selectedPublisher.credit_count} credit
+                  {selectedPublisher.credit_count === 1 ? "" : "s"} on every
+                  entry it's linked to. If this publisher is a duplicate of
+                  another one, the correct action is Merge below, not Delete.
+                </div>
+              </div>
+
+              {!publisherMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setPublisherMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into Another
+                    Publisher
+                  </button>
+                  {!publisherConfirm ? (
+                    <button
+                      onClick={() => setPublisherConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setPublisherConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() =>
+                          executePublisherDelete(selectedPublisher)
+                        }
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search publisher to merge into..."
+                    items={db.publisher.filter(
+                      (p) => p.system_id !== selectedPublisher.system_id,
+                    )}
+                    type="publisher"
+                    onSelect={setPublisherMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "publisher")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.credit_count} credit
+                          {item.credit_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {publisherMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedPublisher, "publisher")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(publisherMergeTarget, "publisher")}
+                        </span>
+                        . All {selectedPublisher.credit_count} credit
+                        {selectedPublisher.credit_count === 1 ? "" : "s"} move
+                        to the surviving publisher; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executePublisherMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPublisherMergeMode(false);
+                      setPublisherMergeTarget(null);
                     }}
                     className="text-xs text-text-faint hover:text-text-muted font-bold"
                   >

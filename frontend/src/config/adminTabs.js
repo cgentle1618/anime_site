@@ -85,6 +85,12 @@ export const ADMIN_TABS = [
     label: "Studio",
   },
   {
+    key: "publisher",
+    group: "entity",
+    icon: "fa-copyright",
+    label: "Publisher",
+  },
+  {
     key: "person",
     group: "entity",
     icon: "fa-user",

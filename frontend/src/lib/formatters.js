@@ -51,6 +51,7 @@ export function getRatingWeight(rating) {
  *   option -> sources.options, filtered by category (+ scope and usage, when given)
  *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
  *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
+ *   publisher -> sources.publishers, unfiltered, for the same reason
  */
 export function getSourceValues(sources, source) {
   if (!source || !sources) return [];
@@ -87,6 +88,13 @@ export function getSourceValues(sources, source) {
     // the Set-based "already exists" check in ensureSourceValues.js.
     return (sources.studios || [])
       .map((s) => s.display_name)
+      .filter((name) => !!name);
+  }
+  if (source.kind === "publisher") {
+    // display_name is computed server-side (PublisherResponse), exactly as it
+    // is for a studio - do not re-derive it here.
+    return (sources.publishers || [])
+      .map((p) => p.display_name)
       .filter((name) => !!name);
   }
   return [];
