@@ -8,13 +8,13 @@
 // whom studio_refs is gated away.
 import { Link } from "react-router-dom";
 
-export function StudioLinks({ refs }) {
+export function StudioLinks({ refs, base = "/studio" }) {
   return (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
       {refs.map((ref, i) => (
         <span key={ref.system_id}>
           <Link
-            to={`/studio/${ref.system_id}`}
+            to={`${base}/${ref.system_id}`}
             className="text-brand hover:underline"
           >
             {ref.display_name}
@@ -35,4 +35,15 @@ export function studioValue(item) {
   const refs = item?.studio_refs || [];
   if (refs.length) return <StudioLinks refs={refs} />;
   return item?.studio || null;
+}
+
+/**
+ * The same rule for a game's "Publisher" row. Publisher is shaped after
+ * Studio on the backend, so the ref list reads identically and only the
+ * detail route it links to differs.
+ */
+export function publisherValue(item) {
+  const refs = item?.publisher_refs || [];
+  if (refs.length) return <StudioLinks refs={refs} base="/publisher" />;
+  return item?.publisher || null;
 }

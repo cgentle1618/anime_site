@@ -102,6 +102,7 @@ export default function SourcesCard({
   imdbLink,
   comicvineLink,
   openLibraryLink,
+  igdbLink,
   originalSource,
   exclusiveSource,
   serializationPlatform,
@@ -123,6 +124,7 @@ export default function SourcesCard({
     Boolean(imdbLink) ||
     Boolean(comicvineLink) ||
     Boolean(openLibraryLink) ||
+    Boolean(igdbLink) ||
     tags.length > 0;
 
   if (!hasAny) {
@@ -158,7 +160,8 @@ export default function SourcesCard({
         malLink ||
         imdbLink ||
         comicvineLink ||
-        openLibraryLink) && (
+        openLibraryLink ||
+        igdbLink) && (
         <section aria-label="Where to Look Up">
           <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
             Where to Look Up
@@ -184,6 +187,11 @@ export default function SourcesCard({
           {openLibraryLink && (
             <SourceLink href={openLibraryLink} tag="OL">
               Open Library
+            </SourceLink>
+          )}
+          {igdbLink && (
+            <SourceLink href={igdbLink} tag="IGDB">
+              IGDB page
             </SourceLink>
           )}
         </section>

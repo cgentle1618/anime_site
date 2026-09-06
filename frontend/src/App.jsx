@@ -24,6 +24,7 @@ import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
 import Comic from "./pages/detail/Comic";
+import Game from "./pages/detail/Game";
 
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="/manga/:system_id" element={<Manga />} />
                 <Route path="/novel/:system_id" element={<Novel />} />
                 <Route path="/comic/:system_id" element={<Comic />} />
+                <Route path="/game/:system_id" element={<Game />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />

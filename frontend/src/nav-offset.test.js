@@ -49,6 +49,7 @@ it.each([
   "components/tracker/DashboardCard.jsx",
   "components/tracker/NovelDashboardCard.jsx",
   "components/tracker/ComicDashboardCard.jsx",
+  "components/tracker/GameDashboardCard.jsx",
 ])("%s isolates its stacking so steppers stay under sticky headers", (card) => {
   const text = read(card);
   // Card internals use z-10/z-20; without `isolate` on the root those escape
