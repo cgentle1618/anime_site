@@ -8,8 +8,10 @@ into `[]`, and read downstream as "no data found" -- so the tab was skipped and
 the whole run still logged Success.
 """
 
+import logging
+
 import pytest
-from gspread.exceptions import APIError
+from gspread.exceptions import APIError, WorksheetNotFound
 
 from app.services.integrations import sheets
 
@@ -195,3 +197,43 @@ def test_a_genuinely_empty_tab_still_returns_an_empty_list(monkeypatch):
     monkeypatch.setattr(sheets, "get_google_sheet_tab", lambda tab: _Worksheet())
 
     assert sheets.get_all_raw_rows("System Options") == []
+
+
+def test_a_missing_tab_is_not_logged_as_an_unexpected_error(monkeypatch, caplog):
+    """
+    A tab that does not exist yet is a NORMAL path, not a failure.
+
+    get_google_sheet_tab catches WorksheetNotFound and creates the tab - that
+    is how a new SheetTab reaches the sheet on its first Backup. But the lookup
+    goes through _execute_with_retry, whose catch-all used to log every
+    non-APIError at ERROR before re-raising, so a routine tab creation printed
+
+        ERROR ... Unexpected error during Sheets API call: Publisher Scope
+
+    and then quietly succeeded. WorksheetNotFound stringifies to just the tab
+    name, so the line carried no explanation either. A log that cries wolf on a
+    normal path is how a real Sheets outage gets scrolled past.
+    """
+    def missing():
+        raise WorksheetNotFound("Publisher Scope")
+
+    with caplog.at_level(logging.ERROR, logger=sheets.logger.name):
+        with pytest.raises(WorksheetNotFound):
+            sheets._execute_with_retry(missing)
+
+    assert caplog.records == []
+
+
+def test_a_genuinely_unexpected_error_is_still_logged(monkeypatch, caplog):
+    """The catch-all still earns its keep for everything that is not a tab."""
+    def boom():
+        raise ValueError("something we did not foresee")
+
+    with caplog.at_level(logging.ERROR, logger=sheets.logger.name):
+        with pytest.raises(ValueError):
+            sheets._execute_with_retry(boom)
+
+    assert any(
+        "Unexpected error during Sheets API call" in r.message
+        for r in caplog.records
+    )

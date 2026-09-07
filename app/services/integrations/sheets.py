@@ -121,6 +121,14 @@ def _execute_with_retry(func: Callable, *args, max_retries: int = 3, **kwargs) -
             # No point sleeping through the backoff of an attempt we will not make.
             if attempt < max_retries - 1:
                 time.sleep(wait_time)
+        except WorksheetNotFound:
+            # Not an error, and not unexpected: get_google_sheet_tab catches
+            # this and creates the tab, which is how a new SheetTab reaches the
+            # sheet on its first Backup. Logging it below would print
+            # "Unexpected error during Sheets API call: Publisher Scope" - the
+            # exception stringifies to the bare tab name - immediately before
+            # the tab was created and written successfully.
+            raise
         except Exception as e:
             logger.error(f"Unexpected error during Sheets API call: {e}")
             raise e
