@@ -19,7 +19,7 @@ const selectCls = baseCls + " w-36 shrink-0";
 const smallSelectCls = baseCls + " w-28 shrink-0";
 const priceCls = baseCls + " w-24 shrink-0";
 const dateCls = baseCls + " w-32 shrink-0";
-const remarkCls = baseCls + " flex-1 min-w-0";
+const remarkCls = baseCls + " flex-1 basis-40 min-w-0";
 
 // A row is named by its storefront where it has one, so the select labels
 // read "Ownership for Steam" rather than "Ownership for row 2".
@@ -90,9 +90,9 @@ export default function GameCopiesEditor({ items, onChange }) {
         return (
           <div
             key={entry.system_id || i}
-            className="flex flex-wrap gap-1.5 items-center"
+            className="flex gap-1.5 items-start"
           >
-            <div className="flex flex-col shrink-0">
+            <div className="flex flex-col shrink-0 pt-2">
               <button
                 type="button"
                 disabled={i === 0}
@@ -113,76 +113,82 @@ export default function GameCopiesEditor({ items, onChange }) {
               </button>
             </div>
 
-            <Select
-              label={`Storefront for ${name}`}
-              value={entry.storefront}
-              options={GAME_STOREFRONTS}
-              onChange={(v) => updateEntry(i, "storefront", v)}
-            />
-            <Select
-              label={`Ownership for ${name}`}
-              value={entry.ownership}
-              options={GAME_OWNERSHIP_KINDS}
-              onChange={(v) => updateEntry(i, "ownership", v)}
-              className={smallSelectCls}
-            />
-            <Select
-              label={`Format for ${name}`}
-              value={entry.copy_format}
-              options={GAME_COPY_FORMATS}
-              onChange={(v) => updateEntry(i, "copy_format", v)}
-              className={smallSelectCls}
-            />
-            <Select
-              label={`Acquisition for ${name}`}
-              value={entry.acquisition}
-              options={GAME_ACQUISITION_KINDS}
-              onChange={(v) => updateEntry(i, "acquisition", v)}
-              className={smallSelectCls}
-            />
+            {/* The fields wrap among themselves; the reorder rail and
+                the remove button sit outside the wrapping group, so a row
+                too wide for its container squeezes the remark onto its own
+                line instead of pushing the remove button off the row. */}
+            <div className="flex flex-wrap gap-1.5 items-center flex-1 min-w-0">
+              <Select
+                label={`Storefront for ${name}`}
+                value={entry.storefront}
+                options={GAME_STOREFRONTS}
+                onChange={(v) => updateEntry(i, "storefront", v)}
+              />
+              <Select
+                label={`Ownership for ${name}`}
+                value={entry.ownership}
+                options={GAME_OWNERSHIP_KINDS}
+                onChange={(v) => updateEntry(i, "ownership", v)}
+                className={smallSelectCls}
+              />
+              <Select
+                label={`Format for ${name}`}
+                value={entry.copy_format}
+                options={GAME_COPY_FORMATS}
+                onChange={(v) => updateEntry(i, "copy_format", v)}
+                className={smallSelectCls}
+              />
+              <Select
+                label={`Acquisition for ${name}`}
+                value={entry.acquisition}
+                options={GAME_ACQUISITION_KINDS}
+                onChange={(v) => updateEntry(i, "acquisition", v)}
+                className={smallSelectCls}
+              />
 
-            <input
-              className={priceCls}
-              type="number"
-              step="any"
-              placeholder="paid"
-              aria-label={`Price paid for ${name}`}
-              value={entry.price_paid ?? ""}
-              onChange={(e) => updateEntry(i, "price_paid", e.target.value)}
-            />
-            <Select
-              label={`Currency for ${name}`}
-              value={entry.price_currency}
-              options={PRICE_CURRENCIES}
-              onChange={(v) => updateEntry(i, "price_currency", v)}
-              className={priceCls}
-            />
+              <input
+                className={priceCls}
+                type="number"
+                step="any"
+                placeholder="paid"
+                aria-label={`Price paid for ${name}`}
+                value={entry.price_paid ?? ""}
+                onChange={(e) => updateEntry(i, "price_paid", e.target.value)}
+              />
+              <Select
+                label={`Currency for ${name}`}
+                value={entry.price_currency}
+                options={PRICE_CURRENCIES}
+                onChange={(v) => updateEntry(i, "price_currency", v)}
+                className={priceCls}
+              />
 
-            {/* Free text, not <input type="date">: acquired_date carries the
-                same year-only / month-only precision release_date does. */}
-            <input
-              className={
-                dateInvalid
-                  ? `${dateCls} border-danger accent-danger focus:ring-danger`
-                  : dateCls
-              }
-              placeholder="2024-05-17"
-              aria-label={`Acquired date for ${name}`}
-              value={entry.acquired_date ?? ""}
-              onChange={(e) => updateEntry(i, "acquired_date", e.target.value)}
-            />
+              {/* Free text, not <input type="date">: acquired_date carries the
+                  same year-only / month-only precision release_date does. */}
+              <input
+                className={
+                  dateInvalid
+                    ? `${dateCls} border-danger accent-danger focus:ring-danger`
+                    : dateCls
+                }
+                placeholder="2024-05-17"
+                aria-label={`Acquired date for ${name}`}
+                value={entry.acquired_date ?? ""}
+                onChange={(e) => updateEntry(i, "acquired_date", e.target.value)}
+              />
 
-            <input
-              className={remarkCls}
-              placeholder="Remark"
-              aria-label={`Remark for ${name}`}
-              value={entry.remark ?? ""}
-              onChange={(e) => updateEntry(i, "remark", e.target.value)}
-            />
+              <input
+                className={remarkCls}
+                placeholder="Remark"
+                aria-label={`Remark for ${name}`}
+                value={entry.remark ?? ""}
+                onChange={(e) => updateEntry(i, "remark", e.target.value)}
+              />
+            </div>
 
             <button
               type="button"
-              className="text-danger/70 hover:text-danger px-1 shrink-0"
+              className="text-danger/70 hover:text-danger px-1 shrink-0 pt-2.5"
               aria-label={`Remove ${name}`}
               onClick={() => removeEntry(i)}
             >

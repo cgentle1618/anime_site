@@ -25,6 +25,7 @@ import GameNotes from "./GameNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
   Button,
+  Chip,
   Eyebrow,
   ProgressRule,
   RatingStamp,
@@ -122,6 +123,69 @@ export function GameProgress({ game }) {
 function money(amount, currency) {
   if (amount == null || amount === "") return null;
   return `${currency} ${amount}`;
+}
+
+/**
+ * What a single copy cost, currency first: "USD 9.99".
+ *
+ * Not `money`: that one is called with a literal currency per price column,
+ * while a copy carries its own and may carry none. A price recorded without
+ * a currency is still worth showing; a currency with no price is not.
+ */
+function copyPrice(copy) {
+  if (copy.price_paid == null || copy.price_paid === "") return null;
+  return [copy.price_currency, copy.price_paid].filter(Boolean).join(" ");
+}
+
+/**
+ * Read-only list of the copies a game is owned in, one row per storefront.
+ *
+ * Copies are created and edited in the Add/Modify form (GameCopiesEditor);
+ * the detail page only shows them, which is why there is no inline editor
+ * here. Renders nothing when there are no copies - the rule CastSection
+ * follows on the ACG pages, since an empty "Copies" slip is a title over a
+ * blank box. The Info card's "Copies" figure counts these same rows.
+ */
+export function GameCopiesSection({ copies }) {
+  const rows = copies || [];
+  if (rows.length === 0) return null;
+  const sorted = [...rows].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  return (
+    <Slip title="Copies">
+      <div className="space-y-1.5">
+        {sorted.map((copy, i) => (
+          <div
+            key={copy.system_id || i}
+            className="flex items-center gap-2 flex-wrap"
+          >
+            {copy.storefront && (
+              <Chip className="shrink-0">{copy.storefront}</Chip>
+            )}
+            {copy.ownership && <Chip className="shrink-0">{copy.ownership}</Chip>}
+            {copy.copy_format && (
+              <span className="text-sm text-text">{copy.copy_format}</span>
+            )}
+            {copy.acquisition && (
+              <span className="text-xs text-text-faint">{copy.acquisition}</span>
+            )}
+            {copyPrice(copy) && (
+              <span className="text-xs font-mono text-text-faint">
+                {copyPrice(copy)}
+              </span>
+            )}
+            {copy.acquired_date && (
+              <span className="text-xs font-mono text-text-faint">
+                {copy.acquired_date}
+              </span>
+            )}
+            {copy.remark && (
+              <span className="text-xs text-text-faint">{copy.remark}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
 }
 
 export default function Game() {
@@ -563,6 +627,8 @@ export default function Game() {
               />
             )}
           </div>
+
+          <GameCopiesSection copies={game.copies} />
 
           {game.remark && (
             <Slip title="Remarks">

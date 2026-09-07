@@ -5,7 +5,7 @@
 // so the block must render nothing at all rather than a misleading "0 h".
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { GameProgress, outOf, yesNo } from "./Game";
+import { GameCopiesSection, GameProgress, outOf, yesNo } from "./Game";
 
 describe("GameProgress", () => {
   it("shows playtime against the main-story estimate", () => {
@@ -16,7 +16,7 @@ describe("GameProgress", () => {
 
   it("shows achievements only when a total is known", () => {
     const { rerender } = render(
-      <GameProgress game={{ achievements_earned: 12, achievements_total: 40 }} />,
+      <GameProgress game={{ achievements_earned: 12, achievements_total: 40 }} />
     );
     expect(screen.getByText(/12 \/ 40/)).toBeInTheDocument();
 
@@ -54,5 +54,62 @@ describe("outOf", () => {
     expect(outOf(null, 100)).toBeNull();
     expect(outOf("", 10)).toBeNull();
     expect(outOf("n/a", 100)).toBeNull();
+  });
+});
+
+// The copies a game is owned in are stored and saved by the form, but the
+// detail page used to count them in the Info card and never show them. This
+// section is the missing display.
+describe("GameCopiesSection", () => {
+  const steam = {
+    system_id: "c1",
+    position: 1,
+    storefront: "Steam",
+    ownership: "Owned",
+    copy_format: "Digital",
+    acquisition: "Bought",
+    price_paid: "9.99",
+    price_currency: "USD",
+    acquired_date: "2024-05-17",
+    remark: "summer sale",
+  };
+
+  it("shows every field of a copy", () => {
+    render(<GameCopiesSection copies={[steam]} />);
+    expect(screen.getByText("Steam")).toBeInTheDocument();
+    expect(screen.getByText("Owned")).toBeInTheDocument();
+    expect(screen.getByText("Digital")).toBeInTheDocument();
+    expect(screen.getByText("Bought")).toBeInTheDocument();
+    expect(screen.getByText("USD 9.99")).toBeInTheDocument();
+    expect(screen.getByText("2024-05-17")).toBeInTheDocument();
+    expect(screen.getByText("summer sale")).toBeInTheDocument();
+  });
+
+  it("orders the rows by position", () => {
+    const { container } = render(
+      <GameCopiesSection
+        copies={[
+          { system_id: "b", position: 2, storefront: "GOG" },
+          { system_id: "a", position: 1, storefront: "Steam" },
+        ]}
+      />
+    );
+    expect(container.textContent.indexOf("Steam")).toBeLessThan(
+      container.textContent.indexOf("GOG")
+    );
+  });
+
+  // A price with no currency beside it is still worth showing; a currency
+  // with no price is not.
+  it("drops an empty price instead of printing a bare currency", () => {
+    render(
+      <GameCopiesSection copies={[{ system_id: "c", storefront: "GOG", price_currency: "USD" }]} />
+    );
+    expect(screen.queryByText(/USD/)).not.toBeInTheDocument();
+  });
+
+  it("renders nothing when the game has no copies", () => {
+    const { container } = render(<GameCopiesSection copies={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

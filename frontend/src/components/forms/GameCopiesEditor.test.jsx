@@ -34,10 +34,21 @@ describe("GameCopiesEditor", () => {
   it("edits a field in place", async () => {
     const onChange = vi.fn();
     render(<GameCopiesEditor items={ROWS} onChange={onChange} />);
-    await userEvent.selectOptions(
-      screen.getAllByLabelText(/ownership/i)[1],
-      "Owned",
-    );
+    await userEvent.selectOptions(screen.getAllByLabelText(/ownership/i)[1], "Owned");
     expect(onChange.mock.calls[0][0][1].ownership).toBe("Owned");
+  });
+
+  // The row used to be one flex-wrap line holding everything, so a full copy
+  // overflowed: Remark was squeezed to a few pixels and the remove control
+  // wrapped onto a line of its own under the row. The fields wrap inside
+  // their own group now, between a fixed reorder rail and a pinned remove
+  // button, so the row itself never wraps.
+  it("pins the remove control to the row instead of letting it wrap", () => {
+    render(<GameCopiesEditor items={ROWS} onChange={() => {}} />);
+    const remove = screen.getAllByRole("button", { name: /remove/i })[0];
+    const row = remove.parentElement;
+    expect(row.className).not.toMatch(/flex-wrap/);
+    expect(row.querySelector(".flex-wrap")).not.toBeNull();
+    expect(row.lastElementChild).toBe(remove);
   });
 });
