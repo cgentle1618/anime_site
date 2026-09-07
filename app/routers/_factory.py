@@ -33,6 +33,7 @@ from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
+from app.utils.entity_ref import entity_ref_filter
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,15 @@ def make_media_router(spec) -> APIRouter:
     not_found = f"{spec.label} entry not found."
 
     def _get_or_404(db: Session, entry_id: str, viewer=None):
-        entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
+        # The SPA addresses entries by public_id (/anime/47/...); internal
+        # callers still hold UUIDs. One parser decides which this is, and a
+        # reference that is neither is a 404, never a 500 - a hand-mangled URL
+        # must not reach the database layer.
+        try:
+            ref = entity_ref_filter(spec.model, str(entry_id))
+        except ValueError:
+            raise HTTPException(status_code=404, detail=not_found)
+        entry = db.query(spec.model).filter(ref).first()
         if not entry:
             raise HTTPException(status_code=404, detail=not_found)
         # Same message either way: a hidden entry must be indistinguishable

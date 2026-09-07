@@ -439,3 +439,71 @@ def sample_comic(db_session, sample_franchise):
     db_session.add(c)
     db_session.flush()
     return c
+
+
+# ---------------------------------------------------------------------------
+# public_id lookup (tests/api/test_public_id_lookup.py)
+# ---------------------------------------------------------------------------
+
+# base route -> (model, one name column to set so the row is identifiable).
+# Route prefixes match app/registry.py exactly - "movies" and "tv-shows" are
+# plural there, unlike most of the other singular routes.
+_MEDIA_MODEL_FOR_BASE = {
+    "/api/anime": (models.Anime, "anime_name_en"),
+    "/api/anime-movie": (models.AnimeMovies, "anime_movie_name_en"),
+    "/api/movies": (models.Movies, "movie_name_en"),
+    "/api/tv-shows": (models.TVShows, "tv_name_en"),
+    "/api/cartoon": (models.Cartoon, "cartoon_name_en"),
+    "/api/manga": (models.Manga, "manga_name_en"),
+    "/api/novel": (models.Novel, "novel_name_en"),
+    "/api/comic": (models.Comic, "comic_name_en"),
+    "/api/game": (models.Game, "game_name_en"),
+}
+
+
+@pytest.fixture
+def media_entry_for(db_session, client):
+    """media_entry_for(base) creates one entry of the type `base` serves and
+    returns its response dict (as the API would render it), so callers get a
+    real public_id/system_id pair without duplicating per-type model setup."""
+
+    def _make(base: str) -> dict:
+        model, name_field = _MEDIA_MODEL_FOR_BASE[base]
+        entry = model(system_id=uuid.uuid4())
+        setattr(entry, name_field, "Test Entry")
+        db_session.add(entry)
+        db_session.flush()
+        response = client.get(f"{base}/{entry.system_id}")
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _make
+
+
+@pytest.fixture
+def labelled_hidden_anime(db_session, sample_franchise):
+    """An anime carrying a content label the default guest role cannot see -
+    the public_id-lookup analogue of test_visibility.hidden_anime."""
+    label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw-public-id", label="NSFW", sort_order=0
+    )
+    db_session.add(label)
+    db_session.flush()
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Zvornik Hidden Public Id Sentinel",
+        airing_type="TV",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(),
+            media_type="anime",
+            entry_id=entry.system_id,
+            label_id=label.system_id,
+        )
+    )
+    db_session.flush()
+    return {"public_id": entry.public_id, "system_id": str(entry.system_id)}
