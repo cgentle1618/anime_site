@@ -31,6 +31,7 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_game_from_igdb,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -221,6 +222,17 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
+        games = db.query(Game).filter(Game.cover_image_file.isnot(None)).all()
+        for gm in games:
+            if not cover_image_exists("game", str(gm.system_id)):
+                missing.append(
+                    {
+                        "system_id": str(gm.system_id),
+                        "name": gm.display_name or str(gm.system_id),
+                        "entry_type": "game",
+                    }
+                )
+
         comics = db.query(Comic).filter(Comic.cover_image_file.isnot(None)).all()
         for cm in comics:
             if not cover_image_exists("comic", str(cm.system_id)):
@@ -242,6 +254,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         + len(mangas)
         + len(novels)
         + len(comics)
+        + len(games)
     )
     return {
         "status": "success",
@@ -260,12 +273,12 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
     """
     Record the stored image on rows whose column is NULL but whose file exists.
 
-    Game is deliberately absent, matching bulk_download_missing_covers' missing
-    Game branch; both gaps are tracked as one open item.
+    Covers only: the entity tables in COVER_OWNER_TABLES store their image in
+    photo_file / logo_file, which this does not stamp.
     """
     updated = 0
     for owner_type, model, column in COVER_OWNER_TABLES:
-        if owner_type == "game" or column != "cover_image_file":
+        if column != "cover_image_file":
             continue
         col = getattr(model, column)
         for entry in db.query(model).filter(col.is_(None)).all():
@@ -379,11 +392,22 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
+    game_query = db.query(Game).filter(Game.cover_image_file.isnot(None))
+    for game in _collect(game_query, Game, "game"):
+        total += 1
+        if game.igdb_id:
+            game.cover_image_file = None
+            autofill_game_from_igdb(game, db)
+            if game.cover_image_file:
+                downloaded += 1
+        else:
+            skipped += 1
+
     if total:
         db.commit()
     parts = [f"Downloaded {downloaded} of {total} missing cover images."]
     if skipped:
-        parts.append(f"{skipped} skipped (no Tenrai source for this type).")
+        parts.append(f"{skipped} skipped (no external source on the entry).")
     return {"status": "success", "message": " ".join(parts)}
 
 

@@ -75,7 +75,6 @@ Each line was verified against the code at the commit above.
 
 | Area | Debt | Where it shows |
 |---|---|---|
-| Backend | `bulk_download_missing_covers` hand-lists eight models and never got a `Game` branch, so the Calculate page's "download missing covers" tool neither re-downloads a game cover nor counts it as skipped | `app/services/calculation.py` |
 | Frontend | Games are missing from every cover-resolution list outside the two hubs: `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage` and `usePlanData.allEntriesByFranchise` all fetch eight entry lists, not nine (they still skip comics too). `FutureReleases` likewise has no Games tab, so a Rumored or Unreleased game appears nowhere on it | `frontend/src/pages/library/FranchiseLibrary.jsx`, `frontend/src/pages/public/FutureReleases.jsx` |
 | Backend | Steam Web API credentials (`STEAM_API_KEY` / `STEAM_ID`) are unset, so `hours_played` and `achievements_earned` never fill in production; the storefront half (metacritic score, prices, achievement total) still fills without them | `app/services/integrations/steam.py`, `.env.example` |
 | Backend | IGDB company enrichment not built: Fill creates or links `studio` and `publisher` rows **by name only**, so a game company has no logo, country or founding date until one is typed in — the data MAL/Tenrai cannot supply for game companies either | `app/services/domain/autofill.py` (`autofill_game_from_igdb`) |

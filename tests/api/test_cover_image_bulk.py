@@ -27,6 +27,7 @@ MEDIA_MODELS = [
     ("manga", models.Manga, "manga_name_en"),
     ("novel", models.Novel, "novel_name_en"),
     ("comic", models.Comic, "comic_name_en"),
+    ("game", models.Game, "game_name_en"),
 ]
 IDS = [m.__tablename__ for _, m, _ in MEDIA_MODELS]
 
@@ -91,22 +92,6 @@ def test_an_unstamped_cover_is_reported_as_should_use_not_orphaned(
     result = calculation.bulk_check_unused_cover_images(db_session)
     assert result["orphaned"] == []
     assert [e["system_id"] for e in result["should_use"]] == [str(system_id)]
-
-
-def test_a_game_cover_is_never_orphaned(db_session, monkeypatch):
-    system_id = uuid.uuid4()
-    key = cover_key("game", str(system_id))
-    db_session.add(
-        models.Game(
-            system_id=system_id, game_name_en="Some Game", cover_image_file=key
-        )
-    )
-    db_session.flush()
-
-    monkeypatch.setattr(calculation, "list_all_cover_images", _listing(key))
-
-    result = calculation.bulk_check_unused_cover_images(db_session)
-    assert result["orphaned"] == []
 
 
 @pytest.mark.parametrize(
@@ -256,6 +241,89 @@ def test_download_missing_covers_skips_comics_without_comicvine_id(
 
     result = calculation.bulk_download_missing_covers(
         db_session, system_ids=[str(comic_id)]
+    )
+    assert "Downloaded 0 of 1" in result["message"]
+    assert "1 skipped" in result["message"]
+
+
+def test_check_cover_image_reports_a_game_whose_file_is_gone(db_session, monkeypatch):
+    """The missing-file scan hand-lists its models; Game was never added, so a
+    game with a stamped cover and no file was silently never checked."""
+    game_id = uuid.uuid4()
+    db_session.add(
+        models.Game(
+            system_id=game_id,
+            game_name_en="Hollow Knight",
+            cover_image_file=cover_key("game", str(game_id)),
+        )
+    )
+    db_session.flush()
+
+    monkeypatch.setattr(calculation, "list_all_cover_images", _listing())
+    monkeypatch.setattr(
+        calculation, "cover_image_exists", lambda owner_type, sid: False
+    )
+
+    result = calculation.bulk_check_cover_image(db_session)
+    assert [m["system_id"] for m in result["missing"]] == [str(game_id)]
+    assert result["total_checked"] == 1
+
+
+def test_download_missing_covers_refetches_games(db_session, monkeypatch):
+    game_id = uuid.uuid4()
+    db_session.add(
+        models.Game(
+            system_id=game_id,
+            game_name_en="Hollow Knight",
+            igdb_id=1234,
+            cover_image_file=cover_key("game", str(game_id)),
+        )
+    )
+    db_session.flush()
+
+    monkeypatch.setattr(
+        calculation, "cover_image_exists", lambda owner_type, sid: False
+    )
+    monkeypatch.setattr(db_session, "commit", lambda: None)
+
+    called = []
+
+    def fake_autofill(entry, db):
+        called.append(entry.system_id)
+        entry.cover_image_file = cover_key("game", str(entry.system_id))
+
+    monkeypatch.setattr(calculation, "autofill_game_from_igdb", fake_autofill)
+
+    result = calculation.bulk_download_missing_covers(
+        db_session, system_ids=[str(game_id)]
+    )
+    assert called == [game_id]
+    assert "Downloaded 1 of 1" in result["message"]
+
+
+def test_download_missing_covers_skips_games_without_igdb_id(db_session, monkeypatch):
+    game_id = uuid.uuid4()
+    db_session.add(
+        models.Game(
+            system_id=game_id,
+            game_name_en="Some Itch Game",
+            cover_image_file=cover_key("game", str(game_id)),
+        )
+    )
+    db_session.flush()
+
+    monkeypatch.setattr(
+        calculation, "cover_image_exists", lambda owner_type, sid: False
+    )
+    monkeypatch.setattr(db_session, "commit", lambda: None)
+    monkeypatch.setattr(
+        calculation,
+        "autofill_game_from_igdb",
+        lambda entry, db: pytest.fail("should not autofill without an igdb_id"),
+    )
+
+    result = calculation.bulk_download_missing_covers(
+        db_session, system_ids=[str(game_id)]
     )
     assert "Downloaded 0 of 1" in result["message"]
     assert "1 skipped" in result["message"]
