@@ -37,6 +37,28 @@ still a pre-migration copy. Two hazards until Backup runs from `/system`:
 Do the Backup before the other machine pulls anything, per
 `docs/switching-environments.md`.
 
+### public_id + slug URLs
+
+Plan `docs/superpowers/plans/2026-09-07-public-id-slug-urls.md`,
+spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | `public_id` column on all seventeen models + migration | todo |
+| 2 | Shared entity-reference resolver | todo |
+| 3 | Frontend slug and path helpers | todo |
+| 4 | `public_id` on the response schemas | todo |
+| 5 | Media router factory resolves a public_id | todo |
+| 6 | The eight hand-written routers resolve a public_id | todo |
+| 7 | `public_id` survives the Sheets round trip | todo |
+| 8 | Pull advances each sequence past the restored ids | todo |
+| 9 | Routes and detail pages read `publicId` | todo |
+| 10 | Every link site goes through `entityPath` | todo |
+| 11 | Documentation | todo |
+
+⚠ Tasks 9-10 break every detail-page URL until both land. Do not use the app
+between the start of task 9 and the end of task 10.
+
 ## Open items
 
 Unclaimed. None block using the app.
