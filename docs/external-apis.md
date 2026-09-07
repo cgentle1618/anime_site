@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-07 (STEAM_ENABLED kill switch)
+Last verified: 2026-09-07 (STEAM_ENABLED kill switch; STEAM_ID must be a SteamID64)
 
 ## What this is for
 
@@ -401,9 +401,18 @@ This split is deliberate and gives graceful degradation: **the storefront
 half needs no configuration whatsoever.** A missing key, a missing steamid, or
 a private profile skips only the progress half (`hours_played`,
 `achievements_earned`) and logs one warning; prices, the Metacritic score and
-the achievement total keep filling normally. As of this writing `STEAM_API_KEY`
-/ `STEAM_ID` are unset in this deployment's `.env`, so the progress columns
-stay `null` until they are set.
+the achievement total keep filling normally. The progress columns stay `null`
+until both variables are set, which is a per-machine `.env` matter and not a
+property of the code — do not read a `null` `hours_played` as a bug before
+checking them.
+
+**`STEAM_ID` must be the 64-bit form**: 17 digits beginning `7656119`, the
+number in a `/profiles/` URL. The vanity name from an `/id/` URL and the
+display name both look plausible and are both rejected. Steam answers `400`,
+which `_web_request` catches and names rather than retrying — "STEAM_ID is
+probably not a 64-bit steamid" in the log is that case, and it is the one
+Steam misconfiguration that produces no other symptom, since the storefront
+half carries on filling perfectly.
 
 ### Turning Steam off entirely
 
