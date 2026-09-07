@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
+Last verified: 2026-09-07 (public_id + slug detail URLs)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -256,12 +256,39 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 `event.view`, which jsdom leaves null on user-event's mousedown). Run with
 `npm run test:run`; `npm run lint` must report 0 errors.
 
+## Detail-page URLs
+
+Every detail page is addressed `/<type>/<public_id>/<slug>` - `/anime/47/cowboy-bebop`.
+
+- **`public_id`** is the short per-table integer from the API (see
+  [../data-model.md](../data-model.md)). The route param is `publicId`; each
+  page passes it straight to its initial fetch, and the endpoint accepts it or
+  a UUID. **Everything after that lookup still uses the row's own
+  `system_id`**, which the pages take off the fetched entity - writes, nested
+  `/entries` calls and `franchise_id` / `series_id` / `collection_id` list
+  filters all still speak UUIDs. A bare-UUID URL therefore still loads; the
+  address bar simply corrects itself.
+- **The slug is decorative** - nothing reads it. It is Latin-first
+  (`name_en`, then `_roman`, then `_alt`) and **omitted entirely** for an
+  entry with only a CJK name, because a CJK slug percent-encodes to mush the
+  moment it is copied out of the address bar. Capped at 60 characters on a
+  word boundary.
+- **`lib/entityPath.js` is the only place allowed to build one.**
+  `entityPath(type, entity)` returns `""` when the entity has no `public_id`,
+  so a call site must render plain text rather than an empty `to=""`. The
+  guard test `src/lib/noUuidLinks.test.js` walks `src/` and fails the build on
+  any inline `` `/type/${...}` `` construction.
+- **`hooks/useCanonicalPath.js`** rewrites the bar to the canonical path once
+  the entity loads - adding a missing slug, replacing a stale one after a
+  rename. It uses `navigate(..., { replace: true })`, so the back button still
+  leaves the page in one press.
+
 ## Adding a media type on the frontend
 
 1. `config/mediaRegistry.js` — add the key (hyphenated), `apiEndpoint`, `navPath`, `statusField`.
 2. `config/namingConfigs.js`, `mediaTypeColors.js`, `statusGroups.js` if it needs its own name order, chip key or status group.
 3. `pages/library/configs/<type>.jsx` + register in `configs/index.js` — filters, sorts, columns (reuse `libraryColumns`).
-4. `pages/detail/<Type>.jsx` (+ `<Type>Notes.jsx`) and the two routes in `App.jsx`; note sections in `app/utils/note_sections.py`.
+4. `pages/detail/<Type>.jsx` (+ `<Type>Notes.jsx`) and the two routes in `App.jsx` (the detail one is `/<type>/:publicId/:slug?`); note sections in `app/utils/note_sections.py`. Give the model a `public_id` and its sequence, add it to the response schema, read the route's `publicId` for the initial fetch only, call `useCanonicalPath(type, data)`, and link to the new type through `entityPath` — the `noUuidLinks` guard fails the build otherwise.
 5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, `lib/payloads.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`. Export the field body from the Add tab and render it from the Modify tab, the way `GameModifyTab` renders `GameAddTab`'s `GameFormBody` and `GameLineageFields` — the comic pair keeps two near-identical files and can drift.
 6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).

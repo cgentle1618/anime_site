@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-07
+Last verified: 2026-09-07 (public_id on the seventeen entity tables)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -84,6 +84,25 @@ deleting a group leaves its members in place and simply ungrouped.
   `role_permission`, `data_control_logs`, `deleted_record`, `person_role`),
   `users.id` (UUID, named `id`), and `seasonal`, whose primary key is the
   season string itself.
+- **Public id.** Every entity with a detail page - the nine media tables plus
+  `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
+  `character` and `watch_order_list`, seventeen in all - also carries
+  `public_id INTEGER NOT NULL UNIQUE`, fed by a per-table sequence
+  (`<table>_public_id_seq`) declared on the model, so every insert path gets
+  one for free. It is the **only id a user ever sees**: detail-page URLs are
+  `/<type>/<public_id>/<slug>`, while `system_id` stays the join key and the
+  id every other endpoint speaks. It rides in the Google Sheet, so the company
+  and home databases agree on it - see
+  [switching-environments.md](switching-environments.md).
+
+  Its unique constraint is **`DEFERRABLE INITIALLY DEFERRED`** (migration
+  `pdf1e2r3d4e5`). Pull restores a whole tab in one transaction and upserts by
+  `system_id`, so a row arriving from the sheet routinely carries a
+  `public_id` that a *different* local row still holds until the restore
+  reaches it. Only the end state has to be unique; an immediately-checked
+  constraint would abort the restore partway through. The constraint is not
+  weakened - a genuine duplicate still fails, at COMMIT rather than at the
+  statement.
 - **Timestamps.** `created_at` / `updated_at` are `DateTime`, populated by
   the Python default `get_taipei_now` (Asia/Taipei wall clock), with
   `onupdate` on `updated_at`. They are declared **nullable** on every model -

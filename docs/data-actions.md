@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-07 (publisher scope Sheets round trip)
+Last verified: 2026-09-07 (public_id round trip and sequence resync)
 
 ## What this is for
 
@@ -283,6 +283,22 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
    - `db.flush()` every 50 rows so newly minted UUIDs are visible to later FK references.
 5. **Commit** once per tab. A commit failure rolls back the entire tab, logs `Failed`, returns `{"status": "error"}`.
 6. **Sequence resync**: because Postgres does not advance a sequence when ids are supplied explicitly, after restoring `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope` or `System Option Usage` the matching `*_id_seq` is `setval`'d to `MAX(id) + 1`. `System Options` is deliberately not in this list — its key is a UUID.
+6b. **`public_id` resync**: the same hazard, on every tab whose model carries a
+   `public_id`. Backup writes `public_id` on all seventeen entity tabs and Pull
+   restores it unchanged - that is what keeps the company and home databases
+   agreeing on the ids that appear in URLs - so the per-table
+   `<table>_public_id_seq` is left wherever the *local* database had it.
+   `resync_public_id_sequence(db, Model)` runs after the tab's commit (so
+   `MAX()` reads the rows that actually landed) and `setval`s it past them. It
+   is a no-op for a model with no `public_id`, because Pull walks every tab.
+   Without it nothing fails at restore time; the next entry an admin adds
+   fails on the unique index, with a message that says nothing about Pull.
+
+   Restoring `public_id` is also why its unique constraint is `DEFERRABLE
+   INITIALLY DEFERRED` (see [data-model.md](data-model.md)): the sheet's ids
+   are routinely a *permutation* of the local ones, so mid-restore two rows
+   briefly share a value. The whole tab is one transaction, so the check lands
+   at COMMIT, by which point the end state is unique again.
 7. Log `Pull {tab_name}` / `Success` with `rows_added` / `rows_updated`; return `{"status": "success", "processed", "rows_added", "rows_updated"}`.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`

@@ -13,71 +13,8 @@ Last updated: 2026-09-07
 
 ## In flight
 
-### Publisher / Distributor entity migration — DONE
-
-Shipped 2026-09-07 in `22ef2ac`, `1900266`, `68f0f00`, `bdcb1ef`, `e2a7dcb`.
-All 12 tasks done; `docs/roadmap.md` keeps the record and this section goes at
-the next tidy-up. Kept here only for the two operational notes below.
-
-**Migration RUN on `anime_site_db`**, now at `pb2m3i4g5r8`: 520 credits, 32
-entities, 36 scopes, 0 skipped. Verified after: 0 tag rows and 0 option rows
-left in the two retired categories, 32 publishers, 522 publisher credits
-(520 + the 2 pre-existing game ones). Pre-migration dump at
-`~/anime_site_pre_publisher_20260907.sql`.
-
-**⚠ BACKUP STILL OWED — the one thing left for a human.** The Google Sheet is
-still a pre-migration copy. Two hazards until Backup runs from `/system`:
-
-1. `Proware普威爾` and `曼迪 Mightymedia` keep their pre-migration spelling in
-   no name column, so a Pull from the current sheet cannot match them and
-   would mint duplicate publishers (spec Decision E).
-2. The sheet has no `Publisher Scope` tab yet, so a Pull would restore
-   nothing for it. Harmless now - Backup creates the tab.
-
-Do the Backup before the other machine pulls anything, per
-`docs/switching-environments.md`.
-
-### public_id + slug URLs
-
-Plan `docs/superpowers/plans/2026-09-07-public-id-slug-urls.md`,
-spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
-
-| # | Task | Status |
-|---|---|---|
-| 1 | `public_id` column on all seventeen models + migration | done 761f4e4 |
-| 2 | Shared entity-reference resolver | done 0d571b1 |
-| 3 | Frontend slug and path helpers | done e87f9bb |
-| 4 | `public_id` on the response schemas | done a802b80 |
-| 5 | Media router factory resolves a public_id | done 3ab8fb8 (unreviewed) |
-| 6 | The eight hand-written routers resolve a public_id | todo |
-| 7 | `public_id` survives the Sheets round trip | done 62f19f1 |
-| 8 | Pull advances each sequence past the restored ids | todo |
-| 9 | Routes and detail pages read `publicId` | todo |
-| 10 | Every link site goes through `entityPath` | todo |
-| 11 | Documentation | todo |
-
-⚠ Tasks 9-10 break every detail-page URL until both land. Do not use the app
-between the start of task 9 and the end of task 10.
-
-**Paused 2026-09-07 mid-plan, for a machine switch.** Tasks 1-5 and 7 are
-committed and green (full suite 3125 passed, 1 skipped; ruff clean; frontend
-887 passing, lint and build clean). The app is fully usable: everything landed
-so far is additive, and no URL has changed yet.
-
-Picking this up:
-
-- Task 5 is committed but **never went through its task review** - it was
-  verified by running the suite, not by a reviewer. Review it before trusting it.
-- Task 8 must also fix a problem the plan does not describe: Pull upserts by
-  `system_id`, so a row from the sheet can carry a `public_id` that a *different*
-  local row already holds, and the unique index aborts the restore partway. The
-  `setval` step alone does not cover this.
-- Deferred minors, rulings and the full task log live in
-  `.superpowers/sdd/2026-09-07-public-id-slug-urls/progress.md` (git-ignored, so
-  it does **not** travel to the other machine - read it here or copy it out).
-- `app/registry.py` uses `route="movies"` and `route="tv-shows"` (plural) while
-  the SPA routes are `/movie/` and `/tv-show/` (singular). The plan has been
-  corrected; do not re-introduce it.
+Nothing. Both the publisher migration and the `public_id` + slug URL plan
+shipped on 2026-09-07; `docs/roadmap.md` keeps the record.
 
 ## Open items
 
@@ -86,6 +23,7 @@ Unclaimed. None block using the app.
 | Item | Where | Status |
 |---|---|---|
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
+| Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |
 | Startup dies when stdout is not UTF-8 - emoji prints, and the error handler itself throws, hiding the real cause | `app/main.py` 108/118/123/129 | todo |
 | `delete_studio` never calls `delete_cover_image` (logo leak; publisher does) | `app/routers/studio.py` | todo |
 | Anime-movie Director picker reads the `anime` scope, not `anime-movie` | `AnimeMovieAddTab.jsx:302`, `AnimeMovieModifyTab.jsx:233` pass `scope: "anime"` while `fieldMeta.js:374` declares `anime-movie`, so an anime movie's own directors never appear. Pre-dates the publisher work | todo |
@@ -100,8 +38,9 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | at `gs1p2r3o4g5` (`steam_progress_sync`), which is head - the migration has been applied |
-| Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` |
+| Dev db | **home machine**, at `pdf1e2r3d4e5` (head). Pull All ran 2026-09-07 against a sheet verified post-migration, so this database now agrees with the company one, `public_id` included |
+| Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
+| Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |
 | Studio data | 45 duplicate studios removed by hand 2026-09-07; the delete cascaded ~377 credits away, rebuilt by Pull All from the entry tabs' `studio` columns. Now 78 studios, 483 studio credits, 0 duplicate clusters, and all 78 local ids match the sheet (28 were realigned to the sheet's ids after Pull matched them by name) |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
-| Droppable test dbs | `anime_site_test_covers` `anime_site_test_pubbe` `anime_site_test_gameb` `anime_site_test_gamec` `anime_site_test_igdb` `anime_site_test_gamefix` `anime_site_test_gameplat` `anime_site_test_gameflags` `anime_site_test_fdgame` `anime_site_test_extapi` `anime_site_test_steam` |
+| Droppable test dbs | `anime_site_test_covers` `anime_site_test_pubbe` `anime_site_test_gameb` `anime_site_test_gamec` `anime_site_test_igdb` `anime_site_test_gamefix` `anime_site_test_gameplat` `anime_site_test_gameflags` `anime_site_test_fdgame` `anime_site_test_extapi` `anime_site_test_steam` `anime_site_test_home1` |

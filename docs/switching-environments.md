@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-07 (STEAM_ENABLED is per-machine)
+Last verified: 2026-09-07 (home column recorded from the home machine)
 
 ## What this is for
 
@@ -20,17 +20,17 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 
 | | **Company** | **Home** |
 |---|---|---|
-| Project path | `C:\Users\q601513\Documents\anime_site` | _TODO — record when working there_ |
-| OS | Windows 11 Pro (10.0.26200) | _TODO_ |
-| PostgreSQL | **docker-compose only** (`postgres:15`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`). No native PostgreSQL service is installed on this machine. | _TODO_ |
-| Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | _TODO_ |
-| Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | _TODO_ |
-| Node / npm | v24.18.0 / 11.16.0 | _TODO_ |
+| Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\anime_site` |
+| OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
+| PostgreSQL | **docker-compose only** (`postgres:15`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`). No native PostgreSQL service is installed on this machine. | **Native PostgreSQL 17.6** (`data_directory = C:/Program Files/PostgreSQL/17/data`) is the real dev database. `docker-compose up -d` also starts `anime_site_postgres_db` and it binds 5432 too, but the native service answers first — the container is shadowed and holds a *separate, empty* database. Never diagnose schema state with `docker exec ... psql` here; go through the app's own URL. |
+| Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
+| Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
+| Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
 | Google Sheet | `GOOGLE_SHEET_ID=1d-rh8joD3xHhG58KdFyBDQ-g99xDfMnHNiBu7ECFemU` — the same sheet on both machines, and the only channel data travels through | same sheet |
 | Remote | `origin` → `https://github.com/cgentle1618/anime_site.git` | same |
 
-> The home column is deliberately unfilled. Fill it in from that machine rather
-> than from memory, and bump the `Last verified` line when you do.
+> Both columns are recorded from the machine itself. Keep it that way — record
+> from the machine rather than from memory, and bump the `Last verified` line.
 
 Since the [GCP deployment went down on 2026-09-02](deployment-gcp.md), there is
 no shared server. Each machine has its **own local database**, and they diverge
