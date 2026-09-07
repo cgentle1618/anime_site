@@ -7,6 +7,8 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
+    Sequence,
     String,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -38,6 +40,15 @@ class Collection(Base, NameFallbackMixin):
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    # Short, stable, per-table id that appears in SPA URLs
+    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
+    # and never leaves the API; this is the only id a human ever sees. Backed by
+    # a sequence rather than a Python default so that every insert path - the
+    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
+    # column exists.
+    public_id = Column(
+        Integer, Sequence("collection_public_id_seq"), nullable=False, unique=True
     )
     collection_name_en = Column(String, nullable=True)
     collection_name_cn = Column(String, nullable=True)

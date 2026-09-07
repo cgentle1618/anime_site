@@ -44,7 +44,7 @@ spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `public_id` column on all seventeen models + migration | todo |
+| 1 | `public_id` column on all seventeen models + migration | done 7118a3e |
 | 2 | Shared entity-reference resolver | todo |
 | 3 | Frontend slug and path helpers | todo |
 | 4 | `public_id` on the response schemas | todo |

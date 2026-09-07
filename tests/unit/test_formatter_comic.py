@@ -58,6 +58,9 @@ class TestParseComicFromSheet:
 
         parsed = parse_comic_from_sheet({})
         model_cols = {c.name for c in Comic.__table__.columns}
+        # public_id is a per-database sequential id assigned on insert; it
+        # never appears in the sheet and must never round-trip through it.
+        model_cols.discard("public_id")
         # Every column round-trips, created_at/updated_at included: Backup
         # writes both to the Comic tab, so Pull has to restore them rather than
         # letting the model default re-stamp "now" on every restored row.
