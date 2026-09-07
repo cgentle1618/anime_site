@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -15,7 +15,7 @@ differences are called out inline. For the production side see
 | --- | --- | --- |
 | Python | 3.13 | Same interpreter as the runtime image (`python:3.13-slim`) and CI. `requirements.txt` is pinned against 3.13. |
 | Node.js | 20 | CI and the Docker frontend stage use Node 20. Newer LTS versions (e.g. 24) also work locally. |
-| PostgreSQL | 17 native (preferred) or 15 via Docker | See section 3 for why there are two options. |
+| PostgreSQL | 17 native or 15 via Docker | Which one a given machine uses differs; see section 3. |
 | Git | any | |
 | Docker Desktop | optional | Only needed if you use the docker-compose Postgres or `dev.ps1`. |
 | Windows Terminal (`wt.exe`) | optional | `dev.ps1` opens its uvicorn/vite panes with it. |
@@ -54,10 +54,14 @@ The app connects to `localhost:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
 Two ways to provide that server exist and they conflict on port 5432, so pick
 one and stop the other.
 
-### Option A: native PostgreSQL 17 (the real dev database)
+### Option A: native PostgreSQL 17
 
-This is what the maintainer's dev data lives in. Install PostgreSQL 17, make
-sure the service is running, then create the two databases:
+Which option holds the real dev data differs per machine — see
+[switching-environments.md](switching-environments.md). The company machine
+runs Option B and has no native PostgreSQL service installed at all.
+
+Install PostgreSQL 17, make sure the service is running, then create the two
+databases:
 
 ```powershell
 # Windows: psql is under C:\Program Files\PostgreSQL\17\bin if not on PATH

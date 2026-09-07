@@ -107,7 +107,7 @@ Nothing here exists in the repo yet — this is the sketch to build from.
 | --- | --- |
 | OS | A plain Linux server distribution (Debian or Ubuntu LTS), with Docker + Compose on top |
 | App container | The existing `dockerfile`, unchanged. `entrypoint.sh` already runs `alembic upgrade head` and then `uvicorn ... --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'`, which is exactly right behind a tunnel. |
-| Database | A `postgres` container with a named volume on the NVMe, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while native local dev is 17 — pick one deliberately before creating data that has to be migrated. |
+| Database | A `postgres` container with a named volume on the NVMe, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while a native local dev install would be 17 (which machine uses which is in `switching-environments.md`) — pick one deliberately before creating data that has to be migrated. |
 | Ingress | A `cloudflared` container in the same Compose project, pointing at the app container's port |
 | Covers | Currently GCS. Needs a replacement — see below. |
 | Backup | A nightly `pg_dump` to the NVMe plus an off-box copy. The existing Google Sheets backup is unaffected by all of this and keeps working. |
