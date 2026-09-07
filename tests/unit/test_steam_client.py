@@ -38,6 +38,10 @@ APPDETAILS = {
 @pytest.fixture(autouse=True)
 def no_throttle_and_no_cache(monkeypatch):
     monkeypatch.setattr(steam.steam_store_rate_limiter, "wait_if_needed", lambda: None)
+    # The transport tests describe an enabled integration. Pinned rather than
+    # inherited so a developer running with STEAM_ENABLED=false in their own
+    # .env does not silently turn this whole module green-by-no-op.
+    monkeypatch.setattr(steam.settings, "steam_enabled", True)
     steam.reset_owned_games_cache()
 
 
@@ -260,3 +264,56 @@ class TestRateLimiter:
     def test_an_empty_window_never_sleeps(self):
         limiter = steam.SteamStoreRateLimiter(limits=((2, 300),))
         assert limiter._sleep_time(1002.0) == 0
+
+
+class TestKillSwitch:
+    """STEAM_ENABLED=false must put no packet on the wire.
+
+    On a network that inspects Steam traffic, even a failed connection is a
+    logged connection, so the switch is asserted at the transport: not "the
+    call returned None" but "requests.get was never reached". The guard sits
+    in the two request helpers rather than in the autofill caller, so a
+    future caller cannot route around it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def disabled(self, monkeypatch):
+        monkeypatch.setattr(steam.settings, "steam_enabled", False)
+
+        def explode(*args, **kwargs):
+            raise AssertionError("no HTTP call may go out while Steam is disabled")
+
+        monkeypatch.setattr(steam.requests, "get", explode)
+
+    def test_the_storefront_is_silent(self):
+        assert steam.fetch_steam_appdetails(1245620) is None
+
+    def test_the_web_api_is_silent_even_with_credentials(self, monkeypatch):
+        """Credentials present is the dangerous case: the key travels in the
+        query string, so the switch must win over a fully configured client."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+
+        assert steam.fetch_owned_games() is None
+        assert steam.fetch_player_achievements(1245620) is None
+
+    def test_the_switch_defaults_to_on(self):
+        """Absent from .env, Steam behaves exactly as before."""
+        from app.config import Settings
+
+        # _env_file=None so the answer is the field default, not whatever this
+        # machine's .env happens to say.
+        assert Settings(_env_file=None).steam_enabled is True
+
+    def test_disabling_does_not_log_the_private_profile_warning(
+        self, monkeypatch, caplog
+    ):
+        """The privacy warning would point at a Steam setting that is not the
+        cause, so a deliberate opt-out must stay quiet."""
+        monkeypatch.setattr(steam.settings, "steam_api_key", "key")
+        monkeypatch.setattr(steam.settings, "steam_id", "76561197960287930")
+
+        with caplog.at_level(logging.WARNING):
+            steam.fetch_owned_games()
+
+        assert not any("not public" in r.message for r in caplog.records)

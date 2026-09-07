@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07 (STEAM_ENABLED is per-machine)
 
 ## What this is for
 
@@ -44,7 +44,7 @@ the moment either one is edited.
 |---|---|---|
 | Code, migrations, docs, roadmap | git (`origin`) | commit + push before leaving; pull on arrival |
 | Database contents | Google Sheets | **Backup** writes local DB → sheet; **Pull All** writes sheet → local DB |
-| `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them |
+| `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them. Deliberately different per machine: **company** sets `STEAM_ENABLED=false` and leaves `STEAM_API_KEY` / `STEAM_ID` unset, because the company network inspects TLS to Steam's hosts and would log the key from the Web API's URL; **home** omits the line entirely (the default is `true`) so prices, Metacritic and playtime all fill. Nothing else about the two files should diverge — see [external-apis.md](external-apis.md#turning-steam-off-entirely) |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
 | Cover images (GCS) | **nothing** | GCS is unavailable while the GCP deployment is down |
 | Users, roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |

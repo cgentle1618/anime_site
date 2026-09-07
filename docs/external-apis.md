@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-07 (Comic Vine publisher writes a credit, not a tag)
+Last verified: 2026-09-07 (STEAM_ENABLED kill switch)
 
 ## What this is for
 
@@ -404,6 +404,26 @@ a private profile skips only the progress half (`hours_played`,
 the achievement total keep filling normally. As of this writing `STEAM_API_KEY`
 / `STEAM_ID` are unset in this deployment's `.env`, so the progress columns
 stay `null` until they are set.
+
+### Turning Steam off entirely
+
+`STEAM_ENABLED=false` (`settings.steam_enabled`, default `true`) makes both
+halves a no-op: `_store_request` and `_web_request` return `None` before
+`requests.get`, so no connection is attempted at all. Callers see the same
+`None` they already handle for a game Steam has no data for, so a Fill or
+Replace still completes and simply leaves the Steam columns alone.
+
+The guard sits in the two request helpers rather than in the autofill caller
+so that no future call site can route around it. Note that this is the only
+switch that stops the storefront half — `STEAM_API_KEY` / `STEAM_ID` gate the
+Web API alone, and `store.steampowered.com` needs neither.
+
+Why it exists: Steam is the one integration whose hosts sit behind TLS
+interception on some corporate networks. There, the `key=` and `steamid=`
+parameters of the Web API travel in a URL the proxy can read and log, and even
+a *refused* connection is still a logged connection. The switch is per-machine
+via `.env`, like the credentials themselves — see
+[switching-environments.md](switching-environments.md).
 
 ### Requests per game
 

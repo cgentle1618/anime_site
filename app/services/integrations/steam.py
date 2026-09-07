@@ -133,8 +133,12 @@ def reset_owned_games_cache() -> None:
 def _store_request(path: str, params: Dict[str, Any], context: str) -> Optional[Any]:
     """
     Issues one throttled storefront request and returns the parsed JSON.
-    Returns None on any non-retryable failure; raises for retryable ones.
+    Returns None on any non-retryable failure (a disabled integration
+    included); raises for retryable ones.
     """
+    if not settings.steam_enabled:
+        return None
+
     steam_store_rate_limiter.wait_if_needed()
 
     try:
@@ -187,6 +191,9 @@ def _credentials() -> Optional[tuple]:
 
 def _web_request(path: str, params: Dict[str, Any], context: str) -> Optional[Any]:
     """One Web API request. Not throttled: the documented quota is 100k/day."""
+    if not settings.steam_enabled:
+        return None
+
     try:
         response = requests.get(f"{WEB_API_BASE_URL}/{path}", params=params, timeout=15)
 
@@ -300,6 +307,11 @@ def fetch_owned_games() -> Optional[Dict[int, int]]:
 
     games = ((payload or {}).get("response") or {}).get("games")
     if games is None:
+        # A disabled integration reaches here with payload None too, and the
+        # privacy warning would send an admin chasing a Steam setting that is
+        # not the cause.
+        if not settings.steam_enabled:
+            return None
         logger.warning(
             "Steam returned no game list — the profile's game details are "
             "probably not public."

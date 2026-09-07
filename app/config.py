@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # and they degrade to a logged no-op when either of these is unset.
     steam_api_key: Optional[str] = None
     steam_id: Optional[str] = None
+    # A kill switch for both halves at once. Steam is the one integration whose
+    # hosts sit behind TLS inspection on some networks, where even a refused
+    # connection is a logged connection; STEAM_ENABLED=false stops the traffic
+    # at the transport instead of relying on nobody pressing Fill.
+    steam_enabled: bool = True
 
     # --- Google integrations ---
     google_credentials_json: Optional[str] = None
