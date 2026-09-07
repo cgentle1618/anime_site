@@ -125,9 +125,6 @@ class TestParseCollectionFromSheet:
         from app.models import Collection
 
         columns = {c.name for c in Collection.__table__.columns}
-        # public_id is a per-database sequential id assigned on insert; it
-        # never appears in the sheet and must never round-trip through it.
-        columns.discard("public_id")
         assert set(parse_collection_from_sheet({c: "" for c in columns})) == columns
 
     def test_absent_no_built_in_orders_column_omits_the_key(self):

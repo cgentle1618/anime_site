@@ -175,12 +175,30 @@ def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
         return val_str
 
 
+def _public_id_from_sheet(raw: dict) -> dict:
+    """
+    Emitted only when the sheet actually has the column - the same guard the
+    collection parser uses for no_built_in_orders and the franchise parser
+    uses for collection_id.
+
+    A sheet written before public_id existed has no such column at all;
+    emitting the key anyway would set public_id = None and fail the NOT NULL
+    constraint, where omitting it lets the table's sequence supply one. This
+    checks presence, not parseability: a row where the cell simply comes back
+    blank still has the column, and still restores that (parsed to None)
+    value rather than being treated as if the column never existed.
+    """
+    if "public_id" not in raw:
+        return {}
+    return {"public_id": parse_from_sheet(raw.get("public_id"), int)}
+
+
 def parse_watch_order_list_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Watch Order List sheet into typed data
     ready for the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         # Owner columns are strict UUIDs: unlike the media tabs there is no
         # name-resolution step for them in the Pull pipeline, so a junk cell
@@ -200,6 +218,8 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_watch_order_section_from_sheet(raw: dict) -> dict:
@@ -332,6 +352,7 @@ def parse_franchise_from_sheet(raw: dict) -> dict:
     if "collection_id" in raw:
         parsed["collection_id"] = parse_from_sheet(raw.get("collection_id"), UUID)
 
+    parsed.update(_public_id_from_sheet(raw))
     return parsed
 
 
@@ -367,6 +388,7 @@ def parse_collection_from_sheet(raw: dict) -> dict:
         parsed["no_built_in_orders"] = parse_from_sheet(
             raw.get("no_built_in_orders"), bool
         )
+    parsed.update(_public_id_from_sheet(raw))
     return parsed
 
 
@@ -375,7 +397,7 @@ def parse_series_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Series sheet into typed data ready for the Database.
     Note: franchise_id could be a UUID or a raw String name.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(
             raw.get("franchise_id"), UUID
@@ -396,6 +418,8 @@ def parse_series_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_anime_from_sheet(raw: dict) -> dict:
@@ -403,7 +427,7 @@ def parse_anime_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Anime sheet into typed data ready for the Database.
     Note: franchise_id and series_id could be a UUID or a raw String name.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -447,6 +471,8 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_anime_movie_from_sheet(raw: dict) -> dict:
@@ -454,7 +480,7 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Anime Movies sheet into typed data ready for the Database.
     franchise_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "anime_movie_name_en": parse_from_sheet(raw.get("anime_movie_name_en"), str),
@@ -485,6 +511,8 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_movie_from_sheet(raw: dict) -> dict:
@@ -492,7 +520,7 @@ def parse_movie_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Movies sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -524,6 +552,8 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
         "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_tv_show_from_sheet(raw: dict) -> dict:
@@ -531,7 +561,7 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the TV Shows sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -556,6 +586,8 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_cartoon_from_sheet(raw: dict) -> dict:
@@ -563,7 +595,7 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Cartoon sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name — handled in the pull pipeline.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -589,6 +621,8 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_manga_from_sheet(raw: dict) -> dict:
@@ -596,7 +630,7 @@ def parse_manga_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Manga sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -632,6 +666,8 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_novel_from_sheet(raw: dict) -> dict:
@@ -639,7 +675,7 @@ def parse_novel_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Novel sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -684,6 +720,8 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_novel_unit_from_sheet(raw: dict) -> dict:
@@ -716,7 +754,7 @@ def parse_comic_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Comic sheet into typed data ready for the Database.
     franchise_id and series_id may be a UUID or a raw string name.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -753,6 +791,8 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_game_from_sheet(raw: dict) -> dict:
@@ -764,7 +804,7 @@ def parse_game_from_sheet(raw: dict) -> dict:
     name: the first two are resolved by the hierarchy resolver on Pull, and a
     base game entered by title is left for a later edit rather than dropped.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
@@ -813,6 +853,8 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_game_copy_from_sheet(raw: dict) -> dict:
@@ -866,7 +908,7 @@ def parse_person_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Person sheet into typed data ready for
     the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
@@ -880,6 +922,8 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_character_from_sheet(raw: dict) -> dict:
@@ -887,7 +931,7 @@ def parse_character_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Character sheet into typed data ready for
     the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
@@ -901,6 +945,8 @@ def parse_character_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_character_casting_from_sheet(raw: dict) -> dict:
@@ -947,7 +993,7 @@ def parse_studio_from_sheet(raw: dict) -> dict:
     Parses a raw dictionary from the Studio sheet into typed data ready for
     the Database.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
@@ -966,6 +1012,8 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_publisher_from_sheet(raw: dict) -> dict:
@@ -977,7 +1025,7 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
     carries no MAL columns, because MAL has no record of a games publisher or
     a Taiwanese distributor.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "name_en": parse_from_sheet(raw.get("name_en"), str),
         "name_cn": parse_from_sheet(raw.get("name_cn"), str),
@@ -994,6 +1042,8 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    parsed.update(_public_id_from_sheet(raw))
+    return parsed
 
 
 def parse_publisher_scope_from_sheet(raw: dict) -> dict:

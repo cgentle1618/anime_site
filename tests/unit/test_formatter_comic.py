@@ -54,13 +54,14 @@ class TestParseComicFromSheet:
 
     def test_round_trips_every_model_column(self):
         # Guards against a column being added to the model but forgotten here.
+        # public_id is emitted only when the sheet has that column (like
+        # collection's no_built_in_orders), so the row must supply every
+        # column - an empty raw would (correctly) omit it and fail this
+        # guard for the wrong reason.
         from app.models.comic import Comic
 
-        parsed = parse_comic_from_sheet({})
         model_cols = {c.name for c in Comic.__table__.columns}
-        # public_id is a per-database sequential id assigned on insert; it
-        # never appears in the sheet and must never round-trip through it.
-        model_cols.discard("public_id")
+        parsed = parse_comic_from_sheet({c: "" for c in model_cols})
         # Every column round-trips, created_at/updated_at included: Backup
         # writes both to the Comic tab, so Pull has to restore them rather than
         # letting the model default re-stamp "now" on every restored row.

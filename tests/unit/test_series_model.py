@@ -94,14 +94,10 @@ class TestSeriesNewColumns:
             assert name not in cols
 
     def test_sheet_column_order(self):
-        """Declaration order IS the Google Sheets column order for the Series tab.
-
-        public_id is excluded: it is a per-database sequential id assigned on
-        insert and never appears in the sheet.
-        """
-        cols = [c.name for c in Series.__table__.columns if c.name != "public_id"]
-        assert cols == [
+        """Declaration order IS the Google Sheets column order for the Series tab."""
+        assert [c.name for c in Series.__table__.columns] == [
             "system_id",
+            "public_id",
             "franchise_id",
             "series_name_en",
             "series_name_cn",
