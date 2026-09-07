@@ -13,42 +13,29 @@ Last updated: 2026-09-07
 
 ## In flight
 
-### Publisher / Distributor entity migration
+### Publisher / Distributor entity migration — DONE
 
-Plan: `docs/superpowers/plans/2026-09-07-publisher-entity-migration.md`
-Spec: `docs/superpowers/specs/2026-09-07-publisher-entity-migration-design.md`
+Shipped 2026-09-07 in `22ef2ac`, `1900266`, `68f0f00`, `bdcb1ef`, `e2a7dcb`.
+All 12 tasks done; `docs/roadmap.md` keeps the record and this section goes at
+the next tidy-up. Kept here only for the two operational notes below.
 
-| # | Task | Status |
-|---|---|---|
-| 1 | `publisher_scope` table + migration | done 22ef2ac |
-| 2 | Scope plumbing — schema, resolver, router | done 22ef2ac |
-| 3 | `PublisherRef` carries its label | done 22ef2ac |
-| 4 | Widen the role, label it per media type | done 22ef2ac |
-| 5 | One-time conversion (`backfill_publishers`) | done 22ef2ac |
-| 6 | Retire the `publisher_tw` / `comic_publisher` tag fields | done 22ef2ac |
-| 7 | Admin forms — entity picker and scope pills | done 1900266 |
-| 8 | Detail pages read the backend's label | done 1900266 |
-| 9 | Scoped suggestion fetch (`sources.js`) | done 68f0f00 |
-| 10 | Documentation | wip pubmig-10 |
-| 11 | Anime-movie publisher FORM field (gap found in Task 9) | done 68f0f00 |
-
-**Settled 2026-09-07:** the three vocabulary values with zero tag rows —
-`bilibili`, `Crunchyroll`, `bilibili (GoodShow)`. The owner wants **bilibili
-and Crunchyroll seeded as entities**; `bilibili (GoodShow)` is **dropped**.
-Final count 32 entities, not 30. Commit and the real migration are approved.
-
-**Migration RUN on `anime_site_db` 2026-09-07**, now at `pb2m3i4g5r8`:
-520 credits, 32 entities, 36 scopes, 0 skipped. Verified after: 0 tag rows and
-0 option rows left in the two retired categories, 32 publishers, 522 publisher
-credits (520 + the 2 pre-existing game ones). Pre-migration dump at
+**Migration RUN on `anime_site_db`**, now at `pb2m3i4g5r8`: 520 credits, 32
+entities, 36 scopes, 0 skipped. Verified after: 0 tag rows and 0 option rows
+left in the two retired categories, 32 publishers, 522 publisher credits
+(520 + the 2 pre-existing game ones). Pre-migration dump at
 `~/anime_site_pre_publisher_20260907.sql`.
 
-**Backup still owed.** The Google Sheet is a pre-migration copy, and
-`Proware普威爾` / `曼迪 Mightymedia` cannot resolve from it (see the spec's
-Decision E), so a Pull from it would mint duplicates. Run Backup from
-`/system` once the frontend tasks land.
+**⚠ BACKUP STILL OWED — the one thing left for a human.** The Google Sheet is
+still a pre-migration copy. Two hazards until Backup runs from `/system`:
 
-The coexistence window is CLOSED - Task 6 removed the duplicate Comic header.
+1. `Proware普威爾` and `曼迪 Mightymedia` keep their pre-migration spelling in
+   no name column, so a Pull from the current sheet cannot match them and
+   would mint duplicate publishers (spec Decision E).
+2. The sheet has no `Publisher Scope` tab yet, so a Pull would restore
+   nothing for it. Harmless now - Backup creates the tab.
+
+Do the Backup before the other machine pulls anything, per
+`docs/switching-environments.md`.
 
 ## Open items
 
