@@ -14,6 +14,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
+import PublisherScopePills from "../../components/forms/PublisherScopePills";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { MY_RATINGS } from "../../config/fieldOptions";
 // Publisher is the third consumer of this list, after Studio and Person: all
@@ -62,6 +63,10 @@ export function PublisherFields({ publisherForm, upf }) {
           ))}
         </select>
       </Field>
+      <PublisherScopePills
+        scopes={publisherForm.scopes}
+        setScopes={(next) => upf("scopes", next)}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="My Rating">
           <select

@@ -51,6 +51,42 @@ describe("novel serialization_platform", () => {
   });
 });
 
+// The publisher_tw / comic_publisher vocabularies are retired: every type's
+// publisher field is now a `publisher` CREDIT resolving to a Publisher row,
+// the way game's already was. A form still posting it as a tag writes to a
+// vocabulary that no longer exists, which is a 422 on save.
+describe("the publisher field posts a credit, not a tag", () => {
+  it.each([
+    ["anime", "distributor_tw"],
+    ["manga", "publisher_tw"],
+    ["novel", "publisher_tw"],
+    ["comic", "publisher"],
+  ])("sends %s's %s under the publisher role", (mediaType, field) => {
+    const payload = buildCreditsPayload(mediaType, { [field]: "木棉花, 東立" });
+    expect(payload.credits.publisher).toEqual(["木棉花", "東立"]);
+    expect(payload.tags.publisher_tw).toBeUndefined();
+    expect(payload.tags.comic_publisher).toBeUndefined();
+  });
+
+  it.each([
+    ["anime", "distributor_tw"],
+    ["manga", "publisher_tw"],
+    ["novel", "publisher_tw"],
+    ["comic", "publisher"],
+  ])("reads %s's %s back out of the credits half", (mediaType, field) => {
+    const form = creditsResponseToForm(mediaType, {
+      credits: { publisher: ["木棉花"] },
+    });
+    expect(form[field]).toBe("木棉花");
+  });
+
+  // Comic carried BOTH vocabularies; only one publisher field survives.
+  it("leaves comic with no publisher_tw field at all", () => {
+    const form = creditsResponseToForm("comic", { credits: {}, tags: {} });
+    expect(form).not.toHaveProperty("publisher_tw");
+  });
+});
+
 // The IGDB numeric id is Fill's only handle on a game, and the public
 // www.igdb.com link the picker stores carries a slug rather than the id - so
 // the id the admin picked has to travel in the payload of its own accord.

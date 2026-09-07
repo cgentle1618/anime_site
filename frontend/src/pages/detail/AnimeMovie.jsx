@@ -6,7 +6,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
-import { studioValue } from "../../components/info/StudioLinks";
+import {
+  publisherLabel,
+  publisherValue,
+  studioValue,
+} from "../../components/info/StudioLinks";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
@@ -459,6 +463,12 @@ export default function AnimeMovie() {
               title="Production"
               fields={[
                 { label: "Studio", value: studioValue(movie) },
+                {
+                  // New on this type: anime-movie never carried a distributor
+                  // field before the publisher entity migration.
+                  label: publisherLabel(movie, "台灣代理商"),
+                  value: publisherValue(movie),
+                },
                 {
                   label: "Director",
                   value: creditValue(movie, "director", movie.director),

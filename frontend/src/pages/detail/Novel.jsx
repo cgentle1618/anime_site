@@ -8,6 +8,10 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
+import {
+  publisherLabel,
+  publisherValue,
+} from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
 import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -582,7 +586,10 @@ export default function Novel() {
               ]}
             />
             {/* Production Card */}
-            {(novel.author || novel.illustrator || novel.publisher_tw) && (
+            {(novel.author ||
+              novel.illustrator ||
+              novel.publisher_tw ||
+              novel.publisher_refs?.length) && (
               <InfoCard
                 title="Production"
                 fields={[
@@ -610,8 +617,13 @@ export default function Novel() {
                         },
                       ]
                     : []),
-                  ...(novel.publisher_tw
-                    ? [{ label: "Publisher (TW)", value: novel.publisher_tw }]
+                  ...(novel.publisher_tw || novel.publisher_refs?.length
+                    ? [
+                        {
+                          label: publisherLabel(novel, "台灣出版商"),
+                          value: publisherValue(novel),
+                        },
+                      ]
                     : []),
                 ]}
               />

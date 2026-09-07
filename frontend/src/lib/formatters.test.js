@@ -37,20 +37,20 @@ describe("getSourceValues", () => {
       { category: "Genre Main", value: "Action", scopes: [], usages: [] },
       { category: "Genre Main", value: "Comedy", scopes: [], usages: [] },
       {
-        category: "Publisher / Distributor TW",
-        value: "Anime Only Publisher",
+        category: "Serialization Platform",
+        value: "Anime Only Platform",
         scopes: ["anime"],
         usages: [],
       },
       {
-        category: "Publisher / Distributor TW",
-        value: "Manga Only Publisher",
+        category: "Serialization Platform",
+        value: "Manga Only Platform",
         scopes: ["manga"],
         usages: [],
       },
       {
-        category: "Publisher / Distributor TW",
-        value: "Any Scope Publisher",
+        category: "Serialization Platform",
+        value: "Any Scope Platform",
         scopes: [],
         usages: [],
       },
@@ -90,11 +90,11 @@ describe("getSourceValues", () => {
     it("excludes values scoped to a different scope than requested", () => {
       const values = getSourceValues(sources, {
         kind: "option",
-        category: "Publisher / Distributor TW",
+        category: "Serialization Platform",
         scope: "manga",
       });
-      expect(values).not.toContain("Anime Only Publisher");
-      expect(values).toContain("Manga Only Publisher");
+      expect(values).not.toContain("Anime Only Platform");
+      expect(values).toContain("Manga Only Platform");
     });
 
     it("returns an option with NO scopes for every requested scope", () => {
@@ -102,16 +102,16 @@ describe("getSourceValues", () => {
       // universal, not merely "matches when no scope was asked for".
       const forManga = getSourceValues(sources, {
         kind: "option",
-        category: "Publisher / Distributor TW",
+        category: "Serialization Platform",
         scope: "manga",
       });
       const forAnime = getSourceValues(sources, {
         kind: "option",
-        category: "Publisher / Distributor TW",
+        category: "Serialization Platform",
         scope: "anime",
       });
-      expect(forManga).toContain("Any Scope Publisher");
-      expect(forAnime).toContain("Any Scope Publisher");
+      expect(forManga).toContain("Any Scope Platform");
+      expect(forAnime).toContain("Any Scope Platform");
     });
 
     it("ignores scope filtering when the field itself is unscoped", () => {

@@ -1207,6 +1207,9 @@ export default function Add() {
         founded_date: publisherForm.founded_date || null,
         defunct_date: publisherForm.defunct_date || null,
         remark: publisherForm.remark || null,
+        // Which media types offer this publisher. POST is additive, so this
+        // can only widen a publisher that already exists under this name.
+        scopes: publisherForm.scopes || [],
       }),
       credentials: "include",
     });
@@ -2041,7 +2044,7 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    // Auto-create missing entities for author, illustrator, publisher_tw
+    // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
         source: { kind: "person", role: "novel_author" },
@@ -2052,11 +2055,7 @@ export default function Add() {
         values: splitTags(nvf.illustrator),
       },
       {
-        source: {
-          kind: "option",
-          category: "Publisher / Distributor TW",
-          scope: "novel",
-        },
+        source: { kind: "publisher", scope: "novel" },
         values: splitTags(nvf.publisher_tw),
       },
     ]);
@@ -2249,7 +2248,7 @@ export default function Add() {
         values: splitTags(cmf.artist),
       },
       {
-        source: { kind: "option", category: "Comic Publisher", scope: "comic" },
+        source: { kind: "publisher", scope: "comic" },
         values: splitTags(cmf.publisher),
       },
       {
@@ -2263,14 +2262,6 @@ export default function Add() {
       {
         source: { kind: "option", category: "Comic Era", scope: "comic" },
         values: splitTags(cmf.era),
-      },
-      {
-        source: {
-          kind: "option",
-          category: "Publisher / Distributor TW",
-          scope: "comic",
-        },
-        values: splitTags(cmf.publisher_tw),
       },
       {
         source: { kind: "option", category: "Comic Event", scope: "comic" },

@@ -39,6 +39,10 @@ function publisherToForm(p) {
     founded_date: p.founded_date || "",
     defunct_date: p.defunct_date || "",
     remark: p.remark || "",
+    // PUT replaces the scope set wholesale, so the form has to hold the
+    // current one - omitting it on save would clear every media type the
+    // publisher is offered on.
+    scopes: p.scopes || [],
   };
 }
 
@@ -119,6 +123,7 @@ export default function PublisherModifyTab() {
           founded_date: publisherForm.founded_date || null,
           defunct_date: publisherForm.defunct_date || null,
           remark: publisherForm.remark || null,
+          scopes: publisherForm.scopes || [],
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["publishers-admin"] });

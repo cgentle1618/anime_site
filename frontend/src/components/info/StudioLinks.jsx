@@ -38,12 +38,24 @@ export function studioValue(item) {
 }
 
 /**
- * The same rule for a game's "Publisher" row. Publisher is shaped after
- * Studio on the backend, so the ref list reads identically and only the
- * detail route it links to differs.
+ * The same rule for a publisher row, on any of the six media types that
+ * credit one. Publisher is shaped after Studio on the backend, so the ref
+ * list reads identically and only the detail route it links to differs.
  */
 export function publisherValue(item) {
   const refs = item?.publisher_refs || [];
   if (refs.length) return <StudioLinks refs={refs} base="/publisher" />;
   return item?.publisher || null;
+}
+
+/**
+ * What this media type calls its publisher row. One publisher role reads
+ * 台灣代理商 on an anime and 發行商 on a game; the backend owns that mapping
+ * (credit_label in app/utils/credit_roles.py) and ships it on every
+ * PublisherRef, so no page hard-codes a variant. The fallback covers an entry
+ * with no publisher credited yet — and a viewer without the Credits
+ * permission, for whom publisher_refs is gated away.
+ */
+export function publisherLabel(item, fallback) {
+  return item?.publisher_refs?.[0]?.label || fallback;
 }

@@ -46,8 +46,7 @@ export default function NovelAddTab({
   sources,
 }) {
   const publisherOptions = getSourceValues(sources, {
-    kind: "option",
-    category: "Publisher / Distributor TW",
+    kind: "publisher",
     scope: "novel",
   });
   const publisherItems = publisherOptions.map((v) => ({ id: v, label: v }));

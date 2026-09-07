@@ -30,6 +30,7 @@ const PUBLISHERS = [
     country: null,
     website_url: null,
     remark: null,
+    scopes: ["game"],
   },
   {
     system_id: "p2",
@@ -47,6 +48,7 @@ const PUBLISHERS = [
     country: null,
     website_url: null,
     remark: null,
+    scopes: ["anime"],
   },
 ];
 
@@ -175,6 +177,30 @@ it("PUTs the edited record to the publisher endpoint", async () => {
   // A publisher has no MAL record; the form must not invent those columns.
   expect(lastPut.body).not.toHaveProperty("mal_id");
   expect(lastPut.body).not.toHaveProperty("mal_link");
+});
+
+// The scope pills are the only place a publisher's media types can be
+// corrected: the migration seeded them from usage, and two of the 32 rows were
+// seeded from an inference (spec Decision G). PUT replaces the set wholesale,
+// so the form has to send the pills' current value, not omit them.
+it("round-trips the scope pills through the PUT body", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Bandai Namco" }),
+    ).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Bandai Namco" }));
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Bandai Namco")).toBeInTheDocument(),
+  );
+
+  await user.click(screen.getByRole("button", { name: "Manga" }));
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() => expect(lastPut).not.toBeNull());
+  expect(lastPut.body.scopes).toEqual(["manga", "game"]);
 });
 
 // StudioModifyTab seeds an unrecorded country to Japan because nearly every

@@ -368,10 +368,13 @@ export default function ComicAddTab({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* One publisher field, not two: the separate "Publisher TW" was
+            defined and never used, and both vocabularies behind them are
+            retired - this is a Publisher row now. */}
         <Field label="Publisher">
           {optionCombo(
-            { kind: "option", category: "Comic Publisher", scope: "comic" },
+            { kind: "publisher", scope: "comic" },
             "publisher",
             "e.g. Marvel",
           )}
@@ -381,17 +384,6 @@ export default function ComicAddTab({
             { kind: "option", category: "Comic Imprint", scope: "comic" },
             "imprint",
             "e.g. Ultimate",
-          )}
-        </Field>
-        <Field label="Publisher TW">
-          {optionCombo(
-            {
-              kind: "option",
-              category: "Publisher / Distributor TW",
-              scope: "comic",
-            },
-            "publisher_tw",
-            "e.g. 東立",
           )}
         </Field>
       </div>

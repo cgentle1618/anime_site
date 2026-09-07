@@ -11,13 +11,17 @@ const CREDITS_FIELD_MAP = {
       director: "director",
       producer: "producer",
       music: "composer",
+      // The TW distributor is a Publisher row, not a vocabulary value. The
+      // form field keeps the legacy name the sheet header uses; only what
+      // sits behind it moved. sheet_column_for("anime", "publisher") owns
+      // that mapping on the backend.
+      distributor_tw: "publisher",
     },
     tags: {
       genre_main: "genre_main",
       genre_sub: "genre_sub",
       label: "label",
       quality: "quality",
-      distributor_tw: "publisher_tw",
       exclusive_source: "exclusive_source",
     },
   },
@@ -41,28 +45,36 @@ const CREDITS_FIELD_MAP = {
     credits: {
       author_plot: "manga_author_plot",
       author_draw: "manga_author_draw",
+      publisher_tw: "publisher",
     },
     tags: {
-      publisher_tw: "publisher_tw",
       serialization_platform: "serialization_platform",
     },
   },
   novel: {
-    credits: { author: "novel_author", illustrator: "novel_illustrator" },
+    credits: {
+      author: "novel_author",
+      illustrator: "novel_illustrator",
+      publisher_tw: "publisher",
+    },
     tags: {
-      publisher_tw: "publisher_tw",
       serialization_platform: "serialization_platform",
     },
   },
   comic: {
-    credits: { writer: "comic_writer", artist: "comic_artist" },
+    // Comic carried both retired vocabularies - `publisher` (Comic Publisher)
+    // and `publisher_tw` - and keeps ONE publisher field, the credit. The
+    // publisher_tw column was defined and never used (spec Decision C).
+    credits: {
+      writer: "comic_writer",
+      artist: "comic_artist",
+      publisher: "publisher",
+    },
     tags: {
-      publisher: "comic_publisher",
       imprint: "comic_imprint",
       continuity: "comic_continuity",
       era: "comic_era",
       events: "comic_event",
-      publisher_tw: "publisher_tw",
     },
   },
   // The third credit target: `publisher` resolves to a Publisher row the way

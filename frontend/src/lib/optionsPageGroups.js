@@ -84,10 +84,13 @@ export const TIER1_GROUPS = [
 // Listed rather than derived. "Tags" holds the same four categories as
 // TAG_CATEGORIES today, but that list answers a different question (which
 // sub-tab of Add/Modify edits a category, see optionCategoryGroups.js) and the
-// two are free to diverge. Publisher / Distributor TW sits under Source &
-// Platform because it names the outside party a work reaches Taiwan through,
-// which is what the platform and reference vocabularies name too; Comic
-// Publisher stays with the other Comic vocabularies, which are read together.
+// two are free to diverge.
+//
+// Two categories left this list on 2026-09-07: "Publisher / Distributor TW"
+// (which sat under Source & Platform) and "Comic Publisher" (which sat with
+// the other Comic vocabularies). Neither is a vocabulary any more - a
+// publisher is an entity edited on the Publisher tab, not a system_option
+// value edited here.
 export const TIER2_GROUPS = [
   {
     title: "Tags",
@@ -106,7 +109,6 @@ export const TIER2_GROUPS = [
   {
     title: "Comic",
     categories: [
-      "Comic Publisher",
       "Comic Imprint",
       "Comic Continuity",
       "Comic Era",
@@ -119,7 +121,6 @@ export const TIER2_GROUPS = [
       "Platform",
       "Serialization Platform",
       "Reference Source",
-      "Publisher / Distributor TW",
     ],
   },
 ];

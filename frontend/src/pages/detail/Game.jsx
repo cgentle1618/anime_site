@@ -13,7 +13,11 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
-import { publisherValue, studioValue } from "../../components/info/StudioLinks";
+import {
+  publisherLabel,
+  publisherValue,
+  studioValue,
+} from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -532,7 +536,12 @@ export default function Game() {
                     ? [{ label: "Developer", value: studioValue(game) }]
                     : []),
                   ...(game.publisher || game.publisher_refs?.length
-                    ? [{ label: "Publisher", value: publisherValue(game) }]
+                    ? [
+                        {
+                          label: publisherLabel(game, "發行商"),
+                          value: publisherValue(game),
+                        },
+                      ]
                     : []),
                   ...(game.director
                     ? [

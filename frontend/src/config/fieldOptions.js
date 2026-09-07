@@ -270,8 +270,9 @@ export const OPTION_CATEGORIES = [
   "Label",
   "Quality",
   "Official Source",
-  "Publisher / Distributor TW",
-  "Comic Publisher",
+  // "Publisher / Distributor TW" and "Comic Publisher" were here until
+  // 2026-09-07. Both vocabularies are retired: every publisher and TW
+  // distributor is a `publisher` entity credited through the publisher role.
   "Comic Imprint",
   "Comic Continuity",
   "Comic Era",

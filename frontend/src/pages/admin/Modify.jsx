@@ -814,9 +814,9 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       volume_label: c.volume_label || "",
       comic_type: c.comic_type || "",
-      // publisher, imprint, continuity, era, events, writer, artist,
-      // publisher_tw: see the comment in animeToForm - loaded from
-      // GET /api/credits/comic/{id} via loadCreditsIntoForm(), not here.
+      // publisher, imprint, continuity, era, events, writer, artist: see the
+      // comment in animeToForm - loaded from GET /api/credits/comic/{id} via
+      // loadCreditsIntoForm(), not here.
       serialization_status: c.serialization_status || "",
       reading_status: c.reading_status || md("comic").reading_status,
       issue_total: c.issue_total ?? "",
@@ -1953,7 +1953,7 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    // Auto-create missing entities for author, illustrator, publisher_tw
+    // Auto-create missing entities for author, illustrator and the publisher
     await ensureSourceValues([
       {
         source: { kind: "person", role: "novel_author" },
@@ -1964,11 +1964,7 @@ export default function Modify() {
         values: splitTags(cnvf.illustrator),
       },
       {
-        source: {
-          kind: "option",
-          category: "Publisher / Distributor TW",
-          scope: "novel",
-        },
+        source: { kind: "publisher", scope: "novel" },
         values: splitTags(cnvf.publisher_tw),
       },
     ]);
@@ -2152,7 +2148,7 @@ export default function Modify() {
         values: splitTags(ccmf.artist),
       },
       {
-        source: { kind: "option", category: "Comic Publisher", scope: "comic" },
+        source: { kind: "publisher", scope: "comic" },
         values: splitTags(ccmf.publisher),
       },
       {
@@ -2166,14 +2162,6 @@ export default function Modify() {
       {
         source: { kind: "option", category: "Comic Era", scope: "comic" },
         values: splitTags(ccmf.era),
-      },
-      {
-        source: {
-          kind: "option",
-          category: "Publisher / Distributor TW",
-          scope: "comic",
-        },
-        values: splitTags(ccmf.publisher_tw),
       },
       {
         source: { kind: "option", category: "Comic Event", scope: "comic" },

@@ -283,7 +283,6 @@ export const defaultComic = () => ({
   artist: "",
   release_date: "",
   end_date: "",
-  publisher_tw: "",
   is_main_entry: false,
   read_order: "",
   comicvine_link: "",
@@ -434,6 +433,9 @@ export const defaultPublisher = () => ({
   founded_date: "",
   defunct_date: "",
   remark: "",
+  // Which media types offer this publisher. Empty means offered NOWHERE, not
+  // everywhere - see PublisherScope in app/models/staff.py.
+  scopes: [],
 });
 
 export const defaultPerson = () => ({

@@ -8,6 +8,10 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
+import {
+  publisherLabel,
+  publisherValue,
+} from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
@@ -698,7 +702,8 @@ export default function Manga() {
             {(manga.author_plot ||
               manga.author_draw ||
               manga.anime_studio ||
-              manga.publisher_tw) && (
+              manga.publisher_tw ||
+              manga.publisher_refs?.length) && (
               <InfoCard
                 title="Production"
                 fields={[
@@ -744,7 +749,10 @@ export default function Manga() {
                           : []),
                       ]),
                   [
-                    { label: "Publisher TW", value: manga.publisher_tw },
+                    {
+                      label: publisherLabel(manga, "台灣出版商"),
+                      value: publisherValue(manga),
+                    },
                     { label: "Anime Studio", value: manga.anime_studio },
                   ],
                 ]}

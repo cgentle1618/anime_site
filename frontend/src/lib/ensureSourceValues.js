@@ -45,12 +45,20 @@ export function buildCreateRequest(source, value) {
     // Same one-name shape as a studio: a publisher is little more than its
     // names, and which of the four columns a typed value belongs in is the
     // admin's call on the Add tab, not this quick-create's.
+    //
+    // The scope, though, must travel. A publisher with no publisher_scope
+    // rows is offered NOWHERE (see PublisherScope in app/models/staff.py), so
+    // omitting it here would create the publisher and leave it missing from
+    // the picker that created it. POST /api/publisher is additive on scopes,
+    // so naming one can only widen a publisher that already exists.
+    const body = { name_en: value };
+    if (source.scope) body.scopes = [source.scope];
     return [
       endpoints.publisher.create(),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name_en: value }),
+        body: JSON.stringify(body),
         credentials: "include",
       },
     ];

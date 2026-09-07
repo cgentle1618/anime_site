@@ -28,7 +28,7 @@ describe("isTagCategory", () => {
 
   it("leaves the ones that name an outside party alone", () => {
     expect(isTagCategory("Comic Era")).toBe(false);
-    expect(isTagCategory("Publisher / Distributor TW")).toBe(false);
+    expect(isTagCategory("Comic Imprint")).toBe(false);
   });
 
   it("follows /api/constants rather than a copy of the list", () => {

@@ -93,6 +93,13 @@ export function getSourceValues(sources, source) {
   if (source.kind === "publisher") {
     // display_name is computed server-side (PublisherResponse), exactly as it
     // is for a studio - do not re-derive it here.
+    //
+    // source.scope is carried by every publisher descriptor but not read here
+    // yet: fetchAllSources still asks /api/publisher for one flat list. The
+    // scope already travels where it must (the quick-create in
+    // ensureSourceValues.js, and replace_credits on the backend), so a
+    // publisher lands correctly scoped; what is still missing is the
+    // NARROWING of the suggestion list, which needs the per-scope fetch.
     return (sources.publishers || [])
       .map((p) => p.display_name)
       .filter((name) => !!name);

@@ -13,6 +13,10 @@ import {
 } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
+import {
+  publisherLabel,
+  publisherValue,
+} from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -416,7 +420,7 @@ export default function Comic() {
               comic.artist ||
               comic.publisher ||
               comic.imprint ||
-              comic.publisher_tw) && (
+              comic.publisher_refs?.length) && (
               <InfoCard
                 title="Production"
                 fields={[
@@ -440,14 +444,16 @@ export default function Comic() {
                         },
                       ]
                     : []),
-                  ...(comic.publisher
-                    ? [{ label: "Publisher", value: comic.publisher }]
+                  ...(comic.publisher || comic.publisher_refs?.length
+                    ? [
+                        {
+                          label: publisherLabel(comic, "出版商"),
+                          value: publisherValue(comic),
+                        },
+                      ]
                     : []),
                   ...(comic.imprint
                     ? [{ label: "Imprint", value: comic.imprint }]
-                    : []),
-                  ...(comic.publisher_tw
-                    ? [{ label: "Publisher (TW)", value: comic.publisher_tw }]
                     : []),
                 ]}
               />

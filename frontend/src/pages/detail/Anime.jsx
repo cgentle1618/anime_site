@@ -9,7 +9,11 @@ import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
-import { studioValue } from "../../components/info/StudioLinks";
+import {
+  publisherLabel,
+  publisherValue,
+  studioValue,
+} from "../../components/info/StudioLinks";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
@@ -459,7 +463,12 @@ export default function Anime() {
               fields={[
                 [
                   { label: "Studio", value: studioValue(anime) },
-                  { label: "台灣代理", value: anime.distributor_tw },
+                  {
+                    // The heading comes from the ref the backend built, not
+                    // from here — see publisherLabel.
+                    label: publisherLabel(anime, "台灣代理商"),
+                    value: publisherValue(anime),
+                  },
                 ],
                 [
                   {

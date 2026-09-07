@@ -503,8 +503,7 @@ export default function AnimeAddTab({
         <Field label="Distributor TW">
           <MultiSelect
             options={getSourceValues(sources, {
-              kind: "option",
-              category: "Publisher / Distributor TW",
+              kind: "publisher",
               scope: "anime",
             })}
             value={af.distributor_tw}

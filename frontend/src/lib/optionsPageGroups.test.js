@@ -138,7 +138,6 @@ const CATEGORIES = [
   "Comic Era",
   "Comic Event",
   "Comic Imprint",
-  "Comic Publisher",
   "Franchise for Filter",
   "Game Genre",
   "Game Mode",
@@ -148,7 +147,6 @@ const CATEGORIES = [
   "Genre Sub",
   "Label",
   "Platform",
-  "Publisher / Distributor TW",
   "Quality",
   "Reference Source",
   "Serialization Platform",
@@ -175,12 +173,31 @@ describe("groupTier2Categories", () => {
     ]);
   });
 
-  it("keeps Publisher / Distributor TW with the sources, not with Comic", () => {
-    const sections = groupTier2Categories(CATEGORIES);
-    const sources = sections.find((s) => s.title === "Source & Platform");
-    expect(sources.categories).toContain("Publisher / Distributor TW");
-    const comic = sections.find((s) => s.title === "Comic");
-    expect(comic.categories).not.toContain("Publisher / Distributor TW");
+  it("reads the source and platform vocabularies together", () => {
+    const sources = groupTier2Categories(CATEGORIES).find(
+      (s) => s.title === "Source & Platform",
+    );
+    expect(sources.categories).toEqual([
+      "Platform",
+      "Serialization Platform",
+      "Reference Source",
+    ]);
+  });
+
+  // "Publisher / Distributor TW" (Source & Platform) and "Comic Publisher"
+  // (Comic) were grouped here until 2026-09-07. Neither is a vocabulary any
+  // more - a publisher is an entity, edited on the Publisher tab - so both
+  // would now fall through to Other, which is exactly where an unknown
+  // category belongs.
+  it("parks the retired publisher vocabularies under Other", () => {
+    const sections = groupTier2Categories([
+      ...CATEGORIES,
+      "Comic Publisher",
+      "Publisher / Distributor TW",
+    ]);
+    const other = sections.find((s) => s.title === UNGROUPED_TITLE);
+    expect(other.categories).toContain("Comic Publisher");
+    expect(other.categories).toContain("Publisher / Distributor TW");
   });
 
   it("shows every served category exactly once", () => {

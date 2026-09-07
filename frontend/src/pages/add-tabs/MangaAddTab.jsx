@@ -436,8 +436,7 @@ export default function MangaAddTab({
         <Field label="Publisher TW">
           <MultiSelect
             options={getSourceValues(sources, {
-              kind: "option",
-              category: "Publisher / Distributor TW",
+              kind: "publisher",
               scope: "manga",
             })}
             value={mgf.publisher_tw}

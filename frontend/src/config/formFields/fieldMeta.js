@@ -148,9 +148,15 @@ export const COMMON_FIELD_META = {
 
   // ---- Credits ---------------------------------------------------------
   // Where a tags control gets its suggestions. `kind` selects the endpoint:
-  //   option -> /api/options/{category}?scope=
-  //   person -> /api/person?role=&scope=
-  //   studio -> /api/studio
+  //   option    -> /api/options/{category}?scope=
+  //   person    -> /api/person?role=&scope=
+  //   studio    -> /api/studio
+  //   publisher -> /api/publisher?scope=
+  //
+  // A publisher source carries a scope but no role: a publisher holds exactly
+  // one role, so the media type is the whole key (publisher_scope in
+  // app/models/staff.py). A studio source carries neither - studios are
+  // unscoped, deliberately.
   // Splitting these is the point of the redesign: a director is an entity
   // with a profile, a genre is a vocabulary value.
   //
@@ -166,7 +172,10 @@ export const COMMON_FIELD_META = {
   },
   // A publisher is an entity in its own table, not a system_option value -
   // see app/models/staff.py's Publisher. The tags control quick-creates one
-  // through /api/publisher the way `studio` does through /api/studio.
+  // through /api/publisher the way `studio` does through /api/studio. Every
+  // type that offers the field states its own scope in its own block, so this
+  // common entry carries none: an unscoped fallback inherited by a new type
+  // would silently query every publisher in the table.
   publisher: {
     label: "Publisher",
     control: "tags",
@@ -317,14 +326,13 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "composer", scope: "anime" },
       group: "Credits",
     },
+    // The TW distributor is a Publisher row now, not a vocabulary value. The
+    // field key stays `distributor_tw` because that is the sheet header and
+    // the response attribute; only the source behind it moved.
     distributor_tw: {
       label: "Distributor TW",
       control: "tags",
-      source: {
-        kind: "option",
-        category: "Publisher / Distributor TW",
-        scope: "anime",
-      },
+      source: { kind: "publisher", scope: "anime" },
       group: "Credits",
     },
     seiyuu: { label: "Seiyuu", group: "Credits" },
@@ -527,14 +535,12 @@ export const TYPE_FIELD_META = {
       },
       group: "Sources",
     },
+    // A Publisher row - see anime's distributor_tw. The key stays the sheet
+    // header's name.
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      source: {
-        kind: "option",
-        category: "Publisher / Distributor TW",
-        scope: "manga",
-      },
+      source: { kind: "publisher", scope: "manga" },
       group: "Credits",
     },
   },
@@ -610,14 +616,11 @@ export const TYPE_FIELD_META = {
       },
       group: "Sources",
     },
+    // A Publisher row - see anime's distributor_tw.
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
-      source: {
-        kind: "option",
-        category: "Publisher / Distributor TW",
-        scope: "novel",
-      },
+      source: { kind: "publisher", scope: "novel" },
       group: "Credits",
     },
     // Novels with no MAL link have no other source. Fill reads
@@ -698,28 +701,20 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "illustrator", scope: "comic" },
       group: "Credits",
     },
+    // Marvel, DC - the work's ORIGINAL publisher, a Publisher row like every
+    // other type's. Comic used to carry a second `publisher_tw` field for a TW
+    // licensor; it was defined and never used, and both it and the Comic
+    // Publisher vocabulary are retired (spec Decision C).
     publisher: {
       label: "Publisher",
       control: "tags",
-      source: { kind: "option", category: "Comic Publisher", scope: "comic" },
+      source: { kind: "publisher", scope: "comic" },
       group: "Credits",
     },
     imprint: {
       label: "Imprint",
       control: "tags",
       source: { kind: "option", category: "Comic Imprint", scope: "comic" },
-      group: "Credits",
-    },
-    // Reuses the shared TW distributor category, scoped to comic — matches
-    // anime's distributor_tw and manga/novel's publisher_tw.
-    publisher_tw: {
-      label: "Publisher TW",
-      control: "tags",
-      source: {
-        kind: "option",
-        category: "Publisher / Distributor TW",
-        scope: "comic",
-      },
       group: "Credits",
     },
     // is_main_entry has no COMMON_FIELD_META entry — only anime's block
@@ -865,9 +860,15 @@ export const TYPE_FIELD_META = {
       group: "Ratings",
     },
     // Developer is a Studio row and publisher a Publisher row - two entity
-    // tables, not vocabulary values. COMMON_FIELD_META already shapes
-    // `publisher`; `studio` is relabelled here because for a game the studio
+    // tables, not vocabulary values. `publisher` is restated here only to
+    // carry its scope; `studio` is relabelled because for a game the studio
     // IS the developer.
+    publisher: {
+      label: "Publisher",
+      control: "tags",
+      source: { kind: "publisher", scope: "game" },
+      group: "Credits",
+    },
     studio: {
       label: "Developer",
       control: "tags",

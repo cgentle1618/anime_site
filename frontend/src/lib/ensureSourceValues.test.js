@@ -68,9 +68,23 @@ describe("buildCreateRequest", () => {
     expect(JSON.parse(init.body)).toEqual({ name_en: "New Studio" });
   });
 
-  it("posts a publisher as { name_en }", () => {
-    const [url, init] = buildCreateRequest({ kind: "publisher" }, "Devolver");
+  // A publisher with no scope rows is offered NOWHERE, so a quick-create that
+  // omitted the scope would make the publisher invisible in the very picker
+  // that just created it - the publisher twin of the person bug above.
+  it("posts a publisher with the scope the field asked for", () => {
+    const [url, init] = buildCreateRequest(
+      { kind: "publisher", scope: "game" },
+      "Devolver",
+    );
     expect(url).toBe("/api/publisher/");
+    expect(JSON.parse(init.body)).toEqual({
+      name_en: "Devolver",
+      scopes: ["game"],
+    });
+  });
+
+  it("omits scopes when the publisher field named none", () => {
+    const [, init] = buildCreateRequest({ kind: "publisher" }, "Devolver");
     expect(JSON.parse(init.body)).toEqual({ name_en: "Devolver" });
   });
 
