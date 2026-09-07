@@ -57,6 +57,7 @@ class Person(Base, NameFallbackMixin):
             "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
             name="ck_person_has_a_name",
         ),
+        UniqueConstraint("public_id", name="uq_person_public_id"),
     )
 
     # Used by _find_by_name (app/services/domain/credits.py): a person matches
@@ -70,15 +71,9 @@ class Person(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id that appears in SPA URLs
-    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
-    # and never leaves the API; this is the only id a human ever sees. Backed by
-    # a sequence rather than a Python default so that every insert path - the
-    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
-    # column exists.
-    public_id = Column(
-        Integer, Sequence("person_public_id_seq"), nullable=False, unique=True
-    )
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key and never leaves the API.
+    public_id = Column(Integer, Sequence("person_public_id_seq"), nullable=False)
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)
@@ -224,6 +219,7 @@ class Studio(Base, NameFallbackMixin):
             r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_studio_defunct_date",
         ),
+        UniqueConstraint("public_id", name="uq_studio_public_id"),
     )
 
     _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
@@ -231,15 +227,9 @@ class Studio(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id that appears in SPA URLs
-    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
-    # and never leaves the API; this is the only id a human ever sees. Backed by
-    # a sequence rather than a Python default so that every insert path - the
-    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
-    # column exists.
-    public_id = Column(
-        Integer, Sequence("studio_public_id_seq"), nullable=False, unique=True
-    )
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key and never leaves the API.
+    public_id = Column(Integer, Sequence("studio_public_id_seq"), nullable=False)
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)
@@ -347,6 +337,7 @@ class Publisher(Base, NameFallbackMixin):
             r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_publisher_defunct_date",
         ),
+        UniqueConstraint("public_id", name="uq_publisher_public_id"),
     )
 
     _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
@@ -354,15 +345,9 @@ class Publisher(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id that appears in SPA URLs
-    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
-    # and never leaves the API; this is the only id a human ever sees. Backed by
-    # a sequence rather than a Python default so that every insert path - the
-    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
-    # column exists.
-    public_id = Column(
-        Integer, Sequence("publisher_public_id_seq"), nullable=False, unique=True
-    )
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key and never leaves the API.
+    public_id = Column(Integer, Sequence("publisher_public_id_seq"), nullable=False)
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)

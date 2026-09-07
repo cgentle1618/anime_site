@@ -13,6 +13,7 @@ from sqlalchemy import (
     Sequence,
     String,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -32,6 +33,7 @@ class Anime(Base, NameFallbackMixin):
             r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_anime_release_date_iso",
         ),
+        UniqueConstraint("public_id", name="uq_anime_public_id"),
     )
     _name_fields = [
         "anime_name_en",
@@ -44,15 +46,9 @@ class Anime(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id that appears in SPA URLs
-    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
-    # and never leaves the API; this is the only id a human ever sees. Backed by
-    # a sequence rather than a Python default so that every insert path - the
-    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
-    # column exists.
-    public_id = Column(
-        Integer, Sequence("anime_public_id_seq"), nullable=False, unique=True
-    )
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key and never leaves the API.
+    public_id = Column(Integer, Sequence("anime_public_id_seq"), nullable=False)
     franchise_id = Column(
         UUID(as_uuid=True),
         ForeignKey("franchise.system_id", ondelete="SET NULL"),

@@ -44,13 +44,13 @@ spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `public_id` column on all seventeen models + migration | done 7118a3e |
+| 1 | `public_id` column on all seventeen models + migration | done 761f4e4 |
 | 2 | Shared entity-reference resolver | todo |
 | 3 | Frontend slug and path helpers | todo |
 | 4 | `public_id` on the response schemas | todo |
 | 5 | Media router factory resolves a public_id | todo |
 | 6 | The eight hand-written routers resolve a public_id | todo |
-| 7 | `public_id` survives the Sheets round trip | done 245843a |
+| 7 | `public_id` survives the Sheets round trip | done 62f19f1 |
 | 8 | Pull advances each sequence past the restored ids | todo |
 | 9 | Routes and detail pages read `publicId` | todo |
 | 10 | Every link site goes through `entityPath` | todo |

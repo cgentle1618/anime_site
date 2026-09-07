@@ -1,9 +1,22 @@
 """public_id: the short, per-table sequential id that appears in SPA URLs."""
 
+import importlib.util
+import pathlib
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app import models
+from app.database import Base
+
+# Loaded by path: alembic/versions is not an importable package.
+_spec = importlib.util.spec_from_file_location(
+    "pid1a2b3c4d5",
+    pathlib.Path(__file__).parents[2]
+    / "alembic/versions/pid1a2b3c4d5_add_public_id.py",
+)
+_migration = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_migration)
 
 # (model, kwargs sufficient to insert a bare row)
 SEVENTEEN = [
@@ -68,6 +81,18 @@ def test_public_id_increases_and_is_unique(db_session, model, kwargs):
     db_session.add_all([first, second])
     db_session.flush()
     assert second.public_id > first.public_id
+
+
+def test_migration_tables_match_models_with_a_public_id_column():
+    """Nothing else exercises the migration: the suite builds its schema with
+    create_all, so a model gaining public_id without a matching migration
+    entry (or vice versa) would otherwise be silent."""
+    tables_with_public_id = {
+        name
+        for name, table in Base.metadata.tables.items()
+        if "public_id" in table.columns
+    }
+    assert set(_migration.TABLES) == tables_with_public_id
 
 
 def test_public_id_rejects_a_duplicate(db_session):

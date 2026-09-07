@@ -13,6 +13,7 @@ from sqlalchemy import (
     Sequence,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -43,19 +44,16 @@ class WatchOrderList(Base):
             " + CASE WHEN series_id IS NULL THEN 0 ELSE 1 END) = 1",
             name="ck_watch_order_list_single_owner",
         ),
+        UniqueConstraint("public_id", name="uq_watch_order_list_public_id"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id that appears in SPA URLs
-    # (/anime/47/fullmetal-alchemist-brotherhood). The UUID stays the join key
-    # and never leaves the API; this is the only id a human ever sees. Backed by
-    # a sequence rather than a Python default so that every insert path - the
-    # Add forms, Pull, Replace, a test fixture - gets one without knowing the
-    # column exists.
+    # Short, stable, per-table id shown in SPA URLs; system_id remains the
+    # join key and never leaves the API.
     public_id = Column(
-        Integer, Sequence("watch_order_list_public_id_seq"), nullable=False, unique=True
+        Integer, Sequence("watch_order_list_public_id_seq"), nullable=False
     )
     # CASCADE, not SET NULL as Collection uses: the single-owner check
     # constraint means a nulled owner would leave an unsavable orphan row.

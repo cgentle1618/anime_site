@@ -3,14 +3,16 @@
 The SPA used to address detail pages by raw UUID. public_id is the short,
 per-table sequential id that replaces it in the URL; the UUID stays the join
 key. Backfilled in creation order so the numbering matches the order entries
-were added, and is reproducible if this ever has to be rerun from scratch.
+were added. downgrade() drops the column outright, so a later re-upgrade
+starts the backfill over from whatever rows exist then - it reproduces the
+same numbering only if the row set has not changed since.
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 revision = "pid1a2b3c4d5"
-down_revision = "pb2m3i4g5r8"  # replace with the output of `alembic heads`
+down_revision = "pb2m3i4g5r8"
 branch_labels = None
 depends_on = None
 
