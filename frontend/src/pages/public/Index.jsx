@@ -121,6 +121,7 @@ const TOC_ITEMS = [
   { id: "playing", label: "Playing", level: 1 },
   { id: "playing-active", label: "Active", level: 2 },
   { id: "playing-passive", label: "Passive", level: 2 },
+  { id: "playing-anytime", label: "Anytime", level: 2 },
   { id: "playing-paused", label: "Paused", level: 2 },
 ];
 
@@ -751,6 +752,9 @@ export default function Index() {
   const passivePlaying = playingShown.filter(
     (g) => g.playing_status === "Passive Playing",
   );
+  const anytimePlaying = playingShown.filter(
+    (g) => g.playing_status === "Play Anytime",
+  );
   const pausedPlaying = playingShown.filter(
     (g) => g.playing_status === "Paused",
   );
@@ -967,6 +971,7 @@ in progress
               <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
                 {activePlaying.length +
                   passivePlaying.length +
+                  anytimePlaying.length +
                   pausedPlaying.length}{" "}
                 in progress
               </span>
@@ -994,6 +999,14 @@ in progress
                 title="Passive playing"
                 count={passivePlaying.length}
                 items={passivePlaying}
+                franchiseData={franchiseData}
+                headerTop={subHeaderTop}
+              />
+              <PlayingSection
+                id="playing-anytime"
+                title="Play anytime"
+                count={anytimePlaying.length}
+                items={anytimePlaying}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
               />

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-07 (game Copies slip on the detail page)
+Last verified: 2026-09-07 (Play Anytime dashboard section)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -162,7 +162,7 @@ division with a `scrollY + 140` threshold):
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted, entries sort by `HH:MM` then name. |
 | `#watching` | Watching (Anime · TV Show · Cartoon) | sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A single-select type filter bar (`TypeFilterBar` over `MEDIA_TYPES`: All / Anime / TV Show / Cartoon / Manga / Novel / Comic / Game) sits under the division header; picking a type shows only it across ALL THREE of the Watching, Reading and Playing divisions and pins the bar as a sticky header below the division header (sub-section headers stack below it). |
 | `#reading` | Reading (Manga · Novel · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Novel → `NovelDashboardCard`, Comic → `ComicDashboardCard`. The same `TypeFilterBar` renders here bound to the same shared filter state as Watching. |
-| `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. A third `TypeFilterBar` renders under this header too, bound to the same single shared filter state as Watching and Reading; `MEDIA_TYPES` gained a **Game** option, so picking it empties Watching and Reading and leaves only this division populated. |
+| `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. A third `TypeFilterBar` renders under this header too, bound to the same single shared filter state as Watching and Reading; `MEDIA_TYPES` gained a **Game** option, so picking it empties Watching and Reading and leaves only this division populated. |
 
 **Admin-only controls** (cards read `isAdmin`): a "Quick Edit" pencil
 (`/modify?id=…&type=…`; anime omits `type`) and −/input/+ progress steppers.

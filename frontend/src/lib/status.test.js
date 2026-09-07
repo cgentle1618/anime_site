@@ -23,6 +23,12 @@ describe("getCardStatusConfig", () => {
     );
   });
 
+  it("gives Play Anytime its own config rather than the fallback", () => {
+    expect(getPlayingButtonConfig("Play Anytime")).not.toEqual(
+      getPlayingButtonConfig("Might Play"),
+    );
+  });
+
   it("falls back to Might Play for an unknown playing status", () => {
     expect(getPlayingButtonConfig("nonsense")).toEqual(
       getPlayingButtonConfig("Might Play"),

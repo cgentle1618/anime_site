@@ -50,6 +50,7 @@ export const PLAYING_STATUSES = [
   "Play When Released",
   "Active Playing",
   "Passive Playing",
+  "Play Anytime",
   "Paused",
   "Completed",
   "Temp Dropped",

@@ -48,6 +48,12 @@ class PlayStatus(str, Enum):
     PLAY_WHEN_RELEASED = "Play When Released"
     ACTIVE_PLAYING = "Active Playing"
     PASSIVE_PLAYING = "Passive Playing"
+    # Sandbox, live-service and roguelike titles: no playthrough to resume and
+    # no finish to reach, so neither PAUSED (mid-playthrough, means to finish)
+    # nor TEMP_DROPPED (walked away) fits. Depth of finish stays in
+    # COMPLETION_LEVELS, which is why one status covers Minecraft, Valorant and
+    # Slay the Spire - what differs between them is the game, not the state.
+    PLAY_ANYTIME = "Play Anytime"
     PAUSED = "Paused"
     COMPLETED = "Completed"
     TEMP_DROPPED = "Temp Dropped"

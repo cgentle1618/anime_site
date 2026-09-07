@@ -99,7 +99,7 @@ def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
 def test_serves_playing_statuses_in_declaration_order(client):
     body = client.get("/api/constants").json()
     assert body["playing_status"] == [s.value for s in c.PlayStatus]
-    assert len(body["playing_status"]) == 10
+    assert len(body["playing_status"]) == 11
     assert body["playing_status"][0] == "Might Play"
     assert body["playing_status"][-1] == "Won't Play"
 

@@ -157,6 +157,7 @@ const PLAYING_BUTTON_CONFIG = {
   "Play When Released": { symbol: "…", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
   "Active Playing": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
   "Passive Playing": { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
+  "Play Anytime": { symbol: "∞", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
   Paused: { symbol: "~", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
   Completed: { symbol: "✓", cls: "bg-surface text-text-muted border-border-strong", target: "Might Play" },
   "Temp Dropped": { symbol: "✕", cls: "bg-surface text-text-faint border-border-strong", target: "Might Play" },

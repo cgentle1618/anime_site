@@ -86,7 +86,13 @@ describe("the playing vocabulary", () => {
       },
       {
         label: "On-Going",
-        statuses: ["Active Playing", "Passive Playing", "Paused", "Temp Dropped"],
+        statuses: [
+          "Active Playing",
+          "Passive Playing",
+          "Play Anytime",
+          "Paused",
+          "Temp Dropped",
+        ],
       },
       { label: "Done", statuses: ["Completed", "Dropped", "Won't Play"] },
     ]);
@@ -98,5 +104,11 @@ describe("the playing vocabulary", () => {
     }
     expect(PLAYING_STATUS_GROUP["Active Playing"]).toBe("Playing");
     expect(PLAYING_STATUS_GROUP["Might Play"]).toBe("Might Play");
+  });
+
+  it("files Play Anytime under Playing, not Planned or Dropped", () => {
+    // A sandbox, live-service or roguelike title is live in the collection —
+    // there is just no playthrough to resume and no finish to reach.
+    expect(PLAYING_STATUS_GROUP["Play Anytime"]).toBe("Playing");
   });
 });

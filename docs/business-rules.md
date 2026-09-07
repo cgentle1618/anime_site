@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-07 (publisher entity migration)
+Last verified: 2026-09-07 (Play Anytime playing status)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -258,6 +258,18 @@ the other eight types:
 
 - `playing_status = "Completed"` does **not** imply any particular
   `completion_level`, and no `completion_level` implies `Completed`.
+- There is deliberately **no "partly completed" status**. A game whose credits
+  rolled but whose post-game is untouched — Pokémon with the story done and the
+  Pokédex empty — is `Completed` (or `Active Playing`, if still going) plus
+  `completion_level = "Main Story"`. A `completion_level` below `Completionist`
+  *is* the partial signal; putting depth of finish back into the status would
+  make combinations like "Partial Completed + Completionist" meaningless.
+- `Play Anytime` is the opposite case: nothing to resume and nothing to finish.
+  It separates from `Paused` (mid-playthrough, means to finish) and
+  `Temp Dropped` (walked away). One value covers sandbox, live-service and
+  roguelike titles, because what differs between Minecraft, Valorant and Slay
+  the Spire is the game's design, not the state the user is in — the
+  live-service half of that is already visible on `release_status = "Ongoing"`.
 - There is no check function (`check_is_game_completed` does not exist) and no
   post-processing pass that infers completion from the numbers. Only the user
   knows, so `mark_game_completed` sets the status and leaves the three axes

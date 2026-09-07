@@ -10,6 +10,7 @@ def test_play_status_values():
         "Play When Released",
         "Active Playing",
         "Passive Playing",
+        "Play Anytime",
         "Paused",
         "Completed",
         "Temp Dropped",
