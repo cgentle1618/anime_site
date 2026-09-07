@@ -122,6 +122,8 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),  # uq_system_option_alias
     "Content Label": ("key",),  # content_label.key is UNIQUE
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
+    # No `role` in the key: a publisher holds exactly one.
+    "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does
     # carry and which are the same in every database - so only the row's own
     # identity needs reconciling, never what it points at.
@@ -168,6 +170,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "System Option Usage": ("option_id", "System Options"),
     "System Option Alias": ("option_id", "System Options"),
     "Person Role": ("person_id", "Person"),
+    "Publisher Scope": ("publisher_id", "Publisher"),
     "Media Content Label": ("label_id", "Content Label"),
 }
 
@@ -185,6 +188,7 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
         "System Option Usage",
         "System Option Alias",
         "Person Role",
+        "Publisher Scope",
     }
 )
 
@@ -609,13 +613,19 @@ def execute_pull_specific(
                         continue
                 clean_header_dict["option_id"] = option.system_id if option else None
 
-        # System Configs, Person Role, System Option Scope and System Option
-        # Usage are autoincrement integer PKs and use 'id', Seasonal uses
-        # 'seasonal', others use 'system_id'. System Options used to have an
-        # 'id' PK too, but Task 4 reshaped it onto 'system_id' and Task 10
-        # dropped the 'id' column outright - it belongs with the 'system_id'
-        # tabs now.
-        if tab_name in ("System Configs", "Person Role", "System Option Scope", "System Option Usage"):
+        # System Configs, Person Role, Publisher Scope, System Option Scope
+        # and System Option Usage are autoincrement integer PKs and use 'id',
+        # Seasonal uses 'seasonal', others use 'system_id'. System Options used
+        # to have an 'id' PK too, but Task 4 reshaped it onto 'system_id' and
+        # Task 10 dropped the 'id' column outright - it belongs with the
+        # 'system_id' tabs now.
+        if tab_name in (
+            "System Configs",
+            "Person Role",
+            "Publisher Scope",
+            "System Option Scope",
+            "System Option Usage",
+        ):
             pk_field = "id"
         elif tab_name == "Seasonal":
             pk_field = "seasonal"
@@ -1039,6 +1049,7 @@ def execute_pull_specific(
     id_sequences = {
         "System Configs": ("system_configs_id_seq", "system_configs"),
         "Person Role": ("person_role_id_seq", "person_role"),
+        "Publisher Scope": ("publisher_scope_id_seq", "publisher_scope"),
         "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
         "System Option Usage": ("system_option_usage_id_seq", "system_option_usage"),
     }

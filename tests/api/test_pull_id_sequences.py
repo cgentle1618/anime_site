@@ -70,6 +70,33 @@ def test_person_role_sequence_is_resynced_after_a_restore(db_session, sheet):
     assert len(ids) == 3, "the sequence handed out an id that already existed"
 
 
+def test_publisher_scope_sequence_is_resynced_after_a_restore(db_session, sheet):
+    _rewind(db_session, "publisher_scope_id_seq")
+    publisher = models.Publisher(name_en="Sega")
+    db_session.add(publisher)
+    db_session.flush()
+
+    sheet(
+        ["id", "publisher_id", "scope"],
+        [
+            ["1", str(publisher.system_id), "game"],
+            ["2", str(publisher.system_id), "anime"],
+        ],
+    )
+    result = pull.execute_pull_specific(db_session, "Publisher Scope", log_action=False)
+    assert result["status"] == "success"
+
+    # The next scope pill saved from the Publisher form lets the sequence choose.
+    db_session.add(
+        models.PublisherScope(publisher_id=publisher.system_id, scope="manga")
+    )
+    db_session.flush()
+
+    ids = {r.id for r in db_session.query(models.PublisherScope).all()}
+    assert {1, 2} <= ids
+    assert len(ids) == 3, "the sequence handed out an id that already existed"
+
+
 def test_system_option_scope_sequence_is_resynced_after_a_restore(db_session, sheet):
     _rewind(db_session, "system_option_scope_id_seq")
     option = models.SystemOption(category="Genre Main", value="Action")

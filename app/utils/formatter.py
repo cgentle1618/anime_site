@@ -996,6 +996,23 @@ def parse_publisher_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_publisher_scope_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Publisher Scope sheet into typed data
+    ready for the Database. Shaped exactly like parse_person_role_from_sheet
+    minus `role`: a publisher holds exactly one role, so publisher_scope has
+    no role column. The Publisher tab restores before this one (see
+    SHEET_TABS), so publisher_id round-trips as a plain UUID here - Pull
+    remaps it to the local publisher when the two databases minted different
+    uuids (DERIVED_IDENTITY_PARENTS in pull.py).
+    """
+    return {
+        "id": parse_from_sheet(raw.get("id"), int),
+        "publisher_id": _uuid_or_none(raw.get("publisher_id")),
+        "scope": parse_from_sheet(raw.get("scope"), str),
+    }
+
+
 def parse_system_option_scope_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Option Scope sheet into typed

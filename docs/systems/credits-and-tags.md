@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-07 (publisher entity migration: one scoped `publisher`
+Last verified: 2026-09-07 (the `Publisher Scope` sheet tab; one scoped `publisher`
 role on six media types, both publisher vocabularies retired)
 
 ## What this is for
@@ -285,7 +285,7 @@ The fix it points at is the merge endpoint, never delete.
 | Fill (autofill, `app/services/domain/autofill.py`) | Movie director from TMDB, comic writer/artist from Comic Vine — only when the role has no credits yet (`credit_names` empty). Anime studio/director/producer/composer via the Tenrai fill path. |
 | Pull (`app/services/pipelines/pull.py`) | Legacy headers are popped from the parsed row into `pending_credits` / `pending_tags` and applied via `replace_credits` / `replace_tags` after the entry row is upserted. |
 | Backup (`app/services/pipelines/backup.py`) | Appends `sheet_link_headers` + `sheet_link_rows` to every entry tab. |
-| Sheets tabs (`app/services/pipelines/tabs.py`) | Dedicated `Person`, `Person Role`, `Studio` tabs restored **before** any media tab so credits can resolve against them. |
+| Sheets tabs (`app/services/pipelines/tabs.py`) | Dedicated `Person`, `Person Role`, `Studio`, `Publisher` and `Publisher Scope` tabs restored **before** any media tab so credits can resolve against them. The two scope tabs matter beyond ordering: `replace_credits` re-adds a scope additively for every credited entity, so only an entity credited **nowhere** — `bilibili`, `Crunchyroll` — and a scope set ahead of its first credit depend on the tab surviving the round trip. Zero rows means offered nowhere, so losing them hides the entity in every picker. |
 
 ## Admin UI
 

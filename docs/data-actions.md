@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-07 (publisher entity migration)
+Last verified: 2026-09-07 (publisher scope Sheets round trip)
 
 ## What this is for
 
@@ -59,34 +59,35 @@ Outcome:
 | 7 | `Person Role` | `PersonRole` |  |
 | 8 | `Studio` | `Studio` |  |
 | 9 | `Publisher` | `Publisher` |  |
-| 10 | `Character` | `Character` |  |
-| 11 | `System Configs` | `SystemConfigs` |  |
-| 12 | `Collection` | `Collection` |  |
-| 13 | `Franchise` | `Franchise` |  |
-| 14 | `Series` | `Series` |  |
-| 15 | `Anime` | `Anime` | `anime` |
-| 16 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 17 | `Movies` | `Movies` | `movie` |
-| 18 | `TV Shows` | `TVShows` | `tv-show` |
-| 19 | `Cartoons` | `Cartoon` | `cartoon` |
-| 20 | `Manga` | `Manga` | `manga` |
-| 21 | `Novel` | `Novel` | `novel` |
-| 22 | `Novel Unit` | `NovelUnit` |  |
-| 23 | `Comic` | `Comic` | `comic` |
-| 24 | `Game` | `Game` | `game` |
-| 25 | `Game Copy` | `GameCopy` |  |
-| 26 | `Watch Order List` | `WatchOrderList` |  |
-| 27 | `Watch Order Section` | `WatchOrderSection` |  |
-| 28 | `Watch Order Item` | `WatchOrderItem` |  |
-| 29 | `Media Relation` | `MediaRelation` |  |
-| 30 | `Plan Next` | `PlanNext` |  |
-| 31 | `Quote` | `Quote` |  |
-| 32 | `Character Casting` | `CharacterCasting` |  |
-| 33 | `Meme` | `Meme` |  |
-| 34 | `Note` | `Note` |  |
-| 35 | `Media Source` | `MediaSource` |  |
-| 36 | `Media Content Label` | `MediaContentLabel` |  |
-| 37 | `Seasonal` | `Seasonal` |  |
+| 10 | `Publisher Scope` | `PublisherScope` |  |
+| 11 | `Character` | `Character` |  |
+| 12 | `System Configs` | `SystemConfigs` |  |
+| 13 | `Collection` | `Collection` |  |
+| 14 | `Franchise` | `Franchise` |  |
+| 15 | `Series` | `Series` |  |
+| 16 | `Anime` | `Anime` | `anime` |
+| 17 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 18 | `Movies` | `Movies` | `movie` |
+| 19 | `TV Shows` | `TVShows` | `tv-show` |
+| 20 | `Cartoons` | `Cartoon` | `cartoon` |
+| 21 | `Manga` | `Manga` | `manga` |
+| 22 | `Novel` | `Novel` | `novel` |
+| 23 | `Novel Unit` | `NovelUnit` |  |
+| 24 | `Comic` | `Comic` | `comic` |
+| 25 | `Game` | `Game` | `game` |
+| 26 | `Game Copy` | `GameCopy` |  |
+| 27 | `Watch Order List` | `WatchOrderList` |  |
+| 28 | `Watch Order Section` | `WatchOrderSection` |  |
+| 29 | `Watch Order Item` | `WatchOrderItem` |  |
+| 30 | `Media Relation` | `MediaRelation` |  |
+| 31 | `Plan Next` | `PlanNext` |  |
+| 32 | `Quote` | `Quote` |  |
+| 33 | `Character Casting` | `CharacterCasting` |  |
+| 34 | `Meme` | `Meme` |  |
+| 35 | `Note` | `Note` |  |
+| 36 | `Media Source` | `MediaSource` |  |
+| 37 | `Media Content Label` | `MediaContentLabel` |  |
+| 38 | `Seasonal` | `Seasonal` |  |
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the nine entry tabs).
 
@@ -124,16 +125,32 @@ Pulling an old sheet into the dropped schema silently restores nothing for
 sources: the columns it used to fill no longer exist, and an old sheet has no
 `Media Source` rows to replace them with.
 
-**`publisher_scope` has no tab, unlike `person_role`.** That is a real gap, not
-a design choice, and it is worth knowing before a Pull All. Most scopes survive
-anyway, because Pull applies each entry's `publisher` credits through
-`replace_credits`, which calls `resolve_publisher(..., scope=media_type)` and
-re-adds the scope row additively — a publisher credited on a manga is scoped to
-manga again on the way in. What does **not** survive is a scope with no credit
-behind it: the `anime` scope hand-seeded onto `bilibili` and `Crunchyroll` (see
-[options.md](options.md#tier-2-system-options)), or a scope an admin set through
-the Publisher Modify tab in advance of the first credit. Re-set those from the
-admin page after a Pull All, or add the tab.
+**`publisher_scope` has its own tab, `Publisher Scope`,** sitting between
+`Publisher` and the media tabs exactly as `Person Role` sits after `Person`, and
+carrying the same three columns minus the role (`id`, `publisher_id`, `scope`).
+It shipped a release *after* the publisher migration itself, closing a gap in
+which scopes survived only by luck: Pull applies each entry's `publisher`
+credits through `replace_credits`, which calls
+`resolve_publisher(..., scope=media_type)` and re-adds the scope row additively,
+so a publisher credited on a manga was scoped to manga again on the way in — but
+a scope with **no credit behind it** was lost. That is the `anime` scope
+hand-seeded onto `bilibili` and `Crunchyroll` (see
+[options.md](options.md#tier-2-system-options)), which are credited nowhere, and
+any scope an admin sets through the Publisher Modify tab ahead of the first
+credit. Since zero scope rows means offered *nowhere*, losing them made those
+publishers invisible in every picker. The tab carries them now.
+
+Two consequences of restoring by `(publisher_id, scope)` rather than by the
+sheet's integer `id`: a second Pull of the same sheet adds nothing (no
+`uq_publisher_scope` collision), and, like every other tab, Pull only upserts —
+a scope **removed** on the other machine is not deleted here, so unscope it on
+both or delete the row from the admin page.
+
+**A sheet backed up before this tab existed has no `Publisher Scope` rows.**
+Pull creates the tab empty and reports success, leaving whatever scopes the
+credits re-add — the pre-tab behaviour. Run a Backup from the machine with the
+newer data first, as [switching-environments.md](switching-environments.md)
+already requires.
 
 **The publisher migration did not change any sheet header.** The `publisher`
 credit writes under `distributor_tw` on the Anime and Anime Movie tabs,
@@ -142,7 +159,9 @@ headers the retired `publisher_tw` and `comic_publisher` tag fields used, so a
 Backup taken after the migration is column-identical to one taken before. Only
 what sits behind the header moved, from `media_tag` to `media_credit`. The one
 new column is `distributor_tw` on the **Anime Movie** tab, which never carried a
-distributor. The Comic tab lost its always-empty `publisher_tw` column.
+distributor. The Comic tab lost its always-empty `publisher_tw` column. (The
+`Publisher Scope` tab above is additional, not a header change: no existing
+tab's columns moved for it.)
 
 **One restore hazard, from splitting names.** The migration split four
 vocabulary values into `name_en` + `name_cn` (`Muse木棉花`, `Proware普威爾`,
@@ -204,7 +223,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | string `collection_id` | look up `Collection` by any of its five names; not found → set to `None`, row kept (collection is optional) |
      | string `series_id` | look up `Series` by en/cn/alt name; **not found → row skipped** |
 
-   - **Primary key field**: `id` for `System Configs`, `Person Role`, `System Option Scope`; `seasonal` for `Seasonal`; `system_id` for everything else.
+   - **Primary key field**: `id` for `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope` and `System Option Usage`; `seasonal` for `Seasonal`; `system_id` for everything else.
    - **Id-less matching**: when the PK cell is blank the row is matched to an existing local row by a natural key so a re-import updates instead of duplicating:
 
      | Tab | Matched on |
@@ -234,6 +253,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |
 | `System Option Alias` | `option_id` + `source` + `value` | integer — **ignored** |
      | `Person Role` | `person_id` + `role` + `scope` | integer — **ignored** |
+     | `Publisher Scope` | `publisher_id` + `scope` (no `role`: a publisher holds exactly one) | integer — **ignored** |
 
      A uuid that misses is merely unknown, so trying it first costs nothing and lets a value *renamed* in the sheet follow its existing row. The two autoincrement ids are ignored outright: the sheet's `id = 1` names a real but unrelated local row, and honouring it retargets the wrong row.
 
@@ -245,7 +265,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      `option_value` columns, see below) before this match runs, so the
      comparison is a plain local-to-local uuid check like every other column
      in the key.
-   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id`, `System Option Usage.option_id`, `System Option Alias.option_id`, `Person Role.person_id` and `Media Content Label.label_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
+   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id`, `System Option Usage.option_id`, `System Option Alias.option_id`, `Person Role.person_id`, `Publisher Scope.publisher_id` and `Media Content Label.label_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
    - **`Media Source`'s `option_id` is never written to the sheet as a uuid at all** — `system_option` mints a different id per database, so a raw `option_id` column would not survive the round trip the way `entry_id` does (entry ids *are* identical across databases). The tab instead carries the option's `category` and `value` as two extra string columns, `option_category` and `option_value` (`tabs.py`'s `extra_columns`, resolved by a small helper rather than being real model columns). Before the natural-key match above runs, Pull resolves `(option_category, option_value)` against the **local** `system_option` table and fills in a local `option_id`; when it cannot be resolved (the value does not exist on this machine), `option_id` is left `None`, which then trips `ck_media_source_one_target` and fails the whole tab's Pull — there is no per-row skip-with-warning here the way the neighbouring `Franchise`/`Series` lookups above have, so a Platform value renamed or deleted on one machine can block a `Media Source` Pull on the other until the vocabularies are reconciled.
    - **Target row**: `existing = query(Model).filter(pk == pk_value)` when a PK is present.
    - **INSERT-only defaults** (never applied to an UPDATE, so a sheet that omits a column cannot wipe a good value):
@@ -262,7 +282,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
    - **Link columns applied**: after the row exists (a fresh insert is `db.flush()`ed first so `system_id` is real), `replace_credits` / `replace_tags` are called per popped column with `names_from_sheet_value(raw)`.
    - `db.flush()` every 50 rows so newly minted UUIDs are visible to later FK references.
 5. **Commit** once per tab. A commit failure rolls back the entire tab, logs `Failed`, returns `{"status": "error"}`.
-6. **Sequence resync**: because Postgres does not advance a sequence when ids are supplied explicitly, after restoring `System Configs`, `Person Role` or `System Option Scope` the matching `*_id_seq` is `setval`'d to `MAX(id) + 1`. `System Options` is deliberately not in this list — its key is a UUID.
+6. **Sequence resync**: because Postgres does not advance a sequence when ids are supplied explicitly, after restoring `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope` or `System Option Usage` the matching `*_id_seq` is `setval`'d to `MAX(id) + 1`. `System Options` is deliberately not in this list — its key is a UUID.
 7. Log `Pull {tab_name}` / `Success` with `rows_added` / `rows_updated`; return `{"status": "success", "processed", "rows_added", "rows_updated"}`.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`

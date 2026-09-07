@@ -72,6 +72,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),
     SheetTab("Studio", models.Studio, f.parse_studio_from_sheet),
     SheetTab("Publisher", models.Publisher, f.parse_publisher_from_sheet),
+    # After Publisher (real FK) and before every media tab: zero scope rows
+    # means a publisher is offered NOWHERE, so a scope that fails to restore
+    # hides the publisher from every picker. Credits re-add a scope additively
+    # on the entry tabs, but only for a publisher that is actually credited -
+    # this tab is what carries the ones that are not.
+    SheetTab("Publisher Scope", models.PublisherScope, f.parse_publisher_scope_from_sheet),
     # Also before every media tab: Character Casting rows point at characters.
     SheetTab("Character", models.Character, f.parse_character_from_sheet),
     # Key/value rows (announcements, form defaults) nothing else references.
