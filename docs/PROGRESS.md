@@ -46,7 +46,7 @@ spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
 |---|---|---|
 | 1 | `public_id` column on all seventeen models + migration | done 761f4e4 |
 | 2 | Shared entity-reference resolver | done 0d571b1 |
-| 3 | Frontend slug and path helpers | todo |
+| 3 | Frontend slug and path helpers | done e87f9bb |
 | 4 | `public_id` on the response schemas | todo |
 | 5 | Media router factory resolves a public_id | todo |
 | 6 | The eight hand-written routers resolve a public_id | todo |
