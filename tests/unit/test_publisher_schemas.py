@@ -22,7 +22,10 @@ def test_display_name_field_is_validated():
 
 def test_response_carries_display_name_and_credit_count():
     resp = schemas.PublisherResponse(
-        system_id=uuid.uuid4(), name_en="Bandai Namco", display_name="Bandai Namco"
+        system_id=uuid.uuid4(),
+        public_id=1,
+        name_en="Bandai Namco",
+        display_name="Bandai Namco",
     )
     assert resp.credit_count == 0
 

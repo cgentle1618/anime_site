@@ -45,6 +45,7 @@ def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.Stu
     )
     return schemas.StudioResponse(
         system_id=studio.system_id,
+        public_id=studio.public_id,
         name_en=studio.name_en,
         name_cn=studio.name_cn,
         name_jp=studio.name_jp,

@@ -49,6 +49,7 @@ def _to_response(
     )
     return schemas.PublisherResponse(
         system_id=publisher.system_id,
+        public_id=publisher.public_id,
         name_en=publisher.name_en,
         name_cn=publisher.name_cn,
         name_jp=publisher.name_jp,

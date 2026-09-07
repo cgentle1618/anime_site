@@ -390,6 +390,7 @@ def _serialize(db_list: models.WatchOrderList, summary: dict = None) -> dict:
     summary = summary or {"item_count": 0, "media_types": set()}
     return {
         "system_id": db_list.system_id,
+        "public_id": db_list.public_id,
         "franchise_id": db_list.franchise_id,
         "collection_id": db_list.collection_id,
         "series_id": db_list.series_id,

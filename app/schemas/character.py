@@ -65,6 +65,9 @@ class CharacterUpdate(CharacterBase):
 
 class CharacterResponse(CharacterBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     display_name: str = ""
     # Castings, not credits: this counts CharacterCasting rows, filtered
     # through the same visibility check the entries list uses, so the number

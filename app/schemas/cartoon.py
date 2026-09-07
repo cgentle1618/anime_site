@@ -54,6 +54,9 @@ class CartoonUpdate(CartoonBase, SourceWriteFields):
 
 class CartoonResponse(CartoonBase, CartoonLinkFields):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

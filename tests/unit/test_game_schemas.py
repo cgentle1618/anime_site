@@ -46,6 +46,9 @@ def test_copies_accept_the_full_copy_shape():
 
 def test_response_display_name_leads_with_cn():
     resp = schemas.GameResponse(
-        system_id=uuid.uuid4(), game_name_en="Elden Ring", game_name_cn="艾爾登法環"
+        system_id=uuid.uuid4(),
+        public_id=1,
+        game_name_en="Elden Ring",
+        game_name_cn="艾爾登法環",
     )
     assert resp.display_name == "艾爾登法環"

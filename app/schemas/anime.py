@@ -73,6 +73,9 @@ class AnimeUpdate(AnimeBase, SourceWriteFields):
 
 class AnimeResponse(AnimeBase, AnimeLinkFields):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     # Optional because field_gate blanks them for a viewer without
     # field_group.system_info, matching the other seven Response schemas.
     created_at: Optional[datetime] = None

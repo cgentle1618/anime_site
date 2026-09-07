@@ -122,6 +122,9 @@ class PersonUpdate(PersonBase):
 
 class PersonResponse(PersonBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     display_name: str = ""
     # Every (role, scope) the person holds. The admin form edits the whole set
     # at once - PUT replaces it - so it has to be readable in one request; a
@@ -174,6 +177,9 @@ class StudioUpdate(StudioBase):
 
 class StudioResponse(StudioBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     display_name: str = ""
     credit_count: int = 0
 

@@ -61,6 +61,7 @@ def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.Per
     )
     return schemas.PersonResponse(
         system_id=person.system_id,
+        public_id=person.public_id,
         name_en=person.name_en,
         name_cn=person.name_cn,
         name_jp=person.name_jp,

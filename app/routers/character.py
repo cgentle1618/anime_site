@@ -48,6 +48,7 @@ def _to_response(
     )
     return schemas.CharacterResponse(
         system_id=character.system_id,
+        public_id=character.public_id,
         name_en=character.name_en,
         name_cn=character.name_cn,
         name_jp=character.name_jp,

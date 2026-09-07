@@ -28,7 +28,7 @@ class TestComicCreateDefaults:
 
 class TestComicResponseDisplayName:
     def _response(self, **names):
-        return ComicResponse(system_id=uuid4(), **names)
+        return ComicResponse(system_id=uuid4(), public_id=1, **names)
 
     def test_prefers_en(self):
         r = self._response(comic_name_en="Amazing Spider-Man", comic_name_cn="蜘蛛人")

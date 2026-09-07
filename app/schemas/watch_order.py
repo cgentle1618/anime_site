@@ -124,6 +124,9 @@ class WatchOrderListUpdate(WatchOrderListBase):
 
 class WatchOrderListResponse(WatchOrderListBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     item_count: int = 0
     # Distinct media types among the items, in a fixed order. One entry means a
     # single-type order; several mean a cross-type one. Derived, not stored.

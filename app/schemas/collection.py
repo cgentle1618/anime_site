@@ -30,6 +30,9 @@ class CollectionUpdate(CollectionBase):
 
 class CollectionResponse(CollectionBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     # Nullable in the database, and a blank Google Sheets cell parses to None on
     # Pull. Keeping these optional stops one timestamp-less row from failing
     # validation for the whole list endpoint.

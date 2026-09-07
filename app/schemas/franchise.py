@@ -38,6 +38,9 @@ class FranchiseUpdate(FranchiseBase):
 
 class FranchiseResponse(FranchiseBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     created_at: datetime
     updated_at: datetime
 
@@ -74,6 +77,9 @@ class SeriesUpdate(SeriesBase):
 
 class SeriesResponse(SeriesBase):
     system_id: UUID
+    # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
+    # entry must be able to link to it.
+    public_id: int
     created_at: datetime
     updated_at: datetime
 
