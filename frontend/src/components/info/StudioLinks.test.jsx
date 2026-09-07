@@ -17,17 +17,17 @@ describe("studioValue", () => {
     renderValue({
       studio: "KyoAni, MAPPA",
       studio_refs: [
-        { system_id: "s1", display_name: "KyoAni" },
-        { system_id: "s2", display_name: "MAPPA" },
+        { system_id: "s1", public_id: 1, display_name: "KyoAni" },
+        { system_id: "s2", public_id: 2, display_name: "MAPPA" },
       ],
     });
     expect(screen.getByRole("link", { name: "KyoAni" })).toHaveAttribute(
       "href",
-      "/studio/s1",
+      "/studio/1/kyoani",
     );
     expect(screen.getByRole("link", { name: "MAPPA" })).toHaveAttribute(
       "href",
-      "/studio/s2",
+      "/studio/2/mappa",
     );
   });
 
@@ -51,7 +51,7 @@ describe("publisherLabel", () => {
     // the fallback for the case where no publisher is credited yet.
     const anime = {
       publisher_refs: [
-        { system_id: "abc", display_name: "木棉花", label: "台灣代理商" },
+        { system_id: "abc", public_id: 7, display_name: "木棉花", label: "台灣代理商" },
       ],
     };
     expect(publisherLabel(anime, "台灣代理商")).toBe("台灣代理商");
@@ -64,5 +64,17 @@ describe("publisherLabel", () => {
   it("falls back when the payload carries no publisher_refs key at all", () => {
     // A viewer without the Credits permission has publisher_refs gated away.
     expect(publisherLabel(undefined, "出版商")).toBe("出版商");
+  });
+});
+
+describe("a ref with no public_id", () => {
+  it("renders the name as plain text rather than a dead link", () => {
+    render(
+      <MemoryRouter>
+        {studioValue({ studio_refs: [{ system_id: "s9", display_name: "Bones" }] })}
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Bones")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Bones" })).toBeNull();
   });
 });

@@ -18,6 +18,7 @@ import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import InfoCard from "../../components/info/InfoCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 // "founded – defunct", or "Since founded" while the publisher still trades.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -30,27 +31,31 @@ function lifespan(publisher) {
 }
 
 export default function Publisher() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const [publisher, setPublisher] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useCanonicalPath("publisher", publisher);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [publisherRes, entriesRes] = await Promise.all([
-          fetch(endpoints.publisher.detail(system_id), {
-            credentials: "include",
-          }),
-          fetch(endpoints.publisher.entries(system_id), {
-            credentials: "include",
-          }),
-        ]);
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. /entries still speaks UUIDs, so it has to wait for the
+        // row the detail call resolves rather than run beside it.
+        const publisherRes = await fetch(endpoints.publisher.detail(publicId), {
+          credentials: "include",
+        });
         if (!publisherRes.ok) throw new Error("Publisher not found.");
         const publisherData = await publisherRes.json();
+        const entriesRes = await fetch(
+          endpoints.publisher.entries(publisherData.system_id),
+          { credentials: "include" },
+        );
         // The entries call is secondary: a publisher whose credits fail to
         // load still has a profile worth rendering.
         const entriesData = entriesRes.ok
@@ -69,7 +74,7 @@ export default function Publisher() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading publisher..." />;

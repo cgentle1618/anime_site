@@ -1,17 +1,24 @@
 // Frontend: card component file for FranchiseCard.
 import { Link } from "react-router-dom";
+import { entityPath } from "../../lib/entityPath";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
 export default function FranchiseCard({ franchise, coverUrl }) {
   const name = getDisplayName(franchise, "franchise") || "Unknown Franchise";
 
-  const franchisePath = `/franchise/${franchise.system_id}`;
+  // Empty when the row carries no public_id: there is no URL to link to, so
+  // the card renders as plain markup rather than a link to nowhere.
+  const franchisePath = entityPath("franchise", franchise);
+  const Wrapper = franchisePath ? Link : "div";
+  const wrapperProps = franchisePath ? { to: franchisePath } : {};
 
   return (
-    <Link
-      to={franchisePath}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col cursor-pointer group"
+    <Wrapper
+      {...wrapperProps}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col group${
+        franchisePath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex">
         <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
@@ -52,6 +59,6 @@ export default function FranchiseCard({ franchise, coverUrl }) {
           <Chip className="self-start">{franchise.franchise_expectation}</Chip>
         )}
       </div>
-    </Link>
+    </Wrapper>
   );
 }

@@ -14,9 +14,11 @@ import WatchOrderGuide, {
 } from "../../components/tracker/WatchOrderGuide";
 import { getDisplayName } from "../../utils/media";
 import { Chip, Slip } from "../../components/ui/primitives";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 export default function WatchOrderPage() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const { isAdmin } = useAuth();
 
   const [list, setList] = useState(null);
@@ -25,11 +27,13 @@ export default function WatchOrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  useCanonicalPath("watch-order", list);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    fetch(endpoints.watchOrder.list(system_id), { credentials: "include" })
+    fetch(endpoints.watchOrder.list(publicId), { credentials: "include" })
       .then((res) =>
         res.ok
           ? res.json()
@@ -62,7 +66,7 @@ export default function WatchOrderPage() {
 
         if (cancelled) return;
         setOwner(ownerRes ? { type: ownerType, id: ownerId, data: ownerRes } : null);
-        setSiblings(siblingRes.filter((l) => l.system_id !== system_id));
+        setSiblings(siblingRes.filter((l) => l.system_id !== data.system_id));
       })
       .catch((e) => !cancelled && setError(String(e)))
       .finally(() => !cancelled && setLoading(false));
@@ -70,7 +74,7 @@ export default function WatchOrderPage() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   if (loading) {
     return (
@@ -173,7 +177,7 @@ export default function WatchOrderPage() {
             {siblings.map((s) => (
               <li key={s.system_id}>
                 <Link
-                  to={`/watch-order/${s.system_id}`}
+                  to={entityPath("watch-order", s)}
                   className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-2 transition"
                 >
                   <span className="text-sm text-text">

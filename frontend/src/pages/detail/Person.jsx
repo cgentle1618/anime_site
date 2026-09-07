@@ -21,27 +21,34 @@ import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import InfoCard from "../../components/info/InfoCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 export default function Person() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const [person, setPerson] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useCanonicalPath("person", person);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [personRes, entriesRes] = await Promise.all([
-          fetch(endpoints.person.detail(system_id), { credentials: "include" }),
-          fetch(endpoints.person.entries(system_id), {
-            credentials: "include",
-          }),
-        ]);
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. /entries still speaks UUIDs, so it has to wait for the
+        // row the detail call resolves rather than run beside it.
+        const personRes = await fetch(endpoints.person.detail(publicId), {
+          credentials: "include",
+        });
         if (!personRes.ok) throw new Error("Person not found.");
         const personData = await personRes.json();
+        const entriesRes = await fetch(
+          endpoints.person.entries(personData.system_id),
+          { credentials: "include" },
+        );
         // The entries call is secondary: a person whose credits fail to load
         // still has a profile worth rendering.
         const entriesData = entriesRes.ok
@@ -60,7 +67,7 @@ export default function Person() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading person..." />;

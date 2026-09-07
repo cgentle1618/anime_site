@@ -13,6 +13,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
 import { endpoints } from "../../api/endpoints";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { Eyebrow } from "../../components/ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 export default function CharacterLibrary() {
   const [allCharacters, setAllCharacters] = useState([]);
@@ -179,11 +180,18 @@ function CharacterCard({ character }) {
   const name = character.display_name || "Unknown Character";
   const coverUrl = getCoverUrl(character.photo_file);
   const castingCount = character.casting_count ?? 0;
+  // Empty when the row carries no public_id: there is no URL to link to, so
+  // the card renders as plain markup rather than a link to nowhere.
+  const characterPath = entityPath("character", character);
+  const Wrapper = characterPath ? Link : "div";
+  const wrapperProps = characterPath ? { to: characterPath } : {};
 
   return (
-    <Link
-      to={`/character/${character.system_id}`}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col cursor-pointer group"
+    <Wrapper
+      {...wrapperProps}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col group${
+        characterPath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex">
         <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
@@ -219,6 +227,6 @@ function CharacterCard({ character }) {
           {castingCount} casting{castingCount !== 1 ? "s" : ""}
         </span>
       </div>
-    </Link>
+    </Wrapper>
   );
 }

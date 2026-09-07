@@ -1,6 +1,12 @@
 // Frontend: page component file for ReviewQueue.
 import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { entityPath } from "../../lib/entityPath";
+
+// entityPath returns "" when an entity has no public_id; never navigate to the site root.
+function goTo(path) {
+  if (path) window.location.href = path;
+}
 
 function RemarksSection({ results, loading, onRefresh }) {
   const [tab, setTab] = useState("anime");
@@ -60,7 +66,7 @@ function RemarksSection({ results, loading, onRefresh }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/anime/${e.system_id}`)}
+                onClick={() => goTo(entityPath("anime", e))}
               >
                 <td
                   className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"
@@ -107,7 +113,7 @@ function RemarksSection({ results, loading, onRefresh }) {
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
-                  (window.location.href = `/anime-movie/${e.system_id}`)
+                  goTo(entityPath("anime-movie", e))
                 }
               >
                 <td
@@ -150,7 +156,7 @@ function RemarksSection({ results, loading, onRefresh }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/movie/${e.system_id}`)}
+                onClick={() => goTo(entityPath("movie", e))}
               >
                 <td
                   className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"
@@ -193,7 +199,7 @@ function RemarksSection({ results, loading, onRefresh }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/tv/${e.system_id}`)}
+                onClick={() => goTo(entityPath("tv-show", e))}
               >
                 <td
                   className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"
@@ -237,7 +243,7 @@ function RemarksSection({ results, loading, onRefresh }) {
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
-                  (window.location.href = `/cartoon/${e.system_id}`)
+                  goTo(entityPath("cartoon", e))
                 }
               >
                 <td
@@ -285,7 +291,7 @@ function RemarksSection({ results, loading, onRefresh }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+                onClick={() => goTo(entityPath("manga", e))}
               >
                 <td
                   className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"
@@ -330,7 +336,7 @@ function RemarksSection({ results, loading, onRefresh }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/comic/${e.system_id}`)}
+                onClick={() => goTo(entityPath("comic", e))}
               >
                 <td
                   className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"
@@ -373,7 +379,7 @@ function RemarksSection({ results, loading, onRefresh }) {
             <tr
               key={i}
               className="hover:bg-surface-2 transition cursor-pointer"
-              onClick={() => (window.location.href = `/novel/${e.system_id}`)}
+              onClick={() => goTo(entityPath("novel", e))}
             >
               <td
                 className="px-5 py-3 font-bold text-text max-w-[180px] truncate whitespace-nowrap"

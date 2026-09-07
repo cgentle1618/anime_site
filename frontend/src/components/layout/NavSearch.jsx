@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cleanString, getDisplayName } from "../../utils/media";
 import { Chip } from "../ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 const SCOPES = [
   { key: "all", label: "All" },
@@ -47,6 +48,26 @@ const TYPE_LABEL = {
   studio: "STUDIO",
   publisher: "PUBLISH",
 };
+
+// Result types that open a detail page. The bucket key is the route segment,
+// so the click handler needs no translation table; a row of any other type
+// falls back to anime, as it always has.
+const DETAIL_TYPES = new Set([
+  "collection",
+  "franchise",
+  "series",
+  "cartoon",
+  "manga",
+  "novel",
+  "comic",
+  "game",
+  "anime-movie",
+  "movie",
+  "tv-show",
+  "person",
+  "studio",
+  "publisher",
+]);
 
 // Types whose display name is data rather than a fixed fallback chain: the row
 // arrives with display_name already resolved server-side from
@@ -241,25 +262,16 @@ export default function NavSearch() {
   function handleResultClick(item) {
     setShowResults(false);
     setSearchQuery("");
-    if (item.type === "collection") navigate(`/collection/${item.system_id}`);
-    else if (item.type === "franchise") navigate(`/franchise/${item.system_id}`);
-    else if (item.type === "series") navigate(`/series/${item.system_id}`);
-    else if (item.type === "cartoon") navigate(`/cartoon/${item.system_id}`);
-    else if (item.type === "manga") navigate(`/manga/${item.system_id}`);
-    else if (item.type === "novel") navigate(`/novel/${item.system_id}`);
-    else if (item.type === "comic") navigate(`/comic/${item.system_id}`);
-    else if (item.type === "game") navigate(`/game/${item.system_id}`);
-    else if (item.type === "anime-movie")
-      navigate(`/anime-movie/${item.system_id}`);
-    else if (item.type === "movie") navigate(`/movie/${item.system_id}`);
-    else if (item.type === "tv-show") navigate(`/tv-show/${item.system_id}`);
-    else if (item.type === "seasonal")
+    // Seasonal is not an entity: it routes by the season string itself.
+    if (item.type === "seasonal") {
       navigate(`/seasonal/${encodeURIComponent(item.seasonal)}`);
-    else if (item.type === "person") navigate(`/person/${item.system_id}`);
-    else if (item.type === "studio") navigate(`/studio/${item.system_id}`);
-    else if (item.type === "publisher")
-      navigate(`/publisher/${item.system_id}`);
-    else navigate(`/anime/${item.system_id}`);
+      return;
+    }
+    // Every other bucket key is already the route segment; anything unexpected
+    // has always fallen back to anime.
+    const type = DETAIL_TYPES.has(item.type) ? item.type : "anime";
+    const path = entityPath(type, item);
+    if (path) navigate(path);
   }
 
   const scopeLabel = SCOPES.find((s) => s.key === searchScope)?.label;

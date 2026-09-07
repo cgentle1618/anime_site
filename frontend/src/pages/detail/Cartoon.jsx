@@ -23,6 +23,8 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 const LIST_OPTIONS = { params: { limit: 2000 } };
@@ -33,7 +35,7 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 export default function Cartoon() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
@@ -41,14 +43,15 @@ export default function Cartoon() {
   const [cartoon, setCartoon] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
 
-  const cartoonQuery = useMediaItem("cartoon", system_id);
+  const cartoonQuery = useMediaItem("cartoon", publicId);
+  useCanonicalPath("cartoon", cartoonQuery.data);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = cartoonQuery.data?.system_id;
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allCartoonsQuery = useMediaList("cartoon", LIST_OPTIONS);
-  const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate(
-    "cartoon",
-    system_id,
-  );
+  const { setMediaItem, fetchMediaItem, invalidateMedia } = useMediaCacheUpdate("cartoon", publicId);
 
   useEffect(() => {
     if (cartoonQuery.data) setCartoon(cartoonQuery.data);
@@ -312,7 +315,7 @@ export default function Cartoon() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Franchise</Eyebrow>
                 {franchise ? (
-                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("franchise", franchise)} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
                 ) : (
@@ -322,7 +325,7 @@ export default function Cartoon() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Series</Eyebrow>
                 {series ? (
-                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("series", series)} className={lineageLinkCls}>
                     {series.series_name_cn ||
                       series.series_name_en ||
                       series.series_name_alt}

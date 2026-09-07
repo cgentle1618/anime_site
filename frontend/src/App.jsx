@@ -123,26 +123,26 @@ export default function App() {
                 />
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
-                <Route path="/anime/:system_id" element={<Anime />} />
+                <Route path="/anime/:publicId/:slug?" element={<Anime />} />
                 <Route
-                  path="/anime-movie/:system_id"
+                  path="/anime-movie/:publicId/:slug?"
                   element={<AnimeMovie />}
                 />
-                <Route path="/movie/:system_id" element={<Movie />} />
-                <Route path="/tv-show/:system_id" element={<TV />} />
-                <Route path="/cartoon/:system_id" element={<Cartoon />} />
-                <Route path="/manga/:system_id" element={<Manga />} />
-                <Route path="/novel/:system_id" element={<Novel />} />
-                <Route path="/comic/:system_id" element={<Comic />} />
-                <Route path="/game/:system_id" element={<Game />} />
-                <Route path="/collection/:system_id" element={<Collection />} />
-                <Route path="/franchise/:system_id" element={<Franchise />} />
-                <Route path="/series/:system_id" element={<Series />} />
-                <Route path="/studio/:system_id" element={<Studio />} />
-                <Route path="/publisher/:system_id" element={<Publisher />} />
-                <Route path="/person/:system_id" element={<Person />} />
-                <Route path="/character/:system_id" element={<Character />} />
-                <Route path="/watch-order/:system_id" element={<WatchOrder />} />
+                <Route path="/movie/:publicId/:slug?" element={<Movie />} />
+                <Route path="/tv-show/:publicId/:slug?" element={<TV />} />
+                <Route path="/cartoon/:publicId/:slug?" element={<Cartoon />} />
+                <Route path="/manga/:publicId/:slug?" element={<Manga />} />
+                <Route path="/novel/:publicId/:slug?" element={<Novel />} />
+                <Route path="/comic/:publicId/:slug?" element={<Comic />} />
+                <Route path="/game/:publicId/:slug?" element={<Game />} />
+                <Route path="/collection/:publicId/:slug?" element={<Collection />} />
+                <Route path="/franchise/:publicId/:slug?" element={<Franchise />} />
+                <Route path="/series/:publicId/:slug?" element={<Series />} />
+                <Route path="/studio/:publicId/:slug?" element={<Studio />} />
+                <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
+                <Route path="/person/:publicId/:slug?" element={<Person />} />
+                <Route path="/character/:publicId/:slug?" element={<Character />} />
+                <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
                   path="/seasonal/:seasonal_id"

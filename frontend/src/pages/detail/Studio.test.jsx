@@ -64,7 +64,7 @@ function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/studio/s1"]}>
       <Routes>
-        <Route path="/studio/:system_id" element={<Studio />} />
+        <Route path="/studio/:publicId/:slug?" element={<Studio />} />
       </Routes>
     </MemoryRouter>,
   );

@@ -13,6 +13,7 @@ import { useApiQuery } from "../../hooks/useApiQuery";
 import CollapsibleCardGrid from "../../components/layout/CollapsibleCardGrid";
 import CollapsiblePillRow from "../../components/layout/CollapsiblePillRow";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 // The scopes the page can be narrowed to, in the order NavSearch offers them.
 // Exported so a test can assert the page and the API agree on the bucket keys
@@ -396,7 +397,10 @@ export default function Search() {
                   key={c.system_id}
                   label="Collection"
                   titles={getCollectionTitles(c)}
-                  onClick={() => navigate(`/collection/${c.system_id}`)}
+                  onClick={() => {
+                    const path = entityPath("collection", c);
+                    if (path) navigate(path);
+                  }}
                 />
               )}
             />
@@ -463,7 +467,10 @@ export default function Search() {
                       : "Franchise"
                   }
                   titles={getFranchiseTitles(f)}
-                  onClick={() => navigate(`/franchise/${f.system_id}`)}
+                  onClick={() => {
+                    const path = entityPath("franchise", f);
+                    if (path) navigate(path);
+                  }}
                 />
               )}
             />
@@ -481,7 +488,10 @@ export default function Search() {
                   key={s.system_id}
                   label="Series"
                   titles={getSeriesTitles(s)}
-                  onClick={() => navigate(`/series/${s.system_id}`)}
+                  onClick={() => {
+                    const path = entityPath("series", s);
+                    if (path) navigate(path);
+                  }}
                 />
               )}
             />

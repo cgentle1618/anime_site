@@ -18,6 +18,7 @@ import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 import InfoCard from "../../components/info/InfoCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 // "founded – defunct", or "Since founded" while the studio is still working.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -30,23 +31,31 @@ function lifespan(studio) {
 }
 
 export default function Studio() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const [studio, setStudio] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useCanonicalPath("studio", studio);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [studioRes, entriesRes] = await Promise.all([
-          fetch(endpoints.studio.detail(system_id), { credentials: "include" }),
-          fetch(endpoints.studio.entries(system_id), { credentials: "include" }),
-        ]);
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. /entries still speaks UUIDs, so it has to wait for the
+        // row the detail call resolves rather than run beside it.
+        const studioRes = await fetch(endpoints.studio.detail(publicId), {
+          credentials: "include",
+        });
         if (!studioRes.ok) throw new Error("Studio not found.");
         const studioData = await studioRes.json();
+        const entriesRes = await fetch(
+          endpoints.studio.entries(studioData.system_id),
+          { credentials: "include" },
+        );
         // The entries call is secondary: a studio whose credits fail to load
         // still has a profile worth rendering.
         const entriesData = entriesRes.ok
@@ -65,7 +74,7 @@ export default function Studio() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading studio..." />;

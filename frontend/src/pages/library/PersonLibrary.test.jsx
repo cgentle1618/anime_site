@@ -7,6 +7,7 @@ import PersonLibrary from "./PersonLibrary";
 const PEOPLE = [
   {
     system_id: "1",
+    public_id: "p1",
     name_en: "Jon Favreau",
     display_name: "Jon Favreau",
     credit_count: 3,
@@ -14,6 +15,7 @@ const PEOPLE = [
   },
   {
     system_id: "2",
+    public_id: "p2",
     name_cn: "渡部高志",
     display_name: "渡部高志",
     credit_count: 8,
@@ -21,6 +23,7 @@ const PEOPLE = [
   },
   {
     system_id: "3",
+    public_id: "p3",
     name_jp: "諫山創",
     display_name: "諫山創",
     credit_count: 1,
@@ -28,6 +31,7 @@ const PEOPLE = [
   },
   {
     system_id: "4",
+    public_id: "p4",
     name_alt: "Pen Name",
     display_name: "Pen Name",
     credit_count: 0,
@@ -38,6 +42,7 @@ const PEOPLE = [
 const SEIYUU = [
   {
     system_id: "5",
+    public_id: "p5",
     name_en: "Miyu Irino",
     display_name: "Miyu Irino",
     credit_count: 0,

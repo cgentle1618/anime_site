@@ -26,6 +26,8 @@ import { useMediaList } from "../../hooks/useMediaList";
 import { Button, RatingStamp, ProgressRule, Eyebrow, Chip, Slip } from "../../components/ui/primitives";
 import { WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -66,13 +68,27 @@ function CastSection({ cast }) {
             </div>
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
               {row.role && <Chip>{row.role}</Chip>}
-              <Link to={`/character/${row.character_id}`} className={castLinkCls}>
+              {/* The casting row carries the target's own public_id and
+                  display name, so this is the real entity, not a stub. */}
+              <Link
+                to={entityPath("character", {
+                  public_id: row.character_public_id,
+                  display_name: row.character_name,
+                })}
+                className={castLinkCls}
+              >
                 {row.character_name || "Unknown"}
               </Link>
               {row.person_id && (
                 <>
                   <span className="text-text-faint text-xs">voiced by</span>
-                  <Link to={`/person/${row.person_id}`} className={castLinkCls}>
+                  <Link
+                    to={entityPath("person", {
+                      public_id: row.person_public_id,
+                      display_name: row.person_name,
+                    })}
+                    className={castLinkCls}
+                  >
                     {row.person_name || "Unknown"}
                   </Link>
                 </>
@@ -86,18 +102,22 @@ function CastSection({ cast }) {
 }
 
 export default function Anime() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [anime, setAnime] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
-  const animeQuery = useMediaItem("anime", system_id);
+  const animeQuery = useMediaItem("anime", publicId);
+  useCanonicalPath("anime", animeQuery.data);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = animeQuery.data?.system_id;
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("anime", system_id);
+    useMediaCacheUpdate("anime", publicId);
   const castingQuery = useCasting("anime", anime?.system_id);
   const cast = castingQuery.data?.cast || [];
 
@@ -377,7 +397,7 @@ export default function Anime() {
                 </span>
                 {franchise ? (
                   <Link
-                    to={`/franchise/${franchise.system_id}`}
+                    to={entityPath("franchise", franchise)}
                     className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
                   >
                     {franchiseName}
@@ -392,7 +412,7 @@ export default function Anime() {
                 </span>
                 {series ? (
                   <Link
-                    to={`/series/${series.system_id}`}
+                    to={entityPath("series", series)}
                     className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
                   >
                     {seriesName}

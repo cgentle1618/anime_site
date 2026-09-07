@@ -7,6 +7,7 @@
 import { useNavigate } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
@@ -31,7 +32,10 @@ export default function GameDashboardCard({ game, franchise }) {
   return (
     <div
       className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
-      onClick={() => navigate(`/game/${game.system_id}`)}
+      onClick={() => {
+        const path = entityPath("game", game);
+        if (path) navigate(path);
+      }}
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">

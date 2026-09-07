@@ -31,6 +31,7 @@ const ENTRIES = {
           release_date: "2006-04-02",
           seiyuu_display_name: "Minori Chihara",
           seiyuu_system_id: "p1",
+          seiyuu_public_id: 1,
         },
       ],
     },
@@ -59,7 +60,7 @@ function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/character/c1"]}>
       <Routes>
-        <Route path="/character/:system_id" element={<Character />} />
+        <Route path="/character/:publicId/:slug?" element={<Character />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -86,7 +87,7 @@ describe("Character detail page", () => {
     // The seiyuu link is a genuine assertion on href, not just visible text.
     expect(screen.getByRole("link", { name: "Minori Chihara" })).toHaveAttribute(
       "href",
-      "/person/p1",
+      "/person/1/minori-chihara",
     );
   });
 

@@ -80,7 +80,7 @@ function mount() {
         <ToastProvider>
           <MemoryRouter initialEntries={["/anime/a1"]}>
             <Routes>
-              <Route path="/anime/:system_id" element={<Anime />} />
+              <Route path="/anime/:publicId/:slug?" element={<Anime />} />
             </Routes>
           </MemoryRouter>
         </ToastProvider>
@@ -95,8 +95,10 @@ describe("Anime detail page — cast", () => {
       {
         system_id: "cc1",
         character_id: "char-1",
+        character_public_id: 1,
         character_name: "Protagonist",
         person_id: "person-1",
+        person_public_id: 1,
         person_name: "Seiyuu One",
         role: "Main",
         position: 0,
@@ -107,10 +109,10 @@ describe("Anime detail page — cast", () => {
     mount();
 
     const characterLink = await screen.findByRole("link", { name: "Protagonist" });
-    expect(characterLink).toHaveAttribute("href", "/character/char-1");
+    expect(characterLink).toHaveAttribute("href", "/character/1/protagonist");
 
     const seiyuuLink = await screen.findByRole("link", { name: "Seiyuu One" });
-    expect(seiyuuLink).toHaveAttribute("href", "/person/person-1");
+    expect(seiyuuLink).toHaveAttribute("href", "/person/1/seiyuu-one");
   });
 
   // The server resolves photo_file (the casting's own photo, falling back to
@@ -122,6 +124,7 @@ describe("Anime detail page — cast", () => {
       {
         system_id: "cc1",
         character_id: "char-1",
+        character_public_id: 1,
         character_name: "Protagonist",
         person_id: null,
         person_name: null,
@@ -157,8 +160,10 @@ describe("Anime detail page — cast", () => {
       {
         system_id: "cc2",
         character_id: "char-2",
+        character_public_id: 2,
         character_name: "Sidekick",
         person_id: "person-2",
+        person_public_id: 2,
         person_name: "Seiyuu Two",
         role: "Supporting",
         position: 0,
@@ -168,8 +173,10 @@ describe("Anime detail page — cast", () => {
       {
         system_id: "cc1",
         character_id: "char-1",
+        character_public_id: 1,
         character_name: "Protagonist",
         person_id: "person-1",
+        person_public_id: 1,
         person_name: "Seiyuu One",
         role: "Main",
         position: 1,

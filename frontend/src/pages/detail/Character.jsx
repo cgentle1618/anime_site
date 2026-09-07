@@ -23,6 +23,8 @@ import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import InfoCard from "../../components/info/InfoCard";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 // The entries endpoint carries only the media_type key, not a display label
 // (a character's groups have no role to fold into the label either) — same
@@ -39,27 +41,31 @@ const TYPE_LABELS = {
 };
 
 export default function Character() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const [character, setCharacter] = useState(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useCanonicalPath("character", character);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [characterRes, entriesRes] = await Promise.all([
-          fetch(endpoints.character.detail(system_id), {
-            credentials: "include",
-          }),
-          fetch(endpoints.character.entries(system_id), {
-            credentials: "include",
-          }),
-        ]);
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. /entries still speaks UUIDs, so it has to wait for the
+        // row the detail call resolves rather than run beside it.
+        const characterRes = await fetch(endpoints.character.detail(publicId), {
+          credentials: "include",
+        });
         if (!characterRes.ok) throw new Error("Character not found.");
         const characterData = await characterRes.json();
+        const entriesRes = await fetch(
+          endpoints.character.entries(characterData.system_id),
+          { credentials: "include" },
+        );
         // The entries call is secondary: a character whose castings fail to
         // load still has a profile worth rendering.
         const entriesData = entriesRes.ok
@@ -78,7 +84,7 @@ export default function Character() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   if (loading) {
     return <MediaLoadingState isLoading loadingText="Loading character..." />;
@@ -282,9 +288,12 @@ function CastingCard({ entry, navPath }) {
           </div>
         </>
       )}
-      {entry.seiyuu_display_name && entry.seiyuu_system_id && (
+      {entry.seiyuu_display_name && entry.seiyuu_public_id && (
         <Link
-          to={`/person/${entry.seiyuu_system_id}`}
+          to={entityPath("person", {
+            public_id: entry.seiyuu_public_id,
+            display_name: entry.seiyuu_display_name,
+          })}
           className="px-2.5 pb-2.5 text-xs text-text-muted hover:text-brand transition-colors truncate"
         >
           {entry.seiyuu_display_name}

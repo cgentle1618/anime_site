@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FALLBACK_SVG, parseTypes } from "../../utils/media";
 import { getDisplayName, getCoverForSlot } from "../../utils/statsUtils";
 import { RatingStamp, Slip } from "../../components/ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 const GRID_CONFIGS = [
   { title: "Favourite ACG franchises", typeKey: "ACG", forType: null },
@@ -47,10 +48,15 @@ function FavoriteGrid({
           const f = slotMap[slot];
           if (f) {
             const coverUrl = getCoverForSlot(f, allEntriesByFranchise, forType);
+            // Empty when the row carries no public_id: the tile still renders,
+            // just not as a link to nowhere.
+            const franchisePath = entityPath("franchise", f);
+            const Wrapper = franchisePath ? Link : "div";
+            const wrapperProps = franchisePath ? { to: franchisePath } : {};
             return (
-              <Link
+              <Wrapper
                 key={slot}
-                to={`/franchise/${f.system_id}`}
+                {...wrapperProps}
                 className="group relative overflow-hidden border border-border hover:border-text transition-colors"
               >
                 <div className="aspect-[3/4] bg-surface-2">
@@ -75,7 +81,7 @@ function FavoriteGrid({
                   rating={f.my_rating}
                   className="absolute top-1.5 right-1.5"
                 />
-              </Link>
+              </Wrapper>
             );
           }
           return (

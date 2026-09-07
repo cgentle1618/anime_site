@@ -62,7 +62,7 @@ function renderPage() {
       <AuthProvider>
         <ToastProvider>
           <Routes>
-            <Route path="/series/:system_id" element={<SeriesPage />} />
+            <Route path="/series/:publicId/:slug?" element={<SeriesPage />} />
           </Routes>
         </ToastProvider>
       </AuthProvider>

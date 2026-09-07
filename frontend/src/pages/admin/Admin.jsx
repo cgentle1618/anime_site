@@ -3,6 +3,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
+import { entityPath } from "../../lib/entityPath";
+
+// entityPath returns "" when an entity has no public_id; never navigate to the site root.
+function goTo(path) {
+  if (path) window.location.href = path;
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -530,7 +536,7 @@ function RemarksModal({ results, onClose }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/anime/${e.system_id}`)}
+                onClick={() => goTo(entityPath("anime", e))}
               >
                 <td
                   className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
@@ -577,7 +583,7 @@ function RemarksModal({ results, onClose }) {
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
-                  (window.location.href = `/anime-movie/${e.system_id}`)
+                  goTo(entityPath("anime-movie", e))
                 }
               >
                 <td
@@ -620,7 +626,7 @@ function RemarksModal({ results, onClose }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/movie/${e.system_id}`)}
+                onClick={() => goTo(entityPath("movie", e))}
               >
                 <td
                   className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
@@ -663,7 +669,7 @@ function RemarksModal({ results, onClose }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/tv/${e.system_id}`)}
+                onClick={() => goTo(entityPath("tv-show", e))}
               >
                 <td
                   className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
@@ -707,7 +713,7 @@ function RemarksModal({ results, onClose }) {
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
                 onClick={() =>
-                  (window.location.href = `/cartoon/${e.system_id}`)
+                  goTo(entityPath("cartoon", e))
                 }
               >
                 <td
@@ -755,7 +761,7 @@ function RemarksModal({ results, onClose }) {
               <tr
                 key={i}
                 className="hover:bg-surface-2 transition cursor-pointer"
-                onClick={() => (window.location.href = `/manga/${e.system_id}`)}
+                onClick={() => goTo(entityPath("manga", e))}
               >
                 <td
                   className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"
@@ -798,7 +804,7 @@ function RemarksModal({ results, onClose }) {
             <tr
               key={i}
               className="hover:bg-surface-2 transition cursor-pointer"
-              onClick={() => (window.location.href = `/novel/${e.system_id}`)}
+              onClick={() => goTo(entityPath("novel", e))}
             >
               <td
                 className="py-2.5 pr-4 font-bold text-text max-w-[160px] truncate whitespace-nowrap"

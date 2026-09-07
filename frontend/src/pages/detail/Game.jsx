@@ -35,6 +35,8 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { MY_RATINGS, PLAYING_STATUSES } from "../../config/fieldOptions";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
@@ -189,18 +191,22 @@ export function GameCopiesSection({ copies }) {
 }
 
 export default function Game() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [game, setGame] = useState(null);
 
-  const gameQuery = useMediaItem("game", system_id);
+  const gameQuery = useMediaItem("game", publicId);
+  useCanonicalPath("game", gameQuery.data);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = gameQuery.data?.system_id;
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("game", system_id);
+    useMediaCacheUpdate("game", publicId);
 
   useEffect(() => {
     if (gameQuery.data) setGame(gameQuery.data);
@@ -308,7 +314,7 @@ export default function Game() {
           <>
             <span aria-hidden="true">/</span>
             <Link
-              to={`/franchise/${franchise.system_id}`}
+              to={entityPath("franchise", franchise)}
               className="hover:text-brand transition truncate max-w-xs normal-case tracking-normal"
             >
               {franchiseName}
@@ -430,7 +436,7 @@ export default function Game() {
                 <Eyebrow>Franchise</Eyebrow>
                 {franchise ? (
                   <Link
-                    to={`/franchise/${franchise.system_id}`}
+                    to={entityPath("franchise", franchise)}
                     className={lineageLinkCls}
                   >
                     {franchiseName}
@@ -443,7 +449,7 @@ export default function Game() {
                 <Eyebrow>Series</Eyebrow>
                 {series ? (
                   <Link
-                    to={`/series/${series.system_id}`}
+                    to={entityPath("series", series)}
                     className={lineageLinkCls}
                   >
                     {getDisplayName(series, "series")}
@@ -493,12 +499,12 @@ export default function Game() {
                   { label: "Type", value: game.game_type },
                   {
                     label: "Base Game",
-                    value: game.base_game_id ? (
+                    value: game.base_game ? (
                       <Link
-                        to={`/game/${game.base_game_id}`}
+                        to={entityPath("game", game.base_game)}
                         className="text-brand hover:underline"
                       >
-                        {game.base_game_name || "Base game"}
+                        {game.base_game.display_name}
                       </Link>
                     ) : null,
                   },

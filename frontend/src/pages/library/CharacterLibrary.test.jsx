@@ -7,24 +7,28 @@ import CharacterLibrary from "./CharacterLibrary";
 const CHARACTERS = [
   {
     system_id: "1",
+    public_id: "c1",
     name_en: "Yuki Nagato",
     display_name: "Yuki Nagato",
     casting_count: 3,
   },
   {
     system_id: "2",
+    public_id: "c2",
     name_cn: "渡部高志",
     display_name: "渡部高志",
     casting_count: 8,
   },
   {
     system_id: "3",
+    public_id: "c3",
     name_jp: "諫山創",
     display_name: "諫山創",
     casting_count: 1,
   },
   {
     system_id: "4",
+    public_id: "c4",
     name_alt: "Nickname Only",
     display_name: "Nickname Only",
     casting_count: 0,

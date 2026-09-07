@@ -107,3 +107,27 @@ describe("entityPath", () => {
     expect(entityPath("anime", null)).toBe("");
   });
 });
+
+describe("display_name fallback", () => {
+  it("slugs a ref that carries only a Latin display_name", () => {
+    expect(entityPath("person", { public_id: 8, display_name: "Hayao Miyazaki" })).toBe(
+      "/person/8/hayao-miyazaki",
+    );
+  });
+
+  it("omits the slug when the display_name is CJK", () => {
+    expect(entityPath("person", { public_id: 8, display_name: "宮崎駿" })).toBe(
+      "/person/8",
+    );
+  });
+
+  it("prefers a real name column over display_name", () => {
+    expect(
+      entityPath("studio", {
+        public_id: 3,
+        name_en: "Studio Ghibli",
+        display_name: "吉卜力",
+      }),
+    ).toBe("/studio/3/studio-ghibli");
+  });
+});

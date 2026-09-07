@@ -7,12 +7,14 @@ import PublisherLibrary from "./PublisherLibrary";
 const PUBLISHERS = [
   {
     system_id: "1",
+    public_id: "pb1",
     name_en: "Bandai Namco",
     display_name: "Bandai Namco",
     credit_count: 12,
   },
   {
     system_id: "2",
+    public_id: "pb2",
     name_en: "Muse Communication",
     name_cn: "木棉花",
     display_name_field: "cn",
@@ -56,7 +58,7 @@ describe("PublisherLibrary", () => {
     renderPage();
     expect(await screen.findByRole("link", { name: /木棉花/ })).toHaveAttribute(
       "href",
-      "/publisher/2",
+      "/publisher/pb2/muse-communication",
     );
   });
 });

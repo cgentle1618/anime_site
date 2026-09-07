@@ -8,6 +8,7 @@ import {
   getBahaRow,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-14 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -42,15 +43,8 @@ export default function DashboardCard({
     : "Independent Series";
   const spineLabel = anime._ui_type || "Anime";
 
-  const navigatePath = isNovel
-    ? `/novel/${anime.system_id}`
-    : isManga
-      ? `/manga/${anime.system_id}`
-      : isCartoon
-        ? `/cartoon/${anime.system_id}`
-        : isTV
-          ? `/tv-show/${anime.system_id}`
-          : `/anime/${anime.system_id}`;
+  // titleType is already the route segment for every branch above.
+  const navigatePath = entityPath(titleType, anime);
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
   const bahaRow = getBahaRow(anime);
@@ -112,7 +106,7 @@ export default function DashboardCard({
   return (
     <div
       className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
-      onClick={() => navigate(navigatePath)}
+      onClick={() => navigatePath && navigate(navigatePath)}
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">

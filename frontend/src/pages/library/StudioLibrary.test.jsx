@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import StudioLibrary from "./StudioLibrary";
 
 const STUDIOS = [
-  { system_id: "1", name_en: "MAPPA", display_name: "MAPPA", credit_count: 12 },
-  { system_id: "2", name_en: "Kyoto Animation", name_alt: "KyoAni",
+  { system_id: "1", public_id: "s1", name_en: "MAPPA", display_name: "MAPPA", credit_count: 12 },
+  { system_id: "2", public_id: "s2", name_en: "Kyoto Animation", name_alt: "KyoAni",
     display_name_field: "alt", display_name: "KyoAni", credit_count: 30 },
-  { system_id: "3", name_jp: "京都アニメーション", display_name: "京都アニメーション",
+  { system_id: "3", public_id: "s3", name_jp: "京都アニメーション", display_name: "京都アニメーション",
     credit_count: 1 },
 ];
 
@@ -47,7 +47,7 @@ describe("StudioLibrary", () => {
     renderPage();
     expect(await screen.findByRole("link", { name: /KyoAni/ })).toHaveAttribute(
       "href",
-      "/studio/2",
+      "/studio/s2/kyoto-animation",
     );
   });
 });

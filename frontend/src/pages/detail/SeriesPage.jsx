@@ -51,6 +51,8 @@ import PlanKindToggles, {
   kindLabel,
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const WATCHING_STATUS_GROUPS = {
   Planned: ["Plan to Watch", "Watch When Airs"],
@@ -94,7 +96,7 @@ async function asList(res) {
 
 
 export default function SeriesPage() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
@@ -188,6 +190,12 @@ export default function SeriesPage() {
     watchingStatus: new Set(),
   });
 
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = series?.system_id;
+
+  useCanonicalPath("series", series);
+
   // ── fetch ─────────────────────────────────────────────────────────────────
   // Eight entry lists, not nine: anime_movies has no series_id column, so an
   // anime movie can only ever be reached through its franchise.
@@ -197,45 +205,51 @@ export default function SeriesPage() {
     setError(null);
     async function load() {
       try {
-        const [sRes, aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, gmRes, pnRes] =
-          await Promise.all([
-          fetch(endpoints.resource("series").detail(system_id), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("anime").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("movie").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("tv-show").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("cartoon").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("manga").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("novel").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("comic").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch(buildUrl(endpoints.resource("game").list(), { series_id: system_id }), {
-            credentials: "include",
-          }),
-          fetch("/api/plan-next/?scope=series&kind=rewatch", {
-            credentials: "include",
-          }),
-        ]);
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. Every list filter below still speaks UUIDs, so they have
+        // to wait for the row the detail call resolves rather than run beside
+        // it.
+        const sRes = await fetch(
+          endpoints.resource("series").detail(publicId),
+          { credentials: "include" },
+        );
         if (!sRes.ok) throw new Error("Series not found");
         // The series itself is load-bearing, so a missing one still throws to
         // the error card. A failing entry list is not: parsing FastAPI's error
         // body into a list state would hand the filter memos a non-array and
         // blank the whole page, so each list degrades to empty instead.
         const s = await sRes.json();
+        const resolvedId = s.system_id;
+        const [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, gmRes, pnRes] =
+          await Promise.all([
+          fetch(buildUrl(endpoints.resource("anime").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("movie").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("tv-show").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("cartoon").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("manga").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("novel").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("comic").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch(buildUrl(endpoints.resource("game").list(), { series_id: resolvedId }), {
+            credentials: "include",
+          }),
+          fetch("/api/plan-next/?scope=series&kind=rewatch", {
+            credentials: "include",
+          }),
+        ]);
         const [a, m, tv, c, mg, nv, cm, gm] = await Promise.all(
           [aRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, gmRes].map(asList),
         );
@@ -270,7 +284,7 @@ export default function SeriesPage() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   // Media types this series actually holds entries for. PlanKindToggles
   // further filters this down to what rewatch allows at series scope (movie,
@@ -935,7 +949,7 @@ export default function SeriesPage() {
     ...(parentFranchise
       ? [
           {
-            to: `/franchise/${parentFranchise.system_id}`,
+            to: entityPath("franchise", parentFranchise),
             label: getDisplayName(parentFranchise, "franchise"),
           },
         ]
@@ -996,7 +1010,7 @@ export default function SeriesPage() {
                 <Eyebrow>Franchise</Eyebrow>
                 {parentFranchise ? (
                   <Link
-                    to={`/franchise/${parentFranchise.system_id}`}
+                    to={entityPath("franchise", parentFranchise)}
                     className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
                   >
                     {getDisplayName(parentFranchise, "franchise")}

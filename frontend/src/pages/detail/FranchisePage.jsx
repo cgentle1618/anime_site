@@ -53,6 +53,8 @@ import PlanKindToggles, {
 } from "../../components/plan/PlanKindToggles";
 import { SIZE_GROUPS, scopesFor } from "../../config/planNextGroups";
 import { effectiveBucket } from "../../utils/planNext";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 function GroupRail({ label, count }) {
   return (
@@ -100,7 +102,7 @@ function tvDateScore(t) {
 
 
 export default function FranchisePage() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
@@ -200,6 +202,12 @@ export default function FranchisePage() {
     watchingStatus: new Set(),
   });
 
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = franchise?.system_id;
+
+  useCanonicalPath("franchise", franchise);
+
   // ── fetch ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     // Navigating hub -> hub reuses this component: reset the view and drop
@@ -210,8 +218,18 @@ export default function FranchisePage() {
     setActiveTab(null);
     async function load() {
       try {
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. Every list below filters on franchise_id, which is still
+        // a UUID, so they have to wait for the row the detail call resolves
+        // rather than run beside it.
+        const fRes = await fetch(
+          endpoints.resource("franchise").detail(publicId),
+          { credentials: "include" },
+        );
+        if (!fRes.ok) throw new Error("Franchise not found");
+        const franchiseData = await fRes.json();
+        const resolvedId = franchiseData.system_id;
         const [
-          fRes,
           sRes,
           aRes,
           amRes,
@@ -225,42 +243,39 @@ export default function FranchisePage() {
           pnRes,
         ] =
           await Promise.all([
-            fetch(endpoints.resource("franchise").detail(system_id), { credentials: "include" }),
-            fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("anime").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("anime").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("anime-movie").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("anime-movie").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("movie").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("movie").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("tv-show").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("tv-show").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("cartoon").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("cartoon").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("manga").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("manga").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("novel").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("novel").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
-            fetch(buildUrl(endpoints.resource("game").list(), { franchise_id: system_id }), {
+            fetch(buildUrl(endpoints.resource("game").list(), { franchise_id: resolvedId }), {
               credentials: "include",
             }),
             fetch("/api/plan-next/?scope=franchise", { credentials: "include" }),
           ]);
-        if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg, nv, cm, gm, pn] = await Promise.all([
-          fRes.json(),
+        const [s, a, am, m, tv, c, mg, nv, cm, gm, pn] = await Promise.all([
           sRes.json(),
           aRes.json(),
           amRes.json(),
@@ -274,7 +289,7 @@ export default function FranchisePage() {
           pnRes.ok ? pnRes.json() : [],
         ]);
         if (cancelled) return;
-        setFranchise(f);
+        setFranchise(franchiseData);
         setSeriesList(s);
         setAnimeList(a);
         setAnimeMovieList(am);
@@ -290,7 +305,7 @@ export default function FranchisePage() {
             pn
               .filter(
                 (row) =>
-                  row.target_id === f.system_id &&
+                  row.target_id === resolvedId &&
                   (row.kind ?? "next") === "next",
               )
               .map((row) => row.media_type),
@@ -301,14 +316,14 @@ export default function FranchisePage() {
             pn
               .filter(
                 (row) =>
-                  row.target_id === f.system_id && row.kind === "rewatch",
+                  row.target_id === resolvedId && row.kind === "rewatch",
               )
               .map((row) => row.media_type),
           ),
         );
-        setRating(f.my_rating || "");
-        setExpectation(f.franchise_expectation || "");
-        setRemark(f.remark || "");
+        setRating(franchiseData.my_rating || "");
+        setExpectation(franchiseData.franchise_expectation || "");
+        setRemark(franchiseData.remark || "");
       } catch (e) {
         if (!cancelled) setError(e.message);
       } finally {
@@ -319,7 +334,7 @@ export default function FranchisePage() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   // ── type flags ────────────────────────────────────────────────────────────
   const types = useMemo(
@@ -1218,7 +1233,7 @@ export default function FranchisePage() {
     ...(parentCollection
       ? [
           {
-            to: `/collection/${parentCollection.system_id}`,
+            to: entityPath("collection", parentCollection),
             label: getDisplayName(parentCollection, "collection"),
           },
         ]
@@ -1280,7 +1295,7 @@ export default function FranchisePage() {
                 <Eyebrow>Collection</Eyebrow>
                 {parentCollection ? (
                   <Link
-                    to={`/collection/${parentCollection.system_id}`}
+                    to={entityPath("collection", parentCollection)}
                     className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition"
                   >
                     {getDisplayName(parentCollection, "collection")}
@@ -1444,7 +1459,7 @@ export default function FranchisePage() {
               return (
                 <Link
                   key={s.system_id}
-                  to={`/series/${s.system_id}`}
+                  to={entityPath("series", s)}
                   className="border border-border-strong px-2.5 py-1 text-sm text-text hover:border-brand hover:text-brand transition"
                 >
                   {name}

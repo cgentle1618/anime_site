@@ -12,6 +12,7 @@ import { endpoints } from "../../api/endpoints";
 import { buildUrl, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { getDisplayName } from "../../utils/media";
+import { entityPath } from "../../lib/entityPath";
 import WatchOrderEditor, {
   LIST_TYPES,
 } from "../../components/tracker/WatchOrderEditor";
@@ -174,6 +175,9 @@ function OwnerRow({ owner, counts, onSelect }) {
 // One order. Unchanged from the flat list this page used to be, so the
 // badges and the open/duplicate/delete affordances read the same.
 function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
+  // Empty when the order carries no public_id: the open-in-new-tab affordance
+  // is dropped rather than pointing at nowhere.
+  const publicPath = entityPath("watch-order", list);
   return (
     <div
       className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
@@ -220,13 +224,15 @@ function OrderRow({ list, selected, onSelect, onDuplicate, onDelete, busy }) {
           </span>
         </span>
       </button>
-      <Link
-        to={`/watch-order/${list.system_id}`}
-        title="Open public page"
-        className="text-text-faint/60 hover:text-brand"
-      >
-        <i className="fas fa-arrow-up-right-from-square text-xs"></i>
-      </Link>
+      {publicPath && (
+        <Link
+          to={publicPath}
+          title="Open public page"
+          className="text-text-faint/60 hover:text-brand"
+        >
+          <i className="fas fa-arrow-up-right-from-square text-xs"></i>
+        </Link>
+      )}
       <button
         type="button"
         onClick={() => onDuplicate(list.system_id)}

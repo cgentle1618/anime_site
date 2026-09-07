@@ -38,6 +38,7 @@ const RESULTS = {
     anime: [
       {
         system_id: "a1",
+        public_id: "a1",
         anime_name_en: "Ghibli Anime",
         airing_type: "TV",
         franchise_id: "f1",
@@ -46,6 +47,7 @@ const RESULTS = {
     person: [
       {
         system_id: "p1",
+        public_id: "p1",
         name_jp: "宮崎駿",
         display_name: "宮崎駿",
         credit_count: 4,
@@ -54,6 +56,7 @@ const RESULTS = {
     game: [
       {
         system_id: "g1",
+        public_id: "g1",
         game_name_cn: "魔女宅急便",
         game_name_en: "Ghibli Game",
         playing_status: "Might Play",
@@ -62,6 +65,7 @@ const RESULTS = {
     studio: [
       {
         system_id: "s1",
+        public_id: "s1",
         name_en: "Studio Ghibli",
         display_name: "Studio Ghibli",
         credit_count: 12,
@@ -70,6 +74,7 @@ const RESULTS = {
     publisher: [
       {
         system_id: "pb1",
+        public_id: "pb1",
         name_en: "Ghibli Publishing",
         display_name: "Ghibli Publishing",
         credit_count: 3,
@@ -135,7 +140,7 @@ describe("Search page — staff results", () => {
     ).toHaveAttribute("href", "/person/p1");
     expect(screen.getByText("Studio Ghibli").closest("a")).toHaveAttribute(
       "href",
-      "/studio/s1",
+      "/studio/s1/studio-ghibli",
     );
   });
 
@@ -175,6 +180,6 @@ describe("Search page — scopes", () => {
   it("shows matching publishers, linked to their detail page", async () => {
     renderPage();
     const link = (await screen.findByText("Ghibli Publishing")).closest("a");
-    expect(link).toHaveAttribute("href", "/publisher/pb1");
+    expect(link).toHaveAttribute("href", "/publisher/pb1/ghibli-publishing");
   });
 });

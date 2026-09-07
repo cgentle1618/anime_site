@@ -47,6 +47,11 @@ export function entitySlug(type, entity) {
     entity.name_en, // person, studio, publisher, character
     entity.name_alt,
     entity.list_name, // watch order
+    // Credit refs and casting rows carry only a display_name. It leads with
+    // the CN name for most types, but slugify() returns "" for CJK, so this
+    // adds a slug when the name happens to be Latin and changes nothing when
+    // it is not.
+    entity.display_name,
   ];
   for (const candidate of candidates) {
     const slug = slugify(candidate);

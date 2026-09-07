@@ -1,17 +1,24 @@
 // Frontend: card component file for CollectionCard.
 import { Link } from "react-router-dom";
+import { entityPath } from "../../lib/entityPath";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
 export default function CollectionCard({ collection, coverUrl, memberCount }) {
   const name = getDisplayName(collection, "collection") || "Unknown Collection";
 
-  const collectionPath = `/collection/${collection.system_id}`;
+  // Empty when the row carries no public_id: there is no URL to link to, so
+  // the card renders as plain markup rather than a link to nowhere.
+  const collectionPath = entityPath("collection", collection);
+  const Wrapper = collectionPath ? Link : "div";
+  const wrapperProps = collectionPath ? { to: collectionPath } : {};
 
   return (
-    <Link
-      to={collectionPath}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col cursor-pointer group"
+    <Wrapper
+      {...wrapperProps}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col group${
+        collectionPath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex">
         <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
@@ -60,6 +67,6 @@ export default function CollectionCard({ collection, coverUrl, memberCount }) {
           <Chip className="self-start">{collection.collection_expectation}</Chip>
         )}
       </div>
-    </Link>
+    </Wrapper>
   );
 }

@@ -18,6 +18,8 @@ import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
@@ -37,7 +39,7 @@ const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
 export default function Movie() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
@@ -45,12 +47,16 @@ export default function Movie() {
   const [movie, setMovie] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
 
-  const movieQuery = useMediaItem("movie", system_id);
+  const movieQuery = useMediaItem("movie", publicId);
+  useCanonicalPath("movie", movieQuery.data);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = movieQuery.data?.system_id;
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allMoviesQuery = useMediaList("movie", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("movie", system_id);
+    useMediaCacheUpdate("movie", publicId);
 
   useEffect(() => {
     if (movieQuery.data) setMovie(movieQuery.data);
@@ -292,7 +298,7 @@ export default function Movie() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Franchise</Eyebrow>
                 {franchise ? (
-                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("franchise", franchise)} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
                 ) : (
@@ -302,7 +308,7 @@ export default function Movie() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Series</Eyebrow>
                 {series ? (
-                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("series", series)} className={lineageLinkCls}>
                     {series.series_name_cn ||
                       series.series_name_en ||
                       series.series_name_alt}

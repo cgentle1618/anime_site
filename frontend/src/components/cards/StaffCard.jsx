@@ -8,15 +8,23 @@
 import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG } from "../../lib/covers";
+import { entityPath } from "../../lib/entityPath";
 
 function StaffCard({ to, label, name, imageFile, imageAlt, creditCount }) {
   const coverUrl = getCoverUrl(imageFile);
   const credits = creditCount ?? 0;
 
+  // `to` is empty when the entity carries no public_id - entityPath has no
+  // URL to build - so the card renders as plain markup instead of a dead link.
+  const Wrapper = to ? Link : "div";
+  const wrapperProps = to ? { to } : {};
+
   return (
-    <Link
-      to={to}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col cursor-pointer group"
+    <Wrapper
+      {...wrapperProps}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col group${
+        to ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex">
         <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
@@ -52,14 +60,14 @@ function StaffCard({ to, label, name, imageFile, imageAlt, creditCount }) {
           {credits} credit{credits !== 1 ? "s" : ""}
         </span>
       </div>
-    </Link>
+    </Wrapper>
   );
 }
 
 export function PersonCard({ person }) {
   return (
     <StaffCard
-      to={`/person/${person.system_id}`}
+      to={entityPath("person", person)}
       label="Person"
       name={person.display_name || "Unknown Person"}
       imageFile={person.photo_file}
@@ -72,7 +80,7 @@ export function PersonCard({ person }) {
 export function StudioCard({ studio }) {
   return (
     <StaffCard
-      to={`/studio/${studio.system_id}`}
+      to={entityPath("studio", studio)}
       label="Studio"
       name={studio.display_name || "Unknown Studio"}
       imageFile={studio.logo_file}
@@ -85,7 +93,7 @@ export function StudioCard({ studio }) {
 export function PublisherCard({ publisher }) {
   return (
     <StaffCard
-      to={`/publisher/${publisher.system_id}`}
+      to={entityPath("publisher", publisher)}
       label="Publisher"
       name={publisher.display_name || "Unknown Publisher"}
       imageFile={publisher.logo_file}

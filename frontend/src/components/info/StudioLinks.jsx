@@ -8,20 +8,29 @@
 // whom studio_refs is gated away.
 import { Link } from "react-router-dom";
 
+import { entityPath } from "../../lib/entityPath";
+
 export function StudioLinks({ refs, base = "/studio" }) {
+  // `base` is the detail route with its leading slash; entityPath wants the
+  // bare type segment, and it is what tells a studio ref from a publisher one.
+  const type = base.replace(/^\//, "");
   return (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
-      {refs.map((ref, i) => (
-        <span key={ref.system_id}>
-          <Link
-            to={`${base}/${ref.system_id}`}
-            className="text-brand hover:underline"
-          >
-            {ref.display_name}
-          </Link>
-          {i < refs.length - 1 && <span aria-hidden="true">,</span>}
-        </span>
-      ))}
+      {refs.map((ref, i) => {
+        const path = entityPath(type, ref);
+        return (
+          <span key={ref.system_id}>
+            {path ? (
+              <Link to={path} className="text-brand hover:underline">
+                {ref.display_name}
+              </Link>
+            ) : (
+              ref.display_name
+            )}
+            {i < refs.length - 1 && <span aria-hidden="true">,</span>}
+          </span>
+        );
+      })}
     </span>
   );
 }

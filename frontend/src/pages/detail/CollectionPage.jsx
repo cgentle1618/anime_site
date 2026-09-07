@@ -51,9 +51,10 @@ import FranchiseCard from "../../components/cards/FranchiseCard";
 import RemarkModal from "../../components/modals/RemarkModal";
 import WatchOrderSection from "../../components/tracker/WatchOrderSection";
 import CollectionNotes from "./CollectionNotes";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 export default function CollectionPage() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
@@ -67,7 +68,12 @@ export default function CollectionPage() {
   const [error, setError] = useState(null);
   const [showRemark, setShowRemark] = useState(false);
   const [remarkClipped, setRemarkClipped] = useState(false);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = collection?.system_id;
   const remarkRef = useRef(null);
+
+  useCanonicalPath("collection", collection);
 
   // The inline box stays a fixed three rows; "Show all" is only worth offering
   // when the text actually runs past it.
@@ -86,13 +92,24 @@ export default function CollectionPage() {
     setError(null);
     async function load() {
       try {
+        // The detail call takes the id straight from the URL, which is now a
+        // public_id. The list filters below still key on the collection's
+        // UUID, so they have to wait for the row the detail call resolves
+        // rather than run beside it.
+        const collectionRes = await fetch(
+          endpoints.resource("collection").detail(publicId),
+          { credentials: "include" },
+        );
+        if (collectionRes.status === 404)
+          throw new Error("Collection not found");
+        if (!collectionRes.ok) throw new Error("Failed to load data");
+        const collectionData = await collectionRes.json();
+        const resolvedId = collectionData.system_id;
+
         const responses = await Promise.all([
-          fetch(endpoints.resource("collection").detail(system_id), {
-            credentials: "include",
-          }),
           fetch(
             buildUrl(endpoints.resource("franchise").list(), {
-              collection_id: system_id,
+              collection_id: resolvedId,
               limit: 2000,
             }),
             { credentials: "include" },
@@ -107,11 +124,9 @@ export default function CollectionPage() {
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
         ]);
 
-        if (responses[0].status === 404) throw new Error("Collection not found");
         if (responses.some((r) => !r.ok)) throw new Error("Failed to load data");
 
         const [
-          collectionData,
           franchises,
           anime,
           animeMovies,
@@ -161,7 +176,7 @@ export default function CollectionPage() {
     return () => {
       cancelled = true;
     };
-  }, [system_id]);
+  }, [publicId]);
 
   const sortedMembers = useMemo(
     () =>

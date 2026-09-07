@@ -1,6 +1,12 @@
 // Frontend: page component file for DataHistory.
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { entityPath } from "../../lib/entityPath";
+
+// entityPath returns "" when an entity has no public_id; never navigate to the site root.
+function goTo(path) {
+  if (path) window.location.href = path;
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -328,25 +334,25 @@ export default function DataHistory() {
       ...s,
       __type: "Series",
       __name: getTitle(s, "series"),
-      __link: `/series/${s.system_id}`,
+      __link: entityPath("series", s),
     })),
     ...historyData.anime.map((a) => ({
       ...a,
       __type: "Anime",
       __name: getTitle(a, "anime"),
-      __link: `/anime/${a.system_id}`,
+      __link: entityPath("anime", a),
     })),
     ...(historyData.novels || []).map((n) => ({
       ...n,
       __type: "Novel",
       __name: getTitle(n, "novel"),
-      __link: `/novel/${n.system_id}`,
+      __link: entityPath("novel", n),
     })),
     ...(historyData.comics || []).map((c) => ({
       ...c,
       __type: "Comic",
       __name: getTitle(c, "comic"),
-      __link: `/comic/${c.system_id}`,
+      __link: entityPath("comic", c),
     })),
   ]
     .filter((i) => i.created_at)
@@ -417,7 +423,7 @@ export default function DataHistory() {
                       key={i}
                       className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
-                        (window.location.href = `/franchise/${f.system_id}`)
+                        goTo(entityPath("franchise", f))
                       }
                     >
                       <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
@@ -465,7 +471,7 @@ export default function DataHistory() {
                       key={i}
                       className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
-                        (window.location.href = `/franchise/${f.system_id}`)
+                        goTo(entityPath("franchise", f))
                       }
                     >
                       <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
@@ -512,7 +518,7 @@ export default function DataHistory() {
                       key={i}
                       className="hover:bg-surface-2 transition cursor-pointer"
                       onClick={() =>
-                        (window.location.href = `/anime/${a.system_id}`)
+                        goTo(entityPath("anime", a))
                       }
                     >
                       <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
@@ -575,7 +581,7 @@ export default function DataHistory() {
                       <tr
                         key={i}
                         className="hover:bg-surface-2 transition cursor-pointer"
-                        onClick={() => (window.location.href = item.__link)}
+                        onClick={() => goTo(item.__link)}
                       >
                         <td className="px-5 py-2.5 text-text-faint whitespace-nowrap">
                           {formatDate(item.created_at)}

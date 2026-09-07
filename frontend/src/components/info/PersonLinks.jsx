@@ -12,20 +12,26 @@
 // role, so theirs needs no role key.
 import { Link } from "react-router-dom";
 
+import { entityPath } from "../../lib/entityPath";
+
 export function PersonLinks({ refs }) {
   return (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
-      {refs.map((ref, i) => (
-        <span key={ref.system_id}>
-          <Link
-            to={`/person/${ref.system_id}`}
-            className="text-brand hover:underline"
-          >
-            {ref.display_name}
-          </Link>
-          {i < refs.length - 1 && <span aria-hidden="true">,</span>}
-        </span>
-      ))}
+      {refs.map((ref, i) => {
+        const path = entityPath("person", ref);
+        return (
+          <span key={ref.system_id}>
+            {path ? (
+              <Link to={path} className="text-brand hover:underline">
+                {ref.display_name}
+              </Link>
+            ) : (
+              ref.display_name
+            )}
+            {i < refs.length - 1 && <span aria-hidden="true">,</span>}
+          </span>
+        );
+      })}
     </span>
   );
 }

@@ -9,6 +9,7 @@ import { buildUrl } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
+import { entityPath } from "../../lib/entityPath";
 import { Button, Chip, Eyebrow } from "../ui/primitives";
 import WatchOrderGuide, {
   MediaScopeLine,
@@ -222,6 +223,9 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
   }
 
   const hasRelease = lists.some((l) => l.auto_source === "release");
+  // The full-page link needs the whole order (public_id + name), not just the id.
+  const selectedList = lists.find((l) => l.system_id === selectedId) || null;
+  const selectedHref = entityPath("watch-order", selectedList);
   const scopes = scopeOptions(lists);
   const visibleLists =
     scope === "all" ? lists : lists.filter((l) => scopeKey(l) === scope);
@@ -346,9 +350,9 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
         )}
 
         <div className="ml-auto flex items-center gap-3">
-          {selectedId && (
+          {selectedHref && (
             <Link
-              to={`/watch-order/${selectedId}`}
+              to={selectedHref}
               className="text-xs font-medium text-text-muted hover:text-brand whitespace-nowrap"
             >
               Open full page <i className="fas fa-arrow-up-right-from-square ml-1"></i>
@@ -377,7 +381,7 @@ export default function WatchOrderSection({ franchiseId, collectionId, seriesId 
       <WatchOrderGuide
         list={detail}
         limit={INLINE_STEP_LIMIT}
-        fullHref={selectedId ? `/watch-order/${selectedId}` : undefined}
+        fullHref={selectedHref || undefined}
       />
     </div>
   );

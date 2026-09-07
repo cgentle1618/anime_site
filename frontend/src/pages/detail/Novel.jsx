@@ -32,6 +32,8 @@ import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import { useCasting } from "../../hooks/useCasting";
+import { useCanonicalPath } from "../../hooks/useCanonicalPath";
+import { entityPath } from "../../lib/entityPath";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -73,13 +75,27 @@ function CastSection({ cast }) {
             </div>
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
               {row.role && <Chip>{row.role}</Chip>}
-              <Link to={`/character/${row.character_id}`} className={lineageLinkCls}>
+              {/* The casting row carries the target's own public_id and
+                  display name, so this is the real entity, not a stub. */}
+              <Link
+                to={entityPath("character", {
+                  public_id: row.character_public_id,
+                  display_name: row.character_name,
+                })}
+                className={lineageLinkCls}
+              >
                 {row.character_name || "Unknown"}
               </Link>
               {row.person_id && (
                 <>
                   <span className="text-text-faint text-xs">voiced by</span>
-                  <Link to={`/person/${row.person_id}`} className={lineageLinkCls}>
+                  <Link
+                    to={entityPath("person", {
+                      public_id: row.person_public_id,
+                      display_name: row.person_name,
+                    })}
+                    className={lineageLinkCls}
+                  >
                     {row.person_name || "Unknown"}
                   </Link>
                 </>
@@ -186,7 +202,7 @@ function NovelUnitsCard({ novel, isAdmin, onSave }) {
 const LIST_OPTIONS = { params: { limit: 2000 } };
 
 export default function Novel() {
-  const { system_id } = useParams();
+  const { publicId } = useParams();
   const navigate = useNavigate();
   const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
@@ -194,12 +210,16 @@ export default function Novel() {
   const [novel, setNovel] = useState(null);
   const [autofilling, setAutofilling] = useState(false);
 
-  const novelQuery = useMediaItem("novel", system_id);
+  const novelQuery = useMediaItem("novel", publicId);
+  useCanonicalPath("novel", novelQuery.data);
+  // Everything past the lookup still speaks UUIDs; only the URL segment
+  // changed. Resolved from the fetched row so the two can never disagree.
+  const system_id = novelQuery.data?.system_id;
   const franchiseQuery = useMediaList("franchise", LIST_OPTIONS);
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
-    useMediaCacheUpdate("novel", system_id);
+    useMediaCacheUpdate("novel", publicId);
   const castingQuery = useCasting("novel", novel?.system_id);
   const cast = castingQuery.data?.cast || [];
 
@@ -471,7 +491,7 @@ export default function Novel() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Franchise</Eyebrow>
                 {franchise ? (
-                  <Link to={`/franchise/${franchise.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("franchise", franchise)} className={lineageLinkCls}>
                     {franchiseName}
                   </Link>
                 ) : (
@@ -481,7 +501,7 @@ export default function Novel() {
               <div className="flex items-baseline gap-2">
                 <Eyebrow>Series</Eyebrow>
                 {series ? (
-                  <Link to={`/series/${series.system_id}`} className={lineageLinkCls}>
+                  <Link to={entityPath("series", series)} className={lineageLinkCls}>
                     {series.series_name_cn ||
                       series.series_name_en ||
                       series.series_name_alt}

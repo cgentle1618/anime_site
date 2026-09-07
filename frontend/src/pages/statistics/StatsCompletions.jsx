@@ -7,6 +7,7 @@ import {
   COMPLETED_STATUSES,
 } from "../../utils/media";
 import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { entityPath } from "../../lib/entityPath";
 
 export default function StatsCompletions({
   allAnime,
@@ -163,10 +164,15 @@ export default function StatsCompletions({
                           day: "numeric",
                         });
 
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("anime", anime);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={anime.system_id}
-                            to={`/anime/${anime.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -200,7 +206,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -318,10 +324,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("anime-movie", am);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={am.system_id}
-                            to={`/anime-movie/${am.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -356,7 +367,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -467,10 +478,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("movie", movie);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={movie.system_id}
-                            to={`/movie/${movie.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -504,7 +520,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -615,10 +631,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("tv-show", tv);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={tv.system_id}
-                            to={`/tv-show/${tv.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -652,7 +673,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -779,10 +800,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("cartoon", cartoon);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={cartoon.system_id}
-                            to={`/cartoon/${cartoon.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -822,7 +848,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -942,10 +968,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("manga", m);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={m.system_id}
-                            to={`/manga/${m.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -979,7 +1010,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -1101,10 +1132,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("novel", n);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={n.system_id}
-                            to={`/novel/${n.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -1138,7 +1174,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -1260,10 +1296,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("comic", c);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={c.system_id}
-                            to={`/comic/${c.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -1297,7 +1338,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>
@@ -1414,10 +1455,15 @@ export default function StatsCompletions({
                           month: "short",
                           day: "numeric",
                         });
+                        // Empty when the row carries no public_id: the entry renders as a
+                        // plain row rather than a link to nowhere.
+                        const path = entityPath("game", g);
+                        const Wrapper = path ? Link : "div";
+                        const wrapperProps = path ? { to: path } : {};
                         return (
-                          <Link
+                          <Wrapper
                             key={g.system_id}
-                            to={`/game/${g.system_id}`}
+                            {...wrapperProps}
                             className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
                               idx < pageItems.length - 1
                                 ? "border-b border-border"
@@ -1456,7 +1502,7 @@ export default function StatsCompletions({
                             <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
                               {dateStr}
                             </span>
-                          </Link>
+                          </Wrapper>
                         );
                       })}
                     </div>

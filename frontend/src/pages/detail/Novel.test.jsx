@@ -92,7 +92,7 @@ function mount() {
         <ToastProvider>
           <MemoryRouter initialEntries={["/novel/n1"]}>
             <Routes>
-              <Route path="/novel/:system_id" element={<Novel />} />
+              <Route path="/novel/:publicId/:slug?" element={<Novel />} />
             </Routes>
           </MemoryRouter>
         </ToastProvider>
