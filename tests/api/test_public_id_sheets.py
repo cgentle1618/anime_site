@@ -45,3 +45,13 @@ def test_parsers_omit_public_id_when_the_sheet_predates_the_column():
         parser = TAB_PARSERS[name]
         parsed = parser({})
         assert "public_id" not in parsed, name
+
+
+def test_parsers_omit_public_id_when_the_cell_is_blank():
+    """A row a human adds to the sheet by hand has the column but an empty
+    cell. Emitting public_id=None there would abort the whole Pull on the
+    NOT NULL constraint; omitting the key instead renumbers just that row."""
+    for name in PUBLIC_ID_TABS:
+        parser = TAB_PARSERS[name]
+        parsed = parser({"public_id": ""})
+        assert "public_id" not in parsed, name

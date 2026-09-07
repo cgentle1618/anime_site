@@ -125,7 +125,11 @@ class TestParseCollectionFromSheet:
         from app.models import Collection
 
         columns = {c.name for c in Collection.__table__.columns}
-        assert set(parse_collection_from_sheet({c: "" for c in columns})) == columns
+        raw = {c: "" for c in columns}
+        # public_id only round-trips when the cell holds a usable integer -
+        # an empty string is not a public_id, so it can't probe this column.
+        raw["public_id"] = "47"
+        assert set(parse_collection_from_sheet(raw)) == columns
 
     def test_absent_no_built_in_orders_column_omits_the_key(self):
         """

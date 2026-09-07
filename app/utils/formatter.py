@@ -177,20 +177,19 @@ def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
 
 def _public_id_from_sheet(raw: dict) -> dict:
     """
-    Emitted only when the sheet actually has the column - the same guard the
-    collection parser uses for no_built_in_orders and the franchise parser
-    uses for collection_id.
+    Emitted only when a usable integer comes back.
 
-    A sheet written before public_id existed has no such column at all;
-    emitting the key anyway would set public_id = None and fail the NOT NULL
-    constraint, where omitting it lets the table's sequence supply one. This
-    checks presence, not parseability: a row where the cell simply comes back
-    blank still has the column, and still restores that (parsed to None)
-    value rather than being treated as if the column never existed.
+    A sheet written before public_id existed has no such column at all, and a
+    row added to the sheet by hand has the column but an empty cell - either
+    way parse_from_sheet returns None. Restoring must not fail in that case:
+    emitting the key anyway would set public_id = None and hit the NOT NULL
+    constraint, aborting the whole Pull over one row. Omitting it instead lets
+    the table's sequence supply a value, renumbering just that row.
     """
     if "public_id" not in raw:
         return {}
-    return {"public_id": parse_from_sheet(raw.get("public_id"), int)}
+    value = parse_from_sheet(raw.get("public_id"), int)
+    return {"public_id": value} if value is not None else {}
 
 
 def parse_watch_order_list_from_sheet(raw: dict) -> dict:
