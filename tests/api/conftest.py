@@ -18,6 +18,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
+from app.services.integrations import image_manager
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
@@ -69,6 +70,31 @@ def test_engine():
 
     yield engine
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_cover_downloads(monkeypatch):
+    """
+    Stop a test from reaching the network for a cover image.
+
+    image_manager writes to the developer's real static/covers, so a route that
+    fills from an external API - PUT /api/studio/{id} runs autofill_studio_from_mal
+    on every update - silently left one downloaded file per test run behind. They
+    were invisible while every image sat in one flat directory.
+
+    The raised error does NOT fail the test: every autofill wraps its work in
+    `except Exception` and logs, so this stops the download and the test carries
+    on. It is a backstop, not a detector - a test that means to exercise a fill
+    still stubs the fetcher or download_cover_image itself.
+    """
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "A test tried to download a cover image. Stub the fetcher or "
+            "download_cover_image instead of reaching the network."
+        )
+
+    monkeypatch.setattr(image_manager.requests, "get", _blocked)
 
 
 @pytest.fixture(autouse=True)
@@ -221,6 +247,181 @@ def sample_anime(db_session, sample_franchise):
         ep_fin=12,
     )
     db_session.add(a)
+    db_session.flush()
+    return a
+
+
+@pytest.fixture
+def anime(sample_anime):
+    """Alias for sample_anime, matching the character/casting test briefs."""
+    return sample_anime
+
+
+@pytest.fixture
+def manga(manga_entry):
+    """Alias for manga_entry, matching the character/casting test briefs."""
+    return manga_entry
+
+
+@pytest.fixture
+def person(db_session):
+    p = models.Person(system_id=uuid.uuid4(), name_en="Test Person")
+    db_session.add(p)
+    db_session.flush()
+    return p
+
+
+@pytest.fixture
+def character(db_session):
+    # photo_file is set to a real value (not None) so any test asserting the
+    # casting-router photo fallback actually exercises the fallback branch,
+    # rather than trivially matching None on both sides.
+    c = models.Character(
+        system_id=uuid.uuid4(), name_en="Ichika", photo_file="characters/ichika.jpg"
+    )
+    db_session.add(c)
+    db_session.flush()
+    return c
+
+
+@pytest.fixture
+def duplicate_character(db_session, anime):
+    """A second character row, cast on the same anime, standing in for a
+    duplicate the merge endpoint should fold into `character`."""
+    c = models.Character(system_id=uuid.uuid4(), name_en="Ichika (dup)")
+    db_session.add(c)
+    db_session.flush()
+    db_session.add(
+        models.CharacterCasting(
+            character_id=c.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return c
+
+
+@pytest.fixture
+def character_with_castings(db_session, character, anime):
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+        )
+    )
+    db_session.commit()
+    return character
+
+
+@pytest.fixture
+def seiyuu_with_one_casting(db_session, anime, character):
+    """
+    A Person holding PersonRole(role="seiyuu", scope="anime"), cast as
+    `character` on `anime`. A seiyuu's work lives in character_casting, not
+    media_credit, so this is the fixture the person-router bug-fix tests need
+    - person_with_credits (media_credit-backed) cannot exercise that path.
+    """
+    person = models.Person(system_id=uuid.uuid4(), name_en="Test Seiyuu")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.PersonRole(person_id=person.system_id, role="seiyuu", scope="anime")
+    )
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            media_type="anime",
+            entry_id=anime.system_id,
+            person_id=person.system_id,
+        )
+    )
+    db_session.commit()
+    return person
+
+
+@pytest.fixture
+def manga_entry(db_session, sample_franchise):
+    """One committed manga with no credits, for the credit-resolution tests."""
+    m = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        manga_name_en="Test Manga",
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
+def manga_with_credits(db_session, manga_entry):
+    """A manga with one author and one illustrator credit."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "author", ["諫山創"]
+    )
+    credits_service.replace_credits(
+        db_session, "manga", manga_entry.system_id, "illustrator", ["小山宙哉"]
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def manga_with_two_authors(db_session, manga_entry):
+    """Two author credits at position 0 and 1, to pin the stored order."""
+    from app.services.domain import credits as credits_service
+
+    credits_service.replace_credits(
+        db_session,
+        "manga",
+        manga_entry.system_id,
+        "author",
+        ["First Author", "Second Author"],
+    )
+    db_session.flush()
+    return manga_entry
+
+
+@pytest.fixture
+def three_manga_with_credits(db_session, sample_franchise):
+    """Three credited manga, for the N+1 query-count assertion."""
+    from app.services.domain import credits as credits_service
+
+    made = []
+    for index in range(3):
+        m = models.Manga(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            manga_name_en=f"Counted Manga {index}",
+        )
+        db_session.add(m)
+        db_session.flush()
+        credits_service.replace_credits(
+            db_session, "manga", m.system_id, "author", [f"Author {index}"]
+        )
+        made.append(m)
+    db_session.flush()
+    return made
+
+
+@pytest.fixture
+def anime_with_studio(db_session, sample_franchise):
+    """One anime carrying a studio credit and no person credits."""
+    from app.services.domain import credits as credits_service
+
+    a = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Studio Only",
+    )
+    db_session.add(a)
+    db_session.flush()
+    credits_service.replace_credits(
+        db_session, "anime", a.system_id, "studio", ["MAPPA"]
+    )
     db_session.flush()
     return a
 

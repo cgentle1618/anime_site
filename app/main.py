@@ -23,6 +23,8 @@ from app.routers import (
     announcements,
     auth,
     cartoon,
+    casting,
+    character,
     collection,
     comic,
     constants,
@@ -31,6 +33,7 @@ from app.routers import (
     data_control,
     form_defaults,
     franchise,
+    game,
     manga,
     media_relation,
     meme,
@@ -40,6 +43,7 @@ from app.routers import (
     options,
     person,
     plan_next,
+    publisher,
     quote,
     roles,
     search,
@@ -52,6 +56,7 @@ from app.routers import (
     watch_order,
 )
 from app.schema_guard import ensure_schema
+from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.security import get_password_hash
 
@@ -61,7 +66,11 @@ logger = logging.getLogger(__name__)
 # SYSTEM INITIALIZATION
 # ==========================================
 
-os.makedirs("static/covers", exist_ok=True)
+# One folder per owner table: an image is stored at
+# static/covers/<owner_type>/<system_id>.jpg, since a system_id alone is
+# ambiguous across tables.
+for _owner in COVER_OWNERS:
+    os.makedirs(os.path.join(COVER_DIR, _owner), exist_ok=True)
 # Quote images are local-only for now; Cloud Run's filesystem is ephemeral,
 # so the frontend hides image controls off localhost.
 os.makedirs("static/quotes", exist_ok=True)
@@ -177,6 +186,7 @@ app.include_router(manga.router)
 app.include_router(note.router)
 app.include_router(novel.router)
 app.include_router(comic.router)
+app.include_router(game.router)
 app.include_router(watch_order.router)
 app.include_router(media_relation.router)
 app.include_router(plan_next.router)
@@ -191,8 +201,11 @@ app.include_router(form_defaults.router)
 app.include_router(data_control.router)
 app.include_router(system.router)
 app.include_router(person.router)
+app.include_router(character.router)
+app.include_router(publisher.router)
 app.include_router(studio.router)
 app.include_router(credits.router)
+app.include_router(casting.router)
 app.include_router(roles.router)
 app.include_router(users.router)
 app.include_router(content_labels.router)

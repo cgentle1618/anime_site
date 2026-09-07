@@ -1,6 +1,10 @@
 // Frontend: modify tab page file for OptionsModifyTab.
+import AliasPicker, {
+  categoryHasAliases,
+} from "../../components/forms/AliasPicker";
 import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
 import ScopePicker from "../../components/forms/ScopePicker";
+import UsagePicker from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
 
 export default function OptionsModifyTab({
@@ -9,6 +13,10 @@ export default function OptionsModifyTab({
   setOptValue,
   optScopes,
   setOptScopes,
+  optUsages,
+  setOptUsages,
+  optAliases,
+  setOptAliases,
 }) {
   return (
     <>
@@ -34,6 +42,17 @@ export default function OptionsModifyTab({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
+      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {/* Editing an option used to WIPE its aliases: saveOption sends the
+          whole record and the PUT replaces the alias rows wholesale, so
+          omitting them here deleted every one.
+
+          Shown only where aliases are legal (ALIAS_CATEGORIES). The category
+          is read-only on this form, so an option that cannot carry aliases
+          never can — there is nothing to disable, only to omit. */}
+      {categoryHasAliases(editingItem.category) && (
+        <AliasPicker aliases={optAliases} setAliases={setOptAliases} />
+      )}
     </>
   );
 }

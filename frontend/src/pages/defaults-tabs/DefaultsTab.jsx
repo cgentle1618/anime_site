@@ -22,6 +22,14 @@ export default function DefaultsTab({
   const groups = getFieldGroups(type);
   const { defaults, autofill } = draft;
 
+  // The Entity tabs (studio, person, character) have no "auto-fill from an
+  // existing record" search on the Add page, so not one of their fields is
+  // autofillable. Drop the column outright rather than render a row of
+  // placeholder dashes beside every field.
+  const hasAutofill = groups.some(({ fields }) =>
+    fields.some((f) => f.autofillable !== false),
+  );
+
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       {groups.map(({ group, fields }) => {
@@ -58,7 +66,11 @@ export default function DefaultsTab({
                 return (
                   <div
                     key={field.key}
-                    className="grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] gap-2 md:gap-4 md:items-center"
+                    className={`grid grid-cols-1 gap-2 md:gap-4 md:items-center ${
+                      hasAutofill
+                        ? "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto]"
+                        : "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
+                    }`}
                   >
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-text-muted truncate">
@@ -90,21 +102,25 @@ export default function DefaultsTab({
                       )}
                     </div>
 
-                    <div className="shrink-0">
-                      {field.autofillable === false ? (
-                        <span className="text-[10px] text-text-faint/60">—</span>
-                      ) : (
-                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={autofill.includes(field.key)}
-                            onChange={() => toggleAutofill(field.key)}
-                            className="rounded accent-brand"
-                          />
-                          Auto-fill
-                        </label>
-                      )}
-                    </div>
+                    {hasAutofill && (
+                      <div className="shrink-0">
+                        {field.autofillable === false ? (
+                          <span className="text-[10px] text-text-faint/60">
+                            —
+                          </span>
+                        ) : (
+                          <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={autofill.includes(field.key)}
+                              onChange={() => toggleAutofill(field.key)}
+                              className="rounded accent-brand"
+                            />
+                            Auto-fill
+                          </label>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

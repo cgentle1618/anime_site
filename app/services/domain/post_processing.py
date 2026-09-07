@@ -8,6 +8,7 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -17,6 +18,7 @@ from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
+    autofill_game_from_steam,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
     autofill_novel_from_mal,
@@ -41,7 +43,9 @@ from app.services.domain.derivation import (
     apply_extract_imdb_id,
     apply_extract_mal_id_anime,
     apply_extract_mal_id_manga_novel,
+    apply_extract_novel_ids,
     apply_extract_season_from_title,
+    apply_extract_steam_appid,
     derive_ep_previous_anime,
     derive_season_1_anime,
     derive_season_1_cartoon,
@@ -65,7 +69,9 @@ def apply_single_replace_anime(
     after the loop instead of per entry.
     """
     apply_extract_mal_id_anime(anime)
-    autofill_anime_from_mal(anime, force_replace_ratings=force_replace_ratings)
+    autofill_anime_from_mal(
+        anime, force_replace_ratings=force_replace_ratings, db=db
+    )
     anime_post_processing(anime, db)
 
     if not bulk:
@@ -83,7 +89,7 @@ def apply_single_replace_anime_movie(
     """
     apply_extract_mal_id_anime(anime_movie)
     autofill_anime_movie_from_mal(
-        anime_movie, force_replace_ratings=force_replace_ratings
+        anime_movie, force_replace_ratings=force_replace_ratings, db=db
     )
     anime_movie_post_processing(anime_movie, db)
 
@@ -138,15 +144,31 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     """
     Core 'Replace' logic for a single Novel entry.
     No post_processing and nothing derived franchise-wide — novel has neither.
+
+    Both ids are derived, but only MAL is re-fetched: Replace is deliberately
+    not wired to Open Library. Deriving openlibrary_id here anyway keeps the id
+    in step with its link, so the next Fill has something to key off.
     """
-    apply_extract_mal_id_manga_novel(novel)
+    apply_extract_novel_ids(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
 
+
+def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> None:
+    """
+    Core 'Replace' logic for a single Game entry.
+
+    Steam only. IGDB carries nothing that drifts - its half of the game Fill is
+    fill-only throughout - so re-fetching it would rewrite exactly what Fill
+    already wrote. `bulk` is accepted for signature parity with the other
+    media types.
+    """
+    apply_extract_steam_appid(game)
+    autofill_game_from_steam(game, db)
 
 
 def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
-    apply_check_baha(anime)
+    apply_check_baha(db, anime, "anime")
 
     if (
         check_is_tv_completed(anime)
@@ -167,7 +189,7 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
-    apply_check_baha(anime_movie)
+    apply_check_baha(db, anime_movie, "anime-movie")
     if (
         check_is_movie_completed(anime_movie)
         and anime_movie.watching_status not in COMPLETED_WATCH_STATUSES

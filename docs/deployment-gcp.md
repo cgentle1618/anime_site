@@ -1,6 +1,6 @@
 # Deployment (Google Cloud)
 
-Last verified: 2026-09-02 (commit e14dba6)
+Last verified: 2026-09-06
 
 > ## ⚠️ Status: the GCP deployment is down (as of 2026-09-02)
 >
@@ -145,6 +145,7 @@ sensitive ones:
 | `GOOGLE_SHEET_ID` | for Backup/Pull | |
 | `GCP_BUCKET_NAME` | optional | Defaults to `cg1618-anime-covers`. |
 | `TMDB_API_KEY`, `OMDB_API_KEY`, `COMICVINE_API_KEY` | for Fill | Missing keys make those fills fail per entry, not the app. |
+| `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` | for Fill Game | Twitch application credentials, not an IGDB key — IGDB authenticates through Twitch. Both or neither: with one missing the client logs and skips, so Fill Game fills nothing. The bearer token is fetched and refreshed at runtime and is **not** an env var. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES`, `ALGORITHM` | optional | Defaults 1440 / HS256. |
 
 Do not set `K_SERVICE` or `DATABASE_URL` yourself.
@@ -155,23 +156,36 @@ Do not set `K_SERVICE` or `DATABASE_URL` yourself.
 function checks `get_active_bucket_name()`: with a bucket it uses the GCS
 client, without one it uses `static/covers/` on the local disk.
 
-- Object name is `<system_id>.jpg`, content type `image/jpeg`.
-- `download_cover_image(url, id)` skips the fetch if the object already
+- Object name is `<owner_type>/<system_id>.jpg`, content type `image/jpeg`.
+  The owner type is the table the id belongs to; `image_manager.cover_key()`
+  builds it and `COVER_OWNERS` lists the thirteen valid folders.
+- `download_cover_image(url, owner_type, id)` skips the fetch if the object already
   exists, otherwise downloads with a browser `User-Agent` (MAL's CDN returns
   403 without one) and uploads with `upload_from_string`.
 - `delete_cover_image`, `cover_image_exists` and `list_all_cover_images`
   (used by the Data Control "check cover image" / "delete orphaned covers"
   actions) follow the same branch.
 - The frontend builds the URL itself (`frontend/src/lib/covers.js`):
-  `/static/covers/<file>` on localhost, otherwise
-  `https://storage.googleapis.com/<bucket>/<file>`. The bucket therefore
+  `/static/covers/<key>` on localhost, otherwise
+  `https://storage.googleapis.com/<bucket>/<key>`. The bucket therefore
   needs **public read** on objects (uniform bucket-level access with
   `allUsers: roles/storage.objectViewer`), and the Cloud Run service account
   needs `roles/storage.objectAdmin` (or objectCreator + objectViewer +
   delete) on it.
 
 `static/quotes/` (quote images) is local-only: Cloud Run's filesystem is
-ephemeral and the frontend hides those controls off localhost.
+ephemeral and the frontend hides those controls off localhost. Quote and meme
+images keep their own flat directory and were not part of the folder move.
+
+### Pending: the bucket is still flat
+
+The objects already in the bucket sit at its root, under the old flat layout,
+because the deployment was down when the move was made and they could not be
+migrated with the local files. The code writes and reads the new keys only -
+there is no fallback to a flat name - so **before the deployment is used again**
+run `scripts/migrate_cover_layout.py --gcs` (dry run first, then `--apply`)
+against the bucket. That branch has never been exercised against a live bucket:
+read its plan line by line before applying it.
 
 ## Google Sheets service account
 

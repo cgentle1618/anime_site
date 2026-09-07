@@ -6,6 +6,7 @@ import {
   getDisplayName,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -35,7 +36,20 @@ export default function NovelDashboardCard({
     : "Independent Series";
 
   const imageUrl = getCoverUrl(novel.cover_image_file);
-  const pd = novel.progress_display;
+  const pd = effectiveProgressDisplay(novel);
+
+  // Decision B/D: arc rows are authoritative for arc_ch novels. ch_fin and
+  // arc_total are derived server-side from arc_fin + ch_fin_in_arc + these
+  // rows on every write (see derive_novel_progress), so the admin controls
+  // below must drive that same two-stage cursor — patching ch_fin or
+  // arc_fin alone gets silently recomputed away by the very PATCH that sent
+  // it, or leaves a stale ch_fin_in_arc pointing into the wrong arc.
+  const arcs = (novel.units || [])
+    .filter((u) => u.unit_kind === "arc")
+    .sort((a, b) => a.position - b.position);
+  const arcFin = novel.arc_fin ?? 0;
+  const chInArc = novel.ch_fin_in_arc ?? 0;
+  const currentArc = arcs[arcFin] || null;
 
   // ── Progress % ───────────────────────────────────────────────────
   let progressPercent = 0;
@@ -45,17 +59,16 @@ export default function NovelDashboardCard({
       ((novel.vol_fin ?? 0) / novel.vol_total_tw) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (
-    (pd === "vol_original" || !pd) &&
-    novel.vol_total_original != null
-  ) {
+  } else if (pd === "vol_original" && novel.vol_total_original != null) {
     progressPercent = Math.round(
       ((novel.vol_fin ?? 0) / novel.vol_total_original) * 100,
     );
     progressLabel = `${progressPercent}%`;
-  } else if (pd === "arc_ch" && novel.arc_total != null) {
+  } else if (pd === "arc_ch" && novel.ch_total) {
+    // ch_fin is derived server-side from arc_fin/ch_fin_in_arc, so it
+    // already accounts for the partial arc being read — no unit maths here.
     progressPercent = Math.round(
-      ((novel.arc_fin ?? 0) / novel.arc_total) * 100,
+      Math.min(((novel.ch_fin ?? 0) / novel.ch_total) * 100, 100),
     );
     progressLabel = `${progressPercent}%`;
   } else if (pd === "ch" && novel.ch_total != null) {
@@ -77,6 +90,12 @@ export default function NovelDashboardCard({
     onProgressChange(novel.system_id, { vol_fin: target }, { vol_fin: prev });
   }
 
+  // The `pd === "ch"` branch renders only when there are no arc rows (see
+  // renderTracker below), but a "ch"-labelled novel CAN still have arc rows
+  // once one is added without a progress_display override — c80c84a fixed
+  // this same snap-back for the arc_ch branch; route through the two-stage
+  // cursor here too when rows exist, since _derive recomputes ch_fin from
+  // them and would otherwise discard a bare ch_fin write in the same request.
   function handleChChange(newVal) {
     const target = Math.max(0, newVal);
     if (novel.ch_total != null && target > novel.ch_total) {
@@ -85,23 +104,74 @@ export default function NovelDashboardCard({
     }
     const prev = novel.ch_fin ?? 0;
     if (target === prev) return;
+    if (arcs.length > 0) {
+      const dir = target > prev ? 1 : -1;
+      let next = { arc_fin: arcFin, ch_fin_in_arc: chInArc };
+      for (let i = 0; i < Math.abs(target - prev); i += 1) {
+        next = arcStep(arcs, next.arc_fin, next.ch_fin_in_arc, dir);
+      }
+      if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
+      onProgressChange(
+        novel.system_id,
+        { arc_fin: next.arc_fin, ch_fin_in_arc: next.ch_fin_in_arc },
+        { arc_fin: arcFin, ch_fin_in_arc: chInArc },
+      );
+      return;
+    }
     onProgressChange(novel.system_id, { ch_fin: target }, { ch_fin: prev });
   }
 
-  function handleArcChange(newVal) {
+  // Chapter step buttons for arc_ch novels: one step = one chapter, folded
+  // into the right arc by arcStep (frontend/src/lib/novelUnits.js), mirroring
+  // the server's normalize_arc_progress. Both fields go in one PATCH so the
+  // server sees a coherent cursor, not a half-updated one it then "fixes".
+  function handleArcChapterStep(dir) {
+    const next = arcStep(arcs, arcFin, chInArc, dir);
+    if (next.arc_fin === arcFin && next.ch_fin_in_arc === chInArc) return;
+    onProgressChange(
+      novel.system_id,
+      { arc_fin: next.arc_fin, ch_fin_in_arc: next.ch_fin_in_arc },
+      { arc_fin: arcFin, ch_fin_in_arc: chInArc },
+    );
+  }
+
+  // Direct edit of the arc number. There is no separate "position within the
+  // new arc" input here, so ch_fin_in_arc resets to 0 rather than carrying a
+  // stale value that may not even fit the newly chosen arc's width.
+  function handleArcFinInput(newVal) {
     const target = Math.max(0, newVal);
-    if (novel.arc_total != null && target > novel.arc_total) {
+    if (arcs.length && target > arcs.length) {
       showToast("error", "Cannot exceed total arcs.");
       return;
     }
-    const prev = novel.arc_fin ?? 0;
-    if (target === prev) return;
-    onProgressChange(novel.system_id, { arc_fin: target }, { arc_fin: prev });
+    if (target === arcFin) return;
+    onProgressChange(
+      novel.system_id,
+      { arc_fin: target, ch_fin_in_arc: 0 },
+      { arc_fin: arcFin, ch_fin_in_arc: chInArc },
+    );
+  }
+
+  // Direct edit of the chapter-within-arc number. arc_fin is unchanged;
+  // the server still re-normalises on write, so an overshoot past the
+  // current arc's width safely carries forward rather than corrupting state.
+  function handleChInArcInput(newVal) {
+    const target = Math.max(0, newVal);
+    if (currentArc?.ch_count != null && target > currentArc.ch_count) {
+      showToast("error", "Cannot exceed this arc's chapters.");
+      return;
+    }
+    if (target === chInArc) return;
+    onProgressChange(
+      novel.system_id,
+      { arc_fin: arcFin, ch_fin_in_arc: target },
+      { arc_fin: arcFin, ch_fin_in_arc: chInArc },
+    );
   }
 
   // ── Progress tracker ─────────────────────────────────────────────
   function renderTracker() {
-    if (pd === "vol_tw" || pd === "vol_original" || !pd) {
+    if (pd === "vol_tw" || pd === "vol_original") {
       const fin = novel.vol_fin ?? 0;
       const total =
         pd === "vol_tw"
@@ -154,16 +224,14 @@ export default function NovelDashboardCard({
     }
 
     if (pd === "arc_ch") {
-      const arcFin = novel.arc_fin ?? 0;
-      const arcTotal = novel.arc_total ?? "?";
-      const chFin = novel.ch_fin ?? 0;
-      const chTotal = novel.ch_total ?? "?";
+      const arcTotal = novel.arc_total ?? arcs.length ?? "?";
+      const chInArcTotal = currentArc?.ch_count ?? "?";
 
       if (isAdmin) {
         return (
           <div className="flex items-center justify-between gap-2 relative z-20">
             <StepButton
-              onClick={() => handleChChange(Math.round(chFin) - 1)}
+              onClick={() => handleArcChapterStep(-1)}
               label="One chapter back"
             >
               <i className="fas fa-minus text-[10px]"></i>
@@ -175,7 +243,7 @@ export default function NovelDashboardCard({
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
                 value={arcFin}
                 onChange={(e) =>
-                  handleArcChange(parseFloat(e.target.value) || 0)
+                  handleArcFinInput(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
@@ -185,16 +253,16 @@ export default function NovelDashboardCard({
               <input
                 type="number"
                 className={`${STEPPER_INPUT} w-10 text-[11px]`}
-                value={chFin}
+                value={chInArc}
                 onChange={(e) =>
-                  handleChChange(parseFloat(e.target.value) || 0)
+                  handleChInArcInput(parseFloat(e.target.value) || 0)
                 }
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="text-text-faint text-[9px]">/{chTotal}</span>
+              <span className="text-text-faint text-[9px]">/{chInArcTotal}</span>
             </div>
             <StepButton
-              onClick={() => handleChChange(Math.round(chFin) + 1)}
+              onClick={() => handleArcChapterStep(1)}
               label="One chapter forward"
             >
               <i className="fas fa-plus text-[10px]"></i>
@@ -212,7 +280,7 @@ export default function NovelDashboardCard({
             <span className="text-text-faint mx-1">·</span>
             <span className={UNIT}>ch</span>
             <span className="text-text">
-              {chFin}/{chTotal}
+              {chInArc}/{chInArcTotal}
             </span>
           </div>
         </div>
@@ -322,18 +390,6 @@ export default function NovelDashboardCard({
             )}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/modify?id=${novel.system_id}&type=novel`);
-            }}
-            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
-            title="Quick edit"
-          >
-            <i className="fas fa-pencil-alt text-xs"></i>
-          </button>
-        )}
       </div>
 
       <div

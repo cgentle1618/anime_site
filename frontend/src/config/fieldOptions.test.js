@@ -5,7 +5,9 @@ import {
   MEDIA_TYPES,
   OPTION_CATEGORIES,
   PERSON_ROLES,
+  PROGRESS_DISPLAY_OPTIONS,
   applyConstants,
+  withLegacyProgressDisplay,
 } from "./fieldOptions";
 import {
   COMMON_FIELD_META,
@@ -105,10 +107,11 @@ describe("declared option categories", () => {
 // and the field silently offers an empty list - the failure this block exists
 // to catch, since nothing else in the app reads these strings until a user
 // opens the form.
+// Mirrors CREDIT_ROLES in app/utils/credit_roles.py.
 const LEGAL = {
-  director: ["anime", "anime-movie", "movie"],
+  director: ["anime", "anime-movie", "movie", "game"],
   producer: ["anime"],
-  composer: ["anime"],
+  composer: ["anime", "game"],
   author: ["manga", "novel", "comic"],
   illustrator: ["manga", "novel", "comic"],
 };
@@ -148,9 +151,62 @@ describe("person field sources", () => {
     for (const key of retired) expect(json).not.toContain(`"${key}"`);
   });
 
-  it("asks for eleven distinct role/scope pairs", () => {
+  it("asks for thirteen distinct role/scope pairs", () => {
+    // Eleven before games; director|game and composer|game are the two the
+    // ninth media type adds.
     const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
-    expect(new Set(keys).size).toBe(11);
-    expect(keys).toHaveLength(11);
+    expect(new Set(keys).size).toBe(13);
+    expect(keys).toHaveLength(13);
+    expect(keys).toContain("director|game");
+    expect(keys).toContain("composer|game");
+  });
+});
+
+// Superseded: this list used to be narrowed to {"", "vol_tw"} on the grounds
+// that type alone determined structure. Per-type option lists replaced that —
+// per-entry selects now build their own via progressDisplayOptions(novel), and
+// what survives here is the full vocabulary for the Form Defaults page, which
+// spans every novel type at once.
+describe("PROGRESS_DISPLAY_OPTIONS (Form Defaults vocabulary)", () => {
+  it("carries every progress display a novel can store", () => {
+    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual([
+      "",
+      "vol_original",
+      "vol_tw",
+      "ch",
+      "arc",
+      "arc_ch",
+    ]);
+  });
+
+  it("labels every option", () => {
+    for (const o of PROGRESS_DISPLAY_OPTIONS) expect(o.label).toBeTruthy();
+  });
+});
+
+describe("withLegacyProgressDisplay", () => {
+  // The options it is handed are now per-entry, so the interesting case is a
+  // value the entry's own type does not offer - a light novel still holding
+  // "ch", a web novel still holding "vol_tw".
+  const options = [
+    { value: "", label: "- Default -" },
+    { value: "vol_tw", label: "VOL TW" },
+  ];
+
+  it("returns the given list unchanged when there is no stored value", () => {
+    expect(withLegacyProgressDisplay(options, null)).toBe(options);
+    expect(withLegacyProgressDisplay(options, "")).toBe(options);
+  });
+
+  it("returns the given list unchanged when the stored value is offered", () => {
+    expect(withLegacyProgressDisplay(options, "vol_tw")).toBe(options);
+  });
+
+  it("appends a stored value the list does not offer, so it renders as selected", () => {
+    const withLegacy = withLegacyProgressDisplay(options, "arc_ch");
+    expect(withLegacy).toHaveLength(options.length + 1);
+    expect(withLegacy.find((o) => o.value === "arc_ch")).toBeTruthy();
+    // The list it was handed is untouched.
+    expect(options.map((o) => o.value)).toEqual(["", "vol_tw"]);
   });
 });

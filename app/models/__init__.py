@@ -8,20 +8,24 @@ from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
 from app.models.cartoon import Cartoon
+from app.models.character import Character, CharacterCasting
 from app.models.collection import Collection
 from app.models.comic import Comic
 from app.models.content_label import ContentLabel, MediaContentLabel
 from app.models.franchise import Franchise, Series
+from app.models.game import Game
+from app.models.game_copy import GameCopy
 from app.models.manga import Manga
 from app.models.media_credit import MediaCredit, MediaTag
 from app.models.media_relation import MediaRelation
+from app.models.media_source import MediaSource  # noqa: F401
 from app.models.meme import Meme
 from app.models.movie import Movies
 from app.models.note import Note
-from app.models.novel import Novel
+from app.models.novel import Novel, NovelUnit
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
-from app.models.staff import Person, PersonRole, Studio
+from app.models.staff import Person, PersonRole, Publisher, Studio
 from app.models.system import (
     DataControlLog,
     DeletedRecord,
@@ -30,7 +34,9 @@ from app.models.system import (
     Seasonal,
     SystemConfigs,
     SystemOption,
+    SystemOptionAlias,
     SystemOptionScope,
+    SystemOptionUsage,
     User,
 )
 from app.models.tv_show import TVShows
@@ -52,9 +58,14 @@ __all__ = [
     "Movies",
     "TVShows",
     "Cartoon",
+    "Character",
+    "CharacterCasting",
     "Manga",
     "Novel",
+    "NovelUnit",
     "Comic",
+    "Game",
+    "GameCopy",
     "WatchOrderList",
     "WatchOrderItem",
     "WatchOrderSection",
@@ -62,14 +73,18 @@ __all__ = [
     "Person",
     "PersonRole",
     "Studio",
+    "Publisher",
     "MediaCredit",
     "MediaTag",
+    "MediaSource",
     "PlanNext",
     "Quote",
     "Meme",
     "Note",
     "SystemOption",
+    "SystemOptionAlias",
     "SystemOptionScope",
+    "SystemOptionUsage",
     "SystemConfigs",
     "Seasonal",
     "ContentLabel",
@@ -105,6 +120,7 @@ _REMARK_OWNERS = (
     (Manga, "manga"),
     (Novel, "novel"),
     (Comic, "comic"),
+    (Game, "game"),
     (Series, "series"),
     (Franchise, "franchise"),
     (Collection, "collection"),

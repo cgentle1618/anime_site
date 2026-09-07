@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     tmdb_api_key: Optional[str] = None
     omdb_api_key: Optional[str] = None
     comicvine_api_key: Optional[str] = None
+    # IGDB needs two: a Twitch client id and secret, exchanged for a bearer
+    # token that expires. Every other integration here uses a static key.
+    igdb_client_id: Optional[str] = None
+    igdb_client_secret: Optional[str] = None
+    # Steam is two services. The storefront (prices, Metacritic, achievement
+    # totals) needs no credential at all; only the personal-progress calls do,
+    # and they degrade to a logged no-op when either of these is unset.
+    steam_api_key: Optional[str] = None
+    steam_id: Optional[str] = None
 
     # --- Google integrations ---
     google_credentials_json: Optional[str] = None

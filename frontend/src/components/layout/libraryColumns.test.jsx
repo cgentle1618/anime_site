@@ -4,6 +4,7 @@ import {
   imdbRatingSort,
   malRatingSort,
   planFlagColumn,
+  playButtonColumn,
   watchButtonColumn,
 } from "./libraryColumns";
 
@@ -34,4 +35,10 @@ it("rating sorts put the highest first and unrated last", () => {
   expect([...rows].sort(malRatingSort.compare).map((r) => r.mal_rating)).toEqual(["8.9", "7.1", null]);
   const movies = [{ imdb_rating: "N/A" }, { imdb_rating: "8.0" }, { imdb_rating: "6.5" }];
   expect([...movies].sort(imdbRatingSort.compare).map((r) => r.imdb_rating)).toEqual(["8.0", "6.5", "N/A"]);
+});
+
+it("builds a play button column", () => {
+  const col = playButtonColumn();
+  expect(col.statusField).toBe("playing_status");
+  expect(col.fallback).toBe("Might Play");
 });

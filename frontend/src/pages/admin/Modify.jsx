@@ -9,6 +9,7 @@ import {
   buildAnimeMoviePayload,
   buildCreditsPayload,
   creditsResponseToForm,
+  gameFieldsPayload,
 } from "../../utils/media";
 import { fetchAllSources } from "../../lib/sources";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
@@ -17,16 +18,19 @@ import MovieNotes from "../detail/MovieNotes";
 import TVShowNotes from "../detail/TVShowNotes";
 import CartoonNotes from "../detail/CartoonNotes";
 import MangaNotes from "../detail/MangaNotes";
-import { selectCls } from "../../components/forms/FormField";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
 import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
 import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
+import { cleanAliases } from "../../components/forms/AliasPicker";
+import AliasTab from "../../components/forms/AliasTab";
 import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
 import MangaModifyTab from "../modify-tabs/MangaModifyTab";
 import NovelModifyTab from "../modify-tabs/NovelModifyTab";
 import ComicModifyTab from "../modify-tabs/ComicModifyTab";
+import GameModifyTab from "../modify-tabs/GameModifyTab";
 import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
 import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
 import MovieModifyTab from "../modify-tabs/MovieModifyTab";
@@ -35,13 +39,14 @@ import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
+import PersonModifyTab from "../modify-tabs/PersonModifyTab";
+import CharacterModifyTab from "../modify-tabs/CharacterModifyTab";
 import StudioModifyTab from "../modify-tabs/StudioModifyTab";
+import PublisherModifyTab from "../modify-tabs/PublisherModifyTab";
 import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
-import OptionSubTabBar, {
-  OPTION_VALUE_SUB_TABS,
-} from "../../components/forms/OptionSubTabBar";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import {
   fetchFormDefaults,
@@ -52,6 +57,11 @@ import { enrichEntry } from "../../lib/enrich";
 import ContentLabelPicker, {
   saveEntryLabels,
 } from "../../components/forms/ContentLabelPicker";
+import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
+
+// The four media types character_casting supports, in their hyphenated key
+// form - see docs/superpowers/specs/2026-09-05-seiyuu-character-design.md.
+const CAST_MEDIA_TYPES = new Set(["anime", "anime-movie", "manga", "novel"]);
 
 function parseSeasonPart(sp) {
   if (!sp) return { season_num: "", part_num: "" };
@@ -105,25 +115,7 @@ function animeToForm(anime, allFranchises, allSeries, defaults) {
     is_main_entry: anime.is_main_entry === true,
     mal_id: anime.mal_id ?? "",
     mal_link: anime.mal_link || "",
-    anilist_link: anime.anilist_link || "",
-    official_link: anime.official_link || "",
-    twitter_link: anime.twitter_link || "",
-    source_baha:
-      anime.source_baha === true
-        ? "true"
-        : anime.source_baha === false
-          ? "false"
-          : "",
-    baha_link: anime.baha_link || "",
-    source_netflix:
-      anime.source_netflix === true
-        ? "true"
-        : anime.source_netflix === false
-          ? "false"
-          : "",
-    source_other: Object.entries(anime.source_other || {}).map(
-      ([name, url]) => ({ name, url: url || "" }),
-    ),
+    sources: anime.sources || [],
     seiyuu: anime.seiyuu || "",
     watch_next: anime.watch_next ?? false,
     cover_image_file: anime.cover_image_file || "",
@@ -209,28 +201,7 @@ function movieToForm(movie, allFranchises, defaults) {
     // GET /api/credits/anime-movie/{id} via loadCreditsIntoForm(), not here.
     mal_id: movie.mal_id ?? "",
     mal_link: movie.mal_link || "",
-    anilist_link: movie.anilist_link || "",
-    official_link: movie.official_link || "",
-    twitter_link: movie.twitter_link || "",
-    source_baha:
-      movie.source_baha === true
-        ? "true"
-        : movie.source_baha === false
-          ? "false"
-          : "",
-    baha_link: movie.baha_link || "",
-    source_netflix:
-      movie.source_netflix === true
-        ? "true"
-        : movie.source_netflix === false
-          ? "false"
-          : "",
-    source_other: Object.entries(movie.source_other || {}).map(
-      ([name, url]) => ({
-        name,
-        url: url || "",
-      }),
-    ),
+    sources: movie.sources || [],
     watch_next: movie.watch_next ?? false,
     to_rewatch: movie.to_rewatch ?? false,
     cover_image_file: movie.cover_image_file || "",
@@ -254,6 +225,7 @@ export default function Modify() {
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
   const [allComics, setAllComics] = useState([]);
+  const [allGames, setAllGames] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Content labels are the same eight keys for every media type, so they
@@ -263,6 +235,12 @@ export default function Modify() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editingType, setEditingType] = useState("anime");
+
+  const replaceCasting = useReplaceCasting();
+  // The entry's cast, fetched only while a cast-supporting entry is open -
+  // see the effect below that merges it into the right form once it arrives.
+  const castMediaType = CAST_MEDIA_TYPES.has(editingType) ? editingType : null;
+  const { data: castData } = useCasting(castMediaType, editingItem?.system_id);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -288,8 +266,13 @@ export default function Modify() {
   const [cnvf, setCnvf] = useState({});
   // NOTE: cmf is the CARTOON form here; comic is ccmf. Add.jsx uses cmf for comic.
   const [ccmf, setCcmf] = useState({});
+  const [cgmf, setCgmf] = useState({});
   const [optValue, setOptValue] = useState("");
   const [optScopes, setOptScopes] = useState([]);
+  const [optUsages, setOptUsages] = useState([]);
+  // What external APIs call this value. Loaded and sent explicitly: the PUT
+  // replaces the alias rows wholesale, so an omitted list deletes them.
+  const [optAliases, setOptAliases] = useState([]);
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
   // NULL. Held in a ref rather than state because the deep-link path opens an
@@ -345,6 +328,26 @@ export default function Modify() {
     }
   }
 
+  // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
+  // never part of the entry payload (see docs/superpowers/specs/
+  // 2026-09-05-seiyuu-character-design.md, Decision A) - it rides its own
+  // request once the entry has been updated. Surfaces a failure rather than
+  // swallowing it: the entry itself is already saved at this point.
+  async function saveCast(mediaType, entryId, form) {
+    try {
+      await replaceCasting.mutateAsync({
+        mediaType,
+        entryId,
+        cast: form.cast || [],
+      });
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || "Entry saved, but cast failed to save.",
+      );
+    }
+  }
+
   // Fetches an entry's current credits/tags and merges them into its open
   // form, so the Director/Genre/etc. fields show what's actually stored
   // instead of rendering blank. Called right after a *ToForm() seeds the form
@@ -384,6 +387,34 @@ export default function Modify() {
   const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
+  const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
+
+  // Merges an entry's cast (fetched by the useCasting call above) into
+  // whichever form is currently open, exactly once per opened entry - a
+  // second merge after the admin has started editing rows would clobber
+  // their in-progress changes. Guarded by (type, id) rather than just id: a
+  // stale response for a previously open entry must not land on the entry
+  // opened after it.
+  const castLoadedForRef = useRef(null);
+  // Every time a different editor opens (or closes) the guard above must be
+  // allowed to fire again - otherwise reopening the entry that was last
+  // loaded (closeEditor discards af.cast along with the rest of the form)
+  // would leave the Cast section permanently empty.
+  useEffect(() => {
+    castLoadedForRef.current = null;
+  }, [editingItem]);
+  useEffect(() => {
+    if (!castMediaType || !editingItem?.system_id || !castData) return;
+    const key = `${castMediaType}:${editingItem.system_id}`;
+    if (castLoadedForRef.current === key) return;
+    castLoadedForRef.current = key;
+    const rows = castData.cast || [];
+    if (castMediaType === "anime") setAf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "anime-movie")
+      setAmf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
+  }, [castMediaType, editingItem, castData]);
 
   useEffect(() => {
     async function load() {
@@ -400,6 +431,7 @@ export default function Modify() {
           mgRes,
           nvRes,
           cmRes,
+          gmRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
@@ -412,6 +444,7 @@ export default function Modify() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: on failure every form falls back to its built-ins.
         const [fd, srcData] = await Promise.all([
@@ -431,6 +464,7 @@ export default function Modify() {
           mangas,
           novels,
           comics,
+          games,
         ] = await Promise.all([
           aRes.json(),
           colRes.json(),
@@ -443,6 +477,7 @@ export default function Modify() {
           mgRes.json(),
           nvRes.json(),
           cmRes.json(),
+          gmRes.json(),
         ]);
         setAllAnime(anime);
         setAllCollections(collections);
@@ -456,6 +491,7 @@ export default function Modify() {
         setAllMangas(mangas);
         setAllNovels(novels);
         setAllComics(comics);
+        setAllGames(games);
 
         const urlId = searchParams.get("id");
         const urlType = searchParams.get("type");
@@ -489,6 +525,14 @@ export default function Modify() {
             if (cm) {
               openEditorWith(cm, "comic", franchises, series);
               setActiveTab("comic");
+              return;
+            }
+          }
+          if (urlType === "game") {
+            const gm = games.find((x) => x.system_id === urlId);
+            if (gm) {
+              openEditorWith(gm, "game", franchises, series);
+              setActiveTab("game");
               return;
             }
           }
@@ -581,10 +625,7 @@ export default function Modify() {
       // GET /api/credits/movie/{id} via loadCreditsIntoForm(), not here.
       imdb_id: m.imdb_id ?? "",
       imdb_link: m.imdb_link || "",
-      source_other: Object.entries(m.source_other || {}).map(([name, url]) => ({
-        name,
-        url: url || "",
-      })),
+      sources: m.sources || [],
       watch_next: m.watch_next ?? false,
       to_rewatch: m.to_rewatch ?? false,
       cover_image_file: m.cover_image_file || "",
@@ -607,7 +648,7 @@ export default function Modify() {
       series_text: s ? getDisplayName(s, "series") : "",
       season_part: t.season_part || "",
       region: t.region || "",
-      // source_official: see the comment in animeToForm - loaded from
+      // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
       is_main: t.is_main || "",
       airing_status: t.airing_status || "",
@@ -621,10 +662,7 @@ export default function Modify() {
       imdb_link: t.imdb_link || "",
       watch_next: t.watch_next ?? false,
       to_rewatch: t.to_rewatch ?? false,
-      source_other: Object.entries(t.source_other || {}).map(([name, url]) => ({
-        name,
-        url: url || "",
-      })),
+      sources: t.sources || [],
       cover_image_file: t.cover_image_file || "",
       remark: t.remark || "",
     };
@@ -653,17 +691,12 @@ export default function Modify() {
       my_rating: c.my_rating || "",
       imdb_rating: c.imdb_rating || "",
       length_ep_min: c.length_ep_min ?? "",
-      // source_official: see the comment in animeToForm - loaded from
+      // original_source: see the comment in animeToForm - loaded from
       // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
       release_date: c.release_date || "",
       imdb_id: c.imdb_id ?? "",
       imdb_link: c.imdb_link || "",
-      source_other: Array.isArray(c.source_other)
-        ? c.source_other
-        : Object.entries(c.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: c.sources || [],
       watch_next: c.watch_next ?? false,
       cover_image_file: c.cover_image_file || "",
       remark: c.remark || "",
@@ -698,23 +731,16 @@ export default function Modify() {
       mal_rating: m.mal_rating ?? "",
       mal_rank: m.mal_rank ?? "",
       anilist_rating: m.anilist_rating ?? "",
-      // author_plot, author_draw, publisher_tw: see the comment in
-      // animeToForm - loaded from GET /api/credits/manga/{id} via
-      // loadCreditsIntoForm(), not here. anime_studio is a real column (it
-      // points at the adaptation, not a credit) and stays.
+      // author_plot, author_draw, publisher_tw, serialization_platform: see
+      // the comment in animeToForm - loaded from GET /api/credits/manga/{id}
+      // via loadCreditsIntoForm(), not here. anime_studio is a real column
+      // (it points at the adaptation, not a credit) and stays.
       release_date: m.release_date ?? "",
       end_date: m.end_date ?? "",
       anime_studio: m.anime_studio || "",
-      serialization_platform: m.serialization_platform || "",
       mal_id: m.mal_id ?? "",
       mal_link: m.mal_link || "",
-      anilist_link: m.anilist_link || "",
-      source_other: Array.isArray(m.source_other)
-        ? m.source_other
-        : Object.entries(m.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: m.sources || [],
       read_next: m.read_next ?? false,
       to_reread: m.to_reread ?? false,
       cover_image_file: m.cover_image_file || "",
@@ -727,8 +753,6 @@ export default function Modify() {
     const s = (seriesList || allSeries).find(
       (x) => x.system_id === n.series_id,
     );
-    const novel_name_each_cn = n.novel_name_each_cn || [];
-    const novel_name_each_en = n.novel_name_each_en || [];
     return {
       novel_name_cn: n.novel_name_cn || "",
       novel_name_en: n.novel_name_en || "",
@@ -762,17 +786,12 @@ export default function Modify() {
       release_date: n.release_date ?? "",
       end_date: n.end_date ?? "",
       read_order: n.read_order ?? "",
-      novel_name_each_cn,
-      novel_name_each_en,
+      units: n.units || [],
       mal_id: n.mal_id ?? "",
       mal_link: n.mal_link || "",
-      anilist_link: n.anilist_link || "",
-      source_other: Array.isArray(n.source_other)
-        ? n.source_other
-        : Object.entries(n.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      openlibrary_link: n.openlibrary_link || "",
+      openlibrary_id: n.openlibrary_id || "",
+      sources: n.sources || [],
       read_next: n.read_next ?? false,
       to_reread: n.to_reread ?? false,
       cover_image_file: n.cover_image_file || "",
@@ -808,16 +827,71 @@ export default function Modify() {
       is_main_entry: c.is_main_entry ?? false,
       read_order: c.read_order ?? "",
       comicvine_link: c.comicvine_link || "",
-      source_other: Array.isArray(c.source_other)
-        ? c.source_other
-        : Object.entries(c.source_other || {}).map(([name, url]) => ({
-            name,
-            url: url || "",
-          })),
+      sources: c.sources || [],
       read_next: c.read_next ?? false,
       to_reread: c.to_reread ?? false,
       cover_image_file: c.cover_image_file || "",
       remark: c.remark || "",
+    };
+  }
+
+  function gameToForm(g, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === g.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === g.series_id,
+    );
+    // A tristate column is "" / "true" / "false" in form state - see the
+    // TRISTATE comment in config/fieldOptions.js.
+    const tri = (v) => (v == null ? "" : v ? "true" : "false");
+    return {
+      game_name_cn: g.game_name_cn || "",
+      game_name_en: g.game_name_en || "",
+      game_name_roman: g.game_name_roman || "",
+      game_name_jp: g.game_name_jp || "",
+      game_name_alt: g.game_name_alt || "",
+      franchise_id: g.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: g.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      game_type: g.game_type || "",
+      base_game_id: g.base_game_id || null,
+      // studio, publisher, director, composer and the four tag vocabularies:
+      // see the comment in animeToForm - loaded from GET /api/credits/game/{id}
+      // via loadCreditsIntoForm(), not here.
+      playing_status: g.playing_status || md("game").playing_status,
+      completion_level: g.completion_level || "",
+      all_endings: tri(g.all_endings),
+      all_achievements: tri(g.all_achievements),
+      all_collected: tri(g.all_collected),
+      steam_progress_sync: tri(g.steam_progress_sync),
+      achievements_earned: g.achievements_earned ?? "",
+      achievements_total: g.achievements_total ?? "",
+      release_status: g.release_status || "",
+      release_date: g.release_date ?? "",
+      current_patch: g.current_patch || "",
+      hours_played: g.hours_played ?? "",
+      hltb_main: g.hltb_main ?? "",
+      hltb_main_extra: g.hltb_main_extra ?? "",
+      hltb_completionist: g.hltb_completionist ?? "",
+      price_original_us: g.price_original_us ?? "",
+      price_original_jp: g.price_original_jp ?? "",
+      price_original_tw: g.price_original_tw ?? "",
+      price_current_us: g.price_current_us ?? "",
+      price_current_jp: g.price_current_jp ?? "",
+      price_current_tw: g.price_current_tw ?? "",
+      metacritic_score: g.metacritic_score ?? "",
+      metacritic_user_score: g.metacritic_user_score ?? "",
+      my_rating: g.my_rating || "",
+      igdb_id: g.igdb_id ?? "",
+      igdb_link: g.igdb_link || "",
+      steam_appid: g.steam_appid ?? "",
+      steam_link: g.steam_link || "",
+      sources: g.sources || [],
+      copies: g.copies || [],
+      play_next: g.play_next ?? false,
+      to_replay: g.to_replay ?? false,
+      cover_image_file: g.cover_image_file || "",
+      remark: g.remark || "",
     };
   }
 
@@ -857,9 +931,14 @@ export default function Modify() {
     } else if (type === "comic") {
       setCcmf(comicToForm(item, franchises, series));
       loadCreditsIntoForm("comic", item.system_id, setCcmf);
+    } else if (type === "game") {
+      setCgmf(gameToForm(item, franchises, series));
+      loadCreditsIntoForm("game", item.system_id, setCgmf);
     } else if (type === "options") {
       setOptValue(item.value || "");
       setOptScopes(item.scopes ?? []);
+      setOptUsages(item.usages ?? []);
+      setOptAliases(item.aliases ?? []);
     }
     setEditorOpen(true);
   }
@@ -891,6 +970,7 @@ export default function Modify() {
       else if (editingType === "manga") await saveManga();
       else if (editingType === "novel") await saveNovel();
       else if (editingType === "comic") await saveComic();
+      else if (editingType === "game") await saveGame();
       else if (editingType === "options") await saveOption();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
@@ -996,6 +1076,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("anime", updated.system_id, af);
+    await saveCast("anime", updated.system_id, af);
     setAllAnime((prev) =>
       prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
     );
@@ -1142,7 +1223,7 @@ export default function Modify() {
   }
 
   async function saveOption() {
-    const res = await fetch(`/api/options/${editingItem.system_id}`, {
+    const res = await fetch(endpoints.options.update(editingItem.system_id), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1151,6 +1232,8 @@ export default function Modify() {
         sort_order: editingItem.sort_order ?? 0,
         remark: editingItem.remark ?? null,
         scopes: optScopes,
+        usages: optUsages,
+        aliases: cleanAliases(optAliases),
       }),
       credentials: "include",
     });
@@ -1163,6 +1246,9 @@ export default function Modify() {
         ),
       }));
       setEditingItem(updated);
+      // The server drops blank and duplicate rows; re-seed from its answer so
+      // the form shows what was actually stored.
+      setOptAliases(updated.aliases ?? []);
       window.scrollTo(0, 0);
       showToast("success", "Update successful.");
     } else showToast("error", "Update failed");
@@ -1228,6 +1314,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("anime-movie", updated.system_id, amf);
+    await saveCast("anime-movie", updated.system_id, amf);
     setAllAnimeMovies((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
@@ -1332,14 +1419,15 @@ export default function Modify() {
       release_date_tw: mmf.release_date_tw || null,
       imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
       imdb_link: mmf.imdb_link || null,
-      source_other:
-        mmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: mmf.watch_next ?? null,
       to_rewatch: mmf.to_rewatch ?? false,
       cover_image_file: mmf.cover_image_file || null,
@@ -1463,14 +1551,15 @@ export default function Modify() {
       release_date: tvmf.release_date || null,
       imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
       imdb_link: tvmf.imdb_link || null,
-      source_other:
-        tvmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              tvmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (tvmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: tvmf.watch_next ?? null,
       to_rewatch: tvmf.to_rewatch ?? false,
       cover_image_file: tvmf.cover_image_file || null,
@@ -1596,14 +1685,15 @@ export default function Modify() {
       release_date: cmf.release_date || null,
       imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
       imdb_link: cmf.imdb_link || null,
-      source_other:
-        (cmf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cmf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: cmf.watch_next ?? null,
       cover_image_file: cmf.cover_image_file || null,
       remark: cmf.remark || null,
@@ -1740,18 +1830,17 @@ export default function Modify() {
       release_date: cmgf.release_date || null,
       end_date: cmgf.end_date || null,
       anime_studio: cmgf.anime_studio || null,
-      serialization_platform: cmgf.serialization_platform || null,
       mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
       mal_link: cmgf.mal_link || null,
-      anilist_link: cmgf.anilist_link || null,
-      source_other:
-        (cmgf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cmgf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmgf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cmgf.read_next ?? false,
       to_reread: cmgf.to_reread ?? false,
       cover_image_file: cmgf.cover_image_file || null,
@@ -1773,6 +1862,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("manga", updated.system_id, cmgf);
+    await saveCast("manga", updated.system_id, cmgf);
     setAllMangas((prev) =>
       prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
     );
@@ -1863,19 +1953,6 @@ export default function Modify() {
       seriesId = ns.system_id;
       setAllSeries((prev) => [...prev, ns]);
     }
-    const novelNameEachCn =
-      (cnvf.novel_name_each_cn || []).filter((e) => e.name.trim()).length > 0
-        ? (cnvf.novel_name_each_cn || [])
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-    const novelNameEachEn =
-      (cnvf.novel_name_each_en || []).filter((e) => e.name.trim()).length > 0
-        ? (cnvf.novel_name_each_en || [])
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-
     // Auto-create missing entities for author, illustrator, publisher_tw
     await ensureSourceValues([
       {
@@ -1930,19 +2007,33 @@ export default function Modify() {
       release_date: cnvf.release_date || null,
       end_date: cnvf.end_date || null,
       read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
-      novel_name_each_cn: novelNameEachCn,
-      novel_name_each_en: novelNameEachEn,
+      units: (cnvf.units || [])
+        .filter(
+          (u) =>
+            (u.unit_key && u.unit_key.trim()) ||
+            (u.name_cn && u.name_cn.trim()) ||
+            (u.name_en && u.name_en.trim()) ||
+            (u.remark && u.remark.trim()) ||
+            u.ch_count !== "",
+        )
+        .map((u, i) => ({
+          ...u,
+          position: i + 1,
+          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+        })),
       mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
       mal_link: cnvf.mal_link || null,
-      anilist_link: cnvf.anilist_link || null,
-      source_other:
-        (cnvf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (cnvf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      openlibrary_link: cnvf.openlibrary_link || null,
+      openlibrary_id: cnvf.openlibrary_id || null,
+      sources: (cnvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cnvf.read_next ?? false,
       to_reread: cnvf.to_reread ?? false,
       cover_image_file: cnvf.cover_image_file || null,
@@ -1964,6 +2055,7 @@ export default function Modify() {
     }
     const updated = await res.json();
     await saveCredits("novel", updated.system_id, cnvf);
+    await saveCast("novel", updated.system_id, cnvf);
     setAllNovels((prev) =>
       prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
     );
@@ -2108,14 +2200,15 @@ export default function Modify() {
       read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
       my_rating: ccmf.my_rating || null,
       comicvine_link: ccmf.comicvine_link || null,
-      source_other:
-        (ccmf.source_other || []).filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              (ccmf.source_other || [])
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (ccmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: ccmf.read_next ?? false,
       to_reread: ccmf.to_reread ?? false,
       cover_image_file: ccmf.cover_image_file || null,
@@ -2143,6 +2236,154 @@ export default function Modify() {
     setEditingItem(updated);
     setCcmf(comicToForm(updated, allFranchises, allSeries));
     loadCreditsIntoForm("comic", updated.system_id, setCcmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
+  async function saveGame() {
+    let franchiseId = cgmf.franchise_id;
+    if (!franchiseId && (cgmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Game",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: cgmf.game_name_cn || null,
+          franchise_name_en: cgmf.game_name_en || null,
+          franchise_name_roman: cgmf.game_name_roman || null,
+          franchise_name_jp: cgmf.game_name_jp || null,
+          franchise_name_alt: cgmf.game_name_alt || null,
+          franchise_type: "Game",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cgmf.series_id;
+    if (!seriesId && (cgmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cgmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: cgmf.game_name_cn || null,
+          series_name_en: cgmf.game_name_en || null,
+          series_name_alt: cgmf.game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing entities for every game credit/tag field. Developer
+    // and publisher resolve to entity rows; the four vocabularies do not.
+    await ensureSourceValues([
+      { source: { kind: "studio" }, values: splitTags(cgmf.studio) },
+      { source: { kind: "publisher" }, values: splitTags(cgmf.publisher) },
+      {
+        source: { kind: "person", role: "director", scope: "game" },
+        values: splitTags(cgmf.director),
+      },
+      {
+        source: { kind: "person", role: "composer", scope: "game" },
+        values: splitTags(cgmf.composer),
+      },
+      {
+        source: { kind: "option", category: "Game Genre", scope: "game" },
+        values: splitTags(cgmf.game_genre),
+      },
+      {
+        source: { kind: "option", category: "Game Theme", scope: "game" },
+        values: splitTags(cgmf.game_theme),
+      },
+      {
+        source: { kind: "option", category: "Game Mode", scope: "game" },
+        values: splitTags(cgmf.game_mode),
+      },
+      {
+        source: { kind: "option", category: "Combat Mode", scope: "game" },
+        values: splitTags(cgmf.combat_mode),
+      },
+      {
+        source: { kind: "option", category: "Game Platform", scope: "game" },
+        values: splitTags(cgmf.game_platform),
+      },
+      {
+        source: { kind: "option", category: "Label", scope: "game" },
+        values: splitTags(cgmf.label),
+      },
+    ]);
+
+    const payload = {
+      ...gameFieldsPayload(cgmf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      playing_status: cgmf.playing_status || md("game").playing_status,
+    };
+    const res = await fetch(`/api/game/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("game", updated.system_id, cgmf);
+    setAllGames((prev) =>
+      prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
+    );
+    setEditingItem(updated);
+    setCgmf(gameToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("game", updated.system_id, setCgmf);
     window.scrollTo(0, 0);
     showToast("success", "Update successful.");
   }
@@ -2194,6 +2435,15 @@ export default function Modify() {
         item.comic_name_en ||
         item.comic_name_cn ||
         item.comic_name_alt ||
+        "Unknown"
+      );
+    if (type === "game")
+      return (
+        item.game_name_cn ||
+        item.game_name_en ||
+        item.game_name_roman ||
+        item.game_name_jp ||
+        item.game_name_alt ||
         "Unknown"
       );
     if (type === "options") return `${item.category}: ${item.value}`;
@@ -2315,6 +2565,18 @@ export default function Modify() {
           ),
         )
         .slice(0, 10);
+    if (activeTab === "game")
+      return allGames
+        .filter((g) =>
+          [
+            g.game_name_cn,
+            g.game_name_en,
+            g.game_name_roman,
+            g.game_name_jp,
+            g.game_name_alt,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
     return sources.options
       .filter(
         (o) =>
@@ -2342,6 +2604,7 @@ export default function Modify() {
     if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
     if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
     if (activeTab === "comic") return [...allComics].sort(sort).slice(0, 12);
+    if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
     return [];
   })();
 
@@ -2631,6 +2894,18 @@ export default function Modify() {
   const seriesItemsForComic = (
     ccmf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === ccmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForGame = (
+    cgmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cgmf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -3038,6 +3313,40 @@ export default function Modify() {
           owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
       {activeTab === "studio" && <StudioModifyTab />}
 
+      {/* ═══ PUBLISHER TAB — bypasses search/edit pattern for the same reason
+          Studio does; a publisher is a public entity with its own picker,
+          load and save (see PublisherModifyTab.jsx). ═══ */}
+      {activeTab === "publisher" && <PublisherModifyTab />}
+
+      {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
+          Studio does; a person is a credited entity with its own role x scope
+          matrix (see PersonModifyTab.jsx). ═══ */}
+      {activeTab === "person" && <PersonModifyTab />}
+
+      {/* ═══ CHARACTER TAB — bypasses search/edit pattern for the same
+          reason Studio does; a character holds no roles, so unlike
+          PersonModifyTab it needs no role x scope matrix (see
+          CharacterModifyTab.jsx). ═══ */}
+      {activeTab === "character" && <CharacterModifyTab />}
+
+      {/* ═══ ALIAS TAB — bypasses search/edit pattern; an alias row has no
+          record of its own to search for, so the tab picks the option that
+          owns it and edits that option's list (see AliasTab.jsx). ═══ */}
+      {activeTab === "alias" && (
+        <AliasTab
+          options={sources.options}
+          showToast={showToast}
+          onSaved={(updated) =>
+            setSources((prev) => ({
+              ...prev,
+              options: prev.options.map((o) =>
+                o.system_id === updated.system_id ? updated : o,
+              ),
+            }))
+          }
+        />
+      )}
+
       {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
       {activeTab === "fav3x3" && (
         <Fav3x3ModifyTab
@@ -3055,7 +3364,13 @@ export default function Modify() {
       )}
 
       {/* ═══ DISCOVERY VIEW ═══ */}
-      {!editorOpen && activeTab !== "fav3x3" && activeTab !== "studio" && (
+      {!editorOpen &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "publisher" &&
+        activeTab !== "person" &&
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
         <div className="space-y-6">
           {activeTab !== "options" ? (
             <div ref={searchRef} className="relative">
@@ -3113,7 +3428,6 @@ export default function Modify() {
           ) : (
             <div>
               <OptionSubTabBar
-                tabs={OPTION_VALUE_SUB_TABS}
                 active={optionsSubTab}
                 onSelect={(key) => {
                   setOptionsSubTab(key);
@@ -3125,20 +3439,14 @@ export default function Modify() {
               <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
                 Select Category
               </label>
-              <select
-                className={selectCls}
+              <OptionCategorySelect
+                categories={categoriesForSubTab(
+                  optionCategories,
+                  optionsSubTab,
+                )}
                 value={optCatFilter}
                 onChange={(e) => setOptCatFilter(e.target.value)}
-              >
-                <option value="">— Choose a category —</option>
-                {categoriesForSubTab(optionCategories, optionsSubTab).map(
-                  (c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ),
-                )}
-              </select>
+              />
             </div>
           )}
 
@@ -3215,7 +3523,14 @@ export default function Modify() {
       )}
 
       {/* ═══ EDITOR VIEW ═══ */}
-      {editorOpen && editingItem && activeTab !== "fav3x3" && activeTab !== "studio" && (
+      {editorOpen &&
+        editingItem &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "publisher" &&
+        activeTab !== "person" &&
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
         <form onSubmit={handleSave}>
           <div className="flex items-center gap-3 mb-5">
             <button
@@ -3346,6 +3661,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForTvShow={seriesItemsForTvShow}
                 editingItem={editingItem}
+                sources={sources}
               />
             )}
 
@@ -3358,6 +3674,7 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForCartoon={seriesItemsForCartoon}
                 editingItem={editingItem}
+                sources={sources}
               />
             )}
 
@@ -3384,7 +3701,6 @@ export default function Modify() {
                 allFranchises={allFranchises}
                 seriesItemsForNovel={seriesItemsForNovel}
                 editingItem={editingItem}
-                ribbonSection={novelRibbonSection}
                 sources={sources}
               />
             )}
@@ -3403,6 +3719,21 @@ export default function Modify() {
               />
             )}
 
+            {/* ── GAME EDITOR ── */}
+            {editingType === "game" && (
+              <GameModifyTab
+                franchiseCollections={franchiseCollections}
+                cgmf={cgmf}
+                ugm={ugm}
+                allFranchises={allFranchises}
+                allGames={allGames}
+                seriesItemsForGame={seriesItemsForGame}
+                editingItem={editingItem}
+                ribbonSection={null}
+                sources={sources}
+              />
+            )}
+
             {/* ── OPTIONS EDITOR ── */}
             {editingType === "options" && (
               <OptionsModifyTab
@@ -3411,12 +3742,16 @@ export default function Modify() {
                 optScopes={optScopes}
                 setOptScopes={setOptScopes}
                 setOptValue={setOptValue}
+                optUsages={optUsages}
+                setOptUsages={setOptUsages}
+                optAliases={optAliases}
+                setOptAliases={setOptAliases}
               />
             )}
           </div>
 
             {/* Content labels - the picker reads the entry's current set. */}
-            {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"].includes(editingType) && editingItem?.system_id && (
+            {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"].includes(editingType) && editingItem?.system_id && (
               <div className="mt-6">
                 <ContentLabelPicker
                   mediaType={editingType}

@@ -10,7 +10,7 @@ from app import models
 
 @pytest.fixture
 def person(db_session):
-    p = models.Person(name_native="新海誠")
+    p = models.Person(name_jp="新海誠")
     db_session.add(p)
     db_session.commit()
     return p
@@ -117,7 +117,7 @@ def test_one_person_can_hold_two_roles_on_one_entry(db_session, person):
 def test_position_preserves_the_original_comma_order(db_session):
     entry_id = uuid.uuid4()
     for i, name in enumerate(["A", "B", "C"]):
-        p = models.Person(name_native=name)
+        p = models.Person(name_jp=name)
         db_session.add(p)
         db_session.commit()
         db_session.add(
@@ -189,3 +189,68 @@ def test_deleting_an_option_cascades_its_tags(db_session):
     db_session.delete(opt)
     db_session.commit()
     assert db_session.query(models.MediaTag).count() == 0
+
+
+def test_a_credit_may_point_at_a_publisher(db_session):
+    publisher = models.Publisher(name_en="Bandai Namco")
+    db_session.add(publisher)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            media_type="game",
+            entry_id=uuid.uuid4(),
+            role="publisher",
+            publisher_id=publisher.system_id,
+        )
+    )
+    db_session.commit()
+
+
+def test_a_credit_may_not_point_at_two_entities_at_once(db_session):
+    """
+    ck_media_credit_one_target is num_nonnulls(...) = 1 over all three FKs.
+    A row naming both a studio and a publisher has no single meaning.
+    """
+    studio = models.Studio(name_en="FromSoftware")
+    publisher = models.Publisher(name_en="Bandai Namco")
+    db_session.add_all([studio, publisher])
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            media_type="game",
+            entry_id=uuid.uuid4(),
+            role="publisher",
+            studio_id=studio.system_id,
+            publisher_id=publisher.system_id,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_a_credit_must_point_at_something(db_session):
+    db_session.add(
+        models.MediaCredit(media_type="game", entry_id=uuid.uuid4(), role="publisher")
+    )
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_deleting_a_publisher_cascades_its_credits(db_session):
+    publisher = models.Publisher(name_en="Gone")
+    db_session.add(publisher)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            media_type="game",
+            entry_id=uuid.uuid4(),
+            role="publisher",
+            publisher_id=publisher.system_id,
+        )
+    )
+    db_session.commit()
+    db_session.delete(publisher)
+    db_session.commit()
+    assert db_session.query(models.MediaCredit).count() == 0

@@ -1,6 +1,6 @@
 # Comic Vine Link Conflicts
 
-Moved verbatim from `comicvine-link-conflicts.md` on 2026-08-30 (file last changed 2026-08-27). Historical record; the numbers reflect the database at that date.
+Moved verbatim from `comicvine-link-conflicts.md` on 2026-08-30 (file last changed 2026-08-27). Historical record; the numbers reflect the database at that date. Note: this record predates the media-sources migration — `source_other`, named below as where the original 1982 link was kept, was later dropped by migration `dc1o2l3s4d5`; that data now lives in a `media_source` `bucket='other'` row instead (see [data-model.md](../data-model.md#media_source)).
 
 ---
 

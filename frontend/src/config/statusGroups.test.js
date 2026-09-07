@@ -8,7 +8,12 @@
 
 import { describe, it, expect } from "vitest";
 import { groupStatusOptions } from "./statusGroups";
-import { WATCHING_STATUSES, READING_STATUSES } from "./fieldOptions";
+import {
+  WATCHING_STATUSES,
+  READING_STATUSES,
+  PLAYING_STATUSES,
+} from "./fieldOptions";
+import { PLAYING_STATUS_GROUP } from "./statusGroups";
 
 describe("groupStatusOptions", () => {
   it("splits the watching vocabulary into the three picker groups", () => {
@@ -69,5 +74,29 @@ describe("groupStatusOptions", () => {
   it("returns nothing for an empty or missing list", () => {
     expect(groupStatusOptions([])).toEqual([]);
     expect(groupStatusOptions(undefined)).toEqual([]);
+  });
+});
+
+describe("the playing vocabulary", () => {
+  it("splits into the three picker groups", () => {
+    expect(groupStatusOptions(PLAYING_STATUSES)).toEqual([
+      {
+        label: "Not Released",
+        statuses: ["Might Play", "Plan to Play", "Play When Released"],
+      },
+      {
+        label: "On-Going",
+        statuses: ["Active Playing", "Passive Playing", "Paused", "Temp Dropped"],
+      },
+      { label: "Done", statuses: ["Completed", "Dropped", "Won't Play"] },
+    ]);
+  });
+
+  it("maps every playing status to a library display group", () => {
+    for (const status of PLAYING_STATUSES) {
+      expect(PLAYING_STATUS_GROUP[status]).toBeDefined();
+    }
+    expect(PLAYING_STATUS_GROUP["Active Playing"]).toBe("Playing");
+    expect(PLAYING_STATUS_GROUP["Might Play"]).toBe("Might Play");
   });
 });

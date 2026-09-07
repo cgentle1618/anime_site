@@ -15,7 +15,8 @@ from app.utils.relation_kinds import (
 )
 
 
-def test_ten_stored_kinds():
+def test_twelve_stored_kinds():
+    # Was ten before Remake and Remaster joined for games.
     assert set(RELATION_KEYS) == {
         "sequel",
         "alternative",
@@ -27,6 +28,8 @@ def test_ten_stored_kinds():
         "spin_off",
         "setting",
         "adaptation",
+        "remake",
+        "remaster",
     }
 
 
@@ -105,8 +108,9 @@ def test_prequel_is_input_only_and_maps_to_sequel():
     assert "prequel" in ACCEPTED_INPUT_KINDS
 
 
-def test_accepted_input_kinds_covers_the_eleven_user_facing_choices():
-    assert len(ACCEPTED_INPUT_KINDS) == 11
+def test_accepted_input_kinds_covers_the_thirteen_user_facing_choices():
+    # The twelve stored kinds plus `prequel`, which is input-only.
+    assert len(ACCEPTED_INPUT_KINDS) == 13
     assert set(RELATION_KEYS).issubset(set(ACCEPTED_INPUT_KINDS))
 
 

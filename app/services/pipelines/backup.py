@@ -9,6 +9,7 @@ from app.services.integrations.sheets import bulk_overwrite_sheet
 from app.services.pipelines.tabs import SHEET_TABS
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
+    format_for_sheet,
     format_model_for_sheet,
 )
 
@@ -30,8 +31,23 @@ def execute_backup(db: Session, action_type: str = "Manual") -> dict:
         # credit_roles.LEGACY_SHEET_COLUMN for why the headers never change).
         for tab in SHEET_TABS:
             rows = db.query(tab.model).all()
-            headers = [c.name for c in tab.model.__table__.columns]
-            matrix = [format_model_for_sheet(r) for r in rows]
+            # ONE filtered column-name list drives both the header row and
+            # every value row (format_model_for_sheet's `columns` argument),
+            # so a column dropped here (Media Source's option_id) can never
+            # go missing from only one of the two and misalign every row.
+            kept_columns = [
+                c.name
+                for c in tab.model.__table__.columns
+                if c.name not in tab.drop_columns
+            ]
+            headers = kept_columns + [name for name, _fn in tab.extra_columns]
+            matrix = []
+            for r in rows:
+                row_values = format_model_for_sheet(r, columns=kept_columns)
+                row_values += [
+                    format_for_sheet(fn(r, db)) for _name, fn in tab.extra_columns
+                ]
+                matrix.append(row_values)
             if tab.media_type:
                 headers += sheet_link_headers(tab.media_type)
                 for row, links in zip(matrix, sheet_link_rows(db, tab.media_type, rows)):

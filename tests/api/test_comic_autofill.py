@@ -57,7 +57,7 @@ def patched(monkeypatch):
         calls["fetch"].append(volume_id)
         return VOLUME_RESULT
 
-    def fake_download(url, system_id):
+    def fake_download(url, owner_type, system_id):
         calls["download"].append((url, system_id))
         return "downloaded.jpg"
 
@@ -142,7 +142,7 @@ class TestAutofillComicFromComicvine:
         monkeypatch.setattr(
             autofill_module,
             "download_cover_image",
-            lambda url, sid: downloads.append(url) or "x.jpg",
+            lambda url, owner_type, sid: downloads.append(url) or "x.jpg",
         )
 
         comic = make_comic(db_session)
@@ -153,7 +153,7 @@ class TestAutofillComicFromComicvine:
 
     def test_leaves_cover_blank_when_the_download_fails(self, db_session, monkeypatch):
         monkeypatch.setattr(autofill_module, "fetch_comicvine_volume", lambda vid: VOLUME_RESULT)
-        monkeypatch.setattr(autofill_module, "download_cover_image", lambda url, sid: None)
+        monkeypatch.setattr(autofill_module, "download_cover_image", lambda url, owner_type, sid: None)
 
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)

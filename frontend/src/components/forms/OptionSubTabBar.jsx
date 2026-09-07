@@ -2,11 +2,10 @@
 // Add / Modify / Delete pages so the three cannot drift apart.
 //
 // It used to live inside OptionsAddTab.jsx, where only the Add page could
-// reach it. Add offers all three sub-tabs; Modify and Delete offer the two
-// that write system_option rows, because neither page can edit a person
-// (its editor exists on the Add page and the /options page only). Studio
-// moved out entirely into its own Entity tab group - see adminTabs.js -
-// once it became a public entity rather than a system-option-adjacent form.
+// reach it. Studio and then Person moved out entirely into the Entity tab
+// group - see adminTabs.js - once each became a public entity rather than a
+// system-option-adjacent form, so all three pages now offer the same two
+// sub-tabs and there is no Add-only variant left.
 //
 // Tags and Options are the same form over the same rows - see
 // lib/optionCategoryGroups.js for which categories land on which side.
@@ -14,13 +13,7 @@
 export const OPTION_SUB_TABS = [
   { key: "options", label: "Options", icon: "fa-cog" },
   { key: "tags", label: "Tags", icon: "fa-tags" },
-  { key: "people", label: "People", icon: "fa-user" },
 ];
-
-/** Just the sub-tabs that pick a category: what Modify and Delete offer. */
-export const OPTION_VALUE_SUB_TABS = OPTION_SUB_TABS.filter((t) =>
-  ["options", "tags"].includes(t.key),
-);
 
 export default function OptionSubTabBar({
   tabs = OPTION_SUB_TABS,

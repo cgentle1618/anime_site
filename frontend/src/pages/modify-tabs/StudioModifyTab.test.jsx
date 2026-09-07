@@ -1,5 +1,7 @@
-// Studio Modify tab: the picker searches all four name fields (not just the
-// displayed one), and the save button enforces the at-least-one-name rule.
+// Studio Modify tab: the picker lists every studio up front (like the system
+// options grid), the search box filters that list across all four name fields
+// (not just the displayed one), and the save button enforces the
+// at-least-one-name rule.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -17,6 +19,24 @@ const STUDIOS = [
     display_name_field: null,
     display_name: "Sunrise",
     credit_count: 5,
+    logo_file: null,
+    my_rating: null,
+    founded_date: null,
+    defunct_date: null,
+    country: null,
+    website_url: null,
+    mal_id: null,
+    mal_link: null,
+  },
+  {
+    system_id: "s2",
+    name_en: "Kyoto Animation",
+    name_cn: null,
+    name_jp: "京都アニメーション",
+    name_alt: null,
+    display_name_field: null,
+    display_name: "Kyoto Animation",
+    credit_count: 2,
     logo_file: null,
     my_rating: null,
     founded_date: null,
@@ -66,22 +86,43 @@ function mount() {
   );
 }
 
-it("finds a studio by a non-displayed name field (e.g. Japanese)", async () => {
+it("lists every studio by display name before anything is typed", async () => {
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole("button", { name: "Kyoto Animation" }),
+  ).toBeInTheDocument();
+  // Display name only - no credit-count subtitle in the grid.
+  expect(screen.queryByText("5 credits")).not.toBeInTheDocument();
+});
+
+it("filters the list by a non-displayed name field (e.g. Japanese)", async () => {
   const user = userEvent.setup();
   mount();
-  const search = screen.getByPlaceholderText("Search studios to modify...");
-  await user.type(search, "サンライズ");
-  await waitFor(() => expect(screen.getByText("Sunrise")).toBeInTheDocument());
-  expect(screen.getByText("5 credits")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.type(
+    screen.getByPlaceholderText("Search studios to modify..."),
+    "サンライズ",
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Kyoto Animation" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument();
 });
 
 it("loads the selected studio and disables save with hint when every name is cleared", async () => {
   const user = userEvent.setup();
   mount();
-  const search = screen.getByPlaceholderText("Search studios to modify...");
-  await user.type(search, "Sunrise");
-  await waitFor(() => expect(screen.getByText("Sunrise")).toBeInTheDocument());
-  await user.click(screen.getByText("Sunrise"));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
 
   await waitFor(() =>
     expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
@@ -96,4 +137,58 @@ it("loads the selected studio and disables save with hint when every name is cle
     screen.getByText("A studio needs at least one name."),
   ).toBeInTheDocument();
   expect(saveButton).toBeDisabled();
+});
+
+// My Rating is the same S..F vocabulary every other rated record uses, so it
+// is a picker rather than a free-text box; and a studio with no country
+// recorded starts on Japan, which is what nearly every studio here is.
+it("edits my rating through a dropdown of the rating vocabulary", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
+  );
+  const rating = screen.getByRole("option", { name: "A+" }).closest("select");
+  expect(rating).toBeInTheDocument();
+  await user.selectOptions(rating, "A+");
+  expect(rating).toHaveValue("A+");
+});
+
+it("defaults an unset country to Japan", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Japan")).toBeInTheDocument(),
+  );
+});
+
+// A saved studio's toast lands at the top of the page, and the form is long
+// enough that the admin is usually scrolled past it - so a successful save
+// scrolls back up, the way every media tab already does.
+it("scrolls to the top after a successful save", async () => {
+  const user = userEvent.setup();
+  const scrollTo = vi.fn();
+  vi.stubGlobal("scrollTo", scrollTo);
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sunrise" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Sunrise" }));
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Sunrise")).toBeInTheDocument(),
+  );
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
 });

@@ -5,9 +5,13 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
-import OptionSubTabBar, {
-  OPTION_VALUE_SUB_TABS,
-} from "../../components/forms/OptionSubTabBar";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
+import PersonSubTabBar from "../../components/forms/PersonSubTabBar";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import {
+  ALIAS_CATEGORIES,
+  optionWithoutAlias,
+} from "../../components/forms/AliasPicker";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
@@ -75,7 +79,26 @@ function getDisplayTitle(item, type) {
       item.comic_name_alt ||
       "Unknown"
     );
-  if (type === "studio") return item.display_name || "Unknown";
+  if (type === "game")
+    return (
+      item.game_name_cn ||
+      item.game_name_en ||
+      item.game_name_roman ||
+      item.game_name_jp ||
+      item.game_name_alt ||
+      "Unknown"
+    );
+  // An alias row has no name of its own; the conversion IS the identity, so
+  // the modal shows the arrow rather than either half alone.
+  if (type === "alias")
+    return `${item.alias_value} → ${item.value}`;
+  if (
+    type === "studio" ||
+    type === "publisher" ||
+    type === "person" ||
+    type === "character"
+  )
+    return item.display_name || "Unknown";
   if (type === "collection")
     return (
       item.collection_name_cn ||
@@ -172,11 +195,15 @@ export default function Delete() {
     manga: [],
     novel: [],
     comic: [],
+    game: [],
     collection: [],
     franchise: [],
     series: [],
     options: [],
     studio: [],
+    publisher: [],
+    person: [],
+    character: [],
   });
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -185,7 +212,7 @@ export default function Delete() {
   // orphan checks count all of them: the old anime-only counts offered to
   // delete franchises that still held movies/comics and cascaded past
   // non-anime children, leaving them with franchise_id = NULL.
-  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic"];
+  const MEDIA_KEYS = ["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"];
   const entriesIn = (field, id) =>
     MEDIA_KEYS.reduce((n, k) => n + db[k].filter((e) => e[field] === id).length, 0);
   const standaloneEntriesIn = (franchiseId) =>
@@ -212,17 +239,41 @@ export default function Delete() {
   const [selectedManga, setSelectedManga] = useState(null);
   const [selectedNovel, setSelectedNovel] = useState(null);
   const [selectedComic, setSelectedComic] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
   const [selectedFranchise, setSelectedFranchise] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedPublisher, setSelectedPublisher] = useState(null);
+  const [publisherConfirm, setPublisherConfirm] = useState(false);
+  const [publisherMergeMode, setPublisherMergeMode] = useState(false);
+  const [publisherMergeTarget, setPublisherMergeTarget] = useState(null);
   const [selectedStudio, setSelectedStudio] = useState(null);
   const [studioConfirm, setStudioConfirm] = useState(false);
   const [studioMergeMode, setStudioMergeMode] = useState(false);
   const [studioMergeTarget, setStudioMergeTarget] = useState(null);
+  const [personSubTab, setPersonSubTab] = useState("director");
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [personConfirm, setPersonConfirm] = useState(false);
+  const [personMergeMode, setPersonMergeMode] = useState(false);
+  const [personMergeTarget, setPersonMergeTarget] = useState(null);
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
+  const [characterConfirm, setCharacterConfirm] = useState(false);
+  const [characterMergeMode, setCharacterMergeMode] = useState(false);
+  const [characterMergeTarget, setCharacterMergeTarget] = useState(null);
   const [optCategoryFilter, setOptCategoryFilter] = useState("");
+  // The Alias tab's own category filter. Separate from optCategoryFilter: the
+  // two tabs offer different category lists (ALIAS_CATEGORIES vs. every
+  // Tier 2 category), so one shared value would go stale on every switch.
+  const [aliasCategoryFilter, setAliasCategoryFilter] = useState("");
   // Which half of the System Option tab is showing. People and Studios are
-  // not offered here: neither can be deleted from this page.
+  // not here: each is a top-level Entity tab with its own branch below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
+
+  // The people offered for deletion are the ones holding the selected type.
+  // db.person carries every role a person holds, so this needs no extra fetch.
+  const peopleOfType = db.person.filter((p) =>
+    (p.roles || []).some((r) => r.role === personSubTab),
+  );
 
   const [modal, setModal] = useState(null); // { type, target, cascadeOptions }
   const [cascadeChecked, setCascadeChecked] = useState(false);
@@ -244,7 +295,11 @@ export default function Delete() {
         mgRes,
         nvRes,
         cmRes,
+        gmRes,
         stRes,
+        puRes,
+        peRes,
+        chRes,
       ] =
         await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
@@ -259,9 +314,13 @@ export default function Delete() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
           fetch(endpoints.studio.list(), { credentials: "include" }),
+          fetch(endpoints.publisher.list(), { credentials: "include" }),
+          fetch(endpoints.person.list(), { credentials: "include" }),
+          fetch(endpoints.character.list(), { credentials: "include" }),
         ]);
-      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, st] = await Promise.all([
+      const [a, col, f, s, o, am, mv, tv, ct, mg, nv, cm, gm, st, pu, pe, ch] = await Promise.all([
         aRes.json(),
         colRes.json(),
         fRes.json(),
@@ -274,7 +333,11 @@ export default function Delete() {
         mgRes.json(),
         nvRes.json(),
         cmRes.json(),
+        gmRes.json(),
         stRes.json(),
+        puRes.json(),
+        peRes.json(),
+        chRes.json(),
       ]);
       setDb({
         anime: a,
@@ -285,11 +348,15 @@ export default function Delete() {
         manga: mg,
         novel: nv,
         comic: cm,
+        game: gm,
         collection: col,
         franchise: f,
         series: s,
         options: o,
         studio: st,
+        publisher: pu,
+        person: pe,
+        character: ch,
       });
     } catch {
       showToast("error", "Database load failed");
@@ -372,6 +439,165 @@ export default function Delete() {
     }
   }
 
+  // Mirrors executeStudioDelete: media_credit.publisher_id is ON DELETE
+  // CASCADE, so this destroys the publisher's credit history too.
+  async function executePublisherDelete(item) {
+    setDeleting(true);
+    try {
+      const res = await fetch(endpoints.publisher.remove(item.system_id), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete publisher");
+      setSelectedPublisher(null);
+      setPublisherConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePersonDelete(item) {
+    setDeleting(true);
+    try {
+      // The count the confirmation showed rides along: the API answers 409 if
+      // it moved while the dialog was open, so the deletion that happens is
+      // the one the admin agreed to.
+      const res = await fetch(
+        endpoints.person.remove(item.system_id, item.credit_count),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to delete person");
+      }
+      setSelectedPerson(null);
+      setPersonConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePersonMerge() {
+    if (!selectedPerson || !personMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.person.merge(personMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedPerson.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge people");
+      const data = await res.json();
+      setSelectedPerson(null);
+      setPersonMergeMode(false);
+      setPersonMergeTarget(null);
+      showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executeCharacterDelete(item) {
+    setDeleting(true);
+    try {
+      // The casting count the confirmation showed rides along: the API
+      // answers 409 if it moved while the dialog was open (?castings=N, not
+      // ?credits=N - a character's history is castings, not credits), so
+      // the deletion that happens is the one the admin agreed to.
+      const res = await fetch(
+        endpoints.character.remove(item.system_id, item.casting_count),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        // Surfaced verbatim rather than a generic failure: a 409 here means
+        // the casting count moved underneath the admin, and the message
+        // tells them to reload and confirm again against the new count.
+        throw new Error(body.detail || "Failed to delete character");
+      }
+      setSelectedCharacter(null);
+      setCharacterConfirm(false);
+      showToast("success", "Deletion successful");
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executeCharacterMerge() {
+    if (!selectedCharacter || !characterMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.character.merge(characterMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedCharacter.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge characters");
+      const data = await res.json();
+      setSelectedCharacter(null);
+      setCharacterMergeMode(false);
+      setCharacterMergeTarget(null);
+      showToast(
+        "success",
+        `Merged - ${data.castings_moved} casting(s) moved.`,
+      );
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function executePublisherMerge() {
+    if (!selectedPublisher || !publisherMergeTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        endpoints.publisher.merge(publisherMergeTarget.system_id),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_id: selectedPublisher.system_id }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to merge publishers");
+      const data = await res.json();
+      setSelectedPublisher(null);
+      setPublisherMergeMode(false);
+      setPublisherMergeTarget(null);
+      showToast("success", `Merged - ${data.credits_moved} credit(s) moved.`);
+      await loadDb();
+    } catch (e) {
+      showToast("error", e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function executeStudioMerge() {
     if (!selectedStudio || !studioMergeTarget) return;
     setDeleting(true);
@@ -407,6 +633,25 @@ export default function Delete() {
     const { type, item } = modal;
     setDeleting(true);
     try {
+      // An alias row has no endpoint of its own: it is removed by re-saving
+      // its option without it. optionWithoutAlias builds that body - see
+      // AliasPicker.jsx for why the rest of the option must go back with it.
+      if (type === "alias") {
+        const res = await fetch(`/api/options/${item.system_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            optionWithoutAlias(item, item.alias_source, item.alias_value),
+          ),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete alias");
+        showToast("success", "Alias deleted");
+        await loadDb();
+        setModal(null);
+        return;
+      }
+
       if (type === "options") {
         const res = await fetch(`/api/options/${item.system_id}`, {
           method: "DELETE",
@@ -546,6 +791,13 @@ export default function Delete() {
         return;
       }
 
+      if (type === "game") {
+        const res = await fetch(`/api/game/${item.system_id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to delete game");
+      }
       if (type === "comic") {
         const res = await fetch(`/api/comic/${item.system_id}`, {
           method: "DELETE",
@@ -636,6 +888,25 @@ export default function Delete() {
     ? db.options.filter((o) => o.category === optCategoryFilter)
     : db.options;
 
+  // The categories that may hold aliases AND actually have values, in
+  // ALIAS_CATEGORIES order. Flattened to one row per alias, because the row is
+  // what gets deleted - an option with three aliases yields three cards.
+  const aliasCategories = ALIAS_CATEGORIES.filter((c) =>
+    db.options.some((o) => o.category === c),
+  );
+  const filteredAliases = aliasCategoryFilter
+    ? db.options
+        .filter((o) => o.category === aliasCategoryFilter)
+        .flatMap((o) =>
+          (o.aliases || []).map((a) => ({
+            ...o,
+            alias_source: a.source,
+            alias_value: a.value,
+          })),
+        )
+        .sort((a, b) => a.alias_value.localeCompare(b.alias_value, "en"))
+    : [];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -676,6 +947,10 @@ export default function Delete() {
           setStudioConfirm(false);
           setStudioMergeMode(false);
           setStudioMergeTarget(null);
+          setSelectedPublisher(null);
+          setPublisherConfirm(false);
+          setPublisherMergeMode(false);
+          setPublisherMergeTarget(null);
         }}
       />
 
@@ -1442,6 +1717,104 @@ export default function Delete() {
         </div>
       )}
 
+      {/* GAME TAB */}
+      {tab === "game" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search game to delete..."
+              items={db.game}
+              type="game"
+              onSelect={setSelectedGame}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "game")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {getFranchiseTitle(item.franchise_id)}
+                    {item.game_type ? ` · ${item.game_type}` : ""}
+                    {item.release_date ? ` · ${item.release_date}` : ""}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedGame && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={getCoverUrl(selectedGame.cover_image_file)}
+                  className="w-16 h-24 object-cover rounded-lg shadow-sm shrink-0"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_SVG;
+                  }}
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-text text-base truncate">
+                    {getDisplayTitle(selectedGame, "game")}
+                  </h3>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {selectedGame.game_type && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.game_type}
+                      </span>
+                    )}
+                    {selectedGame.playing_status && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.playing_status}
+                      </span>
+                    )}
+                    {selectedGame.ownership && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.ownership}
+                      </span>
+                    )}
+                    {selectedGame.hours_played != null && (
+                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
+                        {selectedGame.hours_played} H PLAYED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-faint mt-1">
+                    {getFranchiseTitle(selectedGame.franchise_id)}
+                    {selectedGame.series_id &&
+                      ` / ${getSeriesTitle(selectedGame.series_id)}`}
+                  </p>
+                  {/* Deleting a base game cascades to its copies; its DLC rows
+                      keep existing with base_game_id set to NULL. */}
+                  {selectedGame.copies?.length > 0 && (
+                    <p className="text-xs italic text-text-faint mt-1">
+                      {selectedGame.copies.length} copy row(s) will be deleted
+                      with it.
+                    </p>
+                  )}
+                  <p className="text-xs font-mono text-text-faint">
+                    {selectedGame.system_id}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedGame(null)}
+                    className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                  <button
+                    onClick={() => initDelete("game", selectedGame)}
+                    className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-trash-alt"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* FRANCHISE TAB */}
       {tab === "franchise" && (
         <div className="space-y-4">
@@ -1853,12 +2226,547 @@ export default function Delete() {
         </div>
       )}
 
+      {/* PUBLISHER TAB — same shape as Studio above: delete cascades credit
+          rows, so Merge is offered first. */}
+      {tab === "publisher" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search publisher to delete..."
+              items={db.publisher}
+              type="publisher"
+              onSelect={(item) => {
+                setSelectedPublisher(item);
+                setPublisherConfirm(false);
+                setPublisherMergeMode(false);
+                setPublisherMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "publisher")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.credit_count} credit
+                    {item.credit_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedPublisher && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedPublisher, "publisher")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedPublisher.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedPublisher.credit_count} credit
+                    {selectedPublisher.credit_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPublisher(null);
+                    setPublisherConfirm(false);
+                    setPublisherMergeMode(false);
+                    setPublisherMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i>{" "}
+                  Deleting destroys this publisher's credit history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  media_credit.publisher_id is ON DELETE CASCADE: deleting this
+                  publisher permanently deletes its{" "}
+                  {selectedPublisher.credit_count} credit
+                  {selectedPublisher.credit_count === 1 ? "" : "s"} on every
+                  entry it's linked to. If this publisher is a duplicate of
+                  another one, the correct action is Merge below, not Delete.
+                </div>
+              </div>
+
+              {!publisherMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setPublisherMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into Another
+                    Publisher
+                  </button>
+                  {!publisherConfirm ? (
+                    <button
+                      onClick={() => setPublisherConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setPublisherConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() =>
+                          executePublisherDelete(selectedPublisher)
+                        }
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search publisher to merge into..."
+                    items={db.publisher.filter(
+                      (p) => p.system_id !== selectedPublisher.system_id,
+                    )}
+                    type="publisher"
+                    onSelect={setPublisherMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "publisher")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.credit_count} credit
+                          {item.credit_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {publisherMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedPublisher, "publisher")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(publisherMergeTarget, "publisher")}
+                        </span>
+                        . All {selectedPublisher.credit_count} credit
+                        {selectedPublisher.credit_count === 1 ? "" : "s"} move
+                        to the surviving publisher; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executePublisherMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPublisherMergeMode(false);
+                      setPublisherMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PERSON TAB — same shape as Studio above: delete cascades credit
+          history away, so Merge is offered first and the delete carries the
+          count the admin was shown (the API rejects a stale one with 409). */}
+      {tab === "person" && (
+        <div className="space-y-4">
+          <PersonSubTabBar
+            active={personSubTab}
+            onSelect={(key) => {
+              setPersonSubTab(key);
+              setSelectedPerson(null);
+              setPersonConfirm(false);
+              setPersonMergeMode(false);
+              setPersonMergeTarget(null);
+            }}
+          />
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search person to delete..."
+              items={peopleOfType}
+              type="person"
+              onSelect={(item) => {
+                setSelectedPerson(item);
+                setPersonConfirm(false);
+                setPersonMergeMode(false);
+                setPersonMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "person")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.credit_count} credit
+                    {item.credit_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedPerson && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedPerson, "person")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedPerson.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedPerson.credit_count} credit
+                    {selectedPerson.credit_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedPerson(null);
+                    setPersonConfirm(false);
+                    setPersonMergeMode(false);
+                    setPersonMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i> Deleting
+                  destroys this person's credit history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  media_credit.person_id is ON DELETE CASCADE: deleting this
+                  person permanently deletes their{" "}
+                  {selectedPerson.credit_count} credit
+                  {selectedPerson.credit_count === 1 ? "" : "s"} on every entry
+                  they're linked to. If this person is a duplicate of someone
+                  else, the correct action is Merge below, not Delete.
+                </div>
+              </div>
+
+              {!personMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setPersonMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into Another
+                    Person
+                  </button>
+                  {!personConfirm ? (
+                    <button
+                      onClick={() => setPersonConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setPersonConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => executePersonDelete(selectedPerson)}
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search person to merge into..."
+                    items={db.person.filter(
+                      (p) => p.system_id !== selectedPerson.system_id,
+                    )}
+                    type="person"
+                    onSelect={setPersonMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "person")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.credit_count} credit
+                          {item.credit_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {personMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedPerson, "person")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(personMergeTarget, "person")}
+                        </span>
+                        . All {selectedPerson.credit_count} credit
+                        {selectedPerson.credit_count === 1 ? "" : "s"} move to
+                        the surviving person; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executePersonMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPersonMergeMode(false);
+                      setPersonMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CHARACTER TAB — same shape as Studio above: delete cascades casting
+          history away, so Merge is offered first and the delete carries the
+          count the admin was shown (the API rejects a stale one with 409).
+          Unlike Person, a character holds no roles, so there is no
+          PersonSubTabBar here. */}
+      {tab === "character" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <SearchBox
+              placeholder="Search character to delete..."
+              items={db.character}
+              type="character"
+              onSelect={(item) => {
+                setSelectedCharacter(item);
+                setCharacterConfirm(false);
+                setCharacterMergeMode(false);
+                setCharacterMergeTarget(null);
+              }}
+              renderItem={(item) => (
+                <div>
+                  <div className="font-bold text-text text-sm">
+                    {getDisplayTitle(item, "character")}
+                  </div>
+                  <div className="text-[11px] text-text-faint">
+                    {item.casting_count} casting
+                    {item.casting_count === 1 ? "" : "s"}
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+
+          {selectedCharacter && (
+            <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-black text-text text-base">
+                    {getDisplayTitle(selectedCharacter, "character")}
+                  </h3>
+                  <p className="text-xs font-mono text-text-faint mt-1">
+                    {selectedCharacter.system_id}
+                  </p>
+                  <p className="text-sm font-bold text-text-muted mt-1">
+                    {selectedCharacter.casting_count} casting
+                    {selectedCharacter.casting_count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedCharacter(null);
+                    setCharacterConfirm(false);
+                    setCharacterMergeMode(false);
+                    setCharacterMergeTarget(null);
+                  }}
+                  className="text-text-faint hover:text-text-muted w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center transition"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div className="bg-danger/10 border border-danger/40 rounded-xl p-3">
+                <div className="text-xs font-bold text-danger">
+                  <i className="fas fa-exclamation-triangle mr-1"></i> Deleting
+                  destroys this character's casting history
+                </div>
+                <div className="text-xs text-danger mt-0.5">
+                  Deleting this character permanently deletes its{" "}
+                  {selectedCharacter.casting_count} casting
+                  {selectedCharacter.casting_count === 1 ? "" : "s"} on every
+                  entry it's linked to. If this character is a duplicate of
+                  another one, the correct action is Merge below, not Delete.
+                </div>
+              </div>
+
+              {!characterMergeMode ? (
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <button
+                    onClick={() => setCharacterMergeMode(true)}
+                    className="px-3 py-1.5 bg-brand/10 text-brand rounded-lg text-xs font-bold hover:bg-brand/20 transition flex items-center gap-1"
+                  >
+                    <i className="fas fa-code-merge"></i> Merge Into Another
+                    Character
+                  </button>
+                  {!characterConfirm ? (
+                    <button
+                      onClick={() => setCharacterConfirm(true)}
+                      className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1"
+                    >
+                      <i className="fas fa-trash-alt"></i> Delete
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setCharacterConfirm(false)}
+                        className="px-3 py-1.5 border border-border rounded-lg text-xs font-bold text-text-muted hover:bg-surface-2 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() =>
+                          executeCharacterDelete(selectedCharacter)
+                        }
+                        disabled={deleting}
+                        className="px-3 py-1.5 bg-danger text-white rounded-lg text-xs font-bold hover:bg-danger-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-trash-alt"}`}
+                        ></i>
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <SearchBox
+                    placeholder="Search character to merge into..."
+                    items={db.character.filter(
+                      (c) => c.system_id !== selectedCharacter.system_id,
+                    )}
+                    type="character"
+                    onSelect={setCharacterMergeTarget}
+                    renderItem={(item) => (
+                      <div>
+                        <div className="font-bold text-text text-sm">
+                          {getDisplayTitle(item, "character")}
+                        </div>
+                        <div className="text-[11px] text-text-faint">
+                          {item.casting_count} casting
+                          {item.casting_count === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    )}
+                  />
+                  {characterMergeTarget && (
+                    <div className="flex items-center justify-between bg-surface-2 rounded-xl p-3 gap-3">
+                      <div className="text-xs text-text-muted">
+                        Merge{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(selectedCharacter, "character")}
+                        </span>{" "}
+                        into{" "}
+                        <span className="font-bold text-text">
+                          {getDisplayTitle(characterMergeTarget, "character")}
+                        </span>
+                        . All {selectedCharacter.casting_count} casting
+                        {selectedCharacter.casting_count === 1 ? "" : "s"} move
+                        to the surviving character; the duplicate is deleted.
+                      </div>
+                      <button
+                        onClick={executeCharacterMerge}
+                        disabled={deleting}
+                        className="shrink-0 px-3 py-1.5 bg-brand text-on-brand rounded-lg text-xs font-bold hover:bg-brand-hover transition flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <i
+                          className={`fas ${deleting ? "fa-circle-notch fa-spin" : "fa-code-merge"}`}
+                        ></i>
+                        {deleting ? "Merging..." : "Confirm Merge"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setCharacterMergeMode(false);
+                      setCharacterMergeTarget(null);
+                    }}
+                    className="text-xs text-text-faint hover:text-text-muted font-bold"
+                  >
+                    Cancel merge
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* OPTIONS TAB */}
       {tab === "options" && (
         <div className="space-y-4">
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
             <OptionSubTabBar
-              tabs={OPTION_VALUE_SUB_TABS}
               active={optionsSubTab}
               onSelect={(key) => {
                 setOptionsSubTab(key);
@@ -1867,18 +2775,13 @@ export default function Delete() {
                 setOptCategoryFilter("");
               }}
             />
-            <select
+            <OptionCategorySelect
               className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand w-full"
+              categories={categoriesForSubTab(optCategories, optionsSubTab)}
               value={optCategoryFilter}
               onChange={(e) => setOptCategoryFilter(e.target.value)}
-            >
-              <option value="">— Select Category —</option>
-              {categoriesForSubTab(optCategories, optionsSubTab).map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              placeholder="— Select Category —"
+            />
           </div>
 
           {optCategoryFilter && (
@@ -1903,6 +2806,59 @@ export default function Delete() {
               ) : (
                 <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
                   No options in this category.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ALIAS TAB */}
+      {tab === "alias" && (
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <p className="text-xs text-text-muted mb-3">
+              Deleting a conversion does not delete the value it points at —
+              only the external name. Once it is gone, a Fill run that meets
+              that name logs it as unmatched and skips it.
+            </p>
+            <OptionCategorySelect
+              className="border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand w-full"
+              categories={aliasCategories}
+              value={aliasCategoryFilter}
+              onChange={(e) => setAliasCategoryFilter(e.target.value)}
+              placeholder="— Select Category —"
+            />
+          </div>
+
+          {aliasCategoryFilter && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredAliases.length ? (
+                filteredAliases.map((row) => (
+                  <div
+                    key={`${row.system_id}:${row.alias_source}:${row.alias_value}`}
+                    className="bg-surface border border-border rounded-xl p-3 flex justify-between items-center gap-2 hover:bg-danger/10 hover:border-danger/40 transition shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-mono text-xs text-text-muted truncate">
+                        {row.alias_source} · {row.alias_value}
+                      </div>
+                      <div className="font-bold text-text text-sm truncate">
+                        → {row.value}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => initDelete("alias", row)}
+                      aria-label={`Delete alias ${row.alias_value}`}
+                      className="text-text-faint hover:text-danger transition w-7 h-7 flex items-center justify-center rounded-md bg-surface shadow-sm border border-border shrink-0"
+                    >
+                      <i className="fas fa-trash-alt text-xs"></i>
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center text-sm text-text-faint italic py-8 border border-dashed border-border-strong rounded-xl">
+                  No alias conversions in this category.
                 </div>
               )}
             </div>

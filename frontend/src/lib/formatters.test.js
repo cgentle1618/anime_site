@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getReleaseFallback, getSourceValues } from "./formatters";
+import {
+  getBahaRow,
+  getReleaseFallback,
+  getSourceValues,
+  getNovelProgress,
+} from "./formatters";
 
 describe("getReleaseFallback", () => {
   it("prefers the season and year when both are known", () => {
@@ -29,24 +34,32 @@ describe("getReleaseFallback", () => {
 describe("getSourceValues", () => {
   const sources = {
     options: [
-      { category: "Genre Main", value: "Action", scopes: [] },
-      { category: "Genre Main", value: "Comedy", scopes: [] },
+      { category: "Genre Main", value: "Action", scopes: [], usages: [] },
+      { category: "Genre Main", value: "Comedy", scopes: [], usages: [] },
       {
         category: "Publisher / Distributor TW",
         value: "Anime Only Publisher",
         scopes: ["anime"],
+        usages: [],
       },
       {
         category: "Publisher / Distributor TW",
         value: "Manga Only Publisher",
         scopes: ["manga"],
+        usages: [],
       },
       {
         category: "Publisher / Distributor TW",
         value: "Any Scope Publisher",
         scopes: [],
+        usages: [],
       },
-      { category: "Comic Era", value: "Modern Age", scopes: ["comic"] },
+      {
+        category: "Comic Era",
+        value: "Modern Age",
+        scopes: ["comic"],
+        usages: [],
+      },
     ],
     studios: [
       { display_name: "A-1 Pictures" },
@@ -54,9 +67,9 @@ describe("getSourceValues", () => {
       { display_name: "" },
     ],
     people: {
-      "director|anime": [{ name_native: "Abel Gongora" }],
-      "director|non_anime": [{ name_native: "Alan Taylor" }],
-      "composer|": [{ name_native: "Some Composer" }],
+      "director|anime": [{ display_name: "Abel Gongora" }],
+      "director|non_anime": [{ display_name: "Alan Taylor" }],
+      "composer|": [{ display_name: "Some Composer" }],
     },
   };
 
@@ -154,5 +167,202 @@ describe("getSourceValues", () => {
         getSourceValues(sources, { kind: "studio" }),
       ).not.toContain("");
     });
+  });
+});
+
+describe("getSourceValues — usage", () => {
+  const sources = {
+    options: [
+      { category: "Platform", value: "Netflix", scopes: [], usages: [] },
+      { category: "Platform", value: "Fox", scopes: [], usages: ["origin"] },
+      { category: "Platform", value: "Bahamut", scopes: ["anime"], usages: [] },
+      { category: "Platform", value: "Crunchyroll", scopes: ["manga"] },
+    ],
+  };
+
+  it("offers a value with no usages key at all for every usage", () => {
+    // An older cached options response may not carry `usages`; absent must
+    // behave the same as empty, i.e. "matches everything" - not "matches
+    // nothing".
+    for (const usage of ["watch", "origin"]) {
+      const values = getSourceValues(sources, {
+        kind: "option",
+        category: "Platform",
+        usage,
+      });
+      expect(values).toContain("Crunchyroll");
+    }
+  });
+
+  it("hides an origin-only value from a watch picker", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+      usage: "watch",
+    });
+    expect(values).toContain("Netflix");
+    expect(values).not.toContain("Fox");
+  });
+
+  it("offers a value with no usages for every usage", () => {
+    for (const usage of ["watch", "origin"]) {
+      const values = getSourceValues(sources, {
+        kind: "option",
+        category: "Platform",
+        usage,
+      });
+      expect(values).toContain("Netflix");
+    }
+  });
+
+  it("applies scope and usage together", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+      scope: "movie",
+      usage: "watch",
+    });
+    expect(values).toEqual(["Netflix"]);
+  });
+
+  it("ignores usage when none is asked for", () => {
+    const values = getSourceValues(sources, {
+      kind: "option",
+      category: "Platform",
+    });
+    expect(values).toContain("Fox");
+  });
+});
+
+describe("getNovelProgress", () => {
+  it("renders the two-stage arc position", () => {
+    const novel = {
+      progress_display: "arc_ch",
+      arc_fin: 1,
+      arc_total: 2,
+      ch_fin_in_arc: 101,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+  });
+
+  it("falls back to the flat chapter pair when there are no arcs", () => {
+    const novel = { progress_display: "ch", ch_fin: 120, ch_total: 300, units: [] };
+    expect(getNovelProgress(novel)).toBe("120 / 300 CH");
+  });
+
+  it("shows the JP/KR volume label", () => {
+    const novel = { progress_display: "vol_original", vol_fin: 3, vol_total_original: 12 };
+    expect(getNovelProgress(novel)).toBe("3 / 12 VOL JP/KR");
+  });
+
+  it("still shows TW volumes", () => {
+    const novel = { progress_display: "vol_tw", vol_fin: 3, vol_total_tw: 9 };
+    expect(getNovelProgress(novel)).toBe("3 / 9 VOL TW");
+  });
+
+  it("renders the arc-only display as finished arcs over the arc count", () => {
+    const novel = {
+      type: "Web",
+      progress_display: "arc",
+      arc_fin: 1,
+      ch_fin_in_arc: 40,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+        { unit_kind: "arc", position: 3, ch_count: 90 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("1 / 3 ARC");
+  });
+
+  it("ignores an arc display on a novel with no arc rows", () => {
+    const novel = { type: "Web", progress_display: "arc", ch_fin: 12, ch_total: 40, units: [] };
+    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  });
+
+  it("ignores a volume display on a Web novel", () => {
+    const novel = { type: "Web", progress_display: "vol_tw", vol_fin: 3, ch_fin: 12, ch_total: 40, units: [] };
+    expect(getNovelProgress(novel)).toBe("12 / 40 CH");
+  });
+
+  it("a new Web novel with arc rows and no stored progress_display still renders the two-stage position (Decision G)", () => {
+    const novel = {
+      type: "Web",
+      progress_display: "",
+      arc_fin: 1,
+      arc_total: 2,
+      ch_fin_in_arc: 101,
+      units: [
+        { unit_kind: "arc", position: 1, ch_count: 100 },
+        { unit_kind: "arc", position: 2, ch_count: 112 },
+      ],
+    };
+    expect(getNovelProgress(novel)).toBe("arc 2 · 101/112 CH");
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// getBahaRow
+// ---------------------------------------------------------------------------
+
+describe("getBahaRow", () => {
+  const ID = "11111111-1111-1111-1111-111111111111";
+
+  it("matches on option_id, so a renamed platform still resolves", () => {
+    const entry = {
+      sources: [
+        {
+          kind: "access",
+          bucket: "main",
+          option_id: ID,
+          name: "巴哈姆特",
+          available: true,
+        },
+      ],
+    };
+    expect(getBahaRow(entry, ID)?.available).toBe(true);
+  });
+
+  it("falls back to the name when the caller has no option id", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "main", option_id: ID, name: "Bahamut" },
+      ],
+    };
+    expect(getBahaRow(entry)).toBeTruthy();
+  });
+
+  it("falls back to the name for a row whose option was deleted", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "main", option_id: null, name: "Bahamut" },
+      ],
+    };
+    expect(getBahaRow(entry, ID)).toBeTruthy();
+  });
+
+  it("ignores a free-form row that happens to be typed 'Bahamut'", () => {
+    const entry = {
+      sources: [
+        { kind: "access", bucket: "other", name: "Bahamut", available: true },
+      ],
+    };
+    expect(getBahaRow(entry)).toBeUndefined();
+  });
+
+  it("ignores a reference row", () => {
+    const entry = {
+      sources: [{ kind: "reference", bucket: "main", name: "Bahamut" }],
+    };
+    expect(getBahaRow(entry)).toBeUndefined();
+  });
+
+  it("is safe with no sources at all", () => {
+    expect(getBahaRow({})).toBeUndefined();
   });
 });

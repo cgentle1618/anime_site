@@ -166,3 +166,82 @@ def test_anime_carries_the_quality_tag_and_its_sheet_column(client, db_session):
     headers = credits_service.sheet_link_headers("anime")
     values = credits_service.sheet_link_values(db_session, "anime", a)
     assert values[headers.index("quality")] == "作畫崩壞, 神作畫"
+
+
+# ---------------------------------------------------------------------------
+# credit_refs: the same person credits, with ids and the per-media-type label,
+# so a detail page can link to the person the legacy string only names.
+# ---------------------------------------------------------------------------
+
+
+def test_credit_refs_carry_ids_and_derived_labels(client, manga_with_credits):
+    body = client.get(f"/api/manga/{manga_with_credits.system_id}").json()
+
+    assert body["author_plot"] == "諫山創"  # legacy string unchanged
+    refs = body["credit_refs"]["author"]
+    assert refs[0]["display_name"] == "諫山創"
+    assert refs[0]["label"] == "原作"
+    assert refs[0]["system_id"]
+
+    assert body["credit_refs"]["illustrator"][0]["label"] == "作畫"
+
+
+def test_credit_refs_keep_stored_order(client, manga_with_two_authors):
+    """
+    media_credit.position carries the order the names had in the comma-joined
+    column this table replaced, so "A, B" must still read in that order.
+    """
+    body = client.get(f"/api/manga/{manga_with_two_authors.system_id}").json()
+    assert [r["display_name"] for r in body["credit_refs"]["author"]] == [
+        "First Author",
+        "Second Author",
+    ]
+
+
+def test_a_list_endpoint_serves_refs_without_an_n_plus_1(
+    client, db_session, three_manga_with_credits
+):
+    """
+    attach_link_fields exists to batch; a per-row loader would reintroduce the
+    N+1 it was written to remove. The query COUNT is asserted, not just that
+    the field is present - presence passes just as happily with an N+1 behind
+    it.
+    """
+    from sqlalchemy import event
+
+    seen = []
+
+    def count(*_args, **_kwargs):
+        seen.append(1)
+
+    engine = db_session.get_bind()
+
+    def queries_for(url):
+        seen.clear()
+        event.listen(engine, "before_cursor_execute", count)
+        try:
+            body = client.get(url).json()
+        finally:
+            event.remove(engine, "before_cursor_execute", count)
+        return len(seen), body
+
+    # Warm up first: the RBAC permission cache is process-local and loads on
+    # the first call, so an unwarmed first measurement counts a query the
+    # second never issues and the comparison measures the cache, not the N+1.
+    client.get("/api/manga/?limit=1")
+
+    two, body = queries_for("/api/manga/?limit=2")
+    assert all("credit_refs" in e for e in body)
+
+    three, _ = queries_for("/api/manga/?limit=3")
+    assert three == two, "query count grew with the row count"
+
+
+def test_studio_credits_are_not_in_credit_refs(client, anime_with_studio):
+    """
+    credit_refs is people only. Studios ride beside it as studio_refs, a bare
+    list because studio is a single role.
+    """
+    body = client.get(f"/api/anime/{anime_with_studio.system_id}").json()
+    assert "studio" not in body.get("credit_refs", {})
+    assert body["studio_refs"][0]["display_name"] == "MAPPA"

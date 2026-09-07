@@ -65,7 +65,16 @@ it("renders the combined type filter bar in both divisions", async () => {
   await loaded();
   for (const barId of ["watching-filter", "reading-filter"]) {
     const bar = within(screen.getByTestId(barId));
-    for (const label of ["All", "Anime", "TV Show", "Cartoon", "Manga", "Novel", "Comic"]) {
+    for (const label of [
+      "All",
+      "Anime",
+      "TV Show",
+      "Cartoon",
+      "Manga",
+      "Novel",
+      "Comic",
+      "Game",
+    ]) {
       expect(bar.getByRole("button", { name: label })).toBeInTheDocument();
     }
   }

@@ -1,5 +1,7 @@
 // Frontend: modify tab page file for CartoonModifyTab.
 import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -7,7 +9,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getDisplayName, parseTypes } from "../../utils/media";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import CartoonNotes from "../detail/CartoonNotes";
 import {
   CARTOON_AIRING_TYPES,
@@ -25,6 +27,7 @@ export default function CartoonModifyTab({
   allFranchises,
   seriesItemsForCartoon,
   editingItem,
+  sources,
 }) {
   return (
     <>
@@ -228,11 +231,16 @@ export default function CartoonModifyTab({
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Official Source">
-          <input
-            className={inputCls}
-            value={cmf.source_official || ""}
-            onChange={(e) => uc("source_official", e.target.value)}
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "cartoon",
+              usage: "origin",
+            })}
+            value={cmf.original_source || ""}
+            onChange={(v) => uc("original_source", v)}
             placeholder="e.g. Disney+"
           />
         </Field>
@@ -288,69 +296,15 @@ export default function CartoonModifyTab({
             onChange={(e) => uc("imdb_link", e.target.value)}
           />
         </Field>
-        <div className="md:col-span-2">
-          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-            Other Sources
-          </label>
-          <div className="space-y-2">
-            {(cmf.source_other || []).map((entry, i) => (
-              <div key={i} className="flex gap-2 items-center">
-                <input
-                  className={inputCls}
-                  placeholder="Source name (e.g. Netflix)"
-                  value={entry.name}
-                  onChange={(e) =>
-                    uc(
-                      "source_other",
-                      cmf.source_other.map((x, j) =>
-                        j === i ? { ...x, name: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <input
-                  className={inputCls}
-                  type="url"
-                  placeholder="https://... (optional)"
-                  value={entry.url}
-                  onChange={(e) =>
-                    uc(
-                      "source_other",
-                      cmf.source_other.map((x, j) =>
-                        j === i ? { ...x, url: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <button
-                  type="button"
-                  className="text-danger/70 hover:text-danger px-1 shrink-0"
-                  onClick={() =>
-                    uc(
-                      "source_other",
-                      cmf.source_other.filter((_, j) => j !== i),
-                    )
-                  }
-                >
-                  <i className="fas fa-times" />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs text-brand hover:underline mt-1"
-              onClick={() =>
-                uc("source_other", [
-                  ...(cmf.source_other || []),
-                  { name: "", url: "" },
-                ])
-              }
-            >
-              + Add Source
-            </button>
-          </div>
-        </div>
       </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={cmf.sources}
+        onChange={(rows) => uc("sources", rows)}
+        mediaType="cartoon"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-sticky-note" title="Notes" />
       <Field label="Cover Image File" hint="e.g. 5114.jpg">

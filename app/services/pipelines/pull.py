@@ -20,6 +20,7 @@ from app.models import (
     Quote,
     Series,
     SystemConfigs,
+    SystemOption,
     TVShows,
     WatchOrderList,
 )
@@ -27,6 +28,7 @@ from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
@@ -52,6 +54,7 @@ from app.services.pipelines.tabs import (
 from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
+    parse_from_sheet,
     parse_row_to_dict,
 )
 
@@ -87,9 +90,19 @@ TABS_IN_ORDER = TAB_NAMES
 # tab -> the columns of that table's natural-key UNIQUE constraint.
 DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     "System Options": ("category", "value"),  # uq_system_option_value
-    "Person": ("name_native", "name_en"),  # uq_person_name
+    "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
+    "Publisher": (
+        "name_en", "name_cn", "name_jp", "name_alt",
+    ),  # uq_publisher_name
     "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
+    "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
+    "System Option Alias": (
+        "option_id",
+        "source",
+        "value",
+    ),  # uq_system_option_alias
+    "Content Label": ("key",),  # content_label.key is UNIQUE
     "Person Role": ("person_id", "role", "scope"),  # uq_person_role
     # These two mint their own uuid but cite entry ids, which the sheet does
     # carry and which are the same in every database - so only the row's own
@@ -102,6 +115,31 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "to_id",
     ),  # uq_media_relation_pair
     "Plan Next": ("kind", "scope", "target_id", "media_type"),  # uq_plan_next_target
+    # Mints its own uuid but cites an entry id, which is the same in every
+    # database. option_id IS part of the key (unlike the parent tabs above,
+    # whose own uuid never appears in it): two "main" rows on the same entry
+    # citing different platforms are two different rows even though both have
+    # name=NULL, and only option_id tells them apart. It is resolved from the
+    # sheet's option_category/option_value into a LOCAL option_id further
+    # down, before this match runs, so by the time it is used here it is
+    # already a same-database uuid, comparable the ordinary way.
+    "Media Source": (
+        "media_type",
+        "entry_id",
+        "kind",
+        "bucket",
+        "option_id",
+        "name",
+    ),  # uq_media_source_row
+    # Same shape as Media Source: mints its own uuid, cites an entry id that is
+    # the same everywhere, and a label_id that is NOT - but which the parent
+    # translation below has already turned into a local uuid by the time this
+    # match runs, so it compares the ordinary way.
+    "Media Content Label": (
+        "media_type",
+        "entry_id",
+        "label_id",
+    ),  # uq_media_content_label_row
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -109,18 +147,27 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
 # before it can be stored here.
 DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
     "System Option Scope": ("option_id", "System Options"),
+    "System Option Usage": ("option_id", "System Options"),
+    "System Option Alias": ("option_id", "System Options"),
     "Person Role": ("person_id", "Person"),
+    "Media Content Label": ("label_id", "Content Label"),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
 # an identity. The three parent tabs above key on a uuid: it is minted too, but
 # a uuid that misses is simply unknown, so trying it first costs nothing and
 # correctly follows a value RENAMED in the sheet to the row that already holds
-# it. These two key on an autoincrement integer instead, where the sheet's id=1
-# names a real but UNRELATED local row - a match that silently retargets the
-# wrong row and then collides. Their natural key is the only identity they have.
+# it. The tabs below key on an autoincrement integer instead, where the sheet's
+# id=1 names a real but UNRELATED local row - a match that silently retargets
+# the wrong row and then collides. Their natural key is the only identity
+# they have.
 DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
-    {"System Option Scope", "Person Role"}
+    {
+        "System Option Scope",
+        "System Option Usage",
+        "System Option Alias",
+        "Person Role",
+    }
 )
 
 
@@ -378,6 +425,21 @@ def execute_pull_specific(
             clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
                 resolve_comic_parent_hierarchy(db, fid, sid, name_fields)
             )
+        # Game uses resolve_game_parent_hierarchy (auto-creates franchise with
+        # type "Game", looks up series)
+        elif tab_name == "Game" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("game_name_en"),
+                "cn": clean_header_dict.get("game_name_cn"),
+                "roman": clean_header_dict.get("game_name_roman"),
+                "jp": clean_header_dict.get("game_name_jp"),
+                "alt": clean_header_dict.get("game_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_game_parent_hierarchy(db, fid, sid, name_fields)
+            )
         # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
         elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
             fid = clean_header_dict.get("franchise_id")
@@ -481,12 +543,52 @@ def execute_pull_specific(
                     )
                     continue
 
-        # System Configs, Person Role and System Option Scope are
-        # autoincrement integer PKs and use 'id', Seasonal uses 'seasonal',
-        # others use 'system_id'. System Options used to have an 'id' PK too,
-        # but Task 4 reshaped it onto 'system_id' and Task 10 dropped the
-        # 'id' column outright - it belongs with the 'system_id' tabs now.
-        if tab_name in ("System Configs", "Person Role", "System Option Scope"):
+        # Media Source carries the option it targets as (category, value),
+        # not as a raw option_id - system_option mints a different uuid in
+        # every database (see DERIVED_IDENTITY_KEYS). Resolve it into a LOCAL
+        # option_id here, before the natural-key match below runs, so that
+        # match compares option_id the ordinary way. option_category/
+        # option_value are not real columns on the model (they never reach
+        # clean_header_dict, which parse_media_source_from_sheet never
+        # emits them into), so they are read straight out of the raw sheet
+        # row - the same source pending_credits/pending_tags read from above.
+        if tab_name == "Media Source":
+            if "option_category" in raw_header_dict or "option_value" in raw_header_dict:
+                category = parse_from_sheet(raw_header_dict.get("option_category"), str)
+                value = parse_from_sheet(raw_header_dict.get("option_value"), str)
+                option = None
+                if category and value:
+                    option = (
+                        db.query(SystemOption)
+                        .filter(
+                            SystemOption.category == category,
+                            SystemOption.value == value,
+                        )
+                        .first()
+                    )
+                    if option is None:
+                        # Skipping the row, not blanking option_id: a `main`
+                        # row with neither option_id nor name violates
+                        # ck_media_source_one_target and rolls the WHOLE tab
+                        # back, so one value renamed on the other machine
+                        # would lose every source. Same treatment as an
+                        # unresolvable series FK above.
+                        logger.warning(
+                            "Could not resolve system_option (%s, %s) for the "
+                            "Media Source tab. Skipping row.",
+                            category,
+                            value,
+                        )
+                        continue
+                clean_header_dict["option_id"] = option.system_id if option else None
+
+        # System Configs, Person Role, System Option Scope and System Option
+        # Usage are autoincrement integer PKs and use 'id', Seasonal uses
+        # 'seasonal', others use 'system_id'. System Options used to have an
+        # 'id' PK too, but Task 4 reshaped it onto 'system_id' and Task 10
+        # dropped the 'id' column outright - it belongs with the 'system_id'
+        # tabs now.
+        if tab_name in ("System Configs", "Person Role", "System Option Scope", "System Option Usage"):
             pk_field = "id"
         elif tab_name == "Seasonal":
             pk_field = "seasonal"
@@ -793,6 +895,13 @@ def execute_pull_specific(
                     clean_header_dict["created_at"] = get_taipei_now()
                 if clean_header_dict.get("updated_at") is None:
                     clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Game":
+                if clean_header_dict.get("playing_status") is None:
+                    clean_header_dict["playing_status"] = "Might Play"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
             elif tab_name == "Manga":
                 if clean_header_dict.get("reading_status") is None:
                     clean_header_dict["reading_status"] = "Might Read"
@@ -876,6 +985,7 @@ def execute_pull_specific(
         "System Configs": ("system_configs_id_seq", "system_configs"),
         "Person Role": ("person_role_id_seq", "person_role"),
         "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
+        "System Option Usage": ("system_option_usage_id_seq", "system_option_usage"),
     }
     if tab_name in id_sequences:
         sequence, table = id_sequences[tab_name]

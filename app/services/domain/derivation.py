@@ -19,11 +19,15 @@ from app.models import (
     Manga,
     Movies,
     Novel,
+    Studio,
     TVShows,
 )
 from app.utils import release_date
 from app.utils.comicvine_utils import extract_comicvine_id
 from app.utils.constants import AnimeAiringType
+from app.utils.igdb_utils import extract_igdb_id
+from app.utils.openlibrary_utils import extract_openlibrary_id
+from app.utils.steam_utils import extract_steam_appid
 from app.utils.utils import (
     PART_PATTERN,
     SEASON_PATTERN,
@@ -31,6 +35,7 @@ from app.utils.utils import (
     extract_imdb_id,
     extract_mal_id_anime,
     extract_mal_id_manga_novel,
+    extract_mal_id_producer,
     extract_season_from_title,
 )
 
@@ -55,6 +60,15 @@ def apply_extract_mal_id_anime(anime: Anime) -> bool:
     return False
 
 
+def apply_extract_mal_id_studio(studio: Studio) -> bool:
+    """Extracts the MAL producer ID from mal_link onto mal_id. True if set."""
+    mal_id = extract_mal_id_producer(studio.mal_link)
+    if mal_id:
+        studio.mal_id = mal_id
+        return True
+    return False
+
+
 def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
     """Extracts MAL manga ID from mal_link and writes it to mal_id. Returns True if set."""
     mal_id = extract_mal_id_manga_novel(entry.mal_link)
@@ -62,6 +76,27 @@ def apply_extract_mal_id_manga_novel(entry: Union[Manga, Novel]) -> bool:
         entry.mal_id = mal_id
         return True
     return False
+
+
+def apply_extract_openlibrary_id(entry: Novel) -> bool:
+    """Extracts the Open Library work ID from openlibrary_link and writes it to
+    openlibrary_id. Returns True if set. An unparseable link leaves any existing
+    ID untouched — the ID is the fill pipeline's only handle on the entry."""
+    work_id = extract_openlibrary_id(entry.openlibrary_link)
+    if work_id:
+        entry.openlibrary_id = work_id
+        return True
+    return False
+
+
+def apply_extract_novel_ids(entry: Novel) -> bool:
+    """Novel is the one media type with two possible sources, so both extractors
+    run on every entry. Both are called before the `or`, deliberately: a novel
+    can carry a MAL link and an Open Library link at once, and short-circuiting
+    would silently skip the second."""
+    mal_found = apply_extract_mal_id_manga_novel(entry)
+    openlibrary_found = apply_extract_openlibrary_id(entry)
+    return mal_found or openlibrary_found
 
 
 def apply_extract_comicvine_id(entry: Comic) -> bool:
@@ -73,6 +108,39 @@ def apply_extract_comicvine_id(entry: Comic) -> bool:
         entry.comicvine_id = comicvine_id
         return True
     return False
+
+
+def apply_extract_igdb_id(entry) -> bool:
+    """Extracts the numeric IGDB game ID from igdb_link and writes it to
+    igdb_id. Returns True if set. An unparseable link leaves any existing ID
+    untouched - the ID is the fill pipeline's only handle on the entry, and a
+    www.igdb.com slug URL legitimately carries no id at all."""
+    igdb_id = extract_igdb_id(entry.igdb_link)
+    if igdb_id:
+        entry.igdb_id = igdb_id
+        return True
+    return False
+
+
+def apply_extract_steam_appid(entry) -> bool:
+    """Extracts the numeric Steam appid from steam_link and writes it to
+    steam_appid. Returns True if set. An unparseable link leaves any existing
+    id untouched - the appid is the Steam pipeline's only handle on the entry,
+    and a community or slug URL legitimately carries none."""
+    steam_appid = extract_steam_appid(entry.steam_link)
+    if steam_appid:
+        entry.steam_appid = steam_appid
+        return True
+    return False
+
+
+def apply_extract_game_ids(entry) -> bool:
+    """Both of a game's external ids. A game can carry an IGDB link, a Steam
+    link, or both, and the two sources are independent - so this returns True
+    when either extractor did, rather than short-circuiting on the first."""
+    igdb = apply_extract_igdb_id(entry)
+    steam = apply_extract_steam_appid(entry)
+    return igdb or steam
 
 
 def apply_extract_imdb_id(entry: Union[Movies, TVShows, Cartoon]) -> bool:

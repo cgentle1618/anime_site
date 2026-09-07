@@ -1,15 +1,21 @@
 // Frontend: add tab page file for OptionsAddTab.
 //
-// Three sub-tabs share the "System Options" nav entry: Options and Tags (two
-// halves of one closed-vocabulary table, split for navigation only - the
-// form and the endpoint are identical), then People (a credited entity;
-// Studio moved out to its own Entity tab group - see StudioAddTab.jsx). See
-// app/utils/credit_roles.py for the person-role vocabulary and
-// TAG_CATEGORIES, and lib/optionCategoryGroups.js for the split.
-import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+// Two sub-tabs share the "System Options" nav entry: Options and Tags, two
+// halves of one closed-vocabulary table split for navigation only - the form
+// and the endpoint are identical. See lib/optionCategoryGroups.js for the
+// split. People and Studio both used to live here as well; both are credited
+// entities with their own public pages rather than closed vocabularies, and
+// both moved to the Entity tab group - see PersonAddTab.jsx and
+// StudioAddTab.jsx.
+import AliasPicker, {
+  categoryHasAliases,
+} from "../../components/forms/AliasPicker";
+import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import ScopePicker from "../../components/forms/ScopePicker";
-import { MEDIA_TYPES, PERSON_ROLES } from "../../config/fieldOptions";
+import UsagePicker from "../../components/forms/UsagePicker";
+import { MEDIA_TYPES } from "../../config/fieldOptions";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 
 // PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
@@ -34,24 +40,32 @@ function OptionsForm({
   optionCategories,
   optScopes,
   setOptScopes,
+  optUsages,
+  setOptUsages,
+  optAliases,
+  setOptAliases,
 }) {
+  // An alias names ONE value, so it cannot be filled in while the form is
+  // adding several at once. Disabled rather than hidden: an admin who typed
+  // aliases and then added a second value should see why they greyed out.
+  const multipleValues = optValues.filter((v) => v.trim()).length > 1;
+  // Most categories carry no aliases at all, and the API rejects one that
+  // does not (ALIAS_CATEGORIES). Hidden rather than disabled here, because
+  // unlike the multi-value case there is nothing the admin could do to this
+  // form to make the picker apply.
+  const aliasable = categoryHasAliases(optCategory);
   return (
     <div className="space-y-4">
       <Field label="Category" required>
-        {/* The examples come from the sub-tab's own categories: a hard-coded
-            placeholder named Comic Publisher while Tags was showing. */}
-        <input
-          className={inputCls}
+        {/* A picker, not a text box with suggestions. The categories are a
+            declared vocabulary (app/utils/credit_roles.py), and typing here
+            used to be the only way to coin a new one - a typo made a category
+            of its own that no other page would ever list. */}
+        <OptionCategorySelect
+          categories={optionCategories}
           value={optCategory}
           onChange={(e) => setOptCategory(e.target.value)}
-          placeholder={`e.g. ${optionCategories.slice(0, 3).join(", ")}...`}
-          list="opt-categories"
         />
-        <datalist id="opt-categories">
-          {optionCategories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
       </Field>
       <div className="space-y-2">
         <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
@@ -95,95 +109,20 @@ function OptionsForm({
         setScopes={setOptScopes}
         mediaTypes={MEDIA_TYPES}
       />
-    </div>
-  );
-}
-
-function PersonForm({ personForm, upf }) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Name (Native)" required>
-          <input
-            className={inputCls}
-            value={personForm.name_native}
-            onChange={(e) => upf("name_native", e.target.value)}
-            placeholder="e.g. 新海誠"
-          />
-        </Field>
-        <Field label="Name (EN)">
-          <input
-            className={inputCls}
-            value={personForm.name_en}
-            onChange={(e) => upf("name_en", e.target.value)}
-          />
-        </Field>
-        <Field label="Name (CN)">
-          <input
-            className={inputCls}
-            value={personForm.name_cn}
-            onChange={(e) => upf("name_cn", e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Role" hint="Which dropdown this person should appear in">
-          <select
-            className={selectCls}
-            value={personForm.role}
-            onChange={(e) => upf("role", e.target.value)}
-          >
-            <option value="">— None —</option>
-            {PERSON_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {roleLabel(r)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Scope" hint="Only meaningful for Director">
-          <select
-            className={selectCls}
-            value={personForm.scope}
-            onChange={(e) => upf("scope", e.target.value)}
-          >
-            <option value="">— Any —</option>
-            <option value="anime">anime</option>
-            <option value="non_anime">non_anime</option>
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Gender">
-          <input
-            className={inputCls}
-            value={personForm.gender}
-            onChange={(e) => upf("gender", e.target.value)}
-          />
-        </Field>
-        <Field label="My Rating">
-          <input
-            className={inputCls}
-            value={personForm.my_rating}
-            onChange={(e) => upf("my_rating", e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="Photo File">
-        <input
-          className={inputCls}
-          value={personForm.photo_file}
-          onChange={(e) => upf("photo_file", e.target.value)}
+      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {aliasable && (
+        <AliasPicker
+          aliases={optAliases}
+          setAliases={setOptAliases}
+          disabled={multipleValues}
         />
-      </Field>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={2}
-          value={personForm.remark}
-          onChange={(e) => upf("remark", e.target.value)}
-        />
-      </Field>
+      )}
+      {aliasable && multipleValues && (
+        <p className="text-xs text-text-faint -mt-2">
+          Aliases are per value. Add one value at a time to give it an external
+          name, or attach the aliases afterwards on the Alias tab.
+        </p>
+      )}
     </div>
   );
 }
@@ -198,15 +137,17 @@ export default function OptionsAddTab({
   optionCategories,
   optScopes,
   setOptScopes,
-  personForm,
-  upf,
+  optUsages,
+  setOptUsages,
+  optAliases,
+  setOptAliases,
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
       <SectionHeader icon="fa-cog" title="System Options" />
       <OptionSubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
       {/* Tags and Options are the same form; only the categories the
-          Category box suggests differ. */}
+          Category picker offers differ. */}
       {(optionsSubTab === "options" || optionsSubTab === "tags") && (
         <OptionsForm
           optCategory={optCategory}
@@ -219,10 +160,11 @@ export default function OptionsAddTab({
           )}
           optScopes={optScopes}
           setOptScopes={setOptScopes}
+          optUsages={optUsages}
+          setOptUsages={setOptUsages}
+          optAliases={optAliases}
+          setOptAliases={setOptAliases}
         />
-      )}
-      {optionsSubTab === "people" && (
-        <PersonForm personForm={personForm} upf={upf} />
       )}
     </div>
   );

@@ -7,14 +7,14 @@ from app import models
 
 def _create(admin_client, name, roles):
     return admin_client.post(
-        "/api/person/", json={"name_native": name, "roles": roles}
+        "/api/person/", json={"name": name, "roles": roles}
     ).json()
 
 
 def test_create_and_read_back(admin_client, client):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     r = client.get(f"/api/person/{created['system_id']}")
-    assert r.json()["name_native"] == "新海誠"
+    assert r.json()["display_name"] == "新海誠"
 
 
 def test_list_filters_by_role_and_scope(admin_client, client):
@@ -22,7 +22,7 @@ def test_list_filters_by_role_and_scope(admin_client, client):
     _create(admin_client, "Nolan", [{"role": "director", "scope": "movie"}])
 
     names = [
-        p["name_native"]
+        p["display_name"]
         for p in client.get("/api/person/?role=director&scope=anime").json()
     ]
     assert names == ["新海誠"]
@@ -39,7 +39,7 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
     )
     for scope in ("anime", "movie"):
         names = [
-            p["name_native"]
+            p["display_name"]
             for p in client.get(f"/api/person/?role=director&scope={scope}").json()
         ]
         assert names == ["宮崎駿"]
@@ -47,9 +47,8 @@ def test_a_person_scoped_both_ways_appears_in_both_lists(admin_client, client):
 
 def test_unfiltered_list_returns_everyone(admin_client, client):
     _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
-    # "seiyuu" is deliberately NOT a person role: anime.seiyuu is still a
-    # plain string column on the entry and no credit role implies it, so
-    # PersonRoleIn now rejects it. Use a real unscoped role instead.
+    # A second person under a different role, so the unfiltered list has
+    # someone to return besides the director above.
     _create(admin_client, "澤野弘之", [{"role": "composer", "scope": "anime"}])
     assert len(client.get("/api/person/").json()) == 2
 
@@ -80,7 +79,10 @@ def test_delete_cascades_the_credits(admin_client, db_session):
     )
     db_session.commit()
 
-    assert admin_client.delete(f"/api/person/{created['system_id']}").status_code == 200
+    # The count the admin confirmed rides along; see the delete guard in
+    # tests/api/test_person_entries.py for what a stale one does.
+    deleted = admin_client.delete(f"/api/person/{created['system_id']}?credits=1")
+    assert deleted.status_code == 200
     assert db_session.query(models.MediaCredit).count() == 0
 
 
@@ -159,7 +161,7 @@ def test_merge_into_itself_is_rejected(admin_client):
 
 
 def test_writes_require_admin(client):
-    assert client.post("/api/person/", json={"name_native": "X"}).status_code in (
+    assert client.post("/api/person/", json={"name": "X"}).status_code in (
         401,
         403,
     )
@@ -174,7 +176,7 @@ def test_an_unknown_person_role_is_rejected(admin_client):
     """
     r = admin_client.post(
         "/api/person/",
-        json={"name_native": "誰か", "roles": [{"role": "drector", "scope": "anime"}]},
+        json={"name": "誰か", "roles": [{"role": "drector", "scope": "anime"}]},
     )
     assert r.status_code == 422
 
@@ -188,7 +190,7 @@ def test_a_scope_illegal_for_the_role_is_rejected(admin_client):
     r = admin_client.post(
         "/api/person/",
         json={
-            "name_native": "誰か",
+            "name": "誰か",
             "roles": [{"role": "composer", "scope": "manga"}],
         },
     )
@@ -200,7 +202,7 @@ def test_a_media_type_scope_is_accepted_for_a_role_that_uses_it(admin_client):
     r = admin_client.post(
         "/api/person/",
         json={
-            "name_native": "誰か",
+            "name": "誰か",
             "roles": [{"role": "director", "scope": "anime-movie"}],
         },
     )
@@ -216,7 +218,7 @@ def test_a_scopeless_role_is_rejected(admin_client):
         r = admin_client.post(
             "/api/person/",
             json={
-                "name_native": "澤野弘之",
+                "name": "澤野弘之",
                 "roles": [{"role": "composer", "scope": bad}],
             },
         )
@@ -265,3 +267,53 @@ def test_role_counts_counts_a_doubly_scoped_person_once(admin_client, client):
 def test_role_counts_is_not_swallowed_by_the_uuid_detail_route(client):
     """'role-counts' must not be parsed as a person system_id."""
     assert client.get("/api/person/role-counts").status_code == 200
+
+
+def test_credit_count_includes_castings(client, seiyuu_with_one_casting):
+    """
+    A seiyuu with fifty castings and no other credits would otherwise read
+    "0 credits" on their card, because credit_count only ever walked
+    media_credit and a seiyuu has no rows there. See Decision A.
+    """
+    r = client.get(f"/api/person/{seiyuu_with_one_casting.system_id}")
+    assert r.json()["credit_count"] == 1
+
+
+def test_person_delete_guard_counts_castings(admin_client, seiyuu_with_one_casting):
+    stale = admin_client.delete(
+        f"/api/person/{seiyuu_with_one_casting.system_id}?credits=0"
+    )
+    assert stale.status_code == 409
+    ok = admin_client.delete(
+        f"/api/person/{seiyuu_with_one_casting.system_id}?credits=1"
+    )
+    assert ok.status_code == 200
+
+
+def test_the_response_carries_every_role_the_person_holds(admin_client):
+    """
+    The admin form edits the whole role set at once and PUT replaces it, so
+    the set has to arrive in one response. Reconstructing it by asking each
+    role list who is in it would be a query per legal pair, and would still
+    miss a pair the caller forgot to ask about.
+    """
+    created = _create(
+        admin_client,
+        "宮崎駿",
+        [
+            {"role": "director", "scope": "anime"},
+            {"role": "director", "scope": "movie"},
+            {"role": "producer", "scope": "anime"},
+        ],
+    )
+    held = {
+        (r["role"], r["scope"])
+        for r in admin_client.get(f"/api/person/{created['system_id']}").json()[
+            "roles"
+        ]
+    }
+    assert held == {
+        ("director", "anime"),
+        ("director", "movie"),
+        ("producer", "anime"),
+    }

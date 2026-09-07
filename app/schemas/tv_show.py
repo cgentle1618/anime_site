@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import TvShowLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class TVShowBase(BaseModel):
@@ -34,8 +35,6 @@ class TVShowBase(BaseModel):
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 
-    source_other: Optional[dict] = None
-
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
@@ -45,11 +44,11 @@ class TVShowBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date")
 
 
-class TVShowCreate(TVShowBase):
+class TVShowCreate(TVShowBase, SourceWriteFields):
     pass
 
 
-class TVShowUpdate(TVShowBase):
+class TVShowUpdate(TVShowBase, SourceWriteFields):
     pass
 
 

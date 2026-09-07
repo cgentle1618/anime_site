@@ -5,7 +5,7 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
-  isBaha,
+  getBahaRow,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 
@@ -51,18 +51,14 @@ export default function DashboardCard({
         : isTV
           ? `/tv-show/${anime.system_id}`
           : `/anime/${anime.system_id}`;
-  const editPath = isNovel
-    ? `/modify?id=${anime.system_id}&type=novel`
-    : isManga
-      ? `/modify?id=${anime.system_id}&type=manga`
-      : isCartoon
-        ? `/modify?id=${anime.system_id}&type=cartoon`
-        : isTV
-          ? `/modify?id=${anime.system_id}&type=tv-show`
-          : `/modify?id=${anime.system_id}`;
 
   const imageUrl = getCoverUrl(anime.cover_image_file);
-  const bahaFlag = isTV || isCartoon || isReading ? false : isBaha(anime);
+  const bahaRow = getBahaRow(anime);
+  const netflixRow = (anime.sources || []).find(
+    (s) => s.kind === "access" && s.name === "Netflix",
+  );
+  const bahaFlag =
+    isTV || isCartoon || isReading ? false : bahaRow?.available === true;
 
   const prevEps = isTV || isCartoon || isReading ? 0 : anime.ep_previous || 0;
   const localFin = isReading ? anime.ch_fin || 0 : anime.ep_fin || 0;
@@ -153,16 +149,15 @@ export default function DashboardCard({
           </h3>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
             {subTitle}
-            {localTotal !== "?" ? ` · ${localTotal} ${isReading ? "ch" : "ep"}` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             <Chip tone="ink">{statusText}</Chip>
             {!isTV && !isCartoon && !isReading && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}
-            {bahaFlag && anime.baha_link && (
+            {bahaFlag && bahaRow?.url && (
               <a
-                href={anime.baha_link}
+                href={bahaRow.url}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
@@ -176,7 +171,7 @@ export default function DashboardCard({
                 />
               </a>
             )}
-            {bahaFlag && !anime.baha_link && (
+            {bahaFlag && !bahaRow?.url && (
               <span className="inline-block" title="Available on Bahamut">
                 <img
                   src="https://i2.bahamut.com.tw/anime/logo.svg"
@@ -185,25 +180,13 @@ export default function DashboardCard({
                 />
               </span>
             )}
-            {!isTV && anime.source_netflix && (
+            {!isTV && netflixRow?.available && (
               <Chip tone="ink" title="Available on Netflix">
                 Netflix
               </Chip>
             )}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(editPath);
-            }}
-            className="absolute top-2 right-2 bg-surface text-text-faint hover:text-brand hover:border-brand w-7 h-7 flex items-center justify-center transition-colors z-10 border border-border"
-            title="Quick edit"
-          >
-            <i className="fas fa-pencil-alt text-xs"></i>
-          </button>
-        )}
       </div>
 
       <div
@@ -213,8 +196,7 @@ export default function DashboardCard({
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Progress</span>
           <span className="text-text">
-            {localFin} / {localTotal}
-            {localTotal !== "?" ? ` · ${progressPercent}%` : ""}
+            {localTotal !== "?" ? `${progressPercent}%` : ""}
           </span>
         </div>
         <ProgressRule value={progressValue} className="mb-3" />

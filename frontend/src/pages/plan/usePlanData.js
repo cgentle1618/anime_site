@@ -113,6 +113,7 @@ export default function usePlanData(reloadKey = 0) {
   const mangaQuery = useMediaList("manga", LIST_OPTIONS);
   const novelQuery = useMediaList("novel", LIST_OPTIONS);
   const comicQuery = useMediaList("comic", LIST_OPTIONS);
+  const gameQuery = useMediaList("game", LIST_OPTIONS);
 
   // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
   // useQuery under its own key: the media-list cache writers
@@ -134,6 +135,7 @@ export default function usePlanData(reloadKey = 0) {
   const allManga = mangaQuery.data || [];
   const allNovel = novelQuery.data || [];
   const allComics = comicQuery.data || [];
+  const allGames = gameQuery.data || [];
   const planNextRows = planNextQuery.data || [];
 
   const franchiseMap = useMemo(
@@ -194,6 +196,7 @@ export default function usePlanData(reloadKey = 0) {
       manga: allManga,
       novel: allNovel,
       comic: allComics,
+      game: allGames,
     }),
     [
       allAnime,
@@ -204,6 +207,7 @@ export default function usePlanData(reloadKey = 0) {
       allManga,
       allNovel,
       allComics,
+      allGames,
     ],
   );
 
@@ -247,6 +251,7 @@ export default function usePlanData(reloadKey = 0) {
     cartoonQuery,
     mangaQuery,
     novelQuery,
+    gameQuery,
     seriesQuery,
     comicQuery,
     planNextQuery,

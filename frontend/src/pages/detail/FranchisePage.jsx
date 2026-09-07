@@ -15,7 +15,7 @@ import {
   parseTypes,
   COMPLETED_STATUSES,
 } from "../../utils/media";
-import { getFranchiseCover } from "../../lib/covers";
+import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import {
   HubLoading,
   HubError,
@@ -116,6 +116,7 @@ export default function FranchisePage() {
   const [mangaList, setMangaList] = useState([]);
   const [novelList, setNovelList] = useState([]);
   const [comicList, setComicList] = useState([]);
+  const [gameList, setGameList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -209,7 +210,20 @@ export default function FranchisePage() {
     setActiveTab(null);
     async function load() {
       try {
-        const [fRes, sRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes, cmRes, pnRes] =
+        const [
+          fRes,
+          sRes,
+          aRes,
+          amRes,
+          mRes,
+          tvRes,
+          cRes,
+          mgRes,
+          nvRes,
+          cmRes,
+          gmRes,
+          pnRes,
+        ] =
           await Promise.all([
             fetch(endpoints.resource("franchise").detail(system_id), { credentials: "include" }),
             fetch(buildUrl(endpoints.resource("series").list(), { franchise_id: system_id }), {
@@ -239,10 +253,13 @@ export default function FranchisePage() {
             fetch(buildUrl(endpoints.resource("comic").list(), { franchise_id: system_id }), {
               credentials: "include",
             }),
+            fetch(buildUrl(endpoints.resource("game").list(), { franchise_id: system_id }), {
+              credentials: "include",
+            }),
             fetch("/api/plan-next/?scope=franchise", { credentials: "include" }),
           ]);
         if (!fRes.ok) throw new Error("Franchise not found");
-        const [f, s, a, am, m, tv, c, mg, nv, cm, pn] = await Promise.all([
+        const [f, s, a, am, m, tv, c, mg, nv, cm, gm, pn] = await Promise.all([
           fRes.json(),
           sRes.json(),
           aRes.json(),
@@ -253,6 +270,7 @@ export default function FranchisePage() {
           mgRes.json(),
           nvRes.json(),
           cmRes.json(),
+          gmRes.json(),
           pnRes.ok ? pnRes.json() : [],
         ]);
         if (cancelled) return;
@@ -266,6 +284,7 @@ export default function FranchisePage() {
         setMangaList(mg);
         setNovelList(nv);
         setComicList(cm);
+        setGameList(gm);
         setPlannedTypes(
           new Set(
             pn
@@ -321,6 +340,7 @@ export default function FranchisePage() {
   const hasTV = useMemo(() => types.includes("TV"), [types]);
   const hasCartoon = useMemo(() => types.includes("Cartoon"), [types]);
   const hasComic = useMemo(() => types.includes("Comic"), [types]);
+  const hasGame = useMemo(() => types.includes("Game"), [types]);
 
   // Media types this franchise carries a size bucket for, restricted to
   // franchise-eligible scopes (comic/anime-movie/manga/novel can never be
@@ -349,6 +369,7 @@ export default function FranchisePage() {
     if (mangaList.length) list.push("manga");
     if (novelList.length) list.push("novel");
     if (comicList.length) list.push("comic");
+    if (gameList.length) list.push("game");
     return list;
   }, [
     animeList,
@@ -359,6 +380,7 @@ export default function FranchisePage() {
     mangaList,
     novelList,
     comicList,
+    gameList,
   ]);
 
   const franchiseApplicableRewatchTypes = useMemo(
@@ -377,6 +399,7 @@ export default function FranchisePage() {
       hasACGFull && mangaList.length && "Manga",
       hasNovel && novelList.length && "Novel",
       hasComic && comicList.length && "Comic",
+      hasGame && gameList.length && "Game",
       hasMovie && movieList.length && "Movies",
       hasTV && tvShowList.length && "TV Shows",
       hasCartoon && cartoonList.length && "Cartoons",
@@ -387,6 +410,7 @@ export default function FranchisePage() {
     hasACGFull,
     hasNovel,
     hasComic,
+    hasGame,
     hasAnimeMovie,
     hasMovie,
     hasTV,
@@ -396,6 +420,7 @@ export default function FranchisePage() {
     mangaList,
     novelList,
     comicList,
+    gameList,
     movieList,
     tvShowList,
     cartoonList,
@@ -458,6 +483,11 @@ export default function FranchisePage() {
       setNovelList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
     [],
   );
+  const handleGameUpdated = useCallback(
+    (u) => setGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
+    [],
+  );
+
   const handleComicUpdated = useCallback(
     (u) =>
       setComicList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
@@ -1147,15 +1177,19 @@ export default function FranchisePage() {
 
   // Combined flat entry list, used only for hero cover resolution. Every entry
   // loaded here already belongs to this franchise, so the by-franchise map the
-  // shared helper expects is a single bucket.
+  // shared helper expects is a single bucket. Each list is tagged with the
+  // media type it was fetched as: covers live in owner-typed folders, so the
+  // cover fallback cannot name a file without it.
   const allEntries = [
-    ...animeList,
-    ...animeMovieList,
-    ...movieList,
-    ...tvShowList,
-    ...cartoonList,
-    ...mangaList,
-    ...novelList,
+    ...withMediaType(animeList, "anime"),
+    ...withMediaType(animeMovieList, "anime-movie"),
+    ...withMediaType(movieList, "movie"),
+    ...withMediaType(tvShowList, "tv-show"),
+    ...withMediaType(cartoonList, "cartoon"),
+    ...withMediaType(mangaList, "manga"),
+    ...withMediaType(novelList, "novel"),
+    ...withMediaType(comicList, "comic"),
+    ...withMediaType(gameList, "game"),
   ];
   const coverUrl = getFranchiseCover(
     franchise,
@@ -1994,6 +2028,32 @@ export default function FranchisePage() {
               ))}
             </div>
           )}
+        </Section>
+      )}
+
+      {/* ── Game tab content ────────────────────────────────── */}
+      {activeTab === "Game" && gameList.length > 0 && (
+        <Section
+          title="Game"
+          subtitle="Base games, DLC &amp; expansions"
+          count={gameList.length}
+        >
+          <div className={GRID_CLS}>
+            {[...gameList]
+              .sort((a, b) =>
+                String(a.release_date || "").localeCompare(
+                  String(b.release_date || ""),
+                ),
+              )
+              .map((g) => (
+                <MediaCard
+                  key={g.system_id}
+                  type="game"
+                  data={g}
+                  onUpdated={handleGameUpdated}
+                />
+              ))}
+          </div>
         </Section>
       )}
 

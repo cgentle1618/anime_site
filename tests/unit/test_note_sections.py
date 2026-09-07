@@ -12,6 +12,7 @@ def test_every_section_has_a_known_shape():
         ns.SHAPE_TEXT_OR_LINK,
         ns.SHAPE_EPISODE_TEXT,
         ns.SHAPE_NAME_LINKS,
+        ns.SHAPE_NAME_ENTRIES,
         ns.SHAPE_EPISODE_NAME_LINKS,
         ns.SHAPE_MUSIC_TRACK,
         ns.SHAPE_EXTERNAL,
@@ -39,6 +40,7 @@ def test_only_remark_is_singleton():
 def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
     assert with_kinds == [
+        "builds_and_mods",
         "highlights",
         "op",
         "ed",
@@ -318,7 +320,9 @@ def test_episode_comments_is_text_links_with_an_episode_field():
     sec = ns.section_by_key("episode_comments")
     assert sec.shape == ns.SHAPE_TEXT_LINKS
     assert ns.locator_for(sec, "anime") == "Episode, e.g. ep 1"
-    assert sec.owners == ("anime", "tv-show", "cartoon")
+    # A game is cut into chapters, so it reuses the section under its own label.
+    assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
+    assert sec.owners == ("anime", "tv-show", "cartoon", "game")
 
 
 def test_unread_is_gone():
@@ -354,6 +358,7 @@ def test_sections_that_are_meaningless_without_an_anchor_require_one():
         "episode_comments",
         "highlights",
         "highlight_episodes",
+        "highlight_moments",
         "op_ed_changes",
         "insert_songs",
         "extended_episodes",

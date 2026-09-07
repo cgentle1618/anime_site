@@ -14,8 +14,14 @@ import { fetchJson, jsonBody } from "../../api/client";
 import { useToast } from "../../hooks/useToast";
 import { STUDIO_NAME_FIELDS, displayStudioName } from "../../lib/naming";
 
+const DEFAULT_STUDIO_COUNTRY = "Japan";
+
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+}
+
+function studioLabel(s) {
+  return s.display_name || displayStudioName(s) || "";
 }
 
 function studioToForm(s) {
@@ -27,7 +33,9 @@ function studioToForm(s) {
     display_name_field: s.display_name_field || "",
     my_rating: s.my_rating || "",
     logo_file: s.logo_file || "",
-    country: s.country || "",
+    // Nearly every studio here is Japanese, so an unrecorded country starts
+    // on Japan rather than blank - one less field to fill on the common case.
+    country: s.country || DEFAULT_STUDIO_COUNTRY,
     website_url: s.website_url || "",
     founded_date: s.founded_date || "",
     defunct_date: s.defunct_date || "",
@@ -42,7 +50,6 @@ export default function StudioModifyTab() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [studioForm, setStudioForm] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -55,24 +62,27 @@ export default function StudioModifyTab() {
 
   const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
 
-  // Searches all four name fields, not just whichever one display_name_field
-  // currently points at - an admin looking a studio up by its Japanese name
-  // must find it even when English is the configured display name.
+  // Every studio is listed up front, the way the System Option tab lists a
+  // category's values - an admin should not have to already know the name to
+  // reach the record. The search box filters that grid in place, across all
+  // four name fields rather than just whichever one display_name_field points
+  // at: looking a studio up by its Japanese name must work even when English
+  // is the configured display name.
   const filtered = useMemo(() => {
-    if (!search.trim()) return [];
     const q = cleanString(search);
-    return studios
-      .filter((s) =>
-        STUDIO_NAME_FIELDS.some(
-          ({ field }) => s[field] && cleanString(s[field]).includes(q),
-        ),
-      )
-      .slice(0, 10);
+    const matched = q
+      ? studios.filter((s) =>
+          STUDIO_NAME_FIELDS.some(
+            ({ field }) => s[field] && cleanString(s[field]).includes(q),
+          ),
+        )
+      : studios;
+    return [...matched].sort((a, b) =>
+      studioLabel(a).localeCompare(studioLabel(b)),
+    );
   }, [studios, search]);
 
   async function selectStudio(studio) {
-    setOpen(false);
-    setSearch(displayStudioName(studio) || studio.display_name || "");
     try {
       const fresh = await fetchJson(
         endpoints.studio.detail(studio.system_id),
@@ -87,7 +97,6 @@ export default function StudioModifyTab() {
   function closeEditor() {
     setSelectedId(null);
     setStudioForm(null);
-    setSearch("");
   }
 
   const hasAnyName = studioForm
@@ -120,6 +129,9 @@ export default function StudioModifyTab() {
       });
       await queryClient.invalidateQueries({ queryKey: ["studios-admin"] });
       setStudioForm(studioToForm(updated));
+      // Back to the top: the toast renders at the top of the page and
+      // the form is long enough to have scrolled it out of sight.
+      window.scrollTo(0, 0);
       showToast("success", "Studio updated.");
     } catch (err) {
       showToast("error", err.message || "Update failed.");
@@ -131,41 +143,40 @@ export default function StudioModifyTab() {
   return (
     <div className="space-y-4">
       {!selectedId && (
-        <div className="bg-surface rounded-2xl border border-border shadow-sm p-4 relative">
-          <div className="relative">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
-            <input
-              className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Search studios to modify..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => search && setOpen(true)}
-            />
+        <div className="space-y-4">
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-4">
+            <div className="relative">
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-text-faint text-sm"></i>
+              <input
+                className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand"
+                placeholder="Search studios to modify..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          {open && filtered.length > 0 && (
-            <div className="absolute z-50 left-4 right-4 mt-1 bg-surface border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto">
+
+          {filtered.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {filtered.map((s) => (
-                <div
+                <button
                   key={s.system_id}
-                  className="px-4 py-2.5 hover:bg-brand/10 cursor-pointer"
-                  onMouseDown={() => selectStudio(s)}
+                  type="button"
+                  onClick={() => selectStudio(s)}
+                  className="text-left px-3 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium text-text-muted hover:border-brand hover:text-brand hover:bg-brand-soft transition shadow-sm truncate"
                 >
-                  <div className="font-bold text-text text-sm">
-                    {s.display_name || displayStudioName(s)}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {s.credit_count} credit{s.credit_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                  {studioLabel(s)}
+                </button>
               ))}
             </div>
           )}
+
           {!isLoading && studios.length === 0 && (
-            <p className="text-sm text-text-faint italic mt-2">
-              No studios yet.
+            <p className="text-sm text-text-faint italic">No studios yet.</p>
+          )}
+          {!isLoading && studios.length > 0 && filtered.length === 0 && (
+            <p className="text-sm text-text-faint italic">
+              No studio matches that name.
             </p>
           )}
         </div>

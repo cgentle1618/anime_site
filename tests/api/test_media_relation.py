@@ -40,11 +40,12 @@ def sample_manga_entry(db_session, sample_franchise):
 # ---------------------------------------------------------------------------
 
 
-def test_kinds_lists_the_eleven_user_facing_choices(client):
+def test_kinds_lists_the_thirteen_user_facing_choices(client):
+    # Was eleven before Remake and Remaster joined for games.
     res = client.get("/api/media-relation/kinds")
     assert res.status_code == 200
     body = res.json()
-    assert len(body) == 11
+    assert len(body) == 13
     keys = {k["key"] for k in body}
     assert "prequel" in keys
     prequel = next(k for k in body if k["key"] == "prequel")

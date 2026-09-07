@@ -3,7 +3,6 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -12,7 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -71,14 +70,6 @@ class AnimeMovies(Base, NameFallbackMixin):
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
-    anilist_link = Column(String, nullable=True)
-    official_link = Column(String, nullable=True)
-    twitter_link = Column(String, nullable=True)
-
-    source_baha = Column(Boolean, default=None, nullable=True)
-    baha_link = Column(String, nullable=True)
-    source_netflix = Column(Boolean, default=False)
-    source_other = Column(JSONB, default=None, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

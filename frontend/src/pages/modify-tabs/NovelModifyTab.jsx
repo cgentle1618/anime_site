@@ -1,8 +1,15 @@
 // Frontend: modify tab page file for NovelModifyTab.
-import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import {
+  countsChapters,
+  countsVolumes,
+  progressDisplayOptions,
+} from "../../lib/novelUnits";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -19,16 +26,9 @@ import {
   NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
   READING_STATUSES,
   MY_RATINGS,
+  withLegacyProgressDisplay,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
-
-const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
-  { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
-];
 
 export default function NovelModifyTab({
   franchiseCollections,
@@ -37,7 +37,6 @@ export default function NovelModifyTab({
   allFranchises,
   seriesItemsForNovel,
   editingItem,
-  ribbonSection,
   sources,
 }) {
   const publisherOptions = getSourceValues(sources, {
@@ -49,8 +48,10 @@ export default function NovelModifyTab({
 
   return (
     <>
-      {ribbonSection}
-
+      {/* No "other entries in this franchise" ribbon here: Modify.jsx renders
+          one above the editor card for novels already, the same as it does
+          for anime, movie, tv-show and cartoon. Manga and comic keep their
+          in-form ribbonSection because they have no ribbon above the card. */}
       <SectionHeader icon="fa-book-open" title="Titles & Naming" />
       <Field label="Franchise">
         <ComboBox
@@ -262,83 +263,100 @@ export default function NovelModifyTab({
           className={selectCls}
           value={cnvf.progress_display || ""}
           onChange={(e) => unv("progress_display", e.target.value)}
+          aria-label="Progress display"
         >
-          {PROGRESS_DISPLAY_OPTIONS.map((o) => (
+          {withLegacyProgressDisplay(
+            progressDisplayOptions(cnvf),
+            cnvf.progress_display,
+          ).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>
       </Field>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Vol Total (Original)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_total_original ?? ""}
-            onChange={(e) => unv("vol_total_original", e.target.value)}
-          />
-        </Field>
-        <Field label="Vol Total (TW)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_total_tw ?? ""}
-            onChange={(e) => unv("vol_total_tw", e.target.value)}
-          />
-        </Field>
-        <Field label="Vol Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.vol_fin ?? ""}
-            onChange={(e) => unv("vol_fin", e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Arc Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.arc_total ?? ""}
-            onChange={(e) => unv("arc_total", e.target.value)}
-          />
-        </Field>
-        <Field label="Arc Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.arc_fin ?? ""}
-            onChange={(e) => unv("arc_fin", e.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Ch Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.ch_total ?? ""}
-            onChange={(e) => unv("ch_total", e.target.value)}
-          />
-        </Field>
-        <Field label="Ch Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={cnvf.ch_fin ?? ""}
-            onChange={(e) => unv("ch_fin", e.target.value)}
-          />
-        </Field>
-      </div>
+      {/* Volume counters. Hidden for Web, which is read in chapters — the
+          columns keep whatever they hold (a later print run, or a type change
+          back) but are not edited from here. */}
+      {countsVolumes(cnvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Total Volumes (JP/KR)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_total_original ?? ""}
+              onChange={(e) => unv("vol_total_original", e.target.value)}
+            />
+          </Field>
+          <Field label="Vol Total (TW)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_total_tw ?? ""}
+              onChange={(e) => unv("vol_total_tw", e.target.value)}
+            />
+          </Field>
+          <Field label="Vol Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={cnvf.vol_fin ?? ""}
+              onChange={(e) => unv("vol_fin", e.target.value)}
+            />
+          </Field>
+        </div>
+      )}
+      {/* Arc and chapter counters exist only for the types that count them.
+          A Light Novel or a Novel counts volumes, and the server clears these
+          columns on save, so offering the inputs would invite an edit that is
+          discarded. Follows the Type dropdown live. */}
+      {countsChapters(cnvf) && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Arc Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.arc_total ?? ""}
+                onChange={(e) => unv("arc_total", e.target.value)}
+              />
+            </Field>
+            <Field label="Arc Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.arc_fin ?? ""}
+                onChange={(e) => unv("arc_fin", e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Ch Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.ch_total ?? ""}
+                onChange={(e) => unv("ch_total", e.target.value)}
+              />
+            </Field>
+            <Field label="Ch Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={cnvf.ch_fin ?? ""}
+                onChange={(e) => unv("ch_fin", e.target.value)}
+              />
+            </Field>
+          </div>
+        </>
+      )}
 
       <SectionHeader icon="fa-star" title="Scores" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -406,6 +424,17 @@ export default function NovelModifyTab({
           value={cnvf.end_date}
           onChange={(v) => unv("end_date", v)}
         />
+        <Field label="Serialization Platform">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Serialization Platform",
+              scope: "novel",
+            })}
+            value={cnvf.serialization_platform || ""}
+            onChange={(v) => unv("serialization_platform", v)}
+          />
+        </Field>
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}
@@ -424,6 +453,17 @@ export default function NovelModifyTab({
         </Field>
       </div>
 
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a novel), loaded from and saved back to
+          PUT /api/casting/novel/{id} separately from this form's own PUT -
+          see Modify.jsx's loading/saving of cnvf.cast. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="novel"
+        value={cnvf.cast}
+        onChange={(v) => unv("cast", v)}
+      />
+
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Read Order">
@@ -437,21 +477,12 @@ export default function NovelModifyTab({
         </Field>
       </div>
 
-      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
-      <div className="space-y-4">
-        <BelongingNovelsEditor
-          items={cnvf.novel_name_each_cn || []}
-          onChange={(val) => unv("novel_name_each_cn", val)}
-          label="CN"
-          placeholder="CN book name"
-        />
-        <BelongingNovelsEditor
-          items={cnvf.novel_name_each_en || []}
-          onChange={(val) => unv("novel_name_each_en", val)}
-          label="EN"
-          placeholder="EN book name"
-        />
-      </div>
+      <SectionHeader icon="fa-book-open" title="Units" />
+      <NovelUnitsEditor
+        items={cnvf.units}
+        novelType={cnvf.type}
+        onChange={(val) => unv("units", val)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -471,77 +502,31 @@ export default function NovelModifyTab({
             onChange={(e) => unv("mal_link", e.target.value)}
           />
         </Field>
-        <Field label="AniList Link">
+        <Field label="Open Library Link">
           <input
             className={inputCls}
             type="url"
-            value={cnvf.anilist_link || ""}
-            onChange={(e) => unv("anilist_link", e.target.value)}
+            value={cnvf.openlibrary_link || ""}
+            onChange={(e) => unv("openlibrary_link", e.target.value)}
+          />
+        </Field>
+        <Field label="Open Library ID">
+          <input
+            className={inputCls}
+            value={cnvf.openlibrary_id || ""}
+            onChange={(e) => unv("openlibrary_id", e.target.value)}
+            placeholder="OL5738148W"
           />
         </Field>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-          Other Sources
-        </label>
-        <div className="space-y-2">
-          {(cnvf.source_other || []).map((entry, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputCls}
-                placeholder="Source name"
-                value={entry.name}
-                onChange={(e) =>
-                  unv(
-                    "source_other",
-                    (cnvf.source_other || []).map((x, j) =>
-                      j === i ? { ...x, name: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                type="url"
-                placeholder="https://... (optional)"
-                value={entry.url}
-                onChange={(e) =>
-                  unv(
-                    "source_other",
-                    (cnvf.source_other || []).map((x, j) =>
-                      j === i ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-danger/70 hover:text-danger px-1 shrink-0"
-                onClick={() =>
-                  unv(
-                    "source_other",
-                    (cnvf.source_other || []).filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() =>
-              unv("source_other", [
-                ...(cnvf.source_other || []),
-                { name: "", url: "" },
-              ])
-            }
-          >
-            + Add Source
-          </button>
-        </div>
-      </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={cnvf.sources}
+        onChange={(rows) => unv("sources", rows)}
+        mediaType="novel"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-flag" title="Flags" />
       <div className="flex flex-wrap gap-6 mt-2">

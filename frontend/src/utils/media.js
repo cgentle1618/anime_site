@@ -16,10 +16,12 @@ export {
   getStatusStyle,
   getNextStatus,
   getReadingButtonConfig,
+  getPlayingButtonConfig,
   getCardStatusConfig,
 } from "../lib/status";
 export {
   isBaha,
+  getBahaRow,
   getReleaseFallback,
   getRatingWeight,
   getSourceValues,
@@ -32,4 +34,5 @@ export {
   buildAnimePayload,
   buildCreditsPayload,
   creditsResponseToForm,
+  gameFieldsPayload,
 } from "../lib/payloads";

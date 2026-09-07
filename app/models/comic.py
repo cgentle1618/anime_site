@@ -12,7 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -77,8 +77,6 @@ class Comic(Base, NameFallbackMixin):
     # manga.mal_id / mal_link) and is what the Fill pipeline fetches on.
     comicvine_id = Column(Integer, nullable=True)
     comicvine_link = Column(String, nullable=True)
-
-    source_other = Column(JSONB, default=None, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

@@ -22,11 +22,16 @@ async function readJsonArray(res) {
   }
 }
 
-/** Fetches { options, studios, people } — the "sources" bag getSourceValues() reads. */
+/**
+ * Fetches { options, studios, publishers, people } — the "sources" bag
+ * getSourceValues() reads. Publishers come back as one flat list for the same
+ * reason studios do: neither has a role/scope concept.
+ */
 export async function fetchAllSources() {
-  const [optionsRes, studiosRes, ...peopleRes] = await Promise.all([
+  const [optionsRes, studiosRes, publishersRes, ...peopleRes] = await Promise.all([
     fetch(endpoints.options.list(), { credentials: "include" }),
     fetch(endpoints.studio.list(), { credentials: "include" }),
+    fetch(endpoints.publisher.list(), { credentials: "include" }),
     ...PERSON_SOURCES.map((s) => {
       const qs = new URLSearchParams();
       qs.set("role", s.role);
@@ -39,13 +44,14 @@ export async function fetchAllSources() {
 
   const options = await readJsonArray(optionsRes);
   const studios = await readJsonArray(studiosRes);
+  const publishers = await readJsonArray(publishersRes);
   const people = {};
   for (let i = 0; i < PERSON_SOURCES.length; i++) {
     const s = PERSON_SOURCES[i];
     people[personKey(s.role, s.scope)] = await readJsonArray(peopleRes[i]);
   }
 
-  return { options, studios, people };
+  return { options, studios, publishers, people };
 }
 
 export { personKey };

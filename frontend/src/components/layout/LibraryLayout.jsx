@@ -163,9 +163,17 @@ export default function LibraryLayout({
       try {
         await statusToggle.mutateAsync({ id: item.system_id, value: nextStatus, field });
         // field-specific toasts
-        if (field === "watch_next" || field === "read_next") {
+        if (
+          field === "watch_next" ||
+          field === "read_next" ||
+          field === "play_next"
+        ) {
           showToast("success", nextStatus ? "Added to Watch/Read Next" : "Removed from Watch/Read Next");
-        } else if (field === "to_rewatch" || field === "to_reread") {
+        } else if (
+          field === "to_rewatch" ||
+          field === "to_reread" ||
+          field === "to_replay"
+        ) {
           showToast("success", nextStatus ? "Marked for rewatch/reread" : "Removed from rewatch/reread");
         } else {
           showToast("success", `Status → ${nextStatus}`);

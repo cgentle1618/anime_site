@@ -8,7 +8,7 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import { isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 10000 + month * 100 + day
@@ -141,15 +141,16 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
       stopPropagation: true,
       render: (item) => {
         if (!isBaha(item)) return "-";
+        const bahaRow = getBahaRow(item);
         const logo = (
           <img
             src="https://i2.bahamut.com.tw/anime/logo.svg"
-            className={`h-4 inline-block ${item.baha_link ? "opacity-90" : "opacity-50 grayscale"}`}
+            className={`h-4 inline-block ${bahaRow?.url ? "opacity-90" : "opacity-50 grayscale"}`}
             alt="Baha"
           />
         );
-        return item.baha_link
-          ? <a href={item.baha_link} target="_blank" rel="noreferrer" className="hover:scale-110 transition-transform inline-block">{logo}</a>
+        return bahaRow?.url
+          ? <a href={bahaRow.url} target="_blank" rel="noreferrer" className="hover:scale-110 transition-transform inline-block">{logo}</a>
           : logo;
       },
     },

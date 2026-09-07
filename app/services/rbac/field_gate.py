@@ -9,10 +9,11 @@ different ways:
                 attributes that attach_link_fields sets on the instance, so
                 blanking one in place is free and harmless.
 
-  real columns  source_other, and anything added later. Nulling one on a live
-                ORM instance marks the entity dirty, and the next autoflush
-                would write the blank to disk - gating would become silent,
-                permanent data loss. So the response is built from a COPY.
+  real columns  created_at/updated_at, and anything added later. Nulling one
+                on a live ORM instance marks the entity dirty, and the next
+                autoflush would write the blank to disk - gating would become
+                silent, permanent data loss. So the response is built from a
+                COPY.
 
 Both paths return the input untouched when the viewer holds everything, which
 is the overwhelmingly common case and costs one set lookup.
@@ -55,6 +56,17 @@ def gated_link_fields(viewer: Optional[Viewer], media_type: str) -> tuple[str, .
     return tuple(dict.fromkeys(out))
 
 
+def gated_source_buckets(viewer: Optional[Viewer]) -> tuple[str, ...]:
+    """
+    media_source buckets to withhold. Not per media type: a bucket means the
+    same thing on all eight, so the group names it once.
+    """
+    out: list[str] = []
+    for group in _withheld(viewer):
+        out.extend(group.source_buckets)
+    return tuple(dict.fromkeys(out))
+
+
 def gate(
     viewer: Optional[Viewer],
     media_type: str,
@@ -77,13 +89,20 @@ def gate(
     entries = payload if is_list else [payload]
 
     # Link fields are not columns, so blanking them in place cannot be flushed.
-    # Most are Optional[str] = None, but a list-shaped one (studio_refs) needs
-    # an empty list - its response field does not accept None - so the blank
-    # value follows the field's own current type instead of a single constant.
+    # Most are Optional[str] = None, but the ref-carrying ones are shaped:
+    # studio_refs and publisher_refs are lists and credit_refs a dict, and no
+    # such response field accepts None - so the blank value follows the
+    # field's own current type instead of a single constant.
     for entry in entries:
         for name in links:
             if hasattr(entry, name):
-                blank = [] if isinstance(getattr(entry, name), list) else None
+                current = getattr(entry, name)
+                if isinstance(current, list):
+                    blank = []
+                elif isinstance(current, dict):
+                    blank = {}
+                else:
+                    blank = None
                 setattr(entry, name, blank)
 
     if not columns:

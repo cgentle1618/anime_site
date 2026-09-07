@@ -6,7 +6,7 @@ import {
   cleanString,
   parseTypes,
 } from "../../utils/media";
-import { getFranchiseCover } from "../../lib/covers";
+import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import { Eyebrow } from "../../components/ui/primitives";
 
@@ -93,14 +93,16 @@ export default function FranchiseLibrary() {
           mgRes.json(),
           nvRes.json(),
         ]);
+        // Tagged with the media type each list was fetched as: covers live
+        // in owner-typed folders, so the cover fallback needs it.
         const allEntries = [
-          ...anime,
-          ...animeMovies,
-          ...movies,
-          ...tvShows,
-          ...cartoons,
-          ...mangas,
-          ...novels,
+          ...withMediaType(anime, "anime"),
+          ...withMediaType(animeMovies, "anime-movie"),
+          ...withMediaType(movies, "movie"),
+          ...withMediaType(tvShows, "tv-show"),
+          ...withMediaType(cartoons, "cartoon"),
+          ...withMediaType(mangas, "manga"),
+          ...withMediaType(novels, "novel"),
         ];
         setAllFranchises(franchises);
         setAllEntriesDict(

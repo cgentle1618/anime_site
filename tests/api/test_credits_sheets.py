@@ -13,6 +13,8 @@ matches by header NAME, never by position.
 Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 """
 
+import uuid
+
 from app import models
 from app.services.domain.credits import (
     credit_names,
@@ -23,6 +25,8 @@ from app.services.domain.credits import (
     tag_values,
 )
 from app.services.pipelines import backup, pull
+from app.services.pipelines.tabs import SHEET_TABS
+from app.utils import formatter as f
 from app.utils.formatter import format_model_for_sheet, parse_anime_from_sheet
 
 # ---------------------------------------------------------------------------
@@ -111,9 +115,24 @@ def test_person_studio_and_scope_get_their_own_tabs():
 
     # Backup and Pull both iterate this registry, so a tab listed here is
     # written and restored; entity tabs must precede the media tabs.
-    for tab in ("Person", "Person Role", "Studio", "System Option Scope"):
+    for tab in (
+        "Person",
+        "Person Role",
+        "Studio",
+        "System Option Scope",
+        "System Option Usage",
+    ):
         assert tab in TAB_NAMES
         assert TAB_NAMES.index(tab) < TAB_NAMES.index("Anime")
+
+
+def test_system_option_usage_restores_after_its_parent():
+    from app.services.pipelines.tabs import TAB_NAMES
+
+    # System Option Usage cites System Options by uuid, so the parent must
+    # restore first or option_id has nothing local to round-trip onto.
+    assert "System Option Usage" in TAB_NAMES
+    assert TAB_NAMES.index("System Options") < TAB_NAMES.index("System Option Usage")
 
 
 # ---------------------------------------------------------------------------
@@ -212,11 +231,13 @@ def test_a_header_row_missing_the_credit_column_does_not_wipe_it(db_session, mon
     assert credit_names(db_session, "anime", a.system_id, "studio") == ["MAPPA"]
 
 
-def test_movie_source_official_restores_under_its_own_new_header(db_session, monkeypatch):
-    """movie/source_official never had a legacy string column, so it is a
+def test_movie_original_source_restores_under_its_own_new_header(db_session, monkeypatch):
+    """movie/original_source never had a legacy string column, so it is a
     brand-new column rather than a renamed one - it uses its own key as the
-    header, appended at the end like every other link column."""
-    headers = ["movie_name_cn", "source_official"]
+    header, appended at the end like every other link column. Unlike
+    tv-show/cartoon (which keep the old "source_official" header for sheet
+    compatibility), movie's header follows the field key's rename."""
+    headers = ["movie_name_cn", "original_source"]
     rows = [["新電影", "Netflix"]]
     monkeypatch.setattr(pull, "get_all_raw_rows", lambda tab: [headers] + rows)
 
@@ -224,7 +245,7 @@ def test_movie_source_official_restores_under_its_own_new_header(db_session, mon
 
     assert result["status"] == "success"
     fresh = db_session.query(models.Movies).filter_by(movie_name_cn="新電影").one()
-    assert tag_values(db_session, "movie", fresh.system_id, "source_official") == [
+    assert tag_values(db_session, "movie", fresh.system_id, "original_source") == [
         "Netflix"
     ]
 
@@ -267,3 +288,80 @@ def test_repull_of_an_existing_system_option_updates_it_in_place(db_session, mon
     assert remaining[0].system_id == option.system_id
     assert remaining[0].sort_order == 5
     assert remaining[0].remark == "updated"
+
+
+# ---------------------------------------------------------------------------
+# Character and Character Casting sheet tabs (Task 6)
+# ---------------------------------------------------------------------------
+
+
+def test_both_character_tabs_are_registered():
+    names = [t.name for t in SHEET_TABS]
+    assert "Character" in names
+    assert "Character Casting" in names
+
+
+def test_character_restores_before_every_media_tab():
+    """
+    SHEET_TABS is the RESTORE order and it is strict. Character sits with the
+    other entity tabs so castings can point at it; Character Casting sits after
+    every media tab because it reaches entries by the FK-less pair.
+    """
+    names = [t.name for t in SHEET_TABS]
+    assert names.index("Character") < names.index("Anime")
+    assert names.index("Character Casting") > names.index("Novel")
+
+
+def test_character_round_trips_through_the_sheet(db_session, character):
+    raw = {
+        "system_id": str(character.system_id),
+        "name_en": "Ichika",
+        "name_jp": "一花",
+        "display_name_field": "jp",
+        "gender": "Female",
+        "my_rating": "",
+        "photo_file": "",
+        "remark": "",
+        "created_at": "",
+        "updated_at": "",
+    }
+    parsed = f.parse_character_from_sheet(raw)
+    assert parsed["name_jp"] == "一花"
+    assert parsed["display_name_field"] == "jp"
+    assert parsed["my_rating"] is None
+
+
+def test_casting_round_trips_through_the_sheet(anime, character, person):
+    raw = {
+        "system_id": str(uuid.uuid4()),
+        "character_id": str(character.system_id),
+        "media_type": "anime",
+        "entry_id": str(anime.system_id),
+        "person_id": str(person.system_id),
+        "role": "Main",
+        "position": "0",
+        "photo_file": "",
+        "remark": "",
+        "created_at": "",
+    }
+    parsed = f.parse_character_casting_from_sheet(raw)
+    assert parsed["media_type"] == "anime"
+    assert parsed["position"] == 0
+    assert parsed["person_id"] is not None
+
+
+def test_a_castings_empty_person_round_trips_as_none(anime, character):
+    """A manga casting has no seiyuu; an empty cell must not become a bad UUID."""
+    raw = {
+        "system_id": str(uuid.uuid4()),
+        "character_id": str(character.system_id),
+        "media_type": "manga",
+        "entry_id": str(anime.system_id),
+        "person_id": "",
+        "role": "",
+        "position": "0",
+        "photo_file": "",
+        "remark": "",
+        "created_at": "",
+    }
+    assert f.parse_character_casting_from_sheet(raw)["person_id"] is None

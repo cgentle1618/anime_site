@@ -12,6 +12,7 @@ import {
   parseTypes,
 } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
+import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
@@ -146,8 +147,6 @@ export default function Comic() {
   const franchiseName = franchise
     ? getDisplayName(franchise, "franchise")
     : null;
-
-  const sourceOther = comic.source_other || {};
 
   const startYear = releaseYear(comic.release_date);
   const endYear = releaseYear(comic.end_date);
@@ -286,7 +285,9 @@ export default function Comic() {
           </div>
 
           <SourcesCard
-            sourceOther={Object.keys(sourceOther).length > 0 ? sourceOther : null}
+            sources={comic.sources}
+            mediaType="comic"
+            comicvineLink={comic.comicvine_link}
           />
         </div>
 
@@ -420,10 +421,24 @@ export default function Comic() {
                 title="Production"
                 fields={[
                   ...(comic.writer
-                    ? [{ label: "Writer", value: comic.writer }]
+                    ? [
+                        {
+                          label: creditLabel(comic, "author", "Writer"),
+                          value: creditValue(comic, "author", comic.writer),
+                        },
+                      ]
                     : []),
                   ...(comic.artist
-                    ? [{ label: "Artist", value: comic.artist }]
+                    ? [
+                        {
+                          label: creditLabel(comic, "illustrator", "Artist"),
+                          value: creditValue(
+                            comic,
+                            "illustrator",
+                            comic.artist,
+                          ),
+                        },
+                      ]
                     : []),
                   ...(comic.publisher
                     ? [{ label: "Publisher", value: comic.publisher }]

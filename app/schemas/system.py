@@ -20,6 +20,13 @@ def _check_field_key(key: str) -> None:
         raise ValueError(f"Invalid field key '{key}'.")
 
 
+class SystemOptionAliasIO(BaseModel):
+    """What one external source calls a vocabulary value."""
+
+    source: str
+    value: str
+
+
 class SystemOptionBase(BaseModel):
     category: str
     value: str
@@ -52,6 +59,74 @@ class SystemOptionCreate(SystemOptionBase):
             )
         return list(dict.fromkeys(v))
 
+    # Roles this value may be used in. Empty = every usage.
+    usages: list[str] = []
+
+    @field_validator("usages")
+    @classmethod
+    def _known_usages(cls, v: list[str]) -> list[str]:
+        from app.utils.source_fields import OPTION_USAGES
+
+        unknown = [u for u in v if u not in OPTION_USAGES]
+        if unknown:
+            raise ValueError(
+                "Not usages: " + ", ".join(unknown)
+                + ". Expected any of: " + ", ".join(OPTION_USAGES)
+            )
+        return list(dict.fromkeys(v))
+
+    # What external sources call this value. Unlike scopes and usages, an
+    # empty list is not "everything" - it just means nothing maps to it.
+    aliases: list[SystemOptionAliasIO] = []
+
+    @field_validator("aliases")
+    @classmethod
+    def _known_sources(cls, v: list[SystemOptionAliasIO], info) -> list[SystemOptionAliasIO]:
+        """
+        Validate the category and source, and drop duplicate (source, value)
+        pairs.
+
+        The category check comes first because it is the wider rule: only the
+        categories a pipeline actually reads may carry aliases at all. A row on
+        any other category would sit in the table doing nothing forever, with
+        nothing anywhere to say why - so opening one is a code change
+        (ALIAS_CATEGORIES), not an admin action.
+
+        A typo'd source is the mistake nothing downstream catches: the row
+        saves happily and then never resolves, because Fill asks for the source
+        by name. Deduping is not cosmetic either - the writes in
+        routers/options.py insert these rows directly, so a repeated pair
+        would trip uq_system_option_alias and 500 the whole save.
+
+        `category` is read from info.data, which holds the fields validated
+        before this one - it is declared on SystemOptionBase, so it is always
+        there unless it failed its own validation, in which case the request is
+        already rejected and this check is moot.
+        """
+        from app.utils.source_fields import ALIAS_CATEGORIES, ALIAS_SOURCES
+
+        category = (info.data or {}).get("category")
+        if v and category is not None and category not in ALIAS_CATEGORIES:
+            raise ValueError(
+                f"Category '{category}' does not carry aliases. "
+                "Expected any of: " + ", ".join(ALIAS_CATEGORIES)
+            )
+
+        unknown = [a.source for a in v if a.source not in ALIAS_SOURCES]
+        if unknown:
+            raise ValueError(
+                "Not alias sources: " + ", ".join(unknown)
+                + ". Expected any of: " + ", ".join(ALIAS_SOURCES)
+            )
+        seen: set[tuple[str, str]] = set()
+        unique: list[SystemOptionAliasIO] = []
+        for alias in v:
+            pair = (alias.source, alias.value)
+            if pair not in seen:
+                seen.add(pair)
+                unique.append(alias)
+        return unique
+
 
 class SystemOptionResponse(SystemOptionBase):
     system_id: UUID
@@ -65,6 +140,26 @@ class SystemOptionResponse(SystemOptionBase):
         # ORM gives SystemOptionScope rows; the API contract is plain strings.
         if v and not isinstance(v[0], str):
             return [s.scope for s in v]
+        return v
+
+    usages: list[str] = []
+
+    @field_validator("usages", mode="before")
+    @classmethod
+    def _flatten_usages(cls, v):
+        # ORM gives SystemOptionUsage rows; the API contract is plain strings.
+        if v and not isinstance(v[0], str):
+            return [u.usage for u in v]
+        return v
+
+    aliases: list[SystemOptionAliasIO] = []
+
+    @field_validator("aliases", mode="before")
+    @classmethod
+    def _flatten_aliases(cls, v):
+        # ORM gives SystemOptionAlias rows; the contract is source/value pairs.
+        if v and not isinstance(v[0], (dict, SystemOptionAliasIO)):
+            return [{"source": a.source, "value": a.value} for a in v]
         return v
 
 

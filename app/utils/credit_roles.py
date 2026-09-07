@@ -5,12 +5,22 @@ Deliberately shaped like app/utils/relation_kinds.py and MEDIA_TABLES in
 app/utils/media_resolver.py: a frozen dataclass per entry, a dict keyed by the
 value stored in the column, and a tuple of keys for validation.
 
-ONE vocabulary. `media_credit.role` and `person_role.role` store the same five
-person keys plus `studio`; the key a credit stores IS the person role it
-implies. Before the collapse these were two lists that disagreed - 原作 and
-作画 were separate credit keys sharing one `manga_author` dropdown, while
-`novel_author` and `comic_writer` were separate person roles meaning the same
-thing.
+ONE vocabulary. `media_credit.role` and `person_role.role` store the same six
+person keys plus the two company keys, `studio` and `publisher`; the key a
+credit stores IS the person role it implies. Before the collapse these were two
+lists that disagreed - 原作 and 作画 were separate credit keys sharing one
+`manga_author` dropdown, while `novel_author` and `comic_writer` were separate
+person roles meaning the same thing.
+
+Publishers used to be a `system_option` vocabulary rather than an entity. They
+are now the `publisher` table (app/models/staff.py), reached through the
+`publisher` credit role below, so `CreditRole.target` is a THREE-value axis.
+The `publisher_tw` TagField further down is unaffected and still backs anime,
+manga, novel and comic until a later migration converts those rows into
+publisher entities.
+
+One of the six, `seiyuu`, is a person role whose credits are NOT stored in
+`media_credit`: see `CreditRole.credited_via` below.
 
 What varies by media type is the LABEL, not the key: `author` reads 原作 on a
 manga, Author on a novel and Writer on a comic. credit_label() owns that.
@@ -22,33 +32,60 @@ anime/non_anime split and the director_scope_for() that derived it are gone.
 
 from dataclasses import dataclass
 
+from app.utils.source_fields import PLATFORM_CATEGORY, SERIALIZATION_CATEGORY
+
 
 @dataclass(frozen=True)
 class CreditRole:
-    """One role a person or studio can be credited in."""
+    """One role a person, studio or publisher can be credited in."""
 
     # Value stored in media_credit.role AND, for people, person_role.role.
     key: str
     # Human label, used wherever the media type does not override it below.
     label: str
-    # Which entity table the credit points at: "person" or "studio".
+    # Which entity table the credit points at: "person", "studio" or
+    # "publisher".
     target: str
     # Media type keys (hyphenated, from MEDIA_TABLES) that may use this role.
     # For a person role this doubles as the set of legal person_role.scope
     # values, because the scope IS the media type.
     media_types: tuple[str, ...]
+    # Where this role's credits are STORED. "media_credit" for the six roles
+    # whose rows live there; "character_casting" for seiyuu, whose casting is
+    # a character-first fact - who voiced WHOM - and so cannot be a flat
+    # person->entry link. See the design spec's Decision A and B.
+    credited_via: str = "media_credit"
 
 
 CREDIT_ROLES: dict[str, CreditRole] = {
-    "studio": CreditRole("studio", "Studio", "studio", ("anime", "anime-movie")),
+    # A game's developer IS its studio: one company that made the work, the
+    # same fact the anime role records. A separate `developer` key would split
+    # one studio's anime and game credits across two vocabularies.
+    "studio": CreditRole(
+        "studio", "Studio", "studio", ("anime", "anime-movie", "game")
+    ),
+    # The third entity target. Games-only for now: the four existing media
+    # types keep publisher_tw as a TagField until a later migration.
+    "publisher": CreditRole(
+        "publisher", "Publisher", "publisher", ("game",)
+    ),
     "director": CreditRole(
-        "director", "Director", "person", ("anime", "anime-movie", "movie")
+        "director", "Director", "person", ("anime", "anime-movie", "movie", "game")
     ),
     "producer": CreditRole("producer", "Producer", "person", ("anime",)),
-    "composer": CreditRole("composer", "Music / Composer", "person", ("anime",)),
+    "composer": CreditRole(
+        "composer", "Music / Composer", "person", ("anime", "game")
+    ),
     "author": CreditRole("author", "Author", "person", ("manga", "novel", "comic")),
     "illustrator": CreditRole(
         "illustrator", "Illustrator", "person", ("manga", "novel", "comic")
+    ),
+    # Stored in character_casting, NOT media_credit: a seiyuu reaches an anime
+    # through the character they voice. credit_roles_for() filters this out for
+    # exactly that reason.
+    "seiyuu": CreditRole(
+        "seiyuu", "Seiyuu 聲優", "person", ("anime", "anime-movie"),
+        credited_via="character_casting",
     ),
 }
 
@@ -100,13 +137,29 @@ TAG_FIELDS: dict[str, TagField] = {
     "genre_sub": TagField("genre_sub", "Genre Sub", "Genre Sub", ("anime",)),
     # Viewing-experience tags (會跳OP, 很多福利, ...). No legacy column ever
     # held these, so no LEGACY_SHEET_COLUMN entry: the sheet header is the key.
-    "label": TagField("label", "標籤 Label", "Label", ("anime",)),
+    "label": TagField("label", "標籤 Label", "Label", ("anime", "game")),
     # Production-quality tags (神作畫, 作畫崩壞, ...). Anime-only and, like
     # `label`, never a legacy column, so its sheet header is the key itself.
     "quality": TagField("quality", "Quality 品質", "Quality", ("anime",)),
-    "source_official": TagField(
-        "source_official", "Official Source", "Official Source",
+    # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
+    # on a streaming service the same day.
+    "original_source": TagField(
+        "original_source", "Original Source", PLATFORM_CATEGORY,
         ("tv-show", "cartoon", "movie"),
+    ),
+    # Which platform carries a work EXCLUSIVELY. Blank means not exclusive,
+    # which is a fact about the work, not a missing value. Single-valued: you
+    # cannot be exclusive to two platforms.
+    "exclusive_source": TagField(
+        "exclusive_source", "Exclusive Source", PLATFORM_CATEGORY,
+        ("anime", "anime-movie"),
+    ),
+    # Manga's real `serialization_platform` column was dropped in Task 11, in
+    # the same migration that backfilled its values into media_tag - so this
+    # field can now safely cover both media types.
+    "serialization_platform": TagField(
+        "serialization_platform", "Serialization Platform",
+        SERIALIZATION_CATEGORY, ("manga", "novel"),
     ),
     "publisher_tw": TagField(
         "publisher_tw", "Publisher / Distributor TW",
@@ -124,13 +177,33 @@ TAG_FIELDS: dict[str, TagField] = {
     ),
     "comic_era": TagField("comic_era", "Era", "Comic Era", ("comic",)),
     "comic_event": TagField("comic_event", "Events", "Comic Event", ("comic",)),
+    # The five game vocabularies. Genre, theme, mode and platform mirror
+    # IGDB's own fields, which is why each has a system_option_alias row
+    # rather than an English value; combat mode (PvE/PvP) is not an IGDB field
+    # and is hand-entered.
+    "game_genre": TagField("game_genre", "Genre", "Game Genre", ("game",)),
+    "game_theme": TagField("game_theme", "Theme", "Game Theme", ("game",)),
+    "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
+    "combat_mode": TagField(
+        "combat_mode", "Combat Mode", "Combat Mode", ("game",)
+    ),
+    # WHICH platform the game is on. Not a media_source access row: a game
+    # carries no availability tristate and no per-platform link, and where a
+    # copy was bought is game_copy.
+    "game_platform": TagField(
+        "game_platform", "Platform", "Game Platform", ("game",)
+    ),
 }
 
 TAG_FIELD_KEYS: tuple[str, ...] = tuple(TAG_FIELDS.keys())
 
 # Categories that exist as vocabularies but back no entry column - they drive
 # list-page filters only, so no TagField names them.
-FILTER_ONLY_CATEGORIES: tuple[str, ...] = ("Franchise for Filter",)
+FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
+    "Franchise for Filter",
+    # Drawn on by media_source rows rather than by a TagField.
+    "Reference Source",
+)
 
 # The categories the admin Add / Modify / Delete pages offer under their
 # "Tags" sub-tab instead of "Options". Both sub-tabs are the same form over
@@ -164,7 +237,7 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # wrote under "distributor_tw" while manga/novel/comic wrote under
 # "publisher_tw" itself. The sheets predate this design and must keep reading
 # the same; only what sits behind the column changed. A pair absent here (for
-# example movie/source_official, which never had a legacy column) falls back
+# example movie/original_source, which never had a legacy column) falls back
 # to its own key as the header - see credits.sheet_link_headers.
 LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("anime", "studio"): "studio",
@@ -177,8 +250,8 @@ LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("anime-movie", "studio"): "studio",
     ("anime-movie", "director"): "director",
     ("movie", "director"): "director",
-    ("tv-show", "source_official"): "source_official",
-    ("cartoon", "source_official"): "source_official",
+    ("tv-show", "original_source"): "source_official",
+    ("cartoon", "original_source"): "source_official",
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
     ("manga", "publisher_tw"): "publisher_tw",
@@ -202,8 +275,19 @@ def sheet_column_for(media_type: str, key: str) -> str:
 
 
 def credit_roles_for(media_type: str) -> tuple[CreditRole, ...]:
-    """Every credit role usable on entries of this media type."""
-    return tuple(r for r in CREDIT_ROLES.values() if media_type in r.media_types)
+    """
+    Every credit role usable on entries of this media type whose rows live in
+    `media_credit`.
+
+    The credited_via filter is not cosmetic: /api/credits and the sheet
+    link-column builder both walk this, and seiyuu has no media_credit rows to
+    find. A seiyuu's work is read through /api/casting instead.
+    """
+    return tuple(
+        r
+        for r in CREDIT_ROLES.values()
+        if media_type in r.media_types and r.credited_via == "media_credit"
+    )
 
 
 def tag_fields_for(media_type: str) -> tuple[TagField, ...]:

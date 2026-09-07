@@ -7,6 +7,8 @@
 
 import { WEEKDAYS } from "./weekdays";
 
+export { NOVEL_UNIT_KINDS_BY_TYPE } from "../lib/novelUnits";
+
 export const AIRING_STATUSES = [
   "Not Yet Aired",
   "Airing",
@@ -41,6 +43,74 @@ export const READING_STATUSES = [
   "Dropped",
   "Won't Read",
 ];
+
+export const PLAYING_STATUSES = [
+  "Might Play",
+  "Plan to Play",
+  "Play When Released",
+  "Active Playing",
+  "Passive Playing",
+  "Paused",
+  "Completed",
+  "Temp Dropped",
+  "Dropped",
+  "Won't Play",
+];
+
+// The game vocabularies. GET /api/constants serves all eight, so these are
+// the pre-fetch fallback like every list above - see CONSTANTS_FALLBACK.
+export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
+
+export const COMPLETION_LEVELS = [
+  "Main Story",
+  "Main + Extras",
+  "Post-game",
+  "Completionist",
+];
+
+export const GAME_RELEASE_STATUSES = [
+  "Rumored",
+  "Unreleased",
+  "Early Access",
+  "Released",
+  "Ongoing",
+  "Discontinued",
+  "Cancelled",
+];
+
+export const GAME_STOREFRONTS = [
+  "Steam",
+  "Nintendo eShop",
+  "PlayStation Store",
+  "Xbox Store",
+  "GOG",
+  "Epic Games Store",
+  "Physical",
+  "Other",
+];
+
+export const GAME_OWNERSHIP_KINDS = [
+  "Owned",
+  "Wishlist",
+  "Subscription",
+  "Free",
+  "Not Owned",
+];
+
+export const GAME_COPY_FORMATS = ["Digital", "Physical"];
+
+export const GAME_ACQUISITION_KINDS = [
+  "Bought",
+  "Gifted",
+  "Free",
+  "Bundled",
+  "Subscription",
+];
+
+// The currencies a copy's price_paid can be recorded in. Not a backend
+// vocabulary - price_currency is a free string there - so this list is a
+// picking aid, and the three the price columns already use lead it.
+export const PRICE_CURRENCIES = ["USD", "JPY", "TWD", "EUR", "GBP", "KRW", "CNY"];
 
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
@@ -84,13 +154,33 @@ export const NOVEL_SERIALIZATION_STATUSES = [
 ];
 
 // Progress display uses {value, label} pairs — the stored value is a short code.
+// This is the FULL vocabulary, and it is only for the Form Defaults page,
+// which picks the default for novels of every type at once and so cannot be
+// narrowed to one entry. A per-entry <select> must use
+// progressDisplayOptions(novel) from lib/novelUnits.js instead, which offers
+// only what that novel's type and unit rows can actually render.
 export const PROGRESS_DISPLAY_OPTIONS = [
-  { value: "", label: "— Default (VOL Original) —" },
-  { value: "ch", label: "CH (Chapters)" },
+  { value: "", label: "— Default (derived from type) —" },
+  { value: "vol_original", label: "VOL JP/KR (Original Volumes)" },
   { value: "vol_tw", label: "VOL TW (Taiwan Volumes)" },
-  { value: "vol_original", label: "VOL Original" },
-  { value: "arc_ch", label: "ARC + CH" },
+  { value: "ch", label: "CH (Chapters)" },
+  { value: "arc", label: "ARC (Arcs)" },
+  { value: "arc_ch", label: "ARC + CH (Arc and chapter)" },
 ];
+
+// A <select> must still show whatever is stored, even when the current option
+// list does not offer it — a value left behind by a type change, a Pull, or a
+// vocabulary that has since narrowed. This appends it back as a labelled,
+// selectable entry so the admin sees what the row actually holds instead of
+// the select silently reverting to the default option. Note that such a value
+// no longer *renders* as progress: effectiveProgressDisplay() falls back to
+// the derived mode when the type cannot support the stored one.
+export function withLegacyProgressDisplay(options, currentValue) {
+  if (!currentValue || options.some((o) => o.value === currentValue)) {
+    return options;
+  }
+  return [...options, { value: currentValue, label: `${currentValue} (legacy)` }];
+}
 
 export const RELEASE_SEASONS = ["WIN", "SPR", "SUM", "FAL"];
 
@@ -126,7 +216,7 @@ export const SEASON_NUMS = Array.from({ length: 10 }, (_, i) => String(i + 1));
 export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 
 // Yes/No selects that store the STRING "true"/"false" (never a real boolean),
-// with "" meaning "unset". Used by source_baha, source_netflix.
+// with "" meaning "unset".
 export const TRISTATE = ["true", "false"];
 
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
@@ -139,15 +229,20 @@ export const SEIYUU_STATUSES = ["Need", "Done"];
 // to be a hand-written literal inside OptionsAddTab.jsx with nothing enforcing
 // the match, which is the exact two-copies pattern the options redesign exists
 // to delete.
+//
+// Moving it here did not stop it drifting: it sat holding the PRE-COLLAPSE
+// keys (manga_author, novel_author, novel_illustrator, comic_writer,
+// comic_artist) long after the 2026-09-04 collapse replaced them with author
+// and illustrator, because the live API masks a wrong fallback. It is now
+// pinned by test_person_role_fallback_matches_python in
+// tests/unit/test_credit_roles.py.
 export const PERSON_ROLES = [
   "director",
   "producer",
   "composer",
-  "manga_author",
-  "novel_author",
-  "novel_illustrator",
-  "comic_writer",
-  "comic_artist",
+  "author",
+  "illustrator",
+  "seiyuu",
 ];
 
 // Hyphenated media type keys (MEDIA_TABLES in app/utils/media_resolver.py),
@@ -162,6 +257,7 @@ export const MEDIA_TYPES = [
   "manga",
   "novel",
   "comic",
+  "game",
 ];
 
 // Tier 2 CATEGORY NAMES (OPTION_CATEGORIES in app/utils/credit_roles.py), not
@@ -180,6 +276,11 @@ export const OPTION_CATEGORIES = [
   "Comic Continuity",
   "Comic Era",
   "Comic Event",
+  "Game Genre",
+  "Game Theme",
+  "Game Mode",
+  "Combat Mode",
+  "Game Platform",
   "Franchise for Filter",
 ];
 
@@ -192,6 +293,7 @@ export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label", "Quality"];
 export const CONSTANTS_FALLBACK = {
   watching_status: WATCHING_STATUSES,
   reading_status: READING_STATUSES,
+  playing_status: PLAYING_STATUSES,
   airing_status: AIRING_STATUSES,
   anime_airing_type: ANIME_AIRING_TYPES,
   cartoon_airing_type: CARTOON_AIRING_TYPES,
@@ -205,6 +307,13 @@ export const CONSTANTS_FALLBACK = {
   novel_region: NOVEL_REGIONS,
   novel_type: NOVEL_TYPES,
   comic_type: COMIC_TYPES,
+  game_type: GAME_TYPES,
+  completion_level: COMPLETION_LEVELS,
+  game_release_status: GAME_RELEASE_STATUSES,
+  game_storefront: GAME_STOREFRONTS,
+  game_ownership: GAME_OWNERSHIP_KINDS,
+  game_copy_format: GAME_COPY_FORMATS,
+  game_acquisition: GAME_ACQUISITION_KINDS,
   manga_serialization_status: MANGA_SERIALIZATION_STATUSES,
   novel_serialization_status: NOVEL_SERIALIZATION_STATUSES,
   day_of_week: WEEKDAYS,

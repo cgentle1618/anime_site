@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-02 (commit 72f03ae)
+Last verified: 2026-09-06
 
 ## What this is for
 
@@ -32,7 +32,7 @@ Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
 1. `db.query(tab.model).all()` — every row of the table.
 2. Headers are the model's column names (`tab.model.__table__.columns`); each row is formatted with `format_model_for_sheet`.
-3. If the tab has a `media_type` (the eight entry tabs), the credit and tag link columns are appended **after** the plain columns: `sheet_link_headers(media_type)` gives the legacy header names (studio, director, genre_main, ...) and `sheet_link_rows(db, media_type, rows)` fills them as comma-joined names in a fixed number of queries. Pull matches these by header name, never by position, so appending them is safe.
+3. If the tab has a `media_type` (the nine entry tabs), the credit and tag link columns are appended **after** the plain columns: `sheet_link_headers(media_type)` gives the legacy header names (studio, director, genre_main, ...) and `sheet_link_rows(db, media_type, rows)` fills them as comma-joined names in a fixed number of queries. Pull matches these by header name, never by position, so appending them is safe.
 4. `bulk_overwrite_sheet(tab.name, [headers] + matrix)` (`app/services/integrations/sheets.py`): **write first, trim after**. It updates from `A1` with `USER_ENTERED`, then `batch_clear`s only the cells beyond the new data (rows below, columns to the right). A failed write therefore leaves the previous backup intact rather than a blank tab. An empty matrix raises `ValueError` — Backup refuses to blank a tab.
 
 Outcome:
@@ -50,34 +50,101 @@ Outcome:
 
 | # | Tab name | Model | `media_type` key |
 |---|---|---|---|
-| 1 | `System Options` | `SystemOption` | |
-| 2 | `System Option Scope` | `SystemOptionScope` | |
-| 3 | `Person` | `Person` | |
-| 4 | `Person Role` | `PersonRole` | |
-| 5 | `Studio` | `Studio` | |
-| 6 | `System Configs` | `SystemConfigs` | |
-| 7 | `Collection` | `Collection` | |
-| 8 | `Franchise` | `Franchise` | |
-| 9 | `Series` | `Series` | |
-| 10 | `Anime` | `Anime` | `anime` |
-| 11 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 12 | `Movies` | `Movies` | `movie` |
-| 13 | `TV Shows` | `TVShows` | `tv-show` |
-| 14 | `Cartoons` | `Cartoon` | `cartoon` |
-| 15 | `Manga` | `Manga` | `manga` |
-| 16 | `Novel` | `Novel` | `novel` |
-| 17 | `Comic` | `Comic` | `comic` |
-| 18 | `Watch Order List` | `WatchOrderList` | |
-| 19 | `Watch Order Section` | `WatchOrderSection` | |
-| 20 | `Watch Order Item` | `WatchOrderItem` | |
-| 21 | `Media Relation` | `MediaRelation` | |
-| 22 | `Plan Next` | `PlanNext` | |
-| 23 | `Quote` | `Quote` | |
-| 24 | `Meme` | `Meme` | |
-| 25 | `Note` | `Note` | |
-| 26 | `Seasonal` | `Seasonal` | |
+| 1 | `System Options` | `SystemOption` |  |
+| 2 | `System Option Scope` | `SystemOptionScope` |  |
+| 3 | `System Option Usage` | `SystemOptionUsage` |  |
+| 4 | `System Option Alias` | `SystemOptionAlias` |  |
+| 5 | `Content Label` | `ContentLabel` |  |
+| 6 | `Person` | `Person` |  |
+| 7 | `Person Role` | `PersonRole` |  |
+| 8 | `Studio` | `Studio` |  |
+| 9 | `Publisher` | `Publisher` |  |
+| 10 | `Character` | `Character` |  |
+| 11 | `System Configs` | `SystemConfigs` |  |
+| 12 | `Collection` | `Collection` |  |
+| 13 | `Franchise` | `Franchise` |  |
+| 14 | `Series` | `Series` |  |
+| 15 | `Anime` | `Anime` | `anime` |
+| 16 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 17 | `Movies` | `Movies` | `movie` |
+| 18 | `TV Shows` | `TVShows` | `tv-show` |
+| 19 | `Cartoons` | `Cartoon` | `cartoon` |
+| 20 | `Manga` | `Manga` | `manga` |
+| 21 | `Novel` | `Novel` | `novel` |
+| 22 | `Novel Unit` | `NovelUnit` |  |
+| 23 | `Comic` | `Comic` | `comic` |
+| 24 | `Game` | `Game` | `game` |
+| 25 | `Game Copy` | `GameCopy` |  |
+| 26 | `Watch Order List` | `WatchOrderList` |  |
+| 27 | `Watch Order Section` | `WatchOrderSection` |  |
+| 28 | `Watch Order Item` | `WatchOrderItem` |  |
+| 29 | `Media Relation` | `MediaRelation` |  |
+| 30 | `Plan Next` | `PlanNext` |  |
+| 31 | `Quote` | `Quote` |  |
+| 32 | `Character Casting` | `CharacterCasting` |  |
+| 33 | `Meme` | `Meme` |  |
+| 34 | `Note` | `Note` |  |
+| 35 | `Media Source` | `MediaSource` |  |
+| 36 | `Media Content Label` | `MediaContentLabel` |  |
+| 37 | `Seasonal` | `Seasonal` |  |
 
-Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the eight entry tabs).
+Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the nine entry tabs).
+
+`Media Source` sits after `Note` (both endpoints — the entry, and, when set,
+the option — must already exist), and `Media Content Label` after it (both
+*its* endpoints — the entry, and the label on the `Content Label` tab — must
+already exist too), the two of them before `Seasonal`.
+
+The three tabs games added sit where their foreign keys put them.
+`System Option Alias` follows `System Option Usage`, because `option_id` is a
+real FK into `system_option` and the parent tab must restore first — the same
+position, and the same derived-identity treatment, its two siblings have.
+`Game` follows `Comic` at the end of the media tabs, and `Game Copy` follows
+`Game`, because `game_copy.game_id` is a real FK too (the `Novel` / `Novel
+Unit` pairing repeated). `Game Copy` is not a `media_type` tab: it carries no
+credit or tag link columns, since a copy is a purchase record rather than an
+entry.
+
+**`source_baha`, `baha_link`, `source_netflix`, `source_other`,
+`official_link`, `twitter_link` and `anilist_link` are gone.** Migration
+`dc1o2l3s4d5` dropped all seven from every table that had them (`anime`,
+`anime_movies`, `manga`, `novel`, `movies`, `tv_shows`, `cartoons`, `comic`),
+and `formatter.py` no longer round-trips any of them on any media tab.
+`media_source` rows (the `Media Source` tab) are the only mechanism left for
+this data, on every read and write path.
+
+**This was a breaking sheet change.** A sheet backed up before the
+`Media Source` tab existed has no `media_source` rows and, now that the
+columns are dropped, nothing to fall back on. Per
+[switching-environments.md](switching-environments.md), Backup and Pull All
+carry the *whole* database state each way with no merge — so **on any machine
+that has not yet run a Backup since this migration landed, run Backup from
+the machine with the newer data before the other machine runs Pull All.**
+Pulling an old sheet into the dropped schema silently restores nothing for
+sources: the columns it used to fill no longer exist, and an old sheet has no
+`Media Source` rows to replace them with.
+
+`system_option_usage` has had its own tab since it started drifting between
+machines — a `usage` row set through the Options page now round-trips exactly
+like its `system_option_scope` sibling. See
+[data-model.md](data-model.md#system_option_usage) and
+[options.md](options.md#tier-2-system-options).
+
+`content_label` and `media_content_label` have tabs for the same reason, and a
+sharper one: they are the only tables whose absence from the sheet fails
+**open**. A Pull All on a machine that had never been told which entries carry
+`nsfw` restored every one of them unlabelled — visible to every viewer — and
+nothing in the run reported a problem. Both tables mint their `system_id` per
+database (the labels are typed into the admin page on each machine), so both
+are derived-identity tabs: `Content Label` is identified by its unique `key`,
+`Media Content Label` by `(media_type, entry_id, label_id)`, and the `label_id`
+a sheet carries is translated through the `Content Label` tab before it is
+stored — the same treatment `System Option Scope` gets. A labelling whose label
+cannot be resolved is skipped with a warning rather than failing the tab.
+
+Still outside the sheet, deliberately: `users`, `role`, `role_permission`
+(`ensure_rbac_seed` recreates guest and admin on any machine, but a role added
+or narrowed by hand is per-machine), `data_control_logs` and `deleted_record`.
 
 ---
 
@@ -98,7 +165,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      | Tab | How |
      |---|---|
-     | `TV Shows`, `Cartoons`, `Manga`, `Novel`, `Comic`, `Movies` | `resolve_*_parent_hierarchy(db, franchise, series, name_fields)` — auto-creates the franchise if missing, looks up the series |
+     | `TV Shows`, `Cartoons`, `Manga`, `Novel`, `Comic`, `Movies`, `Game` | `resolve_*_parent_hierarchy(db, franchise, series, name_fields)` — auto-creates the franchise if missing (type `Game` for a game), looks up the series |
      | `Anime Movie` | `resolve_anime_movie_parent_hierarchy(db, franchise, name_fields)` when `franchise_id` is `None` or a string (auto-creates the franchise; no series) |
      | any other tab with a string `franchise_id` | look up `Franchise` by en/cn/jp/alt name; **not found → row skipped** |
      | string `collection_id` | look up `Collection` by any of its five names; not found → set to `None`, row kept (collection is optional) |
@@ -122,19 +189,31 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
-   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): seven tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
+   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
 
      | Tab | Matched on | Sheet PK |
      |---|---|---|
      | `System Options` | `category` + `value` | uuid — tried first |
-     | `Person`, `Studio` | `name_native` + `name_en` | uuid — tried first |
+     | `Person`, `Studio` | `name_en` + `name_cn` + `name_jp` + `name_alt` | uuid — tried first |
      | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
      | `Plan Next` | `kind` + `scope` + `target_id` + `media_type` | uuid — tried first |
+     | `Media Source` | `media_type` + `entry_id` + `kind` + `bucket` + `option_id` + `name` (`uq_media_source_row`) | uuid — tried first |
      | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |
+| `System Option Alias` | `option_id` + `source` + `value` | integer — **ignored** |
      | `Person Role` | `person_id` + `role` + `scope` | integer — **ignored** |
 
      A uuid that misses is merely unknown, so trying it first costs nothing and lets a value *renamed* in the sheet follow its existing row. The two autoincrement ids are ignored outright: the sheet's `id = 1` names a real but unrelated local row, and honouring it retargets the wrong row.
-   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id` and `Person Role.person_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
+
+     `Media Source` needs `option_id` in its own natural key, unlike the other
+     FK-less tabs above: two `main`-bucket rows on the same entry for two
+     different platforms both have `name = NULL`, so without `option_id` they
+     would collide with each other as duplicates on a second Pull. `option_id`
+     is resolved to the **local** option id (from the tab's `option_category`/
+     `option_value` columns, see below) before this match runs, so the
+     comparison is a plain local-to-local uuid check like every other column
+     in the key.
+   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id`, `System Option Usage.option_id`, `System Option Alias.option_id`, `Person Role.person_id` and `Media Content Label.label_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
+   - **`Media Source`'s `option_id` is never written to the sheet as a uuid at all** — `system_option` mints a different id per database, so a raw `option_id` column would not survive the round trip the way `entry_id` does (entry ids *are* identical across databases). The tab instead carries the option's `category` and `value` as two extra string columns, `option_category` and `option_value` (`tabs.py`'s `extra_columns`, resolved by a small helper rather than being real model columns). Before the natural-key match above runs, Pull resolves `(option_category, option_value)` against the **local** `system_option` table and fills in a local `option_id`; when it cannot be resolved (the value does not exist on this machine), `option_id` is left `None`, which then trips `ck_media_source_one_target` and fails the whole tab's Pull — there is no per-row skip-with-warning here the way the neighbouring `Franchise`/`Series` lookups above have, so a Platform value renamed or deleted on one machine can block a `Media Source` Pull on the other until the vocabularies are reconciled.
    - **Target row**: `existing = query(Model).filter(pk == pk_value)` when a PK is present.
    - **INSERT-only defaults** (never applied to an UPDATE, so a sheet that omits a column cannot wipe a good value):
 
@@ -142,6 +221,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      |---|---|
      | `Anime`, `Movies`, `Anime Movie`, `TV Shows`, `Cartoons` | `watching_status = "Might Watch"`, `created_at` / `updated_at = get_taipei_now()` |
      | `Manga` | `reading_status = "Might Read"`, `created_at` / `updated_at` |
+| `Game` | `playing_status = "Might Play"`, `created_at` / `updated_at` |
      | `Collection`, `Franchise`, `Series` | `created_at` / `updated_at` (non-nullable on these models) |
 
      `Novel` and `Comic` get no `reading_status` default here; they rely on their parsers.
@@ -172,7 +252,7 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 
 Steps:
 
-1. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine id out of the pasted link) and commit.
+1. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine / IGDB id out of the pasted link) and commit.
 2. Queue = entries where `spec.fill_eligible(db, entry)` is true. Empty queue → one progress message `"No entries need filling."`.
 3. Per queued entry: check the client is still connected; if `spec.budget` exists and returns `False`, stop and remember how many were left; emit progress with the entry's `display_name`; run `spec.fill` in a worker thread (`run_in_threadpool`, so the event loop and other requests stay alive during the synchronous `requests` calls) and commit. One failing entry is rolled back and logged; the run continues. Then `asyncio.sleep(spec.fill_sleep)` if set.
 4. If `spec.post_process` exists, emit `"Running post-processing..."` and run it on **every** entry of the type (not just the queue), then commit.
@@ -189,14 +269,52 @@ Per type (verbatim from `specs.py`):
 | `tv-show` | `has_missing_values_tv_show` | `autofill_tv_show_from_imdb(e, db)` | 0 | `tv_show_post_processing` | `"Syncing system options..."` → `run_sync_tv_show` | — |
 | `cartoon` | `airing_type in {"Movie", "TV"}` and `has_missing_values_cartoon` | `autofill_cartoon_from_imdb(e, db)` | 0 | `cartoon_post_processing` | `"Syncing system options..."` → `run_sync_cartoon` | — |
 | `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
-| `novel` | `mal_link` set and `has_missing_values_novel` | `autofill_novel_from_mal(e, force_replace_ratings=True)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
+| `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
+| `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
+| `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
 
-`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga, novel), `apply_extract_comicvine_id` (comic).
+`extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_game_ids` (game — runs both `apply_extract_igdb_id`, from `igdb_link`, and `apply_extract_steam_appid`, from `steam_link`, unconditionally, since a game can carry an IGDB link, a Steam link, or both; a `www.igdb.com` **slug** URL or a `steamcommunity.com` hub link carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
+
+**Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
+
+**Game had a spec before it had a source.** `PIPELINES["game"]` shipped with
+the games backend as a spec that fetched nothing — registration demands one,
+because `MEDIA_TABLES` membership is asserted by `test_sheet_tabs` and by the
+data-control route builder, which generates `/api/data-control/fill/game` and
+`/replace/game/...` from the registry. Until IGDB landed (its own plan, right
+after) `fill_eligible` returned `False` for every row, so a Fill run reported
+"No entries need filling" rather than erroring. **That stub is gone**: Fill
+Game now calls `autofill_game_from_igdb` then `autofill_game_from_steam`, and
+games are in Fill All. **Game also gained a bulk Replace**, its first
+(`replace_select = _linked(Game, Game.steam_appid, Game.steam_link)`,
+`in_replace_all=True`): it runs the Steam half only, since nothing in an IGDB
+record drifts — the same reasoning that makes Studio `fill_only` stays true
+of IGDB's own half, and is now false of the type as a whole.
+
+**IGDB's half of Fill Game has no budget guard**, unlike Comic. IGDB's limit
+is 4 requests/second with no hourly quota, so the client's sliding-window
+limiter paces the run and nothing ever has to abandon it part-way;
+`has_missing_values_game` looks only at `GAME_FIELDS_TO_FILL` (`igdb_link`,
+`release_date`, `cover_image_file`, `hltb_main`, `hltb_main_extra`,
+`hltb_completionist`) — deliberately **not** at the genre/theme/mode tags,
+because an IGDB value with no `system_option_alias` row is logged and skipped
+rather than stored, so a game with an un-aliased genre would otherwise be
+"needs filling" forever. **Steam's half does have a budget guard**: its
+storefront allows ~200 requests per 5 minutes per IP, observed rather than
+published, so `steam_store_rate_limiter.has_capacity` is wired as the game
+spec's `budget` and stops a run cleanly once the window is spent, reporting
+the remainder — the same bargain Comic Vine makes with its hourly quota.
+`STEAM_PAUSE` (0.5 s) is polite spacing on top of that limiter, not the guard
+itself, and it now paces the whole game pipeline since Steam's window is far
+tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
+[external-apis.md](external-apis.md#steam).
 
 **Comic Vine budget stop**: the limiter allows 200 requests per rolling hour. Before each comic, `has_capacity()` is checked; when it is `False` the loop breaks instead of blocking, and the remaining count is reported in the final message. The run still logs `Success`.
 
-**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
+**Studio is the only non-media type in the registry.** It fills from MAL's producer endpoint (logo, `mal_link`, `founded_date`, `name_jp`, `website_url` — all fill-only; see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data)) and carries `fill_only=True`, so `_register_replace_routes` is skipped for it entirely: there is no bulk or single Replace for a studio, because a producer record holds no score or rank that drifts. The same autofill also runs inside `POST` / `PUT /api/studio` on save, so a studio you enter with a MAL id is filled without visiting this page at all.
+
+**Fill All** (`execute_fill_all` → `run_all("Fill", FILL_ALL, ...)`) runs the specs with `in_fill_all=True` in `PIPELINES` order — anime, anime-movie, movie, tv-show, cartoon, manga, novel, game, studio — and **excludes comic** (`in_fill_all=False`, because its budget is hourly). Then it runs `execute_backup(db, action_type="Auto")` and logs one master row `Fill` / `Fill All`. Sub-pipelines run with `log_action=False` and write no rows of their own. If any sub-pipeline emitted an `error` event, the master row is `Failed` with the joined messages, Backup is skipped, and the stream ends with an `error` event `"Fill All completed with errors: ..."`.
 
 ---
 
@@ -204,15 +322,16 @@ Per type (verbatim from `specs.py`):
 
 ### 5.1 Bulk — `run_replace(spec, ...)` (SSE)
 
-1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel) or `imdb_id`/`imdb_link` (movie, tv-show) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for comics.
+0. If the spec has `pre_run`, it runs first — game's `_start_game_run` drops the cached Steam owned-games library so the run reads today's playtime rather than a stale in-memory copy (also wired ahead of Fill Game, for the same reason).
+1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, novel), `imdb_id`/`imdb_link` (movie, tv-show), or `steam_appid`/`steam_link` (game) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for comics.
 2. Zero entries → logs `Success` with `rows_updated=0` and emits an `info` event `"No {type} entries found to replace"`.
-3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the four MAL types, 0 for TMDB/OMDb types).
+3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the four MAL types, 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game).
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, novel; none for movie.
 5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
 
-`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`.
+`spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_novel(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — Steam only; re-fetches `autofill_game_from_steam`, never `autofill_game_from_igdb`.
 
-**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the seven types with `in_replace_all=True` (comic excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
+**Replace All** (`execute_replace_all` → `run_all("Replace", REPLACE_ALL, ...)`) covers the eight types with `in_replace_all=True` — game included now that it has a bulk Replace — (comic and studio excluded), then Backup (`Auto`), one master row `Replace` / `Replace All`, same error handling as Fill All.
 
 ### 5.2 Single entry — `run_replace_single(spec, db, entry_id, ...)`
 
@@ -220,10 +339,10 @@ Returns a status dict, never raises. `action_specific` is `"Replace for single {
 
 1. Look up `spec.model.system_id == entry_id`; missing → logs `Failed` (`"{label} not found 404"`) and returns `status_code: 404`.
 2. If the spec has `replace`, run it with `bulk=False` in a worker thread; commit.
-3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`. Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
+3. Run every `single_after` function: `run_sync_anime` (anime), `run_sync_anime_movie`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_novel`, `run_sync_comic`, `run_sync_game`. Movie and TV Show have none. Comic has no `replace` at all, so its single hook only re-syncs system options.
 4. Log `Replace` / `Success` with `rows_updated=1`; return `{"status": "success", "message": "Successfully updated {display_name}."}`. Any exception → rollback, log `Failed`, `status_code: 500`.
 
-**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel and comic: the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
+**Write hooks.** The same `execute_replace_single_*` functions are the registry's `write_hook` (`app/registry.py`) for movie, tv-show, cartoon, manga, novel, comic and game (`execute_replace_single_game` now calls `apply_single_replace_game`, so a game saved with a `steam_appid` picks up its Steam data immediately, not just on the next Replace run): the CRUD router factory (`app/routers/_factory.py`, `_run_write_hook`) calls them after every create and update with `action_type="Auto"`, `log_action=False`, and swallows failures (the row is already committed; a 500 here made the SPA retry and create duplicates). Anime instead runs `apply_single_replace_anime(db, anime, force_replace_ratings=False)` synchronously **before** commit (`pre_commit_hook`, `app/services/domain/anime_write.py`); anime movie has no hook.
 
 The manual route `POST /replace/{key}/{entry_id}` calls the same function with `action_type="Manual"`, `log_action=False` — so a single Replace never writes a `DataControlLog` row, whichever way it is triggered.
 
@@ -247,14 +366,14 @@ Any exception logs `Failed` with the message and re-raises (500). Response on su
 
 ## 7. Cover-image maintenance
 
-All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). Covers are stored as `{system_id}.jpg`. None of these write a `DataControlLog` row.
+All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). Images are stored as `{owner_type}/{system_id}.jpg` and every column holds that whole key; the helpers take the owner type alongside the id. None of these write a `DataControlLog` row.
 
 | Function | Route | What it does | Response keys |
 |---|---|---|---|
-| `bulk_check_cover_image(db, entry_type)` | `GET /calculate/check-cover-image` | Lists entries whose `cover_image_file` is set but whose file is missing in storage. With `entry_type` only Anime rows with that `airing_type` are checked; without it all eight types are. Also embeds `bulk_check_unused_cover_images`: files in storage referenced by no row, split into `should_use` (file stem is a known `system_id`) and `orphaned` (unknown stem). | `total_checked`, `missing_count`, `missing[]` (`system_id`, `name`, `entry_type`), `entry_type`, `should_use[]`, `should_use_count`, `orphaned[]`, `orphaned_count` |
-| `bulk_set_cover_image_fields(db)` | `POST /calculate/set-cover-image-fields` | For every entry (all eight types) with `cover_image_file` null whose file exists in storage, sets `cover_image_file = "{system_id}.jpg"`. | `updated_count` |
-| `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` file from the check above. | `deleted_count` |
-| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`. One commit at the end. | `message`: `"Downloaded X of Y missing cover images."` plus `"N skipped (no Tenrai source for this type)."` when any were skipped |
+| `bulk_check_cover_image(db, entry_type)` | `GET /calculate/check-cover-image` | Lists entries whose `cover_image_file` is set but whose file is missing in storage. With `entry_type` only Anime rows with that `airing_type` are checked; without it all eight types are. Also embeds `bulk_check_unused_cover_images`: keys in storage referenced by no row, split into `should_use` (the key names an existing row) and `orphaned` (no row owns it). That scan walks every table that owns an image, `COVER_OWNER_TABLES` — the nine media types plus staff, character, publisher and studio, and casting override photos. Leaving a table out of it reported all of its images as orphaned, and the delete action below then deleted them. | `total_checked`, `missing_count`, `missing[]` (`system_id`, `name`, `entry_type`), `entry_type`, `should_use[]`, `should_use_count`, `orphaned[]`, `orphaned_count` |
+| `bulk_set_cover_image_fields(db)` | `POST /calculate/set-cover-image-fields` | For every entry (all eight types) with `cover_image_file` null whose file exists in storage, sets `cover_image_file = "{owner_type}/{system_id}.jpg"`. Game is deliberately excluded, matching the missing Game branch in `bulk_download_missing_covers` below. | `updated_count` |
+| `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` key from the check above, splitting the key back into owner type and id. **Blind spot:** `list_all_cover_images` only walks the owner folders, so an image left at the storage root belongs to no owner and this action cannot see it. `scripts/migrate_cover_layout.py --prune-orphans --apply` sweeps both kinds. | `deleted_count` |
+| `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`. **Games are not walked at all** — the function hand-lists eight models and `Game` was never added, so a game with a missing cover file is neither downloaded nor counted. One commit at the end. | `message`: `"Downloaded X of Y missing cover images."` plus `"N skipped (no Tenrai source for this type)."` when any were skipped |
 
 ---
 
@@ -320,15 +439,15 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ## 11. Route table — `/api/data-control`
 
-All routes require admin (`get_current_admin`). `{key}` is a hyphenated media type: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`. Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require admin (`get_current_admin`). `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|
-| POST | `/fill/all` | — | SSE | Fill All (seven types, no comic) then Auto Backup |
+| POST | `/fill/all` | — | SSE | Fill All (seven media types plus studio, no comic) then Auto Backup |
 | POST | `/replace/all` | — | SSE | Replace All (seven types, no comic) then Auto Backup |
-| POST | `/fill/{key}` | — | SSE | Fill one type (all eight keys) |
-| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) |
-| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (all eight keys) |
+| POST | `/fill/{key}` | — | SSE | Fill one type (all nine keys, studio included) |
+| POST | `/replace/{key}` | — | SSE | bulk Replace one type; **not registered for `comic`** (`replace_select is None`) or `studio` (`fill_only`) — `game` is registered (Steam only) |
+| POST | `/replace/{key}/{entry_id}` | path `entry_id` = `system_id` | JSON `{"status": "success", "message"}`; 404 when the entry is missing, 500 on failure | single Replace (the eight media keys; **not registered for `studio`**) |
 | POST | `/backup` | — | JSON `{"status", "message"}`; 500 on failure | Backup every tab |
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |
 | POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | JSON `{"status", "processed", "rows_added", "rows_updated"}` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |

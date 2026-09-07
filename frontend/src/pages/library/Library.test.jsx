@@ -45,7 +45,17 @@ function mount(path) {
 
 it("has a config for every media type that has a library", () => {
   expect(Object.keys(LIBRARY_CONFIGS).sort()).toEqual(
-    ["anime", "anime-movie", "cartoon", "comic", "manga", "movie", "novel", "tv-show"]
+    [
+      "anime",
+      "anime-movie",
+      "cartoon",
+      "comic",
+      "game",
+      "manga",
+      "movie",
+      "novel",
+      "tv-show",
+    ]
   );
   for (const cfg of Object.values(LIBRARY_CONFIGS)) {
     expect(cfg.tableColumns.length).toBeGreaterThan(3);

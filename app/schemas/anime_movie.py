@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.schemas.link_fields import AnimeMovieLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class AnimeMovieBase(BaseModel):
@@ -33,14 +34,6 @@ class AnimeMovieBase(BaseModel):
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-    official_link: Optional[str] = None
-    twitter_link: Optional[str] = None
-
-    source_baha: Optional[bool] = None
-    baha_link: Optional[str] = None
-    source_netflix: Optional[bool] = False
-    source_other: Optional[dict] = None
 
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
@@ -51,11 +44,11 @@ class AnimeMovieBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw")
 
 
-class AnimeMovieCreate(AnimeMovieBase):
+class AnimeMovieCreate(AnimeMovieBase, SourceWriteFields):
     pass
 
 
-class AnimeMovieUpdate(AnimeMovieBase):
+class AnimeMovieUpdate(AnimeMovieBase, SourceWriteFields):
     pass
 
 

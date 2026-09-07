@@ -1,0 +1,221 @@
+"""Hierarchy stamping, completion, and the game_copy nested writer."""
+
+from app import models
+from app.services.domain import (
+    derive_game_ownership,
+    mark_game_completed,
+    write_game_copies,
+)
+
+
+def test_an_auto_created_franchise_is_stamped_game(admin_client, db_session):
+    admin_client.post(
+        "/api/game/",
+        json={"game_name_en": "Hollow Knight", "franchise_text": "Hollow Knight"},
+    )
+    franchise = (
+        db_session.query(models.Franchise)
+        .filter(models.Franchise.franchise_name_en == "Hollow Knight")
+        .first()
+    )
+    assert franchise is not None
+    assert franchise.franchise_type == "Game"
+
+
+def test_mark_completed_sets_status_and_leaves_depth_alone():
+    game = models.Game(
+        game_name_en="X",
+        playing_status="Active Playing",
+        completion_level="Main Story",
+    )
+    mark_game_completed(game)
+    assert game.playing_status == "Completed"
+    # Only the user knows how deep the finish went.
+    assert game.completion_level == "Main Story"
+
+
+def test_write_game_copies_inserts_updates_and_deletes(db_session):
+    game = models.Game(game_name_en="Hades")
+    db_session.add(game)
+    db_session.flush()
+
+    write_game_copies(
+        db_session, game, [{"storefront": "Steam", "ownership": "Owned"}]
+    )
+    db_session.flush()
+    row = db_session.query(models.GameCopy).one()
+    assert row.ownership == "Owned"
+
+    write_game_copies(
+        db_session,
+        game,
+        [{"system_id": row.system_id, "storefront": "Steam", "ownership": "Wishlist"}],
+    )
+    db_session.flush()
+    assert db_session.query(models.GameCopy).one().ownership == "Wishlist"
+
+    write_game_copies(db_session, game, [])
+    db_session.flush()
+    assert db_session.query(models.GameCopy).count() == 0
+
+
+def test_none_means_not_supplied_and_leaves_copies_alone(db_session):
+    game = models.Game(game_name_en="Hades")
+    db_session.add(game)
+    db_session.flush()
+    write_game_copies(db_session, game, [{"storefront": "GOG"}])
+    db_session.flush()
+    write_game_copies(db_session, game, None)
+    db_session.flush()
+    assert db_session.query(models.GameCopy).count() == 1
+
+
+def test_ownership_is_owned_when_any_copy_is(db_session):
+    game = models.Game(game_name_en="Multi")
+    db_session.add(game)
+    db_session.flush()
+    write_game_copies(
+        db_session,
+        game,
+        [
+            {"storefront": "Nintendo eShop", "ownership": "Wishlist"},
+            {"storefront": "Steam", "ownership": "Owned"},
+        ],
+    )
+    db_session.flush()
+    db_session.refresh(game)
+    assert derive_game_ownership(game) == "Owned"
+
+
+def test_ownership_is_none_without_copies(db_session):
+    game = models.Game(game_name_en="Bare")
+    db_session.add(game)
+    db_session.flush()
+    assert derive_game_ownership(game) is None
+
+
+def test_the_list_endpoint_filters_on_derived_ownership(admin_client):
+    owned = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Owned Game",
+            "copies": [{"storefront": "Steam", "ownership": "Owned"}],
+        },
+    ).json()
+    admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Wanted Game",
+            "copies": [{"storefront": "Steam", "ownership": "Wishlist"}],
+        },
+    )
+    ids = [
+        e["system_id"] for e in admin_client.get("/api/game/?ownership=Owned").json()
+    ]
+    assert owned["system_id"] in ids
+    assert len(ids) == 1
+
+
+def test_a_listed_game_carries_its_plan_flags(admin_client):
+    """
+    PLAN_FLAG_FIELDS["game"] names play_next/to_replay and the router factory
+    setattrs both onto every listed entry - but a response schema that does not
+    declare them drops them silently, which is exactly the sort of blanking the
+    link-field tripwire exists for.
+    """
+    admin_client.post("/api/game/", json={"game_name_en": "Flagged"})
+    entry = admin_client.get("/api/game/").json()[0]
+    assert entry["play_next"] is False
+    assert entry["to_replay"] is False
+
+
+def test_reads_carry_the_derived_ownership(admin_client):
+    """
+    ownership is declared on GameResponse but derived from the copy rows, so a
+    read that never derives it returns null - which reads as "not owned"
+    rather than as "unknown", and is worse than the field being absent.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Owned On Read",
+            "copies": [
+                {"storefront": "Nintendo eShop", "ownership": "Wishlist"},
+                {"storefront": "Steam", "ownership": "Owned"},
+            ],
+        },
+    ).json()
+    assert created["ownership"] == "Owned"
+
+    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    assert detail["ownership"] == "Owned"
+
+    listed = {e["system_id"]: e for e in admin_client.get("/api/game/").json()}
+    assert listed[created["system_id"]]["ownership"] == "Owned"
+
+
+def test_a_game_without_copies_reads_null_ownership(admin_client):
+    created = admin_client.post("/api/game/", json={"game_name_en": "No Copies"}).json()
+    assert created["ownership"] is None
+    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    assert detail["ownership"] is None
+
+
+def test_the_duplicate_report_covers_games(db_session):
+    """find_all_duplicates is hand-maintained; a missing key means games are
+    never checked, silently."""
+    from app.services.domain.duplicates import find_all_duplicates
+
+    assert "game" in find_all_duplicates(db_session)
+
+
+def test_the_three_completion_flags_round_trip(admin_client):
+    """All Endings / All Achievements / All Collected are independent axes.
+
+    Nothing derives them from each other or from the achievement counts.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Nier Automata",
+            "all_endings": True,
+            "all_achievements": False,
+            "all_collected": None,
+        },
+    ).json()
+    assert created["all_endings"] is True
+    assert created["all_achievements"] is False
+    assert created["all_collected"] is None
+
+    patched = admin_client.patch(
+        f"/api/game/{created['system_id']}",
+        json={"all_collected": True, "achievements_earned": 3, "achievements_total": 50},
+    ).json()
+    # The counts say "not everything earned"; the flag is still whatever the
+    # user set, because it is not derived.
+    assert patched["all_collected"] is True
+    assert patched["all_achievements"] is False
+
+
+def test_the_metacritic_scores_round_trip_and_are_independent(admin_client):
+    """
+    Two separate figures on two separate scales - critics out of 100, users
+    out of 10. Neither is derived from the other or from my_rating.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Disco Elysium",
+            "metacritic_score": 91,
+            "metacritic_user_score": 8.6,
+        },
+    ).json()
+    assert created["metacritic_score"] == 91
+    assert created["metacritic_user_score"] == 8.6
+
+    patched = admin_client.patch(
+        f"/api/game/{created['system_id']}",
+        json={"metacritic_user_score": 7.9},
+    ).json()
+    assert patched["metacritic_user_score"] == 7.9
+    assert patched["metacritic_score"] == 91

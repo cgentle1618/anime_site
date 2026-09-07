@@ -93,6 +93,11 @@ RELATION_KINDS: dict[str, RelationKind] = {
     "extended": RelationKind(
         "extended", "Extended", "Original", "equivalence"
     ),
+    # A remake rebuilds the work; a remaster reissues it. Both are directional
+    # versions of the same game, so they share Renew's inverse: what they
+    # point at is the Original.
+    "remake": RelationKind("remake", "Remake", "Original", "equivalence"),
+    "remaster": RelationKind("remaster", "Remaster", "Original", "equivalence"),
     "side_story": RelationKind(
         "side_story", "Side Story", "Parent Story", "branch"
     ),

@@ -22,7 +22,11 @@ import {
   MY_RATINGS,
   FRANCHISE_EXPECTATIONS,
 } from "../../config/fieldOptions";
-import { getFranchiseCover, getCollectionCover } from "../../lib/covers";
+import {
+  getFranchiseCover,
+  getCollectionCover,
+  withMediaType,
+} from "../../lib/covers";
 import RelationGraph from "../../components/relations/RelationGraph";
 import {
   HubShell,
@@ -119,15 +123,17 @@ export default function CollectionPage() {
           comics,
         ] = await Promise.all(responses.map((r) => r.json()));
 
+        // Tagged with the media type each list was fetched as: covers live
+        // in owner-typed folders, so the cover fallback needs it.
         const allEntries = [
-          ...anime,
-          ...animeMovies,
-          ...movies,
-          ...tvShows,
-          ...cartoons,
-          ...mangas,
-          ...novels,
-          ...comics,
+          ...withMediaType(anime, "anime"),
+          ...withMediaType(animeMovies, "anime-movie"),
+          ...withMediaType(movies, "movie"),
+          ...withMediaType(tvShows, "tv-show"),
+          ...withMediaType(cartoons, "cartoon"),
+          ...withMediaType(mangas, "manga"),
+          ...withMediaType(novels, "novel"),
+          ...withMediaType(comics, "comic"),
         ];
 
         if (cancelled) return;

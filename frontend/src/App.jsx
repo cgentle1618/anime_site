@@ -24,6 +24,7 @@ import Cartoon from "./pages/detail/Cartoon";
 import Manga from "./pages/detail/Manga";
 import Novel from "./pages/detail/Novel";
 import Comic from "./pages/detail/Comic";
+import Game from "./pages/detail/Game";
 
 
 import CollectionLibrary from "./pages/library/CollectionLibrary";
@@ -31,6 +32,14 @@ import Library from "./pages/library/Library";
 import FranchiseLibrary from "./pages/library/FranchiseLibrary";
 const StudioLibrary = lazy(() => import("./pages/library/StudioLibrary"));
 const Studio = lazy(() => import("./pages/detail/Studio"));
+const PublisherLibrary = lazy(
+  () => import("./pages/library/PublisherLibrary"),
+);
+const Publisher = lazy(() => import("./pages/detail/Publisher"));
+const PersonLibrary = lazy(() => import("./pages/library/PersonLibrary"));
+const Person = lazy(() => import("./pages/detail/Person"));
+const CharacterLibrary = lazy(() => import("./pages/library/CharacterLibrary"));
+const Character = lazy(() => import("./pages/detail/Character"));
 
 
 // Route-level code splitting: the admin pages, the relations canvas
@@ -56,6 +65,8 @@ const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
+const Aliases = lazy(() => import("./pages/admin/Aliases"));
+const ExternalApis = lazy(() => import("./pages/admin/ExternalApis"));
 const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
@@ -97,7 +108,19 @@ export default function App() {
                   element={<FranchiseLibrary />}
                 />
                 <Route path="/library/studio" element={<StudioLibrary />} />
-                <Route path="/studio/:system_id" element={<Studio />} />
+                <Route
+                  path="/library/publisher"
+                  element={<PublisherLibrary />}
+                />
+                <Route path="/library/person" element={<PersonLibrary />} />
+                <Route
+                  path="/library/seiyuu"
+                  element={<PersonLibrary role="seiyuu" />}
+                />
+                <Route
+                  path="/library/character"
+                  element={<CharacterLibrary />}
+                />
                 <Route path="/library/:type" element={<Library />} />
                 <Route path="/future-releases" element={<FutureReleases />} />
                 <Route path="/anime/:system_id" element={<Anime />} />
@@ -111,9 +134,14 @@ export default function App() {
                 <Route path="/manga/:system_id" element={<Manga />} />
                 <Route path="/novel/:system_id" element={<Novel />} />
                 <Route path="/comic/:system_id" element={<Comic />} />
+                <Route path="/game/:system_id" element={<Game />} />
                 <Route path="/collection/:system_id" element={<Collection />} />
                 <Route path="/franchise/:system_id" element={<Franchise />} />
                 <Route path="/series/:system_id" element={<Series />} />
+                <Route path="/studio/:system_id" element={<Studio />} />
+                <Route path="/publisher/:system_id" element={<Publisher />} />
+                <Route path="/person/:system_id" element={<Person />} />
+                <Route path="/character/:system_id" element={<Character />} />
                 <Route path="/watch-order/:system_id" element={<WatchOrder />} />
                 <Route path="/seasonal" element={<SeasonalOverall />} />
                 <Route
@@ -142,6 +170,8 @@ export default function App() {
                   <Route path="/watch-orders" element={<WatchOrders />} />
                   <Route path="/relations" element={<Relations />} />
                   <Route path="/options" element={<SystemOptions />} />
+                  <Route path="/aliases" element={<Aliases />} />
+                  <Route path="/external-apis" element={<ExternalApis />} />
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/content-labels" element={<ContentLabels />} />

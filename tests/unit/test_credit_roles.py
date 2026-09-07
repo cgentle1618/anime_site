@@ -52,14 +52,21 @@ EXPECTED_HEADERS = {
 # ---------------------------------------------------------------------------
 
 
-def test_the_vocabulary_is_six_entries():
+def test_the_vocabulary_is_eight_entries():
+    """
+    Was six before the seiyuu role was added (Task 1 of the seiyuu/character
+    work), and seven before `publisher` became the third entity target.
+    Renamed from test_the_vocabulary_is_seven_entries.
+    """
     assert set(cr.CREDIT_ROLES) == {
         "studio",
+        "publisher",
         "director",
         "producer",
         "composer",
         "author",
         "illustrator",
+        "seiyuu",
     }
 
 
@@ -70,13 +77,14 @@ def test_person_roles_are_every_role_targeting_a_person():
         "composer",
         "author",
         "illustrator",
+        "seiyuu",
     }
     assert "studio" not in cr.PERSON_ROLES
 
 
-def test_every_credit_role_targets_person_or_studio():
+def test_every_credit_role_targets_person_studio_or_publisher():
     for role in cr.CREDIT_ROLES.values():
-        assert role.target in ("person", "studio"), role.key
+        assert role.target in ("person", "studio", "publisher"), role.key
 
 
 def test_no_retired_key_survives():
@@ -152,9 +160,9 @@ def test_manga_illustrator_uses_the_traditional_form():
 
 
 def test_legal_scopes_match_media_types():
-    assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie")
+    assert cr.legal_scopes("director") == ("anime", "anime-movie", "movie", "game")
     assert cr.legal_scopes("producer") == ("anime",)
-    assert cr.legal_scopes("composer") == ("anime",)
+    assert cr.legal_scopes("composer") == ("anime", "game")
     assert cr.legal_scopes("author") == ("manga", "novel", "comic")
     assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic")
 
@@ -168,11 +176,14 @@ def test_every_media_type_named_by_a_role_is_a_known_key():
             assert mt in MEDIA_TYPE_KEYS, f"{field.key}: {mt}"
 
 
-def test_director_credit_covers_three_media_types():
+def test_director_credit_covers_four_media_types():
+    # Games joined the three it already covered: a game has a director in the
+    # same sense a film does.
     assert set(cr.CREDIT_ROLES["director"].media_types) == {
         "anime",
         "anime-movie",
         "movie",
+        "game",
     }
 
 
@@ -244,3 +255,93 @@ def test_publisher_tw_is_one_category_across_four_media_types():
     field = cr.TAG_FIELDS["publisher_tw"]
     assert field.category == "Publisher / Distributor TW"
     assert set(field.media_types) == {"anime", "manga", "novel", "comic"}
+
+
+# ---------------------------------------------------------------------------
+# seiyuu and the credited_via axis
+# ---------------------------------------------------------------------------
+
+
+def test_seiyuu_is_a_person_role_scoped_to_the_two_anime_types():
+    assert "seiyuu" in cr.PERSON_ROLES
+    assert cr.CREDIT_ROLES["seiyuu"].target == "person"
+    assert cr.legal_scopes("seiyuu") == ("anime", "anime-movie")
+
+
+def test_seiyuu_credits_are_not_stored_in_media_credit():
+    """
+    Decision A: the cast list has exactly one home, character_casting. If
+    credit_roles_for() started returning seiyuu, /api/credits would ask for
+    media_credit rows that never exist and the entry forms would grow a
+    phantom Seiyuu dropdown.
+    """
+    assert cr.CREDIT_ROLES["seiyuu"].credited_via == "character_casting"
+    for media_type in ("anime", "anime-movie"):
+        assert "seiyuu" not in {r.key for r in cr.credit_roles_for(media_type)}
+
+
+def test_every_other_role_still_stores_credits_in_media_credit():
+    for key, role in cr.CREDIT_ROLES.items():
+        if key != "seiyuu":
+            assert role.credited_via == "media_credit"
+
+
+def test_director_is_still_returned_for_anime():
+    """Guards the credit_roles_for() filter against over-filtering."""
+    assert "director" in {r.key for r in cr.credit_roles_for("anime")}
+    assert "studio" in {r.key for r in cr.credit_roles_for("anime")}
+
+
+def test_every_person_role_has_an_admin_sub_tab():
+    """
+    PERSON_SUB_TABS in frontend/src/components/forms/PersonSubTabBar.jsx is a
+    hand-maintained list, and it drives four surfaces at once: the Person
+    Add / Modify / Delete sub-tabs and the /library/person type filter.
+
+    Nothing failed when it fell out of step, so `seiyuu` shipped without a
+    sub-tab and could not be picked in the admin forms at all - the role
+    existed, but there was no way to reach it. This test is the missing alarm:
+    add a person role in Python and the frontend list has to follow.
+    """
+    from pathlib import Path
+
+    from app.utils.credit_roles import PERSON_ROLES
+
+    source = Path("frontend/src/components/forms/PersonSubTabBar.jsx").read_text(
+        encoding="utf-8"
+    )
+    missing = [role for role in PERSON_ROLES if f'key: "{role}"' not in source]
+    assert not missing, (
+        "These person roles have no sub-tab in PersonSubTabBar.jsx, so they "
+        f"cannot be chosen in the admin forms: {', '.join(missing)}"
+    )
+
+
+def test_person_role_fallback_matches_python():
+    """
+    PERSON_ROLES in frontend/src/config/fieldOptions.js is the pre-fetch
+    fallback for GET /api/constants' person_role list.
+
+    A wrong fallback is invisible in normal use - the API overwrites it in
+    place a moment later - so this one sat holding the PRE-COLLAPSE keys
+    (manga_author, novel_author, novel_illustrator, comic_writer,
+    comic_artist) long after the 2026-09-04 collapse deleted them, and was
+    missing seiyuu as well. Its own comment warned that a hand-written copy
+    with nothing enforcing the match is the pattern to avoid; nothing was
+    enforcing the match. This is that enforcement.
+    """
+    import re
+    from pathlib import Path
+
+    from app.utils.credit_roles import PERSON_ROLES
+
+    source = Path("frontend/src/config/fieldOptions.js").read_text(encoding="utf-8")
+    block = re.search(
+        r"export const PERSON_ROLES = \[(.*?)\];", source, re.DOTALL
+    )
+    assert block, "PERSON_ROLES literal not found in fieldOptions.js"
+    listed = re.findall(r'"([^"]+)"', block.group(1))
+    assert listed == list(PERSON_ROLES), (
+        "fieldOptions.js PERSON_ROLES has drifted from app/utils/credit_roles.py: "
+        f"frontend has {listed}, Python has {list(PERSON_ROLES)}"
+    )

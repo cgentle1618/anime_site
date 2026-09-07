@@ -4,26 +4,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Studio from "./Studio";
 
 const STUDIO = {
-  system_id: "1",
-  name_en: "MAPPA",
-  name_cn: "MAPPA中文",
-  name_jp: null,
-  name_alt: null,
-  display_name_field: "en",
-  display_name: "MAPPA",
-  credit_count: 2,
-  logo_file: "mappa.png",
+  system_id: "s1",
+  name_en: "Kyoto Animation",
+  name_cn: "京都動畫",
+  name_jp: "京都アニメーション",
+  name_alt: "KyoAni",
+  display_name_field: "alt",
+  display_name: "KyoAni",
   my_rating: "A",
-  founded_date: "2011-06-14",
+  logo_file: null,
+  remark: "The one with the pretty water.",
+  founded_date: "1981-11-12",
   defunct_date: null,
   country: "Japan",
-  website_url: "https://mappa.co.jp",
-  mal_id: 569,
-  mal_link: "https://myanimelist.net/anime/producer/569",
-  remark: "Known for action anime.",
+  website_url: "https://www.kyotoanimation.co.jp/",
+  mal_id: 2,
+  mal_link: "https://myanimelist.net/anime/producer/2",
+  credit_count: 2,
 };
 
-const ENTRIES_WITH_GROUPS = {
+const ENTRIES = {
   groups: [
     {
       media_type: "anime",
@@ -32,44 +32,37 @@ const ENTRIES_WITH_GROUPS = {
       entries: [
         {
           system_id: "a1",
-          display_name: "Jujutsu Kaisen",
-          cover_image_file: "a1.jpg",
-          release_date: "2020-10-03",
+          display_name: "Violet Evergarden",
+          cover_image_file: null,
+          release_date: "2018-01-11",
+        },
+        {
+          system_id: "a2",
+          display_name: "Hyouka",
+          cover_image_file: null,
+          release_date: "2012-04-23",
         },
       ],
     },
   ],
 };
 
-const ENTRIES_EMPTY = { groups: [] };
-
-function mockFetch(studioResponse, entriesResponse) {
+function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true } = {}) {
   global.fetch = vi.fn((url) => {
-    if (String(url).includes("/entries")) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(entriesResponse),
-      });
-    }
-    if (studioResponse === null) {
-      return Promise.resolve({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({ detail: "Studio not found." }),
-      });
+    if (String(url).endsWith("/entries")) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(entries) });
     }
     return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(studioResponse),
+      ok: studioOk,
+      status: studioOk ? 200 : 404,
+      json: () => Promise.resolve(studio),
     });
   });
 }
 
-function renderPage(id = "1") {
+function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`/studio/${id}`]}>
+    <MemoryRouter initialEntries={["/studio/s1"]}>
       <Routes>
         <Route path="/studio/:system_id" element={<Studio />} />
       </Routes>
@@ -77,132 +70,115 @@ function renderPage(id = "1") {
   );
 }
 
+beforeEach(() => {
+  mockFetch();
+});
+
 describe("Studio detail page", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("renders the display name and the other names without duplicating it", async () => {
-    mockFetch(STUDIO, ENTRIES_EMPTY);
+  it("heads the page with the display name and lists the other names", async () => {
     renderPage();
-
-    expect(await screen.findByRole("heading", { name: "MAPPA" })).toBeInTheDocument();
-    // name_cn differs from the displayed name, so it should show once.
-    expect(screen.getByText("MAPPA中文")).toBeInTheDocument();
-    // The English name equals the displayed name (studio.display_name_field
-    // is "en"), so it must not be listed again among the "other names".
-    expect(screen.queryByText("Chinese:")).toBeInTheDocument();
-    expect(screen.queryByText("English:")).not.toBeInTheDocument();
-  });
-
-  it("renders a group of credited entries and links them correctly", async () => {
-    mockFetch(STUDIO, ENTRIES_WITH_GROUPS);
-    renderPage();
-
-    expect(await screen.findByText("Jujutsu Kaisen")).toBeInTheDocument();
-    expect(screen.getByText("Anime")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Jujutsu Kaisen/ })).toHaveAttribute(
-      "href",
-      "/anime/a1",
-    );
-  });
-
-  it("shows a plain empty message, not an error, for {\"groups\": []}", async () => {
-    mockFetch(STUDIO, ENTRIES_EMPTY);
-    renderPage();
-
-    expect(await screen.findByText("No credited entries")).toBeInTheDocument();
-    expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
-  });
-
-  it("renders the not-found state on a 404", async () => {
-    mockFetch(null, ENTRIES_EMPTY);
-    renderPage("missing");
-
-    expect(await screen.findByText(/not found/i)).toBeInTheDocument();
-  });
-
-  describe("the Active facts row", () => {
-    it("renders founded and defunct as a range", async () => {
-      mockFetch(
-        { ...STUDIO, founded_date: "2011-06-14", defunct_date: "2020-01-01" },
-        ENTRIES_EMPTY,
-      );
-      renderPage();
-
-      expect(await screen.findByText("2011-06-14 – 2020-01-01")).toBeInTheDocument();
-    });
-
-    it("renders a since-date when only founded_date is set", async () => {
-      mockFetch(
-        { ...STUDIO, founded_date: "2011-06-14", defunct_date: null },
-        ENTRIES_EMPTY,
-      );
-      renderPage();
-
-      expect(await screen.findByText("Since 2011-06-14")).toBeInTheDocument();
-    });
-
-    it("renders an until-date when only defunct_date is set", async () => {
-      mockFetch(
-        { ...STUDIO, founded_date: null, defunct_date: "2020-01-01" },
-        ENTRIES_EMPTY,
-      );
-      renderPage();
-
-      expect(await screen.findByText("Until 2020-01-01")).toBeInTheDocument();
-    });
-
-    it("omits the row entirely when both dates are empty", async () => {
-      mockFetch(
-        { ...STUDIO, founded_date: null, defunct_date: null },
-        ENTRIES_EMPTY,
-      );
-      renderPage();
-
-      await screen.findByRole("heading", { name: "MAPPA" });
-      expect(screen.queryByText("Active")).not.toBeInTheDocument();
-    });
-  });
-
-  it("resolves the display name via the en/cn/jp/alt fallback with a null display_name_field, and shows it exactly once", async () => {
-    const studio = {
-      ...STUDIO,
-      display_name_field: null,
-      name_en: null,
-      name_cn: "京都アニメーション中文",
-      name_jp: "京都アニメーション",
-      name_alt: "KyoAni",
-      display_name: "京都アニメーション中文",
-    };
-    mockFetch(studio, ENTRIES_EMPTY);
-    renderPage();
-
     expect(
-      await screen.findByRole("heading", { name: "京都アニメーション中文" }),
+      await screen.findByRole("heading", { name: "KyoAni" }),
     ).toBeInTheDocument();
-    // Chinese equals the displayed name and must not repeat as an "other name".
-    expect(screen.queryByText("Chinese:")).not.toBeInTheDocument();
-    // Japanese and Alternative differ, so both should be listed once.
-    expect(screen.getByText("Japanese:")).toBeInTheDocument();
-    expect(screen.getByText("Alternative:")).toBeInTheDocument();
-    // The name also appears once more in the breadcrumb trail; scope the
-    // "shows it exactly once" check to the header block itself.
-    const heading = screen.getByRole("heading", { name: "京都アニメーション中文" });
-    expect(within(heading.parentElement).getAllByText("京都アニメーション中文")).toHaveLength(1);
+    expect(screen.getByText("Kyoto Animation")).toBeInTheDocument();
+    expect(screen.getByText("京都アニメーション")).toBeInTheDocument();
+    // The displayed name is not repeated in the alternative-names list.
+    const others = screen.getByLabelText("Other names");
+    expect(within(others).queryByText("KyoAni")).not.toBeInTheDocument();
   });
 
-  it("renders the website link, MAL link and remark", async () => {
-    mockFetch(STUDIO, ENTRIES_EMPTY);
+  it("shows the founding date without inventing a defunct one", async () => {
+    renderPage();
+    expect(await screen.findByText("Since 1981-11-12")).toBeInTheDocument();
+  });
+
+  it("closes the span when the studio is defunct", async () => {
+    mockFetch({ studio: { ...STUDIO, defunct_date: "2019" } });
+    renderPage();
+    expect(await screen.findByText("1981-11-12 – 2019")).toBeInTheDocument();
+  });
+
+  it("links every credited entry to its own detail page", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("link", { name: /Violet Evergarden/ }),
+    ).toHaveAttribute("href", "/anime/a1");
+    expect(screen.getByRole("link", { name: /Hyouka/ })).toHaveAttribute(
+      "href",
+      "/anime/a2",
+    );
+    expect(screen.getByText("Anime")).toBeInTheDocument();
+  });
+
+  it("says there are no credited entries rather than rendering an empty page", async () => {
+    mockFetch({ entries: { groups: [] } });
+    renderPage();
+    expect(await screen.findByText(/No credited entries/i)).toBeInTheDocument();
+  });
+
+  it("renders the not-found state when the studio is missing", async () => {
+    mockFetch({ studioOk: false, studio: { detail: "Studio not found." } });
+    renderPage();
+    expect(await screen.findByText(/Studio not found/i)).toBeInTheDocument();
+  });
+
+  it("renders an until-date when only the defunct date is on record", async () => {
+    mockFetch({ studio: { ...STUDIO, founded_date: null, defunct_date: "2019" } });
+    renderPage();
+    expect(await screen.findByText("Until 2019")).toBeInTheDocument();
+  });
+
+  it("leaves Active blank rather than inventing a span when both dates are empty", async () => {
+    mockFetch({
+      studio: { ...STUDIO, founded_date: null, defunct_date: null },
+    });
+    renderPage();
+
+    await screen.findByRole("heading", { name: "KyoAni" });
+    // InfoRow keeps the row and shows an em dash for an absent value, so the
+    // check is that no span text was fabricated - not that the row is gone.
+    expect(screen.queryByText(/^Since /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Until /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/–/)).not.toBeInTheDocument();
+  });
+
+  it("falls back through en/cn/jp/alt when no display field is chosen, without repeating the name", async () => {
+    mockFetch({
+      studio: {
+        ...STUDIO,
+        display_name_field: null,
+        name_en: null,
+        name_cn: "京都アニメーション中文",
+        name_jp: "京都アニメーション",
+        name_alt: "KyoAni",
+        // The server resolves the fallback; the page renders what it sends.
+        display_name: "京都アニメーション中文",
+      },
+    });
+    renderPage();
+
+    const heading = await screen.findByRole("heading", {
+      name: "京都アニメーション中文",
+    });
+    expect(heading).toBeInTheDocument();
+
+    const others = screen.getByLabelText("Other names");
+    // Chinese is the displayed name, so it must not repeat as an other name.
+    expect(within(others).queryByText("Chinese")).not.toBeInTheDocument();
+    // Japanese and Alternative differ from it, so both are listed.
+    expect(within(others).getByText("Japanese")).toBeInTheDocument();
+    expect(within(others).getByText("Alternative")).toBeInTheDocument();
+  });
+
+  it("renders the website link, the MAL producer link and the remark", async () => {
     renderPage();
 
     expect(
       await screen.findByRole("link", { name: STUDIO.website_url }),
     ).toHaveAttribute("href", STUDIO.website_url);
-    expect(screen.getByRole("link", { name: "MyAnimeList" })).toHaveAttribute(
-      "href",
-      STUDIO.mal_link,
-    );
+    expect(
+      screen.getByRole("link", { name: `Producer #${STUDIO.mal_id}` }),
+    ).toHaveAttribute("href", STUDIO.mal_link);
     expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
   });
 });

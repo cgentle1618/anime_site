@@ -92,8 +92,13 @@ export default function MyTrackerCard({
     </div>
   );
 
+  // Not every media type counts something off. A game has no episode, issue
+  // or chapter unit, so it passes no onEpChange and the card renders without
+  // a stepper rather than showing an inert 0 / undefined counter.
+  const hasStepper = typeof onEpChange === "function";
+
   return (
-    <Slip title="My tracker" actions={stepper}>
+    <Slip title="My tracker" actions={hasStepper ? stepper : null}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Status */}
         <div className="space-y-1.5">

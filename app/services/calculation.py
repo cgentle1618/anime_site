@@ -6,16 +6,22 @@ Wraps single-entry logic from services.domain for bulk application across the DB
 
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
+    Character,
+    CharacterCasting,
     Comic,
+    Game,
     Manga,
     Movies,
     Novel,
+    Person,
+    Publisher,
+    Studio,
     TVShows,
 )
 from app.services.domain import (
@@ -32,15 +38,42 @@ from app.services.domain import (
     cartoon_post_processing,
     create_missing_seasonal,
     derive_ep_previous_all_anime,
+    derive_novel_progress,
     extract_system_options,
     manga_post_processing,
     sync_seasonal_counts,
     tv_show_post_processing,
 )
 from app.services.domain.plan_next import derive_size_groups
-from app.services.integrations.image_manager import cover_image_exists, list_all_cover_images
+from app.services.integrations.image_manager import (
+    cover_image_exists,
+    cover_key,
+    list_all_cover_images,
+)
 from app.utils.data_control_utils import log_data_control
 from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
+
+# Every table that owns a stored image, as (owner_type, model, column). The
+# owner_type is the folder its images live in - see image_manager.cover_key.
+# The four entity tables belong here as much as the media ones: their portraits
+# and logos share the same storage, and leaving them out of the orphan scan
+# reported every one of them as unreferenced.
+COVER_OWNER_TABLES: tuple[tuple[str, type, str], ...] = (
+    ("anime", Anime, "cover_image_file"),
+    ("anime-movie", AnimeMovies, "cover_image_file"),
+    ("movie", Movies, "cover_image_file"),
+    ("tv-show", TVShows, "cover_image_file"),
+    ("cartoon", Cartoon, "cover_image_file"),
+    ("manga", Manga, "cover_image_file"),
+    ("novel", Novel, "cover_image_file"),
+    ("comic", Comic, "cover_image_file"),
+    ("game", Game, "cover_image_file"),
+    ("staff", Person, "photo_file"),
+    ("character", Character, "photo_file"),
+    ("publisher", Publisher, "logo_file"),
+    ("studio", Studio, "logo_file"),
+)
+
 
 # ==========================================
 # BULK ACTIONS
@@ -48,75 +81,47 @@ from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 
 
 def bulk_check_unused_cover_images(db: Session) -> dict:
+    """
+    Compare what is in storage against what the database references.
+
+    A file is `should_use` when a row with that id exists but has not recorded
+    the image, and `orphaned` only when no row owns it at all - orphaned files
+    are what the delete action removes, so every table that owns images must be
+    scanned here or its images are deleted as strays.
+    """
     all_files = set(list_all_cover_images())
-    referenced = (
-        {
-            row[0]
-            for row in db.query(Anime.cover_image_file)
-            .filter(Anime.cover_image_file.isnot(None))
-            .all()
+
+    referenced: set[str] = set()
+    owned: dict[str, object] = {}
+    for owner_type, model, column in COVER_OWNER_TABLES:
+        col = getattr(model, column)
+        referenced |= {
+            row[0] for row in db.query(col).filter(col.isnot(None)).all()
         }
-        | {
-            row[0]
-            for row in db.query(AnimeMovies.cover_image_file)
-            .filter(AnimeMovies.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(Cartoon.cover_image_file)
-            .filter(Cartoon.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(Movies.cover_image_file)
-            .filter(Movies.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(TVShows.cover_image_file)
-            .filter(TVShows.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(Manga.cover_image_file)
-            .filter(Manga.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(Novel.cover_image_file)
-            .filter(Novel.cover_image_file.isnot(None))
-            .all()
-        }
-        | {
-            row[0]
-            for row in db.query(Comic.cover_image_file)
-            .filter(Comic.cover_image_file.isnot(None))
-            .all()
-        }
-    )
-    entry_map = {str(e.system_id): e for e in db.query(Anime).all()}
-    entry_map.update({str(e.system_id): e for e in db.query(AnimeMovies).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(Cartoon).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(Movies).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(TVShows).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(Manga).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(Novel).all()})
-    entry_map.update({str(e.system_id): e for e in db.query(Comic).all()})
+        for row in db.query(model).all():
+            owned[cover_key(owner_type, str(row.system_id))] = row
+
+    # A casting may override a character's portrait with its own photo. It has
+    # no folder of its own - the file sits among the character images - so it
+    # only needs to count as referenced.
+    referenced |= {
+        row[0]
+        for row in db.query(CharacterCasting.photo_file)
+        .filter(CharacterCasting.photo_file.isnot(None))
+        .all()
+    }
 
     should_use = []
     orphaned = []
-    for filename in sorted(all_files - referenced):
-        stem = filename[:-4] if filename.endswith(".jpg") else filename
-        if stem in entry_map:
-            e = entry_map[stem]
-            should_use.append({"system_id": stem, "name": e.display_name or stem})
+    for key in sorted(all_files - referenced):
+        row = owned.get(key)
+        if row is not None:
+            system_id = str(row.system_id)
+            should_use.append(
+                {"system_id": system_id, "name": row.display_name or system_id}
+            )
         else:
-            orphaned.append(filename)
+            orphaned.append(key)
 
     return {
         "status": "success",
@@ -138,7 +143,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
         query = query.filter(Anime.airing_type == entry_type)
     animes = query.all()
     for anime in animes:
-        if not cover_image_exists(str(anime.system_id)):
+        if not cover_image_exists("anime", str(anime.system_id)):
             missing.append(
                 {
                     "system_id": str(anime.system_id),
@@ -152,7 +157,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
             db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None)).all()
         )
         for am in anime_movies:
-            if not cover_image_exists(str(am.system_id)):
+            if not cover_image_exists("anime-movie", str(am.system_id)):
                 missing.append(
                     {
                         "system_id": str(am.system_id),
@@ -163,7 +168,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         cartoons = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None)).all()
         for c in cartoons:
-            if not cover_image_exists(str(c.system_id)):
+            if not cover_image_exists("cartoon", str(c.system_id)):
                 missing.append(
                     {
                         "system_id": str(c.system_id),
@@ -174,7 +179,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
         for m in movies:
-            if not cover_image_exists(str(m.system_id)):
+            if not cover_image_exists("movie", str(m.system_id)):
                 missing.append(
                     {
                         "system_id": str(m.system_id),
@@ -185,7 +190,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         tv_shows = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None)).all()
         for t in tv_shows:
-            if not cover_image_exists(str(t.system_id)):
+            if not cover_image_exists("tv-show", str(t.system_id)):
                 missing.append(
                     {
                         "system_id": str(t.system_id),
@@ -196,7 +201,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         mangas = db.query(Manga).filter(Manga.cover_image_file.isnot(None)).all()
         for mg in mangas:
-            if not cover_image_exists(str(mg.system_id)):
+            if not cover_image_exists("manga", str(mg.system_id)):
                 missing.append(
                     {
                         "system_id": str(mg.system_id),
@@ -207,7 +212,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         novels = db.query(Novel).filter(Novel.cover_image_file.isnot(None)).all()
         for nv in novels:
-            if not cover_image_exists(str(nv.system_id)):
+            if not cover_image_exists("novel", str(nv.system_id)):
                 missing.append(
                     {
                         "system_id": str(nv.system_id),
@@ -218,7 +223,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
         comics = db.query(Comic).filter(Comic.cover_image_file.isnot(None)).all()
         for cm in comics:
-            if not cover_image_exists(str(cm.system_id)):
+            if not cover_image_exists("comic", str(cm.system_id)):
                 missing.append(
                     {
                         "system_id": str(cm.system_id),
@@ -252,22 +257,22 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
 
 def bulk_set_cover_image_fields(db: Session) -> dict:
+    """
+    Record the stored image on rows whose column is NULL but whose file exists.
+
+    Game is deliberately absent, matching bulk_download_missing_covers' missing
+    Game branch; both gaps are tracked as one open item.
+    """
     updated = 0
-    all_entries = (
-        db.query(Anime).filter(Anime.cover_image_file.is_(None)).all()
-        + db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.is_(None)).all()
-        + db.query(Movies).filter(Movies.cover_image_file.is_(None)).all()
-        + db.query(TVShows).filter(TVShows.cover_image_file.is_(None)).all()
-        + db.query(Cartoon).filter(Cartoon.cover_image_file.is_(None)).all()
-        + db.query(Manga).filter(Manga.cover_image_file.is_(None)).all()
-        + db.query(Novel).filter(Novel.cover_image_file.is_(None)).all()
-        + db.query(Comic).filter(Comic.cover_image_file.is_(None)).all()
-    )
-    for entry in all_entries:
-        sid = str(entry.system_id)
-        if cover_image_exists(sid):
-            entry.cover_image_file = f"{sid}.jpg"
-            updated += 1
+    for owner_type, model, column in COVER_OWNER_TABLES:
+        if owner_type == "game" or column != "cover_image_file":
+            continue
+        col = getattr(model, column)
+        for entry in db.query(model).filter(col.is_(None)).all():
+            sid = str(entry.system_id)
+            if cover_image_exists(owner_type, sid):
+                entry.cover_image_file = cover_key(owner_type, sid)
+                updated += 1
     if updated:
         db.commit()
     return {"status": "success", "updated_count": updated}
@@ -278,9 +283,10 @@ def bulk_delete_orphaned_cover_images(db: Session) -> dict:
 
     unused_result = bulk_check_unused_cover_images(db)
     orphaned = unused_result["orphaned"]
-    for filename in orphaned:
+    for key in orphaned:
+        owner_type, _, filename = key.partition("/")
         stem = filename[:-4] if filename.endswith(".jpg") else filename
-        delete_cover_image(stem)
+        delete_cover_image(owner_type, stem)
     return {"status": "success", "deleted_count": len(orphaned)}
 
 
@@ -291,32 +297,36 @@ def bulk_download_missing_covers(
     skipped = 0
     total = 0
 
-    def _collect(query, model):
+    def _collect(query, model, owner_type):
         if system_ids is not None:
             query = query.filter(model.system_id.in_(system_ids))
-        return [e for e in query.all() if not cover_image_exists(str(e.system_id))]
+        return [
+            e
+            for e in query.all()
+            if not cover_image_exists(owner_type, str(e.system_id))
+        ]
 
     anime_query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
-    for anime in _collect(anime_query, Anime):
+    for anime in _collect(anime_query, Anime, "anime"):
         total += 1
         if anime.airing_type in ALLOWED_AIRING_TYPES:
             anime.cover_image_file = None
-            autofill_anime_from_mal(anime, force_replace_ratings=False)
+            autofill_anime_from_mal(anime, force_replace_ratings=False, db=db)
             if anime.cover_image_file:
                 downloaded += 1
         else:
             skipped += 1
 
     am_query = db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None))
-    for am in _collect(am_query, AnimeMovies):
+    for am in _collect(am_query, AnimeMovies, "anime-movie"):
         total += 1
         am.cover_image_file = None
-        autofill_anime_movie_from_mal(am, force_replace_ratings=False)
+        autofill_anime_movie_from_mal(am, force_replace_ratings=False, db=db)
         if am.cover_image_file:
             downloaded += 1
 
     movie_query = db.query(Movies).filter(Movies.cover_image_file.isnot(None))
-    for movie in _collect(movie_query, Movies):
+    for movie in _collect(movie_query, Movies, "movie"):
         total += 1
         movie.cover_image_file = None
         autofill_movie_from_imdb(movie, db)
@@ -324,7 +334,7 @@ def bulk_download_missing_covers(
             downloaded += 1
 
     tv_query = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None))
-    for tv in _collect(tv_query, TVShows):
+    for tv in _collect(tv_query, TVShows, "tv-show"):
         total += 1
         tv.cover_image_file = None
         autofill_tv_show_from_imdb(tv, db)
@@ -332,7 +342,7 @@ def bulk_download_missing_covers(
             downloaded += 1
 
     cartoon_query = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None))
-    for cartoon in _collect(cartoon_query, Cartoon):
+    for cartoon in _collect(cartoon_query, Cartoon, "cartoon"):
         total += 1
         cartoon.cover_image_file = None
         autofill_cartoon_from_imdb(cartoon, db)
@@ -340,7 +350,7 @@ def bulk_download_missing_covers(
             downloaded += 1
 
     manga_query = db.query(Manga).filter(Manga.cover_image_file.isnot(None))
-    for manga in _collect(manga_query, Manga):
+    for manga in _collect(manga_query, Manga, "manga"):
         total += 1
         manga.cover_image_file = None
         autofill_manga_from_mal(manga, force_replace_ratings=False)
@@ -348,7 +358,7 @@ def bulk_download_missing_covers(
             downloaded += 1
 
     novel_query = db.query(Novel).filter(Novel.cover_image_file.isnot(None))
-    for novel in _collect(novel_query, Novel):
+    for novel in _collect(novel_query, Novel, "novel"):
         total += 1
         if novel.mal_link:
             novel.cover_image_file = None
@@ -359,7 +369,7 @@ def bulk_download_missing_covers(
             skipped += 1
 
     comic_query = db.query(Comic).filter(Comic.cover_image_file.isnot(None))
-    for comic in _collect(comic_query, Comic):
+    for comic in _collect(comic_query, Comic, "comic"):
         total += 1
         if comic.comicvine_id:
             comic.cover_image_file = None
@@ -501,6 +511,12 @@ def run_sync_manga(db: Session) -> dict:
 
 def run_sync_novel(db: Session) -> dict:
     extract_system_options(db)
+    # Re-derive from the unit rows so a Sheets restore, which writes rows
+    # straight to the tables without going through the router, lands with
+    # consistent totals.
+    for entry in db.query(Novel).options(selectinload(Novel.units)).all():
+        derive_novel_progress(entry)
+    db.commit()
     return {
         "status": "success",
         "message": "Novel sync completed.",
@@ -512,6 +528,14 @@ def run_sync_comic(db: Session) -> dict:
     return {
         "status": "success",
         "message": "Comic sync completed.",
+    }
+
+
+def run_sync_game(db: Session) -> dict:
+    extract_system_options(db)
+    return {
+        "status": "success",
+        "message": "Game sync completed.",
     }
 
 

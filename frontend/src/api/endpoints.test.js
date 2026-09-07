@@ -13,6 +13,7 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
     manga: "/api/manga",
     novel: "/api/novel",
     comic: "/api/comic",
+    game: "/api/game",
     franchise: "/api/franchise",
     series: "/api/series",
   };
@@ -29,6 +30,10 @@ describe("resource() endpoints (derived from MEDIA_CONFIG)", () => {
       expect(r.complete("X")).toBe(`${base}/X/complete`);
     });
   }
+
+  it("derives the game resource from MEDIA_CONFIG", () => {
+    expect(resource("game").list()).toBe("/api/game/");
+  });
 
   it("throws on unknown type", () => {
     expect(() => resource("nope")).toThrow();
@@ -63,6 +68,35 @@ describe("named endpoint groups", () => {
     expect(endpoints.system.deleted()).toBe("/api/system/deleted");
     expect(endpoints.system.deletedRecord(3)).toBe("/api/system/deleted/3");
     expect(endpoints.system.testBucket()).toBe("/api/system/test-bucket");
+  });
+
+  it("character", () => {
+    expect(endpoints.character.list()).toBe("/api/character/");
+    expect(endpoints.character.list("q=x")).toBe("/api/character/?q=x");
+    expect(endpoints.character.detail(7)).toBe("/api/character/7");
+    expect(endpoints.character.create()).toBe("/api/character/");
+    expect(endpoints.character.update(7)).toBe("/api/character/7");
+    expect(endpoints.character.remove(7, 2)).toBe("/api/character/7?castings=2");
+    expect(endpoints.character.merge(7)).toBe("/api/character/7/merge");
+    expect(endpoints.character.entries(7)).toBe("/api/character/7/entries");
+  });
+
+  it("casting", () => {
+    expect(endpoints.casting.get("anime-movie", 3)).toBe(
+      "/api/casting/anime-movie/3",
+    );
+    expect(endpoints.casting.replace("anime-movie", 3)).toBe(
+      "/api/casting/anime-movie/3",
+    );
+  });
+
+  it("game", () => {
+    expect(endpoints.game.searchIgdb("elden")).toBe(
+      "/api/game/search-igdb?q=elden&limit=10",
+    );
+    expect(endpoints.game.searchIgdb("elden ring", 5)).toBe(
+      "/api/game/search-igdb?q=elden%20ring&limit=5",
+    );
   });
 
   it("dataControl", () => {

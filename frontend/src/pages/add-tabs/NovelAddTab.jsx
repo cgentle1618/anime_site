@@ -1,7 +1,14 @@
 // Frontend: add tab page file for NovelAddTab.
-import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
+import {
+  countsChapters,
+  countsVolumes,
+  progressDisplayOptions,
+} from "../../lib/novelUnits";
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
+import CastEditor from "../../components/forms/CastEditor";
+import SourcesEditor from "../../components/forms/SourcesEditor";
 import {
   CollectionNote,
   Field,
@@ -17,7 +24,6 @@ import {
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES as SERIALIZATION_STATUSES,
   NOVEL_TYPES,
-  PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
@@ -326,89 +332,115 @@ export default function NovelAddTab({
           className={selectCls}
           value={nvf.progress_display}
           onChange={(e) => unv("progress_display", e.target.value)}
+          aria-label="Progress display"
         >
-          {PROGRESS_DISPLAY_OPTIONS.map(({ value, label }) => (
+          {progressDisplayOptions(nvf).map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>
           ))}
         </select>
       </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Ch Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.ch_total}
-            onChange={(e) => unv("ch_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Ch Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.ch_fin}
-            onChange={(e) => unv("ch_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Vol Total (Original)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_total_original}
-            onChange={(e) => unv("vol_total_original", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Vol Total (TW)">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_total_tw}
-            onChange={(e) => unv("vol_total_tw", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Vol Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.vol_fin}
-            onChange={(e) => unv("vol_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Arc Total">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.arc_total}
-            onChange={(e) => unv("arc_total", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Arc Finished">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            value={nvf.arc_fin}
-            onChange={(e) => unv("arc_fin", e.target.value)}
-            placeholder="0"
-          />
-        </Field>
+      {/* Arc and chapter counters exist only for the types that count them -
+          see the same gate in NovelModifyTab. */}
+      {countsChapters(nvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Ch Total">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.ch_total}
+              onChange={(e) => unv("ch_total", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Ch Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.ch_fin}
+              onChange={(e) => unv("ch_fin", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+      )}
+      {/* Volume counters - hidden for Web, see the same gate in
+          NovelModifyTab. */}
+      {countsVolumes(nvf) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Total Volumes (JP/KR)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_total_original}
+              onChange={(e) => unv("vol_total_original", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Vol Total (TW)">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_total_tw}
+              onChange={(e) => unv("vol_total_tw", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+      )}
+      {/* Vol Finished sits with the arc counters, and either half can be
+          hidden, so the column count follows whatever actually renders. Both
+          class strings are written out in full for Tailwind's scanner. */}
+      <div
+        className={`grid grid-cols-1 ${
+          countsVolumes(nvf) && countsChapters(nvf)
+            ? "md:grid-cols-3"
+            : countsChapters(nvf)
+              ? "md:grid-cols-2"
+              : "md:grid-cols-1"
+        } gap-4`}
+      >
+        {countsVolumes(nvf) && (
+          <Field label="Vol Finished">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              value={nvf.vol_fin}
+              onChange={(e) => unv("vol_fin", e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        )}
+        {countsChapters(nvf) && (
+          <>
+            <Field label="Arc Total">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={nvf.arc_total}
+                onChange={(e) => unv("arc_total", e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+            <Field label="Arc Finished">
+              <input
+                className={inputCls}
+                type="number"
+                step="any"
+                value={nvf.arc_fin}
+                onChange={(e) => unv("arc_fin", e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+          </>
+        )}
       </div>
 
       <SectionHeader icon="fa-star" title="Scores" />
@@ -480,6 +512,18 @@ export default function NovelAddTab({
           value={nvf.end_date}
           onChange={(v) => unv("end_date", v)}
         />
+        <Field label="Serialization Platform">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Serialization Platform",
+              scope: "novel",
+            })}
+            value={nvf.serialization_platform}
+            onChange={(v) => unv("serialization_platform", v)}
+            placeholder="e.g. 小説家になろう"
+          />
+        </Field>
         <Field label="Publisher TW">
           <ComboBox
             items={publisherItems}
@@ -498,6 +542,16 @@ export default function NovelAddTab({
         </Field>
       </div>
 
+      {/* Cast: character/role rows (no seiyuu column - nobody voices anyone
+          in a novel), saved separately via PUT /api/casting/novel/{id} once
+          the entry exists - never part of the entry payload above. */}
+      <SectionHeader icon="fa-users" title="Cast" />
+      <CastEditor
+        mediaType="novel"
+        value={nvf.cast}
+        onChange={(v) => unv("cast", v)}
+      />
+
       <SectionHeader icon="fa-link" title="Relational & Timeline" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Read Order" hint="e.g. 1, 1.5, 2">
@@ -511,21 +565,12 @@ export default function NovelAddTab({
           />
         </Field>
       </div>
-      <SectionHeader icon="fa-book-open" title="Belonging Novels" />
-      <div className="space-y-4">
-        <BelongingNovelsEditor
-          items={nvf.novel_name_each_cn}
-          onChange={(val) => unv("novel_name_each_cn", val)}
-          label="CN"
-          placeholder="CN book name"
-        />
-        <BelongingNovelsEditor
-          items={nvf.novel_name_each_en}
-          onChange={(val) => unv("novel_name_each_en", val)}
-          label="EN"
-          placeholder="EN book name"
-        />
-      </div>
+      <SectionHeader icon="fa-book-open" title="Units" />
+      <NovelUnitsEditor
+        items={nvf.units}
+        novelType={nvf.type}
+        onChange={(val) => unv("units", val)}
+      />
 
       <SectionHeader icon="fa-external-link-alt" title="Source & Links" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -547,75 +592,32 @@ export default function NovelAddTab({
             placeholder="https://myanimelist.net/manga/..."
           />
         </Field>
-        <Field label="AniList Link">
+        <Field label="Open Library Link">
           <input
             className={inputCls}
             type="url"
-            value={nvf.anilist_link}
-            onChange={(e) => unv("anilist_link", e.target.value)}
-            placeholder="https://anilist.co/manga/..."
+            value={nvf.openlibrary_link}
+            onChange={(e) => unv("openlibrary_link", e.target.value)}
+            placeholder="https://openlibrary.org/works/OL..."
+          />
+        </Field>
+        <Field label="Open Library ID">
+          <input
+            className={inputCls}
+            value={nvf.openlibrary_id}
+            onChange={(e) => unv("openlibrary_id", e.target.value)}
+            placeholder="OL5738148W"
           />
         </Field>
       </div>
-      <div>
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
-          Other Sources
-        </label>
-        <div className="space-y-2">
-          {nvf.source_other.map((entry, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputCls}
-                placeholder="Source name"
-                value={entry.name}
-                onChange={(e) =>
-                  unv(
-                    "source_other",
-                    nvf.source_other.map((x, j) =>
-                      j === i ? { ...x, name: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                className={inputCls}
-                type="url"
-                placeholder="https://... (optional)"
-                value={entry.url}
-                onChange={(e) =>
-                  unv(
-                    "source_other",
-                    nvf.source_other.map((x, j) =>
-                      j === i ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <button
-                type="button"
-                className="text-danger/70 hover:text-danger px-1 shrink-0"
-                onClick={() =>
-                  unv(
-                    "source_other",
-                    nvf.source_other.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <i className="fas fa-times" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-brand hover:underline mt-1"
-            onClick={() =>
-              unv("source_other", [...nvf.source_other, { name: "", url: "" }])
-            }
-          >
-            + Add Source
-          </button>
-        </div>
-      </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={nvf.sources}
+        onChange={(rows) => unv("sources", rows)}
+        mediaType="novel"
+        sources={sources}
+      />
 
       <SectionHeader icon="fa-flag" title="Flags" />
       <div className="flex flex-wrap gap-6 mt-2">
@@ -648,12 +650,12 @@ export default function NovelAddTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
+      <Field label="Cover Image File" hint="e.g. novel/5114.jpg">
         <input
           className={inputCls}
           value={nvf.cover_image_file}
           onChange={(e) => unv("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+          placeholder="novel/5114.jpg"
         />
       </Field>
       <Field label="Remark">

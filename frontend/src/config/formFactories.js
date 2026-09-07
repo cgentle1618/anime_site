@@ -1,4 +1,6 @@
-// Blank-form factories for every Add-page media type.
+// Blank-form factories for every Add-page tab that has a form: the media
+// types, the grouping tiers, and the three entity forms (studio, person,
+// character).
 //
 // These live in config/ rather than in the add-tab components so that other
 // config modules (the form-field registry) can derive field keys from them
@@ -51,13 +53,8 @@ export const defaultAnime = () => ({
   is_main_entry: false,
   mal_id: "",
   mal_link: "",
-  anilist_link: "",
-  official_link: "",
-  twitter_link: "",
-  source_baha: "",
-  baha_link: "",
-  source_netflix: "",
-  source_other: [],
+  exclusive_source: "",
+  sources: [],
   seiyuu: "",
   watch_next: false,
   cover_image_file: "",
@@ -85,13 +82,8 @@ export const defaultAnimeMovie = () => ({
   director: "",
   mal_id: "",
   mal_link: "",
-  anilist_link: "",
-  official_link: "",
-  twitter_link: "",
-  source_baha: "",
-  baha_link: "",
-  source_netflix: "",
-  source_other: [],
+  exclusive_source: "",
+  sources: [],
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -117,7 +109,8 @@ export const defaultMovie = () => ({
   director: "",
   imdb_id: "",
   imdb_link: "",
-  source_other: [],
+  original_source: "",
+  sources: [],
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -134,7 +127,7 @@ export const defaultTvShow = () => ({
   series_text: "",
   season_part: "Season 1",
   region: "歐美劇",
-  source_official: "",
+  original_source: "",
   is_main: "",
   airing_status: "Not Yet Aired",
   watching_status: "Might Watch",
@@ -145,7 +138,7 @@ export const defaultTvShow = () => ({
   release_date: "",
   imdb_id: "",
   imdb_link: "",
-  source_other: [],
+  sources: [],
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
@@ -170,11 +163,11 @@ export const defaultCartoon = () => ({
   my_rating: "",
   imdb_rating: "",
   length_ep_min: "",
-  source_official: "",
+  original_source: "",
   release_date: "",
   imdb_id: "",
   imdb_link: "",
-  source_other: [],
+  sources: [],
   watch_next: false,
   cover_image_file: "",
   remark: "",
@@ -212,8 +205,7 @@ export const defaultManga = () => ({
   publisher_tw: "",
   mal_id: "",
   mal_link: "",
-  anilist_link: "",
-  source_other: [],
+  sources: [],
   read_next: false,
   to_reread: false,
   cover_image_file: "",
@@ -252,14 +244,15 @@ export const defaultNovel = () => ({
   illustrator: "",
   release_date: "",
   end_date: "",
+  serialization_platform: "",
   publisher_tw: "",
   read_order: "",
-  novel_name_each_cn: [],
-  novel_name_each_en: [],
+  units: [],
   mal_id: "",
   mal_link: "",
-  anilist_link: "",
-  source_other: [],
+  openlibrary_link: "",
+  openlibrary_id: "",
+  sources: [],
   read_next: false,
   to_reread: false,
   cover_image_file: "",
@@ -294,9 +287,73 @@ export const defaultComic = () => ({
   is_main_entry: false,
   read_order: "",
   comicvine_link: "",
-  source_other: [],
+  sources: [],
   read_next: false,
   to_reread: false,
+  cover_image_file: "",
+  remark: "",
+});
+
+export const defaultGame = () => ({
+  game_name_cn: "",
+  game_name_en: "",
+  game_name_roman: "",
+  game_name_jp: "",
+  game_name_alt: "",
+  franchise_id: null,
+  franchise_text: "",
+  series_id: null,
+  series_text: "",
+  game_type: "",
+  base_game_id: null,
+  playing_status: "Might Play",
+  completion_level: "",
+  // Tristate: "" is unset, "true"/"false" are the two answers.
+  all_endings: "",
+  all_achievements: "",
+  all_collected: "",
+  steam_progress_sync: "",
+  achievements_earned: "",
+  achievements_total: "",
+  release_status: "",
+  release_date: "",
+  current_patch: "",
+  hours_played: "",
+  hltb_main: "",
+  hltb_main_extra: "",
+  hltb_completionist: "",
+  price_original_us: "",
+  price_original_jp: "",
+  price_original_tw: "",
+  price_current_us: "",
+  price_current_jp: "",
+  price_current_tw: "",
+  metacritic_score: "",
+  metacritic_user_score: "",
+  my_rating: "",
+  studio: "",
+  publisher: "",
+  director: "",
+  composer: "",
+  game_genre: "",
+  game_theme: "",
+  game_mode: "",
+  combat_mode: "",
+  game_platform: "",
+  label: "",
+  // Fill's only handle on the game. The IGDB picker sets it, and it can also
+  // be typed in: the link the picker stores carries only a slug, so nothing
+  // can recover the id from a link pasted by hand.
+  igdb_id: "",
+  igdb_link: "",
+  steam_appid: "",
+  steam_link: "",
+  sources: [],
+  // One row per copy owned or wanted; the nested-collection contract
+  // GameCopyIO documents - omitted means "leave alone", [] means "clear".
+  copies: [],
+  play_next: false,
+  to_replay: false,
   cover_image_file: "",
   remark: "",
 });
@@ -340,7 +397,74 @@ export const defaultSeries = () => ({
   remark: "",
 });
 
-// Keyed by the media-type slugs used in config/mediaRegistry.js.
+// The three Entity-group forms. An entity is credited ON entries rather than
+// being an entry, so these carry none of the tracking fields above -- but they
+// are still Add forms whose starting values the admin configures on /defaults.
+
+export const defaultStudio = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  my_rating: "",
+  logo_file: "",
+  country: "",
+  website_url: "",
+  founded_date: "",
+  defunct_date: "",
+  mal_id: "",
+  mal_link: "",
+  remark: "",
+});
+
+// A publisher carries the same shape as a studio minus the two MAL columns:
+// MAL has no record of a games publisher or a Taiwanese distributor, so there
+// is nothing to autofill from.
+export const defaultPublisher = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  my_rating: "",
+  logo_file: "",
+  country: "",
+  website_url: "",
+  founded_date: "",
+  defunct_date: "",
+  remark: "",
+});
+
+export const defaultPerson = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  gender: "",
+  my_rating: "",
+  photo_file: "",
+  remark: "",
+});
+
+// Identical in shape to a person today, but kept separate: the two are
+// different tables with different futures, and a shared factory would make a
+// person-only field silently appear on the character form.
+export const defaultCharacter = () => ({
+  name_en: "",
+  name_cn: "",
+  name_jp: "",
+  name_alt: "",
+  display_name_field: "",
+  gender: "",
+  my_rating: "",
+  photo_file: "",
+  remark: "",
+});
+
+// Keyed by the media-type slugs used in config/mediaRegistry.js, plus the
+// entity tab keys from config/adminTabs.js.
 export const FORM_FACTORIES = {
   anime: defaultAnime,
   "anime-movie": defaultAnimeMovie,
@@ -350,7 +474,12 @@ export const FORM_FACTORIES = {
   manga: defaultManga,
   novel: defaultNovel,
   comic: defaultComic,
+  game: defaultGame,
   collection: defaultCollection,
   franchise: defaultFranchise,
   series: defaultSeries,
+  studio: defaultStudio,
+  publisher: defaultPublisher,
+  person: defaultPerson,
+  character: defaultCharacter,
 };

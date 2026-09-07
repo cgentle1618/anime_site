@@ -1,4 +1,4 @@
-"""Staff entity ORM models: people and studios."""
+"""Staff entity ORM models: people, studios and publishers."""
 
 import uuid
 
@@ -28,39 +28,53 @@ class Person(Base, NameFallbackMixin):
     role, and putting it on an extension would encode a data-entry habit into
     the schema. No role extension table exists yet - one is added when a role
     earns several columns that are genuinely meaningless elsewhere.
+
+    All four names are nullable and at least one must be set, matching Studio:
+    a person is known by whichever names they are known by, and requiring a
+    specific one would force a made-up value. Which column a name lands in when
+    a writer other than the admin form creates the row is decided by
+    name_slot_for in app/utils/name_normalize.py.
     """
 
     __tablename__ = "person"
     __table_args__ = (
-        # NULLS NOT DISTINCT: name_en is nullable and almost always NULL, and
-        # Postgres treats two NULLs as distinct by default - without this the
-        # constraint is INERT and two Person rows with the same name_native
-        # commit cleanly. See uq_media_credit_row for the same lesson, and
-        # alembic/versions/n1u2l3l4s5n6d_* for the migration that collapsed
-        # the duplicates the inert version already allowed.
+        # NULLS NOT DISTINCT: three of the four name columns are NULL on a
+        # typical row, and Postgres treats two NULLs as distinct by default -
+        # without this the constraint is INERT and duplicates commit cleanly.
+        # Same lesson as uq_studio_name and uq_media_credit_row, and see
+        # alembic/versions/n1u2l3l4s5n6d_* for the migration that collapsed the
+        # duplicates the inert version already allowed.
         UniqueConstraint(
-            "name_native",
             "name_en",
+            "name_cn",
+            "name_jp",
+            "name_alt",
             name="uq_person_name",
             postgresql_nulls_not_distinct=True,
         ),
+        CheckConstraint(
+            "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
+            name="ck_person_has_a_name",
+        ),
     )
 
-    # Used by _find_by_name (app/services/domain/credits.py) so a person
-    # matches on the same two fields the resolver hard-coded before it was
-    # made model-generic. Deliberately NOT name_cn: resolve_person is
-    # find-or-create on every automated write path (Fill/Pull, Sheets
-    # restore), and person has no external id to disambiguate a collision -
-    # widening the match to a common transliterated surname would silently
-    # merge two distinct people and reattach one's credits to the other.
-    _name_fields = ["name_native", "name_en"]
+    # Used by _find_by_name (app/services/domain/credits.py): a person matches
+    # on any of their names, because the same human arrives as a Japanese name
+    # from Tenrai, a Chinese one from the sheet and an English one typed into
+    # the Add form. Matching on only one column would split their credits.
+    # Ambiguity is not silently resolved - _find_by_name raises when two people
+    # match, which is the safe answer when a person has no external id.
+    _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    name_native = Column(String, nullable=False, index=True)
-    name_en = Column(String, nullable=True)
+    name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
+    name_jp = Column(String, nullable=True)
+    name_alt = Column(String, nullable=True)
+    # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
+    display_name_field = Column(String, nullable=True)
     gender = Column(String, nullable=True)
     # One of constants.MY_RATINGS.
     my_rating = Column(String, nullable=True)
@@ -76,6 +90,42 @@ class Person(Base, NameFallbackMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    # Which column each display_name_field value names.
+    _DISPLAY_FIELDS = {
+        "en": "name_en", "cn": "name_cn", "jp": "name_jp", "alt": "name_alt",
+    }
+
+    @property
+    def names_dict(self) -> dict:
+        """Every name variation, for resolution and for the detail page."""
+        return {
+            "en": self.name_en,
+            "cn": self.name_cn,
+            "jp": self.name_jp,
+            "alt": self.name_alt,
+        }
+
+    @property
+    def display_name(self) -> str:
+        """
+        The name to show. Like Studio and unlike every media model, whose
+        fallback chain is hard-coded per type, a person's choice is DATA:
+        display_name_field names the winner. The chain below is only the
+        fallback for when that is NULL or names an empty column.
+        """
+        chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
+        if chosen:
+            value = getattr(self, chosen)
+            if value and value.strip():
+                return value.strip()
+        sequence = [
+            ("EN", self.name_en),
+            ("CN", self.name_cn),
+            ("JP", self.name_jp),
+            ("Alt", self.name_alt),
+        ]
+        return self.get_fallback_name(sequence, "EN")
 
 
 class PersonRole(Base):
@@ -123,9 +173,14 @@ class Studio(Base, NameFallbackMixin):
     """
     One anime production studio.
 
-    Publishers and distributors are deliberately NOT here - they need no
-    profile, so they stay a single "Publisher / Distributor TW" vocabulary in
-    system_option.
+    Publishers and distributors are NOT here - they live in their own
+    Publisher table below. The split is deliberate: most publisher and
+    distributor values are distributors that never developed anything, so
+    listing them among studios would blur what /library/studio means. This
+    reverses the earlier ruling recorded here, which kept publishers as a
+    single "Publisher / Distributor TW" vocabulary in system_option; that
+    vocabulary still backs publisher_tw on anime, manga, novel and comic
+    until a later migration converts those rows.
 
     All four names are nullable and at least one must be set: a studio is
     known by whichever names it is known by, and requiring a specific one
@@ -207,6 +262,115 @@ class Studio(Base, NameFallbackMixin):
         hard-coded per type, a studio's choice is DATA: display_name_field
         names the winner. The chain below is only the fallback for when that
         is NULL or names an empty column.
+        """
+        chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
+        if chosen:
+            value = getattr(self, chosen)
+            if value and value.strip():
+                return value.strip()
+        sequence = [
+            ("EN", self.name_en),
+            ("CN", self.name_cn),
+            ("JP", self.name_jp),
+            ("Alt", self.name_alt),
+        ]
+        return self.get_fallback_name(sequence, "EN")
+
+
+class Publisher(Base, NameFallbackMixin):
+    """
+    One publisher or distributor: a games publisher, or a TW licensor.
+
+    Shaped after Studio, and deliberately a separate table rather than a
+    `publisher` role pointing at Studio. The overlap is real - Bandai Namco
+    and Kadokawa both develop and publish, and will exist as two unlinked
+    rows - but the bulk of publisher/distributor values are distributors
+    (木棉花, 曼迪) that never developed anything, and putting them on
+    /library/studio would make that page mean something vaguer than it does.
+
+    Reverses the ruling recorded in Studio's docstring, which said publishers
+    need no profile and should stay a system_option vocabulary. Games are
+    where that stopped holding: a publisher is a first-class fact about a
+    game, not a distribution footnote.
+
+    Carries no MAL columns: MAL has no record of a games publisher or a
+    Taiwanese distributor, so there is nothing to autofill from.
+    """
+
+    __tablename__ = "publisher"
+    __table_args__ = (
+        # NULLS NOT DISTINCT: three of the four name columns are NULL on a
+        # typical row, and Postgres treats two NULLs as distinct by default -
+        # without this the constraint is INERT and duplicates commit cleanly.
+        # Same lesson as uq_studio_name and uq_person_name.
+        UniqueConstraint(
+            "name_en",
+            "name_cn",
+            "name_jp",
+            "name_alt",
+            name="uq_publisher_name",
+            postgresql_nulls_not_distinct=True,
+        ),
+        CheckConstraint(
+            "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
+            name="ck_publisher_has_a_name",
+        ),
+        CheckConstraint(
+            r"founded_date IS NULL OR founded_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_publisher_founded_date",
+        ),
+        CheckConstraint(
+            r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
+            name="ck_publisher_defunct_date",
+        ),
+    )
+
+    _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    name_en = Column(String, nullable=True, index=True)
+    name_cn = Column(String, nullable=True)
+    name_jp = Column(String, nullable=True)
+    name_alt = Column(String, nullable=True)
+    # One of "en" | "cn" | "jp" | "alt", or NULL for the fallback chain.
+    display_name_field = Column(String, nullable=True)
+    my_rating = Column(String, nullable=True)
+    logo_file = Column(String, nullable=True)
+    remark = Column(Text, nullable=True)
+    # Truncated ISO-8601, the format owned by app/utils/release_date.py.
+    founded_date = Column(String, nullable=True)
+    defunct_date = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    website_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    # Which column each display_name_field value names.
+    _DISPLAY_FIELDS = {
+        "en": "name_en",
+        "cn": "name_cn",
+        "jp": "name_jp",
+        "alt": "name_alt",
+    }
+
+    @property
+    def names_dict(self) -> dict:
+        """Every name variation, for resolution and for the detail page."""
+        return {
+            "en": self.name_en,
+            "cn": self.name_cn,
+            "jp": self.name_jp,
+            "alt": self.name_alt,
+        }
+
+    @property
+    def display_name(self) -> str:
+        """
+        The name to show. Like Studio, the choice is DATA: display_name_field
+        names the winner, and the chain below is only the fallback for when
+        that is NULL or names an empty column.
         """
         chosen = self._DISPLAY_FIELDS.get(self.display_name_field or "")
         if chosen:

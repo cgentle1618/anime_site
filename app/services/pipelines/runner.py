@@ -41,11 +41,22 @@ class PipelineSpec:
     extract_id: Optional[Callable[[Any], None]]         # per entry, before queueing
     fill_eligible: Callable[[Session, Any], bool]
     fill: Callable[[Session, Any], None]                # external fetch + write
+    # Runs once at the very start of a Fill or a Replace, before any entry is
+    # queued or processed - for state that is scoped to a whole run rather
+    # than to one entry (e.g. dropping a cache that must not outlive the run
+    # that filled it). Never called per-entry and never called by the single
+    # write hooks (run_replace_single), which touch one entry in isolation.
+    pre_run: Optional[Callable[[Session], None]] = None
     fill_sleep: float = 0
     post_process: Optional[Callable[[Any, Session], None]] = None  # every entry, after the queue
     fill_after: tuple[Step, ...] = ()                   # (progress message, fn(db))
     budget: Optional[Callable[[], bool]] = None         # False -> stop, report the rest
     in_fill_all: bool = True
+    # True for a type Fill is the whole story for - no Replace routes at
+    # all, bulk or single. Studio is the first: a MAL producer record
+    # carries no score or rank that drifts, so a re-fetch would only
+    # rewrite what Fill already wrote.
+    fill_only: bool = False
     # ---- Replace ----------------------------------------------------------
     replace_select: Optional[Callable[[Session], list]] = None   # None: no bulk Replace
     replace: Optional[Callable[[Session, Any, bool], None]] = None  # (db, entry, bulk)
@@ -104,6 +115,8 @@ async def run_fill(
     left_for_next_run = 0
 
     try:
+        if spec.pre_run:
+            spec.pre_run(db)
         entries = db.query(spec.model).all()
         if spec.extract_id:
             for entry in entries:
@@ -192,8 +205,11 @@ async def run_replace(
     logger.info("Starting %s pipeline", action_specific)
     processed = 0
     total = 0
+    left_for_next_run = 0
 
     try:
+        if spec.pre_run:
+            spec.pre_run(db)
         entries = spec.replace_select(db)
         total = len(entries)
         if total == 0:
@@ -204,6 +220,19 @@ async def run_replace(
 
         for index, entry in enumerate(entries, start=1):
             await _check_alive(request)
+            # Same budget hook as run_fill: replace_select for a Steam-backed
+            # type like Game pulls in every linked entry regardless of how
+            # much window is left, so without this check a bulk Replace would
+            # run the storefront limiter's per-call sleep (up to 5 minutes)
+            # for every remaining entry instead of stopping cleanly here.
+            if spec.budget and not spec.budget():
+                left_for_next_run = total - index + 1
+                logger.warning(
+                    "%s: external budget exhausted, %d entries left for the next run.",
+                    action_specific, left_for_next_run,
+                )
+                break
+
             name = entry.display_name or f"Unknown {spec.label}"
             yield _progress(name, index, total)
             try:
@@ -220,7 +249,13 @@ async def run_replace(
             yield message
 
         _log(db, "Replace", action_specific, action_type, "Success", log_action, rows_updated=processed)
-        yield _sse(status="success", message=f"{action_specific} complete", total=total, processed=processed)
+        message = f"{action_specific} complete"
+        if left_for_next_run:
+            message += (
+                f". {left_for_next_run} entries skipped - the external API's budget was"
+                " reached. Run again later to finish."
+            )
+        yield _sse(status="success", message=message, total=total, processed=processed)
 
     except asyncio.CancelledError:
         db.rollback()

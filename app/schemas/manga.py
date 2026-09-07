@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import MangaLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class MangaBase(BaseModel):
@@ -39,13 +40,9 @@ class MangaBase(BaseModel):
     release_date: Optional[str] = None
     end_date: Optional[str] = None
     anime_studio: Optional[str] = None
-    serialization_platform: Optional[str] = None
 
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
-    anilist_link: Optional[str] = None
-
-    source_other: Optional[dict] = None
 
     read_next: Optional[bool] = None
     to_reread: Optional[bool] = None
@@ -56,11 +53,11 @@ class MangaBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date", "end_date")
 
 
-class MangaCreate(MangaBase):
+class MangaCreate(MangaBase, SourceWriteFields):
     pass
 
 
-class MangaUpdate(MangaBase):
+class MangaUpdate(MangaBase, SourceWriteFields):
     pass
 
 

@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-04 (commit f35ee2c, plus the uncommitted status-optgroup change)
+Last verified: 2026-09-06
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -42,7 +42,7 @@ src/
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
 | `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
-| `pages/plan/usePlanData` | The Plan page's ten lists plus `["plan-next"]`. |
+| `pages/plan/usePlanData` | The Plan page's eleven lists (franchise, series and the nine entry types) plus `["plan-next"]`. |
 
 Query defaults (`main.jsx`): `staleTime` 30 s, `retry` 1, no refetch on window
 focus. Query keys in use: `["media-list", type(, params)]`, media item keys,
@@ -74,8 +74,14 @@ toggled inside a hub does not update the library cache until it goes stale.
 
 Colours are **semantic tokens** defined in `src/index.css` as Tailwind v4
 `@theme` entries that reference runtime variables. Components use the token
-utilities; the palette flips by `data-theme`. Light values equal the greys the
-app used before tokens existed.
+utilities; the palette flips by `data-theme`.
+
+**The hex values in the table below are the original pre-archive palette and
+are no longer what `index.css` holds** — the archive redesign repainted every
+token (bone paper, wisteria accent) without changing a single token *name*.
+[design-system.md](design-system.md) is authoritative for the values; the table
+here is still the right map of which token plays which role, and the conversion
+table under it is still the rule for new code.
 
 | Token (utility) | Role | Light | Dark |
 |---|---|---|---|
@@ -116,11 +122,11 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 
 | File | Holds |
 |---|---|
-| `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). Source for `endpoints.resource`. |
-| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Track, Insights, Admin with `requires: "admin"`), `activeItem`, `visibleSections`. |
-| `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary. |
-| `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. |
-| `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount. |
+| `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game`, `play` (`statusField: "playing_status"`). Source for `endpoints.resource`. |
+| `navigation.js` | `NAV_SECTIONS` (Library mega-panel, Track, Insights, then Entry, Note and Admin with `requires: "admin"`), `activeItem`, `visibleSections` (filters rows as well as sections — Insights carries two `requires: "admin"` rows). |
+| `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
+| `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` has **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so its Plan tab renders one ungrouped list. Its `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. |
+| `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. The seven game vocabularies (`GAME_TYPES`, `COMPLETION_LEVELS`, `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS`, `GAME_ACQUISITION_KINDS`) are **not** in that map, so they stay hand-maintained literals that must be kept matching `app/utils/constants.py` by hand — even though `/api/constants` does serve all eight game keys now. `PLAYING_STATUSES` is the one game list that is a real fallback. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` is a free string on the backend. |
 | `formFactories.js` | `freshForm(type)` defaults per form. |
 | `formFields/fieldMeta.js`, `formFields/index.js` | Field metadata (label, control, option source, coerce) for defaults and autofill. |
 | `mediaTypeColors.js`, `namingConfigs.js`, `adminTabs.js`, `weekdays.js`, `broadcastTimes.js` | Media-type chip classes (one ink chip for every type — colour never encodes a category); name-field order per type; the Add/Modify tab bar; schedule constants. |
@@ -140,18 +146,66 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look.
-- **`components/cards`** — `MediaCard` (one card for all eight types,
-  `variant="future"`), `FranchiseCard`, `CollectionCard`.
+- **`components/cards`** — `MediaCard` (one card for all nine types,
+  `variant="future"`; its status button comes from `getCardStatusConfig(type,
+  status)`, which dispatches on the watch / read / **play** axis, and its
+  progress line for a game is `hours_played` against `hltb_main`, rendered
+  only when at least one of the two exists), `FranchiseCard`, `CollectionCard`, and `StaffCard`
+  (`PersonCard` / `StudioCard` over one shared body — the person and studio
+  libraries and the `/search` staff sections all draw it).
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
-  `ComicDashboardCard`, `MyTrackerCard`, `WeeklySchedule`, `RelationsSection`,
-  `WatchOrderSection`, `WatchOrderGuide`, `WatchOrderEditor`.
+  `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
+  the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
+  `ComicDashboardCard`, `GameDashboardCard`, `MyTrackerCard`, `WeeklySchedule`,
+  `RelationsSection`, `WatchOrderSection`, `WatchOrderGuide`,
+  `WatchOrderEditor`.
+  `MyTrackerCard` renders its −/input/+ stepper **only when the caller passes
+  an `onEpChange`**; a game passes none, so its card shows status, rating and
+  the To Replay checkbox alone rather than an inert `0 / undefined` counter
+  (`statusLabel` and `rewatchLabel` are what relabel it "Playing Status" /
+  "To Replay").
+  `GameDashboardCard` is a fourth dashboard card rather than a third arm
+  inside `DashboardCard`: that file's `isReading` ternaries serve the
+  watch/read pair, and a game's bar is read-only playtime against `hltb_main`
+  (achievements when the game reports a total and no estimate exists), so
+  there is no progress callback to thread through.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`.
+  `SourcesCard` reads the entry's `sources` array (server-ordered — access
+  rows in `sort_order`/insertion order, never re-sorted client-side), splits
+  it into `access`/`reference` sections by `row.kind`, titles the access
+  section by media type through `accessHeading(mediaType)` — "Where to Watch",
+  "Where to Read", or **"Where to Play"** for a game — and renders the
+  column-backed
+  `malLink`/`imdbLink`/`comicvineLink`/`openLibraryLink`/`igdbLink` props
+  beside the reference rows and the tag-field props (`originalSource`,
+  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
+  component composing from both the `media_source` table and the surviving
+  columns/tag fields, per the guiding rule in
+  [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
+  An `available === false` row still renders (muted, no link) — that state
+  means "known not to be there", not "hide this row".
 - **`components/forms`** — `FormField`, `ComboBox` (`onSelect(id, label)`),
   `MultiSelect`, `ReleaseDateInput`, `ScopePicker`, `OptionSubTabBar`,
-  `ContentLabelPicker`,
-  `DefaultValueControl`, `BelongingNovelsEditor`, `QuoteForm`,
-  `QuoteEntryPicker`, `MemeForm`, `MemeOwnerPicker`.
+  `OptionCategorySelect`,
+  `ContentLabelPicker`, `SourcesEditor` (the one shared editor for every Add
+  and Modify tab's `sources` field, replacing eight copy-pasted
+  `source_other` editors; produces `access` rows for `main`/`other`/
+  `restricted` platform pickers and always-`{kind:"reference", bucket:"main"}`
+  rows for the Reference Source dropdown - which never takes a `usage` filter,
+  since `usage` is Platform-only; `showAccess={false}` drops the access group
+  outright, which is how a game gets a Sources card with references only),
+  `DefaultValueControl`, `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
+  — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
+  kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
+  and previews each row's `unitDisplayKey` placeholder before save. The
+  two-stage reading cursor stepper (`arcStep`, same module) lives in the
+  tracker components below, not here), `QuoteForm`,
+  `QuoteEntryPicker`, `MemeForm`, `MemeOwnerPicker`, `GameCopiesEditor`
+  (the `game_copy` rows a game's Add/Modify tab sends as `copies`; controlled
+  exactly like `NovelUnitsEditor` — the parent owns the array, every add /
+  remove / edit / reorder goes out through `onChange` with `position`
+  renumbered 1..n, and the array handed in is never mutated).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
@@ -162,7 +216,15 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`pages/notes/sections`** — one component per note shape (`TextSection`,
   `TextLinksSection`, `EpisodeTextSection`, `NameLinksSection`,
   `EpisodeNameLinksSection`, `MusicTrackSection`, `QuoteSection`,
-  `MemeSection`, `TextOrLinkSection`) plus `ui.jsx` chrome.
+  `MemeSection`, `TextOrLinkSection`, `NameEntriesSection`) plus `ui.jsx`
+  chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
+  list whose items are each `{type: "text" | "link", value, label}` stored in
+  the note's own `entries` column, never in `links` — and offers a kind
+  dropdown built from `section.kinds` when the registry declares any. Its two
+  owners are the game-only `guides` (no kinds) and `builds_and_mods` (Build /
+  Mod / Tool); the latter is labelled 配裝/模組 Builds & Mods and is
+  deliberately **not** keyed `resources`, which already exists site-wide.
+  `NotesTemplate`'s `SHAPES` map now holds seven registry-driven shapes.
 
 ## `lib/` utilities
 
@@ -170,16 +232,17 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 |---|---|
 | `naming.js` | `getDisplayName`, `getSortName`, `cleanString`, name-field lists |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates |
-| `formatters.js` | `getSourceValues` and display formatters |
-| `payloads.js` | form state → request body for anime / anime movie |
+| `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
+| `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
-| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (local `/static/covers` vs GCS) |
-| `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`) |
-| `sources.js` | source/link helpers for `SourcesCard` |
+| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (local `/static/covers` vs GCS; the column holds a full `<owner_type>/<id>.jpg` key, so the URL builder just concatenates), `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. That is the bug the games work fixed — the franchise and series hero lists had omitted **comics** too — and the docstring that said "six flat entry arrays" was corrected with it |
+| `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
+| `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |
 | `relationLayout.js`, `relationHandles.js`, `relationUndo.js` | pure graph layout (union-find contraction, dagre), handle geometry, undo stack |
 | `textFit.js` | width measurement for `FittedName` |
 | `clipboardImage.js` | copy an image to the clipboard (quotes/memes) |
+| `novelUnits.js` | `NOVEL_UNIT_KINDS_BY_TYPE` (hand-mirrored from `app/utils/constants.py`, pinned by `config/novelUnitKinds.test.js`), `kindsForType`, `unitDisplayKey`, `arcStep` (frontend mirror of `normalize_arc_progress`) |
 
 ## Testing conventions
 
@@ -196,6 +259,24 @@ the test (`ThemeProvider` for `Nav`, `ToastProvider` + `AuthProvider` for
 2. `config/namingConfigs.js`, `mediaTypeColors.js`, `statusGroups.js` if it needs its own name order, chip key or status group.
 3. `pages/library/configs/<type>.jsx` + register in `configs/index.js` — filters, sorts, columns (reuse `libraryColumns`).
 4. `pages/detail/<Type>.jsx` (+ `<Type>Notes.jsx`) and the two routes in `App.jsx`; note sections in `app/utils/note_sections.py`.
-5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`.
-6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js`, `Index.jsx` divisions, `NavSearch.jsx` scopes and quotas, `navigation.js`.
+5. `pages/add-tabs/<Type>AddTab.jsx`, `pages/modify-tabs/<Type>ModifyTab.jsx`, entries in `config/adminTabs.js`, `formFactories.js`, `formFields/fieldMeta.js`, `lib/payloads.js`, and the submit/save handlers in `Add.jsx` / `Modify.jsx`. Export the field body from the Add tab and render it from the Modify tab, the way `GameModifyTab` renders `GameAddTab`'s `GameFormBody` and `GameLineageFields` — the comic pair keeps two near-identical files and can drift.
+6. `Delete.jsx` `MEDIA_KEYS`, `pages/plan/usePlanData.js`, `pages/statistics/useStatisticsData.js` (+ `StatsCompletions.jsx`, `utils/statsUtils.js`), `Index.jsx` divisions, `Completions.jsx`, `Search.jsx`, `NavSearch.jsx` scopes and quotas, `GroupedEntryPage.jsx` `MEDIA_TYPE_FILTERS`, `navigation.js`, `lib/status.js`, `libraryColumns.jsx`, `planNextGroups.js`, `mediaTypeColors.js`, and `scopeColors.js` plus the three `--c-scope-*` palettes in `index.css`.
 7. Backend first: registry spec, pipeline spec, sheet tab — see [../entry-types.md](../entry-types.md).
+
+## Entity components (person, studio and character)
+
+| Component | What it is |
+|---|---|
+| `forms/PersonSubTabBar.jsx` | The five person types (`PERSON_SUB_TABS`), shared by the admin Modify / Delete pages and by the `/library/person` type filter, so one vocabulary drives all three. It filters a list; the Add page has no list and so no bar, and it never scopes the editor, because a person is one row that may hold several types. |
+| `forms/OptionSubTabBar.jsx` | The Options / Tags halves of the System Option tab. People and studios were once entries here. |
+| `forms/OptionCategorySelect.jsx` | The Tier 2 category dropdown on all three admin pages — Add's Category field, Modify's and Delete's "select a category" filter. A closed `<select>`, so Add can no longer coin a category by typing one; its `<optgroup>`s come from `groupTier2Categories` (`lib/optionsPageGroups.js`), the same arrangement `/options` reads, and a list yielding one section renders flat. |
+| `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
+| `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them, the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
+| `info/StudioLinks.jsx` | The same pair for `studio_refs`, without a role key. Generalised over its detail route rather than copied for the third entity: `StudioLinks` takes a `base` prop (default `/studio`), `studioValue(item)` reads `studio_refs`, and `publisherValue(item)` reads `publisher_refs` with `base="/publisher"`. A game's Production card uses both — Developer through `studioValue` (a developer *is* a studio), Publisher through `publisherValue`. |
+| `forms/CastEditor.jsx` | The anime/anime-movie/manga/novel Add/Modify cast table. Controlled like `NovelUnitsEditor` — the parent owns `value` and gets every change through `onChange` — and never saves a cast list itself, only searches/creates the two entities its comboboxes reference: a character combobox (debounced `GET /api/character/?name=`, existing matches shown with the entries they already appear in, plus a synthetic "create new character named X" choice — never find-or-create, per Decision G) and a seiyuu combobox (find-or-creates through the existing `ensureSourceValues.js` path, same as every other person field). Renders **without** the seiyuu column on manga/novel (`SEIYUU_MEDIA_TYPES`), mirroring `ck_casting_voice_scope` so the UI cannot offer what the database will reject. One row per casting: character, seiyuu (when shown), a Main/Supporting `role` select, a photo slot, a remark, and drag-to-reorder writing `position`. |
+| `hooks/useCasting.js` | TanStack Query hook over `GET /api/casting/{media_type}/{entry_id}`, read by the four ACG detail pages' Cast section. |
+
+Neither entity detail page reuses `MediaCard`: it resolves its title through
+`getDisplayName(data, type)` and reads status, franchise and admin props, none
+of which the four keys an `/entries` endpoint returns can satisfy — the title
+would render blank. Both pages carry a small local card instead.

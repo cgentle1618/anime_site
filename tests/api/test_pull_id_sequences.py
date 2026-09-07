@@ -39,7 +39,7 @@ def _rewind(db_session, sequence):
 
 def test_person_role_sequence_is_resynced_after_a_restore(db_session, sheet):
     _rewind(db_session, "person_role_id_seq")
-    person = models.Person(name_native="新海誠")
+    person = models.Person(name_jp="新海誠")
     db_session.add(person)
     db_session.flush()
 
@@ -91,5 +91,30 @@ def test_system_option_scope_sequence_is_resynced_after_a_restore(db_session, sh
     db_session.flush()
 
     ids = {r.id for r in db_session.query(models.SystemOptionScope).all()}
+    assert 1 in ids
+    assert len(ids) == 2, "the sequence handed out an id that already existed"
+
+
+def test_system_option_usage_sequence_is_resynced_after_a_restore(db_session, sheet):
+    _rewind(db_session, "system_option_usage_id_seq")
+    option = models.SystemOption(category="Platform", value="Fox")
+    db_session.add(option)
+    db_session.flush()
+
+    sheet(
+        ["id", "option_id", "usage"],
+        [["1", str(option.system_id), "origin"]],
+    )
+    result = pull.execute_pull_specific(
+        db_session, "System Option Usage", log_action=False
+    )
+    assert result["status"] == "success"
+
+    db_session.add(
+        models.SystemOptionUsage(option_id=option.system_id, usage="access")
+    )
+    db_session.flush()
+
+    ids = {r.id for r in db_session.query(models.SystemOptionUsage).all()}
     assert 1 in ids
     assert len(ids) == 2, "the sequence handed out an id that already existed"

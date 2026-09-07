@@ -28,6 +28,7 @@ import {
   ANIME_AIRING_TYPES,
   CARTOON_AIRING_TYPES,
   COMIC_TYPES,
+  COMPLETION_LEVELS,
   FRANCHISE_EXPECTATIONS,
   FRANCHISE_TYPES,
   IS_MAIN,
@@ -37,8 +38,11 @@ import {
   MY_RATINGS,
   NOVEL_REGIONS,
   NOVEL_SERIALIZATION_STATUSES,
+  GAME_RELEASE_STATUSES,
+  GAME_TYPES,
   NOVEL_TYPES,
   PART_NUMS,
+  PLAYING_STATUSES,
   PROGRESS_DISPLAY_OPTIONS,
   READING_STATUSES,
   RELEASE_SEASONS,
@@ -48,10 +52,14 @@ import {
   WATCHING_STATUSES,
 } from "../fieldOptions";
 import { WEEKDAYS } from "../weekdays";
+import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
-const TRISTATE_OPTIONS = [
-  { value: "true", label: "Yes" },
-  { value: "false", label: "No" },
+// The display_name_field choice a studio, person and character all share. ""
+// is the unset state, which falls through en -> cn -> jp -> alt; see
+// displayEntityName() in lib/naming.js.
+const ENTITY_DISPLAY_NAME_OPTIONS = [
+  { value: "", label: "Default (English)" },
+  ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
 ];
 
 export const COMMON_FIELD_META = {
@@ -104,6 +112,12 @@ export const COMMON_FIELD_META = {
     options: READING_STATUSES,
     group: "Status",
   },
+  playing_status: {
+    label: "Playing Status",
+    control: "select",
+    options: PLAYING_STATUSES,
+    group: "Status",
+  },
   is_main: {
     label: "Main / Spinoff",
     control: "select",
@@ -150,6 +164,15 @@ export const COMMON_FIELD_META = {
     source: { kind: "studio" },
     group: "Credits",
   },
+  // A publisher is an entity in its own table, not a system_option value -
+  // see app/models/staff.py's Publisher. The tags control quick-creates one
+  // through /api/publisher the way `studio` does through /api/studio.
+  publisher: {
+    label: "Publisher",
+    control: "tags",
+    source: { kind: "publisher" },
+    group: "Credits",
+  },
   director: {
     label: "Director",
     control: "tags",
@@ -168,40 +191,14 @@ export const COMMON_FIELD_META = {
   // ---- Links -----------------------------------------------------------
   mal_id: { label: "MAL ID", control: "number", group: "Links" },
   mal_link: { label: "MAL Link", control: "url", group: "Links" },
-  anilist_link: { label: "AniList Link", control: "url", group: "Links" },
-  official_link: { label: "Official Link", control: "url", group: "Links" },
-  twitter_link: { label: "Twitter Link", control: "url", group: "Links" },
   imdb_id: { label: "IMDb ID", group: "Links" },
   imdb_link: { label: "IMDb Link", control: "url", group: "Links" },
 
   // ---- Sources ---------------------------------------------------------
-  // Unscoped here on purpose: the shared entry is the fallback, and each media
-  // type that uses this field overrides it below with its own scope, the same
-  // way distributor_tw / publisher_tw do. Scoping is safe now that a save no
-  // longer writes a scope row of its own (Ruling R27) - before that, scoping a
-  // field and then using an unscoped value narrowed it everywhere.
-  source_official: {
-    label: "Source Official",
-    control: "tags",
-    source: { kind: "option", category: "Official Source" },
-    group: "Sources",
-  },
-  source_baha: {
-    label: "Bahamut Source",
-    control: "select",
-    options: TRISTATE_OPTIONS,
-    group: "Sources",
-  },
-  baha_link: { label: "Bahamut Link", control: "url", group: "Sources" },
-  source_netflix: {
-    label: "Netflix Source",
-    control: "select",
-    options: TRISTATE_OPTIONS,
-    group: "Sources",
-  },
-  // Repeatable {name, url} rows — a default here would make no sense.
-  source_other: {
-    label: "Other Sources",
+  // Repeatable {kind, bucket, name, url, available} rows, rendered by
+  // <SourcesEditor> - a default here would make no sense.
+  sources: {
+    label: "Sources",
     control: "none",
     defaultable: false,
     group: "Sources",
@@ -212,6 +209,8 @@ export const COMMON_FIELD_META = {
   to_rewatch: { label: "To Rewatch", control: "checkbox", group: "Flags" },
   read_next: { label: "Read Next", control: "checkbox", group: "Flags" },
   to_reread: { label: "To Reread", control: "checkbox", group: "Flags" },
+  play_next: { label: "Play Next", control: "checkbox", group: "Flags" },
+  to_replay: { label: "To Replay", control: "checkbox", group: "Flags" },
 
   // ---- Media & notes ---------------------------------------------------
   cover_image_file: {
@@ -334,6 +333,12 @@ export const TYPE_FIELD_META = {
       control: "checkbox",
       group: "Derivation",
     },
+    exclusive_source: {
+      label: "Exclusive Source",
+      control: "tags",
+      source: { kind: "option", category: "Platform", scope: "anime", usage: "origin" },
+      group: "Sources",
+    },
   },
 
   "anime-movie": {
@@ -364,6 +369,17 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "director", scope: "anime-movie" },
       group: "Credits",
     },
+    exclusive_source: {
+      label: "Exclusive Source",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Platform",
+        scope: "anime-movie",
+        usage: "origin",
+      },
+      group: "Sources",
+    },
   },
 
   movie: {
@@ -387,13 +403,14 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "director", scope: "movie" },
       group: "Credits",
     },
-    source_official: {
-      label: "Source Official",
+    original_source: {
+      label: "Original Source",
       control: "tags",
       source: {
         kind: "option",
-        category: "Official Source",
+        category: "Platform",
         scope: "movie",
+        usage: "origin",
       },
       group: "Sources",
     },
@@ -410,13 +427,14 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     season_part: { label: "Season Part", group: "Classification" },
-    source_official: {
-      label: "Source Official",
+    original_source: {
+      label: "Original Source",
       control: "tags",
       source: {
         kind: "option",
-        category: "Official Source",
+        category: "Platform",
         scope: "tv-show",
+        usage: "origin",
       },
       group: "Sources",
     },
@@ -438,13 +456,14 @@ export const TYPE_FIELD_META = {
       control: "number",
       group: "Progress",
     },
-    source_official: {
-      label: "Source Official",
+    original_source: {
+      label: "Original Source",
       control: "tags",
       source: {
         kind: "option",
-        category: "Official Source",
+        category: "Platform",
         scope: "cartoon",
+        usage: "origin",
       },
       group: "Sources",
     },
@@ -500,7 +519,13 @@ export const TYPE_FIELD_META = {
     },
     serialization_platform: {
       label: "Serialization Platform",
-      group: "Credits",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Serialization Platform",
+        scope: "manga",
+      },
+      group: "Sources",
     },
     publisher_tw: {
       label: "Publisher TW",
@@ -520,15 +545,8 @@ export const TYPE_FIELD_META = {
     novel_name_roman: { label: "Name (Romaji)", group: "Names" },
     novel_name_jp: { label: "Name (JP)", group: "Names" },
     novel_name_alt: { label: "Name (Alt)", group: "Names" },
-    // Per-volume title lists, edited with a dedicated repeater component.
-    novel_name_each_cn: {
-      label: "Per-Volume Names (CN)",
-      control: "none",
-      defaultable: false,
-      group: "Names",
-    },
-    novel_name_each_en: {
-      label: "Per-Volume Names (EN)",
+    units: {
+      label: "Units (Volumes / Arcs)",
       control: "none",
       defaultable: false,
       group: "Names",
@@ -559,7 +577,7 @@ export const TYPE_FIELD_META = {
       group: "Progress",
     },
     vol_total_original: {
-      label: "Total Volumes (Original)",
+      label: "Total Volumes (JP/KR)",
       control: "number",
       group: "Progress",
     },
@@ -582,6 +600,16 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "illustrator", scope: "novel" },
       group: "Credits",
     },
+    serialization_platform: {
+      label: "Serialization Platform",
+      control: "tags",
+      source: {
+        kind: "option",
+        category: "Serialization Platform",
+        scope: "novel",
+      },
+      group: "Sources",
+    },
     publisher_tw: {
       label: "Publisher TW",
       control: "tags",
@@ -592,6 +620,18 @@ export const TYPE_FIELD_META = {
       },
       group: "Credits",
     },
+    // Novels with no MAL link have no other source. Fill reads
+    // openlibrary_id; apply_extract_openlibrary_id rewrites it from the link
+    // on every run, so whenever a link is set the link is the truth. The id
+    // stays editable anyway (as mal_id is): with no link there is nothing to
+    // derive it from, and a stale id left by a cleared link can only be
+    // removed here.
+    openlibrary_link: {
+      label: "Open Library Link",
+      control: "url",
+      group: "Links",
+    },
+    openlibrary_id: { label: "Open Library ID", group: "Links" },
   },
 
   comic: {
@@ -697,6 +737,223 @@ export const TYPE_FIELD_META = {
     },
   },
 
+  game: {
+    game_name_cn: { label: "Name (CN)", group: "Names" },
+    game_name_en: { label: "Name (EN)", group: "Names" },
+    game_name_roman: { label: "Name (Romaji)", group: "Names" },
+    game_name_jp: { label: "Name (JP)", group: "Names" },
+    game_name_alt: { label: "Name (Alt)", group: "Names" },
+    game_type: {
+      label: "Game Type",
+      control: "select",
+      options: GAME_TYPES,
+      group: "Classification",
+    },
+    // The parent a DLC or expansion hangs off. An entity picker over the
+    // games list, so there is nothing sensible to default it to.
+    base_game_id: {
+      label: "Base Game",
+      control: "none",
+      defaultable: false,
+      group: "Relations",
+    },
+    release_status: {
+      label: "Release Status",
+      control: "select",
+      options: GAME_RELEASE_STATUSES,
+      group: "Status",
+    },
+    completion_level: {
+      label: "Completion Level",
+      control: "select",
+      options: COMPLETION_LEVELS,
+      group: "Status",
+    },
+    all_endings: {
+      label: "All Endings",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    // Stored, not derived from achievements_earned / achievements_total: a
+    // game often publishes no achievement list to count against.
+    all_achievements: {
+      label: "All Achievements",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    all_collected: {
+      label: "All Collected",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    // Not a completion flag: it decides whether Steam Fill/Replace may write
+    // hours_played and achievements_earned over what is already there.
+    steam_progress_sync: {
+      label: "Steam Progress Sync",
+      control: "select",
+      options: TRISTATE,
+      coerce: "tristate",
+      group: "Status",
+    },
+    current_patch: { label: "Current Patch", group: "Status" },
+    achievements_earned: {
+      label: "Achievements Earned",
+      control: "number",
+      group: "Progress",
+    },
+    achievements_total: {
+      label: "Achievements Total",
+      control: "number",
+      group: "Progress",
+    },
+    hours_played: {
+      label: "Hours Played",
+      control: "number",
+      group: "Progress",
+    },
+    // The three How-Long-To-Beat tiers IGDB serves, in hours.
+    hltb_main: { label: "HLTB Main", control: "number", group: "Progress" },
+    hltb_main_extra: {
+      label: "HLTB Main + Extra",
+      control: "number",
+      group: "Progress",
+    },
+    hltb_completionist: {
+      label: "HLTB Completionist",
+      control: "number",
+      group: "Progress",
+    },
+    // price_original_* is MSRP; price_current_* is a snapshot Fill overwrites.
+    // Neither is what YOU paid - that is game_copy.price_paid.
+    price_original_us: { label: "MSRP (US)", control: "number", group: "Release" },
+    price_original_jp: { label: "MSRP (JP)", control: "number", group: "Release" },
+    price_original_tw: { label: "MSRP (TW)", control: "number", group: "Release" },
+    price_current_us: {
+      label: "Current Price (US)",
+      control: "number",
+      group: "Release",
+    },
+    price_current_jp: {
+      label: "Current Price (JP)",
+      control: "number",
+      group: "Release",
+    },
+    price_current_tw: {
+      label: "Current Price (TW)",
+      control: "number",
+      group: "Release",
+    },
+    // The Rating group, which the Add/Modify form draws as its own section
+    // under Classification: my S..F verdict plus Metacritic's own two scales -
+    // a whole metascore out of 100 and a decimal user score out of 10.
+    // my_rating is grouped with them here, overriding the shared "Status".
+    my_rating: { group: "Ratings" },
+    metacritic_score: {
+      label: "Metacritic",
+      control: "number",
+      group: "Ratings",
+    },
+    metacritic_user_score: {
+      label: "Metacritic User",
+      control: "number",
+      group: "Ratings",
+    },
+    // Developer is a Studio row and publisher a Publisher row - two entity
+    // tables, not vocabulary values. COMMON_FIELD_META already shapes
+    // `publisher`; `studio` is relabelled here because for a game the studio
+    // IS the developer.
+    studio: {
+      label: "Developer",
+      control: "tags",
+      source: { kind: "studio" },
+      group: "Credits",
+    },
+    director: {
+      label: "Director",
+      control: "tags",
+      source: { kind: "person", role: "director", scope: "game" },
+      group: "Credits",
+    },
+    composer: {
+      label: "Composer",
+      control: "tags",
+      source: { kind: "person", role: "composer", scope: "game" },
+      group: "Credits",
+    },
+    // The five game vocabularies. Values are Chinese (Game Platform is
+    // brand names); the IGDB English strings live in system_option_alias
+    // rows, never here.
+    game_genre: {
+      label: "Genre",
+      control: "tags",
+      source: { kind: "option", category: "Game Genre", scope: "game" },
+      group: "Classification",
+    },
+    game_theme: {
+      label: "Theme",
+      control: "tags",
+      source: { kind: "option", category: "Game Theme", scope: "game" },
+      group: "Classification",
+    },
+    game_mode: {
+      label: "Mode",
+      control: "tags",
+      source: { kind: "option", category: "Game Mode", scope: "game" },
+      group: "Classification",
+    },
+    combat_mode: {
+      label: "Combat Mode",
+      control: "tags",
+      source: { kind: "option", category: "Combat Mode", scope: "game" },
+      group: "Classification",
+    },
+    // Which platform the game is on. A tag, not a source row: a game carries
+    // no availability tristate and no per-platform link.
+    game_platform: {
+      label: "Platform",
+      control: "tags",
+      source: { kind: "option", category: "Game Platform", scope: "game" },
+      group: "Classification",
+    },
+    label: {
+      label: "Label",
+      control: "tags",
+      source: { kind: "option", category: "Label", scope: "game" },
+      group: "Classification",
+    },
+    // Fill reads igdb_id. The IGDB picker on the Add page sets it, and it is
+    // typeable: the public link carries a slug, not the id, so a link pasted
+    // by hand identifies nothing on its own. No default can be set for either
+    // id - an identifier is per-entry by definition.
+    igdb_id: {
+      label: "IGDB ID",
+      control: "number",
+      defaultable: false,
+      group: "Links",
+    },
+    igdb_link: { label: "IGDB Link", control: "url", group: "Links" },
+    steam_appid: {
+      label: "Steam AppID",
+      control: "number",
+      defaultable: false,
+      group: "Links",
+    },
+    steam_link: { label: "Steam Link", control: "url", group: "Links" },
+    // Repeatable copy rows, rendered by <GameCopiesEditor>.
+    copies: {
+      label: "Copies",
+      control: "none",
+      defaultable: false,
+      group: "Sources",
+    },
+  },
+
   collection: {
     collection_name_en: { label: "Name (EN)", group: "Names" },
     collection_name_cn: { label: "Name (CN)", group: "Names" },
@@ -736,6 +993,130 @@ export const TYPE_FIELD_META = {
     series_name_en: { label: "Name (EN)", group: "Names" },
     series_name_cn: { label: "Name (CN)", group: "Names" },
     series_name_alt: { label: "Name (Alt)", group: "Names" },
+  },
+
+  // ---- Entity tabs -----------------------------------------------------
+  // A studio, person or character is credited ON entries rather than being an
+  // entry, and the Add page gives none of the three an "auto-fill from an
+  // existing record" search — copying one studio onto another has no meaning
+  // when a studio is little more than its names. Every field below is
+  // therefore autofillable: false, which leaves these tabs defaults-only.
+
+  studio: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    my_rating: { autofillable: false },
+    country: { label: "Country", group: "Classification", autofillable: false },
+    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    // Free text, not control: "date" — both columns take YYYY, YYYY-MM or
+    // YYYY-MM-DD, which a native date picker cannot express. Same reason
+    // release_date above is text.
+    founded_date: {
+      label: "Founded Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    defunct_date: {
+      label: "Defunct Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    website_url: {
+      label: "Website URL",
+      control: "url",
+      group: "Links",
+      autofillable: false,
+    },
+    mal_id: { autofillable: false },
+    mal_link: { autofillable: false },
+    remark: { autofillable: false },
+  },
+
+  // The studio block minus mal_id/mal_link: a publisher has no MAL record.
+  publisher: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    my_rating: { autofillable: false },
+    country: { label: "Country", group: "Classification", autofillable: false },
+    logo_file: { label: "Logo File", group: "Media", autofillable: false },
+    // Free text for the same reason the studio columns are: YYYY, YYYY-MM and
+    // YYYY-MM-DD are all legal, which a native date picker cannot express.
+    founded_date: {
+      label: "Founded Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    defunct_date: {
+      label: "Defunct Date",
+      control: "text",
+      group: "Release",
+      autofillable: false,
+    },
+    website_url: {
+      label: "Website URL",
+      control: "url",
+      group: "Links",
+      autofillable: false,
+    },
+    remark: { autofillable: false },
+  },
+
+  person: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    // Free text on the Add form: there is no gender vocabulary to select from.
+    gender: { label: "Gender", group: "Classification", autofillable: false },
+    my_rating: { autofillable: false },
+    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    remark: { autofillable: false },
+  },
+
+  character: {
+    name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
+    name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
+    name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
+    display_name_field: {
+      label: "Display Name",
+      control: "select",
+      options: ENTITY_DISPLAY_NAME_OPTIONS,
+      group: "Names",
+      autofillable: false,
+    },
+    gender: { label: "Gender", group: "Classification", autofillable: false },
+    my_rating: { autofillable: false },
+    photo_file: { label: "Photo File", group: "Media", autofillable: false },
+    remark: { autofillable: false },
   },
 };
 
@@ -825,7 +1206,7 @@ export const BUILTIN_AUTOFILL = {
     "series_id",
     "airing_type",
     "is_main",
-    "source_official",
+    "original_source",
     "season_part",
     "imdb_link",
   ],
@@ -863,6 +1244,18 @@ export const BUILTIN_AUTOFILL = {
     "continuity",
     "era",
     "comic_type",
+  ],
+  game: [
+    "game_name_cn",
+    "game_name_en",
+    "game_name_roman",
+    "game_name_jp",
+    "game_name_alt",
+    "franchise_id",
+    "series_id",
+    "game_type",
+    "base_game_id",
+    "release_status",
   ],
   franchise: [],
   series: [],

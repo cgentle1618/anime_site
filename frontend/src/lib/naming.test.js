@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayStudioName } from "./naming";
+import { displayPersonName, displayStudioName } from "./naming";
 
 describe("displayStudioName", () => {
   it("honours the chosen field", () => {
@@ -27,5 +27,35 @@ describe("displayStudioName", () => {
   it("returns an empty string for a studio with no names", () => {
     expect(displayStudioName({})).toBe("");
     expect(displayStudioName(null)).toBe("");
+  });
+});
+
+describe("displayPersonName", () => {
+  it("honours display_name_field", () => {
+    expect(
+      displayPersonName({
+        name_en: "Ryan Coogler",
+        name_cn: "瑞恩·庫格勒",
+        display_name_field: "cn",
+      }),
+    ).toBe("瑞恩·庫格勒");
+  });
+
+  it("falls back when the chosen field is empty", () => {
+    expect(
+      displayPersonName({ name_jp: "諫山創", display_name_field: "cn" }),
+    ).toBe("諫山創");
+  });
+
+  it("falls back en -> cn -> jp -> alt when unset", () => {
+    expect(displayPersonName({ name_cn: "渡部高志", name_jp: "x" })).toBe(
+      "渡部高志",
+    );
+    expect(displayPersonName({ name_alt: "only" })).toBe("only");
+  });
+
+  it("returns an empty string for a nameless person", () => {
+    expect(displayPersonName({})).toBe("");
+    expect(displayPersonName(null)).toBe("");
   });
 });

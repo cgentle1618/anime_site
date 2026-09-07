@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -49,6 +50,18 @@ class SystemOption(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    usages = relationship(
+        "SystemOptionUsage",
+        back_populates="option",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    aliases = relationship(
+        "SystemOptionAlias",
+        back_populates="option",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class SystemOptionScope(Base):
@@ -76,6 +89,73 @@ class SystemOptionScope(Base):
     scope = Column(String, nullable=False)
 
     option = relationship("SystemOption", back_populates="scopes")
+
+
+class SystemOptionUsage(Base):
+    """
+    Which roles a vocabulary value may be used in.
+
+    Parallel to SystemOptionScope, which answers "in which media types". This
+    answers "for what". The Platform category serves both the access rows on a
+    media entry and the origin tag fields, and some values belong to only one:
+    Fox and ABC are places a show first aired, never places to go and watch it.
+
+    A value with no usage rows serves every usage.
+    """
+
+    __tablename__ = "system_option_usage"
+    __table_args__ = (
+        UniqueConstraint("option_id", "usage", name="uq_system_option_usage"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # One of app.utils.source_fields.OPTION_USAGES.
+    usage = Column(String, nullable=False)
+
+    option = relationship("SystemOption", back_populates="usages")
+
+
+class SystemOptionAlias(Base):
+    """
+    What an external source calls this vocabulary value.
+
+    The third sibling of SystemOptionScope ("in which media types") and
+    SystemOptionUsage ("for what"): this answers "what does IGDB call it".
+    Values are stored in Chinese; an external API's English is a wire format,
+    resolved through here on the way in.
+
+    Unlike its two siblings, absence is NOT permissive. A value with no scope
+    rows is offered everywhere; a value with no alias rows simply cannot be
+    resolved from an external string, which is why this is read by an explicit
+    lookup rather than by _filter_by_child.
+    """
+
+    __tablename__ = "system_option_alias"
+    __table_args__ = (
+        UniqueConstraint(
+            "option_id", "source", "value", name="uq_system_option_alias"
+        ),
+        Index("ix_system_option_alias_lookup", "source", "value"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_option.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # "igdb" now; "steam" when the Steam sync lands.
+    source = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+
+    option = relationship("SystemOption", back_populates="aliases")
 
 
 class SystemConfigs(Base):

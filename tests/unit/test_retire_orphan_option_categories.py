@@ -30,6 +30,11 @@ _spec.loader.exec_module(migration)
 
 LIVE = set(OPTION_CATEGORIES) | set(TAG_CATEGORIES) | set(FILTER_ONLY_CATEGORIES)
 
+# A category named by an old migration may since have been renamed. The
+# migration records what it did at the time; the test tracks the live
+# vocabulary, so it translates rather than expecting history to change.
+RENAMED_CATEGORIES = {"Official Source": "Platform"}
+
 
 def test_no_live_category_is_retired():
     assert not (set(migration.RETIRED_CATEGORIES) & LIVE)
@@ -44,13 +49,21 @@ def test_preserved_values_land_in_live_categories():
     # A value rescued from a retired category is only rescued if the category
     # it moves into is one a dropdown actually reads.
     for category, _value, _scope in migration.PRESERVED_VALUES:
+        category = RENAMED_CATEGORIES.get(category, category)
         assert category in LIVE
 
 
 def test_preserved_scopes_are_offered_by_their_field():
-    by_category = {f.category: f for f in TAG_FIELDS.values()}
+    # A category can now back more than one TagField - "Platform" backs both
+    # original_source and exclusive_source, each with its own media types -
+    # so a preserved scope only needs to be legal for SOME field reading the
+    # category, not a single one keyed by category alone.
+    media_types_by_category: dict[str, set[str]] = {}
+    for f in TAG_FIELDS.values():
+        media_types_by_category.setdefault(f.category, set()).update(f.media_types)
     for category, _value, scope in migration.PRESERVED_VALUES:
-        assert scope in by_category[category].media_types
+        category = RENAMED_CATEGORIES.get(category, category)
+        assert scope in media_types_by_category[category]
 
 
 def test_retired_categories_are_unique():

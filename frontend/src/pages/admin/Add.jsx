@@ -7,6 +7,7 @@ import {
   buildAnimePayload,
   buildAnimeMoviePayload,
   buildCreditsPayload,
+  gameFieldsPayload,
 } from "../../utils/media";
 import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
 import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
@@ -15,8 +16,20 @@ import CollectionAddTab, {
 } from "../add-tabs/CollectionAddTab";
 import FranchiseAddTab, { defaultFranchise } from "../add-tabs/FranchiseAddTab";
 import SeriesAddTab, { defaultSeries } from "../add-tabs/SeriesAddTab";
+import {
+  categoryHasAliases,
+  cleanAliases,
+} from "../../components/forms/AliasPicker";
+import AliasTab from "../../components/forms/AliasTab";
 import OptionsAddTab from "../add-tabs/OptionsAddTab";
-import StudioAddTab from "../add-tabs/StudioAddTab";
+import PersonAddTab, { defaultPerson } from "../add-tabs/PersonAddTab";
+import CharacterAddTab, {
+  defaultCharacter,
+} from "../add-tabs/CharacterAddTab";
+import StudioAddTab, { defaultStudio } from "../add-tabs/StudioAddTab";
+import PublisherAddTab, {
+  defaultPublisher,
+} from "../add-tabs/PublisherAddTab";
 import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
@@ -27,9 +40,11 @@ import ContentLabelPicker, {
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
 import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import { useReplaceCasting } from "../../hooks/useCasting";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import NovelAddTab, { defaultNovel } from "../add-tabs/NovelAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
+import GameAddTab, { defaultGame } from "../add-tabs/GameAddTab";
 import CartoonAddTab, { defaultCartoon } from "../add-tabs/CartoonAddTab";
 import TvShowAddTab, { defaultTvShow } from "../add-tabs/TvShowAddTab";
 import MovieAddTab, { defaultMovie } from "../add-tabs/MovieAddTab";
@@ -44,7 +59,8 @@ import {
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import { ADMIN_TABS } from "../../config/adminTabs";
-import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
 import { OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
@@ -52,6 +68,7 @@ import { enrichEntry } from "../../lib/enrich";
 
 export default function Add() {
   const { showToast } = useToast();
+  const replaceCasting = useReplaceCasting();
 
   const [allAnime, setAllAnime] = useState([]);
   const [allCollections, setAllCollections] = useState([]);
@@ -65,6 +82,7 @@ export default function Add() {
   const [allMangas, setAllMangas] = useState([]);
   const [allNovels, setAllNovels] = useState([]);
   const [allComics, setAllComics] = useState([]);
+  const [allGames, setAllGames] = useState([]);
   // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
   const [formDefaults, setFormDefaults] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
@@ -133,6 +151,7 @@ export default function Add() {
   const [mgf, setMgf] = useState(defaultManga());
   const [nvf, setNvf] = useState(defaultNovel());
   const [cmf, setCmf] = useState(defaultComic());
+  const [gmf, setGmf] = useState(defaultGame());
   // Quote is not a media entry, so like System Options it keeps its own
   // form state instead of going through the media form factories.
   const [qf, setQf] = useState(emptyQuote({ media_type: "", entry_id: null }));
@@ -148,43 +167,33 @@ export default function Add() {
   // Explicit because a save no longer derives it - see Ruling R27 and
   // components/forms/ScopePicker.jsx.
   const [optScopes, setOptScopes] = useState([]);
+  // Which roles (watch / origin) the new values are offered in. Empty =
+  // both. Explicit for the same reason as optScopes - see Ruling R27 and
+  // components/forms/UsagePicker.jsx.
+  const [optUsages, setOptUsages] = useState([]);
+  // What external APIs call the new value. Only offered when a single value
+  // is being added: the form creates N values at once and an alias belongs to
+  // one value, not to the category. See components/forms/AliasPicker.jsx.
+  const [optAliases, setOptAliases] = useState([]);
 
-  // The Options tab has two sub-tabs (Options / People) sharing one
-  // "System Options" nav entry — each manages a different Tier 2/3 source.
-  // Studio is a separate top-level tab under the Entity group (see
-  // adminTabs.js) with its own form state below.
+  // The Options tab has two sub-tabs (Options / Tags) sharing one "System
+  // Options" nav entry. Person and Studio are top-level tabs under the Entity
+  // group (see adminTabs.js), each with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
-  const emptyPerson = () => ({
-    name_native: "",
-    name_en: "",
-    name_cn: "",
-    gender: "",
-    my_rating: "",
-    photo_file: "",
-    remark: "",
-    role: "",
-    scope: "",
-  });
-  const emptyStudio = () => ({
-    name_en: "",
-    name_cn: "",
-    name_jp: "",
-    name_alt: "",
-    display_name_field: "",
-    my_rating: "",
-    logo_file: "",
-    country: "",
-    website_url: "",
-    founded_date: "",
-    defunct_date: "",
-    mal_id: "",
-    mal_link: "",
-    remark: "",
-  });
-  const [personForm, setPersonForm] = useState(emptyPerson());
-  const [studioForm, setStudioForm] = useState(emptyStudio());
+  const [personRoles, setPersonRoles] = useState([]);
+  // The three entity forms start from their factories in config/formFactories.js
+  // like every other tab, so the admin's /defaults overrides reach them through
+  // the same freshForm() path.
+  const [personForm, setPersonForm] = useState(defaultPerson());
+  const [studioForm, setStudioForm] = useState(defaultStudio());
+  const [publisherForm, setPublisherForm] = useState(defaultPublisher());
+  const [characterForm, setCharacterForm] = useState(defaultCharacter());
   const upf = (k, v) => setPersonForm((p) => ({ ...p, [k]: v }));
   const usf = (k, v) => setStudioForm((p) => ({ ...p, [k]: v }));
+  // `upf` is already the person updater on this page, so the publisher one is
+  // named for its state and passed in as the tab's `upf` prop.
+  const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
+  const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
   const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
   const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
@@ -197,6 +206,7 @@ export default function Add() {
   const umg = (k, v) => setMgf((p) => ({ ...p, [k]: v }));
   const unv = (k, v) => setNvf((p) => ({ ...p, [k]: v }));
   const ucm = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
+  const ugm = (k, v) => setGmf((p) => ({ ...p, [k]: v }));
 
   // A blank form for `type` with the admin's configured defaults applied.
   const freshForm = (type) => resolveDefaults(type, formDefaults);
@@ -248,6 +258,27 @@ export default function Add() {
     }
   }
 
+  // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
+  // never part of the entry payload (see docs/superpowers/specs/
+  // 2026-09-05-seiyuu-character-design.md, Decision A) - it can only be sent
+  // once the entry exists and its system_id is known, same as saveCredits.
+  // Surfaces a failure rather than swallowing it: the entry itself is
+  // already saved at this point.
+  async function saveCast(mediaType, entryId, form) {
+    try {
+      await replaceCasting.mutateAsync({
+        mediaType,
+        entryId,
+        cast: form.cast || [],
+      });
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || "Entry saved, but cast failed to save.",
+      );
+    }
+  }
+
   useEffect(() => {
     async function load() {
       try {
@@ -263,6 +294,7 @@ export default function Add() {
           mgRes,
           nvRes,
           cmRes,
+          gmRes,
         ] = await Promise.all([
           fetch("/api/anime/?limit=2000", { credentials: "include" }),
           fetch("/api/collection/?limit=2000", { credentials: "include" }),
@@ -275,6 +307,7 @@ export default function Add() {
           fetch("/api/manga/?limit=2000", { credentials: "include" }),
           fetch("/api/novel/?limit=2000", { credentials: "include" }),
           fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
         ]);
         // Guarded separately: a form-defaults failure must not break the page,
         // it just means every form falls back to its built-in values.
@@ -294,6 +327,7 @@ export default function Add() {
           mangas,
           novels,
           comics,
+          games,
         ] = await Promise.all([
           aRes.json(),
           colRes.json(),
@@ -306,6 +340,7 @@ export default function Add() {
           mgRes.json(),
           nvRes.json(),
           cmRes.json(),
+          gmRes.json(),
         ]);
         setAllAnime(anime);
         setAllCollections(collections);
@@ -319,6 +354,7 @@ export default function Add() {
         setAllMangas(mangas);
         setAllNovels(novels);
         setAllComics(comics);
+        setAllGames(games);
 
         // Seed every form from the configured defaults. Safe to do here rather
         // than in the useState initializers: the page renders a spinner until
@@ -332,9 +368,14 @@ export default function Add() {
         setMgf(resolveDefaults("manga", fd));
         setNvf(resolveDefaults("novel", fd));
         setCmf(resolveDefaults("comic", fd));
+        setGmf(resolveDefaults("game", fd));
         setColf(resolveDefaults("collection", fd));
         setFf(resolveDefaults("franchise", fd));
         setSf(resolveDefaults("series", fd));
+        setStudioForm(resolveDefaults("studio", fd));
+        setPublisherForm(resolveDefaults("publisher", fd));
+        setPersonForm(resolveDefaults("person", fd));
+        setCharacterForm(resolveDefaults("character", fd));
       } catch {
         showToast("error", "Database load failed.");
       } finally {
@@ -571,6 +612,19 @@ export default function Add() {
     setMovieFillQuery,
     setMovieFillOpen,
   );
+  // The game tab's picker is not makeApply's shape: the item is a raw IGDB
+  // object rather than an existing entry, so it identifies the game (id and
+  // link, always) and fills a name only where the admin left one blank.
+  const applyGameAutofill = (game) => {
+    setGmf((p) => ({
+      ...p,
+      igdb_id: game.id ?? p.igdb_id,
+      igdb_link: game.url || p.igdb_link,
+      game_name_en: p.game_name_en || game.name || "",
+    }));
+    showToast("success", `Linked to IGDB: ${game.name || game.id}`);
+  };
+
   const applyTvShowAutofill = makeApply(
     setTvf,
     "tv-show",
@@ -594,10 +648,14 @@ export default function Add() {
       else if (activeTab === "manga") await submitManga();
       else if (activeTab === "novel") await submitNovel();
       else if (activeTab === "comic") await submitComic();
+      else if (activeTab === "game") await submitGame();
       else if (activeTab === "quote") await submitQuote();
       else if (activeTab === "meme") await submitMeme();
       else if (activeTab === "options") await submitOptions();
       else if (activeTab === "studio") await submitStudio();
+      else if (activeTab === "publisher") await submitPublisher();
+      else if (activeTab === "person") await submitPerson();
+      else if (activeTab === "character") await submitCharacter();
     } catch (e) {
       showToast("error", e?.message || "Request failed");
     } finally {
@@ -747,6 +805,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("anime", created.system_id, af);
+    await saveCast("anime", created.system_id, af);
 
     // Replace (enrich from MAL)
     const enriched = await enrichEntry("anime", created.system_id);
@@ -956,8 +1015,6 @@ export default function Add() {
   }
 
   async function submitOptions() {
-    if (optionsSubTab === "people") return submitPerson();
-
     if (!optCategory.trim()) {
       showToast("warning", "Category is required.");
       return;
@@ -977,6 +1034,15 @@ export default function Add() {
             category: optCategory.trim(),
             value: val.trim(),
             scopes: optScopes,
+            usages: optUsages,
+            // vals.length > 1 disables the picker, so this is empty in the
+            // bulk case rather than copied onto every value. The category
+            // check matters too: switching the category hides the picker but
+            // leaves what was typed in state, and sending it would 422.
+            aliases:
+              vals.length === 1 && categoryHasAliases(optCategory.trim())
+                ? cleanAliases(optAliases)
+                : [],
           }),
           credentials: "include",
         }),
@@ -993,6 +1059,8 @@ export default function Add() {
         setOptCategory("");
         setOptValues([""]);
         setOptScopes([]);
+        setOptUsages([]);
+        setOptAliases([]);
       }
       setSources(await fetchAllSources());
     }
@@ -1000,36 +1068,76 @@ export default function Add() {
   }
 
   async function submitPerson() {
-    if (!personForm.name_native.trim()) {
-      showToast("warning", "Name (native) is required.");
+    const hasName = PERSON_NAME_FIELDS.some(
+      ({ field }) => personForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A person needs at least one name.");
       return;
     }
-    const roles = personForm.role.trim()
-      ? [{ role: personForm.role.trim(), scope: personForm.scope || null }]
-      : [];
     const res = await fetch(endpoints.person.create(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name_native: personForm.name_native.trim(),
-        name_en: personForm.name_en || null,
-        name_cn: personForm.name_cn || null,
+        name_en: personForm.name_en.trim() || null,
+        name_cn: personForm.name_cn.trim() || null,
+        name_jp: personForm.name_jp.trim() || null,
+        name_alt: personForm.name_alt.trim() || null,
+        display_name_field: personForm.display_name_field || null,
         gender: personForm.gender || null,
         my_rating: personForm.my_rating || null,
         photo_file: personForm.photo_file || null,
         remark: personForm.remark || null,
-        roles,
+        roles: personRoles,
       }),
       credentials: "include",
     });
     if (res.ok) {
       const created = await res.json();
       showToast("success", "Person appended successfully.");
-      setLastAdded(created.name_native);
-      setPersonForm(emptyPerson());
+      setLastAdded(created.display_name);
+      setPersonForm(freshForm("person"));
+      setPersonRoles([]);
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create person");
+    }
+  }
+
+  // POST /api/character always creates a new row, unlike POST /api/person's
+  // find-or-create: character names legitimately recur across unrelated
+  // works, so there is no dedupe/reuse step here to silently collapse into.
+  async function submitCharacter() {
+    const hasName = CHARACTER_NAME_FIELDS.some(
+      ({ field }) => characterForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A character needs at least one name.");
+      return;
+    }
+    const res = await fetch(endpoints.character.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_en: characterForm.name_en.trim() || null,
+        name_cn: characterForm.name_cn.trim() || null,
+        name_jp: characterForm.name_jp.trim() || null,
+        name_alt: characterForm.name_alt.trim() || null,
+        display_name_field: characterForm.display_name_field || null,
+        gender: characterForm.gender || null,
+        my_rating: characterForm.my_rating || null,
+        photo_file: characterForm.photo_file || null,
+        remark: characterForm.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Character appended successfully.");
+      setLastAdded(created.display_name);
+      setCharacterForm(freshForm("character"));
+    } else {
+      showToast("error", "Failed to create character");
     }
   }
 
@@ -1066,10 +1174,50 @@ export default function Add() {
       const created = await res.json();
       showToast("success", "Studio appended successfully.");
       setLastAdded(created.display_name);
-      setStudioForm(emptyStudio());
+      setStudioForm(freshForm("studio"));
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create studio");
+    }
+  }
+
+  // Mirrors submitStudio() minus the two MAL columns - a publisher has no
+  // MAL record to carry.
+  async function submitPublisher() {
+    const hasName = STUDIO_NAME_FIELDS.some(
+      ({ field }) => publisherForm[field]?.trim(),
+    );
+    if (!hasName) {
+      showToast("warning", "A publisher needs at least one name.");
+      return;
+    }
+    const res = await fetch(endpoints.publisher.create(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name_en: publisherForm.name_en.trim() || null,
+        name_cn: publisherForm.name_cn.trim() || null,
+        name_jp: publisherForm.name_jp.trim() || null,
+        name_alt: publisherForm.name_alt.trim() || null,
+        display_name_field: publisherForm.display_name_field || null,
+        my_rating: publisherForm.my_rating || null,
+        logo_file: publisherForm.logo_file || null,
+        country: publisherForm.country || null,
+        website_url: publisherForm.website_url || null,
+        founded_date: publisherForm.founded_date || null,
+        defunct_date: publisherForm.defunct_date || null,
+        remark: publisherForm.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast("success", "Publisher appended successfully.");
+      setLastAdded(created.display_name);
+      setPublisherForm(freshForm("publisher"));
+      setSources(await fetchAllSources());
+    } else {
+      showToast("error", "Failed to create publisher");
     }
   }
 
@@ -1166,6 +1314,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("anime-movie", created.system_id, amf);
+    await saveCast("anime-movie", created.system_id, amf);
 
     const enriched = await enrichEntry("anime-movie", created.system_id);
 
@@ -1304,14 +1453,15 @@ export default function Add() {
       release_date_tw: mf.release_date_tw || null,
       imdb_id: mf.imdb_id !== "" ? mf.imdb_id : null,
       imdb_link: mf.imdb_link || null,
-      source_other:
-        mf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: mf.watch_next ?? null,
       to_rewatch: mf.to_rewatch ?? false,
       cover_image_file: mf.cover_image_file || null,
@@ -1465,14 +1615,15 @@ export default function Add() {
       release_date: tvf.release_date || null,
       imdb_id: tvf.imdb_id !== "" ? tvf.imdb_id : null,
       imdb_link: tvf.imdb_link || null,
-      source_other:
-        tvf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              tvf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (tvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: tvf.watch_next ?? null,
       to_rewatch: tvf.to_rewatch ?? false,
       cover_image_file: tvf.cover_image_file || null,
@@ -1609,14 +1760,15 @@ export default function Add() {
       release_date: cf.release_date || null,
       imdb_id: cf.imdb_id !== "" ? cf.imdb_id : null,
       imdb_link: cf.imdb_link || null,
-      source_other:
-        cf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              cf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       watch_next: cf.watch_next ?? null,
       cover_image_file: cf.cover_image_file || null,
       remark: cf.remark || null,
@@ -1760,18 +1912,17 @@ export default function Add() {
       release_date: mgf.release_date || null,
       end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
-      serialization_platform: mgf.serialization_platform || null,
       mal_id: mgf.mal_id !== "" ? parseInt(mgf.mal_id) : null,
       mal_link: mgf.mal_link || null,
-      anilist_link: mgf.anilist_link || null,
-      source_other:
-        mgf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              mgf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (mgf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: mgf.read_next ?? false,
       to_reread: mgf.to_reread ?? false,
       cover_image_file: mgf.cover_image_file || null,
@@ -1794,6 +1945,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("manga", created.system_id, mgf);
+    await saveCast("manga", created.system_id, mgf);
     window.scrollTo(0, 0);
     showToast("success", "Manga appended successfully.");
     setLastAdded(created.manga_name_cn || created.manga_name_en || "New Manga");
@@ -1889,19 +2041,6 @@ export default function Add() {
       setAllSeries((prev) => [...prev, ns]);
     }
 
-    const novelNameEachCn =
-      nvf.novel_name_each_cn.filter((e) => e.name.trim()).length > 0
-        ? nvf.novel_name_each_cn
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-    const novelNameEachEn =
-      nvf.novel_name_each_en.filter((e) => e.name.trim()).length > 0
-        ? nvf.novel_name_each_en
-            .filter((e) => e.name.trim())
-            .map((e) => ({ key: e.key, name: e.name.trim() }))
-        : null;
-
     // Auto-create missing entities for author, illustrator, publisher_tw
     await ensureSourceValues([
       {
@@ -1956,25 +2095,33 @@ export default function Add() {
       release_date: nvf.release_date || null,
       end_date: nvf.end_date || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
-      novel_name_each_cn:
-        novelNameEachCn && Object.keys(novelNameEachCn).length > 0
-          ? novelNameEachCn
-          : null,
-      novel_name_each_en:
-        novelNameEachEn && Object.keys(novelNameEachEn).length > 0
-          ? novelNameEachEn
-          : null,
+      units: (nvf.units || [])
+        .filter(
+          (u) =>
+            (u.unit_key && u.unit_key.trim()) ||
+            (u.name_cn && u.name_cn.trim()) ||
+            (u.name_en && u.name_en.trim()) ||
+            (u.remark && u.remark.trim()) ||
+            u.ch_count !== "",
+        )
+        .map((u, i) => ({
+          ...u,
+          position: i + 1,
+          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+        })),
       mal_id: nvf.mal_id !== "" ? parseInt(nvf.mal_id) : null,
       mal_link: nvf.mal_link || null,
-      anilist_link: nvf.anilist_link || null,
-      source_other:
-        nvf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              nvf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      openlibrary_link: nvf.openlibrary_link || null,
+      openlibrary_id: nvf.openlibrary_id || null,
+      sources: (nvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: nvf.read_next ?? false,
       to_reread: nvf.to_reread ?? false,
       cover_image_file: nvf.cover_image_file || null,
@@ -1997,6 +2144,7 @@ export default function Add() {
     }
     const created = await res.json();
     await saveCredits("novel", created.system_id, nvf);
+    await saveCast("novel", created.system_id, nvf);
     window.scrollTo(0, 0);
     showToast("success", "Novel appended successfully.");
     setLastAdded(created.novel_name_cn || created.novel_name_en || "New Novel");
@@ -2149,14 +2297,15 @@ export default function Add() {
       read_order: cmf.read_order !== "" ? parseFloat(cmf.read_order) : null,
       my_rating: cmf.my_rating || null,
       comicvine_link: cmf.comicvine_link || null,
-      source_other:
-        cmf.source_other.filter((e) => e.name.trim()).length > 0
-          ? Object.fromEntries(
-              cmf.source_other
-                .filter((e) => e.name.trim())
-                .map((e) => [e.name.trim(), e.url.trim()]),
-            )
-          : null,
+      sources: (cmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
       read_next: cmf.read_next ?? false,
       to_reread: cmf.to_reread ?? false,
       cover_image_file: cmf.cover_image_file || null,
@@ -2185,6 +2334,163 @@ export default function Add() {
     setCmf(freshForm("comic"));
     setContentLabels([]);
     setAllComics((prev) => [...prev, created]);
+  }
+
+  async function submitGame() {
+    if (!gmf.game_name_cn && !gmf.game_name_en) {
+      showToast("error", "Please provide at least a CN or EN title.");
+      return;
+    }
+    if (!gmf.franchise_id && !gmf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+
+    let franchiseId = gmf.franchise_id;
+    if (!franchiseId && gmf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Game",
+          onConfirm: (expectation, remark) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation, remark });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: gmf.game_name_cn || null,
+          franchise_name_en: gmf.game_name_en || null,
+          franchise_name_roman: gmf.game_name_roman || null,
+          franchise_name_jp: gmf.game_name_jp || null,
+          franchise_name_alt: gmf.game_name_alt || null,
+          franchise_type: "Game",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+
+    let seriesId = gmf.series_id;
+    if (!seriesId && gmf.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: gmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: gmf.game_name_cn || null,
+          series_name_en: gmf.game_name_en || null,
+          series_name_alt: gmf.game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing entities for every game credit/tag field. Developer
+    // and publisher resolve to entity rows; the four vocabularies do not.
+    await ensureSourceValues([
+      { source: { kind: "studio" }, values: splitTags(gmf.studio) },
+      { source: { kind: "publisher" }, values: splitTags(gmf.publisher) },
+      {
+        source: { kind: "person", role: "director", scope: "game" },
+        values: splitTags(gmf.director),
+      },
+      {
+        source: { kind: "person", role: "composer", scope: "game" },
+        values: splitTags(gmf.composer),
+      },
+      {
+        source: { kind: "option", category: "Game Genre", scope: "game" },
+        values: splitTags(gmf.game_genre),
+      },
+      {
+        source: { kind: "option", category: "Game Theme", scope: "game" },
+        values: splitTags(gmf.game_theme),
+      },
+      {
+        source: { kind: "option", category: "Game Mode", scope: "game" },
+        values: splitTags(gmf.game_mode),
+      },
+      {
+        source: { kind: "option", category: "Combat Mode", scope: "game" },
+        values: splitTags(gmf.combat_mode),
+      },
+      {
+        source: { kind: "option", category: "Game Platform", scope: "game" },
+        values: splitTags(gmf.game_platform),
+      },
+      {
+        source: { kind: "option", category: "Label", scope: "game" },
+        values: splitTags(gmf.label),
+      },
+    ]);
+
+    const payload = {
+      ...gameFieldsPayload(gmf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      playing_status: gmf.playing_status || freshForm("game").playing_status,
+    };
+
+    const res = await fetch("/api/game/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Failed to create entry",
+      );
+      return;
+    }
+    const created = await res.json();
+    await saveCredits("game", created.system_id, gmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Game appended successfully.");
+    setLastAdded(created.game_name_cn || created.game_name_en || "New Game");
+    setGmf(freshForm("game"));
+    setContentLabels([]);
+    setAllGames((prev) => [...prev, created]);
   }
 
   // franchise system_id -> the name of the collection it belongs to, so every
@@ -2289,6 +2595,18 @@ export default function Add() {
   const seriesItemsForNovel = (
     nvf.franchise_id
       ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForGame = (
+    gmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === gmf.franchise_id)
       : allSeries
   ).map((s) => ({
     id: s.system_id,
@@ -2440,6 +2758,7 @@ export default function Add() {
             applyTvShowAutofill={applyTvShowAutofill}
             allFranchises={allFranchises}
             seriesItemsForTvShow={seriesItemsForTvShow}
+            sources={sources}
           />
         )}
 
@@ -2458,6 +2777,7 @@ export default function Add() {
             applyCartoonAutofill={applyCartoonAutofill}
             allFranchises={allFranchises}
             seriesItemsForCartoon={seriesItemsForCartoon}
+            sources={sources}
           />
         )}
 
@@ -2518,6 +2838,20 @@ export default function Add() {
           />
         )}
 
+        {/* ═══ GAME TAB ═══ */}
+        {activeTab === "game" && (
+          <GameAddTab
+            franchiseCollections={franchiseCollections}
+            gmf={gmf}
+            ugm={ugm}
+            allFranchises={allFranchises}
+            allGames={allGames}
+            seriesItemsForGame={seriesItemsForGame}
+            sources={sources}
+            applyGameAutofill={applyGameAutofill}
+          />
+        )}
+
         {/* ═══ FRANCHISE TAB ═══ */}
         {activeTab === "collection" && <CollectionAddTab cf={colf} uf={ucol} />}
         {activeTab === "franchise" && (
@@ -2540,6 +2874,22 @@ export default function Add() {
         {/* ═══ MEME TAB ═══ */}
         {activeTab === "meme" && <MemeAddTab mf={memf} um={umeme} />}
 
+        {/* ═══ ALIAS TAB ═══ */}
+        {activeTab === "alias" && (
+          <AliasTab
+            options={sources.options}
+            showToast={showToast}
+            onSaved={(updated) =>
+              setSources((prev) => ({
+                ...prev,
+                options: prev.options.map((o) =>
+                  o.system_id === updated.system_id ? updated : o,
+                ),
+              }))
+            }
+          />
+        )}
+
         {/* ═══ OPTIONS TAB ═══ */}
         {activeTab === "options" && (
           <OptionsAddTab
@@ -2552,14 +2902,38 @@ export default function Add() {
             optionCategories={optionCategories}
             optScopes={optScopes}
             setOptScopes={setOptScopes}
-            personForm={personForm}
-            upf={upf}
+            optUsages={optUsages}
+            setOptUsages={setOptUsages}
+            optAliases={optAliases}
+            setOptAliases={setOptAliases}
           />
         )}
 
         {/* ═══ STUDIO TAB ═══ */}
         {activeTab === "studio" && (
           <StudioAddTab studioForm={studioForm} usf={usf} />
+        )}
+
+        {/* ═══ PUBLISHER TAB ═══ */}
+        {activeTab === "publisher" && (
+          <PublisherAddTab publisherForm={publisherForm} upf={upubf} />
+        )}
+
+        {/* ═══ PERSON TAB ═══ */}
+        {activeTab === "person" && (
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+            <PersonAddTab
+              personForm={personForm}
+              upf={upf}
+              roles={personRoles}
+              setRoles={setPersonRoles}
+            />
+          </div>
+        )}
+
+        {/* ═══ CHARACTER TAB ═══ */}
+        {activeTab === "character" && (
+          <CharacterAddTab characterForm={characterForm} ucf={ucf} />
         )}
 
         {/* Content labels - one control for every media tab. */}
@@ -2572,8 +2946,13 @@ export default function Add() {
           </div>
         )}
 
-        {/* Submit button */}
-        <div className="mt-6 flex justify-end">
+        {/* Submit button. Hidden on the Alias tab, which saves through its
+            own button: an alias is a PUT on an option that already exists, so
+            there is nothing for "Append Entry" to append. */}
+        <div
+          className="mt-6 flex justify-end"
+          hidden={activeTab === "alias"}
+        >
           <button
             type="submit"
             disabled={
@@ -2581,6 +2960,18 @@ export default function Add() {
               (activeTab === "studio" &&
                 !STUDIO_NAME_FIELDS.some(
                   ({ field }) => studioForm[field]?.trim(),
+                )) ||
+              (activeTab === "publisher" &&
+                !STUDIO_NAME_FIELDS.some(
+                  ({ field }) => publisherForm[field]?.trim(),
+                )) ||
+              (activeTab === "person" &&
+                !PERSON_NAME_FIELDS.some(
+                  ({ field }) => personForm[field]?.trim(),
+                )) ||
+              (activeTab === "character" &&
+                !CHARACTER_NAME_FIELDS.some(
+                  ({ field }) => characterForm[field]?.trim(),
                 ))
             }
             className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"

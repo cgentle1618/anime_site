@@ -26,6 +26,13 @@ class PersonRoleIn(BaseModel):
     role: str
     scope: str
 
+    # from_attributes so a PersonRole ORM row validates straight into this.
+    # PersonResponse's own from_attributes does NOT reach a nested model in
+    # pydantic v2, so /api/search - which hands the ORM person to the response
+    # model rather than building it field by field the way person.py does -
+    # would fail on `roles` without this.
+    model_config = ConfigDict(from_attributes=True)
+
     @field_validator("role")
     @classmethod
     def _known_role(cls, v: str) -> str:
@@ -53,25 +60,74 @@ class PersonRoleIn(BaseModel):
 
 
 class PersonBase(BaseModel):
-    name_native: str
     name_en: Optional[str] = None
     name_cn: Optional[str] = None
+    name_jp: Optional[str] = None
+    name_alt: Optional[str] = None
+    display_name_field: Optional[str] = None
     gender: Optional[str] = None
     my_rating: Optional[str] = None
     photo_file: Optional[str] = None
     remark: Optional[str] = None
 
+    @model_validator(mode="after")
+    def _display_field_is_known(self):
+        if self.display_name_field not in (None, "en", "cn", "jp", "alt"):
+            raise ValueError("display_name_field must be en, cn, jp or alt.")
+        return self
+
+
+def _has_a_name(payload: PersonBase) -> bool:
+    return any(
+        (payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt)
+    )
+
 
 class PersonCreate(PersonBase):
+    """
+    A person to create, either fully slotted or as one unslotted `name`.
+
+    The admin form fills the labelled name columns itself. Every other writer -
+    ensureSourceValues.js posting a name typed into a media form's dropdown -
+    holds one string and no way to know which column it belongs in, so it sends
+    `name` and the endpoint places it through name_slot_for, the same rule
+    resolve_person and the reshape migration use. Duplicating that rule in the
+    frontend would let one name land in two different columns.
+    """
+
+    name: Optional[str] = None
     roles: List[PersonRoleIn] = []
+
+    @model_validator(mode="after")
+    def _named_somehow(self):
+        """
+        Mirrors ck_person_has_a_name, so a nameless person is a 422 from the
+        API rather than a 500 surfacing the database's IntegrityError.
+        """
+        if not (self.name and self.name.strip()) and not _has_a_name(self):
+            raise ValueError("A person needs at least one name.")
+        return self
 
 
 class PersonUpdate(PersonBase):
     roles: List[PersonRoleIn] = []
 
+    @model_validator(mode="after")
+    def _at_least_one_name(self):
+        """Mirrors ck_person_has_a_name; see PersonCreate._named_somehow."""
+        if not _has_a_name(self):
+            raise ValueError("A person needs at least one name.")
+        return self
+
 
 class PersonResponse(PersonBase):
     system_id: UUID
+    display_name: str = ""
+    # Every (role, scope) the person holds. The admin form edits the whole set
+    # at once - PUT replaces it - so it has to be readable in one request; a
+    # form that reconstructed it by asking each role list who is in it would
+    # issue a query per legal pair and still guess.
+    roles: List[PersonRoleIn] = []
     credit_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)

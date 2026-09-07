@@ -127,6 +127,8 @@ def test_date_columns_cover_every_table_with_truncated_iso_dates():
         "manga",
         "novel",
         "comic",
+        "games",
+        "game_copy",
         "studio",
     }
 

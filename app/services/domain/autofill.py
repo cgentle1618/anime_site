@@ -10,18 +10,32 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
+    Game,
     Manga,
     Movies,
     Novel,
+    Studio,
     TVShows,
 )
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
 from app.services.integrations.comicvine import fetch_comicvine_volume
+from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import download_cover_image
 from app.services.integrations.imdb import fetch_imdb_data
-from app.services.integrations.tenrai import fetch_tenrai_anime_data, fetch_tenrai_manga_novel_data
+from app.services.integrations.openlibrary import fetch_openlibrary_work
+from app.services.integrations.steam import (
+    fetch_owned_games,
+    fetch_player_achievements,
+    fetch_steam_appdetails,
+)
+from app.services.integrations.tenrai import (
+    fetch_tenrai_anime_data,
+    fetch_tenrai_manga_novel_data,
+    fetch_tenrai_producer_data,
+)
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
+from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
     _derive_tv_season_airing_status,
     _parse_season_number,
@@ -30,17 +44,44 @@ from app.utils.imdb_utils import (
     map_imdb_to_tv_show_data,
 )
 from app.utils.name_normalize import split_names
+from app.utils.openlibrary_utils import map_openlibrary_to_novel_data
+from app.utils.steam_utils import REGIONS, map_steam_to_game_data
 from app.utils.tenrai_utils import (
     map_tenrai_to_anime_data,
     map_tenrai_to_anime_movie_data,
     map_tenrai_to_manga_data,
     map_tenrai_to_novel_data,
+    map_tenrai_to_studio_data,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) -> None:
+def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
+    """
+    Tenrai's Official site and Twitter links, as media_source reference rows.
+
+    They used to be the `official_link` / `twitter_link` columns. `db` is
+    optional only so the pure-mapping unit tests can call the autofills
+    without a session; every real call site passes one.
+    """
+    if db is None:
+        return
+    from app.services.domain.sources import upsert_main_source
+    from app.utils.source_fields import OFFICIAL_SITE_VALUE, TWITTER_VALUE
+
+    for value, key in (
+        (OFFICIAL_SITE_VALUE, "official_link"),
+        (TWITTER_VALUE, "twitter_link"),
+    ):
+        upsert_main_source(
+            db, media_type, entry.system_id, "reference", value, j_data.get(key)
+        )
+
+
+def autofill_anime_from_mal(
+    anime: Anime, force_replace_ratings: bool = True, db: Session = None
+) -> None:
     """
     Dedicated logic to fetch MAL data via Tenrai and enrich a single Anime entry.
     Fills empty fields and overwrites ratings/rankings if instructed.
@@ -71,10 +112,7 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
             anime.release_date = j_data.get("release_date")
         if anime.ep_total is None:
             anime.ep_total = j_data.get("ep_total")
-        if not anime.official_link:
-            anime.official_link = j_data.get("official_link")
-        if not anime.twitter_link:
-            anime.twitter_link = j_data.get("twitter_link")
+        _write_tenrai_reference_rows(db, "anime", anime, j_data)
 
         # Overwrite Ratings
         if force_replace_ratings or anime.mal_rating is None:
@@ -92,11 +130,11 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 
         # Conditionally Download Cover Image
         if not anime.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(anime.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "anime", str(anime.system_id)
             )
-            if filename:
-                anime.cover_image_file = filename
+            if key:
+                anime.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -105,7 +143,9 @@ def autofill_anime_from_mal(anime: Anime, force_replace_ratings: bool = True) ->
 
 
 def autofill_anime_movie_from_mal(
-    anime_movie: AnimeMovies, force_replace_ratings: bool = True
+    anime_movie: AnimeMovies,
+    force_replace_ratings: bool = True,
+    db: Session = None,
 ) -> None:
     """
     Fetches Tenrai data for a single AnimeMovies entry and fills/overwrites fields.
@@ -126,10 +166,7 @@ def autofill_anime_movie_from_mal(
             anime_movie.airing_status = j_data.get("airing_status")
         if anime_movie.release_date_jp is None:
             anime_movie.release_date_jp = j_data.get("release_date_jp")
-        if not anime_movie.official_link:
-            anime_movie.official_link = j_data.get("official_link")
-        if not anime_movie.twitter_link:
-            anime_movie.twitter_link = j_data.get("twitter_link")
+        _write_tenrai_reference_rows(db, "anime-movie", anime_movie, j_data)
 
         if force_replace_ratings or anime_movie.mal_rating is None:
             anime_movie.mal_rating = j_data.get("mal_rating") or anime_movie.mal_rating
@@ -138,11 +175,11 @@ def autofill_anime_movie_from_mal(
             anime_movie.mal_rank = str(raw_rank) if raw_rank else anime_movie.mal_rank
 
         if not anime_movie.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(anime_movie.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "anime-movie", str(anime_movie.system_id)
             )
-            if filename:
-                anime_movie.cover_image_file = filename
+            if key:
+                anime_movie.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -188,11 +225,11 @@ def autofill_manga_from_mal(manga: Manga, force_replace_ratings: bool = True) ->
             manga.mal_rank = str(raw_rank) if raw_rank else manga.mal_rank
 
         if not manga.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(manga.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "manga", str(manga.system_id)
             )
-            if filename:
-                manga.cover_image_file = filename
+            if key:
+                manga.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -238,15 +275,64 @@ def autofill_novel_from_mal(novel: Novel, force_replace_ratings: bool = True) ->
             novel.mal_rank = str(raw_rank) if raw_rank else novel.mal_rank
 
         if not novel.cover_image_file and j_data.get("cover_image_url"):
-            filename = download_cover_image(
-                j_data.get("cover_image_url"), str(novel.system_id)
+            key = download_cover_image(
+                j_data.get("cover_image_url"), "novel", str(novel.system_id)
             )
-            if filename:
-                novel.cover_image_file = filename
+            if key:
+                novel.cover_image_file = key
 
     except Exception as e:
         logger.error(
             f"MAL Autofill failed for Novel ID {novel.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
+    """
+    Enriches a single Novel entry with Open Library data. Does not commit —
+    caller is responsible.
+
+    For novels MAL does not have. Fill-only throughout, and deliberately narrow:
+    the stored work id names the entry's *anchor* book, so this writes only what
+    is true of the whole entry when read off book one — when it starts, who wrote
+    it, what it looks like. end_date, volume and chapter totals and serialization
+    status belong to the set, and are never touched.
+    """
+    work_id = novel.openlibrary_id
+    if not work_id:
+        return
+
+    try:
+        want_editions = not novel.release_date
+        want_authors = not credit_names(db, "novel", novel.system_id, "author")
+
+        raw_data = fetch_openlibrary_work(
+            work_id, want_editions=want_editions, want_authors=want_authors
+        )
+        if not raw_data:
+            return
+
+        ol_data = map_openlibrary_to_novel_data(raw_data)
+
+        if want_editions and ol_data.get("release_date"):
+            novel.release_date = ol_data.get("release_date")
+
+        if want_authors and ol_data.get("author"):
+            replace_credits(
+                db, "novel", novel.system_id, "author", split_names(ol_data.get("author"))
+            )
+
+        if not novel.cover_image_file and ol_data.get("cover_image_url"):
+            key = download_cover_image(
+                ol_data.get("cover_image_url"), "novel", str(novel.system_id)
+            )
+            if key:
+                novel.cover_image_file = key
+
+    except Exception as e:
+        logger.error(
+            f"Open Library Autofill failed for Novel ID {novel.system_id} "
+            f"(Work {work_id}): {e}"
         )
 
 
@@ -297,11 +383,11 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
 
         # Download cover image if missing
         if movie.cover_image_file is None and mapped.get("cover_image_url"):
-            filename = download_cover_image(
-                mapped["cover_image_url"], str(movie.system_id)
+            key = download_cover_image(
+                mapped["cover_image_url"], "movie", str(movie.system_id)
             )
-            if filename:
-                movie.cover_image_file = filename
+            if key:
+                movie.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -354,11 +440,11 @@ def autofill_tv_show_from_imdb(tv_show: TVShows, db: Session) -> None:
 
         # Download cover image if missing
         if tv_show.cover_image_file is None and mapped.get("cover_image_url"):
-            filename = download_cover_image(
-                mapped["cover_image_url"], str(tv_show.system_id)
+            key = download_cover_image(
+                mapped["cover_image_url"], "tv-show", str(tv_show.system_id)
             )
-            if filename:
-                tv_show.cover_image_file = filename
+            if key:
+                tv_show.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -407,11 +493,11 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                         pass
 
             if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
-                filename = download_cover_image(
-                    mapped["cover_image_url"], str(cartoon.system_id)
+                key = download_cover_image(
+                    mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
-                if filename:
-                    cartoon.cover_image_file = filename
+                if key:
+                    cartoon.cover_image_file = key
 
         else:  # airing_type == "TV"
             tmdb_season_raw = None
@@ -442,11 +528,11 @@ def autofill_cartoon_from_imdb(cartoon: Cartoon, db: Session) -> None:
                     cartoon.airing_status = derived_status
 
             if cartoon.cover_image_file is None and mapped.get("cover_image_url"):
-                filename = download_cover_image(
-                    mapped["cover_image_url"], str(cartoon.system_id)
+                key = download_cover_image(
+                    mapped["cover_image_url"], "cartoon", str(cartoon.system_id)
                 )
-                if filename:
-                    cartoon.cover_image_file = filename
+                if key:
+                    cartoon.cover_image_file = key
 
     except Exception as e:
         logger.error(
@@ -492,14 +578,264 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             )
 
         if not comic.cover_image_file and cv_data.get("cover_image_url"):
-            filename = download_cover_image(
-                cv_data.get("cover_image_url"), str(comic.system_id)
+            key = download_cover_image(
+                cv_data.get("cover_image_url"), "comic", str(comic.system_id)
             )
-            if filename:
-                comic.cover_image_file = filename
+            if key:
+                comic.cover_image_file = key
 
     except Exception as e:
         logger.error(
             f"Comic Vine Autofill failed for Comic ID {comic.system_id} "
             f"(Volume {comicvine_id}): {e}"
         )
+
+
+def autofill_studio_from_mal(studio: Studio) -> None:
+    """
+    Enriches one Studio from MAL's producer record, via Tenrai.
+
+    Strictly fill-only - every column is written only when it is empty, so
+    running this over a studio you have already curated is a no-op. Unlike the
+    media autofills there is nothing to force-replace: a producer carries no
+    score or rank, only facts that do not drift.
+
+    Failures are logged and swallowed because this runs inside the studio
+    write request: a flaky external API must never turn a save into a 500.
+    """
+    mal_id = studio.mal_id
+    if not mal_id:
+        return
+
+    try:
+        raw_data = fetch_tenrai_producer_data(mal_id)
+        if not raw_data:
+            return
+
+        j_data = map_tenrai_to_studio_data(raw_data)
+
+        for column in ("mal_link", "founded_date", "name_jp", "website_url"):
+            if not getattr(studio, column, None) and j_data.get(column):
+                setattr(studio, column, j_data[column])
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if not studio.logo_file and j_data.get("logo_url"):
+            key = download_cover_image(
+                j_data.get("logo_url"), "studio", str(studio.system_id)
+            )
+            if key:
+                studio.logo_file = key
+
+    except Exception as e:
+        logger.error(
+            f"MAL Autofill failed for Studio ID {studio.system_id} (MAL {mal_id}): {e}"
+        )
+
+
+def autofill_game_from_igdb(game: Game, db: Session) -> None:
+    """
+    Enriches a single Game entry with IGDB data. Does not commit — the caller
+    is responsible.
+
+    Fill-only throughout: nothing already set by the admin is replaced. That
+    includes game_name_en, which is the entry's identity and often a deliberate
+    shorthand, so it is never touched at all.
+
+    IGDB's `summary` is mapped but not stored: the games table has no summary
+    column by design — a synopsis lives in the entry's notes, written by hand.
+    """
+    # Imported here rather than at module scope: app.routers.options imports
+    # app.schemas, which imports this module back.
+    from app.routers.options import resolve_option_alias
+
+    igdb_id = game.igdb_id
+    if not igdb_id:
+        return
+
+    try:
+        raw_data = fetch_igdb_game(igdb_id)
+        if not raw_data:
+            return
+
+        g_data = map_igdb_to_game_data(raw_data)
+
+        for column in ("release_date", "igdb_link"):
+            if not getattr(game, column, None) and g_data.get(column):
+                setattr(game, column, g_data[column])
+
+        # The appid and the link are one identity, not two columns: adopt
+        # IGDB's Steam pair only when the entry carries neither. A hand-typed
+        # link whose appid is still blank must not be paired with IGDB's
+        # appid, which can name a different app entirely - a different
+        # edition, or a bundle.
+        if not game.steam_appid and not game.steam_link and g_data.get("steam_appid"):
+            game.steam_appid = g_data["steam_appid"]
+            game.steam_link = g_data["steam_link"]
+
+        # A separate resource, and most games have none — a missing record is
+        # ordinary, not a failure.
+        times = fetch_igdb_time_to_beat(igdb_id) or {}
+        for column in ("hltb_main", "hltb_main_extra", "hltb_completionist"):
+            if getattr(game, column, None) is None and times.get(column) is not None:
+                setattr(game, column, times[column])
+
+        # A game's developer IS its studio; the publisher is the third entity
+        # target, which is why the publisher credit role exists.
+        if not credit_names(db, "game", game.system_id, "studio"):
+            replace_credits(
+                db, "game", game.system_id, "studio", g_data.get("developers") or []
+            )
+        if not credit_names(db, "game", game.system_id, "publisher"):
+            replace_credits(
+                db, "game", game.system_id, "publisher", g_data.get("publishers") or []
+            )
+
+        # IGDB speaks English; the vocabulary is Chinese. An unmatched value is
+        # LOGGED, never stored raw and never dropped silently - a new IGDB
+        # genre should surface as a gap to fill in the Options admin page.
+        for field, category, values in (
+            ("game_genre", "Game Genre", g_data.get("genres")),
+            ("game_theme", "Game Theme", g_data.get("themes")),
+            ("game_mode", "Game Mode", g_data.get("game_modes")),
+            ("game_platform", "Game Platform", g_data.get("platforms")),
+        ):
+            if tag_values(db, "game", game.system_id, field):
+                continue
+            resolved = []
+            for english in values or []:
+                option = resolve_option_alias(db, category, "igdb", english)
+                if option is None:
+                    logger.warning(
+                        "IGDB %s '%s' has no alias row; skipped for game %s",
+                        category,
+                        english,
+                        game.system_id,
+                    )
+                    continue
+                # Many IGDB names fold into one value - "PlayStation 4" and
+                # "PlayStation 5" are both PlayStation - so the same value can
+                # resolve twice. replace_tags does not dedupe.
+                if option.value not in resolved:
+                    resolved.append(option.value)
+            if resolved:
+                replace_tags(db, "game", game.system_id, field, resolved)
+
+        # parent_game is why IGDB was chosen over RAWG: it resolves the DLC
+        # link automatically. A parent not yet in the database leaves the
+        # column null - the user can fill it in later, which is exactly why
+        # base_game_id is nullable for a DLC.
+        parent_igdb_id = g_data.get("parent_igdb_id")
+        if game.base_game_id is None and parent_igdb_id:
+            parent = (
+                db.query(Game)
+                .filter(
+                    Game.igdb_id == parent_igdb_id, Game.system_id != game.system_id
+                )
+                .first()
+            )
+            if parent is not None:
+                game.base_game_id = parent.system_id
+
+        # Last, so a download failure cannot cost us the cheap columns above.
+        if not game.cover_image_file and g_data.get("cover_image_url"):
+            key = download_cover_image(
+                g_data.get("cover_image_url"), "game", str(game.system_id)
+            )
+            if key:
+                game.cover_image_file = key
+
+    except Exception as e:
+        logger.error(
+            f"IGDB Autofill failed for Game ID {game.system_id} (IGDB {igdb_id}): {e}"
+        )
+
+
+# Written only when the column is empty.
+STEAM_FILL_ONLY_COLUMNS = (
+    "price_original_us",
+    "price_original_jp",
+    "price_original_tw",
+    "achievements_total",
+)
+
+# Rewritten on every run. These are what the game Replace exists for.
+STEAM_OVERWRITE_COLUMNS = (
+    "price_current_us",
+    "price_current_jp",
+    "price_current_tw",
+    "metacritic_score",
+)
+
+
+def autofill_game_from_steam(game: Game, db: Session) -> None:
+    """
+    Enriches a single Game entry with Steam data. Does not commit — the caller
+    is responsible.
+
+    Columns only: no tag and no credit, so this never touches the alias layer
+    and cannot produce an untranslated term. `metacritic_user_score` is
+    deliberately absent — Steam does not publish it.
+
+    Unlike the IGDB half this is not fill-only. The current prices and the
+    Metacritic score are rewritten on every run, which is what makes a bulk
+    Replace worth having for games.
+
+    The two progress columns pass two guards first. `steam_progress_sync` is
+    False for a game owned here but played elsewhere, and stops them outright.
+    A zero or unknown value is then skipped even when the lock is open: a game
+    owned but never launched on Steam reports 0 minutes, and writing that over
+    a hand-typed figure would destroy the only record of it.
+    """
+    appid = game.steam_appid
+    if not appid:
+        return
+
+    try:
+        payloads = {}
+        for cc in REGIONS:
+            data = fetch_steam_appdetails(appid, cc=cc)
+            if data:
+                payloads[cc] = data
+
+        if not payloads:
+            return
+
+        s_data = map_steam_to_game_data(payloads)
+
+        for column in STEAM_FILL_ONLY_COLUMNS:
+            if getattr(game, column, None) is None and s_data.get(column) is not None:
+                setattr(game, column, s_data[column])
+
+        for column in STEAM_OVERWRITE_COLUMNS:
+            if s_data.get(column) is not None:
+                setattr(game, column, s_data[column])
+
+        # is_free is not written to any column (there is no such column to
+        # write); it exists only to make a free game's null prices legible in
+        # the logs rather than looking like a fetch that silently came back
+        # empty. Debug, not info/warning: a normal library has enough free
+        # games that one line per game per run would drown out everything
+        # else, and a null price here is never itself an error to flag.
+        if s_data.get("is_free"):
+            logger.debug(
+                f"Steam app {appid} is free; its null prices are expected, not missing data."
+            )
+
+        # Guard one: an entry marked "played elsewhere" keeps its hand-typed
+        # progress untouched. None (never asked) is not the same as False and
+        # is treated as permission.
+        if game.steam_progress_sync is False:
+            return
+
+        # Guard two: even with the lock open, a zero or unknown value must
+        # not overwrite a real one already on the entry.
+        minutes = (fetch_owned_games() or {}).get(appid)
+        if minutes:
+            game.hours_played = round(minutes / 60, 1)
+
+        earned = fetch_player_achievements(appid)
+        if earned:
+            game.achievements_earned = earned
+
+    except Exception as e:
+        logger.error(f"Steam autofill failed for app {appid}: {e}")

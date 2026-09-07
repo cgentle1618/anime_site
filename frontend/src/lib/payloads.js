@@ -18,34 +18,41 @@ const CREDITS_FIELD_MAP = {
       label: "label",
       quality: "quality",
       distributor_tw: "publisher_tw",
+      exclusive_source: "exclusive_source",
     },
   },
   "anime-movie": {
     credits: { studio: "studio", director: "director" },
-    tags: {},
+    tags: { exclusive_source: "exclusive_source" },
   },
   movie: {
     credits: { director: "director" },
-    tags: {},
+    tags: { original_source: "original_source" },
   },
   "tv-show": {
     credits: {},
-    tags: { source_official: "source_official" },
+    tags: { original_source: "original_source" },
   },
   cartoon: {
     credits: {},
-    tags: { source_official: "source_official" },
+    tags: { original_source: "original_source" },
   },
   manga: {
     credits: {
       author_plot: "manga_author_plot",
       author_draw: "manga_author_draw",
     },
-    tags: { publisher_tw: "publisher_tw" },
+    tags: {
+      publisher_tw: "publisher_tw",
+      serialization_platform: "serialization_platform",
+    },
   },
   novel: {
     credits: { author: "novel_author", illustrator: "novel_illustrator" },
-    tags: { publisher_tw: "publisher_tw" },
+    tags: {
+      publisher_tw: "publisher_tw",
+      serialization_platform: "serialization_platform",
+    },
   },
   comic: {
     credits: { writer: "comic_writer", artist: "comic_artist" },
@@ -56,6 +63,24 @@ const CREDITS_FIELD_MAP = {
       era: "comic_era",
       events: "comic_event",
       publisher_tw: "publisher_tw",
+    },
+  },
+  // The third credit target: `publisher` resolves to a Publisher row the way
+  // `studio` resolves to a Studio one, so both sit under credits, not tags.
+  game: {
+    credits: {
+      studio: "studio",
+      publisher: "publisher",
+      director: "director",
+      composer: "composer",
+    },
+    tags: {
+      game_genre: "game_genre",
+      game_theme: "game_theme",
+      game_mode: "game_mode",
+      combat_mode: "combat_mode",
+      game_platform: "game_platform",
+      label: "label",
     },
   },
 };
@@ -149,30 +174,15 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
     mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
     mal_link: amf.mal_link || null,
-    anilist_link: amf.anilist_link || null,
-    official_link: amf.official_link || null,
-    twitter_link: amf.twitter_link || null,
-    source_baha:
-      amf.source_baha === "true"
-        ? true
-        : amf.source_baha === "false"
-          ? false
-          : null,
-    baha_link: amf.baha_link || null,
-    source_netflix:
-      amf.source_netflix === "true"
-        ? true
-        : amf.source_netflix === "false"
-          ? false
-          : null,
-    source_other:
-      amf.source_other.filter((e) => e.name.trim()).length > 0
-        ? Object.fromEntries(
-            amf.source_other
-              .filter((e) => e.name.trim())
-              .map((e) => [e.name.trim(), e.url.trim()]),
-          )
-        : null,
+    sources: (amf.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
     watch_next: amf.watch_next ?? null,
     to_rewatch: amf.to_rewatch ?? false,
     cover_image_file: amf.cover_image_file || null,
@@ -216,33 +226,114 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     is_main_entry: af.is_main_entry || null,
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
-    anilist_link: af.anilist_link || null,
-    official_link: af.official_link || null,
-    twitter_link: af.twitter_link || null,
-    source_baha:
-      af.source_baha === "true"
-        ? true
-        : af.source_baha === "false"
-          ? false
-          : null,
-    baha_link: af.baha_link || null,
-    source_netflix:
-      af.source_netflix === "true"
-        ? true
-        : af.source_netflix === "false"
-          ? false
-          : null,
-    source_other:
-      af.source_other.filter((e) => e.name.trim()).length > 0
-        ? Object.fromEntries(
-            af.source_other
-              .filter((e) => e.name.trim())
-              .map((e) => [e.name.trim(), e.url.trim()]),
-          )
-        : null,
+    sources: (af.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
     seiyuu: af.seiyuu || null,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,
     remark: af.remark || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Game
+// ---------------------------------------------------------------------------
+
+const num = (v) => (v === "" || v == null ? null : Number(v));
+const int = (v) => (v === "" || v == null ? null : parseInt(v, 10));
+// The tristate convention every form uses: "" is unset, "true"/"false" the two
+// answers. A real boolean can also arrive here, straight off a GET response.
+const tri = (v) => {
+  if (v === "" || v == null) return null;
+  if (typeof v === "boolean") return v;
+  return v === "true";
+};
+
+/**
+ * The scalar half of a game's create/update body — everything but the
+ * franchise and series ids, which the caller resolves (and may have just
+ * created) before calling.
+ *
+ * `copies` follows GameCopyIO's nested-collection contract: rows the payload
+ * omits are deleted, so a row with nothing in it is dropped here rather than
+ * sent as an empty copy the server would have to store.
+ */
+export function gameFieldsPayload(f) {
+  return {
+    game_name_cn: f.game_name_cn || null,
+    game_name_en: f.game_name_en || null,
+    game_name_roman: f.game_name_roman || null,
+    game_name_jp: f.game_name_jp || null,
+    game_name_alt: f.game_name_alt || null,
+    game_type: f.game_type || null,
+    // ck_games_base_no_parent: a Base Game may never carry one.
+    base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
+    completion_level: f.completion_level || null,
+    all_endings: tri(f.all_endings),
+    all_achievements: tri(f.all_achievements),
+    all_collected: tri(f.all_collected),
+    steam_progress_sync: tri(f.steam_progress_sync),
+    achievements_earned: int(f.achievements_earned),
+    achievements_total: int(f.achievements_total),
+    release_status: f.release_status || null,
+    release_date: f.release_date || null,
+    current_patch: f.current_patch || null,
+    hours_played: num(f.hours_played),
+    hltb_main: num(f.hltb_main),
+    hltb_main_extra: num(f.hltb_main_extra),
+    hltb_completionist: num(f.hltb_completionist),
+    price_original_us: num(f.price_original_us),
+    price_original_jp: num(f.price_original_jp),
+    price_original_tw: num(f.price_original_tw),
+    price_current_us: num(f.price_current_us),
+    price_current_jp: num(f.price_current_jp),
+    price_current_tw: num(f.price_current_tw),
+    // Two scales: the metascore is a whole number out of 100, the user score
+    // a decimal out of 10.
+    metacritic_score: int(f.metacritic_score),
+    metacritic_user_score: num(f.metacritic_user_score),
+    my_rating: f.my_rating || null,
+    // Both numeric ids travel on their own. `igdb_link` holds the public
+    // www.igdb.com URL, which carries a slug rather than an id, so the
+    // backend's link -> id derivation cannot recover it; the Steam appid is
+    // typed in beside the store link for the same reason.
+    igdb_id: int(f.igdb_id),
+    igdb_link: f.igdb_link || null,
+    steam_appid: int(f.steam_appid),
+    steam_link: f.steam_link || null,
+    sources: (f.sources || [])
+      .filter((s) => (s.name || "").trim())
+      .map((s) => ({
+        kind: s.kind || "access",
+        bucket: s.bucket || "other",
+        name: s.name.trim(),
+        url: (s.url || "").trim() || null,
+        available: s.available ?? null,
+      })),
+    copies: (f.copies || [])
+      .filter((c) => c.storefront || c.ownership || c.copy_format)
+      .map((c, i) => ({
+        ...(c.system_id ? { system_id: c.system_id } : {}),
+        storefront: c.storefront || null,
+        ownership: c.ownership || null,
+        copy_format: c.copy_format || null,
+        acquisition: c.acquisition || null,
+        price_paid: num(c.price_paid),
+        price_currency: c.price_currency || null,
+        acquired_date: c.acquired_date || null,
+        remark: c.remark || null,
+        position: i + 1,
+      })),
+    play_next: f.play_next ?? false,
+    to_replay: f.to_replay ?? false,
+    cover_image_file: f.cover_image_file || null,
+    remark: f.remark || null,
   };
 }

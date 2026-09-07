@@ -32,6 +32,7 @@ export const MEDIA_TYPE_FILTERS = [
   { value: "manga", label: "Manga" },
   { value: "novel", label: "Novel" },
   { value: "comic", label: "Comic" },
+  { value: "game", label: "Game" },
 ];
 
 // A tag on a row. Colour never names a category, so every tone but `brand`

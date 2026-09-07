@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy import Boolean, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
@@ -27,6 +27,7 @@ from app.services.domain.plan_next import (
     pop_plan_flag,
     set_entry_flag,
 )
+from app.services.domain.sources import attach_sources, delete_sources_for
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
@@ -74,10 +75,32 @@ def make_media_router(spec) -> APIRouter:
             db.rollback()
             logger.exception("%s write hook failed for %s", spec.label, entry.system_id)
 
-    def _finish(db: Session, entry):
+    def _finish(db: Session, entry, viewer=None):
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
+        attach_sources(db, spec.owner_type, entry, viewer)
         return entry
+
+    def _pop_nested(payload: dict) -> dict:
+        """Lift nested collections out of the payload; they are not columns."""
+        if not spec.nested_collections:
+            return {}
+        return {
+            key: payload.pop(key)
+            for key in list(spec.nested_collections)
+            if key in payload
+        }
+
+    def _write_nested(db: Session, entry, nested: dict, viewer=None) -> None:
+        # The viewer travels with the write: a whole-set replace must not
+        # delete rows the writer's own permissions hid from the form they
+        # filled in. See services.domain.sources.replace_sources.
+        for key, value in nested.items():
+            spec.nested_collections[key](db, entry, value, viewer)
+
+    def _derive(db: Session, entry) -> None:
+        if spec.progress_hook:
+            spec.progress_hook(db, entry)
 
     # ------------------------------------------------------------------
     # Public read
@@ -94,6 +117,12 @@ def make_media_router(spec) -> APIRouter:
         query = apply_entry_visibility(
             db.query(spec.model), spec.model, spec.owner_type, db, viewer
         )
+        # Only preload keys that are real ORM relationships (e.g. novel's
+        # "units"). "sources" has no relationship - media_source rows carry no
+        # FK to the entry - and is populated separately by attach_sources().
+        for name in (spec.nested_collections or {}):
+            if name in spec.model.__mapper__.relationships:
+                query = query.options(selectinload(getattr(spec.model, name)))
         columns = spec.model.__table__.columns
         for field in spec.list_filters:
             raw = request.query_params.get(field)
@@ -112,6 +141,7 @@ def make_media_router(spec) -> APIRouter:
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
         attach_link_fields(db, spec.owner_type, entries)
+        attach_sources(db, spec.owner_type, entries, viewer)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
@@ -121,7 +151,7 @@ def make_media_router(spec) -> APIRouter:
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id, viewer)
-        return gate(viewer, spec.owner_type, _finish(db, entry), spec.response_schema)
+        return gate(viewer, spec.owner_type, _finish(db, entry, viewer), spec.response_schema)
 
     # ------------------------------------------------------------------
     # Protected write (admin only)
@@ -131,13 +161,19 @@ def make_media_router(spec) -> APIRouter:
         data: spec.create_schema,
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         _resolve_parents(db, entry)
         db.add(entry)
+        if nested or spec.progress_hook:
+            db.flush()
+        _write_nested(db, entry, nested, viewer)
+        _derive(db, entry)
         if spec.pre_commit_hook:
             spec.pre_commit_hook(db, entry)
         db.commit()
@@ -155,7 +191,7 @@ def make_media_router(spec) -> APIRouter:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
             db.commit()
             db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, viewer)
 
     @router.put("/{entry_id}", response_model=spec.response_schema, summary=f"Update {spec.label}")
     async def update(
@@ -163,12 +199,16 @@ def make_media_router(spec) -> APIRouter:
         data: spec.update_schema,
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         for key, value in payload.items():
             setattr(entry, key, value)
+        _write_nested(db, entry, nested, viewer)
+        _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
@@ -184,7 +224,7 @@ def make_media_router(spec) -> APIRouter:
 
         await _run_write_hook(db, entry)
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, viewer)
 
     @router.patch("/{entry_id}", response_model=spec.response_schema, summary=f"Patch {spec.label}")
     async def patch(
@@ -192,11 +232,15 @@ def make_media_router(spec) -> APIRouter:
         payload: dict = Body(...),
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
+        nested = _pop_nested(payload)
         apply_column_patch(entry, payload)
+        _write_nested(db, entry, nested, viewer)
+        _derive(db, entry)
         for kind, planned in plan_flags:
             set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
         if has_remark:
@@ -206,7 +250,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, viewer)
 
     @router.post("/{entry_id}/complete", response_model=spec.response_schema,
                  summary=f"Mark {spec.label} Entry as Completed")
@@ -222,7 +266,7 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry)
+        return _finish(db, entry, None)
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")
     def delete(
@@ -232,10 +276,11 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         if entry.cover_image_file:
-            delete_cover_image(entry_id)
+            delete_cover_image(spec.owner_type, entry_id)
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
         delete_links_for(db, spec.owner_type, entry.system_id)
+        delete_sources_for(db, spec.owner_type, entry.system_id)
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}

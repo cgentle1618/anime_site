@@ -1888,6 +1888,12 @@ export default function Admin() {
             Options
           </Link>
           <Link
+            to="/aliases"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
+          >
+            Aliases
+          </Link>
+          <Link
             to="/data-history"
             className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
@@ -1996,6 +2002,14 @@ export default function Admin() {
                 // ~200 requests/hour, so a bulk comic fill is triggered on
                 // purpose rather than riding along with every full run.
                 { label: "Comic", url: "/api/data-control/fill/comic" },
+                // Unlike Comic, Game rides along in Fill All too - IGDB has no
+                // hourly quota to protect. The button is for filling one type
+                // after linking an igdb_id, without a full run.
+                { label: "Game", url: "/api/data-control/fill/game" },
+                // The only non-media type here: a studio fills its logo and
+                // founding facts from MAL's producer record. Replace has no
+                // Studio row to match - see PipelineSpec.fill_only.
+                { label: "Studio", url: "/api/data-control/fill/studio" },
               ]}
               streamRunning={streamRunning === "fill"}
               onStart={(url) => startStream(url, "fill")}
@@ -2024,6 +2038,10 @@ export default function Admin() {
                 { label: "Cartoon", url: "/api/data-control/replace/cartoon" },
                 { label: "Manga", url: "/api/data-control/replace/manga" },
                 { label: "Novel", url: "/api/data-control/replace/novel" },
+                // Replace for games runs against Steam only: the live
+                // prices, the Metacritic score, and this collection's own
+                // playtime. IGDB carries nothing that drifts.
+                { label: "Game", url: "/api/data-control/replace/game" },
               ]}
               streamRunning={streamRunning === "replace"}
               onStart={(url) => startStream(url, "replace")}

@@ -4,11 +4,13 @@ import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, isBaha } from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
+import { studioValue } from "../../components/info/StudioLinks";
+import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import SourcesCard from "../../components/info/SourcesCard";
@@ -17,12 +19,67 @@ import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { Button, RatingStamp, ProgressRule, Eyebrow } from "../../components/ui/primitives";
+import { Button, RatingStamp, ProgressRule, Eyebrow, Chip, Slip } from "../../components/ui/primitives";
 import { WATCHING_STATUSES } from "../../config/fieldOptions";
+import { useCasting } from "../../hooks/useCasting";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
+
+const castLinkCls =
+  "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
+
+// Main before Supporting, then whatever order the server already gave —
+// castings unrelated to either role sort last rather than crowding the top.
+const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+
+// Read-only cast list, shared shape for every ACG detail page. Renders
+// nothing when the entry has no cast — an empty "Cast" slip would just be a
+// title over a blank box, same rule NovelUnitsCard already follows for units.
+function CastSection({ cast }) {
+  if (!cast || cast.length === 0) return null;
+  const sorted = [...cast].sort((a, b) => {
+    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
+    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+  return (
+    <Slip title="Cast">
+      <div className="space-y-2">
+        {sorted.map((row) => (
+          <div key={row.system_id} className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+              <img
+                src={getCoverUrl(row.photo_file)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {row.role && <Chip>{row.role}</Chip>}
+              <Link to={`/character/${row.character_id}`} className={castLinkCls}>
+                {row.character_name || "Unknown"}
+              </Link>
+              {row.person_id && (
+                <>
+                  <span className="text-text-faint text-xs">voiced by</span>
+                  <Link to={`/person/${row.person_id}`} className={castLinkCls}>
+                    {row.person_name || "Unknown"}
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
+}
 
 export default function Anime() {
   const { system_id } = useParams();
@@ -37,6 +94,8 @@ export default function Anime() {
   const seriesQuery = useMediaList("series", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("anime", system_id);
+  const castingQuery = useCasting("anime", anime?.system_id);
+  const cast = castingQuery.data?.cast || [];
 
   useEffect(() => {
     if (animeQuery.data) setAnime(animeQuery.data);
@@ -281,14 +340,10 @@ export default function Anime() {
 
           {/* Sources */}
           <SourcesCard
-            showBaha={isBaha(anime)}
-            bahaLink={anime.baha_link}
-            sourceNetflix={anime.source_netflix}
-            sourceOther={anime.source_other}
+            sources={anime.sources}
+            mediaType="anime"
             malLink={anime.mal_link}
-            anilistLink={anime.anilist_link}
-            officialLink={anime.official_link}
-            twitterLink={anime.twitter_link}
+            exclusiveSource={anime.exclusive_source}
           />
 
           <RelationsSection mediaType="anime" entryId={anime.system_id} />
@@ -403,27 +458,29 @@ export default function Anime() {
               title="Production"
               fields={[
                 [
-                  { label: "Studio", value: anime.studio },
+                  { label: "Studio", value: studioValue(anime) },
                   { label: "台灣代理", value: anime.distributor_tw },
                 ],
                 [
-                  { label: "Director", value: anime.director },
-                  { label: "Producer", value: anime.producer },
+                  {
+                    label: "Director",
+                    value: creditValue(anime, "director", anime.director),
+                  },
+                  {
+                    label: "Producer",
+                    value: creditValue(anime, "producer", anime.producer),
+                  },
                 ],
-                { label: "Music", value: anime.music },
+                {
+                  label: "Music",
+                  value: creditValue(anime, "composer", anime.music),
+                },
               ]}
             />
           </div>
 
-          {/* Cast & Characters (not built yet): an empty slip, not a mood */}
-          <section className="border border-dashed border-border-strong px-4 py-6 text-center">
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
-              Cast & characters
-            </div>
-            <p className="text-sm text-text-faint">
-              Not tracked yet — the character and staff pipeline is still being built.
-            </p>
-          </section>
+          {/* Cast */}
+          <CastSection cast={cast} />
 
           {/* Structured Notes */}
           <AnimeNotes key={anime.system_id} anime={anime} isAdmin={isAdmin} />

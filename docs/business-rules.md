@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-04 (commit 818f4cd)
+Last verified: 2026-09-06
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -106,11 +106,26 @@ unparseable link never clears an existing ID.
 | --------------------------------- | ----------------- | -------------- | ----------------------------------------------- |
 | `apply_extract_mal_id_anime`      | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/(\d+)`                   |
 | `apply_extract_mal_id_manga_novel`| `mal_link`        | `mal_id` (int) | `myanimelist.net/manga/(\d+)`                   |
+| `apply_extract_mal_id_studio`     | `mal_link`        | `mal_id` (int) | `myanimelist.net/anime/producer/(\d+)` — a studio's MAL URL is `/anime/producer/56/A-1_Pictures`. The anime pattern above cannot match it (it wants digits straight after `/anime/` and meets the word `producer`), and this one cannot match a plain anime link, so the two never poach each other |
 | `apply_extract_imdb_id`           | `imdb_link`       | `imdb_id` (str)| `imdb.com/title/tt(\d+)` → stored as `"tt…"`   |
 | `apply_extract_comicvine_id`      | `comicvine_link`  | `comicvine_id` | `comicvine.gamespot.com/<slug>/4050-(\d+)` — the `4050-` prefix means "volume"; issue (`4000-`) and character (`4005-`) URLs are rejected |
+| `apply_extract_igdb_id`           | `igdb_link`       | `igdb_id` (int)| `api\.igdb\.com/v\d+/games/(\d+)` — a public `www.igdb.com` URL carries only a slug, no id, and is rejected |
+| `apply_extract_steam_appid`       | `steam_link`      | `steam_appid` (int) | `store\.steampowered\.com/app/(\d+)` — a `steamcommunity.com` hub link uses the same `/app/<id>/` shape but is rejected, since it is not the store page the prices and Metacritic score come from |
 
 `imdb_id` is a **string** like `tt7660850`, never an integer and never
 zero-padded by the app.
+
+`apply_extract_game_ids` runs both game extractors — IGDB then Steam — and
+returns True when either set an id, rather than short-circuiting on the
+first: a game can carry an IGDB link, a Steam link, or both, and the two
+sources are independent. Where the id itself comes from differs by source:
+`igdb_id`/`igdb_link` are typed in or set by the IGDB picker; `steam_appid`/
+`steam_link` are normally adopted as a pair from IGDB's own `external_games`
+data (fill-only, and only when the entry has neither yet, so a hand-typed
+Steam link is never paired with an IGDB appid for a different edition) —
+`apply_extract_steam_appid` only comes into play when a `steam_link` was
+hand-typed ahead of any IGDB Fill. See
+[external-apis.md](external-apis.md#steam).
 
 ### Season / Part from the title
 
@@ -186,7 +201,10 @@ form for the entry just written.
 
 `COMPLETED_WATCH_STATUSES` and `COMPLETED_READ_STATUSES` are
 `{"Completed", "Completed (解說)"}` — the "explained via a summary video" status
-counts as completed everywhere.
+counts as completed everywhere. `COMPLETED_PLAY_STATUSES` is `{"Completed"}`:
+there is no games analogue of the 解說 status, but the frozenset is declared
+anyway so it reads beside its two siblings and a second completed-ish status
+later is a one-line change.
 
 ### Checks
 
@@ -213,12 +231,135 @@ not already in a completed status.
 | `mark_tv_completed`      | `watching_status = "Completed"`, `airing_status = "Finished Airing"` (always, even if the trigger was a provisional `ep_total`), `ep_fin = ep_total` when `ep_total` is set.                                                                                              |
 | `mark_movie_completed`   | `watching_status = "Completed"`, `airing_status = "Finished Airing"`.                                                                                                                                                                                                       |
 | `mark_reading_completed` | (manga) `serialization_status = "完結"` unless it is `腰斬`; `reading_status = "Completed"`; `ch_fin = ch_total` and `vol_fin = vol_total` when those totals are truthy; `vol_fin_page = 0`.                                                                                  |
-| `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null; same max-rule for `arc_fin`/`arc_total` and `ch_fin`/`ch_total`. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
+| `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null. Arc handling branches on whether the novel has `novel_unit` arc rows: if it does, every arc is closed (`arc_fin = len(arcs)`, `ch_fin_in_arc = 0`) and `derive_novel_progress` recomputes `arc_total`/`ch_total`/`ch_fin` from them, so the totals cannot disagree with the rows; if it has none, the old max-rule applies to `arc_fin`/`arc_total` and `ch_fin`/`ch_total` (whichever are non-null) and `ch_fin_in_arc` is zeroed. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
 | `mark_comic_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`, `issue_fin`/`issue_total` set to the max of the two. Same: router-only.                                                                                                                                    |
+| `mark_game_completed`    | `playing_status = "Completed"` and **nothing else**. Unlike every helper above it sets no progress numbers, because a game's depth of finish is not a fraction — see the three axes below. Registry `mark_completed`, so the `POST /{id}/complete` action reaches it. |
 
 `apply_completion_timestamp(entry, status)` stamps `completed_at` with Taipei
 now the first time a write moves an entry into a completed status; it never
 overwrites an existing timestamp.
+
+### A game has five completion axes, and they are independent
+
+Every other media type answers "how far in am I" with one fraction. A game
+answers it with five columns that move separately, none derived from any
+other and none derived from `playing_status`:
+
+| Axis | Column(s) | Why it is its own axis |
+| --- | --- | --- |
+| Depth of content | `completion_level` (`Main Story` → `Main + Extras` → `Post-game` → `Completionist`) | A ladder of how much of the game was played. Independent of `playing_status`: `Active Playing` **plus** `Main Story` is the ordinary state of having rolled credits and still playing for achievements. |
+| Endings | `all_endings` (tristate boolean) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. |
+| Achievements, judged | `all_achievements` (tristate boolean) | Deliberately not derived from the counts below. The counts are frequently unknown - platforms that publish no achievement list, or a row entered before the numbers were looked up - so "did I get them all" is answered directly. |
+| Collectibles | `all_collected` (tristate boolean) | Every in-game collectible gathered. A Completionist run can still miss one. |
+| Achievements, counted | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
+
+Consequences worth stating plainly, because they are what makes games unlike
+the other eight types:
+
+- `playing_status = "Completed"` does **not** imply any particular
+  `completion_level`, and no `completion_level` implies `Completed`.
+- There is no check function (`check_is_game_completed` does not exist) and no
+  post-processing pass that infers completion from the numbers. Only the user
+  knows, so `mark_game_completed` sets the status and leaves the three axes
+  exactly as they were.
+- `hours_played` is not progress either: nothing compares it to
+  `hltb_main` / `hltb_main_extra` / `hltb_completionist`, which are reference
+  times, not totals to fill.
+
+### Ownership is derived from the copy rows
+
+A game has no `ownership` column. `derive_game_ownership(entry)`
+(`app/services/domain/game_copies.py`) reads the entry's `game_copy` rows and
+returns the first kind any of them carries, in the fixed precedence
+**Owned → Subscription → Free → Wishlist → Not Owned**, or `None` when there
+are no copies. Nothing to keep in sync: the copy rows are the only truth.
+
+The list filter `?ownership=` (registry `extra_filters=_game_ownership`) is
+therefore an `EXISTS` over `game_copy`, not a column comparison — it asks for
+games with at least one copy row saying that word, which is a slightly wider
+question than "the derived value equals it" for a game holding several kinds
+of copy. `GameResponse` declares an `ownership` field, but **no read path
+populates it today**, so it is `null` in every response.
+
+---
+
+## 4a. Novel two-stage progress (`app/services/domain/novel_units.py`)
+
+A novel with `novel_unit` arc rows (`type = "Web"`, or any novel an admin
+gave arc rows to) tracks progress in two stages instead of one flat chapter
+counter: `arc_fin` counts arcs that are **fully finished**, and
+`ch_fin_in_arc` is the chapter position inside the arc currently being read
+— the arc at index `arc_fin` (0-based) among the novel's arc rows in
+`position` order.
+
+**Derivation** (`derive_novel_progress`, called unconditionally on every
+create/update/patch by the router, whether or not the write touched `units`):
+
+- **Volume-only type first** (`type` in `NOVEL_VOLUME_ONLY_TYPES`, i.e.
+  `Light Novel` and `Novel`): nothing is derived. `arc_total` and `ch_total`
+  go to null, `arc_fin`, `ch_fin` and `ch_fin_in_arc` to `0`, and the volume
+  columns are left alone. This branch wins even when arc rows are present —
+  the editor cannot create them for these types, but a sheet Pull can, and a
+  type that counts volumes has no chapter counter to derive. Because the rule
+  lives here rather than in the forms, it also holds for Pull, Fill and
+  Calculate.
+- With no arc rows: only `ch_fin_in_arc` is zeroed; `arc_total`, `arc_fin`,
+  `ch_total`, `ch_fin` are left as stored (flat) values.
+- With arc rows: `arc_total = len(arcs)`, `ch_total = sum(ch_count over arcs)`,
+  and `ch_fin = sum(ch_count of the arc_fin fully-finished arcs) + ch_fin_in_arc`.
+  `arc_fin`/`ch_fin_in_arc` are first passed through the rollover rule below.
+
+**Choosing the counter** (`progressDisplayOptions` / `effectiveProgressDisplay`,
+`frontend/src/lib/novelUnits.js` - display only, no server component):
+`progress_display` may hold `vol_original`, `vol_tw`, `ch`, `arc` or `arc_ch`,
+but the dropdown offers only what the entry can render - volume counters
+except on `Web`, chapter counters except on the volume-only types, and the two
+arc counters only once the novel actually has arc rows. A stored value outside
+that set is ignored for rendering and the derived mode is used instead, so a
+`Web` row left holding `vol_tw` by a Pull or a type change cannot draw a
+volume row the type does not have.
+
+`arc` steps a whole arc at a time (`wholeArcStep`): `arc_fin` moves by one and
+`ch_fin_in_arc` resets to `0`, which keeps `ch_fin` exactly the sum of the
+finished arcs. It is clamped at both ends, unlike the chapter rollover below,
+which deliberately runs past the last recorded arc.
+
+**Rollover** (`normalize_arc_progress`, mirrored in the frontend as
+`arcStep` in `frontend/src/lib/novelUnits.js`): folds an out-of-range
+`ch_fin_in_arc` into the right arc after a step.
+
+- *Carry up*: while the current arc (`counts[arc_fin]`) has a known,
+  positive `ch_count` and `ch_fin_in_arc >= ch_count`, subtract that arc's
+  count from `ch_fin_in_arc` and increment `arc_fin`. An arc with an unknown
+  (`None` or `0`) `ch_count` stops the carry — there is no width to
+  subtract past it.
+- *Carry stops at the last recorded arc, on purpose* (Decision D): an
+  ongoing web novel is read into an arc nobody has entered a row for yet, so
+  carrying past the last arc would discard real progress. `ch_fin_in_arc` is
+  **not** clamped there — a value larger than the last arc's `ch_count` is
+  left as-is once `arc_fin` reaches the arc count.
+- *Borrow down*: a negative `ch_fin_in_arc` (stepping back past the start of
+  the current arc) decrements `arc_fin` and adds the previous arc's
+  `ch_count`; a result still negative at `arc_fin == 0` clamps to `0`.
+
+**Worked example** (the anchor case): arc 1 has `ch_count = 100`, arc 2 has
+`ch_count = 112`. A cursor of `arc_fin = 1, ch_fin_in_arc = 101` (into arc 2,
+101 chapters in) derives `ch_total = 212` and
+`ch_fin = 100 (arc 1, fully finished) + 101 = 201` — **not** 101 or 213.
+
+**Display key** (`unit_display_key` / `unitDisplayKey`): a unit's shown
+label is its explicit `unit_key` if set, otherwise
+`"{NOVEL_UNIT_KEY_PREFIX[unit_kind]} {position}"` (e.g. `"Vol 1"`,
+`"Arc 2"`). Generated, never stored; computed server-side as
+`NovelUnitResponse.display_key` and previewed client-side before save.
+
+**Decision B — volume/arc asymmetry, deliberate.** Only `arc` rows are
+authoritative. `volume`, `story` and `chapter` rows are optional display
+enrichment: adding, editing or deleting them never changes `vol_fin`,
+`vol_total_original` or `vol_total_tw`, which remain the denominators for
+volume-based progress exactly as they were before `novel_unit` existed. The
+asymmetry exists because `ch_count` — the one number progress derivation
+needs — lives only on arc rows; a volume has no equivalent "width".
 
 ---
 
@@ -230,14 +371,16 @@ in `app/utils/utils.py`.
 
 | Type        | `*_FIELDS_TO_FILL`                                                                                                        | Extra rules                                                                                                                                                                                                                                                                             |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, official_link, twitter_link, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. |
-| Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, official_link, twitter_link, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it).                                                                                                                                                                                       |
+| Anime       | `airing_type, airing_status, release_date, release_season, mal_rating, mal_rank, ep_total, cover_image_file` | `Not Yet Aired` entries ignore missing `mal_rating`/`mal_rank`. `ep_previous` is *added* as missing only when it is `None` **and** the entry is TV/ONA with no `ep_special` and a non-blank `season_part` (the same eligibility as section 3). Because Tenrai cannot supply `ep_previous`, an anime whose only gap is that field is re-fetched on every run. `official_link`/`twitter_link` are gone from this list on purpose: Fill now writes them as `media_source` reference rows, and the columns themselves were dropped, so naming a dropped column here would make every anime read as permanently missing. |
+| Anime Movie | `airing_status, release_date_jp, mal_rating, mal_rank, cover_image_file`                       | `Not Yet Aired` ignores rating/rank. `ep_total` is **not** required (and autofill never writes it). Same `official_link`/`twitter_link` exclusion as Anime.                                                                                                                                                                                       |
 | Movie       | `length_min, airing_status, release_date_usa, imdb_rating, cover_image_file`                                              | Plus `MOVIE_LINK_FIELDS_TO_FILL = [("credit","director")]`: the entry is also missing if it has no `director` credit row in `media_credit`.                                                                                                                                                |
 | TV Show     | `airing_status, release_date, imdb_rating, ep_total, cover_image_file`                                                    |                                                                                                                                                                                                                                                                                         |
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, ep_total, cover_image_file`; Movie: same minus `ep_total`                   | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
-| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `comic_writer` credit, `comic_artist` credit, `comic_publisher` tag. Imprint, continuity, era, events, `end_date`, `publisher_tw` are manual and never required — Comic Vine does not model them.                                                          |
+| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `comic_publisher` tag. Imprint, continuity, era, events, `end_date`, `publisher_tw` are manual and never required — Comic Vine does not model them.                                                          |
+| Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
+| Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |
 
 The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 `credit_names` / `tag_values`; the dropped `director` / `writer` / `artist` /
@@ -254,10 +397,14 @@ The link checks (`_link_missing`) read `media_credit` / `media_tag` through
 
 The episode version is skipped entirely when both values are `None`.
 
-### `source_baha`
+### Bahamut availability
 
-`apply_check_baha` (anime, anime movie): if `baha_link` is set and `source_baha`
-is `None`, set `source_baha = True`. Never sets it to False.
+`apply_check_baha` (anime, anime movie): a Bahamut link means the entry is
+available on Bahamut. The verdict used to live in the `source_baha` tristate
+beside a `baha_link` column; both are dropped now, and the verdict lives on
+the entry's Bahamut `main` `access` row in `media_source` instead — if that
+row's `url` is set and its `available` is `None`, set `available = True`.
+Never overwrites an existing verdict.
 
 ---
 
@@ -391,7 +538,7 @@ b.get_all_names()` is non-empty (case-insensitive, every name column).
 | `novel`           | with a franchise                       | `(franchise_id, series_id, is_main)`                                        | shared name                                                                                             |
 | `comic`           | with a franchise                       | `(franchise_id, series_id, is_main_entry)`                                  | shared name **or** same non-null `comicvine_id` (two unfilled rows sharing NULL is not a match)         |
 | `system_options`  | all options                            | `(category lower, value lower)`                                             | always — catches `Netflix` vs `netflix`, which the exact UNIQUE cannot                                  |
-| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between `{normalize_name(name_native), normalize_name(name_en)}` sets (section 10)          |
+| `entities`        | persons, studios (scanned separately)  | none                                                                        | any overlap between the two rows' `get_all_names()` sets, normalised (section 10). The fields are the model's `_name_fields`: all four of `name_en` / `name_cn` / `name_jp` / `name_alt`, for a person as for a studio |
 
 Entries with no franchise are ignored by every per-type finder except anime.
 Results are returned as `find_all_duplicates(db)` from `GET
@@ -414,6 +561,35 @@ duplicate check.
 
 `split_names(raw)` splits a comma-joined name column, drops empty fragments,
 and de-duplicates on the normalised key, keeping the **first** spelling seen.
+
+---
+
+## 10a. Studio display names (`models/staff.py`, `lib/naming.js`)
+
+Every media model resolves its display name through a fallback chain that is
+**hard-coded per type**. A studio does not: which name it shows is DATA.
+
+`studio.display_name_field` holds `en` / `cn` / `jp` / `alt` and names the
+winning column. `Studio.display_name` returns that column's value when it is
+set and non-blank; otherwise it falls back through **EN → CN → JP → Alt**,
+returning `""` only if all four are empty, which `ck_studio_has_a_name`
+prevents. So `display_name_field` is a preference, not a guarantee: pointing
+it at an empty column silently falls back rather than blanking the studio.
+
+The rule exists twice, because the pickers and the studio pages resolve names
+in the browser without a round trip: `displayStudioName()` and
+`STUDIO_NAME_FIELDS` in `frontend/src/lib/naming.js` mirror it exactly.
+**Change both or neither.** `StudioResponse` also carries the server-resolved
+`display_name`, which is what list and detail pages actually render; the
+helper is for rows that arrive without it.
+
+Two consequences worth knowing:
+
+- `GET /api/studio/` sorts on the resolved `display_name`, case-insensitively,
+  so the list order changes when an admin changes a display choice.
+- The duplicate check and credit resolution do NOT use `display_name`. They
+  compare **every** name a studio has (`get_all_names()`, section 10), so two
+  studios cannot hide a collision behind different display choices.
 
 ---
 
@@ -461,6 +637,7 @@ cells.
 | manga                            | `ACG`                         |
 | novel                            | `Novel`                       |
 | comic                            | `Comic`                       |
+| game                             | `Game`                        |
 
 Note `"Anime"` is not in the `FRANCHISE_TYPES` dropdown tuple (which offers
 `ACG`, `Anime Movie`, …), so an auto-created anime franchise is invisible to the
@@ -492,6 +669,8 @@ Relations are rows in `media_relation` — `from (type, id) —kind→ to (type,
 | `renew`         | Renew             | Original                | equivalence |           |            |
 | `directors_cut` | Director's Cut    | Original                | equivalence |           |            |
 | `extended`      | Extended          | Original                | equivalence |           |            |
+| `remake`        | Remake            | Original                | equivalence |           |            |
+| `remaster`      | Remaster          | Original                | equivalence |           |            |
 | `side_story`    | Side Story        | Parent Story            | branch      |           |            |
 | `spin_off`      | Spin-off          | Main Story              | branch      |           |            |
 | `setting`       | Setting           | Main Story              | branch      |           |            |
@@ -627,7 +806,57 @@ migrations. Each was confirmed by grep on 2026-08-30.
 
 The code rule is: OVA/Special cartoons are storable but never autofilled.
 
-### Removed by migrations
+---
+
+## 18. Media sources (`app/services/domain/sources.py`, `app/utils/credit_roles.py`)
+
+Where an entry can be watched, read, or looked up is split across a `media_source`
+row (see [data-model.md](data-model.md#media_source)) and, for the small set
+of links the app itself consumes, a handful of surviving columns. The split
+follows one rule, applied to every link in the codebase:
+
+> **A link the system acts on is a column. A link that is only ever displayed
+> is a `media_source` row.**
+
+`mal_link`, `imdb_link`, `comicvine_link` and `openlibrary_link` stay columns
+because they are acted on: `derivation.py` extracts an id out of each one,
+`autofill.py` fetches on that id, `checking.py` and `calculation.py` gate on
+whether the link is present, and Comic Vine's conflict logic reads
+`comicvine_id` directly. `official_link`, `twitter_link` and `anilist_link`
+became `media_source` reference rows instead — nothing in `app/services/`
+ever read them back, only wrote them (`autofill.py`) or displayed them
+(`SourcesCard`).
+
+On the RBAC side, gating a `media_source` bucket does much heavier lifting on
+the reading types than on the watching ones: a viewer holding neither
+`sources_other` nor `sources_restricted` sees a manga's Sources card with
+reference links only and **no reading sources at all** (manga, comic and game have
+no `main`-bucket access platforms — see [entry-types.md](entry-types.md)),
+where the same role still sees Bahamut and Netflix on an anime. That
+asymmetry is the intent of the restricted tier, not an oversight.
+
+See [Known issue](#known-issue-mediacarddashboardcard-match-a-source-by-name-not-by-a-stable-key)
+below for a follow-up this design surfaced but did not fix.
+
+### Known issue: `MediaCard`/`DashboardCard` match a source by name, not by a stable key
+
+`frontend/src/components/cards/MediaCard.jsx` and
+`frontend/src/components/tracker/DashboardCard.jsx` find the Bahamut / Netflix
+badge rows with `s.kind === "access" && s.name === "Bahamut"` (and
+`"Netflix"`) — string-matched against the vocabulary's human `value`.
+`SourceRef` (`app/schemas/sources.py`) exposes `system_id`, `kind`, `bucket`,
+`name`, `available`, `url`, `position` and no stable vocabulary key, so the
+frontend has nothing sturdier to match on today. Renaming the `Bahamut` or
+`Netflix` `Platform` option on the admin Options page silently drops the
+badge on every card, with no error anywhere. The fix is a deliberate
+cross-layer API change — adding `option_id` to `SourceRef`, to
+`attach_sources`, and to both cards — not a tail-end patch, so it is recorded
+here rather than applied inline. Failure mode is a missing badge, not data
+loss or a wrong value.
+
+---
+
+## 19. Removed by migrations
 
 | Rule / column                                                    | Migration                                                       | Replaced by                                                                                          |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |

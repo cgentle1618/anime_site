@@ -94,3 +94,22 @@ def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
     assert set(body["tag_categories"]) <= set(body["option_categories"])
     assert "Quality" in body["tag_categories"]
     assert "Comic Era" not in body["tag_categories"]
+
+
+def test_serves_playing_statuses_in_declaration_order(client):
+    body = client.get("/api/constants").json()
+    assert body["playing_status"] == [s.value for s in c.PlayStatus]
+    assert len(body["playing_status"]) == 10
+    assert body["playing_status"][0] == "Might Play"
+    assert body["playing_status"][-1] == "Won't Play"
+
+
+def test_serves_the_seven_other_game_vocabularies(client):
+    body = client.get("/api/constants").json()
+    assert body["game_type"] == list(c.GAME_TYPES)
+    assert body["completion_level"] == list(c.COMPLETION_LEVELS)
+    assert body["game_release_status"] == list(c.GAME_RELEASE_STATUSES)
+    assert body["game_storefront"] == list(c.GAME_STOREFRONTS)
+    assert body["game_ownership"] == list(c.GAME_OWNERSHIP_KINDS)
+    assert body["game_copy_format"] == list(c.GAME_COPY_FORMATS)
+    assert body["game_acquisition"] == list(c.GAME_ACQUISITION_KINDS)

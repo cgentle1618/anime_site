@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.link_fields import MovieLinkFields
 from app.schemas.release_date_field import release_date_validator
+from app.schemas.sources import SourceWriteFields
 
 
 class MovieBase(BaseModel):
@@ -32,8 +33,6 @@ class MovieBase(BaseModel):
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
 
-    source_other: Optional[dict] = None
-
     watch_next: Optional[bool] = None
     to_rewatch: Optional[bool] = None
     remark: Optional[str] = None
@@ -43,11 +42,11 @@ class MovieBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date_usa", "release_date_tw")
 
 
-class MovieCreate(MovieBase):
+class MovieCreate(MovieBase, SourceWriteFields):
     pass
 
 
-class MovieUpdate(MovieBase):
+class MovieUpdate(MovieBase, SourceWriteFields):
     pass
 
 

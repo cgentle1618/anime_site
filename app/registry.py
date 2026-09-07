@@ -14,11 +14,13 @@ movie has no series and no hook at all.
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from sqlalchemy import func
+from sqlalchemy import exists, func
 
 from app import models, schemas
 from app.services.domain import (
+    derive_novel_progress,
     mark_comic_completed,
+    mark_game_completed,
     mark_movie_completed,
     mark_novel_completed,
     mark_reading_completed,
@@ -27,15 +29,20 @@ from app.services.domain import (
     resolve_anime_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
     resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
     resolve_manga_parent_hierarchy,
     resolve_movie_parent_hierarchy,
     resolve_novel_parent_hierarchy,
     resolve_tv_show_parent_hierarchy,
+    write_game_copies,
+    write_novel_units,
 )
 from app.services.domain.anime_write import prepare_anime_write
+from app.services.domain.sources import media_sources_writer
 from app.services.pipelines import (
     execute_replace_single_cartoon,
     execute_replace_single_comic,
+    execute_replace_single_game,
     execute_replace_single_manga,
     execute_replace_single_movie,
     execute_replace_single_novel,
@@ -68,6 +75,13 @@ class MediaTypeSpec:
     mark_completed: Callable       # (entry) -> None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
+    # Payload key -> writer(db, entry, value), popped before the model is
+    # built because the value is not a column. Only novel uses this.
+    nested_collections: Optional[dict] = None
+    # (db, entry) -> None, called in create, update AND patch, after columns
+    # and nested collections are applied. Distinct from pre_commit_hook,
+    # which patch deliberately does not call. Only novel uses this.
+    progress_hook: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
     # (query, query_params) -> query, for filters that are not plain equality.
     extra_filters: Optional[Callable] = None
@@ -91,6 +105,23 @@ def _anime_airing_season(query, params):
     )
 
 
+def _game_ownership(query, params):
+    """?ownership=Owned -> games with at least one copy row saying so.
+
+    Ownership is derived from the copy rows rather than stored, so the filter
+    is an EXISTS over game_copy instead of a column comparison.
+    """
+    wanted = params.get("ownership")
+    if not wanted:
+        return query
+    return query.filter(
+        exists().where(
+            models.GameCopy.game_id == models.Game.system_id,
+            models.GameCopy.ownership == wanted,
+        )
+    )
+
+
 MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
     "anime": MediaTypeSpec(
         key="anime",
@@ -110,6 +141,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_tv_completed,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
+        nested_collections={"sources": media_sources_writer("anime")},
     ),
     "anime_movie": MediaTypeSpec(
         key="anime_movie",
@@ -129,6 +161,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=lambda db, fid, sid, names: (resolve_anime_movie_parent_hierarchy(db, fid, names), None),
         mark_completed=mark_movie_completed,
         has_series=False,
+        nested_collections={"sources": media_sources_writer("anime-movie")},
     ),
     "movie": MediaTypeSpec(
         key="movie",
@@ -146,6 +179,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_movie_parent_hierarchy,
         mark_completed=mark_movie_completed,
         write_hook=execute_replace_single_movie,
+        nested_collections={"sources": media_sources_writer("movie")},
     ),
     "tv_show": MediaTypeSpec(
         key="tv_show",
@@ -163,6 +197,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_tv_show_parent_hierarchy,
         mark_completed=mark_tv_completed,
         write_hook=execute_replace_single_tv_show,
+        nested_collections={"sources": media_sources_writer("tv-show")},
     ),
     "cartoon": MediaTypeSpec(
         key="cartoon",
@@ -180,6 +215,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_cartoon_parent_hierarchy,
         mark_completed=mark_tv_completed,
         write_hook=execute_replace_single_cartoon,
+        nested_collections={"sources": media_sources_writer("cartoon")},
     ),
     "manga": MediaTypeSpec(
         key="manga",
@@ -198,6 +234,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_manga_parent_hierarchy,
         mark_completed=mark_reading_completed,
         write_hook=execute_replace_single_manga,
+        nested_collections={"sources": media_sources_writer("manga")},
     ),
     "novel": MediaTypeSpec(
         key="novel",
@@ -216,6 +253,11 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_completed,
         write_hook=execute_replace_single_novel,
+        nested_collections={
+            "units": write_novel_units,
+            "sources": media_sources_writer("novel"),
+        },
+        progress_hook=lambda db, entry: derive_novel_progress(entry),
     ),
     "comic": MediaTypeSpec(
         key="comic",
@@ -233,5 +275,31 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_comic_parent_hierarchy,
         mark_completed=mark_comic_completed,
         write_hook=execute_replace_single_comic,
+        nested_collections={"sources": media_sources_writer("comic")},
+    ),
+    "game": MediaTypeSpec(
+        key="game",
+        owner_type="game",
+        label="Game",
+        route="game",
+        model=models.Game,
+        create_schema=schemas.GameCreate,
+        update_schema=schemas.GameUpdate,
+        response_schema=schemas.GameResponse,
+        status_field="playing_status",
+        list_filters=("franchise_id", "series_id", "playing_status", "release_status", "game_type"),
+        hierarchy_names={"en": "game_name_en", "cn": "game_name_cn", "roman": "game_name_roman",
+                         "jp": "game_name_jp", "alt": "game_name_alt"},
+        search_fields=("game_name_en", "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
+        resolve_hierarchy=resolve_game_parent_hierarchy,
+        mark_completed=mark_game_completed,
+        extra_filters=_game_ownership,
+        # Nothing external is fetched yet, so this only re-runs the shared
+        # post-write step; the name exists from Task 9's pipeline spec.
+        write_hook=execute_replace_single_game,
+        nested_collections={
+            "copies": write_game_copies,
+            "sources": media_sources_writer("game"),
+        },
     ),
 }

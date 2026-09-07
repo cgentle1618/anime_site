@@ -1,11 +1,32 @@
 // Misc display/data helpers: length, release, progress, ratings, options, type parsing.
 import { formatReleaseDate } from "./releaseDate";
+import { effectiveProgressDisplay } from "./novelUnits";
 
-export function isBaha(anime) {
-  return (
-    anime.source_baha === true ||
-    String(anime.source_baha).toLowerCase() === "true"
+// The Bahamut row lives in `sources` (kind "access", bucket "main") rather
+// than the old boolean-plus-URL column pair the entry table used to carry.
+// The ONE place that predicate is written - MediaCard, DashboardCard and the
+// library configs all call this rather than re-deriving it.
+//
+// A main row cites its vocabulary value by `option_id`, which survives an
+// admin renaming "Bahamut" to anything else, so that is what a caller holding
+// the Platform option id should match on. The name match is the fallback:
+// for a caller with no options bag to hand, and for a row whose option was
+// deleted out from under it.
+export const BAHAMUT_VALUE = "Bahamut";
+
+export function getBahaRow(entry, bahamutOptionId) {
+  const rows = (entry.sources || []).filter(
+    (s) => s.kind === "access" && s.bucket === "main",
   );
+  if (bahamutOptionId) {
+    const byId = rows.find((s) => s.option_id === bahamutOptionId);
+    if (byId) return byId;
+  }
+  return rows.find((s) => s.name === BAHAMUT_VALUE);
+}
+
+export function isBaha(entry, bahamutOptionId) {
+  return getBahaRow(entry, bahamutOptionId)?.available === true;
 }
 
 export function getReleaseFallback(entry) {
@@ -27,9 +48,10 @@ export function getRatingWeight(rating) {
  * studios } — see lib/sources.js).
  *
  * `kind` selects where the values come from:
- *   option -> sources.options, filtered by category (+ scope, when scoped)
+ *   option -> sources.options, filtered by category (+ scope and usage, when given)
  *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
  *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
+ *   publisher -> sources.publishers, unfiltered, for the same reason
  */
 export function getSourceValues(sources, source) {
   if (!source || !sources) return [];
@@ -41,13 +63,23 @@ export function getSourceValues(sources, source) {
           (!source.scope ||
             !o.scopes ||
             o.scopes.length === 0 ||
-            o.scopes.includes(source.scope)),
+            o.scopes.includes(source.scope)) &&
+          (!source.usage ||
+            !o.usages ||
+            o.usages.length === 0 ||
+            o.usages.includes(source.usage)),
       )
       .map((o) => o.value);
   }
   if (source.kind === "person") {
+    // display_name is computed server-side (PersonResponse) over four name
+    // columns and a per-row choice - do not re-derive it here. Empty values
+    // are dropped for the same reason as studios: they would collide with a
+    // typed value in the Set-based "already exists" check.
     const key = `${source.role}|${source.scope || ""}`;
-    return (sources.people?.[key] || []).map((p) => p.name_native);
+    return (sources.people?.[key] || [])
+      .map((p) => p.display_name)
+      .filter((name) => !!name);
   }
   if (source.kind === "studio") {
     // display_name is computed server-side (StudioResponse) - do not
@@ -56,6 +88,13 @@ export function getSourceValues(sources, source) {
     // the Set-based "already exists" check in ensureSourceValues.js.
     return (sources.studios || [])
       .map((s) => s.display_name)
+      .filter((name) => !!name);
+  }
+  if (source.kind === "publisher") {
+    // display_name is computed server-side (PublisherResponse), exactly as it
+    // is for a studio - do not re-derive it here.
+    return (sources.publishers || [])
+      .map((p) => p.display_name)
       .filter((name) => !!name);
   }
   return [];
@@ -79,17 +118,37 @@ export function parseTypes(franchiseType) {
 }
 
 /**
- * Returns a human-readable progress string for a novel entry, branching
- * on the novel's progress_display field.
+ * Human-readable progress for a novel, branching on progress_display.
+ *
+ * The arc_ch case is two-stage: the arc being read is arc_fin + 1, and
+ * ch_fin_in_arc counts chapters inside it, so the denominator is that arc's
+ * own ch_count rather than the whole novel's chapter total.
  */
 export function getNovelProgress(novel) {
-  switch (novel.progress_display) {
+  switch (effectiveProgressDisplay(novel)) {
     case "vol_tw":
       return `${novel.vol_fin ?? 0} / ${novel.vol_total_tw ?? "?"} VOL TW`;
     case "vol_original":
-      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL`;
-    case "arc_ch":
-      return `${novel.arc_fin ?? 0}/${novel.arc_total ?? "?"} ARC  ${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} CH`;
+      return `${novel.vol_fin ?? 0} / ${novel.vol_total_original ?? "?"} VOL JP/KR`;
+    case "arc": {
+      // Finished arcs over the arc count — the same "how far through" reading
+      // the volume displays give, one level up from arc_ch's chapter cursor.
+      const arcs = (novel.units || []).filter((u) => u.unit_kind === "arc");
+      return `${novel.arc_fin ?? 0} / ${arcs.length} ARC`;
+    }
+    case "arc_ch": {
+      const arcs = (novel.units || [])
+        .filter((u) => u.unit_kind === "arc")
+        .sort((a, b) => a.position - b.position);
+      const finished = novel.arc_fin ?? 0;
+      const current = arcs[finished];
+      if (!current) {
+        return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
+      }
+      return `arc ${finished + 1} · ${novel.ch_fin_in_arc ?? 0}/${
+        current.ch_count ?? "?"
+      } CH`;
+    }
     default:
       return `${novel.ch_fin ?? 0} / ${novel.ch_total ?? "?"} CH`;
   }

@@ -10,7 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -62,8 +62,6 @@ class Cartoon(Base, NameFallbackMixin):
 
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)
-
-    source_other = Column(JSONB, default=None, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

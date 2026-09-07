@@ -13,7 +13,7 @@ from sqlalchemy import (
     String,
     Time,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
@@ -86,16 +86,8 @@ class Anime(Base, NameFallbackMixin):
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
-    anilist_link = Column(String, nullable=True)
-    official_link = Column(String, nullable=True)
-    twitter_link = Column(String, nullable=True)
 
     seiyuu = Column(String, nullable=True)
-
-    source_baha = Column(Boolean, default=None, nullable=True)
-    baha_link = Column(String, nullable=True)
-    source_netflix = Column(Boolean, default=False)
-    source_other = Column(JSONB, default=None, nullable=True)
 
     cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)

@@ -39,7 +39,12 @@ def test_backup_writes_every_tab_in_registry_order(db_session, monkeypatch):
     assert [tab for tab, _ in written] == TAB_NAMES
     headers = dict(written)
     for tab in SHEET_TABS:
-        expected = [c.name for c in tab.model.__table__.columns]
+        expected = [
+            c.name
+            for c in tab.model.__table__.columns
+            if c.name not in tab.drop_columns
+        ]
+        expected += [name for name, _fn in tab.extra_columns]
         if tab.media_type:
             expected += sheet_link_headers(tab.media_type)
         assert headers[tab.name] == expected, tab.name

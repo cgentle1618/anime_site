@@ -7,9 +7,12 @@ that lived only in a migration body would leave every API test role-less.
 Idempotent for the same reason: the lifespan runs against a database that may
 already hold these rows, and it must not duplicate or overwrite them.
 
-Guest is granted every media type and every field group on purpose. The
-authorization system ships behaving exactly like its absence; an admin narrows
-it by REMOVING grants, so no page changes on the day it lands.
+Guest is granted every media type and every field group on purpose, except
+the field groups listed in GUEST_WITHHELD_FIELD_GROUPS (groups whose whole
+point is to withhold something from ordinary viewers - granting them by
+default would defeat them). Otherwise the authorization system ships
+behaving exactly like its absence; an admin narrows it further by REMOVING
+grants, so no other page changes on the day it lands.
 """
 
 from sqlalchemy.orm import Session
@@ -22,11 +25,22 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 GUEST_ROLE = "guest"
 ADMIN_ROLE = "admin"
 
+# Field groups a brand-new guest role does NOT receive. A group lands here
+# when its purpose is to withhold something from ordinary viewers, so
+# granting it by default would defeat it.
+GUEST_WITHHELD_FIELD_GROUPS: frozenset[str] = frozenset({"sources_restricted"})
+
 
 def default_guest_permissions() -> set[str]:
-    """Everything a viewer could see before this system existed."""
+    """Everything a viewer could see before this system existed, minus the
+    field groups in GUEST_WITHHELD_FIELD_GROUPS - those exist specifically to
+    keep something from ordinary viewers, so a fresh guest must not start out
+    holding them.
+    """
     return {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS} | {
-        field_group_perm(key) for key in FIELD_GROUP_KEYS
+        field_group_perm(key)
+        for key in FIELD_GROUP_KEYS
+        if key not in GUEST_WITHHELD_FIELD_GROUPS
     }
 
 

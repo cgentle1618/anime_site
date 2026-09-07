@@ -8,9 +8,12 @@
 export const TAB_GROUPS = [
   { key: "entries", icon: "fa-photo-film", label: "Entries" },
   { key: "structure", icon: "fa-sitemap", label: "Structure" },
-  // Entities are credited ON entries rather than being entries: a studio
-  // today, people (director, author, seiyuu) when person gets its pages.
+  // Entities are credited ON entries rather than being entries: studios and
+  // the people credited as director, producer, composer, author, illustrator.
   { key: "entity", icon: "fa-industry", label: "Entity" },
+  // The vocabulary tables themselves, rather than anything a visitor browses:
+  // system_option and the external-source names in system_option_alias.
+  { key: "system", icon: "fa-sliders", label: "System" },
 ];
 
 export const ADMIN_TABS = [
@@ -43,6 +46,12 @@ export const ADMIN_TABS = [
     label: "Comic Entry",
   },
   {
+    key: "game",
+    group: "entries",
+    icon: "fa-gamepad",
+    label: "Game Entry",
+  },
+  {
     key: "collection",
     group: "structure",
     icon: "fa-boxes-stacked",
@@ -73,26 +82,55 @@ export const ADMIN_TABS = [
     label: "Meme",
   },
   {
-    key: "options",
-    group: "structure",
-    icon: "fa-cog",
-    label: "System Option",
-  },
-  {
     key: "studio",
     group: "entity",
     icon: "fa-industry",
     label: "Studio",
   },
+  {
+    key: "publisher",
+    group: "entity",
+    icon: "fa-copyright",
+    label: "Publisher",
+  },
+  {
+    key: "person",
+    group: "entity",
+    icon: "fa-user",
+    label: "Person",
+  },
+  {
+    key: "character",
+    group: "entity",
+    icon: "fa-user-ninja",
+    label: "Character",
+  },
+  {
+    key: "options",
+    group: "system",
+    icon: "fa-cog",
+    label: "System Option",
+  },
+  // Alias rows have no endpoint of their own - they are written AND removed by
+  // the option's own PUT - so this tab picks an existing option and edits the
+  // external names attached to it. See AliasTab.jsx and AliasPicker.jsx.
+  {
+    key: "alias",
+    group: "system",
+    icon: "fa-right-left",
+    label: "Alias",
+  },
 ];
 
 /**
- * Tabs backed by a form factory — everything but System Options, Quote,
- * Meme and Studio. None of the four is a media entry, so none has default
- * field values to edit.
+ * Tabs backed by a form factory — everything but System Option, Alias, Quote
+ * and Meme. The Entity tabs are here too: a studio, person or character is not a
+ * media entry, but each has an Add form whose starting values are configurable
+ * on /defaults. The four excluded tabs have no factory in
+ * config/formFactories.js and so nothing to default.
  */
 export const FORM_TABS = ADMIN_TABS.filter(
-  (t) => !["options", "quote", "meme", "studio"].includes(t.key),
+  (t) => !["options", "alias", "quote", "meme"].includes(t.key),
 );
 
 /** The Fav 3x3 grid editor — only the Modify page offers it. */

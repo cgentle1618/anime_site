@@ -20,16 +20,17 @@ from app.database import Base, get_taipei_now
 
 class MediaCredit(Base):
     """
-    One person or studio credited on one media entry.
+    One person, studio or publisher credited on one media entry.
 
     The entry endpoint is a FK-less (media_type, entry_id) pair, the same
     contract media_relation and watch_order_item use: no single foreign key can
     span the eight media tables, so the pair is resolved at read time through
     MEDIA_TABLES in app/utils/media_resolver.py.
 
-    Exactly one of person_id / studio_id is set, enforced by a CHECK rather
-    than by convention, because both the migration and the Fill pipeline write
-    these rows without going through the API.
+    Exactly one of person_id / studio_id / publisher_id is set - the target is
+    one of three entity tables - enforced by a CHECK rather than by
+    convention, because both the migration and the Fill pipeline write these
+    rows without going through the API.
 
     position carries the order the names had in the comma-joined column this
     table replaced, so "Studio A, Studio B" still reads in that order.
@@ -38,20 +39,21 @@ class MediaCredit(Base):
     __tablename__ = "media_credit"
     __table_args__ = (
         CheckConstraint(
-            "num_nonnulls(person_id, studio_id) = 1",
+            "num_nonnulls(person_id, studio_id, publisher_id) = 1",
             name="ck_media_credit_one_target",
         ),
-        # NULLS NOT DISTINCT: person_id and studio_id are each nullable (only
-        # one is set per row), and Postgres treats two NULLs as distinct by
+        # NULLS NOT DISTINCT: the three entity FKs are each nullable (only one
+        # is set per row), and Postgres treats two NULLs as distinct by
         # default - without this, the same person could be credited with the
-        # same role on the same entry twice, since (person_id, NULL) would
-        # never collide with itself.
+        # same role on the same entry twice, since (person_id, NULL, NULL)
+        # would never collide with itself.
         UniqueConstraint(
             "media_type",
             "entry_id",
             "role",
             "person_id",
             "studio_id",
+            "publisher_id",
             name="uq_media_credit_row",
             postgresql_nulls_not_distinct=True,
         ),
@@ -64,7 +66,9 @@ class MediaCredit(Base):
     # One of MEDIA_TYPE_KEYS (hyphenated).
     media_type = Column(String, nullable=False)
     entry_id = Column(UUID(as_uuid=True), nullable=False)
-    # One of credit_roles.CREDIT_ROLE_KEYS.
+    # One of credit_roles.CREDIT_ROLE_KEYS whose credited_via == "media_credit" -
+    # i.e. every key except "seiyuu", whose castings live in character_casting
+    # (see app/models/character.py) instead of this table.
     role = Column(String, nullable=False, index=True)
     person_id = Column(
         UUID(as_uuid=True),
@@ -75,6 +79,12 @@ class MediaCredit(Base):
     studio_id = Column(
         UUID(as_uuid=True),
         ForeignKey("studio.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    publisher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("publisher.system_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )

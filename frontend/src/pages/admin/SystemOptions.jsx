@@ -10,16 +10,26 @@
 //   Tier 3  entities in person / studio, credited via media_credit
 //
 // This page never writes. Tier 1 is not editable at all (renaming a value
-// there breaks business logic silently); Tier 2 is edited in the Options tab
-// of Add/Modify; Tier 3 records are managed on the person/studio forms. Each
-// section says so and links where the editing actually happens.
+// there breaks business logic silently); Tier 2 is edited under System →
+// System Option on Add/Modify; Tier 3 records are managed on the
+// person/studio forms. Each section says so and links where the editing
+// actually happens.
+//
+// Tier 2 values may also carry system_option_alias rows - what an external API
+// calls them. Those are a lookup rather than a vocabulary, so they have their
+// own inverted view on /aliases (pages/admin/Aliases.jsx) instead of a fourth
+// column here.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
-import { scopeChip } from "../../config/scopeColors";
+import { scopeChip, usageChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
+import {
+  groupTier1Keys,
+  groupTier2Categories,
+} from "../../lib/optionsPageGroups";
 
 // Tier 3 is the one section with no endpoint that describes itself, because
 // the interesting fact is historical: which old system_options categories each
@@ -83,11 +93,29 @@ const TIER1_NOTES = {
     "Carries a trailing Other that the AnimeAiringType Enum lacks. Preserved, not resolved.",
 };
 
+// Anchor id for a Tier 2 group heading ("Source & Platform" ->
+// opt-group-source-platform). Kept apart from the Tier 1 group ids because
+// both tiers end in a group called "Other".
+function optionGroupId(title) {
+  return `opt-group-${title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
 // Anchor id for a Tier 2 category. Categories are human-written strings with
 // spaces and slashes ("Publisher / Distributor TW"), none of which belong in
 // a fragment id.
 function categoryId(category) {
   return `opt-${category
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
+// Anchor id for a Tier 1 group heading ("Airing Type" -> enum-group-airing-type).
+function groupId(title) {
+  return `enum-group-${title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")}`;
@@ -102,13 +130,19 @@ function prettifyKey(key) {
 }
 
 // The left title bar: an index of everything on the page, and the only
-// practical way to reach a single Tier 2 category on a page this tall.
+// practical way to reach a section of it on a page this tall.
+//
+// One level per tier: the group headings, not the enums and categories inside
+// them. Listing every leaf ran to forty-odd links, taller than the viewport on
+// its own and impossible to scan, while a group heading lands close enough
+// that the card or table you wanted is already on screen when you arrive. The
+// leaves keep their ids, so a link someone saved to one still works.
 //
 // Jumping is plain fragment links, not scrollIntoView - the browser handles
 // smooth scrolling and the offset through CSS (scroll-mt-28 on each target,
 // clearing the sticky nav), and the URL keeps the section so a reload or a
 // shared link lands in the same place.
-function TitleBar({ tier1Keys, categories, activeId }) {
+function TitleBar({ tier1Sections, tier2Sections, activeId }) {
   const listRef = useRef(null);
   const activeRef = useRef(null);
 
@@ -164,14 +198,15 @@ function TitleBar({ tier1Keys, categories, activeId }) {
           Tier 1 · Closed Enums
         </a>
         <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
-          {tier1Keys.map((key) => (
+          {tier1Sections.map((section) => (
             <a
-              key={key}
-              href={`#enum-${key}`}
-              className={linkClass(`enum-${key}`)}
-              {...linkProps(`enum-${key}`)}
+              key={section.title}
+              href={`#${groupId(section.title)}`}
+              className={linkClass(groupId(section.title))}
+              {...linkProps(groupId(section.title))}
+              title={section.keys.map(prettifyKey).join(", ")}
             >
-              {prettifyKey(key)}
+              {section.title}
             </a>
           ))}
         </div>
@@ -184,18 +219,18 @@ function TitleBar({ tier1Keys, categories, activeId }) {
           Tier 2 · Open Vocabularies
         </a>
         <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
-          {categories.length === 0 ? (
+          {tier2Sections.length === 0 ? (
             <span className="block px-2 py-1 text-xs text-text-faint/60">—</span>
           ) : (
-            categories.map((category) => (
+            tier2Sections.map((section) => (
               <a
-                key={category}
-                href={`#${categoryId(category)}`}
-                className={linkClass(categoryId(category))}
-                {...linkProps(categoryId(category))}
-                title={category}
+                key={section.title}
+                href={`#${optionGroupId(section.title)}`}
+                className={linkClass(optionGroupId(section.title))}
+                {...linkProps(optionGroupId(section.title))}
+                title={section.categories.map(([name]) => name).join(", ")}
               >
-                {category}
+                {section.title}
               </a>
             ))
           )}
@@ -250,7 +285,35 @@ function ValueChip({ children }) {
   );
 }
 
-function Tier1({ constants, keys }) {
+// One enum card. Same markup whether it sits in a named group or under Other.
+function EnumCard({ enumKey, values }) {
+  return (
+    <div
+      id={`enum-${enumKey}`}
+      className="scroll-mt-28 border border-border rounded-xl p-4 flex flex-col"
+    >
+      <div className="flex items-baseline justify-between gap-2 mb-3">
+        <h4 className="text-sm font-black text-text">{prettifyKey(enumKey)}</h4>
+        <span className="text-[10px] font-bold text-text-faint">
+          {values.length}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {values.map((value) => (
+          <ValueChip key={value}>{value}</ValueChip>
+        ))}
+      </div>
+      {TIER1_NOTES[enumKey] && (
+        <p className="text-[11px] text-warning mt-3 leading-snug">
+          <i className="fas fa-triangle-exclamation mr-1"></i>
+          {TIER1_NOTES[enumKey]}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Tier1({ constants, sections }) {
   return (
     <section
       id="tier-1"
@@ -268,33 +331,29 @@ function Tier1({ constants, keys }) {
         </ReadOnlyNote>
       </SectionHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {keys.map((key) => (
+      <div className="space-y-7">
+        {sections.map((section) => (
           <div
-            key={key}
-            id={`enum-${key}`}
+            key={section.title}
+            id={groupId(section.title)}
             data-section-anchor
-            className="scroll-mt-28 border border-border rounded-xl p-4 flex flex-col"
+            className="scroll-mt-28"
           >
-            <div className="flex items-baseline justify-between gap-2 mb-3">
-              <h3 className="text-sm font-black text-text">
-                {prettifyKey(key)}
+            <div className="flex items-baseline gap-2 mb-3">
+              <h3 className="text-xs font-black text-text uppercase tracking-widest">
+                {section.title}
               </h3>
               <span className="text-[10px] font-bold text-text-faint">
-                {constants[key].length}
+                {section.keys.length} list
+                {section.keys.length === 1 ? "" : "s"}
               </span>
+              <span className="flex-1 h-px bg-border" />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {constants[key].map((value) => (
-                <ValueChip key={value}>{value}</ValueChip>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {section.keys.map((key) => (
+                <EnumCard key={key} enumKey={key} values={constants[key]} />
               ))}
             </div>
-            {TIER1_NOTES[key] && (
-              <p className="text-[11px] text-warning mt-3 leading-snug">
-                <i className="fas fa-triangle-exclamation mr-1"></i>
-                {TIER1_NOTES[key]}
-              </p>
-            )}
           </div>
         ))}
       </div>
@@ -302,7 +361,78 @@ function Tier1({ constants, keys }) {
   );
 }
 
-function Tier2({ groups, loading }) {
+// One category's values. Same markup whether it sits in a named group or
+// under Other.
+function CategoryTable({ category, rows }) {
+  return (
+    <div id={categoryId(category)} className="scroll-mt-28">
+      <div className="flex items-baseline gap-2 mb-2">
+        <h4 className="text-sm font-black text-text">{category}</h4>
+        <span className="text-[10px] font-bold text-text-faint">
+          {rows.length} value{rows.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="overflow-x-auto border border-border rounded-xl">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
+            <tr>
+              <th className="text-left font-black px-3 py-2 w-16">#</th>
+              <th className="text-left font-black px-3 py-2">Value</th>
+              <th className="text-left font-black px-3 py-2">Scopes</th>
+              <th className="text-left font-black px-3 py-2">Usages</th>
+              <th className="text-left font-black px-3 py-2">Remark</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((row) => (
+              <tr key={row.system_id}>
+                <td className="px-3 py-2 text-text-faint font-mono text-xs">
+                  {row.sort_order}
+                </td>
+                <td className="px-3 py-2 font-semibold text-text">
+                  {row.value}
+                </td>
+                <td className="px-3 py-2">
+                  {row.scopes.length === 0 ? (
+                    <span className="text-xs text-text-faint italic">
+                      everywhere
+                    </span>
+                  ) : (
+                    <span className="flex flex-wrap gap-1">
+                      {row.scopes.map((scope) => (
+                        <span key={scope} className={scopeChip(scope)}>
+                          {scope}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  {(row.usages || []).length === 0 ? (
+                    <span className="text-xs text-text-faint italic">both</span>
+                  ) : (
+                    <span className="flex flex-wrap gap-1">
+                      {row.usages.map((usage) => (
+                        <span key={usage} className={usageChip(usage)}>
+                          {usage}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-text-faint">
+                  {row.remark || "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Tier2({ sections, loading }) {
   return (
     <section
       id="tier-2"
@@ -312,11 +442,12 @@ function Tier2({ groups, loading }) {
       <SectionHeader
         tier="2"
         title="Open Vocabularies"
-        source="system_option / system_option_scope"
+        source="system_option / system_option_scope / system_option_alias"
         subtitle="Values only humans read. Nothing in the code compares against them, so they are safe to add, rename and reorder. One vocabulary per category; each value carries the media types it is offered in — a value with no scopes is offered everywhere."
       >
         <ReadOnlyNote>
-          View only here. Add, edit and rescope these in the Options tab of{" "}
+          View only here. Add, edit and rescope these under System → System
+          Option on{" "}
           <Link to="/add" className="underline font-bold">
             Add
           </Link>{" "}
@@ -324,72 +455,44 @@ function Tier2({ groups, loading }) {
           <Link to="/modify" className="underline font-bold">
             Modify
           </Link>
+          . A value can also carry the names external APIs know it by; those
+          are listed on{" "}
+          <Link to="/aliases" className="underline font-bold">
+            Alias Conversion
+          </Link>
           .
         </ReadOnlyNote>
       </SectionHeader>
 
       {loading ? (
         <p className="text-sm text-text-faint font-medium">Loading options…</p>
-      ) : groups.length === 0 ? (
+      ) : sections.length === 0 ? (
         <p className="text-sm text-text-faint font-medium">
           No system options recorded.
         </p>
       ) : (
-        <div className="space-y-6">
-          {groups.map(([category, rows]) => (
+        <div className="space-y-7">
+          {sections.map((section) => (
             <div
-              key={category}
-              id={categoryId(category)}
+              key={section.title}
+              id={optionGroupId(section.title)}
               data-section-anchor
               className="scroll-mt-28"
             >
-              <div className="flex items-baseline gap-2 mb-2">
-                <h3 className="text-sm font-black text-text">{category}</h3>
+              <div className="flex items-baseline gap-2 mb-3">
+                <h3 className="text-xs font-black text-text uppercase tracking-widest">
+                  {section.title}
+                </h3>
                 <span className="text-[10px] font-bold text-text-faint">
-                  {rows.length} value{rows.length === 1 ? "" : "s"}
+                  {section.categories.length} categor
+                  {section.categories.length === 1 ? "y" : "ies"}
                 </span>
+                <span className="flex-1 h-px bg-border" />
               </div>
-              <div className="overflow-x-auto border border-border rounded-xl">
-                <table className="w-full text-sm">
-                  <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
-                    <tr>
-                      <th className="text-left font-black px-3 py-2 w-16">#</th>
-                      <th className="text-left font-black px-3 py-2">Value</th>
-                      <th className="text-left font-black px-3 py-2">Scopes</th>
-                      <th className="text-left font-black px-3 py-2">Remark</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {rows.map((row) => (
-                      <tr key={row.system_id}>
-                        <td className="px-3 py-2 text-text-faint font-mono text-xs">
-                          {row.sort_order}
-                        </td>
-                        <td className="px-3 py-2 font-semibold text-text">
-                          {row.value}
-                        </td>
-                        <td className="px-3 py-2">
-                          {row.scopes.length === 0 ? (
-                            <span className="text-xs text-text-faint italic">
-                              everywhere
-                            </span>
-                          ) : (
-                            <span className="flex flex-wrap gap-1">
-                              {row.scopes.map((scope) => (
-                                <span key={scope} className={scopeChip(scope)}>
-                                  {scope}
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-text-faint">
-                          {row.remark || "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-6">
+                {section.categories.map(([category, rows]) => (
+                  <CategoryTable key={category} category={category} rows={rows} />
+                ))}
               </div>
             </div>
           ))}
@@ -541,32 +644,47 @@ export default function SystemOptions() {
 
   // Derived here, not inside the sections, so the title bar and the content
   // can never disagree about what exists or in what order.
-  const tier1Keys = useMemo(
-    () => Object.keys(constants || {}).sort(),
+  // Grouped, not alphabetical: enums an admin reads together (the two airing
+  // types, the three regions) belong side by side. See lib/optionsPageGroups.js.
+  const tier1Sections = useMemo(
+    () => groupTier1Keys(Object.keys(constants || {})),
     [constants],
   );
 
   // The endpoint already sorts by category, then sort_order, then value, so
-  // grouping in arrival order preserves the intended dropdown order.
-  const tier2Groups = useMemo(() => {
+  // bucketing in arrival order preserves the intended dropdown order within a
+  // category; the group definitions then decide the order of the categories
+  // themselves, which is why the Map is read through them rather than iterated.
+  const tier2Sections = useMemo(() => {
     const byCategory = new Map();
     options.forEach((option) => {
       if (!byCategory.has(option.category)) byCategory.set(option.category, []);
       byCategory.get(option.category).push(option);
     });
-    return [...byCategory.entries()];
+    return groupTier2Categories([...byCategory.keys()]).map((section) => ({
+      title: section.title,
+      categories: section.categories.map((category) => [
+        category,
+        byCategory.get(category),
+      ]),
+    }));
   }, [options]);
 
   // Which title-bar entry to highlight: the last anchor whose top has passed
   // under the sticky nav, which is the section you are actually reading.
   //
   // Deliberately a scroll handler rather than an IntersectionObserver. A
-  // category table can be several screens tall, so the observer question
-  // ("is any part of it in a thin band?") answers a different question than
-  // the one being asked, and picks the wrong section whenever two anchors
-  // straddle the band. Reading positions directly is exact, and anchors are
-  // nested oldest-first in document order, so the last match is also the most
-  // specific one (a category, not just its tier).
+  // group of category tables can be several screens tall, so the observer
+  // question ("is any part of it in a thin band?") answers a different
+  // question than the one being asked, and picks the wrong section whenever
+  // two anchors straddle the band. Reading positions directly is exact, and
+  // anchors are nested oldest-first in document order, so the last match is
+  // also the most specific one (a group, not just its tier).
+  //
+  // Only the tiers and their groups carry [data-section-anchor], because those
+  // are exactly the entries the index can highlight. Marking the individual
+  // cards and tables too would leave the highlight blank for most of the page:
+  // the spy would settle on an anchor no link in the bar points at.
   const [activeId, setActiveId] = useState("tier-1");
   useEffect(() => {
     let frame = 0;
@@ -607,7 +725,7 @@ export default function SystemOptions() {
       if (frame !== 0) cancelAnimationFrame(frame);
     };
     // Recompute once the fetched sections have rendered their anchors.
-  }, [tier1Keys, tier2Groups]);
+  }, [tier1Sections, tier2Sections]);
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8 pb-12">
@@ -634,14 +752,14 @@ export default function SystemOptions() {
           runs out of track after one screen of scrolling. */}
       <div className="flex gap-8">
         <TitleBar
-          tier1Keys={tier1Keys}
-          categories={tier2Groups.map(([category]) => category)}
+          tier1Sections={tier1Sections}
+          tier2Sections={tier2Sections}
           activeId={activeId}
         />
 
         <div className="flex-1 min-w-0 space-y-8">
-          <Tier1 constants={constants} keys={tier1Keys} />
-          <Tier2 groups={tier2Groups} loading={tier2Loading} />
+          <Tier1 constants={constants} sections={tier1Sections} />
+          <Tier2 sections={tier2Sections} loading={tier2Loading} />
           <Tier3
             roleCounts={roleCounts}
             studioCount={studioCount}

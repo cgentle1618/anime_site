@@ -1,11 +1,16 @@
 """
 A field group the viewer does not hold is stripped from the response.
 
-The regression that matters most here is not the stripping - it is that
-stripping must not reach the database. source_other is a real JSONB column, so
-nulling it on a live ORM instance would be flushed on the next autoflush and
-the value would be gone for everyone, permanently. Every test that blanks a
-column therefore also asserts the row still holds it.
+sources_other used to gate a real JSONB column (source_other), where the
+regression that mattered most was that stripping must not reach the
+database - nulling a live ORM instance would be flushed on the next
+autoflush and the value would be gone for everyone, permanently. Since
+Task 7, sources_other gates the `other` media_source bucket instead: the
+withheld rows are simply left out of the query in
+services.domain.sources.attach_sources, so there is no live-instance
+mutation to guard against for this group. See tests/api/test_field_gating.py
+'s system_info section below for the columns flavour's own version of that
+guard, which still applies to created_at/updated_at.
 """
 
 import uuid
@@ -17,8 +22,6 @@ from app.services.rbac.permissions import field_group_perm
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.test_visibility import make_viewer
 
-SOURCES = {"Bilibili": "https://example.invalid/watch"}
-
 
 @pytest.fixture
 def anime_with_sources(db_session, sample_franchise):
@@ -27,9 +30,19 @@ def anime_with_sources(db_session, sample_franchise):
         franchise_id=sample_franchise.system_id,
         anime_name_en="Sourced Anime",
         airing_type="TV",
-        source_other=SOURCES,
     )
     db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaSource(
+            media_type="anime",
+            entry_id=entry.system_id,
+            kind="access",
+            bucket="other",
+            name="Bilibili",
+            url="https://example.invalid/watch",
+        )
+    )
     db_session.flush()
     return entry
 
@@ -40,9 +53,19 @@ def movie_with_sources(db_session, sample_franchise):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Sourced Movie",
-        source_other=SOURCES,
     )
     db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaSource(
+            media_type="movie",
+            entry_id=entry.system_id,
+            kind="access",
+            bucket="other",
+            name="Bilibili",
+            url="https://example.invalid/watch",
+        )
+    )
     db_session.flush()
     return entry
 
@@ -61,17 +84,17 @@ def no_sources_client(client, db_session):
 # The hand-written routers
 # ---------------------------------------------------------------------------
 
-def test_a_gated_column_is_null_in_the_list(no_sources_client, anime_with_sources):
+def test_a_gated_bucket_is_absent_in_the_list(no_sources_client, anime_with_sources):
     body = no_sources_client.get("/api/anime/").json()
     row = next(e for e in body if e["system_id"] == str(anime_with_sources.system_id))
-    assert row["source_other"] is None
+    assert row["sources"] == []
 
 
-def test_a_gated_column_is_null_in_the_detail(no_sources_client, anime_with_sources):
+def test_a_gated_bucket_is_absent_in_the_detail(no_sources_client, anime_with_sources):
     body = no_sources_client.get(
         f"/api/anime/{anime_with_sources.system_id}"
     ).json()
-    assert body["source_other"] is None
+    assert body["sources"] == []
 
 
 def test_the_rest_of_the_entry_survives(no_sources_client, anime_with_sources):
@@ -82,56 +105,82 @@ def test_the_rest_of_the_entry_survives(no_sources_client, anime_with_sources):
     assert body["anime_name_en"] == "Sourced Anime"
 
 
-def test_a_holder_still_sees_the_column(client, anime_with_sources):
+def test_a_holder_still_sees_the_bucket(client, anime_with_sources):
     """The seeded guest holds every field group, so nothing changes for it."""
     body = client.get(f"/api/anime/{anime_with_sources.system_id}").json()
-    assert body["source_other"] == SOURCES
+    assert {s["bucket"] for s in body["sources"]} == {"other"}
 
 
-def test_admin_still_sees_the_column(admin_client, anime_with_sources):
+def test_the_surviving_column_is_withheld_too(
+    no_sources_client, anime_with_sources, db_session
+):
+    """
+    source_other still exists and still holds the pre-migration copy of the
+    same links, so gating only the bucket would hand them straight back.
+    """
+    anime_with_sources.source_other = {"Bilibili": "https://example.invalid/watch"}
+    db_session.commit()
+
+    body = no_sources_client.get(
+        f"/api/anime/{anime_with_sources.system_id}"
+    ).json()
+    assert body["sources"] == []
+    assert body.get("source_other") in (None, {})
+
+    # ...and the gate must not have reached the database.
+    db_session.expire_all()
+    refreshed = db_session.get(models.Anime, anime_with_sources.system_id)
+    assert refreshed.source_other == {"Bilibili": "https://example.invalid/watch"}
+
+
+def test_admin_still_sees_the_bucket(admin_client, anime_with_sources):
     body = admin_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
-    assert body["source_other"] == SOURCES
+    assert {s["bucket"] for s in body["sources"]} == {"other"}
 
 
 # ---------------------------------------------------------------------------
 # The factory-built routers
 # ---------------------------------------------------------------------------
 
-def test_the_factory_routers_gate_the_same_column(
+def test_the_factory_routers_gate_the_same_bucket(
     no_sources_client, movie_with_sources
 ):
     body = no_sources_client.get(
         f"/api/movies/{movie_with_sources.system_id}"
     ).json()
-    assert body["source_other"] is None
+    assert body["sources"] == []
 
 
-def test_the_factory_list_gates_the_same_column(
+def test_the_factory_list_gates_the_same_bucket(
     no_sources_client, movie_with_sources
 ):
     body = no_sources_client.get("/api/movies/").json()
     row = next(e for e in body if e["system_id"] == str(movie_with_sources.system_id))
-    assert row["source_other"] is None
+    assert row["sources"] == []
 
 
 # ---------------------------------------------------------------------------
 # The footgun
 # ---------------------------------------------------------------------------
 
-def test_gating_does_not_erase_the_stored_value(
+def test_gating_does_not_erase_the_stored_row(
     no_sources_client, db_session, anime_with_sources
 ):
     """
-    Nulling a real column on the ORM instance would be flushed to disk. If this
-    ever fails, the response is being built by mutating the entity instead of a
-    copy of it, and gating has become data loss.
+    Withheld buckets are filtered out of the query in attach_sources, not
+    nulled on a live instance, so the row must still exist afterwards.
     """
     no_sources_client.get(f"/api/anime/{anime_with_sources.system_id}")
     no_sources_client.get("/api/anime/")
 
     db_session.expire_all()
-    stored = db_session.get(models.Anime, anime_with_sources.system_id)
-    assert stored.source_other == SOURCES
+    stored = (
+        db_session.query(models.MediaSource)
+        .filter_by(media_type="anime", entry_id=anime_with_sources.system_id)
+        .all()
+    )
+    assert len(stored) == 1
+    assert stored[0].bucket == "other"
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +212,41 @@ def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
         default_guest_permissions() - {field_group_perm("credits")},
     )
     assert "Zvornik Studio" not in client.get("/api/anime/").text
+
+
+def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
+    """
+    credit_refs names the same people the legacy strings do, so withholding
+    Credits must take it as well - a linkable ref leaks the same name the
+    string does. It is a dict, so the blank is {}, not None: the response
+    field does not accept None and a 500 would be the alternative.
+    """
+    person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Composer")
+    db_session.add(person)
+    db_session.flush()
+    db_session.add(
+        models.MediaCredit(
+            system_id=uuid.uuid4(),
+            media_type="anime",
+            entry_id=sample_anime.system_id,
+            role="composer",
+            person_id=person.system_id,
+        )
+    )
+    db_session.flush()
+
+    body = client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert body["credit_refs"]["composer"][0]["display_name"] == "Zvornik Composer"
+
+    make_viewer(
+        db_session,
+        client,
+        "nocredits2",
+        default_guest_permissions() - {field_group_perm("credits")},
+    )
+    body = client.get(f"/api/anime/{sample_anime.system_id}").json()
+    assert body["credit_refs"] == {}
+    assert "Zvornik Composer" not in client.get("/api/anime/").text
 
 
 # ---------------------------------------------------------------------------
@@ -295,3 +379,47 @@ def test_gating_does_not_erase_the_stored_timestamps(
     stored = db_session.get(models.Anime, anime_with_sources.system_id)
     assert stored.created_at is not None
     assert stored.updated_at is not None
+
+
+# ---------------------------------------------------------------------------
+# media_source buckets: partial gating, filtered at attach time
+# ---------------------------------------------------------------------------
+
+
+def test_a_viewer_without_restricted_sources_does_not_see_them(
+    client, admin_client, sample_anime, db_session
+):
+    from app import models
+
+    for bucket in ("other", "restricted"):
+        db_session.add(
+            models.MediaSource(
+                media_type="anime",
+                entry_id=sample_anime.system_id,
+                kind="access",
+                bucket=bucket,
+                name=f"{bucket} site",
+            )
+        )
+    db_session.commit()
+
+    seen = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()["sources"]
+    assert {s["bucket"] for s in seen} == {"other", "restricted"}
+
+    # NOTE: sources_restricted is in GUEST_WITHHELD_FIELD_GROUPS (see
+    # app/services/rbac/seed.py), so default_guest_permissions() already
+    # excludes it and the bare, unauthenticated `client` fixture would behave
+    # the same as the explicit removal below. The explicit removal is kept so
+    # this test does not silently stop covering the gate if that default ever
+    # changes, mirroring no_sources_client's explicit removal of
+    # sources_other above.
+    no_restricted_client = make_viewer(
+        db_session,
+        client,
+        "norestricted",
+        default_guest_permissions() - {field_group_perm("sources_restricted")},
+    )
+    guest = no_restricted_client.get(f"/api/anime/{sample_anime.system_id}")
+    if guest.status_code == 200:
+        assert "restricted" not in {s["bucket"] for s in guest.json()["sources"]}
+        assert "other" in {s["bucket"] for s in guest.json()["sources"]}

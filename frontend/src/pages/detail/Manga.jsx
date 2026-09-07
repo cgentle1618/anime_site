@@ -7,6 +7,7 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
@@ -14,6 +15,7 @@ import MangaNotes from "./MangaNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
   Button,
+  Chip,
   Eyebrow,
   ProgressRule,
   RatingStamp,
@@ -24,8 +26,63 @@ import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { READING_STATUSES } from "../../config/fieldOptions";
+import { useCasting } from "../../hooks/useCasting";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
+
+// Main before Supporting, then whatever order the server already gave —
+// castings unrelated to either role sort last rather than crowding the top.
+const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+
+// Read-only cast list, shared shape for every ACG detail page. Renders
+// nothing when the entry has no cast — an empty "Cast" slip would just be a
+// title over a blank box, same rule NovelUnitsCard follows for units. A
+// manga's castings never carry a seiyuu (ck_casting_voice_scope), so a row
+// with no person_id simply renders the character alone rather than an empty
+// or broken "voiced by" link.
+function CastSection({ cast }) {
+  if (!cast || cast.length === 0) return null;
+  const sorted = [...cast].sort((a, b) => {
+    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
+    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+  return (
+    <Slip title="Cast">
+      <div className="space-y-2">
+        {sorted.map((row) => (
+          <div key={row.system_id} className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+              <img
+                src={getCoverUrl(row.photo_file)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {row.role && <Chip>{row.role}</Chip>}
+              <Link to={`/character/${row.character_id}`} className={lineageLinkCls}>
+                {row.character_name || "Unknown"}
+              </Link>
+              {row.person_id && (
+                <>
+                  <span className="text-text-faint text-xs">voiced by</span>
+                  <Link to={`/person/${row.person_id}`} className={lineageLinkCls}>
+                    {row.person_name || "Unknown"}
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
+}
 
 const selectCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
@@ -288,6 +345,8 @@ export default function Manga() {
     "manga",
     system_id,
   );
+  const castingQuery = useCasting("manga", manga?.system_id);
+  const cast = castingQuery.data?.cast || [];
 
   useEffect(() => {
     if (mangaQuery.data) setManga(mangaQuery.data);
@@ -389,15 +448,6 @@ export default function Manga() {
       franchise.franchise_name_en ||
       franchise.franchise_name_roman
     : null;
-
-  // Extract twitter from source_other so SourcesCard renders it as a dedicated button
-  const rawSourceOther = manga.source_other || {};
-  const twitterLink = rawSourceOther.Twitter || rawSourceOther.twitter || null;
-  const filteredSourceOther = Object.fromEntries(
-    Object.entries(rawSourceOther).filter(
-      ([k]) => k.toLowerCase() !== "twitter",
-    ),
-  );
 
   const authorSame =
     manga.author_plot &&
@@ -520,15 +570,10 @@ export default function Manga() {
 
           {/* Sources */}
           <SourcesCard
-            officialSource={manga.serialization_platform}
-            twitterLink={twitterLink}
+            sources={manga.sources}
+            mediaType="manga"
             malLink={manga.mal_link}
-            anilistLink={manga.anilist_link}
-            sourceOther={
-              Object.keys(filteredSourceOther).length > 0
-                ? filteredSourceOther
-                : null
-            }
+            serializationPlatform={manga.serialization_platform}
           />
 
           {/* Related Entries */}
@@ -624,10 +669,6 @@ export default function Manga() {
                     label: "Serialization Status",
                     value: manga.serialization_status,
                   },
-                  {
-                    label: "Serialization Platform",
-                    value: manga.serialization_platform,
-                  },
                 ],
                 [
                   {
@@ -662,13 +703,44 @@ export default function Manga() {
                 title="Production"
                 fields={[
                   ...(authorSame
-                    ? [{ label: "作者", value: manga.author_plot }]
+                    ? [
+                        {
+                          label: "作者",
+                          value: creditValue(
+                            manga,
+                            "author",
+                            manga.author_plot,
+                          ),
+                        },
+                      ]
                     : [
                         ...(manga.author_plot
-                          ? [{ label: "原作", value: manga.author_plot }]
+                          ? [
+                              {
+                                label: creditLabel(manga, "author", "原作"),
+                                value: creditValue(
+                                  manga,
+                                  "author",
+                                  manga.author_plot,
+                                ),
+                              },
+                            ]
                           : []),
                         ...(manga.author_draw
-                          ? [{ label: "作畫", value: manga.author_draw }]
+                          ? [
+                              {
+                                label: creditLabel(
+                                  manga,
+                                  "illustrator",
+                                  "作畫",
+                                ),
+                                value: creditValue(
+                                  manga,
+                                  "illustrator",
+                                  manga.author_draw,
+                                ),
+                              },
+                            ]
                           : []),
                       ]),
                   [
@@ -679,6 +751,9 @@ export default function Manga() {
               />
             )}
           </div>
+
+          {/* Cast */}
+          <CastSection cast={cast} />
 
           {/* Remarks */}
           {(manga.remark || isAdmin) && manga.remark && (

@@ -13,6 +13,7 @@ from app.models import (
     Manga,
     Novel,
     Person,
+    Publisher,
     Studio,
     TVShows,
 )
@@ -23,10 +24,14 @@ from app.utils.utils import (
     CARTOON_TV_FIELDS_TO_FILL,
     COMIC_FIELDS_TO_FILL,
     COMIC_LINK_FIELDS_TO_FILL,
+    GAME_FIELDS_TO_FILL,
     MANGA_FIELDS_TO_FILL,
     MOVIE_FIELDS_TO_FILL,
     MOVIE_LINK_FIELDS_TO_FILL,
     NOVEL_FIELDS_TO_FILL,
+    NOVEL_OPENLIBRARY_FIELDS_TO_FILL,
+    NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL,
+    STUDIO_FIELDS_TO_FILL,
     TV_SHOW_FIELDS_TO_FILL,
     validate_ch_math,
     validate_episode_math,
@@ -209,6 +214,25 @@ def has_missing_values_novel(novel: Novel) -> bool:
     return False
 
 
+def has_missing_values_novel_openlibrary(db, novel: Novel) -> bool:
+    """
+    Returns True if anything Open Library can supply is still blank: the
+    release date, the cover, or the author credit.
+
+    Narrower than has_missing_values_novel on purpose — see
+    NOVEL_OPENLIBRARY_FIELDS_TO_FILL. There is no mal_link gate here: the
+    caller decides which source an entry belongs to.
+    """
+    for field in NOVEL_OPENLIBRARY_FIELDS_TO_FILL:
+        val = getattr(novel, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+
+    return _link_missing(
+        db, "novel", novel.system_id, NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL
+    )
+
+
 def has_missing_values_comic(db, comic: Comic) -> bool:
     """
     Returns True if any Comic Vine-fillable column or link is blank.
@@ -224,11 +248,60 @@ def has_missing_values_comic(db, comic: Comic) -> bool:
     return _link_missing(db, "comic", comic.system_id, COMIC_LINK_FIELDS_TO_FILL)
 
 
+def has_missing_values_game(game) -> bool:
+    """
+    Returns True if any IGDB-fillable Game column is blank.
 
-def apply_check_baha(entry: Union[Anime, AnimeMovies]) -> None:
-    """Sets source_baha=True if baha_link is present (and source_baha not already set)."""
-    if entry.baha_link and entry.source_baha is None:
-        entry.source_baha = True
+    Columns only, and no `db` argument: the genre/theme/mode tags are excluded
+    on purpose. IGDB English only lands as a tag when `system_option_alias`
+    already knows the term, so a game whose genre has no alias yet would stay
+    permanently "needs filling" and be re-requested on every single run.
+    """
+    for field in GAME_FIELDS_TO_FILL:
+        val = getattr(game, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False
+
+
+def has_missing_values_game_steam(entry) -> bool:
+    """
+    True when Steam has an appid to work with and has written nothing to this
+    entry yet.
+
+    Deliberately not folded into GAME_FIELDS_TO_FILL. A free game has no
+    price, an obscure one no Metacritic score, and many have no achievements,
+    so testing those columns individually would leave such entries eligible
+    for ever. Testing whether Steam has landed *anything* bounds that to the
+    genuinely empty case; refreshing what is already there is Replace's job.
+    """
+    return (
+        entry.steam_appid is not None
+        and entry.metacritic_score is None
+        and entry.price_original_us is None
+        and entry.achievements_total is None
+    )
+
+
+def apply_check_baha(
+    db: Session, entry: Union[Anime, AnimeMovies], media_type: str
+) -> None:
+    """
+    A Bahamut link means the entry is available on Bahamut.
+
+    The rule is unchanged; only its storage moved. The verdict used to be the
+    `source_baha` tristate beside a `baha_link` column, and is now `available`
+    on the entry's Bahamut `main` access row, which carries the url itself. An
+    existing verdict is never overwritten - someone said it deliberately.
+    """
+    from app.services.domain.sources import find_main_source
+    from app.utils.source_fields import BAHAMUT_VALUE
+
+    row = find_main_source(
+        db, media_type, entry.system_id, "access", BAHAMUT_VALUE
+    )
+    if row is not None and row.url and row.available is None:
+        row.available = True
 
 
 def find_duplicate_entities(db: Session) -> list[dict]:
@@ -241,10 +314,10 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     findable in the first place.
 
     Groups on EVERY field _find_by_name (app/services/domain/credits.py)
-    would check for that model - name_native and name_en for a person, all
-    four of name_en/name_cn/name_jp/name_alt for a studio - not on one field
-    alone: resolve_person/resolve_studio look a new credit up by whichever of
-    those fields matches, so two rows that collide on any one of them are
+    would check for that model - all four of name_en/name_cn/name_jp/name_alt,
+    for a person as for a studio - not on one field alone:
+    resolve_person/resolve_studio look a new credit up by whichever of those
+    fields matches, so two rows that collide on any one of them are
     just as ambiguous to future credit resolution as two that collide on the
     "primary" field. Union-find gives the transitive closure across all of a
     model's fields (A's name_en == B's name_jp, B's name_jp == C's name_alt,
@@ -252,16 +325,15 @@ def find_duplicate_entities(db: Session) -> list[dict]:
     are never grouped together - each table is scanned independently.
 
     Each result's "key" is a representative label (the first member's
-    normalized display name - name_native for a person, display_name for a
-    studio), not a normalization key every member is guaranteed to share - a
-    cluster formed through transitivity can have no single key common to all
+    normalized display_name), not a normalization key every member is
+    guaranteed to share - a cluster formed through transitivity can have no single key common to all
     of its rows.
     """
     from app.utils.clustering import cluster
     from app.utils.name_normalize import normalize_name
 
     def keys(row) -> set[str]:
-        fields = getattr(row, "_name_fields", None) or ["name_native"]
+        fields = getattr(row, "_name_fields", None) or ["name_en"]
         return {
             normalize_name(getattr(row, field))
             for field in fields
@@ -269,10 +341,14 @@ def find_duplicate_entities(db: Session) -> list[dict]:
         }
 
     def label(row) -> str:
-        return row.display_name if isinstance(row, Studio) else row.name_native
+        return row.display_name
 
     found: list[dict] = []
-    for kind, model in (("person", Person), ("studio", Studio)):
+    for kind, model in (
+        ("person", Person),
+        ("studio", Studio),
+        ("publisher", Publisher),
+    ):
         rows = db.query(model).all()
         for members in cluster(rows, match=lambda a, b: bool(keys(a) & keys(b))):
             found.append(
@@ -285,3 +361,17 @@ def find_duplicate_entities(db: Session) -> list[dict]:
             )
 
     return found
+
+
+def has_missing_values_studio(studio: Studio) -> bool:
+    """
+    Returns True if any Tenrai-fillable Studio column is blank.
+
+    The Fill pipeline pairs this with a mal_id check: a studio with no MAL id
+    has no source to fill from, however empty it is.
+    """
+    for field in STUDIO_FIELDS_TO_FILL:
+        val = getattr(studio, field, None)
+        if val is None or str(val).strip() == "":
+            return True
+    return False

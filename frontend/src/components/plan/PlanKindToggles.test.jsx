@@ -63,3 +63,13 @@ describe("kindLabel", () => {
     expect(kindLabel("rewatch", ["novel", "movie"])).toBe("To Rewatch");
   });
 });
+
+describe("kindLabel for the play axis", () => {
+  it("says To Replay for an all-game group", () => {
+    expect(kindLabel("rewatch", ["game"])).toBe("To Replay");
+  });
+
+  it("falls back to To Rewatch for a mixed group", () => {
+    expect(kindLabel("rewatch", ["game", "anime"])).toBe("To Rewatch");
+  });
+});

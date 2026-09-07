@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-09-04
+Last verified: 2026-09-06
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -59,7 +59,7 @@ counts). `h1` is display by default.
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
    are the rating stamp (brand), destructive states (danger) and the
    **scope chips on the System Options page** (`config/scopeColors.js`,
-   `--color-scope-*` in both palettes). That page runs the same eight media
+   `--color-scope-*` in all three palettes). That page runs the same nine media
    type keys down one narrow column across hundreds of rows, and the question
    asked of it — which two values are offered in the same places — is a
    comparison, not a reading; hue answers it at a glance where
@@ -67,7 +67,10 @@ counts). `h1` is display by default.
    so the colour is an index and never the only signal. It is scoped to that
    one column on purpose: `config/mediaTypeColors.js` still gives every media
    type the same ink chip everywhere else, and a second colour-coded category
-   needs the same argument made again, not this one cited.
+   needs the same argument made again, not this one cited. Adding a media type
+   means adding its `--c-scope-*` hue to `:root`, `[data-theme="dark"]` **and**
+   the `prefers-color-scheme` block — `game` is `hsl(95 40% 33%)` light,
+   `hsl(95 45% 58%)` dark.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
    "Quick edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.
@@ -91,6 +94,19 @@ counts). `h1` is display by default.
 Shared detail-page pieces built on these: `InfoCard` (a slip of
 label/value fields), `ScoreBlock` (display figures on hairlines),
 `SourcesCard`, `MyTrackerCard`, `RelationsSection`.
+
+Two of those flex rather than fork for a type that does not fit the shape:
+
+- `MyTrackerCard` renders its progress stepper in the slip's `actions` slot
+  **only when the caller passes an `onEpChange`**. A game has no episode,
+  issue or chapter to count off, so `Game.jsx` passes none and the card shows
+  status, rating and the To Replay checkbox alone rather than an inert
+  `0 / undefined` counter.
+- `SourcesCard`'s access heading is chosen by media type — "Where to Watch",
+  "Where to Read", or **"Where to Play"** for a game — above a single
+  "Where to Look Up" reference section that also renders the column-backed
+  `malLink` / `imdbLink` / `comicvineLink` / `openLibraryLink` / `igdbLink`
+  props.
 
 ## Page anatomy
 

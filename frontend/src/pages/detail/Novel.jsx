@@ -7,13 +7,15 @@ import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
+import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
 import NovelTrackerBlock from "../../components/tracker/NovelTrackerBlock";
 import SourcesCard from "../../components/info/SourcesCard";
 import ScoreBlock from "../../components/info/ScoreBlock";
 import NovelNotes from "./NovelNotes";
-import BelongingNovelsEditor from "../../components/forms/BelongingNovelsEditor";
+import NovelUnitsEditor from "../../components/forms/NovelUnitsEditor";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
+import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   Button,
   Chip,
@@ -25,74 +27,117 @@ import {
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
+import { useCasting } from "../../hooks/useCasting";
 
 const textareaCls =
   "block w-full border border-border-strong bg-surface text-text px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-2 disabled:text-text-faint disabled:cursor-not-allowed";
 const lineageLinkCls =
   "text-text underline decoration-border-strong underline-offset-4 hover:decoration-brand hover:text-brand transition";
 
-function BelongingNovelsCard({ novel, isAdmin, onSave }) {
-  const [cnItems, setCnItems] = useState(novel.novel_name_each_cn || []);
-  const [enItems, setEnItems] = useState(novel.novel_name_each_en || []);
+// Main before Supporting, then whatever order the server already gave —
+// castings unrelated to either role sort last rather than crowding the top.
+const CAST_ROLE_ORDER = { Main: 0, Supporting: 1 };
+
+// Read-only cast list, shared shape for every ACG detail page. Renders
+// nothing when the entry has no cast — an empty "Cast" slip would just be a
+// title over a blank box, same rule NovelUnitsCard follows for units. A
+// novel's castings never carry a seiyuu (ck_casting_voice_scope), so a row
+// with no person_id simply renders the character alone rather than an empty
+// or broken "voiced by" link.
+function CastSection({ cast }) {
+  if (!cast || cast.length === 0) return null;
+  const sorted = [...cast].sort((a, b) => {
+    const ra = CAST_ROLE_ORDER[a.role] ?? 2;
+    const rb = CAST_ROLE_ORDER[b.role] ?? 2;
+    if (ra !== rb) return ra - rb;
+    return (a.position ?? 0) - (b.position ?? 0);
+  });
+  return (
+    <Slip title="Cast">
+      <div className="space-y-2">
+        {sorted.map((row) => (
+          <div key={row.system_id} className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-surface-2 overflow-hidden rounded">
+              <img
+                src={getCoverUrl(row.photo_file)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = FALLBACK_SVG;
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+              {row.role && <Chip>{row.role}</Chip>}
+              <Link to={`/character/${row.character_id}`} className={lineageLinkCls}>
+                {row.character_name || "Unknown"}
+              </Link>
+              {row.person_id && (
+                <>
+                  <span className="text-text-faint text-xs">voiced by</span>
+                  <Link to={`/person/${row.person_id}`} className={lineageLinkCls}>
+                    {row.person_name || "Unknown"}
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Slip>
+  );
+}
+
+// BelongingNovelsCard (CN/EN per-volume title editor) used to live here; it
+// read novel_name_each_cn/_en, which the backend replaced with the `units`
+// relationship (see app/models/novel.py NovelUnit). NovelUnitsCard below is
+// its replacement: same read-only/editor split, but backed by `units` and
+// each row's server-computed `display_key` instead of a bare `{key, name}`.
+function NovelUnitsCard({ novel, isAdmin, onSave }) {
+  const [items, setItems] = useState(novel.units || []);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setCnItems(novel.novel_name_each_cn || []);
-    setEnItems(novel.novel_name_each_en || []);
+    setItems(novel.units || []);
     setDirty(false);
-  }, [novel.novel_name_each_cn, novel.novel_name_each_en]);
+  }, [novel.units]);
 
   function handleSave() {
-    const toArr = (items) => {
-      const filtered = items.filter(({ key, name }) => key && name);
-      return filtered.length ? filtered : null;
-    };
     onSave({
-      novel_name_each_cn: toArr(cnItems),
-      novel_name_each_en: toArr(enItems),
+      units: items.map((u, i) => ({
+        ...u,
+        position: i + 1,
+        ch_count:
+          u.ch_count === "" || u.ch_count == null ? null : Number(u.ch_count),
+      })),
     });
     setDirty(false);
   }
 
   function handleCancel() {
-    // Mirror the reset effect above; `objToItems` never existed, so Cancel
-    // threw a ReferenceError before this was caught by ESLint's no-undef.
-    setCnItems(novel.novel_name_each_cn || []);
-    setEnItems(novel.novel_name_each_en || []);
+    setItems(novel.units || []);
     setDirty(false);
   }
 
-  function renderReadOnly(items) {
-    if (!items.length)
-      return <p className="text-xs text-text-faint">No entries.</p>;
-    return (
-      <div className="space-y-1.5">
-        {items.map((item) => (
-          <div key={item.key} className="flex items-center gap-2">
-            <Chip className="shrink-0">{item.key}</Chip>
-            <span className="text-sm text-text">{item.name}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const hasUnits = (novel.units || []).length > 0;
+  // Read-only viewers see nothing when there are no units — an empty
+  // "Units" card would just be a title over a blank box. Admins still get
+  // the editor (with its own "+ Add" control) so they can create the first
+  // one.
+  if (!isAdmin && !hasUnits) return null;
 
   return (
-    <Slip title="Belonging novels">
+    <Slip title="Units">
       <div className="space-y-4">
         {isAdmin ? (
           <>
-            <BelongingNovelsEditor
-              label="CN"
-              placeholder="Chinese title"
-              items={cnItems}
-              onChange={(v) => { setCnItems(v); setDirty(true); }}
-            />
-            <BelongingNovelsEditor
-              label="EN"
-              placeholder="English title"
-              items={enItems}
-              onChange={(v) => { setEnItems(v); setDirty(true); }}
+            <NovelUnitsEditor
+              items={items}
+              novelType={novel.type}
+              onChange={(v) => {
+                setItems(v);
+                setDirty(true);
+              }}
             />
             {dirty && (
               <div className="flex gap-2 pt-3 border-t border-border">
@@ -106,15 +151,28 @@ function BelongingNovelsCard({ novel, isAdmin, onSave }) {
             )}
           </>
         ) : (
-          <div className="space-y-4">
-            <div>
-              <Eyebrow className="mb-2">CN</Eyebrow>
-              {renderReadOnly(cnItems)}
-            </div>
-            <div>
-              <Eyebrow className="mb-2">EN</Eyebrow>
-              {renderReadOnly(enItems)}
-            </div>
+          <div className="space-y-1.5">
+            {(novel.units || []).map((u) => (
+              <div key={u.system_id} className="flex items-center gap-2">
+                <Chip className="shrink-0">{u.display_key}</Chip>
+                {(u.name_cn || u.name_en) && (
+                  <span className="text-sm text-text">
+                    {[u.name_cn, u.name_en].filter(Boolean).join(" / ")}
+                  </span>
+                )}
+                {u.unit_kind === "arc" && u.ch_count != null && (
+                  <span className="text-xs font-mono text-text-faint">
+                    {u.ch_count} ch
+                  </span>
+                )}
+                {u.my_rating && (
+                  <Chip className="shrink-0">{u.my_rating}</Chip>
+                )}
+                {u.remark && (
+                  <span className="text-xs text-text-faint">{u.remark}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -138,6 +196,8 @@ export default function Novel() {
   const allNovelsQuery = useMediaList("novel", LIST_OPTIONS);
   const { setMediaItem, fetchMediaItem, invalidateMedia } =
     useMediaCacheUpdate("novel", system_id);
+  const castingQuery = useCasting("novel", novel?.system_id);
+  const cast = castingQuery.data?.cast || [];
 
   useEffect(() => {
     if (novelQuery.data) setNovel(novelQuery.data);
@@ -243,18 +303,27 @@ export default function Novel() {
       franchise.franchise_name_roman
     : null;
 
-  const rawSourceOther = novel.source_other || {};
-  const twitterLink = rawSourceOther.Twitter || rawSourceOther.twitter || null;
-  const filteredSourceOther = Object.fromEntries(
-    Object.entries(rawSourceOther).filter(
-      ([k]) => k.toLowerCase() !== "twitter",
-    ),
-  );
-
-  const chFin = novel.ch_fin ?? 0;
-  const chTotal = novel.ch_total != null ? novel.ch_total : null;
-  const progress = chTotal ? chFin / chTotal : chFin > 0 ? 1 : 0;
-  const progressPct = chTotal ? Math.round(progress * 100) : null;
+  // The rule along the cover shows whichever counter the entry is set to.
+  // It used to read ch_fin/ch_total unconditionally, which is how a finished
+  // 11-volume light novel came to display "CHAPTERS 0 / 110".
+  const progressMode = effectiveProgressDisplay(novel);
+  const arcCount = (novel.units || []).filter((u) => u.unit_kind === "arc").length;
+  const [progressLabel, progressFin, progressTotal] =
+    progressMode === "vol_tw"
+      ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_tw ?? novel.vol_total_original ?? null]
+      : progressMode === "vol_original"
+        ? ["Volumes", novel.vol_fin ?? 0, novel.vol_total_original ?? novel.vol_total_tw ?? null]
+        : progressMode === "arc"
+          ? ["Arcs", novel.arc_fin ?? 0, arcCount || null]
+          : // "ch" and "arc_ch" both read the absolute chapter pair; with arc
+            // rows it is derived from them, so the two agree by construction.
+            ["Chapters", novel.ch_fin ?? 0, novel.ch_total ?? null];
+  const progress = progressTotal
+    ? progressFin / progressTotal
+    : progressFin > 0
+      ? 1
+      : 0;
+  const progressPct = progressTotal ? Math.round(progress * 100) : null;
 
   const eyebrow = ["Novel", novel.region, novel.type, novel.serialization_status]
     .filter(Boolean)
@@ -356,9 +425,9 @@ export default function Novel() {
               {/* Progress rule along the bottom edge of the cover */}
               <ProgressRule value={progress} />
               <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
-                <span>Chapters</span>
+                <span>{progressLabel}</span>
                 <span className="text-text">
-                  {chFin} / {chTotal ?? "?"}
+                  {progressFin} / {progressTotal ?? "?"}
                   {progressPct != null ? ` · ${progressPct}%` : ""}
                 </span>
               </div>
@@ -367,14 +436,11 @@ export default function Novel() {
 
           {/* Sources */}
           <SourcesCard
-            twitterLink={twitterLink}
+            sources={novel.sources}
+            mediaType="novel"
             malLink={novel.mal_link}
-            anilistLink={novel.anilist_link}
-            sourceOther={
-              Object.keys(filteredSourceOther).length > 0
-                ? filteredSourceOther
-                : null
-            }
+            openLibraryLink={novel.openlibrary_link}
+            serializationPlatform={novel.serialization_platform}
           />
 
           <RelationsSection mediaType="novel" entryId={novel.system_id} />
@@ -441,8 +507,8 @@ export default function Novel() {
             onVolChange={(v) =>
               performPatch({ vol_fin: v }, "Volume progress saved")
             }
-            onArcChange={(v) =>
-              performPatch({ arc_fin: v }, "Arc progress saved")
+            onArcProgressChange={(next) =>
+              performPatch(next, "Arc progress saved")
             }
             onStatusChange={(v) =>
               performPatch({ reading_status: v }, "Status updated")
@@ -487,7 +553,7 @@ export default function Novel() {
                 ],
                 [
                   {
-                    label: "Vol Total (Original)",
+                    label: "Total Volumes (JP/KR)",
                     value:
                       novel.vol_total_original != null
                         ? String(novel.vol_total_original)
@@ -521,10 +587,28 @@ export default function Novel() {
                 title="Production"
                 fields={[
                   ...(novel.author
-                    ? [{ label: "Author", value: novel.author }]
+                    ? [
+                        {
+                          label: creditLabel(novel, "author", "Author"),
+                          value: creditValue(novel, "author", novel.author),
+                        },
+                      ]
                     : []),
                   ...(novel.illustrator
-                    ? [{ label: "Illustrator", value: novel.illustrator }]
+                    ? [
+                        {
+                          label: creditLabel(
+                            novel,
+                            "illustrator",
+                            "Illustrator",
+                          ),
+                          value: creditValue(
+                            novel,
+                            "illustrator",
+                            novel.illustrator,
+                          ),
+                        },
+                      ]
                     : []),
                   ...(novel.publisher_tw
                     ? [{ label: "Publisher (TW)", value: novel.publisher_tw }]
@@ -533,6 +617,9 @@ export default function Novel() {
               />
             )}
           </div>
+
+          {/* Cast */}
+          <CastSection cast={cast} />
 
           {/* Remarks */}
           {novel.remark && (
@@ -555,11 +642,11 @@ export default function Novel() {
             </Slip>
           )}
 
-          {/* Belonging Novels Card */}
-          <BelongingNovelsCard
+          {/* Units */}
+          <NovelUnitsCard
             novel={novel}
             isAdmin={isAdmin}
-            onSave={(payload) => performPatch(payload, "Belonging novels saved")}
+            onSave={(payload) => performPatch(payload, "Units saved")}
           />
 
           {/* Structured Notes */}

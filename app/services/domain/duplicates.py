@@ -19,6 +19,7 @@ from app.models import (
     Cartoon,
     Comic,
     Franchise,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -200,6 +201,21 @@ def find_duplicate_comic(db: Session) -> list[list[dict]]:
     )
 
 
+def find_duplicate_game(db: Session) -> list[list[dict]]:
+    """Same franchise, series, game type + a shared name.
+
+    game_type is part of the key because a DLC or expansion shares its base
+    game's franchise and usually its name stem ("Elden Ring" / "Elden Ring:
+    Shadow of the Erdtree"), and the two are separate entries by design.
+    """
+    return _find(
+        _with_franchise(db, Game),
+        key=lambda g: (str(g.franchise_id), _ref(g.series_id), g.game_type),
+        fields=("franchise_id", "series_id", "game_type", "game_name_en",
+                "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
+    )
+
+
 def find_duplicate_system_options(db: Session) -> list[list[dict]]:
     """Same category and value, case-insensitively - what the exact-match
     UNIQUE(category, value) constraint cannot catch ("Netflix" vs "netflix")."""
@@ -227,6 +243,7 @@ def find_all_duplicates(db: Session) -> dict:
         "manga": find_duplicate_manga(db),
         "novel": find_duplicate_novel(db),
         "comic": find_duplicate_comic(db),
+        "game": find_duplicate_game(db),
         "system_options": find_duplicate_system_options(db),
         "entities": find_duplicate_entities(db),
     }

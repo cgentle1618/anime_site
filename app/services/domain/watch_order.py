@@ -20,6 +20,7 @@ from app.models import (
     AnimeMovies,
     Cartoon,
     Comic,
+    Game,
     Manga,
     Movies,
     Novel,
@@ -38,6 +39,10 @@ MEDIA_TYPE_MODELS = {
     "manga": Manga,
     "novel": Novel,
     "comic": Comic,
+    # A game is an entry like any other: a franchise's order may step through
+    # its game beside its anime, and plan_next_kinds already gives games all
+    # three plan scopes.
+    "game": Game,
 }
 
 # Per type: which column holds the progress status, and which holds the unit
@@ -52,6 +57,7 @@ _STATUS_FIELDS = {
     "manga": "reading_status",
     "novel": "reading_status",
     "comic": "reading_status",
+    "game": "playing_status",
 }
 
 _TOTAL_FIELDS = {

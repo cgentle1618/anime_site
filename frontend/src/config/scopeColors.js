@@ -6,7 +6,7 @@
 // and config/mediaTypeColors.js still honours that everywhere else: a relation
 // graph mixes types but shows a handful at a time, each read from its label.
 // The System Options table is the case the rule does not serve. It runs the
-// same eight keys down one narrow column across hundreds of rows, where the
+// same nine keys down one narrow column across hundreds of rows, where the
 // question is "which of these two values is offered in the same places?" -
 // a shape comparison, answered instantly by hue and slowly by reading
 // "anime-movie" against "anime". Colour is the index here, not decoration.
@@ -28,6 +28,7 @@ export const SCOPE_CHIPS = {
   manga: `${CHIP} bg-scope-manga/12 border-scope-manga/40 text-scope-manga`,
   novel: `${CHIP} bg-scope-novel/12 border-scope-novel/40 text-scope-novel`,
   comic: `${CHIP} bg-scope-comic/12 border-scope-comic/40 text-scope-comic`,
+  game: `${CHIP} bg-scope-game/12 border-scope-game/40 text-scope-game`,
 };
 
 // A scope row can hold a key this build has never heard of - an older
@@ -38,4 +39,26 @@ const FALLBACK = `${CHIP} bg-surface-2 border-border text-text-muted`;
 /** Chip classes for one system_option_scope key. */
 export function scopeChip(scope) {
   return SCOPE_CHIPS[scope] || FALLBACK;
+}
+
+// Usage (watch / origin) is a different axis from media type, not a parallel
+// taxonomy - it does not get its own hue family. Giving it one (a ninth and
+// tenth colour alongside the eight scope hues) would sit in the same visual
+// register as SCOPE_CHIPS and invite exactly the collision this replaced:
+// a usage chip and a scope chip rendering pixel-identical in the same table.
+// Usage chips are ink instead, the way SourcesCard.jsx's `Tag` renders a
+// site tag - a hairline border and muted text, no fill - so watch and origin
+// read as "not a media type" at a glance and differ from each other only by
+// their label, which is exactly how they differ conceptually.
+const USAGE_CHIP =
+  "text-[10px] font-bold rounded px-1.5 py-0.5 border border-border-strong text-text-muted";
+
+export const USAGE_CHIPS = {
+  watch: USAGE_CHIP,
+  origin: USAGE_CHIP,
+};
+
+/** Chip classes for one system_option usage key. */
+export function usageChip(usage) {
+  return USAGE_CHIPS[usage] || FALLBACK;
 }

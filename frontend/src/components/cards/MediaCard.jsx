@@ -10,17 +10,18 @@ import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
 import { releaseYear } from "../../lib/releaseDate";
+import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
   getDisplayName,
   getCoverUrl,
   FALLBACK_SVG,
-  isBaha,
-  getStatusButtonConfig,
-  getReadingButtonConfig,
+  getCardStatusConfig,
   getReleaseFallback,
   formatLength,
   parseTypes,
   MEDIA_CONFIG,
+  getNovelProgress,
+  getBahaRow,
 } from "../../utils/media";
 import { Chip, RatingStamp } from "../ui/primitives";
 
@@ -33,6 +34,7 @@ const SPINE_LABEL = {
   manga: "Manga",
   novel: "Novel",
   comic: "Comic",
+  game: "Game",
 };
 
 const FUTURE_WATCHING_OPTIONS = [
@@ -73,8 +75,10 @@ function MetaLine({ children, className = "" }) {
 }
 
 function PosterBadges({ type, variant, data, franchiseDict }) {
-  const bahaFlag = (type === "anime" || type === "anime-movie") && isBaha(data);
-  const hasBahaLink = bahaFlag && data.baha_link && data.baha_link !== "N/A";
+  const bahaRow = getBahaRow(data);
+  const bahaFlag =
+    (type === "anime" || type === "anime-movie") && bahaRow?.available === true;
+  const hasBahaLink = bahaFlag && bahaRow?.url;
   const franchise = franchiseDict?.[data.franchise_id];
   const expectation = franchise?.franchise_expectation;
 
@@ -94,7 +98,7 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
         {bahaFlag &&
           (hasBahaLink ? (
             <a
-              href={data.baha_link}
+              href={bahaRow.url}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -391,7 +395,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   }
 
   if (type === "novel") {
-    const pd = data.progress_display;
+    const pd = effectiveProgressDisplay(data);
     if (pd === "vol_tw") {
       return (
         <Count
@@ -404,10 +408,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     if (pd === "arc_ch") {
       return (
         <span className="font-mono text-[10px] text-text-muted tabular-nums">
-          {data.arc_fin ?? 0}/{data.arc_total ?? "?"}
-          <span className={UNIT_CLS}>arc</span> &nbsp;
-          {data.ch_fin ?? 0}/{data.ch_total ?? "?"}
-          <span className={UNIT_CLS}>ch</span>
+          {getNovelProgress(data)}
         </span>
       );
     }
@@ -433,6 +434,19 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     const issFin = data.issue_fin ?? 0;
     const issTotal = data.issue_total != null ? data.issue_total : "?";
     return <Count fin={issFin} total={issTotal} unit="iss" />;
+  }
+
+  // A game has no episode/chapter counter - playtime against the main-story
+  // estimate is its progress. With neither figure there is nothing to show.
+  if (type === "game") {
+    if (data.hours_played == null && data.hltb_main == null) return null;
+    return (
+      <Count
+        fin={data.hours_played ?? 0}
+        total={data.hltb_main != null ? data.hltb_main : "?"}
+        unit="h"
+      />
+    );
   }
 
   return null;
@@ -496,8 +510,16 @@ const HAS_PROGRESS = new Set([
   "manga",
   "novel",
   "comic",
+  "game",
 ]);
 const ADMIN_ONLY_STATUS = new Set(["movie", "anime-movie"]);
+
+// The status a card shows when the entry has none yet, per status axis.
+const FALLBACK_STATUS = {
+  watch: "Might Watch",
+  read: "Might Read",
+  play: "Might Play",
+};
 
 export default function MediaCard({
   type,
@@ -520,12 +542,8 @@ export default function MediaCard({
 
   const title = getDisplayName(data, type);
   const imageUrl = getCoverUrl(data.cover_image_file);
-  const currentStatus =
-    data[statusField] || (statusType === "read" ? "Might Read" : "Might Watch");
-  const btnConfig =
-    statusType === "read"
-      ? getReadingButtonConfig(currentStatus)
-      : getStatusButtonConfig(currentStatus);
+  const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
+  const btnConfig = getCardStatusConfig(type, currentStatus);
   const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
 
   async function handleStatusToggle(e) {

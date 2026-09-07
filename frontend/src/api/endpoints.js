@@ -37,6 +37,9 @@ export const endpoints = {
   // Tier 1 closed enums. Read-only by design - they live in Python.
   constants: {
     list: () => "/api/constants",
+    // Admin-only, unlike the enum list above: the external-API field
+    // inventory behind /external-apis.
+    externalApis: () => "/api/constants/external-apis",
   },
 
   options: {
@@ -136,14 +139,45 @@ export const endpoints = {
     detail: (id) => `/api/person/${id}`,
     create: () => "/api/person/",
     update: (id) => `/api/person/${id}`,
-    remove: (id) => `/api/person/${id}`,
+    // The credit count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, credits) => `/api/person/${id}?credits=${credits}`,
     merge: (id) => `/api/person/${id}/merge`,
+    entries: (id) => `/api/person/${id}/entries`,
     roleCounts: () => "/api/person/role-counts",
+    roleScopes: () => "/api/person/role-scopes",
   },
 
   credits: {
     get: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
     update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+  },
+
+  character: {
+    list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/character/${id}`,
+    create: () => "/api/character/",
+    update: (id) => `/api/character/${id}`,
+    // The casting count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
+    merge: (id) => `/api/character/${id}/merge`,
+    entries: (id) => `/api/character/${id}/entries`,
+  },
+
+  casting: {
+    get: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+    replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+  },
+
+  publisher: {
+    list: () => "/api/publisher/",
+    detail: (id) => `/api/publisher/${id}`,
+    create: () => "/api/publisher/",
+    update: (id) => `/api/publisher/${id}`,
+    remove: (id) => `/api/publisher/${id}`,
+    merge: (id) => `/api/publisher/${id}/merge`,
+    entries: (id) => `/api/publisher/${id}/entries`,
   },
 
   studio: {
@@ -187,6 +221,14 @@ export const endpoints = {
     update: (id) => `/api/meme/${id}`,
     patch: (id) => `/api/meme/${id}`,
     remove: (id) => `/api/meme/${id}`,
+  },
+
+  // Game CRUD comes from resource("game"); this group holds the one endpoint
+  // that is not CRUD — the admin's IGDB picker, which answers with IGDB's raw
+  // game objects (id, name, first_release_date, cover.url, url).
+  game: {
+    searchIgdb: (q, limit = 10) =>
+      `/api/game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
   },
 
   dataControl: {

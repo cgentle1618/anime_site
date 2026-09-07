@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-04 (commit c80c84a)
 
 ## What this is for
 
@@ -15,15 +15,15 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 48 | 649 | Python only, no database, no network |
-| `tests/api/` | 73 | 804 | PostgreSQL database `anime_site_test` |
+| `tests/unit/` | 59 | 722 | Python only, no database, no network |
+| `tests/api/` | 78 | 878 | PostgreSQL database `anime_site_test` |
 | `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 40 | 376 `it`/`test` blocks | Node + jsdom |
+| `frontend/src/**/*.test.{js,jsx}` | 62 | 495 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
 count once. Backend tests use only two markers: `pytest.mark.parametrize`
-(64 sites) and `pytest.mark.anyio` (10 sites, all in
+(66 sites) and `pytest.mark.anyio` (10 sites, all in
 `tests/api/test_pipeline_runner.py`).
 
 Frontend tests are co-located with the source they cover
@@ -56,7 +56,13 @@ Representative files: `test_utils.py`, `test_tenrai_utils.py`,
 `test_derivations.py`, `test_checking_rules.py`, `test_security.py`,
 `test_release_date*.py`, `test_note_*.py`, `test_rbac_permissions.py`,
 `test_rbac_viewer.py`, `test_field_groups.py`, `test_link_fields_schema.py`,
-`test_sheets_retry.py`.
+`test_sheets_retry.py`. Novel units: `test_novel_unit_model.py` (columns, kind vocabulary),
+`test_novel_unit_schemas.py` (`NovelUnitWrite`/`Response`, `display_key`),
+`test_novel_progress.py` (`normalize_arc_progress` rollover,
+`derive_novel_progress`, `unit_display_key`), `test_novel_completion.py`
+(`mark_novel_completed` with and without arc rows), `test_novel_unit_migration.py`
+(the `nv1u2n3i4t5s` data migration's list-to-rows conversion), `test_formatter_novel_unit.py`
+(`parse_novel_unit_from_sheet`, the "Novel Unit" sheet tab).
 
 ### API (`tests/api/`)
 
@@ -82,6 +88,12 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
 
 The `anyio` marker in `test_pipeline_runner.py` is served by the `anyio`
 plugin that ships with Starlette/httpx; `pytest-asyncio` was removed.
+`test_novel_units_api.py` covers `units` on `POST`/`PUT /api/novel`
+(insert/update/delete-by-omission via `write_novel_units`, `display_key` on
+the response, derived `arc_total`/`ch_total`/`ch_fin`, volume rows never
+touching the volume counters, cascade delete on the parent novel, and
+`selectinload` avoiding N+1 on list), plus `PATCH` rolling the
+`arc_fin`/`ch_fin_in_arc` cursor over an arc boundary.
 
 ### Frontend (`frontend/src/**/*.test.*`)
 
@@ -89,7 +101,14 @@ Vitest with jsdom and Testing Library. Roughly half the files test pure
 modules (`lib/`, `utils/`, `config/`, `api/endpoints`), the rest render
 components with `@testing-library/react` and drive them with
 `@testing-library/user-event`; 22 files stub modules or fetch with
-`vi.mock`/`vi.fn`/`vi.spyOn`.
+`vi.mock`/`vi.fn`/`vi.spyOn`. `src/config/novelUnitKinds.test.js` is a
+drift guard in the `planNext.test.js` style — it reads
+`app/utils/constants.py` off disk (not a duplicated JS copy) and fails if
+`NOVEL_UNIT_KINDS_BY_TYPE` in `lib/novelUnits.js` diverges from it, guarded
+against a hollow pass by asserting the parsed map is non-empty and contains
+all four novel types before comparing. `components/forms/NovelUnitsEditor.test.jsx`
+covers the editor; `components/tracker/NovelDashboardCard.test.jsx` covers
+the two-stage cursor stepper.
 
 ## Fixtures in `tests/api/conftest.py`
 

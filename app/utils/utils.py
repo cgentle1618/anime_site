@@ -13,6 +13,10 @@ from typing import Any, Optional, Tuple
 # ==========================================
 MAL_ID_PATTERN = re.compile(r"myanimelist\.net/anime/(\d+)")
 MAL_MANGA_ID_PATTERN = re.compile(r"myanimelist\.net/manga/(\d+)")
+# A studio lives under /anime/producer/<id>/<slug>, so MAL_ID_PATTERN above
+# cannot match it ("producer" is not digits) and this one cannot match a
+# plain anime link. The two never poach each other.
+MAL_PRODUCER_ID_PATTERN = re.compile(r"myanimelist\.net/anime/producer/(\d+)")
 IMDB_ID_PATTERN = re.compile(r"imdb\.com/title/tt(\d+)")
 SEASON_PART_PATTERN = re.compile(r"(?i)(season\s*\d+|part\s*\d+|cour\s*\d+)")
 SEASON_PATTERN = re.compile(r"season\s*(\d+)", re.IGNORECASE)
@@ -37,6 +41,11 @@ MONTH_MAP = {
     "DEC": "12",
 }
 
+# Column fields only. official_link and twitter_link used to be listed here;
+# Fill writes them as media_source reference rows now and the columns are
+# being dropped, so naming them would make getattr() return None forever and
+# mark every anime "needs Fill" on every run - the same trap the comment
+# below MOVIE_FIELDS_TO_FILL describes.
 ANIME_FIELDS_TO_FILL = [
     "airing_type",
     "airing_status",
@@ -45,9 +54,17 @@ ANIME_FIELDS_TO_FILL = [
     "mal_rating",
     "mal_rank",
     "ep_total",
-    "official_link",
-    "twitter_link",
     "cover_image_file",
+]
+
+# What the Tenrai producers endpoint can supply for a studio. my_rating,
+# country and defunct_date are absent on purpose: MAL reports none of them.
+STUDIO_FIELDS_TO_FILL = [
+    "mal_link",
+    "founded_date",
+    "name_jp",
+    "website_url",
+    "logo_file",
 ]
 
 ANIME_MOVIE_FIELDS_TO_FILL = [
@@ -55,8 +72,6 @@ ANIME_MOVIE_FIELDS_TO_FILL = [
     "release_date_jp",
     "mal_rating",
     "mal_rank",
-    "official_link",
-    "twitter_link",
     "cover_image_file",
 ]
 
@@ -112,6 +127,17 @@ NOVEL_FIELDS_TO_FILL = [
     "cover_image_file",
 ]
 
+# Only what Open Library actually returns for a work. serialization_status,
+# end_date, mal_rating and mal_rank are in NOVEL_FIELDS_TO_FILL but have no
+# Open Library equivalent, so listing them here would leave every entry
+# permanently "needs filling" and re-request it on every run.
+NOVEL_OPENLIBRARY_FIELDS_TO_FILL = [
+    "release_date",
+    "cover_image_file",
+]
+
+NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL = [("credit", "author")]
+
 # Only the fields Comic Vine actually returns for a volume. imprint, continuity,
 # era, events, end_date and publisher_tw are deliberately excluded: Comic Vine
 # models none of them, so listing them here would leave every entry permanently
@@ -128,6 +154,20 @@ COMIC_FIELDS_TO_FILL = [
     "release_date",
     "issue_total",
     "cover_image_file",
+]
+
+# What IGDB actually returns for a game. Genres, themes and modes are NOT here:
+# they are tags, and IGDB's English only becomes a stored value when the alias
+# table already knows it - so a game whose genre has no alias yet would be
+# re-requested on every run forever. No summary column exists to fill, and the
+# price, patch and achievement columns are personal data IGDB does not model.
+GAME_FIELDS_TO_FILL = [
+    "igdb_link",
+    "release_date",
+    "cover_image_file",
+    "hltb_main",
+    "hltb_main_extra",
+    "hltb_completionist",
 ]
 
 # ==========================================
@@ -235,6 +275,22 @@ def extract_mal_id_manga_novel(url: str) -> Optional[int]:
     match = MAL_MANGA_ID_PATTERN.search(url)
     if match:
         return int(match.group(1))
+    return None
+
+
+def extract_mal_id_producer(url: str) -> Optional[int]:
+    """
+    Extracts the numeric ID from a MyAnimeList producer (studio) URL, e.g.
+    https://myanimelist.net/anime/producer/56/A-1_Pictures -> 56.
+    Returns None if the URL is invalid or the ID cannot be found.
+    """
+    if not url:
+        return None
+
+    match = MAL_PRODUCER_ID_PATTERN.search(url)
+    if match:
+        return int(match.group(1))
+
     return None
 
 
