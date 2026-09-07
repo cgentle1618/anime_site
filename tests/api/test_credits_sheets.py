@@ -49,18 +49,30 @@ def test_sheet_link_headers_and_values_stay_aligned(db_session):
     assert values[headers.index("studio")] == "MAPPA, WIT"
 
 
-def test_anime_publisher_tw_keeps_its_historic_distributor_tw_header(db_session):
-    """anime.publisher_tw is the one field whose legacy header differs from its
-    key - it always wrote under `distributor_tw`, not `publisher_tw`."""
+def test_anime_publisher_keeps_its_historic_distributor_tw_header(db_session):
+    """anime's publisher is the one credit whose legacy header differs from
+    its key - it has always written under `distributor_tw`. It was the
+    publisher_tw TAG that wrote there before the entity migration; the header
+    outlived the vocabulary."""
     headers = sheet_link_headers("anime")
     assert "distributor_tw" in headers
     assert "publisher_tw" not in headers
 
 
-def test_manga_publisher_tw_keeps_its_own_name_as_the_header(db_session):
-    """Unlike anime, manga/novel/comic wrote publisher_tw under its own name."""
+def test_manga_publisher_keeps_the_publisher_tw_header(db_session):
+    """Unlike anime, manga and novel wrote that column under `publisher_tw`,
+    and the publisher credit inherited it."""
     headers = sheet_link_headers("manga")
     assert "publisher_tw" in headers
+    assert "publisher" not in headers
+
+
+def test_the_comic_tab_no_longer_carries_a_publisher_tw_column(db_session):
+    """Decision C: comic's publisher_tw was defined and never used, so it left
+    the tab entirely rather than merging into `publisher`."""
+    headers = sheet_link_headers("comic")
+    assert "publisher_tw" not in headers
+    assert headers.count("publisher") == 1
 
 
 def test_an_uncredited_entry_produces_empty_cells(db_session):

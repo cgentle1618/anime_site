@@ -12,10 +12,10 @@ credit before deleting the loser so credit history survives.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -62,6 +62,7 @@ def _to_response(
         defunct_date=publisher.defunct_date,
         country=publisher.country,
         website_url=publisher.website_url,
+        scopes=sorted(s.scope for s in publisher.scopes),
         credit_count=credit_count,
     )
 
@@ -75,11 +76,24 @@ def _to_response(
     "/", response_model=List[schemas.PublisherResponse], summary="Get All Publishers"
 )
 def get_all_publishers(
+    scope: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves every publisher, sorted by display name."""
-    publishers = db.query(models.Publisher).all()
+    """
+    Retrieves every publisher, sorted by display name.
+
+    `scope` narrows the list to the publishers offered on one media type, so a
+    form asks for the suggestions it can actually use. Omitting it returns
+    everything, including publishers holding no scope at all - the admin list
+    page must be able to see a publisher in order to give it one.
+    """
+    query = db.query(models.Publisher)
+    if scope:
+        query = query.join(models.PublisherScope).filter(
+            models.PublisherScope.scope == scope
+        )
+    publishers = query.all()
     publishers.sort(key=lambda p: p.display_name.casefold())
     return [_to_response(db, publisher, viewer) for publisher in publishers]
 
@@ -184,12 +198,28 @@ def create_publisher(
         for n in (payload.name_en, payload.name_cn, payload.name_jp, payload.name_alt)
         if n
     )
+    data = payload.model_dump()
+    wanted = data.pop("scopes", [])
     publisher = find_publisher(db, first_name)
     if publisher is None:
-        publisher = models.Publisher(**payload.model_dump())
+        publisher = models.Publisher(**data)
         db.add(publisher)
-        db.commit()
-        db.refresh(publisher)
+        db.flush()
+
+    # Additive, like POST /api/person: a create for a publisher that already
+    # exists is routine (ensureSourceValues posts every typed name), and it
+    # must not narrow the scopes the existing row holds.
+    held = {s.scope for s in publisher.scopes}
+    for scope in wanted:
+        if scope not in held:
+            held.add(scope)
+            db.add(
+                models.PublisherScope(
+                    publisher_id=publisher.system_id, scope=scope
+                )
+            )
+    db.commit()
+    db.refresh(publisher)
     return _to_response(db, publisher)
 
 
@@ -205,16 +235,28 @@ def update_publisher(
     admin: dict = Depends(get_current_admin),
 ):
     """
-    Fully updates a publisher's metadata. Since every media_credit points at
-    the publisher row by id, renaming here changes what every credited entry
-    shows - no separate propagation step is needed.
+    Fully updates a publisher's metadata and the set of scopes it holds. Since
+    every media_credit points at the publisher row by id, renaming here changes
+    what every credited entry shows - no separate propagation step is needed.
+
+    The scopes are a full replace, like PUT /api/person's roles: this is the
+    one path an admin uses to take a scope away, so unlike POST it must be able
+    to narrow.
     """
     publisher = db.get(models.Publisher, system_id)
     if publisher is None:
         raise HTTPException(status_code=404, detail="Publisher not found.")
 
-    for key, value in payload.model_dump().items():
+    data = payload.model_dump()
+    wanted = list(dict.fromkeys(data.pop("scopes", [])))
+    for key, value in data.items():
         setattr(publisher, key, value)
+
+    db.query(models.PublisherScope).filter_by(
+        publisher_id=system_id
+    ).delete(synchronize_session=False)
+    for scope in wanted:
+        db.add(models.PublisherScope(publisher_id=system_id, scope=scope))
 
     db.commit()
     db.refresh(publisher)
@@ -281,6 +323,19 @@ def merge_publisher(
             continue
         credit.publisher_id = system_id
         moved += 1
+
+    # A merge must never narrow: the survivor is offered everywhere either row
+    # was, or a form that used to suggest the loser would silently stop
+    # suggesting anyone.
+    held_scopes = {s.scope for s in keep.scopes}
+    for scope_row in drop.scopes:
+        if scope_row.scope not in held_scopes:
+            held_scopes.add(scope_row.scope)
+            db.add(
+                models.PublisherScope(
+                    publisher_id=system_id, scope=scope_row.scope
+                )
+            )
 
     db.delete(drop)
     db.commit()

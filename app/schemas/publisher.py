@@ -8,7 +8,9 @@ nothing to autofill from and nothing to link to.
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from app.utils.credit_roles import legal_scopes
 
 
 class PublisherBase(BaseModel):
@@ -24,6 +26,25 @@ class PublisherBase(BaseModel):
     defunct_date: Optional[str] = None
     country: Optional[str] = None
     website_url: Optional[str] = None
+    # Which media types this publisher is offered on. A bare list, not the
+    # {role, scope} pairs PersonRoleIn carries: a publisher holds exactly one
+    # role, so there is no second axis to name.
+    scopes: list[str] = []
+
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def _scope_rows_to_values(cls, v):
+        """
+        Accept PublisherScope ORM rows as well as plain strings.
+
+        For the reason PersonRoleIn carries from_attributes: /api/search hands
+        the ORM publisher to the response model rather than building it field
+        by field the way routers/publisher.py does, and a bare list[str] would
+        reject the rows it finds on `Publisher.scopes`.
+        """
+        if isinstance(v, (list, tuple)):
+            return [getattr(s, "scope", s) for s in v]
+        return v
 
     @model_validator(mode="after")
     def at_least_one_name(self):
@@ -35,6 +56,12 @@ class PublisherBase(BaseModel):
             raise ValueError("A publisher needs at least one name.")
         if self.display_name_field not in (None, "en", "cn", "jp", "alt"):
             raise ValueError("display_name_field must be en, cn, jp or alt.")
+        legal = legal_scopes("publisher")
+        for scope in self.scopes:
+            if scope not in legal:
+                raise ValueError(
+                    f"{scope} is not a media type a publisher may be offered on."
+                )
         return self
 
 

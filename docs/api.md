@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -967,7 +967,9 @@ response carries `credit_refs`:
 keyed by credit role, in stored order, with the label that credit has on that
 media type. Anime and anime-movie also carry `studio_refs`, the same idea for
 studios (a bare list — studio is a single role), and any media type whose
-credit roles include `publisher` carries `publisher_refs` in the same shape. Both are built inside
+credit roles include `publisher` carries `publisher_refs`, a bare list for the
+same reason but with `label` on each ref: one publisher role is meant to read a
+different word per media type, where a studio is a studio everywhere. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
 field group: a viewer without that permission gets `{}` / `[]`, because a

@@ -236,10 +236,10 @@ def has_missing_values_novel_openlibrary(db, novel: Novel) -> bool:
 def has_missing_values_comic(db, comic: Comic) -> bool:
     """
     Returns True if any Comic Vine-fillable column or link is blank.
-    Columns come from COMIC_FIELDS_TO_FILL; writer/artist credits and the
-    publisher tag from COMIC_LINK_FIELDS_TO_FILL. Imprint, continuity, era,
-    events, end_date and publisher_tw are manual classifications Comic Vine
-    does not model and are never required.
+    Columns come from COMIC_FIELDS_TO_FILL; writer/artist and publisher
+    credits from COMIC_LINK_FIELDS_TO_FILL. Imprint, continuity, era, events
+    and end_date are manual classifications Comic Vine does not model and are
+    never required.
     """
     for field in COMIC_FIELDS_TO_FILL:
         val = getattr(comic, field, None)

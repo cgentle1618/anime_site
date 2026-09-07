@@ -138,8 +138,8 @@ NOVEL_OPENLIBRARY_FIELDS_TO_FILL = [
 
 NOVEL_OPENLIBRARY_LINK_FIELDS_TO_FILL = [("credit", "author")]
 
-# Only the fields Comic Vine actually returns for a volume. imprint, continuity,
-# era, events, end_date and publisher_tw are deliberately excluded: Comic Vine
+# Only the fields Comic Vine actually returns for a volume. imprint,
+# continuity, era, events and end_date are deliberately excluded: Comic Vine
 # models none of them, so listing them here would leave every entry permanently
 # "needs filling" and re-request it on every run.
 # (kind, key) pairs resolved through media_credit / media_tag.
@@ -147,7 +147,8 @@ MOVIE_LINK_FIELDS_TO_FILL = [("credit", "director")]
 COMIC_LINK_FIELDS_TO_FILL = [
     ("credit", "author"),
     ("credit", "illustrator"),
-    ("tag", "comic_publisher"),
+    # A publisher entity credit since the comic_publisher vocabulary retired.
+    ("credit", "publisher"),
 ]
 
 COMIC_FIELDS_TO_FILL = [

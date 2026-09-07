@@ -148,13 +148,30 @@ def resolve_studio(db: Session, name: str) -> models.Studio:
     return studio
 
 
-def resolve_publisher(db: Session, name: str) -> models.Publisher:
-    """Find or create the publisher, under its English name when new."""
+def resolve_publisher(
+    db: Session, name: str, *, scope: Optional[str] = None
+) -> models.Publisher:
+    """
+    Find or create the publisher, under its English name when new, and make
+    sure it is offered on this media type.
+
+    The scope half mirrors resolve_person: additive, never subtractive, so
+    crediting a publisher on a manga can only widen where it is offered. Safe
+    precisely because zero scope rows means "offered nowhere" - see
+    PublisherScope's docstring.
+    """
     publisher = _find_by_name(db, models.Publisher, name)
     if publisher is None:
         publisher = models.Publisher(name_en=name.strip())
         db.add(publisher)
         db.flush()
+
+    if scope and scope not in {s.scope for s in publisher.scopes}:
+        db.add(
+            models.PublisherScope(publisher_id=publisher.system_id, scope=scope)
+        )
+        db.flush()
+        db.refresh(publisher)
     return publisher
 
 
@@ -224,6 +241,9 @@ def replace_credits(
             # collapse, director alone was scoped, anime/non_anime, by
             # director_scope_for().
             target = resolve_person(db, name, role=role, scope=media_type)
+        elif spec.target == "publisher":
+            # Same rule, same reason: a publisher is offered where it is used.
+            target = resolve_publisher(db, name, scope=media_type)
         else:
             target = _RESOLVERS[spec.target](db, name)
         db.add(
@@ -527,6 +547,255 @@ def backfill_credits(db: Session) -> dict:
         credits_written,
         tags_written,
         len(unplaced),
+    )
+    return report
+
+
+# The 31 vocabulary values this migration turns into entities: the 30
+# "Publisher / Distributor TW" options plus the single "Comic Publisher" one.
+#
+# Data, not a heuristic. A script-boundary split guesses, and guesses wrong on
+# "bilibili (GoodShow)"; name_normalize.py's rule for this codebase is that
+# nothing is guessed, which is also why name_slot_for never returns "alt".
+# Here a human asserts it - this table is the owner's own final version,
+# transcribed verbatim from the spec. See the spec's Decision D and E.
+#
+# Round-trip note (Decision E): find_publisher matches on ANY of the four
+# names, so a value whose pre-migration spelling survives in some column still
+# resolves when an older sheet is pulled. "Muse木棉花" keeps that spelling in
+# name_cn and is safe. "Proware普威爾" and "曼迪 Mightymedia" do NOT keep
+# theirs anywhere, so a Pull from a sheet backed up before this migration will
+# create a second row for those two; re-Backup right after migrating, and see
+# the Risks section of the spec.
+#
+# A value absent from this map falls back to name_slot_for.
+PUBLISHER_NAME_MAP: dict[str, dict[str, str]] = {
+    "Aniplex": {"en": "Aniplex", "display": "en"},
+    "ANIPLUS": {"en": "ANIPLUS", "display": "en"},
+    # bilibili and Crunchyroll are tagged on no entry at all, so the conversion
+    # below - which walks tag rows - would create neither. Both are wanted
+    # anyway, so _SEEDED_WITHOUT_CREDITS mints them; "bilibili (GoodShow)" was
+    # the third such value and is deliberately NOT here, so it retires with the
+    # vocabulary. See the spec's Decision G.
+    "bilibili": {"en": "bilibili", "display": "en"},
+    "Crunchyroll": {"en": "Crunchyroll", "display": "en"},
+    "Disney": {"en": "Disney", "display": "en"},
+    "Muse木棉花": {"en": "Muse", "cn": "Muse木棉花", "display": "cn"},
+    "NETFLIX": {"en": "NETFLIX", "display": "en"},
+    "Proware普威爾": {"en": "Proware", "cn": "普威爾", "display": "cn"},
+    "三貝多": {"cn": "三貝多", "display": "cn"},
+    "六六喜喜": {"cn": "六六喜喜", "display": "cn"},
+    "台灣角川": {"cn": "台灣角川", "display": "cn"},
+    "回歸線娛樂": {"cn": "回歸線娛樂", "display": "cn"},
+    "天光": {"cn": "天光", "display": "cn"},
+    "奇幻基地": {"cn": "奇幻基地", "display": "cn"},
+    "尖端": {"cn": "尖端", "display": "cn"},
+    "提恩傳媒": {"cn": "提恩傳媒", "display": "cn"},
+    "曼迪 Mightymedia": {"en": "Mightymedia", "cn": "曼迪", "display": "cn"},
+    "杰外": {"cn": "杰外", "display": "cn"},
+    "東方出版社": {"cn": "東方出版社", "display": "cn"},
+    # Toei, recorded here in kanji. Placed in cn to match the TW-facing
+    # vocabulary it came from; no English name is invented for it.
+    "東映": {"cn": "東映", "display": "cn"},
+    "東立": {"cn": "東立", "display": "cn"},
+    "東販": {"cn": "東販", "display": "cn"},
+    "皇冠文化": {"cn": "皇冠文化", "display": "cn"},
+    "羚邦 Ani-One": {
+        "en": "Ani-One", "cn": "羚邦", "alt": "羚邦", "display": "cn",
+    },
+    # Kadokawa and its Taiwanese arm stay two rows, as they are two options
+    # today. Merging them is a judgement this migration will not make.
+    "角川": {"cn": "角川", "display": "cn"},
+    "車庫娛樂": {"cn": "車庫娛樂", "display": "cn"},
+    "遠流": {"cn": "遠流", "display": "cn"},
+    "青文": {"cn": "青文", "display": "cn"},
+    "飛燕文創": {"cn": "飛燕文創", "display": "cn"},
+    "Marvel Comics": {"en": "Marvel Comics", "display": "en"},
+}
+
+# The two vocabularies this migration retires, and the tag fields they backed.
+_RETIRED_TAG_FIELDS = ("publisher_tw", "comic_publisher")
+_RETIRED_CATEGORIES = ("Publisher / Distributor TW", "Comic Publisher")
+
+# Values the owner wants as entities even though no entry is tagged with them.
+# backfill_publishers walks TAG ROWS, so a vocabulary value with none behind it
+# creates nothing - it converts data, not vocabulary. These two are the
+# exception, named one by one rather than derived, because "keep every unused
+# option" is exactly the judgement the owner made differently for the third
+# such value ("bilibili (GoodShow)", dropped).
+#
+# The scope is not derivable either: with no credits there is no media type to
+# read one from, and zero scope rows would mean "offered nowhere" (see
+# PublisherScope), which would hide them in every picker and defeat the point
+# of seeding them. Both are anime streaming distributors, so anime it is - an
+# inference, and one an admin can change with the scope pills.
+_SEEDED_WITHOUT_CREDITS: tuple[tuple[str, str], ...] = (
+    ("bilibili", "anime"),
+    ("Crunchyroll", "anime"),
+)
+
+
+def _publisher_from_map(db: Session, value: str) -> models.Publisher:
+    """The entity for one vocabulary value, reusing an existing row on a match."""
+    entry = PUBLISHER_NAME_MAP.get(value)
+    names = [entry[k] for k in ("en", "cn", "jp", "alt") if entry and entry.get(k)]
+    for candidate in names or [value]:
+        existing = find_publisher(db, candidate)
+        if existing is not None:
+            return existing
+
+    if entry is None:
+        # Not in the reviewed map: fall back to the shared slot rule rather
+        # than guessing a split. resolve_publisher would put it in name_en
+        # unconditionally, which is wrong for a CJK name.
+        slot = name_slot_for(value.strip(), role="publisher", scope="")
+        publisher = models.Publisher(**{f"name_{slot}": value.strip()})
+    else:
+        publisher = models.Publisher(
+            name_en=entry.get("en"),
+            name_cn=entry.get("cn"),
+            name_jp=entry.get("jp"),
+            name_alt=entry.get("alt"),
+            display_name_field=entry.get("display"),
+        )
+    db.add(publisher)
+    db.flush()
+    return publisher
+
+
+def backfill_publishers(db: Session) -> dict:
+    """
+    Turn every publisher_tw / comic_publisher tag row into a publisher credit.
+
+    Lives here rather than in the Alembic revision for the same reason
+    backfill_credits does: it can be tested with the normal fixtures and re-run
+    by hand when a restore brings old data back.
+
+    Idempotent. A second run finds every entity by name, writes the same
+    credits under uq_media_credit_row, and finds no tag rows left to convert.
+
+    Nothing is guessed and nothing is silently dropped: a comic publisher_tw
+    row - which does not exist in the live data, see the spec's Decision C -
+    is reported in `skipped` and left where it is.
+    """
+    credits_written = 0
+    skipped: list[dict] = []
+    scoped: set[tuple] = set()
+    kept_options: set[UUID] = set()
+
+    rows = (
+        db.query(models.MediaTag, models.SystemOption)
+        .join(
+            models.SystemOption,
+            models.MediaTag.option_id == models.SystemOption.system_id,
+        )
+        .filter(models.MediaTag.field.in_(_RETIRED_TAG_FIELDS))
+        .order_by(models.MediaTag.position)
+        .all()
+    )
+
+    for tag, option in rows:
+        if tag.media_type == "comic" and tag.field == "publisher_tw":
+            # Decision C: expected to be unreachable. Report, never drop.
+            skipped.append(
+                {
+                    "media_type": tag.media_type,
+                    "entry_id": str(tag.entry_id),
+                    "field": tag.field,
+                    "value": option.value,
+                    "reason": "comic publisher_tw is retired, not migrated",
+                }
+            )
+            # media_tag.option_id cascades on delete, so retiring the category
+            # would take this row with it - the one thing "left where it is"
+            # rules out. Its option survives so the tag can.
+            kept_options.add(option.system_id)
+            continue
+
+        publisher = _publisher_from_map(db, option.value)
+        exists = (
+            db.query(models.MediaCredit)
+            .filter_by(
+                media_type=tag.media_type,
+                entry_id=tag.entry_id,
+                role="publisher",
+                publisher_id=publisher.system_id,
+            )
+            .first()
+        )
+        if exists is None:
+            db.add(
+                models.MediaCredit(
+                    media_type=tag.media_type,
+                    entry_id=tag.entry_id,
+                    role="publisher",
+                    publisher_id=publisher.system_id,
+                    position=tag.position,
+                )
+            )
+            credits_written += 1
+
+        scoped.add((publisher.system_id, tag.media_type))
+        db.delete(tag)
+
+    db.flush()
+
+    # Seed scope from what the data actually uses - the same one-time,
+    # derived-from-usage pass backfill_credits ends with for option scopes.
+    # Also covers the game publishers that predate this table.
+    for publisher_id, media_type in scoped | {
+        (c.publisher_id, c.media_type)
+        for c in db.query(models.MediaCredit)
+        .filter(models.MediaCredit.role == "publisher")
+        .all()
+    }:
+        held = {
+            s.scope
+            for s in db.query(models.PublisherScope)
+            .filter_by(publisher_id=publisher_id)
+            .all()
+        }
+        if media_type not in held:
+            db.add(
+                models.PublisherScope(
+                    publisher_id=publisher_id, scope=media_type
+                )
+            )
+
+    # Seed the entities that no tag row would have created. Runs before the
+    # retire delete only because it reads nothing from system_option; it is
+    # independent of everything above.
+    for value, scope in _SEEDED_WITHOUT_CREDITS:
+        publisher = _publisher_from_map(db, value)
+        if scope not in {s.scope for s in publisher.scopes}:
+            db.add(
+                models.PublisherScope(
+                    publisher_id=publisher.system_id, scope=scope
+                )
+            )
+
+    db.flush()
+    retire = db.query(models.SystemOption).filter(
+        models.SystemOption.category.in_(_RETIRED_CATEGORIES)
+    )
+    if kept_options:
+        retire = retire.filter(
+            models.SystemOption.system_id.notin_(kept_options)
+        )
+    retire.delete(synchronize_session=False)
+    db.commit()
+
+    report = {
+        "credits": credits_written,
+        "entities": db.query(models.Publisher).count(),
+        "scopes": db.query(models.PublisherScope).count(),
+        "skipped": skipped,
+    }
+    logger.info(
+        "backfill_publishers: %s credits, %s entities, %s skipped",
+        credits_written,
+        report["entities"],
+        len(skipped),
     )
     return report
 
@@ -876,6 +1145,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
                 PublisherRef(
                     system_id=publisher.system_id,
                     display_name=publisher.display_name,
+                    label=credit_label(row.role, media_type),
                 )
             )
 

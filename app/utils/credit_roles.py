@@ -15,9 +15,11 @@ person roles meaning the same thing.
 Publishers used to be a `system_option` vocabulary rather than an entity. They
 are now the `publisher` table (app/models/staff.py), reached through the
 `publisher` credit role below, so `CreditRole.target` is a THREE-value axis.
-The `publisher_tw` TagField further down is unaffected and still backs anime,
-manga, novel and comic until a later migration converts those rows into
-publisher entities.
+That role covers all six types that credit a publisher. The `publisher_tw` and
+`comic_publisher` TagFields that used to hold the anime, manga, novel and comic
+rows are gone: the migration moved those rows onto `media_credit` and deleted
+both vocabularies. Only the sheet headers survive them, through
+LEGACY_SHEET_COLUMN below.
 
 One of the six, `seiyuu`, is a person role whose credits are NOT stored in
 `media_credit`: see `CreditRole.credited_via` below.
@@ -64,10 +66,13 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     "studio": CreditRole(
         "studio", "Studio", "studio", ("anime", "anime-movie", "game")
     ),
-    # The third entity target. Games-only for now: the four existing media
-    # types keep publisher_tw as a TagField until a later migration.
+    # One role for every company that puts a work in front of a reader: a
+    # games publisher, a TW licensor, a comic's original publisher. The LABEL
+    # varies by media type (see _LABEL_OVERRIDES) but the vocabulary does not,
+    # so one company's game and manga credits stay on one entity.
     "publisher": CreditRole(
-        "publisher", "Publisher", "publisher", ("game",)
+        "publisher", "Publisher", "publisher",
+        ("anime", "anime-movie", "manga", "novel", "comic", "game"),
     ),
     "director": CreditRole(
         "director", "Director", "person", ("anime", "anime-movie", "movie", "game")
@@ -105,6 +110,17 @@ _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("illustrator", "manga"): "作畫",
     ("author", "comic"): "Writer",
     ("illustrator", "comic"): "Artist",
+    # One role, six reader-facing words. 台灣代理商 and 台灣出版商 both name a
+    # TAIWANESE licensor; a comic's publisher is Marvel - the work's original
+    # publisher, not a TW party - so it reads 出版商 without the 台灣. 發行商
+    # is the word for a games publisher. The role's own label, "Publisher",
+    # is never rendered; it survives for admin tooling holding no media type.
+    ("publisher", "anime"): "台灣代理商",
+    ("publisher", "anime-movie"): "台灣代理商",
+    ("publisher", "manga"): "台灣出版商",
+    ("publisher", "novel"): "台灣出版商",
+    ("publisher", "comic"): "出版商",
+    ("publisher", "game"): "發行商",
 }
 
 
@@ -161,14 +177,6 @@ TAG_FIELDS: dict[str, TagField] = {
         "serialization_platform", "Serialization Platform",
         SERIALIZATION_CATEGORY, ("manga", "novel"),
     ),
-    "publisher_tw": TagField(
-        "publisher_tw", "Publisher / Distributor TW",
-        "Publisher / Distributor TW",
-        ("anime", "manga", "novel", "comic"),
-    ),
-    "comic_publisher": TagField(
-        "comic_publisher", "Publisher", "Comic Publisher", ("comic",)
-    ),
     "comic_imprint": TagField(
         "comic_imprint", "Imprint", "Comic Imprint", ("comic",)
     ),
@@ -213,9 +221,9 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # Listed, not derived. These four happen to be exactly the anime-only tag
 # fields today, but that is a coincidence of the current vocabulary, not the
 # rule: what puts a category here is that its values read as tags ON the
-# work, while Official Source, Publisher / Distributor TW and the Comic
-# vocabularies name an outside party. A new anime-only category is not
-# automatically a tag, so it must be added here deliberately.
+# work, while Official Source and the Comic vocabularies name an outside
+# party. A new anime-only category is not automatically a tag, so it must be
+# added here deliberately.
 TAG_CATEGORIES: tuple[str, ...] = (
     "Genre Main",
     "Genre Sub",
@@ -233,39 +241,44 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # The sheet header each (media_type, role/field key) pair has always been
 # written under, back when the value lived in a plain string column on the
 # entry table. Keyed by the pair, not by the key alone, because the same key
-# can carry a different legacy header per media type - anime.publisher_tw
-# wrote under "distributor_tw" while manga/novel/comic wrote under
-# "publisher_tw" itself. The sheets predate this design and must keep reading
-# the same; only what sits behind the column changed. A pair absent here (for
-# example movie/original_source, which never had a legacy column) falls back
-# to its own key as the header - see credits.sheet_link_headers.
+# can carry a different legacy header per media type - the one `publisher`
+# credit writes under "distributor_tw" on anime, "publisher_tw" on manga and
+# novel, and "publisher" on comic and game, because that is what each tab's
+# column has always been called. The sheets predate this design and must keep
+# reading the same; only what sits behind the column changed. A pair absent
+# here (for example movie/original_source, which never had a legacy column)
+# falls back to its own key as the header - see credits.sheet_link_headers.
+#
+# The five publisher pairs replaced the four `publisher_tw` tag pairs and the
+# comic `comic_publisher` pair when those vocabularies were retired. anime-movie
+# is the one genuinely new column: it never carried a distributor before.
 LEGACY_SHEET_COLUMN: dict[tuple[str, str], str] = {
     ("anime", "studio"): "studio",
     ("anime", "director"): "director",
     ("anime", "producer"): "producer",
     ("anime", "composer"): "music",
-    ("anime", "publisher_tw"): "distributor_tw",
+    ("anime", "publisher"): "distributor_tw",
     ("anime", "genre_main"): "genre_main",
     ("anime", "genre_sub"): "genre_sub",
     ("anime-movie", "studio"): "studio",
     ("anime-movie", "director"): "director",
+    ("anime-movie", "publisher"): "distributor_tw",
     ("movie", "director"): "director",
     ("tv-show", "original_source"): "source_official",
     ("cartoon", "original_source"): "source_official",
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
-    ("manga", "publisher_tw"): "publisher_tw",
+    ("manga", "publisher"): "publisher_tw",
     ("novel", "author"): "author",
     ("novel", "illustrator"): "illustrator",
-    ("novel", "publisher_tw"): "publisher_tw",
+    ("novel", "publisher"): "publisher_tw",
     ("comic", "author"): "writer",
     ("comic", "illustrator"): "artist",
-    ("comic", "comic_publisher"): "publisher",
+    ("comic", "publisher"): "publisher",
     ("comic", "comic_imprint"): "imprint",
     ("comic", "comic_continuity"): "continuity",
     ("comic", "comic_era"): "era",
     ("comic", "comic_event"): "events",
-    ("comic", "publisher_tw"): "publisher_tw",
 }
 
 

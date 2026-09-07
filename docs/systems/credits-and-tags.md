@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-06 (commit 0bea262)
+Last verified: 2026-09-07 (publisher role widened to six media types)
 
 ## What this is for
 
@@ -56,7 +56,7 @@ the stored value, tuple of keys for validation.
 | key | label | target | media types |
 |---|---|---|---|
 | `studio` | Studio | studio | anime, anime-movie |
-| `publisher` | Publisher | publisher | game |
+| `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
 | `director` | Director | person | anime, anime-movie, movie |
 | `producer` | Producer | person | anime |
 | `composer` | Music / Composer | person | anime |
@@ -71,10 +71,7 @@ else person" is a latent bug — `replace_credits` used to, and a publisher
 credit reaching that `else` would have silently minted a `Person`. The branch
 is now a `{target: resolver}` / `{target: column}` dispatch pair in
 `credits.py`, so a fourth target is a one-line change and never falls through
-to person. The `publisher` role names `game`, a media type `MEDIA_TABLES` does
-not register yet, which is why `tests/unit/test_credit_roles.py` carries a
-temporary `_PENDING_MEDIA_TYPES = {"game"}` allowlist — see
-[options.md](../options.md).
+to person.
 
 **`seiyuu` is a `CreditRole` whose credits are not stored in
 `media_credit`.** `CreditRole` carries a `credited_via` field, `"media_credit"`
@@ -106,6 +103,15 @@ a manga, Author on a novel and Writer on a comic, and `illustrator` reads 作畫
 Illustrator / Artist. A small `{(role, media_type): label}` override map falls
 back to `CreditRole.label`; nothing else in the codebase — no page, no form —
 may hard-code these words.
+
+`publisher` is the role that leans hardest on this: one vocabulary, six
+reader-facing words. It reads **台灣代理商** on an anime or anime movie and
+**台灣出版商** on a manga or novel — both name a *Taiwanese* licensor — while a
+comic's publisher is the work's original one (Marvel), so it reads **出版商**
+without the 台灣, and a game's reads **發行商**. All six types have an override,
+so the role's own `"Publisher"` label is never rendered; it survives only for
+admin tooling that holds no media type. "Publisher / Distributor" names the
+concept in code comments and never reaches a reader.
 
 **Retired keys**, in case you meet them in an old sheet or backup:
 `manga_author_plot` and `manga_author_draw` → `author` / `illustrator` on
@@ -142,10 +148,15 @@ that names a credit which does not exist.
 | `comic_event` | Events | Comic Event | comic |
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
-as a vocabulary but backs no field. **`publisher_tw` is still a tag field**,
-unaffected by the new `publisher` entity: anime, manga, novel and comic keep
-writing `media_tag` rows against the `Publisher / Distributor TW` vocabulary
-until a later migration converts them into publisher entities. `OPTION_CATEGORIES` = every TagField category + filter-only ones.
+as a vocabulary but backs no field. **`publisher_tw` and `comic_publisher` are
+mid-migration.** The `publisher` credit role now covers all six types, but the
+live rows are still `media_tag` rows against the `Publisher / Distributor TW`
+and `Comic Publisher` vocabularies, so the tag and the credit coexist for one
+step: the entries carry an empty `publisher` link field beside the populated
+`distributor_tw` / `publisher_tw` / `publisher` tag one. The migration that
+moves the rows onto `media_credit` deletes both TagFields and maps the credit
+back onto the header the tag used, so the sheet never changes shape.
+`OPTION_CATEGORIES` = every TagField category + filter-only ones.
 Helpers: `credit_roles_for(media_type)`, `tag_fields_for(media_type)`.
 
 ### `LEGACY_SHEET_COLUMN` — the header trap

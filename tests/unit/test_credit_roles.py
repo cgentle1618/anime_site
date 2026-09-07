@@ -22,28 +22,30 @@ EXPECTED_HEADERS = {
     ("anime", "director"): "director",
     ("anime", "producer"): "producer",
     ("anime", "composer"): "music",
-    ("anime", "publisher_tw"): "distributor_tw",
+    # The publisher credit took over the header the retired publisher_tw tag
+    # used, on every type that had one - see the migration's Task 6.
+    ("anime", "publisher"): "distributor_tw",
     ("anime", "genre_main"): "genre_main",
     ("anime", "genre_sub"): "genre_sub",
     ("anime-movie", "studio"): "studio",
     ("anime-movie", "director"): "director",
+    ("anime-movie", "publisher"): "distributor_tw",
     ("movie", "director"): "director",
     ("tv-show", "source_official"): "source_official",
     ("cartoon", "source_official"): "source_official",
     ("manga", "author"): "author_plot",
     ("manga", "illustrator"): "author_draw",
-    ("manga", "publisher_tw"): "publisher_tw",
+    ("manga", "publisher"): "publisher_tw",
     ("novel", "author"): "author",
     ("novel", "illustrator"): "illustrator",
-    ("novel", "publisher_tw"): "publisher_tw",
+    ("novel", "publisher"): "publisher_tw",
     ("comic", "author"): "writer",
     ("comic", "illustrator"): "artist",
-    ("comic", "comic_publisher"): "publisher",
+    ("comic", "publisher"): "publisher",
     ("comic", "comic_imprint"): "imprint",
     ("comic", "comic_continuity"): "continuity",
     ("comic", "comic_era"): "era",
     ("comic", "comic_event"): "events",
-    ("comic", "publisher_tw"): "publisher_tw",
 }
 
 
@@ -167,6 +169,35 @@ def test_legal_scopes_match_media_types():
     assert cr.legal_scopes("illustrator") == ("manga", "novel", "comic")
 
 
+def test_publisher_is_offered_on_six_media_types():
+    from app.utils.credit_roles import legal_scopes
+
+    assert set(legal_scopes("publisher")) == {
+        "anime", "anime-movie", "manga", "novel", "comic", "game",
+    }
+
+
+def test_every_media_type_labels_its_publisher_row_in_chinese():
+    from app.utils.credit_roles import credit_label
+
+    assert credit_label("publisher", "anime") == "台灣代理商"
+    assert credit_label("publisher", "anime-movie") == "台灣代理商"
+    assert credit_label("publisher", "manga") == "台灣出版商"
+    assert credit_label("publisher", "novel") == "台灣出版商"
+    assert credit_label("publisher", "comic") == "出版商"
+    assert credit_label("publisher", "game") == "發行商"
+
+
+def test_the_concept_name_never_reaches_a_label():
+    """ "Publisher / Distributor" names the concept in code, never a reader."""
+    from app.utils.credit_roles import _LABEL_OVERRIDES, CREDIT_ROLES
+
+    labels = [r.label for r in CREDIT_ROLES.values()] + list(
+        _LABEL_OVERRIDES.values()
+    )
+    assert not any("/" in label and "Distributor" in label for label in labels)
+
+
 def test_every_media_type_named_by_a_role_is_a_known_key():
     for role in cr.CREDIT_ROLES.values():
         for mt in role.media_types:
@@ -230,31 +261,34 @@ def test_a_pair_with_no_legacy_header_falls_back_to_its_own_key():
 
 
 def test_credit_roles_for_anime():
+    """`publisher` joined the four when the role widened past games."""
     keys = {r.key for r in cr.credit_roles_for("anime")}
-    assert keys == {"studio", "director", "producer", "composer"}
+    assert keys == {"studio", "publisher", "director", "producer", "composer"}
 
 
-def test_credit_roles_for_manga_are_the_two_person_roles():
+def test_credit_roles_for_manga_are_two_people_and_a_publisher():
+    """
+    Was test_credit_roles_for_manga_are_the_two_person_roles. A manga's
+    publisher is an entity credit now, not the publisher_tw vocabulary.
+    """
     keys = {r.key for r in cr.credit_roles_for("manga")}
-    assert keys == {"author", "illustrator"}
+    assert keys == {"author", "illustrator", "publisher"}
 
 
 def test_tag_fields_for_comic():
+    """
+    Four, not six: publisher_tw and comic_publisher are `publisher` entity
+    credits now. Imprint, continuity, era and event stay vocabularies - an
+    imprint is arguably a sub-entity of a publisher, which the flat publisher
+    table cannot express, and that is a separate design.
+    """
     keys = {f.key for f in cr.tag_fields_for("comic")}
     assert keys == {
-        "publisher_tw",
-        "comic_publisher",
         "comic_imprint",
         "comic_continuity",
         "comic_era",
         "comic_event",
     }
-
-
-def test_publisher_tw_is_one_category_across_four_media_types():
-    field = cr.TAG_FIELDS["publisher_tw"]
-    assert field.category == "Publisher / Distributor TW"
-    assert set(field.media_types) == {"anime", "manga", "novel", "comic"}
 
 
 # ---------------------------------------------------------------------------
@@ -345,3 +379,46 @@ def test_person_role_fallback_matches_python():
         "fieldOptions.js PERSON_ROLES has drifted from app/utils/credit_roles.py: "
         f"frontend has {listed}, Python has {list(PERSON_ROLES)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# The retired publisher vocabularies (Task 6 of the publisher entity migration)
+# ---------------------------------------------------------------------------
+
+
+def test_the_retired_vocabularies_are_gone():
+    """
+    publisher_tw and comic_publisher are `publisher` credits now, so neither
+    tag field nor either system_option category survives.
+    """
+    assert "publisher_tw" not in cr.TAG_FIELD_KEYS
+    assert "comic_publisher" not in cr.TAG_FIELD_KEYS
+    assert "Publisher / Distributor TW" not in cr.OPTION_CATEGORIES
+    assert "Comic Publisher" not in cr.OPTION_CATEGORIES
+
+
+def test_each_type_keeps_the_sheet_header_it_has_always_used():
+    """
+    The whole point of the LEGACY_SHEET_COLUMN rewiring: the value moved from
+    media_tag to media_credit, the header did not move at all.
+    """
+    assert cr.sheet_column_for("anime", "publisher") == "distributor_tw"
+    assert cr.sheet_column_for("anime-movie", "publisher") == "distributor_tw"
+    assert cr.sheet_column_for("manga", "publisher") == "publisher_tw"
+    assert cr.sheet_column_for("novel", "publisher") == "publisher_tw"
+    assert cr.sheet_column_for("comic", "publisher") == "publisher"
+    assert cr.sheet_column_for("game", "publisher") == "publisher"
+
+
+@pytest.mark.parametrize("media_type", sorted(MEDIA_TYPE_KEYS))
+def test_no_media_type_emits_a_sheet_header_twice(media_type):
+    """
+    A duplicated header is how a Backup -> Pull blanks a live column: restore
+    matches by header NAME, so two columns of the same name make the second
+    shadow the first. The coexistence window between Task 4 and Task 6 had
+    exactly this on the Comic tab; closing it is what Task 6 is for.
+    """
+    from app.services.domain.credits import sheet_link_headers
+
+    headers = sheet_link_headers(media_type)
+    assert len(headers) == len(set(headers)), headers

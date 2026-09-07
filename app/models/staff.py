@@ -179,8 +179,8 @@ class Studio(Base, NameFallbackMixin):
     listing them among studios would blur what /library/studio means. This
     reverses the earlier ruling recorded here, which kept publishers as a
     single "Publisher / Distributor TW" vocabulary in system_option; that
-    vocabulary still backs publisher_tw on anime, manga, novel and comic
-    until a later migration converts those rows.
+    vocabulary is gone - the migration moved its rows onto media_credit as
+    `publisher` credits and deleted it.
 
     All four names are nullable and at least one must be set: a studio is
     known by whichever names it is known by, and requiring a specific one
@@ -279,10 +279,15 @@ class Studio(Base, NameFallbackMixin):
 
 class Publisher(Base, NameFallbackMixin):
     """
-    One publisher or distributor: a games publisher, or a TW licensor.
+    One publisher or distributor: a games publisher, a TW licensor, or a
+    comic's original publisher. Every one of the six types that credits a
+    publisher points here; no publisher vocabulary survives beside it.
 
-    Shaped after Studio, and deliberately a separate table rather than a
-    `publisher` role pointing at Studio. The overlap is real - Bandai Namco
+    Shaped after Studio but not identical to it: a publisher carries
+    media-type scope (see PublisherScope) and a studio does not, because a
+    distributor list that offers 木棉花 on a game is wrong in a way a studio
+    list is not. Deliberately a separate table rather than a `publisher` role
+    pointing at Studio. The overlap is real - Bandai Namco
     and Kadokawa both develop and publish, and will exist as two unlinked
     rows - but the bulk of publisher/distributor values are distributors
     (木棉花, 曼迪) that never developed anything, and putting them on
@@ -347,6 +352,13 @@ class Publisher(Base, NameFallbackMixin):
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
+    scopes = relationship(
+        "PublisherScope",
+        back_populates="publisher",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     # Which column each display_name_field value names.
     _DISPLAY_FIELDS = {
         "en": "name_en",
@@ -384,3 +396,44 @@ class Publisher(Base, NameFallbackMixin):
             ("Alt", self.name_alt),
         ]
         return self.get_fallback_name(sequence, "EN")
+
+
+class PublisherScope(Base):
+    """
+    Which media types a publisher is offered on.
+
+    Explicit rather than derived from credits, for the reason PersonRole's
+    docstring gives: a distributor added today must appear in the anime picker
+    before its first credit exists.
+
+    Unlike person_role there is no `role` column. A publisher holds exactly one
+    role, `publisher`, so a column whose value is that constant on every row
+    would encode nothing. The key is (publisher_id, scope) alone.
+
+    As with PersonRole there is deliberately NO unscoped "offered everywhere"
+    state: zero rows means offered nowhere. That is the opposite of
+    system_option_scope, and it is what makes auto-scoping on write purely
+    additive - under an "everywhere" rule the first scope row would silently
+    NARROW the publisher, the trap Ruling R27 removed from tags.
+    """
+
+    __tablename__ = "publisher_scope"
+    __table_args__ = (
+        # A plain unique constraint, not NULLS NOT DISTINCT: scope is NOT NULL,
+        # so no nullable column is left in the key for Postgres to treat as
+        # distinct from itself. uq_person_role needed the opposite treatment
+        # only while its scope column was still nullable.
+        UniqueConstraint("publisher_id", "scope", name="uq_publisher_scope"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    publisher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("publisher.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # A hyphenated media-type key, and one of legal_scopes("publisher").
+    scope = Column(String, nullable=False)
+
+    publisher = relationship("Publisher", back_populates="scopes")

@@ -35,6 +35,15 @@ LIVE = set(OPTION_CATEGORIES) | set(TAG_CATEGORIES) | set(FILTER_ONLY_CATEGORIES
 # vocabulary, so it translates rather than expecting history to change.
 RENAMED_CATEGORIES = {"Official Source": "Platform"}
 
+# A category this migration rescued a value INTO may since have been retired
+# outright, its values becoming entities rather than options. "Publisher /
+# Distributor TW" went that way: the publisher entity migration turned every
+# one of its values, `bilibili` included, into a `publisher` row credited
+# through the `publisher` role. The rescue still did its job at the time, so
+# the rows stay recorded here and the two "lands in a live category" checks
+# skip them - there is no live category left for them to land in.
+RETIRED_TO_ENTITY_CATEGORIES = {"Publisher / Distributor TW", "Comic Publisher"}
+
 
 def test_no_live_category_is_retired():
     assert not (set(migration.RETIRED_CATEGORIES) & LIVE)
@@ -50,6 +59,8 @@ def test_preserved_values_land_in_live_categories():
     # it moves into is one a dropdown actually reads.
     for category, _value, _scope in migration.PRESERVED_VALUES:
         category = RENAMED_CATEGORIES.get(category, category)
+        if category in RETIRED_TO_ENTITY_CATEGORIES:
+            continue
         assert category in LIVE
 
 
@@ -63,6 +74,8 @@ def test_preserved_scopes_are_offered_by_their_field():
         media_types_by_category.setdefault(f.category, set()).update(f.media_types)
     for category, _value, scope in migration.PRESERVED_VALUES:
         category = RENAMED_CATEGORIES.get(category, category)
+        if category in RETIRED_TO_ENTITY_CATEGORIES:
+            continue
         assert scope in media_types_by_category[category]
 
 

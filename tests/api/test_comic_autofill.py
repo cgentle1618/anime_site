@@ -4,7 +4,7 @@ Tests for autofill_comic_from_comicvine.
 The Comic Vine fetch and the cover download are both patched out — these tests
 lock down the fill-only semantics (never overwrite what the admin typed) rather
 than the network layer. Publisher/writer/artist are dropped columns now backed
-by media_credit/media_tag rows, so this needs a real db_session rather than a
+by media_credit rows, so this needs a real db_session rather than a
 SimpleNamespace fake.
 """
 
@@ -15,7 +15,7 @@ import pytest
 from app import models
 from app.services.domain import autofill as autofill_module
 from app.services.domain.autofill import autofill_comic_from_comicvine
-from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.services.domain.credits import credit_names, replace_credits
 
 VOLUME_RESULT = {
     "id": 2127,
@@ -71,7 +71,7 @@ class TestAutofillComicFromComicvine:
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)
 
-        assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == ["Marvel"]
+        assert credit_names(db_session, "comic", comic.system_id, "publisher") == ["Marvel"]
         assert credit_names(db_session, "comic", comic.system_id, "author") == ["Stan Lee"]
         assert credit_names(db_session, "comic", comic.system_id, "illustrator") == ["Steve Ditko"]
         assert comic.release_date == "1963"
@@ -82,12 +82,12 @@ class TestAutofillComicFromComicvine:
     def test_does_not_overwrite_admin_entered_values(self, db_session, patched):
         comic = make_comic(db_session, volume_label="Legacy", release_date="1999")
         replace_credits(db_session, "comic", comic.system_id, "author", ["J. M. DeMatteis"])
-        replace_tags(db_session, "comic", comic.system_id, "comic_publisher", ["Marvel UK"])
+        replace_credits(db_session, "comic", comic.system_id, "publisher", ["Marvel UK"])
         db_session.flush()
 
         autofill_comic_from_comicvine(comic, db_session)
 
-        assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == ["Marvel UK"]
+        assert credit_names(db_session, "comic", comic.system_id, "publisher") == ["Marvel UK"]
         assert credit_names(db_session, "comic", comic.system_id, "author") == ["J. M. DeMatteis"]
         assert comic.volume_label == "Legacy"
         assert comic.release_date == "1999"
@@ -115,13 +115,13 @@ class TestAutofillComicFromComicvine:
         autofill_comic_from_comicvine(comic, db_session)
 
         assert patched["fetch"] == []
-        assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == []
+        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
 
     def test_leaves_entry_untouched_when_the_volume_is_not_found(self, db_session, monkeypatch):
         monkeypatch.setattr(autofill_module, "fetch_comicvine_volume", lambda vid: None)
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)
-        assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == []
+        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
 
     def test_swallows_fetch_errors_so_one_bad_entry_cannot_abort_a_run(self, db_session, monkeypatch):
         def boom(volume_id):
@@ -131,7 +131,7 @@ class TestAutofillComicFromComicvine:
         comic = make_comic(db_session)
 
         autofill_comic_from_comicvine(comic, db_session)  # must not raise
-        assert tag_values(db_session, "comic", comic.system_id, "comic_publisher") == []
+        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
 
     def test_skips_the_cover_when_comicvine_has_only_a_placeholder(self, db_session, monkeypatch):
         result = dict(VOLUME_RESULT)

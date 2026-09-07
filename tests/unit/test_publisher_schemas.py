@@ -27,6 +27,11 @@ def test_response_carries_display_name_and_credit_count():
     assert resp.credit_count == 0
 
 
-def test_publisher_ref_is_id_plus_display_name():
-    ref = schemas.PublisherRef(system_id=uuid.uuid4(), display_name="Kadokawa")
+def test_publisher_ref_is_id_plus_display_name_and_label():
+    ref = schemas.PublisherRef(
+        system_id=uuid.uuid4(), display_name="Kadokawa", label="Publisher"
+    )
     assert ref.display_name == "Kadokawa"
+    # The label is required: a ref that reached a page without one would leave
+    # the heading to be guessed from the media type at the far end.
+    assert ref.label == "Publisher"

@@ -245,3 +245,22 @@ def test_studio_credits_are_not_in_credit_refs(client, anime_with_studio):
     body = client.get(f"/api/anime/{anime_with_studio.system_id}").json()
     assert "studio" not in body.get("credit_refs", {})
     assert body["studio_refs"][0]["display_name"] == "MAPPA"
+
+
+def test_publisher_refs_carry_the_media_types_label(db_session, sample_franchise):
+    """
+    One publisher role reads a different word per media type, so the ref
+    carries the label and a page never has to know the vocabulary.
+    """
+    game = models.Game(
+        game_name_en="Elden Ring", franchise_id=sample_franchise.system_id
+    )
+    db_session.add(game)
+    db_session.flush()
+    credits_service.replace_credits(
+        db_session, "game", game.system_id, "publisher", ["Bandai Namco"]
+    )
+    db_session.commit()
+
+    credits_service.attach_link_fields(db_session, "game", [game])
+    assert game.publisher_refs[0].label == "發行商"

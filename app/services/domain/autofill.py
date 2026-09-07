@@ -572,9 +572,9 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             replace_credits(
                 db, "comic", comic.system_id, "illustrator", split_names(cv_data.get("artist"))
             )
-        if not tag_values(db, "comic", comic.system_id, "comic_publisher"):
-            replace_tags(
-                db, "comic", comic.system_id, "comic_publisher", split_names(cv_data.get("publisher"))
+        if not credit_names(db, "comic", comic.system_id, "publisher"):
+            replace_credits(
+                db, "comic", comic.system_id, "publisher", split_names(cv_data.get("publisher"))
             )
 
         if not comic.cover_image_file and cv_data.get("cover_image_url"):

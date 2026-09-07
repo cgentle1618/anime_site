@@ -45,10 +45,19 @@ class StudioRef(BaseModel):
 
 
 class PublisherRef(BaseModel):
-    """A publisher a page can link to, shaped exactly like StudioRef."""
+    """
+    A publisher a page can link to.
+
+    Shaped like StudioRef plus PersonRef's `label`: one publisher role reads
+    台灣代理商 on an anime and 發行商 on a game, so the page can render the
+    heading without knowing the vocabulary. credit_label() in
+    app/utils/credit_roles.py owns that mapping. StudioRef needs no label:
+    a studio is a studio on both types that credit one.
+    """
 
     system_id: UUID
     display_name: str
+    label: str
 
 
 class PersonRef(BaseModel):
@@ -73,7 +82,11 @@ class AnimeLinkFields(SourceFields):
     director: Optional[str] = None
     producer: Optional[str] = None
     music: Optional[str] = None
+    # The publisher credit, carried under the header it has always used: the
+    # value moved from media_tag to media_credit, `distributor_tw` did not
+    # move at all. sheet_column_for("anime", "publisher") owns that mapping.
     distributor_tw: Optional[str] = None
+    publisher_refs: list[PublisherRef] = []
     genre_main: Optional[str] = None
     genre_sub: Optional[str] = None
     label: Optional[str] = None
@@ -86,6 +99,11 @@ class AnimeMovieLinkFields(SourceFields):
     studio: Optional[str] = None
     studio_refs: list[StudioRef] = []
     director: Optional[str] = None
+    # Anime Movie is the one type whose distributor column is genuinely new -
+    # it never carried publisher_tw - but it takes anime's header, because the
+    # two tabs describe the same fact and read the same way.
+    distributor_tw: Optional[str] = None
+    publisher_refs: list[PublisherRef] = []
     exclusive_source: Optional[str] = None
 
 
@@ -113,7 +131,10 @@ class MangaLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author_plot: Optional[str] = None
     author_draw: Optional[str] = None
+    # The publisher credit under the header manga has always used - see
+    # AnimeLinkFields.
     publisher_tw: Optional[str] = None
+    publisher_refs: list[PublisherRef] = []
     serialization_platform: Optional[str] = None
 
 
@@ -121,7 +142,10 @@ class NovelLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     author: Optional[str] = None
     illustrator: Optional[str] = None
+    # The publisher credit under the header novel has always used - see
+    # AnimeLinkFields.
     publisher_tw: Optional[str] = None
+    publisher_refs: list[PublisherRef] = []
     serialization_platform: Optional[str] = None
 
 
@@ -129,12 +153,15 @@ class ComicLinkFields(SourceFields):
     credit_refs: dict[str, list[PersonRef]] = {}
     writer: Optional[str] = None
     artist: Optional[str] = None
+    # Comic's publisher header is unchanged by the migration: the retired
+    # comic_publisher tag already wrote under "publisher", and so does the
+    # credit that replaced it. Its unused publisher_tw column is gone.
     publisher: Optional[str] = None
+    publisher_refs: list[PublisherRef] = []
     imprint: Optional[str] = None
     continuity: Optional[str] = None
     era: Optional[str] = None
     events: Optional[str] = None
-    publisher_tw: Optional[str] = None
 
 
 class GameLinkFields(SourceFields):

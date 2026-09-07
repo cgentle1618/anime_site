@@ -574,7 +574,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "Comic Vine's penciler / penciller / artist credits; inker "
                         "never matches",
                     ),
-                    Write("comic_publisher", "tag", "if-absent"),
+                    Write("publisher", "credit", "if-absent"),
                     Write(
                         "cover_image_file",
                         "image",

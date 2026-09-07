@@ -475,6 +475,9 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
+        # The publisher credit, under anime's header - see
+        # sheet_column_for("anime-movie", "publisher").
+        "distributor_tw": parse_from_sheet(raw.get("distributor_tw"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
@@ -732,7 +735,10 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         "artist": parse_from_sheet(raw.get("artist"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "end_date": release_date.normalize(parse_from_sheet(raw.get("end_date"), str)),
-        "publisher_tw": parse_from_sheet(raw.get("publisher_tw"), str),
+        # No publisher_tw: comic's copy of that vocabulary was defined and
+        # never used, and left the Comic tab with the migration. A stale sheet
+        # still carrying the column is ignored rather than restored - the
+        # comic publisher is the `publisher` column above.
         "issue_total": parse_from_sheet(raw.get("issue_total"), int),
         "issue_fin": parse_from_sheet(raw.get("issue_fin"), int) or 0,
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),

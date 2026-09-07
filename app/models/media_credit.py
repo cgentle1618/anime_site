@@ -98,9 +98,9 @@ class MediaTag(Base):
     One vocabulary value attached to one media entry.
 
     `field` rather than `category` because one category can serve several
-    fields - "Publisher / Distributor TW" backs publisher_tw on four media
-    types - while one field always maps to exactly one category. The
-    field -> category map lives in app/utils/credit_roles.py.
+    fields - the Platform vocabulary backs both original_source and
+    exclusive_source - while one field always maps to exactly one category.
+    The field -> category map lives in app/utils/credit_roles.py.
     """
 
     __tablename__ = "media_tag"
