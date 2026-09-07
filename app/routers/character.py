@@ -22,6 +22,7 @@ from app import models, schemas
 from app.dependencies import get_current_admin, get_db
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
+from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
 
@@ -188,10 +189,12 @@ def get_character_entries(
             {
                 "system_id": str(entry.system_id),
                 "display_name": entry.display_name,
+                "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(row.media_type, entry),
                 "seiyuu_display_name": seiyuu.display_name if seiyuu else None,
                 "seiyuu_system_id": str(seiyuu.system_id) if seiyuu else None,
+                "seiyuu_public_id": seiyuu.public_id if seiyuu else None,
             }
         )
 
@@ -216,12 +219,12 @@ def get_character_entries(
     summary="Get Character by ID",
 )
 def get_character_by_id(
-    system_id: UUID,
+    system_id: str,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves a single character by their UUID."""
-    character = db.get(models.Character, system_id)
+    """Retrieves a single character by their public_id or their UUID."""
+    character = find_entity(db, models.Character, system_id)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found.")
     return _to_response(db, character, viewer)

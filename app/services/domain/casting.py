@@ -80,8 +80,13 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
             {
                 "system_id": str(casting.system_id),
                 "character_id": str(casting.character_id),
+                # The public ids ride along so the cast table can link to the
+                # character and the seiyuu the same way every other link is
+                # built - from a public_id, not the UUID.
+                "character_public_id": character.public_id if character else None,
                 "character_name": character.display_name if character else None,
                 "person_id": str(person.system_id) if person else None,
+                "person_public_id": person.public_id if person else None,
                 "person_name": person.display_name if person else None,
                 "role": casting.role,
                 "position": casting.position,

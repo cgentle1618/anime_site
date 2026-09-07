@@ -959,9 +959,11 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     publisher_ids = {r.publisher_id for r in credit_rows if r.publisher_id}
     option_ids = {r.option_id for r in tag_rows}
 
+    # The row rather than just its display name: credit_refs need public_id
+    # too, and this is the only query that loads these people.
     people = (
         {
-            p.system_id: p.display_name
+            p.system_id: p
             for p in db.query(models.Person)
             .filter(models.Person.system_id.in_(person_ids))
             .all()
@@ -1010,7 +1012,8 @@ def _values_from_rows(
 
     for row in credit_rows:
         if row.person_id:
-            name = people.get(row.person_id)
+            person = people.get(row.person_id)
+            name = person.display_name if person else None
         elif row.studio_id:
             studio = studios.get(row.studio_id)
             name = studio.display_name if studio else None
@@ -1101,15 +1104,16 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     for row in credit_rows:
         if not row.person_id:
             continue
-        display_name = people.get(row.person_id)
-        if not display_name:
+        person = people.get(row.person_id)
+        if person is None or not person.display_name:
             continue
         credit_refs_by_entry.setdefault(row.entry_id, {}).setdefault(
             row.role, []
         ).append(
             PersonRef(
                 system_id=row.person_id,
-                display_name=display_name,
+                public_id=person.public_id,
+                display_name=person.display_name,
                 label=credit_label(row.role, media_type),
             )
         )
@@ -1124,7 +1128,11 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             if studio is None:
                 continue
             studio_refs_by_entry.setdefault(row.entry_id, []).append(
-                StudioRef(system_id=studio.system_id, display_name=studio.display_name)
+                StudioRef(
+                    system_id=studio.system_id,
+                    public_id=studio.public_id,
+                    display_name=studio.display_name,
+                )
             )
 
     # Same idea as studio_refs, for the third entity target. Offered to any
@@ -1144,6 +1152,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             publisher_refs_by_entry.setdefault(row.entry_id, []).append(
                 PublisherRef(
                     system_id=publisher.system_id,
+                    public_id=publisher.public_id,
                     display_name=publisher.display_name,
                     label=credit_label(row.role, media_type),
                 )

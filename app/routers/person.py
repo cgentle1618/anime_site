@@ -26,6 +26,7 @@ from app.services.domain.credits import find_person
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
+from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import name_slot_for
 from app.utils.release_date import primary_release_value
@@ -263,6 +264,7 @@ def get_person_entries(
             {
                 "system_id": str(entry.system_id),
                 "display_name": entry.display_name,
+                "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(row.media_type, entry),
             }
@@ -281,6 +283,7 @@ def get_person_entries(
             {
                 "system_id": str(entry.system_id),
                 "display_name": entry.display_name,
+                "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(row.media_type, entry),
                 "character_name": character.display_name if character else None,
@@ -309,12 +312,12 @@ def get_person_entries(
     "/{system_id}", response_model=schemas.PersonResponse, summary="Get Person by ID"
 )
 def get_person_by_id(
-    system_id: UUID,
+    system_id: str,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves a single person by their UUID."""
-    person = db.get(models.Person, system_id)
+    """Retrieves a single person by their public_id or their UUID."""
+    person = find_entity(db, models.Person, system_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found.")
     return _to_response(db, person, viewer)

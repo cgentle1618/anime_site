@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.link_fields import GameLinkFields
+from app.schemas.link_fields import GameLinkFields, GameRef
 from app.schemas.release_date_field import release_date_validator
 from app.schemas.sources import SourceWriteFields
 from app.services.domain.game_copies import derive_game_ownership
@@ -114,6 +114,10 @@ class GameResponse(GameBase, GameLinkFields):
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
+    # The base game a DLC belongs to, so the detail page can name it and link
+    # to it. None on a base game, and on a DLC whose base game is not in the
+    # database (base_game_id is deliberately nullable even for a DLC).
+    base_game: Optional[GameRef] = None
     copies: List[GameCopyIO] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -22,6 +22,7 @@ from app.services.domain.credits import find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
+from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
 
@@ -85,12 +86,12 @@ def get_all_studios(
     "/{system_id}", response_model=schemas.StudioResponse, summary="Get Studio by ID"
 )
 def get_studio_by_id(
-    system_id: UUID,
+    system_id: str,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves a single studio by its UUID."""
-    studio = db.get(models.Studio, system_id)
+    """Retrieves a single studio by its public_id or its UUID."""
+    studio = find_entity(db, models.Studio, system_id)
     if studio is None:
         raise HTTPException(status_code=404, detail="Studio not found.")
     return _to_response(db, studio, viewer)
@@ -137,6 +138,7 @@ def get_studio_entries(
             {
                 "system_id": str(entry.system_id),
                 "display_name": entry.display_name,
+                "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(media_type, entry),
             }

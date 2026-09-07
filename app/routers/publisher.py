@@ -24,6 +24,7 @@ from app.services.domain.credits import find_publisher
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer
+from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
 
@@ -105,12 +106,12 @@ def get_all_publishers(
     summary="Get Publisher by ID",
 )
 def get_publisher_by_id(
-    system_id: UUID,
+    system_id: str,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Retrieves a single publisher by its UUID."""
-    publisher = db.get(models.Publisher, system_id)
+    """Retrieves a single publisher by its public_id or its UUID."""
+    publisher = find_entity(db, models.Publisher, system_id)
     if publisher is None:
         raise HTTPException(status_code=404, detail="Publisher not found.")
     return _to_response(db, publisher, viewer)
@@ -154,6 +155,7 @@ def get_publisher_entries(
             {
                 "system_id": str(entry.system_id),
                 "display_name": entry.display_name,
+                "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
                 "release_date": primary_release_value(media_type, entry),
             }

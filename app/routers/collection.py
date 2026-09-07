@@ -18,6 +18,7 @@ from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
 from app.utils.data_control_utils import log_deleted_record
+from app.utils.entity_ref import find_entity
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +72,8 @@ def get_all_collections(
     summary="Get Collection by ID",
 )
 def get_collection_by_id(system_id: str, db: Session = Depends(get_db)):
-    """Retrieves a single collection by its UUID."""
-    db_collection = (
-        db.query(models.Collection)
-        .filter(models.Collection.system_id == system_id)
-        .first()
-    )
+    """Retrieves a single collection by its public_id or its UUID."""
+    db_collection = find_entity(db, models.Collection, system_id)
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
     return db_collection

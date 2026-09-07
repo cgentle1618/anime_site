@@ -19,6 +19,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
+from app.utils.entity_ref import find_entity
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +74,8 @@ def get_all_franchises(
     summary="Get Franchise by ID",
 )
 def get_franchise_by_id(system_id: str, db: Session = Depends(get_db)):
-    """Retrieves a single franchise by its UUID."""
-    db_franchise = (
-        db.query(models.Franchise)
-        .filter(models.Franchise.system_id == system_id)
-        .first()
-    )
+    """Retrieves a single franchise by its public_id or its UUID."""
+    db_franchise = find_entity(db, models.Franchise, system_id)
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
     return db_franchise

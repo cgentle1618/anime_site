@@ -19,6 +19,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
 from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
+from app.utils.entity_ref import find_entity
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +69,8 @@ def get_all_series(
     summary="Get Series by ID",
 )
 def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
-    """Retrieves a single series by its UUID."""
-    db_series = (
-        db.query(models.Series).filter(models.Series.system_id == system_id).first()
-    )
+    """Retrieves a single series by its public_id or its UUID."""
+    db_series = find_entity(db, models.Series, system_id)
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
     return db_series

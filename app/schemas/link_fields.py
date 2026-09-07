@@ -26,7 +26,7 @@ ids and are the Sheets contract, so neither replaces the other.
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas.sources import SourceRef
 
@@ -41,6 +41,7 @@ class StudioRef(BaseModel):
     """A studio a page can link to. The `studio` string beside it has no ids."""
 
     system_id: UUID
+    public_id: int
     display_name: str
 
 
@@ -56,8 +57,25 @@ class PublisherRef(BaseModel):
     """
 
     system_id: UUID
+    public_id: int
     display_name: str
     label: str
+
+
+class GameRef(BaseModel):
+    """
+    A game a page can link to - today only a DLC's base game.
+
+    Same shape as the credit refs, for the same reason: the SPA builds every
+    detail link from a public_id and a name, and a bare foreign key gives it
+    neither. The page used to read a `base_game_name` nothing ever sent.
+    """
+
+    system_id: UUID
+    public_id: int
+    display_name: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PersonRef(BaseModel):
@@ -71,6 +89,7 @@ class PersonRef(BaseModel):
     """
 
     system_id: UUID
+    public_id: int
     display_name: str
     label: str
 

@@ -34,6 +34,7 @@ from app.services.domain.watch_order import (
 )
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
+from app.utils.entity_ref import find_entity
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +47,8 @@ router = APIRouter(prefix="/api/watch-order", tags=["Watch Order"])
 
 
 def _get_list_or_404(db: Session, list_id: str) -> models.WatchOrderList:
-    db_list = (
-        db.query(models.WatchOrderList)
-        .filter(models.WatchOrderList.system_id == list_id)
-        .first()
-    )
+    """The list `list_id` names, by public_id or by UUID."""
+    db_list = find_entity(db, models.WatchOrderList, list_id)
     if not db_list:
         raise HTTPException(status_code=404, detail="Watch order not found.")
     return db_list

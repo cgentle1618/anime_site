@@ -480,6 +480,72 @@ def media_entry_for(db_session, client):
     return _make
 
 
+# The non-media detail endpoints, as base path -> (model, name field). Series
+# and the watch-order list need an owner, so they are built by hand below
+# rather than described here.
+_ENTITY_MODEL_FOR_BASE = {
+    "/api/collection": (models.Collection, "collection_name_en"),
+    "/api/franchise": (models.Franchise, "franchise_name_en"),
+    "/api/studio": (models.Studio, "name_en"),
+    "/api/publisher": (models.Publisher, "name_en"),
+    "/api/person": (models.Person, "name_en"),
+    "/api/character": (models.Character, "name_en"),
+}
+
+WATCH_ORDER_LIST_BASE = "/api/watch-order/lists"
+
+
+@pytest.fixture
+def entity_for(db_session, client):
+    """entity_for(base) creates one row of the type `base` serves and returns
+    its response dict, so callers get a real public_id/system_id pair without
+    duplicating per-type model setup. The mirror of media_entry_for for the
+    eight hand-written entity routers."""
+
+    def _make(base: str) -> dict:
+        if base == "/api/series":
+            owner = models.Franchise(
+                system_id=uuid.uuid4(),
+                franchise_type="Anime",
+                franchise_name_en="Ref Owner Franchise",
+            )
+            db_session.add(owner)
+            db_session.flush()
+            row = models.Series(
+                system_id=uuid.uuid4(),
+                franchise_id=owner.system_id,
+                series_name_en="Ref Series",
+            )
+        elif base == WATCH_ORDER_LIST_BASE:
+            owner = models.Franchise(
+                system_id=uuid.uuid4(),
+                franchise_type="Anime",
+                franchise_name_en="Ref Owner Franchise",
+            )
+            db_session.add(owner)
+            db_session.flush()
+            # ck_watch_order_list_single_owner wants exactly one owner set.
+            row = models.WatchOrderList(
+                system_id=uuid.uuid4(),
+                list_name="Ref List",
+                franchise_id=owner.system_id,
+            )
+        else:
+            model, name_field = _ENTITY_MODEL_FOR_BASE[base]
+            row = model(system_id=uuid.uuid4())
+            setattr(row, name_field, "Ref Entity")
+            if model is models.Franchise:
+                row.franchise_type = "Anime"
+
+        db_session.add(row)
+        db_session.flush()
+        response = client.get(f"{base}/{row.system_id}")
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _make
+
+
 @pytest.fixture
 def labelled_hidden_anime(db_session, sample_franchise):
     """An anime carrying a content label the default guest role cannot see -

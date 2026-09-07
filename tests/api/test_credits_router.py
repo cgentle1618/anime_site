@@ -101,6 +101,12 @@ def test_anime_payload_carries_linkable_studio_refs(
 
     body = admin_client.get(f"/api/anime/{sample_anime.system_id}").json()
     assert body["studio"] == "MAPPA"          # legacy string, unchanged
+    # public_id rides along so the page can build /studio/<id>/<slug> without
+    # a second fetch; the UUID stays for every other call.
     assert body["studio_refs"] == [
-        {"system_id": str(studio.system_id), "display_name": "MAPPA"}
+        {
+            "system_id": str(studio.system_id),
+            "public_id": studio.public_id,
+            "display_name": "MAPPA",
+        }
     ]
