@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07 (Comic Vine publisher writes a credit, not a tag)
 
 ## What this is for
 
@@ -208,7 +208,7 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 | `start_year` | `volume_label` | `comic.volume_label` | `2018` → `"(2018)"`; fill-only |
 | `start_year` | `release_date` | `comic.release_date` | year-precision canonical date, e.g. `1963`; fill-only |
 | `count_of_issues` | `issue_total` | `comic.issue_total` | fill-only |
-| `publisher.name` | `publisher` | `media_tag` field `comic_publisher` via `replace_tags` | only if the entry has no publisher tag yet |
+| `publisher.name` | `publisher` | `media_credit` role `publisher` via `replace_credits` | only if the entry has no publisher credit yet. Was a `media_tag` row in the `Comic Publisher` vocabulary until 2026-09-07; `replace_credits` now resolves the name to a `publisher` entity and scopes it to `comic` |
 | `person_credits` with role token `writer` | `writer` | `media_credit` role `author` via `replace_credits` | only if no author credit yet; names comma-joined, deduplicated, matched on whole tokens (`ARTIST_ROLES = ("penciler", "penciller", "artist")`, so `inker` never matches) |
 | `person_credits` with penciler / penciller / artist | `artist` | `media_credit` role `illustrator` | same |
 | `image` | `cover_image_url` | cover download | fill-only |

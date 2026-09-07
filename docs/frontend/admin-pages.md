@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-07
+Last verified: 2026-09-07 (publisher scope pills)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -268,7 +268,13 @@ rating, logo key, country, founded/defunct `ReleaseDateInput`s, website and
 remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
-matching `ck_publisher_has_a_name`, and `POST /api/publisher/` is
+matching `ck_publisher_has_a_name`. Below the name fields sits
+`PublisherScopePills` (`components/forms/PublisherScopePills.jsx`): one row of
+media-type pills — Anime, Anime Movie, Manga, Novel, Comic, Game — writing the
+`scopes` list the request body carries, which decides where this publisher is
+offered in the entry forms' pickers. A publisher with no pill lit is offered
+**nowhere**, which is the deliberate rule, not an oversight; the studio tab has
+no counterpart, because studios carry no scope. `POST /api/publisher/` is
 find-or-create exactly as studio's is.
 
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
@@ -319,7 +325,10 @@ Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
   same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
   picker listing every publisher up front, the same all-four-names filter, and
   its own `PUT /api/publisher/{id}` rendering `PublisherFields` from the Add
-  tab. Two `activeTab !== "publisher"` guards on the page suppress the generic
+  tab, `PublisherScopePills` included — and this is the **only** path that
+  narrows a publisher's scopes, since `PUT` replaces the set wholesale while
+  every other writer (the create POST, and crediting a publisher on an entry)
+  is additive. Two `activeTab !== "publisher"` guards on the page suppress the generic
   entry search bar and save footer, as the studio and person tabs do. Unlike
   the studio tab it seeds **no default country**: "nearly every studio here is
   Japanese" is not true of publishers and distributors.
@@ -452,9 +461,11 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic and Source & Platform — the last holding
-`Publisher / Distributor TW` alongside the platform and reference vocabularies,
-since all of them name an outside party.
+reads as Tags, Game, Comic and Source & Platform. That last group lost
+`Publisher / Distributor TW` and `Comic Publisher` when the publisher migration
+retired both categories on 2026-09-07 — publishers are edited on the Entity →
+Publisher tab now, not here — leaving it holding the platform and reference
+vocabularies, which still name an outside party.
 
 A group left with a single member is demoted into Other rather than printed as
 a heading over one card. The left-hand section index lists one level per tier —

@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07 (publisher rows on every detail page)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -543,9 +543,13 @@ Top to bottom:
    `/studio/{system_id}` per entry in `studio_refs`, falling back to the plain
    comma-joined `studio` string when there are none, which is what a viewer
    without the Credits permission and an entry whose studio never resolved to
-   a row both get — and whose Game equivalent is the same helper plus
-   `publisherValue()`, the same rule over `publisher_refs` with the route
-   swapped to `/publisher` — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
+   a row both get — and beside it, on **all six** types that credit a publisher
+   (Anime, AnimeMovie, Manga, Novel, Comic, Game), `publisherValue()`: the same
+   rule over `publisher_refs` with the route swapped to `/publisher`, under a
+   heading `publisherLabel(entry, fallback)` reads off `publisher_refs[0].label`
+   — the backend's `credit_label("publisher", media_type)`, so no page
+   hard-codes 台灣代理商 or 發行商 and the fallback literal only shows on an
+   entry with no publisher credited yet — a **Cast** slip (Anime, AnimeMovie, Manga, Novel; GET
    `/api/casting/{media_type}/{entry_id}` via `useCasting`), rendered only
    when the entry has a cast, one row per casting sorted Main before
    Supporting then by `position`: a small cover-or-portrait thumbnail, a role
@@ -573,15 +577,15 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
-| Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label, Quality 品質 | Studio, 台灣代理, Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
-| AnimeMovie | Airing Status, Length, Release Date JP/TW | Studio, Director | no series query; Cast placeholder |
+| Anime | 本傳/外傳, Season Part, Special Episodes, Total Episodes (with cumulative), Airing Type/Status, Release Season, Release Date, Genre main/sub, 標籤 Label, Quality 品質 | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
+| AnimeMovie | Airing Status, Length, Release Date JP/TW | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
 | Movie | 本傳/外傳, Airing Status, Length, Director, Release Date TW/USA | — | inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Status, Release Date | — | |
 | Cartoon | + Airing Type, Length Per Ep (min) | — | |
-| Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, Publisher TW, Anime Studio (card shown only when any value) | |
-| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, Publisher TW (conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
-| Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, Publisher, Imprint, Publisher TW (conditional) | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Playing Status, Completion Level, All Endings / All Achievements / All Collected (a row of three tristates; an unset one is dropped rather than shown as "No"), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), Publisher (`publisherValue`), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
+| Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
+| Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
+| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Playing Status, Completion Level, All Endings / All Achievements / All Collected (a row of three tristates; an unset one is dropped rather than shown as "No"), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than the bare literal it used to hard-code), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 

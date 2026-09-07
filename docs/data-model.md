@@ -20,7 +20,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
-- [People, studios and links](#people-studios-and-links): person, person_role, studio, publisher, character, character_casting, media_credit, media_tag
+- [People, studios and links](#people-studios-and-links): person, person_role, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
@@ -216,7 +216,8 @@ fields in [Virtual fields](#virtual-fields-on-media-entries). There is no
 `source_other` column any more - a `media_source` `bucket='other'` row is
 what every read and write path uses now (see [`media_source`](#media_source)).
 Credits
-(studio, director, author...) and vocabulary tags (genre, publisher...) are
+(studio, publisher, director, author...) and vocabulary tags (genre, label...)
+are
 **not columns** - they are rows in `media_credit` / `media_tag`.
 
 ### `anime`
@@ -273,7 +274,10 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | `mal_id` | Integer | yes | | |
 | `mal_link` | String | yes | | |
 
-Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `names_dict`.
+Virtual: `remark`, `watch_next`, `to_rewatch`, `display_name`, `names_dict`,
+credit/tag link fields - including `distributor_tw`, the one genuinely new
+column the publisher migration added: anime_movies never carried a distributor
+before, and it takes anime's header because the two tabs record the same fact.
 
 ### `movies`
 
@@ -375,6 +379,9 @@ Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 link fields. `serialization_platform` was a real column until Task 11 of the
 media-sources migration backfilled it into `media_tag` and dropped it - it is
 now a `TagField` shared with `novel` (`app/utils/credit_roles.py`).
+`publisher_tw` is the response/sheet attribute name only: since the publisher
+migration the value behind it is a `publisher` **credit**, not a tag - the
+header did not move, what sits behind it did.
 
 ### `novel`
 
@@ -415,7 +422,8 @@ Alembic revision `nv1u2n3i4t5s`.
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 `author` / `illustrator` / `publisher_tw` / `serialization_platform` link
-fields, `units`
+fields (`publisher_tw` is the header a `publisher` credit is written under -
+see manga above), `units`
 (`List[NovelUnitResponse]`, populated via `selectinload`).
 
 ### `novel_unit`
@@ -486,7 +494,9 @@ titles).
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 `writer` / `artist` / `publisher` / `imprint` / `continuity` / `era` /
-`events` / `publisher_tw` link fields.
+`events` link fields. `publisher` is now a credit rather than the retired
+`comic_publisher` tag, under the same header; comic's unused `publisher_tw`
+attribute is gone.
 
 ### `games`
 
@@ -591,7 +601,7 @@ are not columns on the entry tables.
 | `to_rewatch` / `to_reread` / `to_replay` | Boolean over `plan_next` (`kind = rewatch`, `scope = entry`). Only types with an entry-level rewatch scope have it: **not** anime, **not** cartoon (they rewatch at franchise scope). Mapping: `PLAN_FLAG_FIELDS` in `app/utils/plan_next_kinds.py`. Note that a virtual flag also has to be **declared on the response schema** - the router factory sets it, but pydantic drops an undeclared field silently, which is why `GameBase` names `play_next` / `to_replay` outright. | anime_movies, movies, tv_shows, manga, novel, comic, games |
 | Credit / tag link fields (`studio`, `director`, `producer`, `music`, `genre_main`, `genre_sub`, `label`, `distributor_tw`, `source_official` **or** `original_source`, `author_plot`, ...) | Attached at read time by `services.domain.credits.attach_link_fields` from `media_credit` / `media_tag`; the attribute names are the legacy sheet headers in `LEGACY_SHEET_COLUMN` (`app/utils/credit_roles.py`). | per media type - see `TAG_FIELDS` / `CREDIT_ROLES` |
 | `studio_refs` | Attached by the same `attach_link_fields` pass, from the same studio credit rows as the `studio` string beside it - `{system_id, display_name}` per studio, so a page can link where the comma-joined string cannot. Gated with `studio` in the Credits field group (`app/services/rbac/field_groups.py`). | anime, anime_movies |
-| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role is meant to read a different word per media type. Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Gated with `publisher` in the Credits field group. | any type with a `publisher` credit role - `game` today |
+| `publisher_refs` | Attached by the same `attach_link_fields` pass from the entry's `publisher` credit rows - `{system_id, display_name, label}` per publisher, the `studio_refs` idea for the third entity target plus `credit_refs`'s label, because one publisher role reads a different word per media type (`label` carries `credit_label("publisher", media_type)` - 台灣代理商, 台灣出版商, 出版商 or 發行商). Attached only for media types whose `credit_roles_for()` includes `publisher`, derived rather than hand-listed. Gated with `publisher` in the Credits field group. | anime, anime_movies, manga, novel, comic, games |
 | `sources` | List of `SourceRef` (`app/schemas/sources.py`), attached at read time from `media_source` by `services.domain.sources.attach_sources`. Bucket-filtered per viewer (`sources_other` / `sources_restricted`) before the response is built - see [authorization.md](authorization.md). | all 9 |
 | `User.role` | `column_property` over `role.name` via `users.role_id` (read-only). | users |
 
@@ -684,10 +694,14 @@ One anime production studio, and a public entity with a page of its own.
 Publishers and distributors are **not** here - they have their own
 [`publisher`](#publisher) table. The earlier ruling recorded in this file (that
 they need no profile and stay a single "Publisher / Distributor TW"
-`system_option` vocabulary) was reversed on 2026-09-06. That vocabulary still
-exists and still backs the `publisher_tw` tag field on anime, manga, novel and
-comic; what changed is that a publisher can now be an entity with a profile of
-its own.
+`system_option` vocabulary) was reversed on 2026-09-06, and that vocabulary is
+now **gone**: the 2026-09-07 migration moved its rows onto `media_credit` as
+`publisher` credits and deleted it, along with `Comic Publisher`.
+
+`studio` deliberately has **no** scope table of its own, unlike
+[`publisher`](#publisher_scope). A studio list that offers every studio on
+every type it applies to is not wrong in the way a distributor list offering
+木棉花 on a game would be.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -738,6 +752,13 @@ and a public entity with a page of its own. Model: `Publisher`
 role; see `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
 Decision K.
 
+The 2026-09-07 migration finished the job the 09-06 work deliberately left
+half done. The `publisher` role now covers **six** media types (anime,
+anime-movie, manga, novel, comic, game), and the `Publisher / Distributor TW`
+and `Comic Publisher` vocabularies that used to hold the other five types'
+values are retired - every one of their rows is a `media_credit` row pointing
+here. See `docs/superpowers/specs/2026-09-07-publisher-entity-migration-design.md`.
+
 Deliberately a separate table rather than a `publisher` role pointing at
 `studio`. The overlap is real - Bandai Namco and Kadokawa both develop and
 publish, and will exist as two unlinked rows - but the bulk of
@@ -768,6 +789,10 @@ autofill call either. `tests/api/test_publisher_model.py` asserts the absence.
 `display_name_field` names the winner and the EN → CN → JP → Alt chain is only
 the fallback.
 
+Relationship: `scopes` -> [`publisher_scope`](#publisher_scope) (cascade
+`all, delete-orphan`, `passive_deletes=True`), the one place the shape departs
+from `studio`.
+
 Constraints:
 
 - `uq_publisher_name` UNIQUE (`name_en`, `name_cn`, `name_jp`, `name_alt`)
@@ -781,7 +806,56 @@ Constraints:
   matches `^\d{4}(-\d{2}(-\d{2})?)?$` when it is not NULL.
 
 Migration `p1u2b3l4i5s6` creates the table and adds
-`media_credit.publisher_id`.
+`media_credit.publisher_id`. Migration `pb2m3i4g5r8` fills it: it ran
+`backfill_publishers` over the real data on 2026-09-07 and wrote **520**
+credits over **32** entities with **36** scope rows and 0 skipped.
+
+### `publisher_scope`
+
+Which media types a publisher is offered on. Model: `PublisherScope`
+(`app/models/staff.py`), added by migration `pb1s2c3o4p5e`.
+
+Explicit rather than derived from credits, for the reason
+[`person_role`](#person_role) already gives: a distributor added today must
+appear in the anime picker *before* its first credit exists. Without it every
+migrated publisher would be offered on all six types - a games publisher
+suggested as an anime distributor, and 木棉花 suggested on a game.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `id` | Integer | no | autoincrement | PK |
+| `publisher_id` | UUID | no | | FK `publisher.system_id` ON DELETE CASCADE, indexed |
+| `scope` | String | **no** | | A hyphenated media-type key, one of `legal_scopes("publisher")` |
+
+Constraint: `uq_publisher_scope` UNIQUE (`publisher_id`, `scope`) - plain, not
+NULLS NOT DISTINCT: `scope` is NOT NULL, so no nullable column is left in the
+key for Postgres to treat as distinct from itself. `uq_person_role` needed the
+opposite treatment only while its own scope column was still nullable.
+
+**No `role` column**, and that is the one deliberate difference from
+`person_role`. A person holds several roles, so that table keys on
+`(person_id, role, scope)`; a publisher holds exactly one role, `publisher`,
+so a column whose value is that constant on every row would encode nothing.
+
+The two rules `person_role` argues for are inherited unchanged:
+
+- **No unscoped "offered everywhere" state.** Zero rows means offered
+  *nowhere*, the opposite of `system_option_scope`.
+- **Auto-scoping on write is additive.** `resolve_publisher(db, name, *,
+  scope=)` adds the media type's row if absent and never removes another, so
+  crediting a publisher on a manga can only widen where it is offered. Under
+  an "everywhere" rule the first scope row would silently *narrow* the
+  publisher - the trap Ruling R27 removed from tags.
+
+`POST /api/publisher` inserts additively for the same reason; `PUT` is a full
+replace (the one path an admin uses to take a scope away) and merge unions
+both sides' rows. `GET /api/publisher/?scope=<media-type>` is the read filter.
+
+Migration `pb2m3i4g5r8` seeded the table from the data it converted: each
+publisher got exactly the scopes of the entries it is credited on. Two values
+with no tag rows at all (`bilibili`, `Crunchyroll`) were seeded by hand with
+the `anime` scope, because zero rows would have made them invisible in every
+picker.
 
 ### `character`
 

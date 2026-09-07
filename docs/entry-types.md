@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07 (publisher credit row added)
 
 ## What this is for
 
@@ -171,7 +171,20 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** |
 | Access `main` platforms | baha, netflix, disney_plus, prime, bilibili, crunchyroll | (same as anime) + Cinema | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | netflix, disney_plus, prime, hbomax, apple_tv | none | none | none | **none** - a game is played on a platform, not watched on one: that is the `game_platform` tag field, and which copy was owned is `game_copy`. The Sources editor hides the access group for games |
 | Reference `main` sources | official, twitter, anilist, wiki, fandom, keyframe_staff | (same as anime) | wiki | wiki | wiki | twitter, anilist, wiki, fandom | twitter, anilist, wiki, fandom | official, wiki, fandom | SteamDB, HowLongToBeat, Metacritic, Official site, Wikipedia, Fandom wiki |
+| Publisher credit label (`credit_label("publisher", type)`) | 台灣代理商 | 台灣代理商 | — | — | — | 台灣出版商 | 台灣出版商 | 出版商 | 發行商 |
+| Publisher sheet header (`sheet_column_for`) | `distributor_tw` | `distributor_tw` | — | — | — | `publisher_tw` | `publisher_tw` | `publisher` | `publisher` |
 | Origin/exclusivity tag field | `exclusive_source` (single) | `exclusive_source` (single) | `original_source` (multi) | `original_source` (multi) | `original_source` (multi) | `serialization_platform` (multi) | `serialization_platform` (multi) | — | — |
+
+Six of the nine credit a **publisher** - one `publisher` credit role, one
+`publisher` entity table, six reader-facing labels. Movies, TV shows and
+cartoons credit none. The label and the sheet header are independent: the
+header is whatever that tab has always been called, while the label is what a
+reader sees, and `_LABEL_OVERRIDES` in `app/utils/credit_roles.py` owns it.
+Which publishers a type's picker offers is `publisher_scope`
+(see [data-model.md](data-model.md#publisher_scope)), so a games publisher is
+never suggested as an anime distributor. Anime Movie's `distributor_tw` is the
+one column the 2026-09-07 migration genuinely added - that tab never carried a
+distributor before.
 
 Every type also gets `other` and `restricted` free-form access/reference
 buckets on `media_source`, gated by the `sources_other` / `sources_restricted`

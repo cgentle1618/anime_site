@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-07
+Last verified: 2026-09-07 (publisher entity migration)
 
 ## What this is for
 
@@ -31,7 +31,7 @@ code.
   - [RBAC permissions and field groups](#rbac-permissions-and-field-groups)
   - [Media type and owner keys](#media-type-and-owner-keys-apputilsmedia_resolverpy)
 - [Tier 2: system options](#tier-2-system-options)
-- [Tier 3: people and studios](#tier-3-people-and-studios)
+- [Tier 3: people, studios and publishers](#tier-3-people-studios-and-publishers)
 - [Fixed constants](#fixed-constants)
 - [Frontend copies of backend vocabulary](#frontend-copies-of-backend-vocabulary)
 - [Known discrepancies](#known-discrepancies)
@@ -360,19 +360,41 @@ explicitly - a two-way branch whose `else` meant "person" would have minted a
 than a new `developer` role: one company that made the work is the same fact
 the anime role records, and a separate key would split one studio's anime and
 game credits across two vocabularies. `director` and `composer` widened the
-same way. `publisher` stays games-only.
+same way. `publisher` widened on 2026-09-07 to all six types that credit one
+(anime, anime-movie, manga, novel, comic, game) for the same reason - see
+below.
 
 The temporary `_PENDING_MEDIA_TYPES = {"game"}` allowlist in
 `tests/unit/test_credit_roles.py` - which let the `publisher` role name a
 media type `MEDIA_TABLES` did not yet register - is **gone**, deleted when
 `game` joined the registry. The guard is back to rejecting any unknown key.
 
-**`publisher_tw` is unaffected and remains a tag field.** The entity does not
-replace the vocabulary: anime, manga, novel and comic still write `media_tag`
-rows against the `Publisher / Distributor TW` category, exactly as before, and
-nothing on those four types changed. Converting those rows into `publisher`
-entities is a later migration, tracked in
-[roadmap.md](roadmap.md#deferred--known-debt).
+**`publisher_tw` and `comic_publisher` are gone.** On 2026-09-06 the entity
+shipped *beside* the vocabulary; on 2026-09-07 it replaced it. Migration
+`pb2m3i4g5r8` turned every `media_tag` row in the `Publisher / Distributor TW`
+and `Comic Publisher` categories into a `publisher` credit (520 credits over 32
+entities), deleted both `TagFields`, and deleted both categories. `publisher`
+is now the last of the vocabularies that named an outside **company** rather
+than a fact about the work; the remaining comic vocabularies (`comic_imprint`,
+`comic_continuity`, `comic_era`, `comic_event`) stay tag fields, because an
+imprint is arguably a sub-entity of a publisher and the flat `publisher` table
+cannot express that.
+
+**One role, six reader-facing words.** `credit_label("publisher", media_type)`
+returns 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and novel,
+出版商 on comic (a comic's publisher is Marvel - the work's *original*
+publisher, not a TW licensor) and 發行商 on game. All six types have an
+override, so the role's own `"Publisher"` label is never rendered; it survives
+only for admin tooling holding no media type. "Publisher / Distributor" names
+the concept in code and never reaches a reader.
+
+**Publishers are scoped, and studios are not.** `publisher_scope`
+(see [data-model.md](data-model.md#publisher_scope)) is `person_role`'s idea
+without the `role` column: zero rows means offered *nowhere*, and
+`resolve_publisher(db, name, scope=)` adds scope rows additively on write. It
+exists because a distributor list that offers 木棉花 on a game is wrong in a
+way a studio list is not. `system_option_scope`'s opposite rule (zero rows =
+everywhere) is what makes the two tables read differently.
 
 `seiyuu` is the one row whose credits are **not** stored in `media_credit`:
 `CreditRole` carries a `credited_via` field, `"media_credit"` for the other
@@ -413,8 +435,6 @@ Tier 2 category:
 | `original_source` | Original Source | `Platform` | tv-show, cartoon, movie |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, novel |
-| `publisher_tw` | Publisher / Distributor TW | `Publisher / Distributor TW` | anime, manga, novel, comic |
-| `comic_publisher` | Publisher | `Comic Publisher` | comic |
 | `comic_imprint` | Imprint | `Comic Imprint` | comic |
 | `comic_continuity` | Continuity | `Comic Continuity` | comic |
 | `comic_era` | Era | `Comic Era` | comic |
@@ -454,9 +474,8 @@ of **Options**. The split is navigation only: both sub-tabs are the same form
 over the same `system_option` rows, and nothing in the data or the API marks
 a category as a tag. The list is written out, not derived — these four happen
 to be exactly the anime-only tag fields today, but what puts a category here
-is that its values read as tags *on* the work, while `Platform`,
-`Publisher / Distributor TW` and the Comic vocabularies name an outside
-party. A new anime-only category is therefore not automatically a tag.
+is that its values read as tags *on* the work, while `Platform` and the
+Comic vocabularies name an outside party. A new anime-only category is therefore not automatically a tag.
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
 2 categories with no `TagField` behind them — `Reference Source` instead
@@ -475,7 +494,11 @@ rows, because an empty one has nothing to delete.
 
 `LEGACY_SHEET_COLUMN` maps each `(media_type, key)` to the Google
 Sheets header it has always used (e.g. `("anime", "composer")` -> `music`,
-`("anime", "publisher_tw")` -> `distributor_tw`).
+`("anime", "publisher")` -> `distributor_tw`, `("manga", "publisher")` ->
+`publisher_tw`). The five `publisher` pairs replaced the four `publisher_tw`
+tag pairs and comic's `comic_publisher` pair when those vocabularies retired,
+so every tab kept the header it already had; anime-movie's `distributor_tw` is
+the one new column.
 
 ### Watch-order built-ins (`app/services/domain/watch_order.py`)
 
@@ -537,7 +560,7 @@ described in
 
 **Categories.** The category string is free text on the API
 (`SystemOptionCreate.category: str`), but the ones anything reads are the
-eighteen in `OPTION_CATEGORIES`:
+seventeen in `OPTION_CATEGORIES`:
 
 | Category | Offered in (scopes) | Read by |
 |---|---|---|
@@ -548,8 +571,6 @@ eighteen in `OPTION_CATEGORIES`:
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
 | `Serialization Platform` | manga, novel | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
-| `Publisher / Distributor TW` | anime, manga, novel, comic | tag field `publisher_tw` (merged `Distributor TW`, `Manga Publisher TW`, `Novel Publisher TW`) |
-| `Comic Publisher` | comic | tag field `comic_publisher` |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
 | `Comic Era` | comic | tag field `comic_era` |
@@ -692,31 +713,42 @@ at rather than taking entry data with it — the drop list is guarded in
 `tests/unit/test_retire_orphan_option_categories.py`, which fails if a live
 category is ever named in it.
 
+Two more retired on 2026-09-07: `Publisher / Distributor TW` and
+`Comic Publisher`, deleted by `pb2m3i4g5r8` after their rows became `publisher`
+credits. (This is what became of the `bilibili` value the earlier migration had
+just moved into `Publisher / Distributor TW`: it is a `publisher` entity now,
+seeded with the `anime` scope even though no entry credits it, since a
+publisher holding no scope rows is offered nowhere. `bilibili (GoodShow)`, also
+credited on nothing, was dropped instead.)
+
 ---
 
-## Tier 3: people and studios
+## Tier 3: people, studios and publishers
 
-Categories that named a person or a studio are entity rows, not vocabulary
+Categories that named a person, a studio or a publisher are entity rows, not vocabulary
 strings, because a director needs multilingual names, a rating, a photo and
 a remark. See [systems/credits-and-tags.md](systems/credits-and-tags.md) for
 the full system and [data-model.md](data-model.md#people-studios-and-links)
-for the `person`, `person_role`, `studio`, `media_credit` tables.
+for the `person`, `person_role`, `studio`, `publisher`, `publisher_scope` and
+`media_credit` tables.
 
 Keyed by the LIVE role, with the old categories that folded into it - the same
 shape as `TIER3_ROWS` in `frontend/src/pages/admin/SystemOptions.jsx`, whose
-comment asks that the two be kept in step. Six rows, because the role
-vocabulary collapsed to five person roles plus `studio`.
+comment asks that the two be kept in step. Seven rows: five person roles plus
+`studio` and `publisher`.
 
 | Old option categories | New home | Notes |
 |---|---|---|
 | `Studio` | `studio` | credited via `media_credit` role `studio` |
+| `Publisher / Distributor TW` · `Comic Publisher` | `publisher` | credited via `media_credit` role `publisher`, offered per media type through `publisher_scope`. One role, four labels: 台灣代理商 on anime and anime-movie, 台灣出版商 on manga and novel, 出版商 on comic, 發行商 on game |
 | `Director` | `person`, role `director` | scoped by media type on `person_role`: anime, anime-movie, movie |
 | `Producer` | `person`, role `producer` | scoped anime |
 | `Music / Composer` | `person`, role `composer` | scoped anime |
 | `Manga Author` · `Novel Author` · `Comic Writer` | `person`, role `author` | one role, three labels: 原作 on a manga, Author on a novel, Writer on a comic |
 | `Manga Author` · `Novel Illustrator` · `Comic Artist` | `person`, role `illustrator` | 作畫 on a manga, Illustrator on a novel, Artist on a comic. `Manga Author` covered this half too, before the split |
 
-`person.my_rating` and `studio.my_rating` reuse `MY_RATINGS`, and so does the
+`person.my_rating`, `studio.my_rating` and `publisher.my_rating` reuse
+`MY_RATINGS`, and so does the
 new `character.my_rating`. A `character` / `character_voice` shape was once
 designed but not built (see the old "Deferred" note this replaced in
 [systems/credits-and-tags.md](systems/credits-and-tags.md)); the feature that
@@ -750,7 +782,7 @@ are no longer columns.
 | `MANGA_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
 | `NOVEL_FIELDS_TO_FILL` | `serialization_status`, `release_date`, `end_date`, `mal_rating`, `mal_rank`, `cover_image_file` |
 | `COMIC_FIELDS_TO_FILL` | `release_date`, `issue_total`, `cover_image_file` |
-| `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "author")`, `("credit", "illustrator")`, `("tag", "comic_publisher")` |
+| `COMIC_LINK_FIELDS_TO_FILL` | `("credit", "author")`, `("credit", "illustrator")`, `("credit", "publisher")` |
 
 `MONTH_MAP` (`JAN` -> `01` ... `DEC` -> `12`) is also in `utils.py` but is
 unused (business-rules.md section 17).

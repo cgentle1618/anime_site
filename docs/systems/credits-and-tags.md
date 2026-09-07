@@ -1,6 +1,7 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-09-07 (publisher role widened to six media types)
+Last verified: 2026-09-07 (publisher entity migration: one scoped `publisher`
+role on six media types, both publisher vocabularies retired)
 
 ## What this is for
 
@@ -8,8 +9,8 @@ An anime used to carry its studio, director and genres as comma-joined strings
 in plain columns (`anime.studio = "MAPPA, Studio 4°C"`). Two spellings of one
 studio were two studios, renaming meant editing every row, and nothing could
 ever hold a profile. This system replaces those columns with three entity
-tables (`person`, `person_role`, `studio`, and now `publisher`) and two
-FK-less link tables
+tables (`person`, `person_role`, `studio`, `publisher`, `publisher_scope`) and
+two FK-less link tables
 (`media_credit`, `media_tag`) — while keeping every public page, the Add/Modify
 forms and the Google Sheets tabs reading the **same legacy column names** they
 always did. If you need to know where a name on an entry comes from, how it is
@@ -27,8 +28,9 @@ Related: [options.md](../options.md) (the Tier 2 `system_option` vocabulary
 |---|---|---|
 | `person` | One human credited anywhere, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `gender`, `my_rating`, `photo_file` (GCS key), `remark`, timestamps. Same name shape as `studio`. `gender` sits on the base table on purpose — it is a fact about the person, not a seiyuu-only attribute. | `uq_person_name (name_en, name_cn, name_jp, name_alt)` **NULLS NOT DISTINCT**; `ck_person_has_a_name` (at least one name) |
 | `person_role` | Which dropdowns a person appears in: `person_id` (FK, cascade), `role` (one of `PERSON_ROLES`), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes(role)`). Explicit, not derived from credits, so a new director can be offered before their first credit. A person's visibility is the union of their rows; there is no "offered everywhere" state — see [options.md](../options.md) for why this differs from option scope. | `uq_person_role (person_id, role, scope)` (plain — no nullable column left in the key) |
-| `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers and distributors are **not** here — they are their own `publisher` table (next row). The earlier ruling that they were "deliberately not studios, they are the `Publisher / Distributor TW` vocabulary" was reversed on 2026-09-06; the vocabulary still exists and still backs `publisher_tw`, but a publisher is now an entity. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
+| `studio` | One **anime** production studio only, and a public entity: four optional names (`name_en`, `name_cn`, `name_jp`, `name_alt`) with `display_name_field` choosing which is shown, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`, `mal_id`, `mal_link`. Publishers and distributors are **not** here — they are their own `publisher` table (next row). The earlier ruling that they were "deliberately not studios, they are the `Publisher / Distributor TW` vocabulary" was reversed on 2026-09-06 and that vocabulary is now gone entirely (2026-09-07). Studios deliberately carry **no** scope table, unlike publishers. | `uq_studio_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_studio_has_a_name` (at least one name); ISO-8601 CHECKs on both dates |
 | `publisher` | One publisher or distributor — a games publisher, or a TW licensor — and a public entity. Deliberately shaped after `studio`: the same four optional names with `display_name_field`, plus `my_rating`, `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`, `website_url`. **No `mal_id` / `mal_link`**: MAL has no record of a games publisher or a Taiwanese distributor, so there is nothing to autofill from. A separate table rather than a `publisher` role pointing at `studio`, because most publisher/distributor values are distributors (木棉花, 曼迪) that never developed anything, and listing them on `/library/studio` would blur what that page means. Bandai Namco and Kadokawa, which do both, exist as two unlinked rows — accepted cost. | `uq_publisher_name (name_en, name_cn, name_jp, name_alt)` NULLS NOT DISTINCT; `ck_publisher_has_a_name` (at least one name); `ck_publisher_founded_date` / `ck_publisher_defunct_date` ISO-8601 |
+| `publisher_scope` | Which media types a publisher is offered on: `publisher_id` (FK, cascade), `scope` (**NOT NULL**, a hyphenated media-type key, one of `legal_scopes("publisher")`). Explicit rather than derived from credits, for `person_role`'s reason — a distributor added today must appear in the anime picker before its first credit exists. **No `role` column**: a publisher holds exactly one role, so a column whose value is the constant `publisher` on every row would encode nothing. Zero rows means offered *nowhere*, which is what makes auto-scoping on write purely additive. `studio` has no counterpart — a studio list offering every studio is not wrong the way a distributor list offering 木棉花 on a game would be. | `uq_publisher_scope (publisher_id, scope)` — plain, not NULLS NOT DISTINCT: `scope` is NOT NULL, so nothing in the key is nullable |
 | `media_credit` | One person, studio **or** publisher on one entry: FK-less `(media_type, entry_id)` pair, `role` (one of `CREDIT_ROLE_KEYS`), `person_id` / `studio_id` / `publisher_id` (all three FK, cascade on delete), `position` (order of the original comma list), `remark`. Exactly one of the three is set. | `ck_media_credit_one_target` CHECK `num_nonnulls(person_id, studio_id, publisher_id) = 1`; `uq_media_credit_row (media_type, entry_id, role, person_id, studio_id, publisher_id)` NULLS NOT DISTINCT; index on `(media_type, entry_id)` |
 | `media_tag` | One vocabulary value on one entry: `(media_type, entry_id)`, `field` (one of `TAG_FIELD_KEYS`), `option_id` → `system_option` (cascade), `position`. Column is `field`, not `category`: one category can back several fields, one field maps to exactly one category. | `uq_media_tag_row (media_type, entry_id, field, option_id)`; index on `(media_type, entry_id)` |
 | `character` | One fictional character, shaped like `person`: four optional names, `display_name_field`, `gender`, `my_rating`, `photo_file`, `remark`, timestamps. No owning franchise — see [Character and character_casting](#character-and-character_casting). | `ck_character_has_a_name` (at least one name). **No unique constraint on the names** — deliberately, see below. |
@@ -55,7 +57,7 @@ the stored value, tuple of keys for validation.
 
 | key | label | target | media types |
 |---|---|---|---|
-| `studio` | Studio | studio | anime, anime-movie |
+| `studio` | Studio | studio | anime, anime-movie, game |
 | `publisher` | Publisher | publisher | anime, anime-movie, manga, novel, comic, game |
 | `director` | Director | person | anime, anime-movie, movie |
 | `producer` | Producer | person | anime |
@@ -140,8 +142,6 @@ that names a credit which does not exist.
 | `original_source` | Original Source | Platform | tv-show, cartoon, movie |
 | `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, novel |
-| `publisher_tw` | Publisher / Distributor TW | Publisher / Distributor TW | anime, manga, novel, comic |
-| `comic_publisher` | Publisher | Comic Publisher | comic |
 | `comic_imprint` | Imprint | Comic Imprint | comic |
 | `comic_continuity` | Continuity | Comic Continuity | comic |
 | `comic_era` | Era | Comic Era | comic |
@@ -149,21 +149,23 @@ that names a credit which does not exist.
 
 `FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
 as a vocabulary but backs no field. **`publisher_tw` and `comic_publisher` are
-mid-migration.** The `publisher` credit role now covers all six types, but the
-live rows are still `media_tag` rows against the `Publisher / Distributor TW`
-and `Comic Publisher` vocabularies, so the tag and the credit coexist for one
-step: the entries carry an empty `publisher` link field beside the populated
-`distributor_tw` / `publisher_tw` / `publisher` tag one. The migration that
-moves the rows onto `media_credit` deletes both TagFields and maps the credit
-back onto the header the tag used, so the sheet never changes shape.
+gone** (2026-09-07). They were the last two TagFields naming an outside company
+rather than a fact about the work; migration `pb2m3i4g5r8` moved every one of
+their rows onto `media_credit` as a `publisher` credit and deleted both
+`system_option` categories. The sheet did not change shape: `LEGACY_SHEET_COLUMN`
+maps the credit back onto the header each tag used.
 `OPTION_CATEGORIES` = every TagField category + filter-only ones.
 Helpers: `credit_roles_for(media_type)`, `tag_fields_for(media_type)`.
 
 ### `LEGACY_SHEET_COLUMN` — the header trap
 
 Keyed by `(media_type, key)`, **not** by key alone, because the same key can
-have a different legacy header per type: anime's `publisher_tw` writes under
-`distributor_tw`, manga/novel/comic under `publisher_tw`. Other renames:
+have a different legacy header per type: the one `publisher` credit writes
+under `distributor_tw` on anime and anime-movie, `publisher_tw` on manga and
+novel, and `publisher` on comic and game — the headers the retired
+`publisher_tw` / `comic_publisher` tags used, kept byte-identical so the sheet
+never noticed the move. anime-movie's `distributor_tw` is the one genuinely new
+column: that tab never carried a distributor. Other renames:
 `composer → music`, manga's `author → author_plot` and `illustrator →
 author_draw`, novel's `author → author` and `illustrator → illustrator`,
 comic's `author → writer` and `illustrator → artist`, `comic_* → publisher /
@@ -205,7 +207,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 | `find_person` / `find_studio` / `find_publisher` | Linear scan matching `normalize_name` against any of the model's `_name_fields` — all four names, for a person as for a studio or a publisher; returns the row or None, and raises `AmbiguousNameError` when several rows match. Python-side because the fold is not expressible in portable SQL and the tables are small. |
 | `resolve_person(db, name, role=, scope=)` | Find-or-create, then ensure the `(role, scope)` `person_role` row exists. A newly created person's name goes into the column `name_slot_for` picks, not a fixed one. |
 | `resolve_studio(db, name)` | Find-or-create. |
-| `resolve_publisher(db, name)` | Find-or-create, under `name_en` when new. Reached only through `_RESOLVERS["publisher"]`. |
+| `resolve_publisher(db, name, *, scope=None)` | Find-or-create, under `name_en` when new, and — when a scope is given — make sure the publisher holds a `publisher_scope` row for that media type. Additive, never subtractive, exactly like `resolve_person`: crediting a publisher on a manga can only widen where it is offered. Safe precisely because zero scope rows means "offered nowhere". `replace_credits` dispatches to it by name rather than through `_RESOLVERS`, since it takes a scope and `resolve_studio` does not. |
 | `resolve_option(db, category, value, scope=None)` | Find-or-create the `system_option`; adds a scope row only when `scope` is passed explicitly (backfill seeding, admin edits) — never derived from the caller's media type. |
 | `replace_credits(db, media_type, entry_id, role, names)` | Whole-set replace for one role, preserving order in `position`. The person role is scoped to the entry's own media type. Dispatches on `spec.target` through `_RESOLVERS` / `_TARGET_COLUMNS` — three explicit entries, no `else` meaning person. |
 | `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. |
@@ -245,7 +247,7 @@ the backfill and by Calculate All.
 | `POST /api/person/{id}/merge` `{source_id}` | admin | Repoints every credit from source onto target (drops ones that would collide on `(media_type, entry_id, role)`), unions `person_role` rows, deletes the source. 400 on self-merge. Returns `credits_moved`. |
 | `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as person | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. Renaming a studio changes what every credited entry shows — no propagation step. |
 | `GET /api/studio/{id}/entries` | public | The reverse of `GET /api/credits/...`: the entries this studio is credited on, grouped by media type, filtered through the same `filter_visible_pairs` as `credit_count` so the two can never disagree. Empty groups, not 404, when every credit is hidden. |
-| `GET /api/publisher/`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as studio | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. |
+| `GET /api/publisher/?scope=`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/merge` | as studio | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. Studio has no counterpart for the `scopes` list every publisher payload carries: `?scope=<media-type>` narrows the list to publishers offered on one type (omitted, it returns everything, including publishers holding no scope at all — the admin list page must be able to see a publisher in order to give it one); `POST` inserts scopes additively, `PUT` replaces the whole set, and merge unions both sides'. There is no `/api/publisher/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET/POST/PUT/DELETE /api/options/...` | read public, write admin | The Tier 2 vocabulary `media_tag` points at; see [options.md](../options.md). |
 | `GET /api/character/?name=` | public | Substring match, case-insensitive, across all four name columns. Sorted by resolved `display_name`. Exists so the cast editor's character combobox never downloads the whole table. |
 | `GET /api/character/{id}`, `GET /{id}/entries` | public | As person/studio, but `/entries` groups only by media type (a character holds no role) and each entry names the seiyuu who voiced them there, if any. |
@@ -315,6 +317,20 @@ The person/studio pickers on entry forms are the standard "tags" fields whose
 `StudioLinks.jsx`, each falling back to the legacy comma-joined string when the
 entry carries no refs or the viewer lacks the Credits permission.
 
+The publisher picker is the same shape (`source.kind` `publisher`) on all six
+types that credit one, and its suggestion list is fetched **per media type**:
+`frontend/src/lib/sources.js` requests `/api/publisher/?scope=<media-type>`
+once per scope rather than one flat list, so a games publisher is never
+suggested as an anime distributor. `ensureSourceValues.js` sends that scope on
+the create it POSTs for a typed-in name — the POST is additive, so it can only
+widen a publisher that already exists, and without it the new publisher would
+be missing from the very picker that created it. The Publisher Add and Modify
+tabs carry `PublisherScopePills`, a single row of media-type pills (the
+`PersonRoleMatrix` shape with no role axis to cross), which is where an admin
+takes a scope away. `publisher_refs` render through `publisherValue` /
+`publisherLabel` in `StudioLinks.jsx`; the label comes off the ref, so no page
+hard-codes 台灣代理商 or 發行商.
+
 ## Migrations (chain order)
 
 | Revision | Did |
@@ -328,6 +344,9 @@ entry carries no refs or the viewer lacks the Credits permission.
 | `r0l1c2o3l4p5` | Collapsed the role vocabulary: rewrote `media_credit.role` (372 rows), rebuilt `person_role` onto the five keys with a media-type `scope`, and made that column NOT NULL. A Sheets backup taken **before** this revision can no longer be restored directly — its `Person Role` tab has empty scopes and retired role names; `alembic downgrade s1t2u3d4i5o6`, Pull, then `alembic upgrade head`. |
 | `p7n8a9m10e11` | Reshaped `person` to match `studio`: added `name_jp`, `name_alt`, `display_name_field`, distributed the 554 `name_native` values through `name_slot_for` (218 en / 165 cn / 171 jp), dropped `name_native` and recreated `uq_person_name` over all four names plus `ck_person_has_a_name`. |
 | `c1h2a3r4a5c6` | Created `character` and `character_casting` (see below). Nothing existing altered — `seiyuu` needed no migration at all, since `person_role.role` carries no database enum. |
+| `p1u2b3l4i5s6` | Created `publisher` and added `media_credit.publisher_id`, widening `ck_media_credit_one_target` and `uq_media_credit_row` to three targets. |
+| `pb1s2c3o4p5e` | Created `publisher_scope`. Schema only — nothing read it yet. |
+| `pb2m3i4g5r8` | Ran `backfill_publishers`: every `publisher_tw` / `comic_publisher` tag row became a `publisher` credit, the entities were created from the reviewed `PUBLISHER_NAME_MAP`, scope was seeded from the credits written, and both `system_option` categories were deleted. 520 credits, 32 entities, 36 scopes, 0 skipped on the real data. **No downgrade** — it raises: the tag rows and their vocabulary are gone, so the way back is a dump. |
 
 ## Character and character_casting
 

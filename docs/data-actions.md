@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-07
+Last verified: 2026-09-07 (publisher entity migration)
 
 ## What this is for
 
@@ -123,6 +123,39 @@ the machine with the newer data before the other machine runs Pull All.**
 Pulling an old sheet into the dropped schema silently restores nothing for
 sources: the columns it used to fill no longer exist, and an old sheet has no
 `Media Source` rows to replace them with.
+
+**`publisher_scope` has no tab, unlike `person_role`.** That is a real gap, not
+a design choice, and it is worth knowing before a Pull All. Most scopes survive
+anyway, because Pull applies each entry's `publisher` credits through
+`replace_credits`, which calls `resolve_publisher(..., scope=media_type)` and
+re-adds the scope row additively — a publisher credited on a manga is scoped to
+manga again on the way in. What does **not** survive is a scope with no credit
+behind it: the `anime` scope hand-seeded onto `bilibili` and `Crunchyroll` (see
+[options.md](options.md#tier-2-system-options)), or a scope an admin set through
+the Publisher Modify tab in advance of the first credit. Re-set those from the
+admin page after a Pull All, or add the tab.
+
+**The publisher migration did not change any sheet header.** The `publisher`
+credit writes under `distributor_tw` on the Anime and Anime Movie tabs,
+`publisher_tw` on Manga and Novel, and `publisher` on Comic and Game — the
+headers the retired `publisher_tw` and `comic_publisher` tag fields used, so a
+Backup taken after the migration is column-identical to one taken before. Only
+what sits behind the header moved, from `media_tag` to `media_credit`. The one
+new column is `distributor_tw` on the **Anime Movie** tab, which never carried a
+distributor. The Comic tab lost its always-empty `publisher_tw` column.
+
+**One restore hazard, from splitting names.** The migration split four
+vocabulary values into `name_en` + `name_cn` (`Muse木棉花`, `Proware普威爾`,
+`曼迪 Mightymedia`, `羚邦 Ani-One`), and a Backup taken *after* it writes the
+new display name. A Pull from a sheet backed up **before** the migration asks
+`find_publisher` for the old mashed spelling: `Muse木棉花` and `羚邦 Ani-One`
+still resolve (their pre-migration spelling survives in `name_cn` and
+`name_alt` respectively), but `Proware普威爾` and `曼迪 Mightymedia` do not, and
+Pull will mint a second entity for each. The mitigation is the rule
+[switching-environments.md](switching-environments.md) already states — Backup
+immediately after migrating, so no stale sheet is ever the newest version. If a
+duplicate does appear, `POST /api/publisher/{id}/merge` repoints the credits
+before deleting the loser.
 
 `system_option_usage` has had its own tab since it started drifting between
 machines — a `usage` row set through the Options page now round-trips exactly

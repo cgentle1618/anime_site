@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-07
+Last verified: 2026-09-07 (publisher scope filter and `scopes` field)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -837,7 +837,7 @@ Tier 2 open vocabularies (`system_option` / `system_option_scope` /
 | Method   | Path           | Auth   | Description                                                                     |
 | -------- | -------------- | ------ | ---------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List all system options across all categories. `?scope=` filters to values with no scope rows or a matching one. `?limit=&offset=` paginate. |
-| `GET`    | `/{category}`  | Public | List options for a specific category (e.g. `"Genre Main"`, `"Comic Publisher"`). Same `?scope=` filter. |
+| `GET`    | `/{category}`  | Public | List options for a specific category (e.g. `"Genre Main"`, `"Comic Imprint"`). Same `?scope=` filter. |
 | `POST`   | `/`            | Admin  | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
 | `PUT`    | `/{option_id}` | Admin  | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
 | `DELETE` | `/{option_id}` | Admin  | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias` and `media_tag` rows. Logs to `deleted_record`.                  |
@@ -967,9 +967,11 @@ response carries `credit_refs`:
 keyed by credit role, in stored order, with the label that credit has on that
 media type. Anime and anime-movie also carry `studio_refs`, the same idea for
 studios (a bare list — studio is a single role), and any media type whose
-credit roles include `publisher` carries `publisher_refs`, a bare list for the
-same reason but with `label` on each ref: one publisher role is meant to read a
-different word per media type, where a studio is a studio everywhere. Both are built inside
+credit roles include `publisher` — anime, anime-movie, manga, novel, comic and
+game — carries `publisher_refs`, a bare list for the
+same reason but with `label` on each ref: one publisher role reads 台灣代理商,
+台灣出版商, 出版商 or 發行商 depending on the type, where a studio is a studio
+everywhere. Both are built inside
 `attach_link_fields` from one batched fetch, so a list endpoint serves them in
 the same fixed five queries it always used. Both belong to the **Credits**
 field group: a viewer without that permission gets `{}` / `[]`, because a
@@ -1016,7 +1018,7 @@ with two differences noted below.
 
 | Method   | Path                  | Auth   | Description                                                                       |
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
-| `GET`    | `/`                   | Public | List all publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). |
+| `GET`    | `/?scope=`            | Public | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET`    | `/{system_id}`        | Public | Get one publisher by UUID. 404 if absent.                                        |
 | `GET`    | `/{system_id}/entries`| Public | The entries this publisher is credited on, grouped by media type. 404 only if the publisher is absent. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list, so a second row would split the credits. Matching is on the normalized name (`find_publisher`); metadata on an existing row is left untouched. Body: `PublisherCreate`. |
@@ -1027,10 +1029,29 @@ with two differences noted below.
 **Response model:** `PublisherResponse` (`app/schemas/publisher.py`) —
 `PublisherBase` fields (the four names, `display_name_field`, `my_rating`,
 `logo_file`, `remark`, `founded_date`, `defunct_date`, `country`,
-`website_url`) plus `system_id`, the resolved `display_name`, and
+`website_url`, `scopes`) plus `system_id`, the resolved `display_name`, and
 `credit_count`. `PublisherBase` rejects a payload with no name at all and a
 `display_name_field` outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 `ck_publisher_has_a_name`.
+
+**`scopes` — which media types this publisher is offered on.** A bare
+`list[str]` of hyphenated media-type keys, not the `{role, scope}` pairs
+`PersonResponse.roles` carries: a publisher holds exactly one role, so there is
+no second axis to name. A value outside `legal_scopes("publisher")` is a 422.
+The write semantics differ per verb, deliberately and exactly as person's do:
+
+- `POST` is **additive** — it inserts the scopes it does not already hold and
+  removes none, because a create for an existing publisher is routine
+  (`ensureSourceValues` POSTs every typed name) and must not narrow it.
+- `PUT` is a **full replace** — this is the one path an admin uses to take a
+  scope away, so it must be able to.
+- `merge` **unions** both sides' scopes onto the survivor: a merge must never
+  narrow.
+
+Zero scope rows means offered *nowhere*, not everywhere — the opposite of
+`system_option_scope`. Writing a credit also auto-scopes, additively, through
+`resolve_publisher(db, name, scope=media_type)`. See
+[data-model.md](data-model.md#publisher_scope).
 
 **No MAL enrichment, unlike `/api/studio`.** There are no `mal_id` / `mal_link`
 fields on the schema at all, and neither `POST` nor `PUT` calls an autofill:
