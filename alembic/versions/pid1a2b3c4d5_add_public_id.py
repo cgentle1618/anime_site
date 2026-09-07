@@ -1,5 +1,9 @@
 """Add public_id to every entity with a detail page.
 
+Runs before pb2m3i4g5r8, not after: that revision's backfill queries the
+live ORM models, so every column they declare - public_id included - has
+to exist by the time it runs.
+
 The SPA used to address detail pages by raw UUID. public_id is the short,
 per-table sequential id that replaces it in the URL; the UUID stays the join
 key. Backfilled in creation order so the numbering matches the order entries
@@ -12,7 +16,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "pid1a2b3c4d5"
-down_revision = "pb2m3i4g5r8"
+down_revision = "pb1s2c3o4p5e"
 branch_labels = None
 depends_on = None
 
