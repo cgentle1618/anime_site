@@ -74,7 +74,7 @@ Unclaimed. None block using the app.
 | `delete_studio` never calls `delete_cover_image` (logo leak; publisher does) | `app/routers/studio.py` | todo |
 | Migrate `publisher_tw` tag rows into the publisher entity | anime, manga, novel, comic | todo |
 | Steam Web API playtime sync | `steam_appid`/`steam_link` reserved | done (uncommitted) - see "Steam integration" table above |
-| `bulk_download_missing_covers` has no Game branch | `app/services/calculation.py` | todo |
+| Games absent from the three bulk cover actions (check/set-fields/download) | `app/services/calculation.py` | done d2b3a96 |
 | Games (and comics) absent from cover lists | `FranchiseLibrary`, `CollectionLibrary`, `CollectionPage`, `usePlanData` | todo |
 | No Games tab | `FutureReleases.jsx` | todo |
 | Colour-token table holds pre-archive hexes | `docs/frontend/components.md` | todo |
