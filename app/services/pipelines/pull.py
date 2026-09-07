@@ -35,6 +35,7 @@ from app.services.domain import (
     resolve_tv_show_parent_hierarchy,
 )
 from app.services.domain.credits import (
+    AmbiguousNameError,
     names_from_sheet_value,
     replace_credits,
     replace_tags,
@@ -284,6 +285,10 @@ def execute_pull_specific(
     processed = 0
     rows_added = 0
     rows_updated = 0
+    # Ambiguous link names, collected rather than raised. An admin resolves
+    # these with the merge endpoint, and can only merge what the run reports -
+    # so every row is attempted and every collision is kept.
+    credit_conflicts: list[str] = []
 
     # Built on first use, and only for the two tabs that need it: reading the
     # parent tab costs a Sheets round trip, so a tab that cites no derived
@@ -941,15 +946,26 @@ def execute_pull_specific(
             if entry.system_id is None:
                 db.flush()
             for role_key, raw_value in pending_credits:
-                replace_credits(
-                    db, media_type, entry.system_id, role_key,
-                    names_from_sheet_value(raw_value),
-                )
+                # A duplicate entity is a data fault, not a reason to lose the
+                # restore: skip this one link, leaving it unset rather than
+                # guessing which row was meant, and keep the rest of the row.
+                try:
+                    replace_credits(
+                        db, media_type, entry.system_id, role_key,
+                        names_from_sheet_value(raw_value),
+                    )
+                except AmbiguousNameError as e:
+                    credit_conflicts.append(f"{tab_name} [{role_key}]: {e}")
+                    logger.warning(f"Ambiguous {role_key} on '{tab_name}' row: {e}")
             for field_key, raw_value in pending_tags:
-                replace_tags(
-                    db, media_type, entry.system_id, field_key,
-                    names_from_sheet_value(raw_value),
-                )
+                try:
+                    replace_tags(
+                        db, media_type, entry.system_id, field_key,
+                        names_from_sheet_value(raw_value),
+                    )
+                except AmbiguousNameError as e:
+                    credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
+                    logger.warning(f"Ambiguous {field_key} on '{tab_name}' row: {e}")
 
         processed += 1
 
@@ -1016,6 +1032,7 @@ def execute_pull_specific(
         "processed": processed,
         "rows_added": rows_added,
         "rows_updated": rows_updated,
+        "credit_conflicts": credit_conflicts,
     }
 
 
@@ -1032,6 +1049,10 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     unread_tabs = {}
     total_added = 0
     total_updated = 0
+    # Every ambiguous link seen across every tab. The admin page shows a
+    # generic toast and reloads the log table, so the audit row below is the
+    # only place these actually reach a human.
+    credit_conflicts: list[str] = []
 
     try:
         for tab in tabs_in_order:
@@ -1052,6 +1073,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             total_added += res.get("rows_added", 0)
             total_updated += res.get("rows_updated", 0)
             results[tab] = res.get("processed", 0)
+            credit_conflicts.extend(res.get("credit_conflicts", []))
 
     except Exception as e:
         logger.error(f"Full Pull Pipeline crashed: {e}")
@@ -1079,6 +1101,36 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         )
         raise SheetsUnavailableError(summary)
 
+    if credit_conflicts:
+        # Every tab pulled, but some links were skipped - an incomplete
+        # restore, audited the way an unread tab is. Not raised: the caller
+        # needs the list to act on, and a raise would replace it with a
+        # generic error.
+        summary = (
+            f"Full Pull Pipeline completed with {len(credit_conflicts)} "
+            "ambiguous link(s) skipped. Merge the duplicate entities, then "
+            "pull again: " + "; ".join(credit_conflicts)
+        )
+        logger.error(summary)
+        log_data_control(
+            db,
+            "Pull",
+            "Pull All",
+            action_type,
+            "Failed",
+            rows_added=total_added,
+            rows_updated=total_updated,
+            error_message=summary,
+            details_json=json.dumps(
+                {"pulled": results, "credit_conflicts": credit_conflicts}
+            ),
+        )
+        return {
+            "status": "success",
+            "details": results,
+            "credit_conflicts": credit_conflicts,
+        }
+
     logger.info("Full Pull Pipeline completed successfully.")
     log_data_control(
         db,
@@ -1090,4 +1142,4 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         rows_updated=total_updated,
         details_json=json.dumps(results),
     )
-    return {"status": "success", "details": results}
+    return {"status": "success", "details": results, "credit_conflicts": []}
