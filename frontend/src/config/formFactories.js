@@ -80,6 +80,7 @@ export const defaultAnimeMovie = () => ({
   length_min: "",
   studio: "",
   director: "",
+  distributor_tw: "",
   mal_id: "",
   mal_link: "",
   exclusive_source: "",

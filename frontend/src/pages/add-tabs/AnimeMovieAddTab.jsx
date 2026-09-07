@@ -309,6 +309,18 @@ export default function AnimeMovieAddTab({
             placeholder="Select director..."
           />
         </Field>
+        <Field label="台灣代理商">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "publisher",
+              scope: "anime-movie",
+            })}
+            value={amf.distributor_tw}
+            onChange={(v) => uam("distributor_tw", v)}
+            placeholder="Select distributor..."
+            limit={null}
+          />
+        </Field>
       </div>
 
       {/* Cast: character/seiyuu/role rows, saved separately via

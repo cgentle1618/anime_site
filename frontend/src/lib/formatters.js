@@ -51,7 +51,8 @@ export function getRatingWeight(rating) {
  *   option -> sources.options, filtered by category (+ scope and usage, when given)
  *   person -> sources.people[`${role}|${scope||""}`] — already server-filtered
  *   studio -> sources.studios, unfiltered (studios have no role/scope concept)
- *   publisher -> sources.publishers, unfiltered, for the same reason
+ *   publisher -> sources.publishers[scope] — already server-filtered, because
+ *                a publisher IS scoped to the media types it is offered on
  */
 export function getSourceValues(sources, source) {
   if (!source || !sources) return [];
@@ -94,13 +95,12 @@ export function getSourceValues(sources, source) {
     // display_name is computed server-side (PublisherResponse), exactly as it
     // is for a studio - do not re-derive it here.
     //
-    // source.scope is carried by every publisher descriptor but not read here
-    // yet: fetchAllSources still asks /api/publisher for one flat list. The
-    // scope already travels where it must (the quick-create in
-    // ensureSourceValues.js, and replace_credits on the backend), so a
-    // publisher lands correctly scoped; what is still missing is the
-    // NARROWING of the suggestion list, which needs the per-scope fetch.
-    return (sources.publishers || [])
+    // Unlike studios, the bag is a map keyed by media type: fetchAllSources
+    // asks /api/publisher once per scope, so the list this returns is already
+    // narrowed to the publishers offered on this type. An unscoped descriptor
+    // (the COMMON_FIELD_META fallback no live type uses) finds no key and
+    // suggests nothing, rather than falling back to every publisher.
+    return (sources.publishers?.[source.scope] || [])
       .map((p) => p.display_name)
       .filter((name) => !!name);
   }

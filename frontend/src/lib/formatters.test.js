@@ -168,6 +168,34 @@ describe("getSourceValues", () => {
       ).not.toContain("");
     });
   });
+
+  describe("kind: publisher", () => {
+    const scoped = {
+      publishers: {
+        anime: [{ display_name: "木棉花" }, { display_name: "" }],
+        game: [{ display_name: "Bandai Namco" }],
+      },
+    };
+
+    it("returns only the publishers offered on that media type", () => {
+      expect(
+        getSourceValues(scoped, { kind: "publisher", scope: "anime" }),
+      ).toEqual(["木棉花"]);
+      expect(
+        getSourceValues(scoped, { kind: "publisher", scope: "game" }),
+      ).toEqual(["Bandai Namco"]);
+    });
+
+    it("suggests nothing for a scope no publisher is offered on", () => {
+      expect(
+        getSourceValues(scoped, { kind: "publisher", scope: "novel" }),
+      ).toEqual([]);
+    });
+
+    it("does not fall back to every publisher when the descriptor has no scope", () => {
+      expect(getSourceValues(scoped, { kind: "publisher" })).toEqual([]);
+    });
+  });
 });
 
 describe("getSourceValues — usage", () => {

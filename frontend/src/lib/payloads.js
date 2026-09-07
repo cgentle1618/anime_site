@@ -26,7 +26,13 @@ const CREDITS_FIELD_MAP = {
     },
   },
   "anime-movie": {
-    credits: { studio: "studio", director: "director" },
+    // distributor_tw rides under the same legacy sheet header as anime's and
+    // resolves to the same Publisher table; only the scope differs.
+    credits: {
+      studio: "studio",
+      director: "director",
+      distributor_tw: "publisher",
+    },
     tags: { exclusive_source: "exclusive_source" },
   },
   movie: {

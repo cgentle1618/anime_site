@@ -197,8 +197,9 @@ function movieToForm(movie, allFranchises, defaults) {
     release_date_jp: movie.release_date_jp || "",
     release_date_tw: movie.release_date_tw || "",
     length_min: movie.length_min ?? "",
-    // studio, director: see the comment in animeToForm - loaded from
-    // GET /api/credits/anime-movie/{id} via loadCreditsIntoForm(), not here.
+    // studio, director, distributor_tw: see the comment in animeToForm -
+    // loaded from GET /api/credits/anime-movie/{id} via
+    // loadCreditsIntoForm(), not here.
     mal_id: movie.mal_id ?? "",
     mal_link: movie.mal_link || "",
     sources: movie.sources || [],

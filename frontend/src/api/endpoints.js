@@ -171,7 +171,12 @@ export const endpoints = {
   },
 
   publisher: {
-    list: () => "/api/publisher/",
+    // Optional query string, like person.list: `scope=<media-type>` narrows the
+    // list to the publishers offered on that type. Called with no argument it
+    // returns every publisher — which is what the admin list pages want, since
+    // a publisher with no scope rows yet must still be reachable to be given
+    // one.
+    list: (qs = "") => `/api/publisher/${qs ? `?${qs}` : ""}`,
     detail: (id) => `/api/publisher/${id}`,
     create: () => "/api/publisher/",
     update: (id) => `/api/publisher/${id}`,

@@ -58,6 +58,9 @@ describe("novel serialization_platform", () => {
 describe("the publisher field posts a credit, not a tag", () => {
   it.each([
     ["anime", "distributor_tw"],
+    // anime-movie shares anime's sheet header, distributor_tw, and got the
+    // field for the first time in this migration.
+    ["anime-movie", "distributor_tw"],
     ["manga", "publisher_tw"],
     ["novel", "publisher_tw"],
     ["comic", "publisher"],
@@ -70,6 +73,7 @@ describe("the publisher field posts a credit, not a tag", () => {
 
   it.each([
     ["anime", "distributor_tw"],
+    ["anime-movie", "distributor_tw"],
     ["manga", "publisher_tw"],
     ["novel", "publisher_tw"],
     ["comic", "publisher"],

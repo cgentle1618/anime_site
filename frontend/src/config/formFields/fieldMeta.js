@@ -377,6 +377,18 @@ export const TYPE_FIELD_META = {
       source: { kind: "person", role: "director", scope: "anime-movie" },
       group: "Credits",
     },
+    // New on this type: anime-movie never carried a distributor field before
+    // the publisher entity migration. Same key and same sheet header as
+    // anime's (sheet_column_for("anime-movie", "publisher") is
+    // distributor_tw), but its own scope - a publisher offered on anime is
+    // not thereby offered on anime movies. Labelled the way the detail page
+    // labels it, credit_label("publisher", "anime-movie").
+    distributor_tw: {
+      label: "台灣代理商",
+      control: "tags",
+      source: { kind: "publisher", scope: "anime-movie" },
+      group: "Credits",
+    },
     exclusive_source: {
       label: "Exclusive Source",
       control: "tags",
@@ -1148,6 +1160,33 @@ function collectPersonSources() {
 }
 
 export const PERSON_SOURCES = collectPersonSources();
+
+// Every distinct media type a "publisher"-sourced field asks for, deduped.
+// Fetched once at page load (one /api/publisher request per scope), for the
+// reason PERSON_SOURCES gives: PublisherResponse carries `scopes`, but the
+// picker wants the list already narrowed, and the API knows how to narrow it.
+//
+// Simpler than the person case: a publisher holds exactly one role, so the
+// media type IS the whole key — there is no {role, scope} pair to build.
+//
+// An unscoped descriptor (COMMON_FIELD_META.publisher, the fallback no live
+// type uses) is deliberately skipped rather than fetched unscoped: the
+// unscoped endpoint answers with every publisher in the table, which is the
+// cross-type suggestion leak this fan-out exists to remove.
+function collectPublisherSources() {
+  const groups = [COMMON_FIELD_META, ...Object.values(TYPE_FIELD_META)];
+  const seen = new Set();
+  for (const group of groups) {
+    for (const meta of Object.values(group)) {
+      if (meta.source?.kind === "publisher" && meta.source.scope) {
+        seen.add(meta.source.scope);
+      }
+    }
+  }
+  return [...seen];
+}
+
+export const PUBLISHER_SOURCES = collectPublisherSources();
 
 // The field sets auto-fill copies when nothing is configured. Lifted verbatim
 // from the six applyXAutofill functions that used to live in Add.jsx, so
