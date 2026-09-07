@@ -20,12 +20,33 @@ describe("slugify", () => {
     expect(slugify("钢之炼金术师")).toBe("");
   });
 
-  it("truncates long titles at a hyphen boundary", () => {
-    const long = "the melancholy of haruhi suzumiya the disappearance edition";
+  it("truncates a long title at a hyphen boundary", () => {
+    // Untruncated slug is 84 chars, well past the 60-char limit, with a
+    // hyphen inside the first 60 chars for the boundary logic to find.
+    const long =
+      "the melancholy of haruhi suzumiya the disappearance of haruhi suzumiya movie edition";
+    const fullSlug = long.replace(/ /g, "-");
     const out = slugify(long);
     expect(out.length).toBeLessThanOrEqual(60);
     expect(out.endsWith("-")).toBe(false);
-    expect(long.replace(/ /g, "-").startsWith(out)).toBe(true);
+    // The result is a whole-word prefix of the untruncated slug: it stops
+    // exactly at a hyphen rather than mid-word.
+    expect(fullSlug.startsWith(`${out}-`)).toBe(true);
+  });
+
+  it("falls back to a hard cut when there is no hyphen to break on", () => {
+    // A single 70-char run of letters: slugify never inserts a hyphen, so
+    // the first 60 chars contain none either and lastIndexOf("-") is -1,
+    // exercising the fallback branch instead of the boundary branch.
+    const long = "a".repeat(70);
+    const out = slugify(long);
+    expect(out).toHaveLength(60);
+    expect(out).not.toHaveLength(0);
+  });
+
+  it("leaves a slug at or under the limit untouched", () => {
+    const exactly60 = "a".repeat(60);
+    expect(slugify(exactly60)).toBe(exactly60);
   });
 
   it("survives null and undefined", () => {
