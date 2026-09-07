@@ -698,6 +698,12 @@ git commit -m "feat(urls): expose public_id on the entity responses"
 
 ---
 
+**API route prefixes are NOT the SPA route names.** `app/registry.py` declares
+`route="movies"` and `route="tv-shows"` (plural), while the SPA routes are
+`/movie/:id` and `/tv-show/:id` (singular). Every other media type matches.
+Tasks 9 and 10 must keep using the SPA names in `entityPath`, and only the API
+calls use the plural forms.
+
 ### Task 5: The media router factory resolves a public_id
 
 **Files:**
@@ -720,8 +726,8 @@ import pytest
 MEDIA_PATHS = [
     "/api/anime",
     "/api/anime-movie",
-    "/api/movie",
-    "/api/tv-show",
+    "/api/movies",
+    "/api/tv-shows",
     "/api/cartoon",
     "/api/manga",
     "/api/novel",

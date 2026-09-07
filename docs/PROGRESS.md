@@ -48,7 +48,7 @@ spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
 | 2 | Shared entity-reference resolver | done 0d571b1 |
 | 3 | Frontend slug and path helpers | done e87f9bb |
 | 4 | `public_id` on the response schemas | done a802b80 |
-| 5 | Media router factory resolves a public_id | todo |
+| 5 | Media router factory resolves a public_id | done 3ab8fb8 (unreviewed) |
 | 6 | The eight hand-written routers resolve a public_id | todo |
 | 7 | `public_id` survives the Sheets round trip | done 62f19f1 |
 | 8 | Pull advances each sequence past the restored ids | todo |
@@ -58,6 +58,26 @@ spec `docs/superpowers/specs/2026-09-07-public-id-slug-urls-design.md`.
 
 ⚠ Tasks 9-10 break every detail-page URL until both land. Do not use the app
 between the start of task 9 and the end of task 10.
+
+**Paused 2026-09-07 mid-plan, for a machine switch.** Tasks 1-5 and 7 are
+committed and green (full suite 3125 passed, 1 skipped; ruff clean; frontend
+887 passing, lint and build clean). The app is fully usable: everything landed
+so far is additive, and no URL has changed yet.
+
+Picking this up:
+
+- Task 5 is committed but **never went through its task review** - it was
+  verified by running the suite, not by a reviewer. Review it before trusting it.
+- Task 8 must also fix a problem the plan does not describe: Pull upserts by
+  `system_id`, so a row from the sheet can carry a `public_id` that a *different*
+  local row already holds, and the unique index aborts the restore partway. The
+  `setval` step alone does not cover this.
+- Deferred minors, rulings and the full task log live in
+  `.superpowers/sdd/2026-09-07-public-id-slug-urls/progress.md` (git-ignored, so
+  it does **not** travel to the other machine - read it here or copy it out).
+- `app/registry.py` uses `route="movies"` and `route="tv-shows"` (plural) while
+  the SPA routes are `/movie/` and `/tv-show/` (singular). The plan has been
+  corrected; do not re-introduce it.
 
 ## Open items
 
