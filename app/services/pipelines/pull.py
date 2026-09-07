@@ -36,6 +36,9 @@ from app.services.domain import (
 )
 from app.services.domain.credits import (
     AmbiguousNameError,
+    find_person,
+    find_publisher,
+    find_studio,
     names_from_sheet_value,
     replace_credits,
     replace_tags,
@@ -52,7 +55,12 @@ from app.services.pipelines.tabs import (
     TAB_NAMES,
     TAB_PARSERS,
 )
-from app.utils.credit_roles import credit_roles_for, sheet_column_for, tag_fields_for
+from app.utils.credit_roles import (
+    CREDIT_ROLES,
+    credit_roles_for,
+    sheet_column_for,
+    tag_fields_for,
+)
 from app.utils.data_control_utils import log_data_control
 from app.utils.formatter import (
     parse_from_sheet,
@@ -60,6 +68,15 @@ from app.utils.formatter import (
 )
 
 logger = logging.getLogger(__name__)
+
+# The find-only half of credits.resolve_*, keyed the way CreditRole.target is.
+# Used to tell "this name matched nothing and is about to be invented" from
+# "this name resolved", which resolve_* alone cannot report.
+_FINDERS = {
+    "person": find_person,
+    "studio": find_studio,
+    "publisher": find_publisher,
+}
 
 # Hyphenated media_type key (app/utils/media_resolver.py's MEDIA_TABLES) for
 # every entry tab that carries credit/tag link columns. Drives the pop-and-
@@ -289,6 +306,11 @@ def execute_pull_specific(
     # these with the merge endpoint, and can only merge what the run reports -
     # so every row is attempted and every collision is kept.
     credit_conflicts: list[str] = []
+    # Names that matched no stored entity, so find-or-create is about to mint
+    # one. Not an error - a genuinely new studio typed into a sheet cell must
+    # still be created - but a silent mint is how 45 duplicate studios grew
+    # here unnoticed, so the run reports them.
+    created_entities: list[str] = []
 
     # Built on first use, and only for the two tabs that need it: reading the
     # parent tab costs a Sheets round trip, so a tab that cites no derived
@@ -949,14 +971,31 @@ def execute_pull_specific(
                 # A duplicate entity is a data fault, not a reason to lose the
                 # restore: skip this one link, leaving it unset rather than
                 # guessing which row was meant, and keep the rest of the row.
+                names = names_from_sheet_value(raw_value)
                 try:
+                    # Looked up before the write, because resolve_* creates on
+                    # a miss and afterwards the two cases are indistinguishable.
+                    # Held aside until the write succeeds: an ambiguous name
+                    # later in the list skips the whole call, and nothing is
+                    # created then.
+                    finder = _FINDERS[CREDIT_ROLES[role_key].target]
+                    minted = [n for n in names if finder(db, n) is None]
                     replace_credits(
                         db, media_type, entry.system_id, role_key,
-                        names_from_sheet_value(raw_value),
+                        names,
                     )
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{role_key}]: {e}")
                     logger.warning(f"Ambiguous {role_key} on '{tab_name}' row: {e}")
+                else:
+                    for name in minted:
+                        created_entities.append(
+                            f"{tab_name} [{role_key}]: created {name!r}"
+                        )
+                        logger.warning(
+                            f"Pull created a new {CREDIT_ROLES[role_key].target} "
+                            f"for '{tab_name}' [{role_key}]: {name!r}"
+                        )
             for field_key, raw_value in pending_tags:
                 try:
                     replace_tags(
@@ -1033,6 +1072,7 @@ def execute_pull_specific(
         "rows_added": rows_added,
         "rows_updated": rows_updated,
         "credit_conflicts": credit_conflicts,
+        "created_entities": created_entities,
     }
 
 
@@ -1053,6 +1093,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     # generic toast and reloads the log table, so the audit row below is the
     # only place these actually reach a human.
     credit_conflicts: list[str] = []
+    created_entities: list[str] = []
 
     try:
         for tab in tabs_in_order:
@@ -1074,6 +1115,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             total_updated += res.get("rows_updated", 0)
             results[tab] = res.get("processed", 0)
             credit_conflicts.extend(res.get("credit_conflicts", []))
+            created_entities.extend(res.get("created_entities", []))
 
     except Exception as e:
         logger.error(f"Full Pull Pipeline crashed: {e}")
@@ -1122,16 +1164,31 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             rows_updated=total_updated,
             error_message=summary,
             details_json=json.dumps(
-                {"pulled": results, "credit_conflicts": credit_conflicts}
+                {
+                    "pulled": results,
+                    "credit_conflicts": credit_conflicts,
+                    "created_entities": created_entities,
+                }
             ),
         )
         return {
             "status": "success",
             "details": results,
             "credit_conflicts": credit_conflicts,
+            "created_entities": created_entities,
         }
 
-    logger.info("Full Pull Pipeline completed successfully.")
+    if created_entities:
+        # Deliberately still a Success: inventing a studio the sheet named is
+        # correct behaviour, and colouring the row red would train the reader
+        # to ignore red. The names ride in details_json instead.
+        logger.warning(
+            f"Full Pull Pipeline created {len(created_entities)} new "
+            f"entit(ies) from names that matched nothing: "
+            + "; ".join(created_entities)
+        )
+    else:
+        logger.info("Full Pull Pipeline completed successfully.")
     log_data_control(
         db,
         "Pull",
@@ -1140,6 +1197,13 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "Success",
         rows_added=total_added,
         rows_updated=total_updated,
-        details_json=json.dumps(results),
+        details_json=json.dumps(
+            {"pulled": results, "created_entities": created_entities}
+        ),
     )
-    return {"status": "success", "details": results, "credit_conflicts": []}
+    return {
+        "status": "success",
+        "details": results,
+        "credit_conflicts": [],
+        "created_entities": created_entities,
+    }
