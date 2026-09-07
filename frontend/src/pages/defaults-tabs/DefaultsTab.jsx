@@ -63,10 +63,17 @@ export default function DefaultsTab({
             <div className="space-y-3">
               {fields.map((field) => {
                 const isOverridden = field.key in defaults;
+                // A repeater (sources, game copies) is a block of rows, not a
+                // single control: it stacks under its label and takes the full
+                // width instead of being squeezed into the value column.
+                const isRepeater =
+                  field.control === "sources" || field.control === "copies";
                 return (
                   <div
                     key={field.key}
-                    className={`grid grid-cols-1 gap-2 md:gap-4 md:items-center ${
+                    className={`grid grid-cols-1 gap-2 md:gap-4 ${
+                      isRepeater ? "md:items-start" : "md:items-center"
+                    } ${
                       hasAutofill
                         ? "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto]"
                         : "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
@@ -88,6 +95,7 @@ export default function DefaultsTab({
                           value={defaults[field.key]}
                           onChange={(v) => setFieldDefault(field.key, v)}
                           sources={sources}
+                          mediaType={type}
                         />
                       </div>
                       {isOverridden && (

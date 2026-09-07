@@ -4,11 +4,11 @@ import DefaultsTab from "./DefaultsTab";
 
 const noop = () => {};
 
-function renderTab(type) {
+function renderTab(type, draft = { defaults: {}, autofill: [] }) {
   return render(
     <DefaultsTab
       type={type}
-      draft={{ defaults: {}, autofill: [] }}
+      draft={draft}
       setFieldDefault={noop}
       clearFieldDefault={noop}
       toggleAutofill={noop}
@@ -36,5 +36,30 @@ describe("DefaultsTab", () => {
     expect(screen.queryAllByText("—")).toHaveLength(0);
     // The fields themselves still render.
     expect(screen.getByText("Country")).toBeInTheDocument();
+  });
+
+  it("edits the sources default with the same editor the Add form uses", () => {
+    renderTab("anime");
+
+    // The repeater renders in place of the old "No default for this field".
+    expect(screen.getByText("Main Sources")).toBeInTheDocument();
+    expect(screen.getByText("+ Add reference source")).toBeInTheDocument();
+  });
+
+  it("hides main sources on the Game tab, mirroring its Add form", () => {
+    renderTab("game");
+
+    expect(screen.queryByText("Main Sources")).toBeNull();
+    expect(screen.getByText("+ Add reference source")).toBeInTheDocument();
+  });
+
+  it("edits the game copies default with the copies editor", () => {
+    renderTab("game", {
+      defaults: { copies: [{ storefront: "Steam", ownership: "Owned" }] },
+      autofill: [],
+    });
+
+    expect(screen.getByText("+ Add copy")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ownership for Steam")).toHaveValue("Owned");
   });
 });

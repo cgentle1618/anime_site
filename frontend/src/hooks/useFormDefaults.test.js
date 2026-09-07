@@ -108,3 +108,35 @@ describe("autofillFields", () => {
     expect(autofillFields("not-a-type", {})).toEqual([]);
   });
 });
+
+describe("repeater defaults", () => {
+  it("carries configured source rows into a fresh form", () => {
+    const rows = [
+      { kind: "reference", bucket: "main", name: "Official Site", url: "", available: null },
+    ];
+    const resolved = resolveDefaults("anime", { anime: { defaults: { sources: rows } } });
+
+    expect(resolved.sources).toEqual(rows);
+  });
+
+  it("carries configured game copies into a fresh form", () => {
+    const rows = [{ storefront: "Steam", ownership: "Owned", position: 1 }];
+    const resolved = resolveDefaults("game", { game: { defaults: { copies: rows } } });
+
+    expect(resolved.copies).toEqual(rows);
+  });
+
+  it("strips system_id off stored rows", () => {
+    // A default row is a template, never an existing DB row: leaving a
+    // system_id on it would make the save path update a row it does not own.
+    const resolved = resolveDefaults("game", {
+      game: {
+        defaults: {
+          copies: [{ system_id: "0e5e0f2e-0000-0000-0000-000000000000", storefront: "Steam" }],
+        },
+      },
+    });
+
+    expect(resolved.copies).toEqual([{ storefront: "Steam" }]);
+  });
+});

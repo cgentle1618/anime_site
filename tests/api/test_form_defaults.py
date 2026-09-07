@@ -9,9 +9,11 @@ keys must not leak into the announcements listing.
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from app import models
 from app.routers.form_defaults import FORM_DEFAULTS_PREFIX
+from app.schemas.system import FormDefaultsPayload
 
 
 def _row(db_session, media_type="anime"):
@@ -137,6 +139,40 @@ def test_various_value_types_are_accepted(admin_client):
     assert admin_client.put("/api/form-defaults/anime", json=payload).status_code == 200
 
 
+def test_string_list_value_round_trips(admin_client):
+    """Multi-selects stay what they were — a list of plain strings."""
+    payload = {"defaults": {"source_other": ["Bilibili", "Netflix"]}}
+    assert admin_client.put("/api/form-defaults/anime", json=payload).status_code == 200
+
+    body = admin_client.get("/api/form-defaults/anime").json()
+    assert body["defaults"]["source_other"] == ["Bilibili", "Netflix"]
+
+
+def test_repeater_rows_round_trip(admin_client):
+    """Repeater fields (sources, game copies) default to a list of flat rows."""
+    sources = [
+        {"kind": "access", "bucket": "main", "name": "Steam", "url": "", "available": None}
+    ]
+    copies = [
+        {
+            "storefront": "Steam",
+            "ownership": "Owned",
+            "copy_format": "",
+            "acquisition": "",
+            "price_paid": "",
+            "price_currency": "",
+            "acquired_date": "",
+            "remark": "",
+        }
+    ]
+    payload = {"defaults": {"sources": sources, "copies": copies}}
+    assert admin_client.put("/api/form-defaults/game", json=payload).status_code == 200
+
+    body = admin_client.get("/api/form-defaults/game").json()
+    assert body["defaults"]["sources"] == sources
+    assert body["defaults"]["copies"] == copies
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -184,9 +220,45 @@ def test_nested_object_value_rejected(admin_client):
     assert res.status_code == 422
 
 
-def test_non_string_list_value_rejected(admin_client):
+def test_mixed_list_value_rejected(admin_client):
+    """A list is either all strings (multi-select) or all rows (repeater)."""
     res = admin_client.put(
-        "/api/form-defaults/anime", json={"defaults": {"source_other": [{"a": 1}]}}
+        "/api/form-defaults/anime", json={"defaults": {"source_other": ["a", {"b": 1}]}}
+    )
+    assert res.status_code == 422
+
+
+def test_list_of_rows_with_nested_value_rejected(admin_client):
+    """Repeater rows are flat — a nested dict/list is not form state."""
+    res = admin_client.put(
+        "/api/form-defaults/anime",
+        json={"defaults": {"sources": [{"kind": {"deep": 1}}]}},
+    )
+    assert res.status_code == 422
+
+    res = admin_client.put(
+        "/api/form-defaults/anime",
+        json={"defaults": {"sources": [{"kind": ["deep"]}]}},
+    )
+    assert res.status_code == 422
+
+
+def test_list_of_rows_with_non_string_key_rejected():
+    # JSON object keys are always strings, so this can only arrive via the model.
+    with pytest.raises(ValidationError):
+        FormDefaultsPayload(defaults={"sources": [{1: "x"}]})
+
+
+def test_over_cap_list_rejected(admin_client):
+    res = admin_client.put(
+        "/api/form-defaults/anime",
+        json={"defaults": {"source_other": [f"v{i}" for i in range(51)]}},
+    )
+    assert res.status_code == 422
+
+    res = admin_client.put(
+        "/api/form-defaults/game",
+        json={"defaults": {"copies": [{"storefront": "Steam"} for _ in range(51)]}},
     )
     assert res.status_code == 422
 

@@ -8,7 +8,9 @@
 // value as placeholder/ghost text rather than as a real value, so an admin can
 // see at a glance which fields they've actually configured.
 
+import GameCopiesEditor from "./GameCopiesEditor";
 import MultiSelect from "./MultiSelect";
+import SourcesEditor from "./SourcesEditor";
 import { inputCls, selectCls } from "./FormField";
 import { getSourceValues } from "../../lib/formatters";
 
@@ -41,9 +43,35 @@ export default function DefaultValueControl({
   value,
   onChange,
   sources = {},
+  mediaType,
 }) {
   const isOverridden = value !== undefined;
   const ghost = describeBuiltIn(field);
+
+  // Repeater fields reuse the Add form's own editors, so what the admin
+  // configures here looks and behaves exactly like the block it pre-fills.
+  // They are always "on": the editors have no empty state to fall back to,
+  // and no rows configured is the same form as the built-in empty list.
+  if (field.control === "sources") {
+    return (
+      <SourcesEditor
+        value={isOverridden ? value : field.builtIn}
+        onChange={onChange}
+        mediaType={mediaType}
+        sources={sources}
+        showAccess={field.showAccess ?? true}
+      />
+    );
+  }
+
+  if (field.control === "copies") {
+    return (
+      <GameCopiesEditor
+        items={isOverridden ? value : field.builtIn}
+        onChange={onChange}
+      />
+    );
+  }
 
   if (!field.defaultable || field.control === "none") {
     return (

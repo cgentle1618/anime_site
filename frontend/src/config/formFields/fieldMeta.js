@@ -204,12 +204,13 @@ export const COMMON_FIELD_META = {
   imdb_link: { label: "IMDb Link", control: "url", group: "Links" },
 
   // ---- Sources ---------------------------------------------------------
-  // Repeatable {kind, bucket, name, url, available} rows, rendered by
-  // <SourcesEditor> - a default here would make no sense.
+  // Repeatable {kind, bucket, name, url, available} rows. The default page
+  // edits them with the same <SourcesEditor> the Add form uses, so a new
+  // entry can start with the rows this collection always carries (an
+  // official site, a storefront) rather than an empty block.
   sources: {
     label: "Sources",
-    control: "none",
-    defaultable: false,
+    control: "sources",
     group: "Sources",
   },
 
@@ -958,13 +959,16 @@ export const TYPE_FIELD_META = {
       group: "Links",
     },
     steam_link: { label: "Steam Link", control: "url", group: "Links" },
-    // Repeatable copy rows, rendered by <GameCopiesEditor>.
+    // Repeatable copy rows, rendered by <GameCopiesEditor>. Defaultable so a
+    // collection bought mostly on one storefront can start every game there.
     copies: {
       label: "Copies",
-      control: "none",
-      defaultable: false,
+      control: "copies",
       group: "Sources",
     },
+    // The Game Add form hides the main-access block (a game is owned, not
+    // streamed); the defaults editor mirrors that.
+    sources: { showAccess: false },
   },
 
   collection: {

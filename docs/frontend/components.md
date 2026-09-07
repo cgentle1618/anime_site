@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-07 (publisher scope pills, scoped suggestion fetch)
+Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -40,7 +40,7 @@ src/
 | `hooks/useMediaCacheUpdate(type, id)` | `setMediaItem`, `fetchMediaItem`, `invalidateMedia` for optimistic detail updates. |
 | `hooks/useStatusToggle(type)` | PATCHes one field and writes through to both the item and every `["media-list", type]` cache entry (it maps over lists, which is why the plan-next query must live under its own key). |
 | `hooks/useLibraryState` | Search/filter/sort/view state for `LibraryLayout`; nothing is persisted. |
-| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). |
+| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's eleven lists (franchise, series and the nine entry types) plus `["plan-next"]`. |
 
@@ -195,7 +195,10 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   rows for the Reference Source dropdown - which never takes a `usage` filter,
   since `usage` is Platform-only; `showAccess={false}` drops the access group
   outright, which is how a game gets a Sources card with references only),
-  `DefaultValueControl`, `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
+  `DefaultValueControl` (one field's editor on `/defaults`; for the repeater
+  fields — `sources` everywhere, `copies` on game — it renders `SourcesEditor`
+  and `GameCopiesEditor` themselves, so the default rows are built in the same
+  UI that will show them on the Add form), `NovelUnitsEditor` (replaced `BelongingNovelsEditor`
   — edits the `novel_unit` rows the Add/Modify novel tabs send as `units`;
   kind choices come from `kindsForType(novel.type)` in `lib/novelUnits.js`,
   and previews each row's `unitDisplayKey` placeholder before save. The

@@ -8,6 +8,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator
 
 MAX_FIELD_COUNT = 200
+# A default is a starting point, not a data import: no multi-select or repeater
+# field is usefully pre-seeded with more rows than an admin would type by hand,
+# so cap list values well below the payload size limit.
+MAX_LIST_LENGTH = 50
 MAX_FIELD_KEY_LENGTH = 64
 _FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
 
@@ -201,9 +205,10 @@ class FormDefaultsPayload(BaseModel):
     built-in autofill field list", while [] genuinely means "copy nothing".
 
     Values mirror FRONTEND FORM-STATE types, not DB column types (numbers are
-    stored as strings, multi-selects as string lists). Field keys are validated
-    for shape only — the authoritative key list lives in the JS form factories,
-    and the frontend drops keys it does not recognize on read.
+    stored as strings, multi-selects as string lists, repeater fields such as
+    `sources` and game `copies` as lists of flat row objects). Field keys are
+    validated for shape only — the authoritative key list lives in the JS form
+    factories, and the frontend drops keys it does not recognize on read.
     """
 
     version: int = 1
@@ -218,8 +223,38 @@ class FormDefaultsPayload(BaseModel):
         for key, value in v.items():
             _check_field_key(key)
             if isinstance(value, list):
-                if not all(isinstance(item, str) for item in value):
-                    raise ValueError(f"List value for '{key}' must contain only strings.")
+                # A list is one of two form-state shapes and never a blend of
+                # them: a multi-select (all strings) or a repeater (all flat row
+                # objects). Requiring the list to be uniform keeps the frontend
+                # from having to guess which renderer a saved default belongs to.
+                if len(value) > MAX_LIST_LENGTH:
+                    raise ValueError(
+                        f"List value for '{key}' cannot hold more than "
+                        f"{MAX_LIST_LENGTH} items."
+                    )
+                if not (
+                    all(isinstance(item, str) for item in value)
+                    or all(isinstance(item, dict) for item in value)
+                ):
+                    raise ValueError(
+                        f"List value for '{key}' must be all strings or all objects."
+                    )
+                for item in value:
+                    if not isinstance(item, dict):
+                        continue
+                    # Repeater rows are one level deep — nesting would mean the
+                    # value came from somewhere other than a form factory.
+                    for row_key, row_value in item.items():
+                        if not isinstance(row_key, str):
+                            raise ValueError(
+                                f"Object keys in '{key}' must be strings."
+                            )
+                        if not isinstance(
+                            row_value, (str, int, float, bool)
+                        ) and row_value is not None:
+                            raise ValueError(
+                                f"Value for '{row_key}' in '{key}' must be a scalar."
+                            )
             elif not isinstance(value, (str, int, float, bool)) and value is not None:
                 raise ValueError(f"Unsupported value type for field '{key}'.")
         return v

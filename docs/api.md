@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-07 (publisher scope filter and `scopes` field)
+Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1254,9 +1254,19 @@ announcements, it reuses `system_configs` — one row per media type, keyed
   genuinely means "copy nothing". The two are not interchangeable.
 - Values mirror **frontend form-state** types, not DB column types — numbers are stored as
   strings, checkboxes as booleans.
+- **Repeater fields** (`sources` on every media type, `copies` on game) store their rows:
+  a list of flat objects, exactly the form state `SourcesEditor` / `GameCopiesEditor`
+  produce. A stored row is a template — the frontend strips any `system_id` off it on read
+  so a defaulted row inserts rather than updating the row that id belongs to.
 
-**Validation.** Shape and size only: value types limited to string/number/bool/null/string-list,
-≤200 keys, keys matching `^[a-z0-9_]+$` and ≤64 chars, serialized JSON ≤32 KB. The router
+```json
+{ "defaults": { "copies": [{ "storefront": "Steam", "ownership": "Owned" }] } }
+```
+
+**Validation.** Shape and size only: scalar values limited to string/number/bool/null;
+a list value must be **uniform** — every item a string (multi-select) or every item a flat
+object (repeater row) whose own values are scalars, no mixing and no nesting — and hold
+≤50 items; ≤200 keys, keys matching `^[a-z0-9_]+$` and ≤64 chars, serialized JSON ≤32 KB. The router
 deliberately does **not** mirror the ~280 form field names — that list lives in
 `frontend/src/config/formFactories.js`, and duplicating it in Python would guarantee drift.
 The frontend's `resolveDefaults()` drops stored keys it no longer recognizes on read.

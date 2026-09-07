@@ -18,9 +18,18 @@ import { endpoints } from "../api/endpoints";
 /** Forces a stored value into the shape the form state expects. */
 export function coerceToShape(builtIn, value) {
   if (typeof builtIn === "boolean") return Boolean(value);
-  // Arrays back repeater editors ({name,url} rows, per-volume titles). These
-  // aren't defaultable, so anything stored for them is ignored.
-  if (Array.isArray(builtIn)) return Array.isArray(value) ? value : [];
+  // Arrays back repeater editors (source rows, game copies, per-volume
+  // titles). A stored row is a TEMPLATE, never a saved record, so any
+  // system_id riding along is dropped: left in place it would make the save
+  // path update the row that id belongs to instead of inserting a new one.
+  if (Array.isArray(builtIn)) {
+    if (!Array.isArray(value)) return [];
+    return value.map((row) => {
+      if (!row || typeof row !== "object") return row;
+      const { system_id: _ignored, ...rest } = row;
+      return rest;
+    });
+  }
   // null marks a foreign-key field — never given a default.
   if (builtIn === null) return null;
   return value == null ? "" : String(value);

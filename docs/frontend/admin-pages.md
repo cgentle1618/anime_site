@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-07 (publisher scope pills)
+Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -413,6 +413,19 @@ by any field.
 `game` is present here like any other media type, but its Add form has no
 "copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
 on the Game tab currently drive nothing.
+
+**Repeater defaults (sources, game copies).** `sources` on every media tab and
+`copies` on the Game tab are lists of rows, not single values, so
+`DefaultValueControl` renders the Add form's own editors — `SourcesEditor` and
+`GameCopiesEditor` — inline, laid out across the full row rather than squeezed
+into the value column. What the admin builds here is what a new entry starts
+with: a game can default to one "Steam / Owned" copy instead of no copies at
+all. The Game tab hides the main-access block exactly as its Add form does
+(`showAccess: false`), since a game is owned rather than streamed. Rows are
+templates, so `useFormDefaults` strips any `system_id` off them on read — a
+default row must insert, never update someone else's row. Modify is unaffected:
+it reads `sources` and `copies` off the saved entry and takes only scalar
+fallbacks from the defaults.
 
 The Entity tabs (studio, publisher, person, character) are defaults-only: their Add forms
 have no "auto-fill from an existing record" search, so every one of their
