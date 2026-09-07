@@ -27,7 +27,16 @@ class Cartoon(Base, NameFallbackMixin):
             r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_cartoons_release_date_iso",
         ),
-        UniqueConstraint("public_id", name="uq_cartoons_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_cartoons_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
     _name_fields = ["cartoon_name_en", "cartoon_name_cn", "cartoon_name_alt"]
 

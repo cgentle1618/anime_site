@@ -24,7 +24,18 @@ class Franchise(Base, NameFallbackMixin):
     """
 
     __tablename__ = "franchise"
-    __table_args__ = (UniqueConstraint("public_id", name="uq_franchise_public_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "public_id",
+            name="uq_franchise_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
     _name_fields = [
         "franchise_name_en",
         "franchise_name_cn",
@@ -105,7 +116,18 @@ class Series(Base, NameFallbackMixin):
     """
 
     __tablename__ = "series"
-    __table_args__ = (UniqueConstraint("public_id", name="uq_series_public_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "public_id",
+            name="uq_series_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
     _name_fields = [
         "series_name_en",
         "series_name_cn",

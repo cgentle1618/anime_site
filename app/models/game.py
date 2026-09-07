@@ -51,7 +51,16 @@ class Game(Base, NameFallbackMixin):
             "base_game_id IS NULL OR base_game_id <> system_id",
             name="ck_games_not_self_parent",
         ),
-        UniqueConstraint("public_id", name="uq_games_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_games_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     _name_fields = [
@@ -160,6 +169,17 @@ class Game(Base, NameFallbackMixin):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="GameCopy.position",
+    )
+
+    # A DLC's base game, read-only. selectin rather than the default lazy
+    # load so the list endpoints batch it into one extra query instead of one
+    # per DLC. Never written through - base_game_id is the column that owns
+    # the link.
+    base_game = relationship(
+        "Game",
+        remote_side="Game.system_id",
+        viewonly=True,
+        lazy="selectin",
     )
 
     @property

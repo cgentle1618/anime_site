@@ -31,7 +31,16 @@ class Movies(Base, NameFallbackMixin):
             r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_movies_release_date_tw_iso",
         ),
-        UniqueConstraint("public_id", name="uq_movies_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_movies_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
     _name_fields = ["movie_name_en", "movie_name_cn", "movie_name_alt"]
 

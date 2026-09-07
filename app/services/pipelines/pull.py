@@ -193,6 +193,33 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
 )
 
 
+
+def resync_public_id_sequence(db: Session, model) -> None:
+    """
+    Move a table's public_id sequence past the ids the restore just wrote.
+
+    Pull inserts rows carrying their own public_id from the sheet, which the
+    sequence knows nothing about. Left alone it keeps handing out values the
+    restore already used, and the failure surfaces later - on the next entry
+    an admin adds - as a unique-constraint error that says nothing about Pull.
+
+    A no-op for tables with no public_id, because Pull walks every tab.
+    """
+    column = model.__table__.columns.get("public_id")
+    if column is None:
+        return
+    table = model.__table__.name
+    sequence = f"{table}_public_id_seq"
+    # COALESCE covers an empty table: max() is NULL there and setval would
+    # fail. is_called=false makes the next nextval return exactly this value.
+    db.execute(
+        text(
+            f"SELECT setval('\"{sequence}\"', "
+            f'COALESCE((SELECT MAX(public_id) FROM "{table}"), 0) + 1, false)'
+        )
+    )
+
+
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
     """
     The local row a derived-identity sheet row denotes, or None.
@@ -1062,6 +1089,11 @@ def execute_pull_specific(
             )
         )
         db.commit()
+
+    # The same hazard for public_id, which every entity tab restores from the
+    # sheet. Runs after the commit above so MAX() reads the rows that landed.
+    resync_public_id_sequence(db, Model)
+    db.commit()
 
     logger.info(
         f"Successfully pulled and upserted {processed} records from '{tab_name}'."

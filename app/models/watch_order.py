@@ -44,7 +44,16 @@ class WatchOrderList(Base):
             " + CASE WHEN series_id IS NULL THEN 0 ELSE 1 END) = 1",
             name="ck_watch_order_list_single_owner",
         ),
-        UniqueConstraint("public_id", name="uq_watch_order_list_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_watch_order_list_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     system_id = Column(

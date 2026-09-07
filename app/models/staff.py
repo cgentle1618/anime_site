@@ -57,7 +57,16 @@ class Person(Base, NameFallbackMixin):
             "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
             name="ck_person_has_a_name",
         ),
-        UniqueConstraint("public_id", name="uq_person_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_person_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     # Used by _find_by_name (app/services/domain/credits.py): a person matches
@@ -219,7 +228,16 @@ class Studio(Base, NameFallbackMixin):
             r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_studio_defunct_date",
         ),
-        UniqueConstraint("public_id", name="uq_studio_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_studio_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]
@@ -337,7 +355,16 @@ class Publisher(Base, NameFallbackMixin):
             r"defunct_date IS NULL OR defunct_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_publisher_defunct_date",
         ),
-        UniqueConstraint("public_id", name="uq_publisher_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_publisher_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     _name_fields = ["name_en", "name_cn", "name_jp", "name_alt"]

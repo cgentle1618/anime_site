@@ -33,7 +33,16 @@ class Anime(Base, NameFallbackMixin):
             r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_anime_release_date_iso",
         ),
-        UniqueConstraint("public_id", name="uq_anime_public_id"),
+        UniqueConstraint(
+            "public_id",
+            name="uq_anime_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
     _name_fields = [
         "anime_name_en",

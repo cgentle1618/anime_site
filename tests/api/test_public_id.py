@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app import models
@@ -17,6 +18,14 @@ _spec = importlib.util.spec_from_file_location(
 )
 _migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_migration)
+
+_deferral_spec = importlib.util.spec_from_file_location(
+    "pdf1e2r3d4e5",
+    pathlib.Path(__file__).parents[2]
+    / "alembic/versions/pdf1e2r3d4e5_defer_public_id_unique.py",
+)
+_deferral_migration = importlib.util.module_from_spec(_deferral_spec)
+_deferral_spec.loader.exec_module(_deferral_migration)
 
 # (model, kwargs sufficient to insert a bare row)
 SEVENTEEN = [
@@ -96,13 +105,30 @@ def test_migration_tables_match_models_with_a_public_id_column():
 
 
 def test_public_id_rejects_a_duplicate(db_session):
-    """The unique index is the guard that makes the id safe to put in a URL."""
+    """
+    The unique constraint is the guard that makes the id safe to put in a URL.
+
+    It is DEFERRABLE INITIALLY DEFERRED (see the pdf1e2r3d4e5 migration) so a
+    Pull can permute public_id across rows inside one transaction, which means
+    the violation surfaces at COMMIT rather than at the statement. The fixture
+    commits into a SAVEPOINT, which does not trigger a deferred check, so the
+    check is forced here the way a real commit would.
+    """
     first = models.Anime(anime_name_en="PID Dup A")
     db_session.add(first)
     db_session.flush()
 
     second = models.Anime(anime_name_en="PID Dup B", public_id=first.public_id)
     db_session.add(second)
+    db_session.flush()
+
     with pytest.raises(IntegrityError):
-        db_session.flush()
+        db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.rollback()
+
+
+def test_deferral_migration_covers_every_table_the_public_id_one_does():
+    """The two migrations name the same seventeen tables; a table added to one
+    and not the other would leave its constraint immediate, and the next Pull
+    would abort partway through that tab."""
+    assert set(_deferral_migration.TABLES) == set(_migration.TABLES)

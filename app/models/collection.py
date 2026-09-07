@@ -31,7 +31,18 @@ class Collection(Base, NameFallbackMixin):
     """
 
     __tablename__ = "collection"
-    __table_args__ = (UniqueConstraint("public_id", name="uq_collection_public_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "public_id",
+            name="uq_collection_public_id",
+            # Deferred so a Pull can permute public_id across rows inside
+            # one transaction: the sheet can hand row A an id row B still
+            # holds until the restore reaches B. Only the end state has to
+            # be unique, and it is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
     _name_fields = [
         "collection_name_en",
         "collection_name_cn",
