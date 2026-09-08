@@ -1179,6 +1179,34 @@ One column at a time. Each task moves the read path onto `media` and drops the
 detail-table copy **in the same commit**, so no column is ever writable in two
 places.
 
+> ## ⚠ Execute Task 23 FIRST, before Tasks 20, 21 and 22
+>
+> Tasks 20–22 drop `cover_image_file`, `franchise_id`, `series_id` and
+> `public_id` from the nine detail tables. Task 23 is what adds the `Media`
+> sheet tab those values move to. `format_model_for_sheet` derives a tab's
+> columns from its model's columns, so **any Backup taken between Task 20 and
+> Task 23 writes a sheet with those four columns missing entirely** — and a
+> Pull All from that sheet on the other machine restores entries without their
+> covers, parents or public ids.
+>
+> Google Sheets is the only path data takes between the company and home
+> machines (`docs/switching-environments.md`), so this window is not
+> theoretical: it is exactly where an environment switch would land.
+>
+> The task numbering is kept as-is so that task ids stay stable across the
+> plan's own history. **The execution order for Phase C is 23 → 20 → 21 → 22.**
+> Task 23 depends only on `media` being fully backfilled, which Phase A
+> completed, so it can run as soon as Task 13 is done.
+>
+> Duplication in the window is harmless: while both the `Media` tab and a
+> detail tab carry `public_id`, `drop_non_columns` (added in Task 23) filters
+> the detail payload down to that model's real columns, so whichever side has
+> dropped the column simply stops writing it.
+>
+> **If you are stopping work mid-plan to switch machines, stop at a task
+> boundary in Phase A or B, or after Task 23 — never between Tasks 20 and 22
+> with an un-backed-up database.**
+
 ### Task 20: `cover_image_file`
 
 **Files:**
@@ -1422,6 +1450,10 @@ them still works.
 - Consumes: everything Tasks 20–22 dropped from the detail tables.
 - Produces: a `Media` sheet tab. Step 4 extends the tab registry further; this
   task only keeps the existing workflow alive.
+
+**Run this task before Tasks 20, 21 and 22** — see the warning at the top of
+Phase C. It depends only on `media` being backfilled (Phase A), and it is what
+stops the contract phase dropping four columns out of the backup.
 
 **Why this is in Step 0 and not Step 4.** `format_model_for_sheet` walks
 `__table__.columns` in declaration order, so a tab's columns *are* its model's
