@@ -72,7 +72,10 @@ wiped and rebuilt (`DROP SCHEMA public CASCADE`) at the start of every API test
 session, so never point it at real data.
 
 `dev.ps1` assumes this setup: it runs `docker-compose up -d` and waits for
-`pg_isready` in the container.
+`pg_isready` in the container. It also **aborts if a native PostgreSQL service
+or `postgres.exe` is running**, because its readiness check runs *inside* the
+container and would report success while the app talked to the native server
+instead. The error names the services and prints the commands to stop them.
 
 > **If a native PostgreSQL service is installed on the machine, stop it.** Both
 > servers bind 5432, the native one usually wins the race, and the container is
@@ -211,7 +214,7 @@ with `ADMIN_PASSWORD` (see `architecture.md`, boot sequence). Log in at
 
 | Script | What it does |
 | --- | --- |
-| `dev.ps1` | Refuses to start if :8000 is already listening; `docker-compose up -d`; waits for `pg_isready` in the container (30 s); opens a Windows Terminal tab split into a uvicorn pane and an `npm run dev` pane; polls `http://127.0.0.1:8000/api/announcements/` until the backend answers (60 s); prints `Ready: http://localhost:5173/`. |
+| `dev.ps1` | Refuses to start if :8000 is already listening, or if a native PostgreSQL server is running (it would shadow the container — see section 3); `docker-compose up -d`; waits for `pg_isready` in the container (30 s); opens a Windows Terminal tab split into a uvicorn pane and an `npm run dev` pane; polls `http://127.0.0.1:8000/api/announcements/` until the backend answers (60 s); prints `Ready: http://localhost:5173/`. |
 | `dev.cmd` | `powershell -ExecutionPolicy Bypass -File dev.ps1` wrapper for double-clicking / cmd. |
 | `stop.cmd` | `docker-compose down` (stops the Postgres container; does not close the uvicorn/vite panes). |
 
@@ -277,6 +280,7 @@ Details of the tiers and fixtures are in `testing.md`.
 
 | Symptom | Cause / fix |
 | --- | --- |
+| `dev.ps1` aborts with "A native PostgreSQL server would shadow the container" | Working as intended. A native service is running and would take 5432 ahead of the container. Stop it with the commands the script prints (elevated PowerShell), then re-run. |
 | Vite shows `ECONNREFUSED 127.0.0.1:8000` | Backend not up, or a stale uvicorn holds :8000 (`dev.ps1` detects this and prints the PID to kill). |
 | `WinError 10048` from uvicorn | Same: port 8000 already in use. |
 | Data disappears between runs | Two Postgres servers on :5432 (native + Docker). Stop one. |

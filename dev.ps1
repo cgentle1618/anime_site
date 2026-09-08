@@ -15,6 +15,31 @@ if ($stale) {
     throw 'Backend port 8000 is occupied - aborting so the new server does not fail to bind.'
 }
 
+# --- Guard: a native PostgreSQL service binds 5432 too and usually wins the race
+# --- against the container. Everything below would still report success - the
+# --- pg_isready check runs *inside* the container - while uvicorn silently talks
+# --- to the native server's separate, usually empty database. That is exactly
+# --- what this machine did until 2026-09-08; see docs/switching-environments.md.
+$nativeSvc = @(Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue |
+               Where-Object { $_.Status -eq 'Running' })
+$nativeProc = @(Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue |
+                ForEach-Object { Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue } |
+                Where-Object { $_.ProcessName -eq 'postgres' })
+if ($nativeSvc -or $nativeProc) {
+    Write-Host '==> A native PostgreSQL server is running on this machine.' -ForegroundColor Yellow
+    foreach ($s in $nativeSvc) { Write-Host "      service: $($s.Name) ($($s.Status))" -ForegroundColor Yellow }
+    foreach ($p in $nativeProc) { Write-Host "      process: $($p.ProcessName) (PID $($p.Id)) listening on 5432" -ForegroundColor Yellow }
+    Write-Host '    It will shadow the docker-compose container on port 5432, and the app' -ForegroundColor Yellow
+    Write-Host '    would run against the wrong database without saying so. Stop it from an' -ForegroundColor Yellow
+    Write-Host '    elevated PowerShell:' -ForegroundColor Yellow
+    if ($nativeSvc) {
+        $names = ($nativeSvc | ForEach-Object { $_.Name }) -join ', '
+        Write-Host "      Stop-Service $names -Force" -ForegroundColor Yellow
+        Write-Host "      Set-Service $names -StartupType Manual" -ForegroundColor Yellow
+    }
+    throw 'A native PostgreSQL server would shadow the container - aborting.'
+}
+
 Write-Host '==> Starting PostgreSQL (docker-compose up -d)' -ForegroundColor Cyan
 docker-compose --project-directory $root up -d
 if ($LASTEXITCODE -ne 0) { throw 'docker-compose failed - is Docker Desktop running?' }
