@@ -92,6 +92,15 @@ per-machine details: **`docs/switching-environments.md`**.
   checklist; when a session starts and the working tree looks stale, suspect a
   handover and check the arriving checklist first.
 
+## Git Branches
+
+- **`dev` is the working branch.** Unless I say otherwise, commit here and push
+  with `git push origin dev`. Earlier work happened on `modify` and before that
+  on per-feature branches (`manga`, `novel`, `extract`, …); those are history and
+  are not where new work goes.
+- `main` is the trunk. Do not commit to it directly — it moves by merging `dev`.
+- `origin` is `https://github.com/cgentle1618/anime_site.git`.
+
 ## Concurrent Claude Code Sessions
 
 - Multiple Claude Code sessions may be running at the same time in this same local directory and on the same git branch. Assume you are not the only agent editing the working tree.
