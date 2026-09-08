@@ -58,9 +58,9 @@ class Meme(Base):
     # One text and/or one image - never a list. Both optional individually, but
     # a meme with neither has nothing to show.
     text = Column(Text, nullable=True)
-    # Bare filename under static/quotes/, local only: Cloud Run's filesystem is
-    # ephemeral, so the frontend hides image controls off localhost. The image
-    # renders above the text, so its position is not stored.
+    # Bare filename under static/quotes/. The frontend still hides the image
+    # controls off localhost. The image renders above the text, so its position
+    # is not stored.
     image_file = Column(String, nullable=True)
 
     # The Quote this meme's text also is, when it is one. A real column rather

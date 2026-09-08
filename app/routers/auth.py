@@ -12,7 +12,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app import models
-from app.config import settings
 from app.dependencies import get_db
 from app.services.rbac.permissions import PERM_ADMIN
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
@@ -37,7 +36,6 @@ def login_for_access_token(
     """
     Validates user credentials against the database.
     If valid, generates a JWT and sets it as an HTTP-Only, Lax SameSite cookie.
-    Automatically applies Secure=True in Cloud Run production environments.
     """
     # 1. Fetch user from database
     user = (
@@ -57,11 +55,7 @@ def login_for_access_token(
     token_data = {"sub": user.username, "role": user.role}
     access_token = create_access_token(data=token_data)
 
-    # 4. Smart Security Hardening (HTTPS Detection)
-    # If running in Cloud Run, K_SERVICE is populated.
-    is_cloud_run = settings.is_cloud_run
-
-    # 5. Set the secure cookie
+    # 4. Set the cookie
     # httponly=True prevents JavaScript (document.cookie) from reading the token
     # max_age is in seconds (ACCESS_TOKEN_EXPIRE_MINUTES * 60 seconds = X hours)
     response.set_cookie(
@@ -70,7 +64,9 @@ def login_for_access_token(
         httponly=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
-        secure=is_cloud_run,
+        # Plain HTTP today; make this conditional on the request scheme once
+        # the app is served over HTTPS (self-hosting).
+        secure=False,
     )
 
     logger.info(f"Successful login for user: {user.username}")

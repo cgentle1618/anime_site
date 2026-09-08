@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-07 (public_id on the seventeen entity tables)
+Last verified: 2026-09-08 (image columns hold local storage keys, not GCS object keys)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -223,7 +223,7 @@ Columns common to all nine entry tables (listed once here):
 | `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_id` | UUID | yes | | FK `series.system_id` ON DELETE SET NULL - **absent on `anime_movies`** |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `cover_image_file` | String | yes | | GCS object key of the cover image. |
+| `cover_image_file` | String | yes | | Storage key of the cover image, `<owner_type>/<system_id>.jpg` under `static/covers/`. |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed status (see `app/services/domain/completion.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -663,7 +663,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `photo_file` | String | yes | | GCS object key |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg` |
 | `remark` | Text | yes | | A real column here (not a note row) |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -729,7 +729,7 @@ every type it applies to is not wrong in the way a distributor list offering
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `logo_file` | String | yes | | GCS object key. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | |
@@ -792,7 +792,7 @@ mean something vaguer than it does.
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `logo_file` | String | yes | | GCS object key. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | |
@@ -894,7 +894,7 @@ with one intentional deviation - see the constraints note below.
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `photo_file` | String | yes | | GCS object key; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -933,7 +933,7 @@ single answer (Decision A).
 | `person_id` | UUID | yes | | FK `person.system_id` **ON DELETE SET NULL**, indexed |
 | `role` | String | yes | | One of `CHARACTER_ROLES` (`Main`, `Supporting`) |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
-| `photo_file` | String | yes | | GCS key: this character as she appears in this entry. NULL falls back to `character.photo_file` at read time. |
+| `photo_file` | String | yes | | Storage key under `static/covers/`: this character as she appears in this entry. NULL falls back to `character.photo_file` at read time. |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
@@ -1132,7 +1132,7 @@ a specific work). Model: `Quote`.
 | `original_source` | String | yes | | Set when the speaker is themselves quoting something |
 | `episode` | String | yes | | Free text: "S2E4", "Ch. 12", "Vol. 3" |
 | `link` | String | yes | | |
-| `image_file` | String | yes | | Bare filename under `static/quotes/` - local only (Cloud Run's filesystem is ephemeral) |
+| `image_file` | String | yes | | Bare filename under `static/quotes/` - a flat directory of its own, not the owner-typed `static/covers/` layout |
 | `tags` | JSONB | yes | | |
 | `is_general` | Boolean | yes | `False` | Works in any conversation ("hi") - meant to be sent as a message |
 | `is_favorite` | Boolean | yes | `False` | |

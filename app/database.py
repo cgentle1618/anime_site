@@ -1,7 +1,7 @@
 """
 database.py
 Handles the core SQLAlchemy database configuration, connection engine,
-and session management. Includes environment-aware routing for Cloud Run.
+and session management.
 """
 
 from datetime import datetime
@@ -16,14 +16,8 @@ from app.config import settings
 # DATABASE CONNECTION SETUP
 # ==========================================
 
-# Environment-aware connection URL (Cloud SQL socket > TCP override > local).
-# Routing logic lives in config.Settings.sqlalchemy_database_url.
+# The connection URL is assembled in config.Settings.sqlalchemy_database_url.
 SQLALCHEMY_DATABASE_URL = settings.sqlalchemy_database_url
-
-# Cloud Run Safety Check: Force a descriptive crash log if misconfigured
-if settings.is_cloud_run and "localhost" in SQLALCHEMY_DATABASE_URL:
-    print("❌ [CRITICAL] Cloud Run detected but INSTANCE_CONNECTION_NAME is missing!")
-    print("❌ Action Required: Go to GCP Console and set INSTANCE_CONNECTION_NAME.")
 
 
 # ==========================================

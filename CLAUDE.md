@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CG1618 Media Tracker & Database** — a cloud-native FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Collection → Franchise → Series → entry`. Media entry types: Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel, Comic (all implemented). Access: guests browse (subject to role permissions and content labels), admins manage everything.
+**CG1618 Media Tracker & Database** — a FastAPI web application for tracking a personal media collection. Data is organized in a three-tier relational hierarchy: `Collection → Franchise → Series → entry`. Media entry types: Anime, Anime Movie, Movie, TV Show, Cartoon, Manga, Novel, Comic (all implemented). Access: guests browse (subject to role permissions and content labels), admins manage everything.
 
 ## Documentation Map
 
@@ -15,7 +15,7 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Auth or visibility → `docs/authentication.md`, `docs/authorization.md`.
 - Pipelines (Backup/Pull/Fill/Replace/Calculate) → `docs/data-actions.md`, `docs/external-apis.md`.
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
-- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-gcp.md`.
+- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-selfhost.md` (the plan); `docs/deployment-gcp.md` is history.
 - Plan → `docs/roadmap.md`. Remind me to update it when we move to the next feature and I have not.
 - In-flight work → **`docs/PROGRESS.md`**. See "Progress tracking" below.
 
@@ -28,8 +28,8 @@ When you change behaviour, update the matching doc in the same change and bump i
 - **Frontend**: React + Vite (SPA); pages call `/api/...` via `api/endpoints.js` + TanStack Query hooks. Tailwind CSS v4 with semantic colour tokens (`bg-surface`, `text-text-muted`, …) that drive light/dark mode — never add hard-coded grey utilities (`src/theme-tokens.test.js` fails the build on them).
 - **Auth**: JWT in an HTTP-only cookie; RBAC via `Depends(get_current_admin)` / `get_viewer` in `app/dependencies.py`.
 - **Migrations**: Alembic (single head; run on container start).
-- **External services**: Tenrai v1 API (MAL metadata), TMDB, OMDb, Comic Vine, Google Sheets (backup/restore), Google Cloud Storage (cover images).
-- **Deployment**: Docker → GitHub Actions (tests gate deploy) → GCP Cloud Run + Cloud SQL.
+- **External services**: Tenrai v1 API (MAL metadata), TMDB, OMDb, Comic Vine, Google Sheets (backup/restore). Cover images are local disk under `static/covers/` — there is no object storage.
+- **Deployment**: none. **Local development is the only runtime.** CI (`.github/workflows/ci.yml`, name `Tests`) runs ruff + pytest + eslint + vitest + the frontend build on every PR and push, and **deploys nothing**. Self-hosting (a mini PC behind a Cloudflare Tunnel) is the intended production and is not built yet — `docs/deployment-selfhost.md`. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; the code supporting it was removed on 2026-09-08, so reviving GCP means building it again from scratch. The record is `docs/deployment-gcp.md`. `dockerfile`, `entrypoint.sh` and `docker-compose.yml` are kept: compose runs Postgres locally and self-hosting will reuse the image.
 
 ## Development Commands
 
@@ -55,7 +55,10 @@ cd frontend && npm run test:run && npm run lint  # frontend tests + ESLint
 
 ## Required Environment Variables
 
-See `.env.example` (authoritative) and `docs/setup-local.md`. Cloud Run auto-sets `K_SERVICE`, which switches secure cookies, IAM auth for GCS and Cloud SQL socket routing.
+See `.env.example` (authoritative) and `docs/setup-local.md`. There is no production/development switch in the code — the app has one mode. Two things to know:
+
+- `DATABASE_URL` is honoured **verbatim** when set (`app/config.py`); otherwise the URL is built from `POSTGRES_*` against localhost. A stale `DATABASE_URL` in a machine's `.env` will be used and will break that machine.
+- The login cookie is `secure=False` unconditionally, and nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`. Both must be fixed before the app is ever exposed — see `docs/deployment-selfhost.md`.
 
 ## Common Points of Confusion
 
@@ -126,4 +129,4 @@ plus open items and the scratch test databases currently in use.
 - Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
 - Never commit or push automatically right after finishing a task. Ask for permission and show a one-line version of the commit. Only commit (and push) after I approve. Note that it's possible that we only commit once after multiple modifications.
 - If we're implementing or modifying based on `docs/roadmap.md`, pause and ask for permission to proceed whenever you finish a step or a set of steps. Update the roadmap's progress in its own section. Do not modify the plan itself. Provide a git commit message for the changes.
-- Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four before deploying).
+- Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four on every PR and push).

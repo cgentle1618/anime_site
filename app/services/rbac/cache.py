@@ -7,9 +7,9 @@ the viewer's cookie happens to expire - there is no refresh flow or token
 blacklist to bolt onto. That choice costs a query per request, which this
 removes for all but the first.
 
-Single-process by design (Cloud Run runs one app per instance). Every write in
-the roles and content-label routers calls bump(); a second instance would need
-a short TTL instead.
+Single-process by design: the app runs as one process, so one dict is the whole
+cache. Every write in the roles and content-label routers calls bump(); running
+a second instance would need a short TTL instead.
 """
 
 from uuid import UUID

@@ -201,7 +201,6 @@ export const endpoints = {
     log: (id) => `/api/system/logs/${id}`,
     deleted: () => "/api/system/deleted",
     deletedRecord: (id) => `/api/system/deleted/${id}`,
-    testBucket: () => "/api/system/test-bucket",
   },
 
   quotes: {

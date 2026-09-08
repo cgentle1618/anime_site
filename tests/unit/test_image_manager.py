@@ -3,8 +3,8 @@ Unit tests for the owner-typed cover storage layout.
 
 Every image is stored under `static/covers/<owner_type>/<system_id>.jpg`, so a
 system_id alone no longer names a file - each entry point takes the owner type
-alongside it. These tests exercise local mode with COVER_DIR pointed at a
-tmp_path; the GCS branch is asserted against a stub bucket.
+alongside it. These tests point COVER_DIR at a tmp_path and exercise the real
+filesystem.
 """
 
 from types import SimpleNamespace
@@ -16,10 +16,9 @@ from app.services.integrations import image_manager
 
 @pytest.fixture
 def local_covers(tmp_path, monkeypatch):
-    """Local mode: no bucket, COVER_DIR under tmp_path."""
+    """COVER_DIR under tmp_path."""
     root = tmp_path / "covers"
     monkeypatch.setattr(image_manager, "COVER_DIR", str(root))
-    monkeypatch.setattr(image_manager, "get_active_bucket_name", lambda: None)
     return root
 
 
@@ -184,82 +183,3 @@ def test_list_skips_files_left_at_the_root(local_covers):
 
 def test_list_of_a_missing_dir_is_empty(local_covers):
     assert image_manager.list_all_cover_images() == []
-
-
-# --------------------------------------------------------------------------
-# GCS branch
-# --------------------------------------------------------------------------
-
-
-class _Blob:
-    def __init__(self, name, exists=False):
-        self.name = name
-        self._exists = exists
-        self.uploaded = None
-        self.deleted = False
-
-    def exists(self):
-        return self._exists
-
-    def upload_from_string(self, data, content_type=None):
-        self.uploaded = data
-        self._exists = True
-
-    def delete(self):
-        self.deleted = True
-
-
-class _Bucket:
-    def __init__(self):
-        self.blobs = {}
-
-    def blob(self, name):
-        return self.blobs.setdefault(name, _Blob(name))
-
-    def list_blobs(self, prefix=None):
-        return [
-            b
-            for b in self.blobs.values()
-            if prefix is None or b.name.startswith(prefix)
-        ]
-
-
-@pytest.fixture
-def gcs(monkeypatch):
-    bucket = _Bucket()
-    monkeypatch.setattr(image_manager, "get_active_bucket_name", lambda: "a-bucket")
-    monkeypatch.setattr(
-        image_manager,
-        "get_gcs_client",
-        lambda: SimpleNamespace(bucket=lambda name: bucket),
-    )
-    return bucket
-
-
-def test_gcs_upload_uses_the_owner_prefixed_blob_name(gcs, monkeypatch):
-    monkeypatch.setattr(
-        image_manager.requests,
-        "get",
-        lambda *a, **k: SimpleNamespace(content=b"j", raise_for_status=lambda: None),
-    )
-
-    key = image_manager.download_cover_image("http://x/y.jpg", "tv-show", "id1")
-
-    assert key == "tv-show/id1.jpg"
-    assert gcs.blob("tv-show/id1.jpg").uploaded == b"j"
-
-
-def test_gcs_delete_uses_the_owner_prefixed_blob_name(gcs):
-    blob = _Blob("publisher/id1.jpg", exists=True)
-    gcs.blobs[blob.name] = blob
-
-    image_manager.delete_cover_image("publisher", "id1")
-
-    assert blob.deleted is True
-
-
-def test_gcs_list_restricted_to_one_owner_uses_a_prefix(gcs):
-    for name in ["anime/a.jpg", "staff/c.jpg"]:
-        gcs.blobs[name] = _Blob(name)
-
-    assert image_manager.list_all_cover_images("anime") == ["anime/a.jpg"]

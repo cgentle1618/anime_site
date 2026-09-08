@@ -1,16 +1,14 @@
 """
 routers/system.py
-Handles system-level read operations for audit trails (logs)
-and infrastructure diagnostics. Also manages System Configurations (e.g. Current Season).
+Handles system-level read operations for audit trails (logs).
+Also manages System Configurations (e.g. Current Season).
 Strictly protected by Admin Role-Based Access Control.
 """
 
 import logging
-import urllib.request
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from google.cloud import storage
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -166,39 +164,3 @@ def delete_deleted_record(record_id: int, db: Session = Depends(get_db)):
     db.delete(record)
     db.commit()
     return {"deleted": record_id}
-
-
-# ==========================================
-# DIAGNOSTICS & TESTING
-# ==========================================
-
-
-@router.post("/test-bucket", summary="Test GCP Bucket Permissions")
-def test_cloud_storage_bucket():
-    """Diagnostic tool to verify GCS write permissions."""
-    try:
-        test_url = "https://cdn.myanimelist.net/images/anime/1015/138006l.jpg"
-        req = urllib.request.Request(
-            test_url,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-        )
-
-        with urllib.request.urlopen(req, timeout=10) as response:
-            image_bytes = response.read()
-
-        client = storage.Client()
-        bucket_name = "cg1618-anime-covers"
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob("diagnostic_test_image.jpg")
-        blob.upload_from_string(image_bytes, content_type="image/jpeg")
-
-        return {
-            "status": "success",
-            "message": f"Successfully uploaded diagnostic_test_image.jpg to {bucket_name}!",
-            "public_url": blob.public_url,
-        }
-    except Exception as e:
-        logger.error(f"Bucket test failed: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Bucket diagnostic failed: {str(e)}"
-        )

@@ -3,7 +3,7 @@ Unit tests for the one-off cover-layout migration script.
 
 The script moves `static/covers/<uuid>.jpg` to
 `static/covers/<owner_type>/<uuid>.jpg` and rewrites the row's filename column
-to the full key. No database and no bucket: COVER_DIR is pointed at a tmp_path
+to the full key. No database: COVER_DIR is pointed at a tmp_path
 and the Session is stubbed, so the whole plan/apply cycle is exercised on real
 files against fake rows.
 """
@@ -52,7 +52,6 @@ def covers(tmp_path, monkeypatch):
     root = tmp_path / "covers"
     root.mkdir()
     monkeypatch.setattr(image_manager, "COVER_DIR", str(root))
-    monkeypatch.setattr(image_manager, "get_active_bucket_name", lambda: None)
     return root
 
 

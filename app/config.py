@@ -29,16 +29,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Runtime environment ---
-    # Cloud Run auto-sets K_SERVICE; its presence signals the production runtime.
-    k_service: Optional[str] = None
-
     # --- Database ---
     postgres_user: str = "postgres"
     postgres_password: str = "password"
     postgres_db: str = "anime_site_db"
-    instance_connection_name: Optional[str] = None  # Cloud SQL unix socket (Cloud Run)
-    database_url: Optional[str] = None  # External TCP override
+    database_url: Optional[str] = None  # Full connection string override
 
     # --- Auth / JWT ---
     jwt_secret_key: str = "fallback_dev_secret_key_change_me_in_prod"
@@ -65,82 +60,27 @@ class Settings(BaseSettings):
     # at the transport instead of relying on nobody pressing Fill.
     steam_enabled: bool = True
 
-    # --- Google integrations ---
+    # --- Google Sheets (backup / restore) ---
     google_credentials_json: Optional[str] = None
     google_sheet_id: Optional[str] = None
-    gcp_bucket_name: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Derived / computed values
     # ------------------------------------------------------------------
     @property
-    def is_cloud_run(self) -> bool:
-        """True when running inside Cloud Run (production)."""
-        return self.k_service is not None
-
-    @property
-    def bucket_name(self) -> Optional[str]:
-        """
-        Target GCS bucket. Falls back to the internal production bucket when
-        running on Cloud Run and none is explicitly configured.
-        """
-        if self.gcp_bucket_name:
-            return self.gcp_bucket_name
-        return "cg1618-anime-covers" if self.is_cloud_run else None
-
-    @property
     def sqlalchemy_database_url(self) -> str:
         """
-        Builds the SQLAlchemy connection URL with environment-aware routing:
-        Cloud SQL unix socket > external TCP override > local development.
+        The SQLAlchemy connection URL: DATABASE_URL when set, otherwise a local
+        connection assembled from the POSTGRES_* parts.
         """
-        password = urllib.parse.quote_plus(self.postgres_password.strip())
-
-        # Cloud SQL via unix socket (Cloud Run)
-        if self.instance_connection_name:
-            return (
-                f"postgresql+psycopg2://{self.postgres_user}:{password}@/"
-                f"{self.postgres_db}?host=/cloudsql/{self.instance_connection_name}"
-            )
-
-        # External cloud TCP connection string (ignored if it points at localhost,
-        # to prevent a leaked local .env from crashing a Cloud Run container).
-        use_local_override = bool(self.database_url and "localhost" in self.database_url)
-        if self.database_url and not use_local_override:
+        if self.database_url:
             return self.database_url
 
-        # Local development
+        password = urllib.parse.quote_plus(self.postgres_password.strip())
         return (
             f"postgresql://{self.postgres_user}:{password}"
             f"@localhost:5432/{self.postgres_db}"
         )
-
-    # ------------------------------------------------------------------
-    # Startup validation
-    # ------------------------------------------------------------------
-    def validate_production(self) -> None:
-        """
-        Fail-fast in production (Cloud Run) if critical secrets are still at
-        their insecure development defaults. No-op locally. Call once at startup.
-        """
-        if not self.is_cloud_run:
-            return
-
-        problems = []
-        if self.jwt_secret_key == "fallback_dev_secret_key_change_me_in_prod":
-            problems.append("JWT_SECRET_KEY is unset (using the insecure default).")
-        if self.admin_password == "admin123":
-            problems.append("ADMIN_PASSWORD is unset (using the insecure default).")
-        if "localhost" in self.sqlalchemy_database_url:
-            problems.append(
-                "INSTANCE_CONNECTION_NAME is missing (database points at localhost)."
-            )
-
-        if problems:
-            raise RuntimeError(
-                "❌ [CRITICAL] Insecure production configuration detected:\n  - "
-                + "\n  - ".join(problems)
-            )
 
 
 @lru_cache

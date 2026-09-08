@@ -67,7 +67,6 @@ describe("named endpoint groups", () => {
     expect(endpoints.system.log(3)).toBe("/api/system/logs/3");
     expect(endpoints.system.deleted()).toBe("/api/system/deleted");
     expect(endpoints.system.deletedRecord(3)).toBe("/api/system/deleted/3");
-    expect(endpoints.system.testBucket()).toBe("/api/system/test-bucket");
   });
 
   it("character", () => {

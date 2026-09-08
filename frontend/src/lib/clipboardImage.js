@@ -1,8 +1,7 @@
 // Copying a quote image to the OS clipboard.
 //
 // Quote images are served from our own origin (/static/quotes/...), so the
-// fetch below needs no CORS rule. That changes if quote images ever move to
-// the GCS bucket - a cross-origin fetch would then require one.
+// fetch below needs no CORS rule.
 
 // Browsers only accept PNG on the clipboard, so anything else is re-encoded
 // through a canvas first.

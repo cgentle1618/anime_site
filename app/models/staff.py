@@ -92,7 +92,8 @@ class Person(Base, NameFallbackMixin):
     gender = Column(String, nullable=True)
     # One of constants.MY_RATINGS.
     my_rating = Column(String, nullable=True)
-    # GCS object key, same convention as the media tables' cover_image_file.
+    # Storage key under static/covers/, same convention as the media tables'
+    # cover_image_file.
     photo_file = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

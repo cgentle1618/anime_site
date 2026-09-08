@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-07 (public_id round trip and sequence resync)
+Last verified: 2026-09-08 (cover storage is local disk only)
 
 ## What this is for
 
@@ -435,13 +435,13 @@ Any exception logs `Failed` with the message and re-raises (500). Response on su
 
 ## 7. Cover-image maintenance
 
-All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). Images are stored as `{owner_type}/{system_id}.jpg` and every column holds that whole key; the helpers take the owner type alongside the id. None of these write a `DataControlLog` row.
+All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). "Storage" means the local filesystem: every image is a file at `static/covers/{owner_type}/{system_id}.jpg`, and every column holds that whole `{owner_type}/{system_id}.jpg` key. The helpers take the owner type alongside the id. All four actions worked against Google Cloud Storage as well until 2026-09-08; that branch is gone with the rest of the GCP deployment, and the actions are otherwise unchanged. None of these write a `DataControlLog` row.
 
 | Function | Route | What it does | Response keys |
 |---|---|---|---|
 | `bulk_check_cover_image(db, entry_type)` | `GET /calculate/check-cover-image` | Lists entries whose `cover_image_file` is set but whose file is missing in storage. With `entry_type` only Anime rows with that `airing_type` are checked; without it all nine types are. Also embeds `bulk_check_unused_cover_images`: keys in storage referenced by no row, split into `should_use` (the key names an existing row) and `orphaned` (no row owns it). That scan walks every table that owns an image, `COVER_OWNER_TABLES` — the nine media types plus staff, character, publisher and studio, and casting override photos. Leaving a table out of it reported all of its images as orphaned, and the delete action below then deleted them. | `total_checked`, `missing_count`, `missing[]` (`system_id`, `name`, `entry_type`), `entry_type`, `should_use[]`, `should_use_count`, `orphaned[]`, `orphaned_count` |
 | `bulk_set_cover_image_fields(db)` | `POST /calculate/set-cover-image-fields` | For every entry (all nine types) with `cover_image_file` null whose file exists in storage, sets `cover_image_file = "{owner_type}/{system_id}.jpg"`. Covers only: the four entity tables in `COVER_OWNER_TABLES` keep their image in `photo_file` / `logo_file` and are skipped. | `updated_count` |
-| `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` key from the check above, splitting the key back into owner type and id. **Blind spot:** `list_all_cover_images` only walks the owner folders, so an image left at the storage root belongs to no owner and this action cannot see it. `scripts/migrate_cover_layout.py --prune-orphans --apply` sweeps both kinds. | `deleted_count` |
+| `bulk_delete_orphaned_cover_images(db)` | `DELETE /calculate/delete-orphaned-covers` | Deletes every `orphaned` key from the check above, splitting the key back into owner type and id. **Blind spot:** `list_all_cover_images` only walks the owner folders, so an image left at the `static/covers/` root belongs to no owner and this action cannot see it. `scripts/migrate_cover_layout.py --prune-orphans --apply` sweeps both kinds. | `deleted_count` |
 | `bulk_download_missing_covers(db, system_ids)` | `POST /calculate/download-missing-covers` | For entries with `cover_image_file` set but the file missing (optionally limited to `system_ids`), clears the field and re-runs the type's autofill so the cover is downloaded again (`force_replace_ratings=False` for MAL types). Skipped: Anime whose `airing_type` is not in `ALLOWED_AIRING_TYPES`, Novel without `mal_link`, Comic without `comicvine_id`, Game without `igdb_id`. Game re-fetches through `autofill_game_from_igdb`, which is the only game autofill that downloads a cover — the Steam half writes columns only. One commit at the end. | `message`: `"Downloaded X of Y missing cover images."` plus `"N skipped (no external source on the entry)."` when any were skipped |
 
 ---

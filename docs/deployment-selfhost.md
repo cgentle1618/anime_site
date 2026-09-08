@@ -1,6 +1,6 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-08 (commit 2b28258)
+Last verified: 2026-09-08
 
 > ## Status: hardware bought, nothing deployed yet
 >
@@ -11,6 +11,13 @@ Last verified: 2026-09-08 (commit 2b28258)
 > [What has to change in the code](#what-has-to-change-in-the-code) have been
 > made.
 >
+> The code side has moved too. On **2026-09-08 the GCP code was removed**,
+> which finished the cover-image work listed under
+> [What has to change in the code](#what-has-to-change-in-the-code) and left
+> the rest of it in a different shape: there is no longer a production mode
+> taking the wrong path, because there is no production mode at all. Building
+> one is now the blocker.
+>
 > This is the replacement for the GCP deployment that went down on 2026-09-02
 > (see [deployment-gcp.md](deployment-gcp.md)). The shape is settled: **an
 > always-on 1 L x86 mini PC at home, reached from the Internet through a
@@ -18,8 +25,8 @@ Last verified: 2026-09-08 (commit 2b28258)
 
 **What this is for.** Where the app runs now that Cloud Run and Cloud SQL are
 gone: the machine that was bought, how it gets a public HTTPS address without a
-public IP, what in the codebase still assumes Cloud Run, and the order in which
-to build it. Local development is unaffected and stays as described in
+public IP, what the code still needs before it can be exposed, and the order in
+which to build it. Local development is unaffected and stays as described in
 [setup-local.md](setup-local.md).
 
 ## The decision
@@ -301,13 +308,23 @@ Nothing here exists in the repo yet — this is the sketch to build from.
 | App container | The existing `dockerfile`, unchanged. `entrypoint.sh` already runs `alembic upgrade head` and then `uvicorn ... --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'`, which is exactly right behind a tunnel. |
 | Database | A `postgres` container with a named volume on the SSD, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while a native local dev install would be 17 (which machine uses which is in `switching-environments.md`) — pick one deliberately before creating data that has to be migrated. |
 | Ingress | A `cloudflared` container in the same Compose project, pointing at the app container's port |
-| Covers | A bind mount for `static/covers/` (235 MB). With `GCP_BUCKET_NAME` unset the backend already writes and serves from there; only the frontend's `getCoverUrl` needs fixing — see below. |
+| Covers | A bind mount for `static/covers/` (235 MB). Both halves are settled: the backend writes and serves from there unconditionally (the GCS arm and `GCP_BUCKET_NAME` were deleted on 2026-09-08), and `getCoverUrl` now returns `/static/covers/<key>` on every host. Nothing left to change here. |
 | Backup | A nightly `pg_dump` plus an off-box copy of `static/covers/`. The existing Google Sheets backup is unaffected by all of this and keeps working. |
 
 Connection string note: with the database in a sibling container, set
-`DATABASE_URL=postgresql://<user>:<pass>@db:5432/<db>`. `app/config.py` ignores
-a `DATABASE_URL` containing `localhost` (a deliberate guard against a leaked
-local `.env`), so the host must be the container name, not `localhost`.
+`DATABASE_URL=postgresql://<user>:<pass>@db:5432/<db>` — the host must be the
+container name, not `localhost`.
+
+> **`DATABASE_URL` is now honoured verbatim.** `app/config.py` used to ignore a
+> `DATABASE_URL` containing `localhost`, as a guard against a leaked local
+> `.env` reaching the container. That guard was removed on 2026-09-08 along
+> with the rest of the Cloud Run code: `sqlalchemy_database_url` returns
+> `DATABASE_URL` exactly as written when it is set, and only falls back to a
+> localhost URL built from the `POSTGRES_*` values when it is not. A stale
+> `DATABASE_URL` left in a machine's `.env` will therefore be used and will
+> break that machine — this happened on the home machine on 2026-09-08 and had
+> to be commented out. Check `.env` first when a machine suddenly cannot reach
+> its database.
 
 ## Build order
 
@@ -319,109 +336,107 @@ proceed in parallel with the hardware bring-up.
    up SSH keys, DHCP reservation on the router.
 2. **Verify the hardware** — the four arrival checks above. Do this before any
    data lives on it.
-3. **Fix the production signal** — the `is_cloud_run` problem below. This gates
-   exposing the box publicly, so it comes before the tunnel.
-4. **Fix `getCoverUrl`** — one function plus one env var, below. Without it
-   every cover is blank behind the tunnel.
-5. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
+3. **Build the production signal** — there is none in the code at all (see
+   below); the secure cookie and the secret-defaults check both hang off it.
+   This gates exposing the box publicly, so it comes before the tunnel.
+4. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
    named volume for the database, bind mount for `static/covers/`.
-6. **Load the data** — restore the database, copy `static/covers/` across.
+5. **Load the data** — restore the database, copy `static/covers/` across.
    Decide Postgres 15 vs 17 *before* this step.
-7. **Domain and tunnel** — register `cg1618.com` at Cloudflare Registrar (the
+6. **Domain and tunnel** — register `cg1618.com` at Cloudflare Registrar (the
    zone comes with Cloudflare nameservers already set), create the tunnel, then
    `cloudflared tunnel route dns` for the chosen hostname.
-8. **Backups** — nightly `pg_dump` + covers sync to R2, and verify a restore
+7. **Backups** — nightly `pg_dump` + covers sync to R2, and verify a restore
    actually works before relying on it.
-9. **Decide CI** — whether `.github/workflows/deploy.yml` gains a self-hosted
-   path or the deploy job is retired, leaving CI as tests only.
 
 ## What has to change in the code
 
-The app currently treats "production" and "Cloud Run" as the same thing. Each
-of these branches keys off `settings.is_cloud_run`, which is true only when
-Cloud Run sets `K_SERVICE`. On this box that variable is absent, so every one
-of them silently takes its *development* path even though the app is publicly
-reachable. **These are the blockers to fix before exposing the box to the
-Internet:**
+**Partly done.** On 2026-09-08 the GCP code was removed from the repository
+(the inventory is in [deployment-gcp.md](deployment-gcp.md)), which settled the
+cover-image half of this list and changed the shape of the other half.
 
-| Location | Behaviour off Cloud Run | Why it matters here |
+The remaining work is no longer "fix branches that take the wrong path" — those
+branches are gone. It is **to build a production signal that does not exist**.
+There is now no concept of production anywhere in the code: `is_cloud_run`,
+`K_SERVICE` and `validate_production()` were all deleted, and nothing replaced
+them. The app has exactly one mode, and it is the development one.
+
+**These are still real blockers before exposing the box to the Internet:**
+
+| Location | State today | Why it matters here |
 | --- | --- | --- |
-| `app/routers/auth.py:73` | The login cookie is set with `secure=is_cloud_run`, i.e. **not** `Secure` | The tunnel serves real HTTPS, so the flag should be on. Browsers accept the cookie either way, so this fails quietly. |
-| `app/config.py:112` (`validate_production`) | Returns immediately; **no fail-fast** | The startup check that refuses a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD` would not run. A public deployment could come up on `admin123` with nothing complaining. This is the most dangerous one. |
-| `frontend/src/lib/covers.js:16` (`getCoverUrl`) | Switches on **hostname**; anything that is not `localhost` gets a hard-coded `storage.googleapis.com` URL | Behind the tunnel the hostname is real, so every cover points at the dead bucket while the files sit on disk. See below. |
-| `app/config.py:75` (`bucket_name`) | `None` unless `GCP_BUCKET_NAME` is set | **Not a blocker — this is the wanted behaviour.** A `None` bucket is what makes `image_manager.py` use local disk. Leave it unset. |
-| `app/utils/gcp_utils.py:33` | Falls through to `GOOGLE_CREDENTIALS_JSON` or default discovery instead of native IAM | Never reached once the bucket is unset, so harmless here. Still the code that would need replacing if R2 is ever chosen over local disk. |
+| `app/routers/auth.py` | The login cookie is set with `secure=False`, unconditionally. A comment in the code marks it to be made scheme-conditional under HTTPS. | The tunnel serves real HTTPS, so the flag should be on. Browsers accept the cookie either way, so this fails quietly. |
+| `app/config.py` | **No startup validation at all.** `validate_production()` was deleted along with its call site in `app/main.py`. | Nothing refuses a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD` any more. A public deployment could come up on `admin123` with nothing complaining. This is still the most dangerous one, and it is now worse than it was: the check does not exist rather than merely not firing. |
+| `app/config.py` (`sqlalchemy_database_url`) | `DATABASE_URL` is honoured **verbatim** when set; otherwise a localhost URL from `POSTGRES_*`. | Fine for a container pointed at `db:5432`, but the old "ignore a localhost URL" guard is gone — see the warning under [Intended runtime shape](#intended-runtime-shape). |
+| Covers (backend) | **Done.** `image_manager.py` writes and reads `static/covers/<owner_type>/<system_id>.jpg` with no bucket branch; `GCP_BUCKET_NAME` and `app/utils/gcp_utils.py` no longer exist. | Nothing to configure. A bind mount for that directory is all the deployment needs. |
+| `frontend/src/lib/covers.js` (`getCoverUrl`) | **Done.** Returns `/static/covers/<coverFile>` on every host; the `storage.googleapis.com` URL and the hard-coded `BUCKET_NAME` are gone. | This was the blocker that would have blanked every cover behind the tunnel. It is fixed. |
+| `frontend/src/lib/covers.js` (`getQuoteImageUrl`) | Still gated on `isLocalHost()`, still returns `null` off localhost. | Left in place deliberately — see [Cover images](#cover-images-the-backend-and-the-frontend-are-both-local-now). Worth revisiting on a box with a persistent disk. |
 
-The likely shape of the fix is a general "this is a production runtime" signal
-in `app/config.py` — an explicit env var that `is_cloud_run` is only one way of
-satisfying — rather than sprinkling more environment checks through the code.
-**Not designed yet; decide before implementing.**
+The fix for the first two is one design decision: a general **"this is a
+production runtime" signal** in `app/config.py` — an explicit env var, since
+there is no longer any implicit way to detect one — that the cookie flag and a
+re-introduced fail-fast check both read. **Not designed yet; decide before
+implementing.**
 
-### Cover images: smaller than it looks, but the frontend blocks it
+### Cover images: the backend and the frontend are both local now
 
-**The backend storage seam already exists and already works; the blocker is one
-function in the frontend.**
+**Settled as of 2026-09-08. Nothing here is outstanding.** An earlier draft of
+this file called covers "the largest piece of work in the migration"; a later
+one narrowed it to one broken function in the frontend. Both halves are now
+done, and by deletion rather than by adding configuration.
 
-**The backend is already dual-mode.** Every function in
-`app/services/integrations/image_manager.py` branches on
-`get_active_bucket_name()`: with a bucket configured it talks to GCS, and
-without one it falls through to `static/covers/<owner_type>/<system_id>.jpg` on
-local disk. That applies to `download_cover_image`, `cover_image_exists`,
-`list_all_cover_images` and `delete_cover_image` alike — write, read, list and
-delete all have a working local path. `app/main.py:148` already mounts
-`/static`, so the files are served. This is the mode running locally today, and
-the 235 MB in `static/covers/` is the proof.
+**The backend is local-only.** Every function in
+`app/services/integrations/image_manager.py` — `download_cover_image`,
+`cover_image_exists`, `list_all_cover_images` and `delete_cover_image` — writes
+and reads `static/covers/<owner_type>/<system_id>.jpg` on disk with no branch.
+The `if bucket_name:` GCS arm was removed and `app/utils/gcp_utils.py` deleted
+outright, so there is no bucket to leave unset. `app/main.py` mounts `/static`,
+so the files are served by the app itself. The 235 MB in `static/covers/` is
+the whole store.
 
-**The frontend is not.** `frontend/src/lib/covers.js:16-21`:
+**The frontend matches it.** `frontend/src/lib/covers.js`:
 
 ```js
 export function getCoverUrl(coverFile) {
   if (!coverFile || coverFile === "N/A") return FALLBACK_SVG;
-  return isLocalHost()
-    ? `/static/covers/${coverFile}`
-    : `https://storage.googleapis.com/${BUCKET_NAME}/${coverFile}`;
+  return `/static/covers/${coverFile}`;
 }
 ```
 
-The switch is on **hostname**, not on configuration, and `isLocalHost()` only
-recognises `localhost` and `127.0.0.1`. On this box reached through the tunnel
-at a real hostname, that check is false, so every cover URL points at the dead
-bucket — blank images across the whole site, while the files sit readable on
-disk one directory away. `BUCKET_NAME` is also hard-coded here
-(`cg1618-anime-covers`), independently of `GCP_BUCKET_NAME` on the backend.
+No hostname test, no `BUCKET_NAME`, no `storage.googleapis.com`. Behind the
+tunnel at a real hostname the covers resolve from the same origin as the app,
+which is what self-hosting needs. All the deployment has to do is bind-mount
+the directory and include it in the backup.
 
-**The fix is small**: replace the hostname test with a build-time base URL
-(`import.meta.env.VITE_COVER_BASE_URL` or similar), defaulting to
-`/static/covers/`. That is one function and one env var, not a storage
-abstraction.
-
-`getQuoteImageUrl` just below it has the same hostname gate and deliberately
+`getQuoteImageUrl` just below it still has the old hostname gate and still
 returns `null` off localhost, because Cloud Run's filesystem was ephemeral and
 uploads would vanish on restart. **That rationale disappears on this box, which
-has a persistent disk** — quote images could simply work. Worth revisiting in
-the same change.
+has a persistent disk**, so the gate was deliberately left in place rather than
+removed blind — quote images could simply work. Decide it as part of the
+self-hosting change.
 
-#### Local disk, with R2 as the backup target
+#### Local disk or R2 — decided: local disk
 
-1. **Local disk (chosen)** — already implemented on the backend, needs only the
-   frontend change. Zero third parties, and covers load from the same origin as
-   the app. The cost is that the images live on one disk and must be part of
-   the backup story.
+1. **Local disk** — what the code does, and now the only thing it can do. Zero
+   third parties, and covers load from the same origin as the app. The cost is
+   that the images live on one disk and must be part of the backup story.
 2. **Cloudflare R2** — S3-compatible, free at this volume, already inside the
-   Cloudflare account the tunnel needs. Rejected as the *primary* store because
-   `gcp_utils` speaks the GCS client library, so it would need a real storage
-   seam plus credentials and a bucket to manage — work that local disk does not
-   require.
+   Cloudflare account the tunnel needs, and it would survive the box dying. But
+   there is no object-storage client left in the codebase at all now
+   (`gcp_utils.py` is deleted, `google-cloud-storage` is out of
+   `requirements.txt`), so choosing R2 as the *primary* store means building a
+   storage seam from nothing, plus credentials and a bucket to manage.
 
-At 235 MB, a nightly sync to R2 costs nothing and keeps the copy that matters,
-which also answers the backup question above.
+**Local disk is the decision**, with R2 as the off-box *backup* target rather
+than the primary store — which also answers the backup question above. At
+235 MB, a nightly sync to R2 costs nothing and keeps the copy that matters.
 
 ## Open questions
 
-- How "production" is signalled once it is no longer synonymous with Cloud Run.
+- How "production" is signalled, now that there is no production concept in the
+  code at all — see [What has to change in the code](#what-has-to-change-in-the-code).
+  This is the one that blocks exposing the box.
 - Postgres 15 vs 17 for the container, and how the existing data is loaded in.
-- Whether `.github/workflows/deploy.yml` gains a self-hosted path or the deploy
-  job is simply retired, leaving CI as tests only.
 - What the apex `cg1618.com` serves — a landing page linking the projects, or
   a redirect to one of them.
 - Whether `journal`, `health` and `money` get Cloudflare Access in front of
@@ -429,9 +444,25 @@ which also answers the backup question above.
 - Whether `getQuoteImageUrl` is fixed alongside `getCoverUrl` so quote images
   work on a box with a persistent disk.
 
+### Settled since this list was written
+
+- **Cover storage** — local disk, decided and implemented; see above.
+- **CI** — `.github/workflows/deploy.yml` is now `ci.yml` and the deploy job is
+  gone, so CI is tests only. It gains no self-hosted path.
+
+Settled since this list was written:
+
+- **Cover storage: local disk.** Backend and frontend both do it
+  unconditionally; R2 is the backup target, not the store. See
+  [Cover images](#cover-images-the-backend-and-the-frontend-are-both-local-now).
+- **CI: tests only.** `.github/workflows/deploy.yml` was renamed to
+  `ci.yml` and the deploy job deleted on 2026-09-08, so there is nothing to
+  retire. A self-hosted deploy path, if it is ever wanted, is new work — most
+  likely a pull on the box rather than a push from CI.
+
 ## See also
 
 - [deployment-gcp.md](deployment-gcp.md) — the deployment this replaces, and
   the reference for the container image and CI that carry over unchanged.
 - [setup-local.md](setup-local.md) — local development, unaffected.
-- [external-apis.md](external-apis.md) — GCS, Sheets and the metadata APIs.
+- [external-apis.md](external-apis.md) — Sheets and the metadata APIs.

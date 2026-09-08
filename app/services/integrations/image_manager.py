@@ -1,14 +1,14 @@
 """
 image_manager.py
 Handles the persistent storage and retrieval of cover images and portraits.
-Acts as an abstraction layer between the local filesystem and Google Cloud Storage.
+Images live on the local filesystem; this module is the only place that knows
+where.
 
 Layout: every image lives at `<owner_type>/<system_id>.jpg`, under
-`static/covers/` locally and at the same key in the bucket. The owner type is
-the table the id belongs to - a bare system_id does not identify a file, since
-each table has its own id space. `cover_key` is the only place the layout is
-spelled out; callers pass the owner type and store the returned key verbatim in
-`cover_image_file` / `photo_file`.
+`static/covers/`. The owner type is the table the id belongs to - a bare
+system_id does not identify a file, since each table has its own id space.
+`cover_key` is the only place the layout is spelled out; callers pass the owner
+type and store the returned key verbatim in `cover_image_file` / `photo_file`.
 """
 
 import logging
@@ -17,7 +17,6 @@ from typing import Optional
 
 import requests
 
-from app.utils.gcp_utils import get_active_bucket_name, get_gcs_client
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 logger = logging.getLogger(__name__)
@@ -60,19 +59,8 @@ def list_all_cover_images(owner_type: Optional[str] = None) -> list[str]:
     by an un-migrated installation are deliberately skipped: they belong to no
     owner, so no row can reference them.
     """
-    prefix = f"{owner_type}/" if owner_type else None
     owners = [owner_type] if owner_type else sorted(COVER_OWNERS)
-    bucket_name = get_active_bucket_name()
     try:
-        if bucket_name:
-            client = get_gcs_client()
-            blobs = client.bucket(bucket_name).list_blobs(prefix=prefix)
-            return sorted(
-                b.name
-                for b in blobs
-                if b.name.endswith(".jpg") and b.name.split("/")[0] in COVER_OWNERS
-            )
-
         keys: list[str] = []
         for owner in owners:
             folder = os.path.join(COVER_DIR, owner)
@@ -88,13 +76,9 @@ def list_all_cover_images(owner_type: Optional[str] = None) -> list[str]:
 
 
 def cover_image_exists(owner_type: str, system_id: str) -> bool:
-    """Returns True if the image is present in GCS or local storage."""
+    """Returns True if the image is present on disk."""
     key = cover_key(owner_type, str(system_id))
-    bucket_name = get_active_bucket_name()
     try:
-        if bucket_name:
-            client = get_gcs_client()
-            return client.bucket(bucket_name).blob(key).exists()
         return os.path.exists(_local_path(key))
     except Exception as e:
         logger.error(f"Error checking cover image for {key}: {e}")
@@ -105,33 +89,24 @@ def download_cover_image(
     image_url: str, owner_type: str, system_id: str
 ) -> Optional[str]:
     """
-    Downloads an image from a remote URL and saves it to the active storage
-    provider, returning the storage key to record on the row.
+    Downloads an image from a remote URL and saves it to disk, returning the
+    storage key to record on the row.
 
     Logic Flow:
     1. Check if the image already exists (skip download if found).
     2. Download the raw bytes via HTTP.
-    3. Upload to GCS (Production) or write to disk (Development).
+    3. Write it into the owner's folder.
     """
     if not image_url or not system_id:
         return None
 
     key = cover_key(owner_type, str(system_id))
-    content_type = "image/jpeg"
-    bucket_name = get_active_bucket_name()
 
     try:
-        if bucket_name:
-            client = get_gcs_client()
-            bucket = client.bucket(bucket_name)
-            blob = bucket.blob(key)
-            if blob.exists():
-                return key
-        else:
-            filepath = _local_path(key)
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            if os.path.exists(filepath):
-                return key
+        filepath = _local_path(key)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        if os.path.exists(filepath):
+            return key
 
         # MAL's image CDN requires a User-Agent to prevent 403 Forbidden errors
         headers = {
@@ -139,17 +114,10 @@ def download_cover_image(
         }
         response = requests.get(image_url, headers=headers, timeout=15)
         response.raise_for_status()
-        image_bytes = response.content
 
-        if bucket_name:
-            # Cloud Mode
-            blob.upload_from_string(image_bytes, content_type=content_type)
-            logger.info(f"Cover image uploaded to GCS: {key}")
-        else:
-            # Local Mode
-            with open(filepath, "wb") as f:
-                f.write(image_bytes)
-            logger.info(f"Cover image saved locally: {key}")
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+        logger.info(f"Cover image saved: {key}")
 
         return key
 
@@ -170,23 +138,12 @@ def delete_cover_image(owner_type: str, system_id: str) -> None:
         return
 
     key = cover_key(owner_type, str(system_id))
-    bucket_name = get_active_bucket_name()
 
     try:
-        if bucket_name:
-            # Cloud Mode
-            client = get_gcs_client()
-            bucket = client.bucket(bucket_name)
-            blob = bucket.blob(key)
-            if blob.exists():
-                blob.delete()
-                logger.info(f"Deleted GCS cover image: {key}")
-        else:
-            # Local Mode
-            filepath = _local_path(key)
-            if os.path.exists(filepath):
-                os.remove(filepath)
-                logger.info(f"Deleted local cover image: {key}")
+        filepath = _local_path(key)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            logger.info(f"Deleted cover image: {key}")
 
     except Exception as e:
         # Non-critical: Log the error but allow the parent transaction to continue

@@ -2,8 +2,8 @@
 """
 One-off migration: flat cover storage -> owner-typed folders.
 
-Covers used to live at `static/covers/<system_id>.jpg` (and at the same flat
-key in the bucket). They now live at `static/covers/<owner_type>/<system_id>.jpg`
+Covers used to live at `static/covers/<system_id>.jpg`. They now live at
+`static/covers/<owner_type>/<system_id>.jpg`
 - see app/services/integrations/image_manager.py, which owns the layout. This
 script moves the files and rewrites the filename columns
 (`cover_image_file` / `photo_file` / `logo_file`) to the full key.
@@ -17,7 +17,7 @@ What it deliberately does NOT do:
   * Files with no row are left exactly where they are and only listed, unless
     --prune-orphans is given. Moving one into an owner folder would make it
     look owned; deleting it is a separate, explicit decision. Note the admin
-    "check unused cover images" action cannot see a file left at the storage
+    "check unused cover images" action cannot see a file left at the covers
     root - list_all_cover_images ignores anything outside an owner folder - so
     --prune-orphans is the only sweep that reaches those.
   * Rows whose file is missing are reported and left alone - inventing a key
@@ -28,12 +28,7 @@ Usage (dry run is the default; nothing changes without --apply):
 
     venv/Scripts/python.exe -m scripts.migrate_cover_layout
     venv/Scripts/python.exe -m scripts.migrate_cover_layout --apply
-    venv/Scripts/python.exe -m scripts.migrate_cover_layout --gcs --apply
     venv/Scripts/python.exe -m scripts.migrate_cover_layout --prune-orphans --apply
-
-WARNING: the --gcs branch is UNTESTED against a live bucket. The GCP
-deployment was down when this was written, so that path has only been reviewed,
-never exercised. Run it with --dry-run first and read the plan line by line.
 """
 
 import argparse
@@ -46,7 +41,6 @@ from app import models
 from app.database import SessionLocal
 from app.services.integrations import image_manager
 from app.services.integrations.image_manager import cover_key
-from app.utils.gcp_utils import get_active_bucket_name, get_gcs_client
 
 
 @dataclass(frozen=True)
@@ -84,7 +78,7 @@ def owner_types() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Storage backends
+# Storage backend
 # ---------------------------------------------------------------------------
 
 
@@ -144,59 +138,6 @@ class LocalStore:
 
     def delete_key(self, key: str) -> None:
         os.remove(self._key_path(key))
-
-
-class GcsStore:
-    """
-    The active bucket, where the key IS the blob name.
-
-    UNTESTED against a live bucket - see the module docstring.
-    """
-
-    label = "GCS bucket"
-
-    def __init__(self):
-        self.bucket_name = get_active_bucket_name()
-        if not self.bucket_name:
-            raise SystemExit(
-                "--gcs was given but no bucket is configured; check GCS_BUCKET_NAME."
-            )
-        self._bucket = get_gcs_client().bucket(self.bucket_name)
-
-    @property
-    def root(self) -> str:
-        return f"gs://{self.bucket_name}"
-
-    def exists_key(self, key: str) -> bool:
-        return self._bucket.blob(key).exists()
-
-    def exists_flat(self, filename: str) -> bool:
-        return self._bucket.blob(filename).exists()
-
-    def move(self, filename: str, key: str) -> None:
-        # rename_blob is a server-side copy followed by a delete; there is no
-        # atomic rename in GCS.
-        self._bucket.rename_blob(self._bucket.blob(filename), key)
-
-    def list_flat(self) -> list[str]:
-        return sorted(
-            b.name
-            for b in self._bucket.list_blobs()
-            if "/" not in b.name and b.name.lower().endswith(".jpg")
-        )
-
-    def list_keys(self) -> list[str]:
-        return sorted(
-            b.name
-            for b in self._bucket.list_blobs()
-            if "/" in b.name and b.name.lower().endswith(".jpg")
-        )
-
-    def delete_flat(self, filename: str) -> None:
-        self._bucket.blob(filename).delete()
-
-    def delete_key(self, key: str) -> None:
-        self._bucket.blob(key).delete()
 
 
 # ---------------------------------------------------------------------------
@@ -364,11 +305,6 @@ def main(argv=None) -> int:
         help="perform the migration (without this it is a dry run)",
     )
     parser.add_argument(
-        "--gcs",
-        action="store_true",
-        help="target the GCS bucket instead of local disk (UNTESTED - see docstring)",
-    )
-    parser.add_argument(
         "--prune-orphans",
         action="store_true",
         help="delete images no row points at, at the root and in owner folders "
@@ -376,7 +312,7 @@ def main(argv=None) -> int:
     )
     args = parser.parse_args(argv)
 
-    store = GcsStore() if args.gcs else LocalStore()
+    store = LocalStore()
     print(f"Cover storage: {store.root} ({store.label})")
     print("Mode: APPLY" if args.apply else "Mode: DRY RUN - pass --apply to perform it")
 

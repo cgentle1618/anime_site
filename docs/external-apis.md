@@ -1,10 +1,10 @@
 # External APIs
 
-Last verified: 2026-09-07 (STEAM_ENABLED kill switch; STEAM_ID must be a SteamID64)
+Last verified: 2026-09-08 (GCP deployment removed; cover images are local disk only)
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; **Google Sheets** is the human-readable backup and restore source; and **Google Cloud Storage** holds every cover image in production. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Eight outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
@@ -25,7 +25,7 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 - [IGDB](#igdb)
 - [Steam](#steam)
 - [Google Sheets](#google-sheets)
-- [Google Cloud Storage (cover images)](#google-cloud-storage-cover-images)
+- [Cover images (local disk)](#cover-images-local-disk)
 - [Which pipeline calls which service](#which-pipeline-calls-which-service)
 - [Known rough edges](#known-rough-edges)
 
@@ -41,7 +41,6 @@ A note on names: the MAL client used to be called "Jikan". Any `jikan` still lur
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games` |
 | Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
-| Google Cloud Storage | via `google-cloud-storage` | `settings.bucket_name` ← `GCP_BUCKET_NAME` (defaults to `cg1618-anime-covers` on Cloud Run only) | `app/services/integrations/image_manager.py`, `app/utils/gcp_utils.py` | — | cover images |
 
 A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
 
@@ -52,7 +51,7 @@ The metadata clients (Tenrai, TMDB, OMDb, Comic Vine, Open Library, IGDB) are bu
 | Concern | Behaviour |
 |---|---|
 | HTTP library | `requests`, synchronous, `timeout=15` seconds on every call (also on the cover-image download in `image_manager.py`). |
-| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). Each is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers or two Cloud Run instances do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
+| Rate limiter | One module-level instance per service (`tenrai_rate_limiter`, `tmdb_rate_limiter`, `omdb_rate_limiter`, `comicvine_rate_limiter`, `openlibrary_rate_limiter`, `igdb_rate_limiter`). Each is a sliding window of request timestamps kept **in memory, per process** — it resets on restart, and two uvicorn workers do not share it. `wait_if_needed()` sleeps before a request when the window is full. |
 | Retry | `tenacity` decorator: `stop_after_attempt(5)`, `wait_exponential(multiplier=1, min=2, max=10)`, retried only on `requests.exceptions.RequestException` (network / timeout) and the client's own `RateLimitExceeded` (raised on HTTP 429, plus 420 for Comic Vine). `reraise=False`. |
 | Not retried | HTTP 404 → warning, returns `None`. HTTP 5xx → warning `"… skipping retries"`, returns `None`. OMDb and Comic Vine also return `None` on 401 (bad key); IGDB's 401 additionally **clears the cached token** so the next call refetches one. |
 | When the 5 attempts run out | Because `reraise=False`, tenacity raises its own `tenacity.RetryError`. Every `autofill_*` function in `app/services/domain/autofill.py` wraps its whole body in `try: … except Exception as e: logger.error(...)`, so the `RetryError` is **swallowed**: the entry is left untouched, an error line is logged, and the pipeline moves on as if the entry had simply had nothing to fetch. Nothing in the UI distinguishes "no data" from "the network was down five times in a row". |
@@ -113,7 +112,7 @@ Same rules, except the date goes to `release_date_jp` and there is no `release_s
 | Official site / Twitter (anime, anime movie only) | Not columns any more. `_write_tenrai_reference_rows` calls `upsert_main_source(db, media_type, entry.system_id, "reference", value, url)` for each of the two, which is itself fill-only at the row level: it adds a `media_source` `kind='reference', bucket='main'` row only when no such row exists yet for that vocabulary value, and never overwrites or removes one that does (even one with no `url`). |
 | `vol_total` / `vol_total_original`, `ch_total` | Fill-only, and **only when `serialization_status == "完結"`** — a running series' totals stay blank. |
 | `mal_rating`, `mal_rank` | **Overwritten** when `force_replace_ratings=True` (the default, and what every pipeline passes) and the fetched value is truthy; otherwise fill-only. |
-| `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [GCS](#google-cloud-storage-cover-images). |
+| `cover_image_file` | Downloaded only when the column is empty and the mapper found a URL; see [Cover images](#cover-images-local-disk). |
 
 ### Mapping for `studio` — `map_tenrai_to_studio_data`
 
@@ -121,7 +120,7 @@ MAL calls a studio a "producer". The record is a different shape from a title's:
 
 | Tenrai field | Column | Rule |
 |---|---|---|
-| `images.jpg.image_url` | `logo_file` | Downloaded to GCS by `download_cover_image(url, str(system_id))`, same as a cover. Producers have no `webp` block, so there is no fallback chain. |
+| `images.jpg.image_url` | `logo_file` | Downloaded to disk by `download_cover_image(url, "studio", str(system_id))`, same as a cover. Producers have no `webp` block, so there is no fallback chain. |
 | `url` | `mal_link` | as-is. |
 | `established` | `founded_date` | `_established_date` keeps the leading `YYYY-MM-DD` of the timestamp. Producers carry no `prop` block, so unlike an anime's `aired` there is no way to tell a real day from MAL's padding — a studio MAL knows only the year for is stored as that year's January 1st. |
 | `titles[type="Japanese"]` | `name_jp` | `_producer_title`. The `Default` title is not written (it is what the studio is already named here) and the `Synonym` is dropped — it is usually the acronym expanded. |
@@ -570,21 +569,22 @@ Backup writes with `value_input_option="USER_ENTERED"`, under which Sheets parse
 
 What goes in which tab, the tab order, and the credit/tag columns are described in [data-actions.md](data-actions.md).
 
-## Google Cloud Storage (cover images)
+## Cover images (local disk)
 
-Images are stored one per row at `"{owner_type}/{system_id}.jpg"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the thirteen folders: the nine media types plus `staff`, `character`, `publisher` and `studio`.
+Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the thirteen folders: the nine media types plus `staff`, `character`, `publisher` and `studio`.
+
+Local disk is the only storage path. The Google Cloud Storage branch was removed on 2026-09-08 along with the rest of the GCP deployment; `app/services/integrations/image_manager.py` is now plain local-disk cover storage, and it is the only module that knows where the files live. What a self-hosted deployment does about them is an open question - see [deployment-selfhost.md](deployment-selfhost.md).
 
 | Item | Value |
 |---|---|
-| Client | `get_gcs_client()` in `app/utils/gcp_utils.py`: on Cloud Run (`settings.is_cloud_run`, i.e. `K_SERVICE` set) → `storage.Client()` with the instance's IAM identity; locally with `GOOGLE_CREDENTIALS_JSON` → service-account credentials; otherwise Application Default Credentials. |
-| Bucket vs disk | `get_active_bucket_name()` returns `settings.bucket_name`. When it is `None` (the local default) every function in `image_manager.py` reads and writes `COVER_DIR = "static/covers"` on disk instead; `app/main.py` creates one subdirectory per owner type under it and mounts `/static`. |
-| `download_cover_image(url, owner_type, system_id)` | Skips if the object/file already exists; otherwise `requests.get` with the MediaTracker User-Agent and a 15 s timeout, then `upload_from_string(..., content_type="image/jpeg")` or a local write. **No resizing or format conversion** — a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the storage key to record on the row, or `None` on any error (logged). |
-| `cover_image_exists(owner_type, id)`, `list_all_cover_images(owner_type=None)`, `delete_cover_image(owner_type, id)` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. `list_all_cover_images` returns keys and ignores anything left at the storage root, so an un-migrated file belongs to no owner and is never matched to a row. |
-| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js`: on `localhost` → `/static/covers/{key}`, otherwise `https://storage.googleapis.com/cg1618-anime-covers/{key}` (the bucket name is hard-coded there). It concatenates whatever the column holds, so the folder comes along for free; the "convention filename" fallbacks for an entry with no stored key build `{media_type}/{system_id}.jpg` and need the caller to have tagged the entry with its media type (`withMediaType`). |
+| Where | `app/main.py` creates one subdirectory per owner type under `static/covers/` at startup and mounts `/static`. |
+| `download_cover_image(url, owner_type, system_id)` | Skips if the file already exists; otherwise `requests.get` with the MediaTracker User-Agent and a 15 s timeout, then a local write. **No resizing or format conversion** - a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the storage key to record on the row, or `None` on any error (logged). |
+| `cover_image_exists(owner_type, id)`, `list_all_cover_images(owner_type=None)`, `delete_cover_image(owner_type, id)` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. `list_all_cover_images` returns keys and ignores anything left at `static/covers/` root, so an un-migrated file belongs to no owner and is never matched to a row. |
+| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js` returns `/static/covers/{key}` on every host. It concatenates whatever the column holds, so the folder comes along for free; the "convention filename" fallbacks for an entry with no stored key build `{media_type}/{system_id}.jpg` and need the caller to have tagged the entry with its media type (`withMediaType`). |
 
 ### Placeholder handling
 
-- **In the app**: there is no placeholder file on disk or in the bucket. When `cover_image_file` is empty or `"N/A"`, `getCoverUrl` returns `FALLBACK_SVG`, an inline grey "No Image" SVG; cards also set `onError` to swap in the same SVG if the real URL 404s.
+- **In the app**: there is no placeholder file on disk. When `cover_image_file` is empty or `"N/A"`, `getCoverUrl` returns `FALLBACK_SVG`, an inline grey "No Image" SVG; cards also set `onError` to swap in the same SVG if the real URL 404s.
 - **From Comic Vine**: its stock placeholder is filtered out before download (see above), so a comic with no real cover keeps `cover_image_file` empty and shows the app's fallback.
 - **From Tenrai / TMDB**: no filtering — whatever URL the mapper finds is downloaded. `bulk_download_missing_covers` only re-fetches anime whose `airing_type` is in `ALLOWED_AIRING_TYPES`.
 
@@ -594,28 +594,27 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 
 | Pipeline key | ID extraction | Fill calls | Pause between entries | Services hit |
 |---|---|---|---|---|
-| `anime` | `apply_extract_mal_id_anime` | `autofill_anime_from_mal` | `MAL_PAUSE` (1 s) | Tenrai, GCS |
-| `anime-movie` | `apply_extract_mal_id_anime` | `autofill_anime_movie_from_mal` | 1 s | Tenrai, GCS |
-| `movie` | `apply_extract_imdb_id` | `autofill_movie_from_imdb` | none | TMDB, OMDb, GCS |
-| `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb, GCS |
-| `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb, GCS |
-| `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal` | 1 s | Tenrai, GCS |
-| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library, plus GCS |
-| `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai, GCS |
-| `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine, GCS |
-| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam, GCS |
+| `anime` | `apply_extract_mal_id_anime` | `autofill_anime_from_mal` | `MAL_PAUSE` (1 s) | Tenrai |
+| `anime-movie` | `apply_extract_mal_id_anime` | `autofill_anime_movie_from_mal` | 1 s | Tenrai |
+| `movie` | `apply_extract_imdb_id` | `autofill_movie_from_imdb` | none | TMDB, OMDb |
+| `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb |
+| `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb |
+| `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal` | 1 s | Tenrai |
+| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library |
+| `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
+| `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
+| `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
 
-Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page use GCS and, for missing covers, the autofill functions again.
+Bulk Replace (`_linked(...)`) re-fetches only entries that already have an external id or link, using the same autofill functions with `force_replace_ratings=True`. Backup and Pull use Sheets only; the cover tools on the Calculate page touch local disk and, for missing covers, the autofill functions again.
 
 ## Known rough edges
 
 Things the code does today that a reader might not expect. None is a documentation error — they are worth knowing before changing the code.
 
 - `RetryError` is swallowed by every autofill, so a total outage looks like "nothing to fill" (see [Shared behaviour](#shared-behaviour)).
-- All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every deploy. The IGDB **token** cache is per-process too, so N instances mean N Twitch token requests — harmless, since Twitch issues one per client-credentials grant regardless.
+- All rate limiters are per-process memory: the OMDb daily count in particular restarts at zero on every restart. The IGDB **token** cache is per-process too, so N workers mean N Twitch token requests — harmless, since Twitch issues one per client-credentials grant regardless.
 - IGDB company enrichment is not built: Fill creates or links `studio` and `publisher` rows **by name only**, so a game company has no logo, country or founding date until someone types one in.
 - `fetch_tmdb_data`'s retry wraps both TMDB calls, so a flaky details call costs an extra Find call per attempt.
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
-- `docs/dependencies.md` still lists gspread `5.12.0`.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.

@@ -71,8 +71,9 @@ class Character(Base, NameFallbackMixin):
     gender = Column(String, nullable=True)
     # One of constants.MY_RATINGS.
     my_rating = Column(String, nullable=True)
-    # GCS object key. The canonical portrait; a casting may override it with
-    # its own photo_file for how the character looks in that entry.
+    # Storage key under static/covers/. The canonical portrait; a casting may
+    # override it with its own photo_file for how the character looks in that
+    # entry.
     photo_file = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
@@ -178,8 +179,8 @@ class CharacterCasting(Base):
     # One of constants.CHARACTER_ROLES.
     role = Column(String, nullable=True)
     position = Column(Integer, nullable=False, default=0, server_default="0")
-    # GCS key: this character AS SHE APPEARS in this entry. NULL falls back to
-    # character.photo_file at read time.
+    # Storage key: this character AS SHE APPEARS in this entry. NULL falls back
+    # to character.photo_file at read time.
     photo_file = Column(String, nullable=True)
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)

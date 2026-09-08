@@ -59,9 +59,9 @@ class Quote(Base):
 
     # --- Media ---
     link = Column(String, nullable=True)
-    # Bare filename resolved against static/quotes/ by the frontend. Local
-    # only: Cloud Run's filesystem is ephemeral, so image controls are hidden
-    # off localhost until quote images move to GCS.
+    # Bare filename resolved against static/quotes/ by the frontend. The image
+    # controls are still hidden off localhost, pending a decision on how quote
+    # images are served.
     image_file = Column(String, nullable=True)
 
     # --- Classification ---

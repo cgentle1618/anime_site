@@ -1,6 +1,6 @@
 # Dependencies
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-08 (google-cloud-storage removed with the GCP deployment)
 
 ## What this is for
 
@@ -30,9 +30,8 @@ CI with Python 3.13.
 | `bcrypt` | 5.0.0 | `app/services/security.py` | Password hashing for the seeded admin (called directly, no passlib) |
 | `PyJWT` | 2.11.0 | `app/services/security.py`, `app/dependencies.py`, `app/services/rbac/resolver.py` | Sign and verify the `access_token` cookie |
 | `gspread` | 6.2.1 | `app/services/integrations/sheets.py` | Google Sheets client for Backup and Pull |
-| `google-auth` | 2.48.0 | `app/services/integrations/sheets.py`, `app/utils/gcp_utils.py` | Service-account credentials for Sheets and GCS |
+| `google-auth` | 2.48.0 | `app/services/integrations/sheets.py` | Service-account credentials for Google Sheets (Backup and Pull). Nothing else uses it. |
 | `requests` | 2.32.5 | `app/services/integrations/{tenrai,tmdb,omdb,comicvine,image_manager}.py` | HTTP calls to the metadata APIs and cover downloads |
-| `google-cloud-storage` | 3.9.0 | `app/utils/gcp_utils.py`, `app/routers/system.py` | Cover image upload, listing and deletion in the GCS bucket |
 | `pytz` | 2026.1.post1 | `app/database.py` | `Asia/Taipei` timezone for `get_taipei_now()` |
 | `tenacity` | 9.1.4 | `app/services/integrations/{tenrai,tmdb,omdb,comicvine}.py` | Retry with backoff around external API calls |
 
@@ -93,6 +92,7 @@ without a reason.
 | `pytest-asyncio` | 9f52223 | Async tests use the `anyio` plugin bundled with the httpx/Starlette stack |
 | `factory-boy` | 9f52223 | Never used; sample rows are plain fixtures in `tests/api/conftest.py` |
 | `@dagrejs/dagre` | 9f52223 | Relation layout moved to the in-house `lib/relationLayout.js` |
+| `google-cloud-storage` | 2026-09-08 | The GCP deployment was removed; cover images are stored on local disk only, and `app/utils/gcp_utils.py` went with it. `gspread` and `google-auth` stay — Google Sheets is untouched |
 
 Commit 155b298 also re-pinned every runtime package from the 2023-era versions
 (FastAPI 0.110, SQLAlchemy 2.0.23, gspread 5.12, ...) to the versions above and

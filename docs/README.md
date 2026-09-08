@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-09-04
+Last verified: 2026-09-08
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -25,7 +25,7 @@ right and the doc needs the fix.
 | [api.md](api.md) | every endpoint by router — method, path, auth, params, body, response |
 | [business-rules.md](business-rules.md) | derivations and checks (release dates, ep_previous, completion, size groups, duplicates…), including retired/unused rules |
 | [data-actions.md](data-actions.md) | Backup, Pull, Fill, Replace, Calculate All — end to end |
-| [external-apis.md](external-apis.md) | Tenrai (MAL), TMDB, OMDb, Comic Vine, Google Sheets, Google Cloud Storage |
+| [external-apis.md](external-apis.md) | Tenrai (MAL), TMDB, OMDb, Comic Vine, Google Sheets |
 
 ## Systems
 
@@ -58,8 +58,8 @@ right and the doc needs the fix.
 
 | File | Scope |
 |---|---|
-| [deployment-gcp.md](deployment-gcp.md) | Docker, CI (tests gate deploy), Cloud Run, Cloud SQL, GCS, Sheets service account — **the GCP deployment is down as of 2026-09-02 and is not expected back soon; see the status banner there** |
-| [deployment-selfhost.md](deployment-selfhost.md) | the replacement: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and the code that assumes Cloud Run. **Hardware bought 2026-09-08; nothing deployed yet** |
+| [deployment-gcp.md](deployment-gcp.md) | **History.** How the GCP deployment worked: Docker image, CI, Cloud Run, Cloud SQL, GCS, and the Sheets service account (that part still live). It went down 2026-09-02 and **the code supporting it was removed on 2026-09-08**; reviving GCP means building it again, not redeploying. Kept as the reference for that, and for the container image self-hosting will reuse. |
+| [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08; nothing deployed yet** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
 | [roadmap.md](roadmap.md) | done / next / deferred — the working plan (see the rule in CLAUDE.md) |

@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-07 (home column recorded from the home machine)
+Last verified: 2026-09-08 (GCP code removed; stale DATABASE_URL warning added)
 
 ## What this is for
 
@@ -32,9 +32,10 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
 
-Since the [GCP deployment went down on 2026-09-02](deployment-gcp.md), there is
-no shared server. Each machine has its **own local database**, and they diverge
-the moment either one is edited.
+There is no shared server. The GCP deployment went down on 2026-09-02 and its
+code was removed on 2026-09-08 (history: [deployment-gcp.md](deployment-gcp.md)),
+so local development is the only runtime on either machine. Each machine has its
+**own local database**, and they diverge the moment either one is edited.
 
 ---
 
@@ -46,7 +47,7 @@ the moment either one is edited.
 | Database contents | Google Sheets | **Backup** writes local DB → sheet; **Pull All** writes sheet → local DB |
 | `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them. Deliberately different per machine: **company** sets `STEAM_ENABLED=false` and leaves `STEAM_API_KEY` / `STEAM_ID` unset, because the company network inspects TLS to Steam's hosts and would log the key from the Web API's URL; **home** omits the line entirely (the default is `true`) so prices, Metacritic and playtime all fill. Nothing else about the two files should diverge — see [external-apis.md](external-apis.md#turning-steam-off-entirely) |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
-| Cover images (GCS) | **nothing** | GCS is unavailable while the GCP deployment is down |
+| Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy — **278 MB** on the home machine on 2026-09-08. They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
 | Users, roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
@@ -81,6 +82,15 @@ tab; Pull All overwrites every table. So:
 
 1. `git pull` on the branch you were working on.
 2. Start PostgreSQL for that machine (company: `docker-compose up -d`).
+   **Check that `DATABASE_URL` is commented out in this machine's `.env`.**
+   Since 2026-09-08 `app/config.py` uses `DATABASE_URL` verbatim whenever it is
+   set — the old guard that ignored a value containing `localhost` went away
+   with the GCP code — so a leftover line from the Cloud SQL days now wins over
+   the `POSTGRES_*` parts and the app dies with `password authentication
+   failed`. This bit the home machine on 2026-09-08 and the line had to be
+   commented out. `venv\Scripts\python.exe -c "from app.config import
+   settings; print(settings.sqlalchemy_database_url)"` prints the URL actually
+   in use.
 3. Re-install dependencies **if they changed**: `pip install -r requirements.txt`,
    `cd frontend && npm install`.
 4. `alembic upgrade head` — always, before any Pull. The sheet's columns follow
@@ -107,7 +117,7 @@ tab; Pull All overwrites every table. So:
 **After switching to**
 
 - [ ] `git pull`
-- [ ] database up
+- [ ] database up, and `DATABASE_URL` commented out in `.env`
 - [ ] deps installed if `requirements.txt` / `package.json` moved
 - [ ] `alembic upgrade head`
 - [ ] Pull All (only if data changed elsewhere), then Calculate All if needed

@@ -1,8 +1,8 @@
 """
 The studio write path's Tenrai autofill.
 
-Tenrai and the GCS upload are patched at the autofill module's own names, so
-these exercise the real router -> autofill wiring without a network call.
+Tenrai and the cover download are patched at the autofill module's own names,
+so these exercise the real router -> autofill wiring without a network call.
 """
 
 import pytest

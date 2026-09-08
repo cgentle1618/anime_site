@@ -7,8 +7,8 @@ from app.config import Settings
 
 def test_credentials_default_to_none():
     """
-    An unset key degrades to a logged no-op rather than a boot failure -
-    validate_production() deliberately does not check API keys.
+    An unset key degrades to a logged no-op rather than a boot failure:
+    nothing at startup requires an API key to be present.
     """
     settings = Settings(_env_file=None)
     assert settings.igdb_client_id is None

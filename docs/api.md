@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-07 (detail GETs accept a public_id)
+Last verified: 2026-09-08 (POST /api/system/test-bucket removed with the GCP deployment)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -172,7 +172,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `POST`   | `/`                    | Admin  | Create a movie entry. Auto-runs `execute_replace_single_movie` after creation. Body: `MovieCreate`.                     |
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a movie entry. Auto-runs `execute_replace_single_movie` after update. Body: `MovieUpdate`.               |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update (e.g. watching status, rating). Does not re-run pipeline. Body: raw JSON dict.                           |
-| `DELETE` | `/{entry_id}`          | Admin  | Delete a movie entry. Removes cover image from GCS if present. Logs to `deleted_record`.                                |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a movie entry. Removes the cover image file from `static/covers/` if present. Logs to `deleted_record`.                                |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", timestamps).                                                    |
 
 **Response model:** `MovieResponse`
@@ -191,7 +191,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PUT`    | `/{entry_id}`         | Admin  | Full update of a TV show entry. Auto-runs `execute_replace_single_tv_show` after update. Body: `TVShowUpdate`.                 |
 | `PATCH`  | `/{entry_id}`         | Admin  | Partial update (e.g. inline ratings). Does not re-run pipeline. Body: raw JSON dict.                                           |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                        |
-| `DELETE` | `/{entry_id}`         | Admin  | Delete a TV show entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                        |
+| `DELETE` | `/{entry_id}`         | Admin  | Delete a TV show entry. Removes the cover image file from `static/covers/`. Logs to `deleted_record`.                                        |
 
 **Response model:** `TVShowResponse`
 
@@ -207,7 +207,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PUT`    | `/{entry_id}`         | Admin  | Full update of a cartoon entry. Auto-runs `execute_replace_single_cartoon` after update. Body: `CartoonUpdate`.                    |
 | `PATCH`  | `/{entry_id}`         | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                     |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (watching status to "Completed", episodes finished, timestamps).                                            |
-| `DELETE` | `/{entry_id}`         | Admin  | Delete a cartoon entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                            |
+| `DELETE` | `/{entry_id}`         | Admin  | Delete a cartoon entry. Removes the cover image file from `static/covers/`. Logs to `deleted_record`.                                            |
 
 **Response model:** `CartoonResponse`
 
@@ -223,7 +223,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a manga entry. Auto-runs `execute_replace_single_manga` after update. Body: `MangaUpdate`.                            |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                       |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes/chapters finished, serialization status).                             |
-| `DELETE` | `/{entry_id}`          | Admin  | Delete a manga entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a manga entry. Removes the cover image file from `static/covers/`. Logs to `deleted_record`.                                                |
 
 **Response model:** `MangaResponse`
 
@@ -239,7 +239,7 @@ To list a collection's members, use `GET /api/franchise/?collection_id=<uuid>`.
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a novel entry. Auto-runs `execute_replace_single_novel` after update. Body: `NovelUpdate`.                             |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", volumes finished; closes every recorded arc and re-derives if the novel has arc rows, otherwise the old max()-of-arc/ch-totals rule; serialization status).                     |
-| `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. `novel_unit` rows cascade-delete (`ON DELETE CASCADE`). Removes cover from local/GCS storage. Logs to `deleted_record`. |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a novel entry. `novel_unit` rows cascade-delete (`ON DELETE CASCADE`). Removes the cover image file from `static/covers/`. Logs to `deleted_record`. |
 
 **Response model:** `NovelResponse`
 
@@ -290,7 +290,7 @@ Fill/Replace notes under Data Control below.
 | `PUT`    | `/{entry_id}`          | Admin  | Full update of a comic entry. Auto-runs `execute_replace_single_comic` after update — same no-fetch/re-extract/log behavior. Body: `ComicUpdate`.        |
 | `PATCH`  | `/{entry_id}`          | Admin  | Partial update. Does not re-run pipeline. Body: raw JSON dict.                                                                        |
 | `POST`   | `/{entry_id}/complete` | Admin  | Sets completion fields (reading status to "Completed", serialization status to `完結`, issues finished/total snapped to the higher of the two). |
-| `DELETE` | `/{entry_id}`          | Admin  | Delete a comic entry. Removes cover from local/GCS storage. Logs to `deleted_record`.                                                 |
+| `DELETE` | `/{entry_id}`          | Admin  | Delete a comic entry. Removes the cover image file from `static/covers/`. Logs to `deleted_record`.                                                 |
 | `GET`    | `/search-comicvine`   | Admin  | Search Comic Vine volumes by name so the right run can be identified. Params: `q` (required), `limit` (1-50, default 10). Returns `comicvine_id`, `name`, `start_year`, `publisher`, `issue_total`, `comicvine_link`, `cover_image_url`. |
 
 **Response model:** `ComicResponse`
@@ -939,7 +939,7 @@ outside `en` / `cn` / `jp` / `alt` with a 422, mirroring
 
 **Writes with a `mal_id` are enriched from MAL.** `autofill_studio_from_mal`
 runs inside the request on create and on update. `mal_id` is derived from `mal_link` first (`apply_extract_mal_id_studio`), so pasting `https://myanimelist.net/anime/producer/56/A-1_Pictures` is enough on its own. The autofill then fills `logo_file` (the
-producer logo, downloaded to GCS), `mal_link`, `founded_date`, `name_jp` and
+producer logo, downloaded to `static/covers/studio/`), `mal_link`, `founded_date`, `name_jp` and
 `website_url` — every one of them **only when the column is empty**, so
 nothing you typed is overwritten. `POST` fills only when it actually creates a
 row: it is the find-or-create every typed name goes through, and re-fetching an
@@ -1061,8 +1061,9 @@ nothing to fetch. There is no `POST /api/data-control/fill/publisher` either.
 
 **`DELETE` removes the logo; `DELETE /api/studio/{id}` does not.** The
 publisher delete path calls `delete_cover_image(str(system_id))` after the row
-is gone. The studio path never has, so a deleted studio leaves its logo behind
-in GCS — object cleanup was only ever wired into the media-entry routes. The
+is gone. The studio path never has, so a deleted studio leaves its logo file behind
+under `static/covers/studio/` — file cleanup was only ever wired into the
+media-entry routes. The
 divergence is deliberate and pinned by
 `tests/api/test_publisher_router.py::test_delete_removes_the_publisher_and_its_logo`.
 Neither delete takes a `?credits=N` guard, unlike `DELETE /api/person/{id}`.
@@ -1379,12 +1380,6 @@ All endpoints in this router require admin authentication.
 | `GET`    | `/deleted`             | Get the 50 most recent `DeletedRecord` entries.                                       |
 | `DELETE` | `/deleted`             | Delete all deleted record entries except the 5 most recent. Returns `{deleted: int}`. |
 | `DELETE` | `/deleted/{record_id}` | Delete a single deleted record entry by integer ID.                                   |
-
-### Diagnostics
-
-| Method | Path           | Description                                                                                          |
-| ------ | -------------- | ---------------------------------------------------------------------------------------------------- |
-| `POST` | `/test-bucket` | Test GCS write permissions by uploading a diagnostic image. Returns `{status, message, public_url}`. |
 
 ---
 

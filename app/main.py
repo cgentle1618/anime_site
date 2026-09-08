@@ -71,8 +71,8 @@ logger = logging.getLogger(__name__)
 # ambiguous across tables.
 for _owner in COVER_OWNERS:
     os.makedirs(os.path.join(COVER_DIR, _owner), exist_ok=True)
-# Quote images are local-only for now; Cloud Run's filesystem is ephemeral,
-# so the frontend hides image controls off localhost.
+# Quote images are local-only for now, and the frontend still hides the image
+# controls off localhost - a deliberate hold to revisit with self-hosting.
 os.makedirs("static/quotes", exist_ok=True)
 
 ensure_schema(engine)
@@ -85,9 +85,6 @@ async def lifespan(app: FastAPI):
     Executes startup logic (e.g., seeding the admin user) before receiving requests,
     and handles safe shutdown logic upon termination.
     """
-    # Fail fast in production if critical secrets are left at insecure defaults.
-    settings.validate_production()
-
     db = database.SessionLocal()
     try:
         # Roles first: the admin user below is created holding one, and every

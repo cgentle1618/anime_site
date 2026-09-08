@@ -16,8 +16,6 @@ import {
   getSeriesCover,
 } from "./covers";
 
-const BUCKET = "https://storage.googleapis.com/cg1618-anime-covers";
-
 /** Pretend the page is served from production rather than the dev server. */
 function useRemoteHost() {
   vi.stubGlobal("location", { hostname: "cg1618.app" });
@@ -34,10 +32,10 @@ describe("getCoverUrl", () => {
     );
   });
 
-  it("passes a full owner-typed key through unchanged off localhost", () => {
+  it("builds the same /static/covers URL off localhost as on it", () => {
     useRemoteHost();
     expect(getCoverUrl("anime-movie/abc123.jpg")).toBe(
-      `${BUCKET}/anime-movie/abc123.jpg`,
+      "/static/covers/anime-movie/abc123.jpg",
     );
   });
 

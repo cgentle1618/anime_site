@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-09-06
+Last verified: 2026-09-08 (GCP deployment removed; local runtime only)
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -14,10 +14,10 @@ those hook in.
 
 ```
 browser (React SPA, fetch /api/...)
-  -> Cloud Run / uvicorn  (or Vite dev proxy 5173 -> 8000)
+  -> uvicorn on :8000  (or Vite dev proxy 5173 -> 8000)
   -> FastAPI app (app/main.py)
        global exception handler (500 -> {"detail": "An unexpected server error occurred."})
-       /static/*   -> StaticFiles("static")            local covers, quote images
+       /static/*   -> StaticFiles("static")            cover images, quote images (local disk)
        /assets/*   -> StaticFiles("frontend_dist/assets") Vite bundle
        /api/*      -> routers (app/routers/*)
             Depends(get_db)              one SQLAlchemy session per request
@@ -50,7 +50,8 @@ app/
     domain/        pure business rules: hierarchy, derivation, checking, completion,
                    credits, duplicates, plan_next, remarks, search, seasonal, watch_order ...
     pipelines/     Fill / Replace / Pull / Backup: runner.py, specs.py, tabs.py + per-op modules
-    integrations/  outbound HTTP: tenrai, tmdb, omdb, imdb, comicvine, sheets, image_manager
+    integrations/  outbound HTTP: tenrai, tmdb, omdb, imdb, comicvine, sheets;
+                   image_manager is local-disk cover storage, not HTTP out
     rbac/          permissions, resolver (Viewer), enforcement, field_gate, cache, seed
     calculation.py cover-image bookkeeping used by Data Control "Calculate"
     security.py    bcrypt hashing, JWT create/decode
@@ -230,10 +231,9 @@ At import time:
 
 In the lifespan (before the first request):
 
-1. `settings.validate_production()` -- on Cloud Run, abort on default secrets.
-2. `ensure_rbac_seed(db)` -- idempotent role/permission seed
+1. `ensure_rbac_seed(db)` -- idempotent role/permission seed
    (`app/services/rbac/seed.py`).
-3. Admin user: create `admin` with `ADMIN_PASSWORD` if missing; attach the
+2. Admin user: create `admin` with `ADMIN_PASSWORD` if missing; attach the
    admin role to a pre-RBAC `admin` row that has `role_id IS NULL`.
    Exceptions here are printed, not raised.
 
@@ -241,11 +241,13 @@ In the lifespan (before the first request):
 
 `app/config.py` defines `Settings(BaseSettings)` reading `.env` (encoding
 utf-8, case-insensitive, unknown keys ignored) and exposes a cached module
-singleton `settings`. Derived properties: `is_cloud_run` (`K_SERVICE` set),
-`bucket_name` (explicit, else prod default on Cloud Run, else `None`),
-`sqlalchemy_database_url` (Cloud SQL socket > `DATABASE_URL` unless it says
-localhost > local). Never call `os.getenv` elsewhere. Full variable table:
-`setup-local.md`.
+singleton `settings`. There is one derived property left,
+`sqlalchemy_database_url`: `DATABASE_URL` verbatim when set, otherwise a
+localhost URL assembled from the `POSTGRES_*` parts. It is taken at face value
+-- the old guard that ignored a `DATABASE_URL` pointing at localhost was
+removed with the GCP deployment on 2026-09-08, so a stale value in `.env`
+now breaks the app rather than being quietly skipped. Never call `os.getenv`
+elsewhere. Full variable table: `setup-local.md`.
 
 ## Database engine and sessions
 
@@ -265,7 +267,8 @@ for timestamp columns. All ids are UUID `system_id` columns.
 | `require_permission(perm)` | dependency factory for a single permission, same 401 shape | finer gates |
 
 Permission sets per role are cached in-process (`rbac/cache.py`) and bumped on
-every grant change; the cache assumes one process (see `deployment-gcp.md`).
+every grant change; the cache assumes a single process, which local
+development always is.
 
 ## SPA catch-all
 
@@ -284,8 +287,8 @@ Standard `logging`; each module uses `logging.getLogger(__name__)`.
 import, which is currently what configures the root logger for the whole app.
 Several boot messages still use `print`. The global exception handler logs
 unhandled exceptions with a traceback and returns a generic 500 so stack
-traces never reach the client. On Cloud Run stdout/stderr go to Cloud
-Logging.
+traces never reach the client. Locally stdout/stderr go to the terminal
+running uvicorn; nothing collects or ships them.
 
 ## Frontend in one paragraph
 

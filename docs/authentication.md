@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-08 (cookie Secure flag is now unconditionally false)
 
 ## What this is for
 
@@ -15,7 +15,7 @@ Authentication answers one question: *who is making this request?* The app has a
 | Cookie -> viewer resolution | `app/services/rbac/resolver.py` |
 | `get_current_admin` dependency | `app/dependencies.py` |
 | Admin seeding at boot | `app/main.py` (`lifespan`) |
-| Settings (`JWT_SECRET_KEY`, expiry, Cloud Run detection) | `app/config.py` |
+| Settings (`JWT_SECRET_KEY`, expiry) | `app/config.py` |
 | Frontend session state | `frontend/src/contexts/AuthContext.jsx` |
 | Route guard | `frontend/src/components/layout/ProtectedRoute.jsx` |
 | Login page | `frontend/src/pages/public/Login.jsx` |
@@ -54,7 +54,7 @@ The 72-byte cut is bcrypt's hard input limit. It is applied on both sides so a v
 
 The `role` claim is **vestigial**. Nothing reads it for authorization: the server resolves the user's role and permissions from the database on every request (`resolver.py`), so a token minted before a role change carries a stale claim that is simply ignored. It is still minted because the login response and the old `User.role` shape returned it, and `User.role` is now a read-only `column_property` over `role.name` (`app/models/__init__.py`).
 
-`settings.validate_production()` runs at startup and refuses to boot on Cloud Run if `JWT_SECRET_KEY` or `ADMIN_PASSWORD` are still at their insecure defaults. Locally it is a no-op.
+There is no startup check on the secrets any more. `settings.validate_production()`, which refused to boot on Cloud Run with a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`, was deleted with the GCP deployment on 2026-09-08; it never did anything locally. Self-hosting needs an equivalent guard before the app is exposed - see [deployment-selfhost.md](deployment-selfhost.md).
 
 ## The cookie
 
@@ -63,7 +63,7 @@ The `role` claim is **vestigial**. Nothing reads it for authorization: the serve
 | `key` | `access_token` | Read by `resolver._decode`, which expects the `Bearer ` prefix |
 | `HttpOnly` | true | `document.cookie` cannot read it; XSS cannot exfiltrate the token |
 | `SameSite` | `Lax` | Sent on same-site navigation and fetches; not on cross-site POSTs |
-| `Secure` | `settings.is_cloud_run` | True only when `K_SERVICE` is set (Cloud Run); local HTTP would otherwise never receive the cookie |
+| `Secure` | **always false** | Hard-coded `secure=False` in `app/routers/auth.py`. Local development is plain HTTP, and a `Secure` cookie would never be sent over it. It used to be `settings.is_cloud_run`; that switch went away with the GCP deployment on 2026-09-08. **This must become conditional on HTTPS before the app is ever exposed publicly** - a login cookie sent in the clear is the whole session. The code carries a comment saying so, and self-hosting tracks it. |
 | `max_age` | 86400 s | Matches the JWT expiry |
 
 The browser sends it automatically; the SPA always fetches with `credentials: "include"`.
@@ -141,4 +141,4 @@ A failed or non-OK `/me` request resets to the anonymous snapshot rather than er
 - **No password policy.** Any non-empty string is accepted on `/api/users` create/update, and only the first 72 bytes count.
 - **No session revocation short of a role change.** A cookie stays valid until its 24-hour `exp`; changing the user's password does not invalidate existing tokens. Deleting the user or removing `admin` from their role does take effect on the next request, because the role is re-read per request.
 - **`JWT_SECRET_KEY` rotation logs everyone out**, since there is no key id or grace list.
-- Local development sends the cookie over plain HTTP (`Secure` is false off Cloud Run).
+- **The cookie is never `Secure`.** Fine for local HTTP, which is the only runtime today, but it has to be made conditional on the request scheme before the app is served over HTTPS to anyone.

@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-07
+Last verified: 2026-09-08 (GCP variables removed; covers are always local disk)
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -109,8 +109,7 @@ list. Variable names are case-insensitive.
 | `POSTGRES_USER` | `postgres` | DB user |
 | `POSTGRES_PASSWORD` | `password` | DB password. Tests read it from here too (section 9). |
 | `POSTGRES_DB` | `anime_site_db` | Dev database name |
-| `DATABASE_URL` | unset | Optional full TCP URL override. Ignored if it contains `localhost`. |
-| `INSTANCE_CONNECTION_NAME` | unset | Cloud SQL socket; **leave unset locally** |
+| `DATABASE_URL` | unset | Optional full connection URL override, used **verbatim** when set. Leave it commented out for local dev; see "Common problems". |
 | `JWT_SECRET_KEY` | insecure dev default | JWT signing secret |
 | `ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Cookie/JWT lifetime |
@@ -122,8 +121,6 @@ list. Variable names are case-insensitive.
 | `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
-| `GCP_BUCKET_NAME` | unset locally | GCS bucket for cover images. Unset means covers are written to `static/covers/<owner_type>/` on disk. |
-| `K_SERVICE` | unset | Set by Cloud Run only. **Never set locally** (it turns on secure cookies, IAM GCS auth and the production config check). |
 
 Minimum for a working local app: the three `POSTGRES_*` values. Everything
 else can stay empty; the Fill pipelines and Backup/Pull will just log errors
@@ -145,15 +142,17 @@ for the integrations you have not configured.
 
 ### Google service account (`credentials.json`)
 
-Sheets Backup/Pull (`app/services/integrations/sheets.py`) and, locally, GCS
-uploads (`app/utils/gcp_utils.py`) both load credentials in this order:
+Google Sheets Backup/Pull (`app/services/integrations/sheets.py`) is the only
+thing that needs a service account. It loads credentials in this order:
 
 1. `GOOGLE_CREDENTIALS_JSON` from the environment (whole JSON on one line).
 2. A `credentials.json` file in the project root (gitignored).
 
-Create a service account in the GCP project, download its JSON key, save it as
-`credentials.json`, and share the target spreadsheet with the service account's
-email as an editor. `GOOGLE_SHEET_ID` is the long ID in the spreadsheet URL.
+Create a service account in a Google Cloud project, download its JSON key,
+save it as `credentials.json`, and share the target spreadsheet with the
+service account's email as an editor. `GOOGLE_SHEET_ID` is the long ID in the
+spreadsheet URL. The account needs the Sheets and Drive scopes only - nothing
+else in the app talks to Google.
 
 ## 5. Database schema
 
@@ -289,5 +288,6 @@ Details of the tiers and fixtures are in `testing.md`.
 | Data disappears between runs | Two Postgres servers on :5432 (native + Docker). Stop one. |
 | `alembic upgrade head` says a table already exists | The server was started on an empty DB first (schema guard `create_all`). Use `alembic stamp head` or drop and recreate the DB. |
 | API tests fail with `password authentication failed` | `POSTGRES_PASSWORD` in `.env` does not match the server. |
+| The app fails to connect with `password authentication failed`, but `POSTGRES_PASSWORD` is right | A leftover `DATABASE_URL` in `.env`. Since 2026-09-08 it is honoured **verbatim** - the old guard that ignored a value containing `localhost` was deleted with the GCP deployment - so an old placeholder or a copied cloud URL now wins over the `POSTGRES_*` parts. Comment `DATABASE_URL` out for local dev; `settings.sqlalchemy_database_url` (checklist step 1) shows which URL is actually in use. |
 | `/` on :8000 returns "Frontend not built" | Run `cd frontend && npm run build`. |
-| Covers not showing locally | With `GCP_BUCKET_NAME` unset covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`; make sure the pipeline has downloaded them, and that `scripts/migrate_cover_layout.py` has been run if this checkout predates the folder layout. |
+| Covers not showing | Covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`, and that is the only storage there is. Make sure the pipeline has downloaded them (Data Control > Calculate > **download missing covers**), and that `scripts/migrate_cover_layout.py` has been run if this checkout predates the folder layout. |
