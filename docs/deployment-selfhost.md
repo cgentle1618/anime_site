@@ -1,6 +1,6 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-08
+Last verified: 2026-09-08 (GCP code removed; Postgres version settled at 17)
 
 > ## Status: hardware bought, nothing deployed yet
 >
@@ -306,7 +306,7 @@ Nothing here exists in the repo yet — this is the sketch to build from.
 | --- | --- |
 | OS | Ubuntu Server LTS (or Debian stable), with Docker + Compose on top |
 | App container | The existing `dockerfile`, unchanged. `entrypoint.sh` already runs `alembic upgrade head` and then `uvicorn ... --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'`, which is exactly right behind a tunnel. |
-| Database | A `postgres` container with a named volume on the SSD, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while a native local dev install would be 17 (which machine uses which is in `switching-environments.md`) — pick one deliberately before creating data that has to be migrated. |
+| Database | A `postgres` container with a named volume on the SSD, replacing Cloud SQL. **Version settled: `postgres:17`**, matching `docker-compose.yml`, the CI service container and both dev machines since 2026-09-08. |
 | Ingress | A `cloudflared` container in the same Compose project, pointing at the app container's port |
 | Covers | A bind mount for `static/covers/` (235 MB). Both halves are settled: the backend writes and serves from there unconditionally (the GCS arm and `GCP_BUCKET_NAME` were deleted on 2026-09-08), and `getCoverUrl` now returns `/static/covers/<key>` on every host. Nothing left to change here. |
 | Backup | A nightly `pg_dump` plus an off-box copy of `static/covers/`. The existing Google Sheets backup is unaffected by all of this and keeps working. |
@@ -342,7 +342,7 @@ proceed in parallel with the hardware bring-up.
 4. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
    named volume for the database, bind mount for `static/covers/`.
 5. **Load the data** — restore the database, copy `static/covers/` across.
-   Decide Postgres 15 vs 17 *before* this step.
+   The version is settled at 17, so a dump from a dev machine restores cleanly.
 6. **Domain and tunnel** — register `cg1618.com` at Cloudflare Registrar (the
    zone comes with Cloudflare nameservers already set), create the tunnel, then
    `cloudflared tunnel route dns` for the chosen hostname.
@@ -436,7 +436,6 @@ than the primary store — which also answers the backup question above. At
 - How "production" is signalled, now that there is no production concept in the
   code at all — see [What has to change in the code](#what-has-to-change-in-the-code).
   This is the one that blocks exposing the box.
-- Postgres 15 vs 17 for the container, and how the existing data is loaded in.
 - What the apex `cg1618.com` serves — a landing page linking the projects, or
   a redirect to one of them.
 - Whether `journal`, `health` and `money` get Cloudflare Access in front of

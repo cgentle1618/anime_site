@@ -34,7 +34,7 @@ When you change behaviour, update the matching doc in the same change and bump i
 ## Development Commands
 
 ```bash
-# PostgreSQL: per-machine, see docs/switching-environments.md (company: docker-compose up -d)
+docker-compose up -d                # PostgreSQL 17 in a container (both machines)
 cd frontend && npm run dev          # Vite dev server on :5173 (hot reload)
 cd frontend && npm run build        # writes frontend_dist/ for uvicorn on :8000
 uvicorn app.main:app --reload --reload-dir app   # (dev.ps1 does this + vite in one window)

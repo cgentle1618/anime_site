@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-08 (test database now lives in the postgres:17 container)
 
 ## What this is for
 
@@ -136,8 +136,8 @@ create inline (most files do) or add here.
 Use the project venv's interpreter, not the system Python.
 
 ```bash
-# One-time: create the test database (native PostgreSQL 17 or docker-compose)
-createdb -U postgres anime_site_test
+# One-time: create the test database inside the postgres:17 container
+docker exec anime_site_postgres_db createdb -U postgres anime_site_test
 
 # Backend, all tiers
 venv/Scripts/python -m pytest
@@ -208,7 +208,7 @@ to `ALLOWED_FILES` or `ALLOWED_CLASSES` only for a deliberate exception.
 `.github/workflows/deploy.yml` runs on every push to `main` and every pull
 request. The `test` job:
 
-1. Starts a `postgres:15` service with `POSTGRES_DB=anime_site_test`,
+1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test`,
    user/password `postgres`, and exports the same three variables to the job.
 2. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
 3. `ruff check .`

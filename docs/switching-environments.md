@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-08 (GCP code removed; stale DATABASE_URL warning added)
+Last verified: 2026-09-08 (GCP code removed; stale DATABASE_URL warning added; both machines now on docker-compose postgres:17)
 
 ## What this is for
 
@@ -22,7 +22,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 |---|---|---|
 | Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\anime_site` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
-| PostgreSQL | **docker-compose only** (`postgres:15`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`). No native PostgreSQL service is installed on this machine. | **Native PostgreSQL 17.6** (`data_directory = C:/Program Files/PostgreSQL/17/data`) is the real dev database. `docker-compose up -d` also starts `anime_site_postgres_db` and it binds 5432 too, but the native service answers first — the container is shadowed and holds a *separate, empty* database. Never diagnose schema state with `docker exec ... psql` here; go through the app's own URL. |
+| PostgreSQL | **docker-compose** (`postgres:17`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`) — the same on both machines since 2026-09-08. Start it with `docker-compose up -d`. | **docker-compose**, identical. This machine ran **native PostgreSQL 17.6** until 2026-09-08; the data was dumped and restored into the container, and the native 17 and 18 services were set to **Manual** start so they can no longer claim 5432 ahead of it. If the container will not bind the port, check that neither native service has been started by hand. |
 | Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
 | Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
@@ -80,8 +80,33 @@ tab; Pull All overwrites every table. So:
 
 ## 4. Arriving in an environment (handoff in)
 
+> ### One-time on the company machine: the Postgres 15 -> 17 volume
+>
+> `docker-compose.yml` was bumped from `postgres:15` to `postgres:17` on
+> 2026-09-08. **A `postgres:17` container will refuse to start on the existing
+> `postgres_anime_data` volume**, which still holds a version-15 data
+> directory: the log says *"database files are incompatible with server"* and
+> the container exits. The volume has to be recreated once. Do it the normal
+> way, through the sheet:
+>
+> 1. On the machine with the newer data, run **Backup** first. (Home was backed
+>    up and is current as of 2026-09-08.)
+> 2. `docker-compose down -v` — this **deletes** the local database volume.
+> 3. `docker-compose up -d` (now on 17), then `alembic upgrade head`.
+> 4. **Pull All** from `/system` to refill from the sheet, then **Calculate All**.
+>
+> If you would rather not go through the sheet, dump *before* recreating the
+> volume: with the image temporarily set back to `postgres:15`, run
+> `pg_dump -U postgres -h 127.0.0.1 anime_site_db -f dump.sql`, then do steps 2-3
+> and `psql -U postgres -h 127.0.0.1 -d anime_site_db -f dump.sql` instead of
+> the Pull. Home was migrated this way; its dump is
+> `~/anime_site_home_pre_docker_20260908.sql`.
+>
+> This is a **one-time** step. Once the volume is on 17 the machines match again.
+
+
 1. `git pull` on the branch you were working on.
-2. Start PostgreSQL for that machine (company: `docker-compose up -d`).
+2. Start PostgreSQL: `docker-compose up -d` (both machines, since 2026-09-08).
    **Check that `DATABASE_URL` is commented out in this machine's `.env`.**
    Since 2026-09-08 `app/config.py` uses `DATABASE_URL` verbatim whenever it is
    set — the old guard that ignored a value containing `localhost` went away

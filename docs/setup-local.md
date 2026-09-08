@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-08 (GCP variables removed; covers are always local disk)
+Last verified: 2026-09-08 (GCP variables removed; covers are always local disk; docker-compose postgres:17 is the only supported server)
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -51,37 +51,12 @@ installs `libpq-dev` because it builds wheels itself).
 
 The app connects to `localhost:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
 / `POSTGRES_DB` from `.env` (see `app/config.py`, `sqlalchemy_database_url`).
-Two ways to provide that server exist and they conflict on port 5432, so pick
-one and stop the other.
 
-### Option A: native PostgreSQL 17
+**Use docker-compose.** Since 2026-09-08 that is the only supported way on both
+machines, pinned to the same version the CI runner and the planned self-hosted
+deployment use. A native install is no longer part of the setup.
 
-Which option holds the real dev data differs per machine — see
-[switching-environments.md](switching-environments.md). The company machine
-runs Option B and has no native PostgreSQL service installed at all.
-
-Install PostgreSQL 17, make sure the service is running, then create the two
-databases:
-
-```powershell
-# Windows: psql is under C:\Program Files\PostgreSQL\17\bin if not on PATH
-psql -U postgres -c "CREATE DATABASE anime_site_db;"
-psql -U postgres -c "CREATE DATABASE anime_site_test;"
-```
-
-```bash
-# Linux
-sudo -u postgres createdb anime_site_db
-sudo -u postgres createdb anime_site_test
-```
-
-`anime_site_db` is the dev database Alembic manages. `anime_site_test` is
-wiped and rebuilt (`DROP SCHEMA public CASCADE`) at the start of every API test
-session, so never point it at real data.
-
-### Option B: docker-compose (postgres:15)
-
-`docker-compose.yml` defines one service, `db`, from the `postgres:15` image,
+`docker-compose.yml` defines one service, `db`, from the `postgres:17` image,
 container name `anime_site_postgres_db`, published on `5432:5432`, data in the
 `postgres_anime_data` volume. It reads `POSTGRES_USER/PASSWORD/DB` from `.env`
 and creates only that one database on first start, so you still have to create
@@ -92,10 +67,29 @@ docker-compose up -d
 docker exec anime_site_postgres_db createdb -U postgres anime_site_test
 ```
 
-`dev.ps1` assumes this option (it runs `docker-compose up -d` and waits for
-`pg_isready` in the container). If you run native Postgres, either do not use
-`dev.ps1`, or stop the native service first; two servers on 5432 is the usual
-cause of "the data I just added is gone" confusion.
+`anime_site_db` is the dev database Alembic manages. `anime_site_test` is
+wiped and rebuilt (`DROP SCHEMA public CASCADE`) at the start of every API test
+session, so never point it at real data.
+
+`dev.ps1` assumes this setup: it runs `docker-compose up -d` and waits for
+`pg_isready` in the container.
+
+> **If a native PostgreSQL service is installed on the machine, stop it.** Both
+> servers bind 5432, the native one usually wins the race, and the container is
+> then silently shadowed — holding a *separate, empty* database while
+> `docker ps` makes it look like the container is in use. That is the usual
+> cause of "the data I just added is gone", and it is exactly what the home
+> machine was doing until 2026-09-08. On Windows, from an elevated PowerShell:
+>
+> ```powershell
+> Stop-Service postgresql-x64-17 -Force
+> Set-Service postgresql-x64-17 -StartupType Manual   # so it stops coming back at boot
+> ```
+>
+> `Manual` rather than `Disabled` keeps the old data directory reachable if you
+> ever need to read it. Never diagnose schema state with `docker exec ... psql`
+> while a native service is running — go through the app's own URL, or
+> `venv\Scripts\python.exe -c "from app.config import settings; print(settings.sqlalchemy_database_url)"`.
 
 ## 4. `.env`
 
