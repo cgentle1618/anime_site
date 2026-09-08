@@ -797,7 +797,25 @@ export default function Delete() {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to delete game");
+        if (orphanSeriesChecked && item.series_id) {
+          await fetch(`/api/series/${item.series_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        if (orphanFranchiseChecked && item.franchise_id) {
+          await fetch(`/api/franchise/${item.franchise_id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+        }
+        setSelectedGame(null);
+        showToast("success", "Deletion successful");
+        await loadDb();
+        setModal(null);
+        return;
       }
+
       if (type === "comic") {
         const res = await fetch(`/api/comic/${item.system_id}`, {
           method: "DELETE",
