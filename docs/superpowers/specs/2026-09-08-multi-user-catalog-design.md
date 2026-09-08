@@ -246,6 +246,22 @@ Two child tables stay per-type and gain `user_id` in step 1: `game_copy` (owned
 copies are personal) and `novel_unit.my_rating` (a per-unit personal rating,
 which becomes `user_novel_unit_rating`).
 
+**Known gap: `games` carries nine further personal columns this design does not
+move.** `completion_level`, `all_endings`, `all_achievements`, `all_collected`,
+`steam_progress_sync`, `achievements_earned`, `achievements_total`,
+`current_patch` and `hours_played` (`app/models/game.py:109-130`) are all facts
+about a player, not about the game. They stay on the `games` table for now, which
+means two users of the same game share one set of them — the exact defect this
+design exists to remove, surviving in one media type.
+
+They are excluded deliberately rather than overlooked: moving them means
+designing how a superset table holds nine game-only columns, which either widens
+`user_media_list` further for one type's benefit or introduces the per-type list
+table this design rejected. Neither belongs in Step 1. Recorded here and on
+`docs/roadmap.md` as follow-up work; until it is done, **games are single-user in
+practice** and that limitation should be stated wherever the feature is
+described.
+
 ### Link tables: two groups
 
 **Entry-only — collapse to one `media_id` FK:**
@@ -279,6 +295,20 @@ __table_args__ = (
 
 `owner_type` stops being stored and becomes a read-time derivation from
 whichever column is non-null. Every owner now cascades.
+
+**`plan_next` takes three columns, not four.**
+`app/utils/plan_next_kinds.py:39` declares `SCOPES = ("entry", "series",
+"franchise")` — a plan target is never a collection, and `validate_plan_target`
+gates on `ALLOWED_SCOPES`, which is keyed by those three alone. Its check is
+`num_nonnulls(media_id, franchise_id, series_id) = 1`; a `collection_id` column
+would be permanently null and unwritable. Only `note` and `meme` use the full
+`OWNER_TABLES` and so take all four.
+
+**Every one of these unique/singleton indexes needs `NULLS NOT DISTINCT`**
+(PostgreSQL 15+; we are on 17). Two or three of the owner columns are null on
+every row, and under the default `NULLS DISTINCT` Postgres treats every such row
+as unique — silently disabling the constraint. The repo already uses the idiom;
+see migration `n1u2l3l4s5n6d` on `media_credit`.
 
 **Rejected:** widening the supertable to an `entity` table spanning media *and*
 tiers, so `owner_id` could stay a single FK. The three sets that want a
@@ -327,6 +357,39 @@ changes.
 **Personal (7):** `remark`, `advantages`, `disadvantages`, `double_edged`,
 `episode_comments`, `questions`, `personal_reviews`
 
+#### `remark` cannot be fully per-user without a wider rewrite
+
+`remark` is the one personal section with a read path that bypasses the note
+router. `app/models/__init__.py:136-146` attaches a class-level
+`column_property` scalar subquery to all twelve owner models, so `entry.remark`
+is a plain attribute read by the ten detail pages, every list response,
+`find_all_remarks` and `Delete.jsx`. A `column_property` is built once at import
+time and **cannot know who is asking**.
+
+Worse, the partial unique index `ix_note_one_remark_per_owner`
+(`app/models/note.py:94`) is what guarantees that subquery returns at most one
+row. Let a second user write a remark on the same entry and the subquery returns
+two, so *every* read of that entity raises `more than one row returned by a
+subquery used as an expression` — not just the remark.
+
+Three ways out, in increasing cost:
+
+1. **Keep the index per-owner.** `author_id` is recorded, but the database
+   refuses a second user's remark. The section is personal in name and
+   first-writer-wins in practice. Nothing leaks; nothing breaks.
+2. **Reclassify `remark` as catalogue.** Honest about the behaviour — a section
+   that cannot hold two users' rows is not per-user — at the cost of making a
+   private jotting shared.
+3. **Replace the `column_property` with a per-viewer join** across a dozen read
+   paths, and make the index `(owner, author_id)`. The only option that makes
+   `remark` genuinely personal, and by far the largest.
+
+**Decision: option 1 for now**, with the boundary pinned by a test and stated in
+a code comment. Option 3 is the correct end state and belongs with the deferred
+authorization work, where the read paths are being touched anyway. This is the
+one place the catalogue/personal split is not fully honoured, and it is
+deliberate rather than overlooked.
+
 **Catalogue (20):** `op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`,
 `extended_episodes`, `adaptation`, `resources`, `public_reviews`, `highlights`,
 `highlight_episodes`, `highlight_passages`, `highlight_moments`, `analysis`,
@@ -350,6 +413,24 @@ no schema change. That is the point of putting it there.
 Both become per-user. `plan_next` gains `user_id` alongside its disjoint owner
 FKs. `seasonal`'s primary key becomes `(user_id, seasonal)`; its counters are
 per-user aggregates today only because there is one user.
+
+**Plan, Seasonal and Statistics become authenticated-only.** They are publicly
+reachable today, and per-user data gives them no sensible anonymous answer: an
+empty page is a silent regression, and showing the site owner's rows makes one
+account's data the default view for strangers. A logged-out visitor gets a 401
+and a redirect to login — visible, and honest about why. The routes gain the
+authentication dependency and the SPA routes move behind the existing
+`ProtectedRoute`.
+
+**Step 1 breaks `seasonal` unless it repairs it.**
+`app/services/domain/seasonal.py:108-114` computes all four counters by reading
+`anime.watching_status` — the column Step 1 drops. So this is not deferred
+polish that can wait for Step 3: between Step 1 and Step 3 the seasonal counters
+are dead code that raises. **Step 1 must rewrite `sync_seasonal_counts` over
+`user_media_list ⋈ media ⋈ anime` as part of its own work**, computing the
+admin's counts, and Step 3 then widens the same function to every user and
+changes the primary key. Recorded here because it is a cross-step dependency
+that neither step's own scope makes obvious.
 
 ---
 
@@ -408,17 +489,44 @@ SELECT m.media_type, m.display_name, l.status, l.my_rating
 FROM user_media_list l
 JOIN media m ON m.system_id = l.media_id
 WHERE l.user_id = :user
-ORDER BY l.my_rating DESC NULLS LAST;
+ORDER BY rating_points(l.my_rating) DESC NULLS LAST;
 ```
+
+**`my_rating` is a letter grade, not a number.** `app/utils/constants.py:106`
+declares `MY_RATINGS = ("S", "A+", "A", "B", "C", "D", "E", "F")` and every
+`my_rating` column in the repo is `Column(String)`. So neither ordering nor
+averaging can touch the column directly: `ORDER BY my_rating DESC` sorts
+alphabetically, putting `A+` above `A` and `S` last, and `my_rating::numeric`
+raises `invalid input syntax for type numeric: "A+"` on the first row.
+
+One module owns the letter↔points mapping — `app/services/domain/rating_points.py`,
+exposing `rating_points(letter) -> int`, `points_to_letter(points) -> str`, and a
+SQL `CASE` builder for use in queries. Everything that ranks or averages a
+rating goes through it. `S` outranks `A+`.
 
 **Community aggregate** for a detail page, restricted to public lists:
 
 ```sql
-SELECT l.status, COUNT(*), ROUND(AVG(l.my_rating::numeric), 2)
+SELECT l.status,
+       COUNT(*),
+       points_to_letter(ROUND(AVG(rating_points(l.my_rating))))
 FROM user_media_list l JOIN users u ON u.id = l.user_id
-WHERE l.media_id = :id AND u.list_is_public
+WHERE l.media_id = :id AND u.list_is_public AND l.my_rating IS NOT NULL
 GROUP BY l.status;
 ```
+
+Averaging grades yields a grade, not a decimal — a detail page showing "B" is
+honest about the vocabulary; showing "3.7" invents a precision the scale does
+not have.
+
+The order is currently hardcoded as a literal array in two frontend files
+(`RatingDistributionBlock.jsx:8`, `StatsFranchiseSummary.jsx:13`) and exists
+nowhere in the backend. `rating_points` would be a third copy, so it is served
+instead: `/api/constants` already returns `my_rating` from `MY_RATINGS`
+(`app/routers/constants.py:59`), and the two frontend files move onto it. Not
+strictly required by this design — but a ranking that disagrees between the
+list page and the stats page is the kind of bug nobody reports and everybody
+sees.
 
 **Global search across all nine types** — one indexed table:
 
@@ -634,7 +742,16 @@ Recorded here so the deferred auth work has its inputs, not to settle them:
   than amending.
 - **The `user` role is three permissions**, not a new system: guest reads, plus
   write-own-list, plus write-own-personal-notes. Catalogue writes stay
-  `admin`-only, so no new admin surface appears.
+  `admin`-only, so no new admin surface appears. Concretely that means one new
+  permission family — `note.write_own` — registered in `static_catalog()`,
+  since `is_valid` rejects any grant the catalogue does not name.
+- **`Viewer` has no user id.** `app/services/rbac/resolver.py` carries
+  `username`, `role_id`, `role_name`, `is_superuser` and `permissions`, but not
+  `user_id` — even though `resolve_viewer` already loads the `User` row.
+  Filtering anything by `author_id` or `user_id` is impossible until it does.
+  Adding it is a defaulted field at two construction sites and breaks nothing,
+  but it is a prerequisite for Steps 1, 2, 3 and 5 alike, so it belongs to
+  whichever lands first.
 - **`entry_visible` and the content-label checks** now run against a shared
   catalogue rather than one person's collection. The logic is unchanged; what
   changes is that "hidden" means hidden from a role, not from the owner.
