@@ -1,71 +1,93 @@
-# Deployment (self-hosted mini PC + Cloudflare Tunnel)
+# Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-08 (commit cb8797e)
+Last verified: 2026-09-08 (commit 2b28258)
 
-> ## Status: plan, not a deployment
+> ## Status: hardware bought, nothing deployed yet
 >
-> **Nothing in this file is built yet.** No hardware has been bought, no
-> production `docker-compose` file exists, and none of the code changes listed
-> under [What has to change in the code](#what-has-to-change-in-the-code) have
-> been made. This is the agreed direction after the GCP deployment went down on
-> 2026-09-02 (see [deployment-gcp.md](deployment-gcp.md)), written down so the
-> decision and its open questions survive between sessions.
+> **The machine is purchased** — an HP ProDesk 600 G4 Desktop Mini, bought
+> 2026-09-08 for NT$5,680 (see [The machine](#the-machine)). Everything else in
+> this file is still ahead: no OS is installed, no production
+> `docker-compose.yml` exists, and none of the code changes under
+> [What has to change in the code](#what-has-to-change-in-the-code) have been
+> made.
 >
-> Read every "will" below as "is intended to". The one thing that *is* settled
-> is the shape: **a small always-on x86 mini PC at home, reached from the
-> Internet through a Cloudflare Tunnel.**
+> This is the replacement for the GCP deployment that went down on 2026-09-02
+> (see [deployment-gcp.md](deployment-gcp.md)). The shape is settled: **an
+> always-on 1 L x86 mini PC at home, reached from the Internet through a
+> Cloudflare Tunnel.** Hardware alternatives are closed — do not reopen them.
 
-**What this is for.** Where the app is meant to run now that Cloud Run and
-Cloud SQL are gone: which box to buy in Taiwan, how it gets a public HTTPS
-address without a public IP, and what in the codebase currently assumes Cloud
-Run and would have to change first. Local development is unaffected and stays
-as described in [setup-local.md](setup-local.md).
+**What this is for.** Where the app runs now that Cloud Run and Cloud SQL are
+gone: the machine that was bought, how it gets a public HTTPS address without a
+public IP, what in the codebase still assumes Cloud Run, and the order in which
+to build it. Local development is unaffected and stays as described in
+[setup-local.md](setup-local.md).
 
 ## The decision
 
 | Question | Answer | Why |
 | --- | --- | --- |
-| Where does it run? | A dedicated small x86 PC at home, on all the time | The app is small — FastAPI + one Postgres + a static bundle, idle RAM well under 1 GB. A laptop works but is not meant to be a server. |
-| Which box? | **A used business micro/SFF PC (8th-gen Intel i5 or better), 16 GB RAM, ~256-512 GB SSD** — see [Hardware](#hardware) | x86, so every Docker image works unmodified (no arm64 surprises). Bought used, the RAM and SSD come bundled at pre-2026 prices, which is now the whole argument. |
+| Where does it run? | A dedicated 1 L x86 mini PC at home, on all the time | The app is small — FastAPI + one Postgres + a static bundle, idle RAM well under 1 GB. A laptop works but is not meant to be a server. |
+| Which box? | **HP ProDesk 600 G4 Desktop Mini** — i5-8500T, 16 GB, 512 GB SSD. Bought used, NT$5,680. | x86, so every Docker image works unmodified (no arm64 surprises). Six cores and 16 GB leave room for the other small projects this box is meant to absorb. |
+| Why used? | New was worse value in 2026 | DRAM and NAND are in a historic spike — DDR5 up 400-500% year-over-year, NAND roughly doubled. A *new* N150 box with 16 GB / 256 GB was NT$12,990-19,825, more than double this machine's price for less CPU. Buying used bought the RAM and SSD at pre-spike prices. |
 | How is it reached? | **Cloudflare Tunnel** (`cloudflared`) | Outbound-only connection, so no port forwarding, no static IP, and it works even behind CGNAT. Free HTTPS, and the home IP is never exposed. |
-| What is *not* being used? | Raspberry Pi, NAS, VPS, **new N100/N150 mini PC** | See [Alternatives considered](#alternatives-considered). |
+| Under what name? | **`cg1618.com`**, bought through Cloudflare Registrar — see [The domain](#the-domain) | The DNS has to live at Cloudflare for the tunnel anyway, and Cloudflare sells at cost with no renewal markup. One domain covers every project via subdomains. |
 
-## Hardware
+Raspberry Pi, NAS, VPS and a new N100/N150 mini PC were all considered and
+rejected during the survey; a VPS at ~US$5-7/month remains the honest fallback
+if home hosting turns out to be a chore. **That comparison is closed — this
+file is now about building on the machine that exists.**
 
-### The market condition that drives this choice
+## The machine
 
-**Revised 2026-09-08.** This file previously called for a *new* N100/N150 mini
-PC at NT$4,500-7,000. That price no longer exists. DRAM and NAND are in a
-historic spike: DDR5 is up roughly 400-500% year-over-year, DDR4 150-200%, and
-NAND has roughly doubled, as AI demand pulled fab capacity to HBM. The retail
-consequence is visible in the listings — a new N150 box with 16 GB / 256 GB now
-sits at **NT$12,990-19,825**, about double its normal price and *more* than a
-used 6-core i5 with the same memory.
+**HP ProDesk 600 G4 Desktop Mini**, bought used 2026-09-08 from Better 3C
+二手倉庫 (高雄) via [Shopee](https://shopee.tw/product/7123416/22021629456) for
+**NT$5,680**, 免運, 蝦皮安心退.
 
-So the rule for this purchase, until the memory cycle turns:
+| | |
+| --- | --- |
+| **CPU** | Intel Core i5-8500T — 6C/6T, 2.1 GHz base / 3.5 GHz turbo, 35 W TDP, Coffee Lake, UHD 630 |
+| **RAM** | 16 GB DDR4 SO-DIMM, **2 slots, official maximum 32 GB** |
+| **Storage** | 512 GB SSD |
+| **Storage expansion** | 2× M.2 PCIe x4 (2280/2230) + 1× DM SATA connector for a 2.5" drive |
+| **WLAN slot** | 1× M.2 PCIe x1 2230 — occupied by the bundled WiFi card |
+| **Network** | 1× RJ-45 Gigabit Ethernet |
+| **Video** | 2× DisplayPort 1.2 + one configurable port; a DP→HDMI adapter was included |
+| **USB** | 3× USB 3.1 Gen 1, 3× USB 3.1 Gen 2, 1× USB 3.1 Gen 2 Type-C (front) |
+| **Other** | Optional RS-232 serial (rear), headphone jack, front combo audio |
+| **Chassis** | 1 L Desktop Mini |
+| **Shipped with** | 原廠變壓器, 滑鼠, DP→HDMI 轉接頭, internal WiFi card, Windows 10 Pro |
 
-> **Buy a used machine with the RAM and SSD already in it. Never buy 準系統
-> (barebones) and populate it.**
+The Windows licence is irrelevant — this box runs Linux. The proprietary
+barrel-plug 變壓器 being included is the accessory that actually mattered;
+these are awkward to replace.
 
-A barebones OptiPlex 7080 SFF at NT$7,500 plus 16 GB and a 512 GB SSD costs
-more than any complete machine in the table below.
+### Check these on arrival
 
-### Target spec
+| Check | How | Why it matters |
+| --- | --- | --- |
+| Is the 16 GB **1×16 GB or 2×8 GB**? | `sudo dmidecode -t memory`, or open the case | One stick leaves the second SO-DIMM slot free, so 32 GB later costs one module instead of two. Two sticks means any upgrade is a full replacement. Worth knowing before RAM prices move. |
+| SSD health and hours | `sudo smartctl -a /dev/nvme0n1` | It is a used drive of unknown age. Power-on hours and any reallocated sectors decide whether it is trusted with the only copy of anything. |
+| Actual idle power | A plug-in power meter | Expect roughly 8-12 W. This is an estimate from the platform, not a measurement — worth checking once, since it runs 24/7. |
+| PSU is the genuine HP unit | Look at the label | Listed as 原廠; third-party bricks on these are a known source of instability. |
 
-**A used corporate off-lease micro or SFF desktop**, Dell OptiPlex Micro /
-HP EliteDesk-ProDesk mini / Lenovo ThinkCentre Tiny class:
+### BIOS settings before installing anything
 
-- **CPU** — Intel 8th-gen i5 (i5-8400 / 8500 / 8500T / 8600T) or newer. Six
-  cores, and comfortably faster than the N150 that was the original plan.
-- **RAM** — 16 GB preferred, 8 GB acceptable. 16 GB is more than this app
-  needs; it is there so Postgres has room and so the box can absorb whatever
-  else gets put on it later. Note that "upgrade the RAM later" is *not* the
-  cheap escape it normally is, so pay for it up front if the budget allows.
-- **Storage** — 256 GB SSD minimum; whatever is in the machine is fine.
-- **Budget** — **NT$4,280-7,500** for the machine; the current pick is
-  NT$5,680 (see [Ranked, best first](#ranked-best-first)).
+Press **F10** at boot.
 
-### How much storage this actually needs
+1. **SATA mode → AHCI** (from RAID / Intel RST). Without this the Linux
+   installer will not see the drive. This is the single most common stumbling
+   block on these machines.
+2. **After Power Loss → Power On.** The default is to stay off. For an
+   always-on server this is the difference between a brief power cut and a trip
+   home to press a button.
+3. **Wake on LAN** — leave enabled if remote power-on is ever wanted; harmless.
+4. **Secure Boot** — Ubuntu supports it, so it can stay on. Turn it off only if
+   an out-of-tree driver later needs it.
+5. Set a BIOS password if the box will be physically reachable by others.
+
+## Storage
+
+### How much is actually needed
 
 Measured on the company machine, 2026-09-08:
 
@@ -77,28 +99,21 @@ Measured on the company machine, 2026-09-08:
 | Built frontend (`frontend_dist/`) | 1.9 MB | regenerated by `npm run build` |
 | **Total to host** | **≈ 280 MB** | |
 
-The 640 MB the working tree occupies is mostly `venv/` (187 MB),
-`frontend/node_modules/` (184 MB) and `.git/` (12 MB), none of which travel to
-a container.
+The 640 MB the working tree occupies on a dev machine is mostly `venv/`
+(187 MB), `frontend/node_modules/` (184 MB) and `.git/` (12 MB), none of which
+travel to a container.
 
-**So storage capacity is not a factor in the hardware choice.** The 256 GB SSD
-in the cheapest listed machine holds the whole deployment roughly 900 times
-over. At ten times the current collection — 20,000 entries — covers would reach
-about 2.5 GB and the database about 250 MB. This app will not fill any SSD sold
-this decade.
+**The 512 GB SSD holds this roughly 1,800 times over.** At ten times the
+current collection — 20,000 entries — covers would reach about 2.5 GB and the
+database about 250 MB. Storage capacity will not be a constraint on this
+machine, and the two free M.2 slots plus the DM SATA connector mean it could
+not become one without plenty of warning.
 
-Two consequences, both of which reverse the advice this section used to give:
+This is also why the box was chosen for RAM rather than capacity: memory
+decides how many apps share it, and at 2026 prices it is the one spec that is
+ruinous to add later.
 
-- **No external disk is needed.** An earlier draft here recommended a 2 TB USB
-  drive (NT$3,799) and weighed 3.5"-bay SFF towers against 1 L micro machines
-  on that basis. That was sizing done before measuring. Whatever SSD is already
-  in the machine is enough, and the mini-versus-SFF question is decided by
-  noise, power draw and desk space alone.
-- **Buy RAM, not capacity.** This is what puts the 32 GB NUC at the top of the
-  [ranked listings](#ranked-best-first): memory is what decides how many apps
-  share the box, and it is the one spec that is ruinous to add later.
-
-#### One outlier worth knowing about
+### One outlier worth knowing about
 
 Comic covers are 128 MB across only 99 files — over half the entire image store
 — averaging ~1.3 MB each, while anime covers average ~42 KB:
@@ -117,190 +132,26 @@ anime-movie   1.2 MB     32 files
 
 Comic Vine returns full-resolution scans and nothing downsizes them on the way
 in. Resizing just those would cut the image store by ~45%. Not worth doing for
-space at this scale, but it is the reason the comic library feels slow to load
-over a tunnel, and it is what will grow fastest as comics are added.
+space, but it is why the comic library will feel slowest over the tunnel, and
+it is what grows fastest as comics are added.
 
-#### What does need planning: backups, not capacity
+### What does need planning: backups, not capacity
 
 280 MB is small enough that a complete off-box backup is trivial — a nightly
 `pg_dump` plus an rsync of `static/covers/` is a couple of hundred megabytes,
 which fits inside Cloudflare R2's free tier with room to spare. Since covers
-currently exist on exactly one disk (see below), this is the part of the
-storage story that actually carries risk.
+will exist on exactly one disk in this box, this is the part of the storage
+story that actually carries risk. **A second copy is not optional.**
 
-### Linux notes
+## Running cost
 
-All of these are mainstream Intel business hardware and run Debian or Ubuntu
-LTS without drama. Two practical points:
+An i5-8500T in a 1 L chassis should idle around 8-12 W, so roughly
+**6-9 kWh/month**, or **NT$25-40/month** in electricity. Add `cg1618.com` at
+US$10.46/year (~NT$330, rising to ~NT$350 in November 2026). Cloudflare Tunnel
+itself is free at this scale.
 
-1. On the Dell and Lenovo machines, **switch SATA mode from RAID / Intel RST to
-   AHCI in the BIOS before installing**, or the installer will not see the NVMe
-   drive. This is the single most common stumbling block with these boxes.
-2. The Windows licence most of them are sold with is irrelevant here and should
-   not be paid a premium for.
-
-### Running cost
-
-A used micro PC idles around 8-15 W (an SFF tower more like 20-30 W), so
-roughly **6-11 kWh/month**, or **NT$25-50/month** in electricity. Add a domain
-at ~NT$400/year. Cloudflare Tunnel itself is free at this scale.
-
-Against a one-off ~NT$5,000-10,000 for hardware plus disk, the whole thing
-still pays for itself versus a paid cloud runtime within months, which is the
-point of the exercise.
-
-## Candidate listings
-
-Surveyed **2026-09-08** from price-comparison indexes, then the top two were
-opened and read directly the same day (see [What the seller pages actually
-said](#what-the-seller-pages-actually-said)). Everything below rank 3 is still
-index data only, so **confirm stock and the exact configuration with the seller
-before paying** — several explicitly ask for a message first (先詢問庫存).
-
-### Ranked, best first
-
-Ranked on fitness for *this* job, not on price, so the order jumps across price
-brackets. The weighting, in order:
-
-1. **RAM** — the one spec that decides how many apps fit on the box, and the
-   one that is ruinous to add later at 2026 prices.
-2. **Cores and generation** — 6 cores beats 4; newer beats older.
-3. **Price** — as a tiebreaker between comparable machines.
-4. **Evidence** — a fully itemised listing from a seller with a track record
-   beats a claim that the listing's own spec table contradicts.
-
-**Storage capacity is deliberately not weighted.** The whole deployment is
-about 280 MB (235 MB of covers, 23 MB of database, 22 MB of code), so a 256 GB
-SSD already holds it roughly 900 times over and a 512 GB one buys nothing.
-
-| # | Machine | Price | Where |
-| --- | --- | --- | --- |
-| **1** | **HP ProDesk 600 G4 mini** — i5-8500T (6C), **16 GB**, 512 GB SSD | **NT$5,680** | [Shopee — Better 3C 二手倉庫 (高雄)](https://shopee.tw/product/7123416/22021629456) |
-| **2** | Intel NUC8i5BEH — i5-8259U (4C/8T), **32 GB (unverified)**, 256 GB SSD | NT$6,500 | [Yahoo拍賣 — US3C 新北板橋店](https://tw.bid.yahoo.com/item/101760451743) |
-| **3** | HP ProDesk 600 G4 mini — i5-8500T (6C), 8 GB, 256 GB SSD | NT$4,280 | same listing as #1 — the budget floor |
-| **4** | Dell OptiPlex 7060 Micro — i5-8600T (6C), 16 GB, 256 GB | NT$6,999 | [Shopee — 中古電腦零件專賣 (基隆七堵)](https://biggo.com.tw/s/OptiPlex%207060%20micro) |
-| **5** | Lenovo 商用 — i5-8500 (6C), 16 GB, 512 GB SSD | NT$7,200 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
-| **6** | Lenovo M80S (SFF) — i5-10500 (6C/12T), 16 GB, 512 GB | NT$8,400 | [樺仔二手電腦](https://used-computer.tw/) (homepage feature; not in the [desktop category listing](https://used-computer.tw/Desktop-pc), so confirm stock) |
-| **7** | Lenovo 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,500 | Yahoo拍賣, same seller as #5 |
-| **8** | Acer 商用 — i5-8400 (6C), 16 GB, 512 GB | NT$7,400 | Shopee |
-| **9** | Lenovo 商用主機 — i5-8400 (6C), 8 GB, 256 GB M.2 | NT$4,800 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
-| **10** | Lenovo 商用小主機 — i5-8500 (6C), 8 GB, 256 GB M.2, 內建 WiFi | NT$5,500 | [Shopee — 桃園](https://shopee.tw/product/204914004/27729474942) |
-| **11** | HP 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,900 | Shopee |
-| **12** | HP 商用 — i5-10400 (6C/12T), 16 GB, 512 GB | NT$9,400 | Shopee |
-| **13** | HP EliteDesk 800 G3 迷你 — i5 7代, 8 GB, SSD | NT$6,500 | [Yahoo拍賣 — 樺仔南港店](https://tw.bid.yahoo.com/item/101740812164) |
-
-### What the seller pages actually said
-
-Reading the two top listings in full moved them past each other. Recorded here
-because the reasoning is not recoverable from the table.
-
-**#1 ProDesk 600 G4 mini (Better 3C, Shopee)** — one listing with a
-configuration ladder, all at 5.0★ / 71 reviews / 192 sold, 免運, 蝦皮安心退:
-
-| Config | Price |
-| --- | --- |
-| 8 GB + SSD 256G | NT$4,280 |
-| **16 GB + SSD 512G** | **NT$5,680** |
-| 16 GB + SSD 256G + HDD 1TB | NT$5,680 |
-| 32 GB | greyed out — **out of stock** |
-
-NT$1,400 buys +8 GB and +256 GB. A single 8 GB DDR4 SO-DIMM alone runs
-NT$2,000-3,000 in the current market, so that step is the best value on this
-whole page. The description itemises **2× M.2 PCIe x4 2280/2230 slots plus a DM
-SATA connector**, so a second drive can go in later without giving up a slot.
-Ships with the (proprietary, barrel-plug) 變壓器 — which is the accessory that
-matters on these.
-
-Of the two NT$5,680 options, **take the plain 512 GB SSD**. The bundled 1 TB
-HDD is a used spinning disk of unknown age in a 1 L chassis: the most
-failure-prone part in the box, and a backup on the same machine is not a
-backup. Backups go off-box — see
-[the storage section](#what-does-need-planning-backups-not-capacity).
-
-**#2 NUC8i5BEH (US3C, Yahoo拍賣)** — the title claims 32G / 256G SSD, but the
-listing's own spec table says **記憶體「4GB(含以上)」** and **硬碟容量 250GB**.
-Those are Yahoo's coarse category dropdowns rather than real specs, so the
-title is probably right — but "probably" does not carry a #1 ranking whose
-entire justification is the 32 GB. `BOXNUC8i5BEH` is also Intel's *barebones
-kit* product code, so the RAM and SSD being physically installed needs
-confirming, not assuming. 保固 is 店保 30 天, original 變壓器 included.
-
-**Ask before buying either:**
-
-- NUC: 記憶體實際是 32GB 嗎？256GB SSD 是否已安裝並隨機附上？
-- ProDesk: 16GB 是單條 16G 還是 2×8G？(one stick leaves the second SO-DIMM slot
-  free for a later upgrade; two fills the machine)
-
-### Why the order lands where it does
-
-**#1 ProDesk 600 G4 mini at 16 GB** wins on nearly every axis at once: two more
-physical cores than #2, NT$820 cheaper, better storage expansion, an itemised
-spec sheet, and a seller with 192 units sold plus Shopee's return protection
-instead of a one-shot auction. 16 GB is genuinely enough here — the whole
-deployment is 280 MB and the app idles well under 1 GB.
-
-**#2 NUC8i5BEH** was ranked first while 32 GB looked certain, on the reasoning
-that memory is the scarce resource and the machine cost less than its own RAM.
-That still holds *if* the 32 GB is real. It drops to second because the
-evidence for it is a title contradicted by the same page's spec table, and
-because four cores against six is a real cost. Worth buying only if the seller
-confirms — and even then it is a close call against #1.
-
-**#3 is the same machine as #1** at its cheapest configuration. Listed
-separately because NT$4,280 for a six-core 1 L box is the budget floor of this
-entire survey, and it beats every 8 GB machine below it outright.
-
-**#4 over #5** because storage no longer counts. The OptiPlex is NT$201 cheaper
-with equivalent CPU and the same 16 GB; its 256 GB versus the Lenovo's 512 GB
-is a difference this deployment cannot use.
-
-**#6-#8** are all sound 16 GB six-core machines; the M80S ranks highest of them
-for the newest CPU and a dealer with three physical stores, and is the pick if
-an SFF tower with an internal 3.5" bay is wanted anyway.
-
-**#9-#10** are fine machines held back by 8 GB, and both cost more than #3
-while offering no more memory.
-
-**#11-#12** are duplicates of better-priced entries above them — #11 is #7 for
-NT$400 more, #12 is the same idea at the top of the budget.
-
-**#13 is last on merit**: 7th-generation CPU *and* 8 GB *and* NT$6,500. #3
-beats it on every axis for NT$2,220 less. Listed only because the seller is
-reputable and it may be the last one standing.
-
-### Do not buy
-
-| Listing | Why |
-| --- | --- |
-| [露天 — OptiPlex 7080 SFF, i5-10500, NT$7,500](https://www.ruten.com.tw/item/22606131063561/) | **準系統** — no RAM, no SSD. Populating it costs more than any complete machine above. |
-| 露天 ThinkCentre M720q at NT$22,000-32,000 | China-based dropshippers listing a ~NT$5,000 machine. 露天 is heavily polluted with these; filter to 台灣出貨 sellers with real feedback. |
-| New N150 mini PC at NT$12,990+ | Double the price for less CPU than a used i5. Revisit in a future memory cycle. |
-
-### Where to search when these are gone
-
-| Source | For |
-| --- | --- |
-| [蝦皮](https://shopee.tw/search?keyword=%E4%BA%8C%E6%89%8B%20%E5%95%86%E7%94%A8%E9%9B%BB%E8%85%A6%20i5) | The largest used-business-PC market here. Not indexable by automated search — browse it directly. |
-| [Yahoo拍賣 — 二手電腦主機](https://tw.bid.yahoo.com/search/auction/product?cid=23344&clv=2&p=%E4%BA%8C%E6%89%8B%E9%9B%BB%E8%85%A6%E4%B8%BB%E6%A9%9F) | Where the established dealers (樺仔, US3C, 光華維修中心) list |
-| [BigGo](https://biggo.com.tw/) | Indexes Shopee, Yahoo and 露天 together; the practical way to price-compare across all three |
-| [樺仔二手電腦](https://used-computer.tw/) | Corporate off-lease Dell/HP/Lenovo, three physical stores |
-| [US3C](https://www.us3c.com.tw/) | Chain with stores in 台北, 桃園, 台中, 台南, 高雄 |
-| [鎧信電腦 (新竹)](https://www.kai-sin.com.tw/) | States a one-month warranty on used |
-| [露天拍賣](https://www.ruten.com.tw/find/?q=OptiPlex+7060+SFF), 光華商場 | Usable, but see the dropshipper warning above |
-| [Carousell 旋轉拍賣](https://tw.carousell.com/categories/computers-tech-1094/) | Often cheapest, zero warranty |
-
-Two filters worth applying to every search: **reject 準系統 / 裸機 / 不含記憶體
-硬碟**, and **check the seller ships from Taiwan**.
-
-### Alternatives considered
-
-| Option | Why not |
-| --- | --- |
-| **New N100/N150 mini PC** (Beelink S12 Pro, GMKtec G3, MOREFINE M9/M11) | The original plan, overturned by the memory spike. NT$12,990-19,825 for 16 GB / 256 GB, which is double normal and slower than a used i5 at a third of the price. Reconsider when DRAM normalises. |
-| Raspberry Pi 5 (8 GB) | Works — arm64 Postgres images are fine — but at NT$1,600-10,675 for the board alone, plus NVMe HAT, PSU and case, it is not cheaper than a used x86 box, is slower, and has no SATA. Its only real win is a few watts. |
-| Beelink ME mini (6-slot M.2 NAS box) | Neat design, ~US$329 plus import. Rejected because M.2-only storage means buying capacity at spike prices, which is exactly what this plan avoids. |
-| Synology / QNAP NAS | NT$12,000+, and Docker plus Postgres on one is more awkward than on a plain Linux box. Only worth it if a NAS is wanted for its own sake. |
-| VPS (Hetzner / Vultr / Linode / 本地主機商) | ~US$5-7/month, no hardware and no uptime worries. Rejected because the goal is to stop paying a recurring bill, but it remains the honest comparison and the obvious escape hatch if home hosting turns out to be a chore. |
+Against the one-off NT$5,680, the whole arrangement pays for itself versus a
+paid cloud runtime within months, which was the point of the exercise.
 
 ## Networking
 
@@ -322,7 +173,113 @@ routed down that connection to the local uvicorn port. Consequences:
 - Cloudflare Access can later gate the admin routes with a second login layer
   independent of the app's own JWT auth.
 
-Requires a domain (~NT$400/year) with its nameservers pointed at Cloudflare.
+### The domain
+
+**`cg1618.com`, to be registered through Cloudflare Registrar.** Not yet
+purchased as of 2026-09-08.
+
+| | |
+| --- | --- |
+| **Name** | `cg1618.com` — availability confirmed 2026-09-08 against Verisign's RDAP server |
+| **Registrar** | [Cloudflare Registrar](https://dash.cloudflare.com) → Domain Registration → Register Domain |
+| **Price** | **US$10.46/year** (~NT$330), at cost — registry fee plus the US$0.18 ICANN fee, no markup, and renewal is the same price |
+| **WHOIS privacy** | Included free. Without it the registrant name, home address and phone number are public. |
+
+Registering *at* Cloudflare means the zone is created with Cloudflare
+nameservers already in place — there is no delegation step and no propagation
+wait. Later, `cloudflared tunnel route dns <tunnel> <hostname>` writes the CNAME
+itself, so DNS records are never hand-edited.
+
+**Note the 1 November 2026 price change.** Verisign is raising the wholesale
+`.com` fee, taking Cloudflare's price to US$11.15 (~NT$350). Registering before
+then locks the lower rate for that year. Immaterial in absolute terms; worth
+knowing so the renewal invoice is not a surprise.
+
+**One domain, one subdomain per project.** This box is meant to absorb other
+small projects, and they do not need domains of their own — all of them are
+subdomains routed by the single `cloudflared` daemon to different local ports
+(see [Planned hostnames](#planned-hostnames)). The ~NT$330/year is a one-time
+cost for everything hosted here, which is why a short, project-neutral name was
+chosen over an anime-specific one.
+
+`cgentle1618.com` (matching the GitHub handle) was also free and was
+considered; `cg1618` won on length, since this string ends up in SSH configs,
+`.env` files and tunnel config for years. Both remain free if the twin is ever
+wanted as a defensive registration.
+
+### Planned hostnames
+
+Seven personal projects are intended for this box. **Only the media tracker
+exists** — everything else is a name reserved on paper so the scheme stays
+consistent as they appear, and so no two projects collide on a port.
+
+| App | Hostname | Port | Status |
+| --- | --- | --- | --- |
+| Media tracker (this repo) | `media.cg1618.com` | 8000 | **being built** |
+| Drawing — notes, practice tracker | `art.cg1618.com` | 8001 | planned |
+| Food — recipes, ingredients, restaurants, cook schedule | `food.cg1618.com` | 8002 | planned |
+| Journal | `journal.cg1618.com` | 8003 | planned |
+| Health records and tips | `health.cg1618.com` | 8004 | planned |
+| Accounting | `money.cg1618.com` | 8005 | planned |
+| Travel — packing, transport, notes | `travel.cg1618.com` | 8006 | planned |
+| *(landing page or redirect, undecided)* | `cg1618.com` (apex) | — | reserved |
+
+The resulting `cloudflared` ingress, once there is more than one:
+
+```yaml
+ingress:
+  - hostname: media.cg1618.com
+    service: http://localhost:8000
+  - hostname: art.cg1618.com
+    service: http://localhost:8001
+  # ...
+  - service: http_status:404   # required catch-all, must be last
+```
+
+#### Why these names
+
+- **One word, one level deep.** Cloudflare's free Universal SSL covers
+  `*.cg1618.com` but not `*.*.cg1618.com`, so `dev.media.cg1618.com` would need
+  paid Advanced Certificate Manager. Keep every hostname a single label.
+- **Named for the domain, not the feature set.** `food` rather than `recipes`,
+  because that project already spans restaurants, ingredients and a cook
+  schedule; `art` rather than `drawing-notes`. Each project is going to grow
+  past its first idea, and a hostname is the most awkward thing to rename —
+  it is in bookmarks, cookies and tunnel config.
+- **`money` over `accounting`** on length alone; it is typed often and means
+  the same thing here.
+- No hyphens, no digits, all lowercase.
+
+#### Keep these free
+
+Do not give an app a name that infrastructure may want later:
+
+`www`, `api`, `mail`, `smtp`, `ns1`, `admin`, `status`, `dev`, `staging`, `vpn`
+
+`www` in particular buys nothing — it would just double the hostnames that have
+to keep working.
+
+#### Sensitivity: not every app should be publicly reachable
+
+The media tracker is a catalogue; the worst case for a leak is embarrassment.
+**`journal`, `health` and `money` are a different class of data**, and they will
+be sitting on a home machine behind a JWT-in-a-cookie and one admin password.
+
+Before any of those three is exposed, decide between:
+
+1. **Cloudflare Access in front of the hostname** — a second, independent login
+   (Google account, email OTP) that runs at Cloudflare's edge, so unauthenticated
+   traffic never reaches the box at all. Free at this scale, and it works
+   regardless of what the app's own auth does.
+2. **No public hostname at all** — reach them over Tailscale or the LAN and give
+   them no tunnel ingress. Strictly safer; less convenient from a phone.
+
+This is not a decision for today, but it is one to make *before* writing the
+ingress rule, not after. The tracker does not need it — same tunnel, same box,
+different exposure.
+
+Give the box a **DHCP reservation** on the router anyway. The tunnel does not
+need a fixed LAN address, but SSH and `psql` from a laptop do.
 
 **Rejected: port forwarding + DDNS.** 中華電信 光世代 PPPoE usually does hand
 out a real (dynamic) public IPv4, so forwarding 80/443 plus DuckDNS or
@@ -340,34 +297,60 @@ Nothing here exists in the repo yet — this is the sketch to build from.
 
 | Piece | Intent |
 | --- | --- |
-| OS | A plain Linux server distribution (Debian or Ubuntu LTS), with Docker + Compose on top |
+| OS | Ubuntu Server LTS (or Debian stable), with Docker + Compose on top |
 | App container | The existing `dockerfile`, unchanged. `entrypoint.sh` already runs `alembic upgrade head` and then `uvicorn ... --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'`, which is exactly right behind a tunnel. |
-| Database | A `postgres` container with a named volume on the NVMe, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while a native local dev install would be 17 (which machine uses which is in `switching-environments.md`) — pick one deliberately before creating data that has to be migrated. |
+| Database | A `postgres` container with a named volume on the SSD, replacing Cloud SQL. Note that the existing `docker-compose.yml` pins `postgres:15` while a native local dev install would be 17 (which machine uses which is in `switching-environments.md`) — pick one deliberately before creating data that has to be migrated. |
 | Ingress | A `cloudflared` container in the same Compose project, pointing at the app container's port |
 | Covers | A bind mount for `static/covers/` (235 MB). With `GCP_BUCKET_NAME` unset the backend already writes and serves from there; only the frontend's `getCoverUrl` needs fixing — see below. |
-| Backup | A nightly `pg_dump` to the NVMe plus an off-box copy. The existing Google Sheets backup is unaffected by all of this and keeps working. |
+| Backup | A nightly `pg_dump` plus an off-box copy of `static/covers/`. The existing Google Sheets backup is unaffected by all of this and keeps working. |
 
 Connection string note: with the database in a sibling container, set
 `DATABASE_URL=postgresql://<user>:<pass>@db:5432/<db>`. `app/config.py` ignores
 a `DATABASE_URL` containing `localhost` (a deliberate guard against a leaked
 local `.env`), so the host must be the container name, not `localhost`.
 
+## Build order
+
+Nothing below is done yet. Roughly dependency-ordered; the code changes can
+proceed in parallel with the hardware bring-up.
+
+1. **Bring up the box** — the BIOS settings above, install Ubuntu Server LTS,
+   `apt install docker.io docker-compose-plugin`, create a non-root user, set
+   up SSH keys, DHCP reservation on the router.
+2. **Verify the hardware** — the four arrival checks above. Do this before any
+   data lives on it.
+3. **Fix the production signal** — the `is_cloud_run` problem below. This gates
+   exposing the box publicly, so it comes before the tunnel.
+4. **Fix `getCoverUrl`** — one function plus one env var, below. Without it
+   every cover is blank behind the tunnel.
+5. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
+   named volume for the database, bind mount for `static/covers/`.
+6. **Load the data** — restore the database, copy `static/covers/` across.
+   Decide Postgres 15 vs 17 *before* this step.
+7. **Domain and tunnel** — register `cg1618.com` at Cloudflare Registrar (the
+   zone comes with Cloudflare nameservers already set), create the tunnel, then
+   `cloudflared tunnel route dns` for the chosen hostname.
+8. **Backups** — nightly `pg_dump` + covers sync to R2, and verify a restore
+   actually works before relying on it.
+9. **Decide CI** — whether `.github/workflows/deploy.yml` gains a self-hosted
+   path or the deploy job is retired, leaving CI as tests only.
+
 ## What has to change in the code
 
 The app currently treats "production" and "Cloud Run" as the same thing. Each
 of these branches keys off `settings.is_cloud_run`, which is true only when
-Cloud Run sets `K_SERVICE`. On a self-hosted box that variable is absent, so
-every one of them silently takes its *development* path even though the app is
-publicly reachable. **These are the blockers to fix before exposing the box to
-the Internet:**
+Cloud Run sets `K_SERVICE`. On this box that variable is absent, so every one
+of them silently takes its *development* path even though the app is publicly
+reachable. **These are the blockers to fix before exposing the box to the
+Internet:**
 
 | Location | Behaviour off Cloud Run | Why it matters here |
 | --- | --- | --- |
 | `app/routers/auth.py:73` | The login cookie is set with `secure=is_cloud_run`, i.e. **not** `Secure` | The tunnel serves real HTTPS, so the flag should be on. Browsers accept the cookie either way, so this fails quietly. |
 | `app/config.py:112` (`validate_production`) | Returns immediately; **no fail-fast** | The startup check that refuses a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD` would not run. A public deployment could come up on `admin123` with nothing complaining. This is the most dangerous one. |
+| `frontend/src/lib/covers.js:16` (`getCoverUrl`) | Switches on **hostname**; anything that is not `localhost` gets a hard-coded `storage.googleapis.com` URL | Behind the tunnel the hostname is real, so every cover points at the dead bucket while the files sit on disk. See below. |
 | `app/config.py:75` (`bucket_name`) | `None` unless `GCP_BUCKET_NAME` is set | **Not a blocker — this is the wanted behaviour.** A `None` bucket is what makes `image_manager.py` use local disk. Leave it unset. |
 | `app/utils/gcp_utils.py:33` | Falls through to `GOOGLE_CREDENTIALS_JSON` or default discovery instead of native IAM | Never reached once the bucket is unset, so harmless here. Still the code that would need replacing if R2 is ever chosen over local disk. |
-| `frontend/src/lib/covers.js:16` (`getCoverUrl`) | Switches on **hostname**; anything that is not `localhost` gets a hard-coded `storage.googleapis.com` URL | **This is the real blocker.** Behind the tunnel the hostname is real, so every cover points at the dead bucket while the files sit on disk. See below. |
 
 The likely shape of the fix is a general "this is a production runtime" signal
 in `app/config.py` — an explicit env var that `is_cloud_run` is only one way of
@@ -376,10 +359,8 @@ satisfying — rather than sprinkling more environment checks through the code.
 
 ### Cover images: smaller than it looks, but the frontend blocks it
 
-An earlier draft of this file called this "the largest piece of work in the
-migration" and said `image_manager.py` and `gcp_utils.py` need a storage-backend
-seam. Reading the code says otherwise. **The backend seam already exists and
-already works; the blocker is one function in the frontend.**
+**The backend storage seam already exists and already works; the blocker is one
+function in the frontend.**
 
 **The backend is already dual-mode.** Every function in
 `app/services/integrations/image_manager.py` branches on
@@ -403,10 +384,10 @@ export function getCoverUrl(coverFile) {
 ```
 
 The switch is on **hostname**, not on configuration, and `isLocalHost()` only
-recognises `localhost` and `127.0.0.1`. On a self-hosted box reached through
-the tunnel at a real hostname, that check is false, so every cover URL points
-at the dead bucket — blank images across the whole site, while the files sit
-readable on disk one directory away. `BUCKET_NAME` is also hard-coded here
+recognises `localhost` and `127.0.0.1`. On this box reached through the tunnel
+at a real hostname, that check is false, so every cover URL points at the dead
+bucket — blank images across the whole site, while the files sit readable on
+disk one directory away. `BUCKET_NAME` is also hard-coded here
 (`cg1618-anime-covers`), independently of `GCP_BUCKET_NAME` on the backend.
 
 **The fix is small**: replace the hostname test with a build-time base URL
@@ -416,37 +397,37 @@ abstraction.
 
 `getQuoteImageUrl` just below it has the same hostname gate and deliberately
 returns `null` off localhost, because Cloud Run's filesystem was ephemeral and
-uploads would vanish on restart. **That rationale disappears on a self-hosted
-box with a persistent disk** — quote images could simply work. Worth revisiting
-in the same change.
+uploads would vanish on restart. **That rationale disappears on this box, which
+has a persistent disk** — quote images could simply work. Worth revisiting in
+the same change.
 
-#### Local disk or R2
+#### Local disk, with R2 as the backup target
 
-With the above understood, the choice is narrower than it looked:
-
-1. **Local disk** — already implemented on the backend, needs only the frontend
-   change. Zero third parties, and covers load from the same origin as the app.
-   The cost is that the images live on one disk and must be part of the backup
-   story.
+1. **Local disk (chosen)** — already implemented on the backend, needs only the
+   frontend change. Zero third parties, and covers load from the same origin as
+   the app. The cost is that the images live on one disk and must be part of
+   the backup story.
 2. **Cloudflare R2** — S3-compatible, free at this volume, already inside the
-   Cloudflare account the tunnel needs. Survives the box dying. But `gcp_utils`
-   speaks the GCS client library, so this *is* the option that needs a real
-   storage seam, plus credentials and a bucket to manage.
+   Cloudflare account the tunnel needs. Rejected as the *primary* store because
+   `gcp_utils` speaks the GCS client library, so it would need a real storage
+   seam plus credentials and a bucket to manage — work that local disk does not
+   require.
 
-**Local disk is now the obvious default**, with R2 as the off-box backup target
-rather than the primary store — which also answers the backup question above.
-At 235 MB, a nightly sync to R2 costs nothing and keeps the copy that matters.
+At 235 MB, a nightly sync to R2 costs nothing and keeps the copy that matters,
+which also answers the backup question above.
 
 ## Open questions
 
-- Cover storage: local disk is now the default (the backend already
-  supports it); confirm the `getCoverUrl` fix and whether R2 becomes the
-  backup target. See [Cover images](#cover-images-smaller-than-it-looks-but-the-frontend-blocks-it).
 - How "production" is signalled once it is no longer synonymous with Cloud Run.
 - Postgres 15 vs 17 for the container, and how the existing data is loaded in.
 - Whether `.github/workflows/deploy.yml` gains a self-hosted path or the deploy
   job is simply retired, leaving CI as tests only.
-- Whether the public hostname is the existing domain or a new one.
+- What the apex `cg1618.com` serves — a landing page linking the projects, or
+  a redirect to one of them.
+- Whether `journal`, `health` and `money` get Cloudflare Access in front of
+  them or no public hostname at all (see [Planned hostnames](#planned-hostnames)).
+- Whether `getQuoteImageUrl` is fixed alongside `getCoverUrl` so quote images
+  work on a box with a persistent disk.
 
 ## See also
 
