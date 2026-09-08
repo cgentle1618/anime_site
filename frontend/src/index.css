@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
+/*
+ * Theme switch. `data-theme` on <html> is stamped by index.html before the
+ * first paint and kept in sync by ThemeProvider; the `dark:` variant follows
+ * the attribute, never the OS directly, so an explicit light choice beats a
+ * dark OS and vice versa.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
-  /* Colors */
-  --color-primary-blue: #2563eb;
-  --color-secondary-gray: #4b5563;
-  --color-accent-green: #10b981;
-  --color-dark-bg: #111827;
-  --color-card-bg: #1f2937;
-  --color-hover-blue: #3b82f6;
-  --color-delete-red: #ef4444;
-  --color-delete-hover: #dc2626;
+  /* Semantic colours. Each is a reference to a runtime variable so the same
+     utility class (bg-surface, text-text-muted, ...) renders the light or
+     dark value depending on data-theme. Light values equal the greys the app
+     used before tokens existed, so light mode is pixel-identical. */
+  --color-canvas: var(--c-canvas);              /* page background */
+  --color-surface: var(--c-surface);            /* cards, tables, panels */
+  --color-surface-2: var(--c-surface-2);        /* inset, hover, stripes */
+  --color-surface-3: var(--c-surface-3);        /* pressed / active pills */
+  --color-text: var(--c-text);
+  --color-text-muted: var(--c-text-muted);
+  --color-text-faint: var(--c-text-faint);      /* placeholders, icons */
+  --color-border: var(--c-border);
+  --color-border-strong: var(--c-border-strong);
+  --color-brand-soft: var(--c-brand-soft);
 
-  /* Brand Colors (Vibrant Blue) */
-  --color-brand: #2563eb;
-  --color-brand-hover: #1d4ed8;
+  /* Brand: wisteria - the one saturated hue in the archive. */
+  --color-brand: var(--c-brand);
+  --color-brand-hover: var(--c-brand-hover);
+  --color-on-brand: var(--c-on-brand);          /* text on a brand-filled surface */
 
-  /* Typography */
-  --font-noto-sans: "Noto Sans TC", "Roboto", sans-serif;
+  /* Archive geometry: flat surfaces. Corners are barely eased and the
+     resting shadow is none; elevation is reserved for menus and modals. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
 
-  /* Shadows */
-  --shadow-neon:
-    0 0 5px rgba(37, 99, 235, 0.5), 0 0 20px rgba(37, 99, 235, 0.3);
+  /* Nav "drawer front" - the ink surface the identity row is cut from. It
+     stays dark in both themes; only its shade shifts. */
+  --color-ink: var(--c-ink);
+  --color-ink-text: var(--c-ink-text);
+
+  /* Media-type scope hues. The one documented exception to design rule 5
+     (colour never encodes a category): the System Options table compares
+     eight scope keys at a glance down a single column, where reading each
+     chip's text is the slow path. Used ONLY by config/scopeColors.js -
+     nothing else colours a media type. Tint with opacity (bg-scope-anime/12).
+     Hues are ~45 degrees apart so neighbours stay separable, and every value
+     is desaturated enough to sit on bone paper without competing with brand.
+     Lightness is set by contrast, not by eye: the chip text is 10px, so every
+     hue must clear WCAG AA 4.5:1 on --c-surface. Measured floors are 4.54
+     (light) and 5.84 (dark) - anime, tv-show and cartoon were each darkened
+     in the light palette to get there, so do not lighten one back for looks
+     without re-measuring. */
+  --color-scope-anime: var(--c-scope-anime);
+  --color-scope-anime-movie: var(--c-scope-anime-movie);
+  --color-scope-movie: var(--c-scope-movie);
+  --color-scope-tv-show: var(--c-scope-tv-show);
+  --color-scope-cartoon: var(--c-scope-cartoon);
+  --color-scope-manga: var(--c-scope-manga);
+  --color-scope-novel: var(--c-scope-novel);
+  --color-scope-comic: var(--c-scope-comic);
+  --color-scope-game: var(--c-scope-game);
+
+  /* Semantic state hues; tint with opacity modifiers (bg-success/15). */
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
+
+  /* Typography. Noto Sans TC + Roboto are loaded in index.html; without this
+     override `font-sans` resolved to Tailwind's default stack and they were
+     never used. */
+  --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Narrow", "Noto Sans TC", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Nav height: row 1 (3.5rem) plus, on lg+, the tab strip (2.5rem + 1px rule).
+   Sticky page headers offset by this so they pin below the nav, not under it. */
+:root {
+  --nav-h: 3.5rem;
+}
+@media (min-width: 64rem) {
+  :root {
+    --nav-h: calc(6rem + 1px);
+  }
+}
+
+/* Light palette (default). */
+:root {
+  color-scheme: light;
+  --c-canvas: #ece9e2;        /* bone paper */
+  --c-surface: #f8f6f1;
+  --c-surface-2: #e6e2d9;
+  --c-surface-3: #d9d4c9;
+  --c-text: #1c1a17;
+  --c-text-muted: #5b5750;
+  --c-text-faint: #8f8a80;
+  --c-border: #cfc9bd;
+  --c-border-strong: #9f9889;
+  --c-brand: #7a4c9e;
+  --c-brand-hover: #63397f;
+  --c-brand-soft: rgb(122 76 158 / 0.08);
+  --c-on-brand: #ffffff;
+  --c-ink: #1c1a17;
+  --c-ink-text: #f8f6f1;
+  --c-scope-anime: hsl(210 47% 43%);
+  --c-scope-anime-movie: hsl(260 40% 52%);
+  --c-scope-movie: hsl(350 45% 50%);
+  --c-scope-tv-show: hsl(25 57% 40%);
+  --c-scope-cartoon: hsl(45 60% 33%);
+  --c-scope-manga: hsl(150 40% 35%);
+  --c-scope-novel: hsl(185 45% 35%);
+  --c-scope-comic: hsl(310 35% 48%);
+  --c-scope-game: hsl(95 40% 33%);
+}
+
+/* Dark palette. Applied by the attribute, and by the OS preference when no
+   attribute has been stamped (no-JS fallback). */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: #17150f;
+  --c-surface: #211e18;
+  --c-surface-2: #2b2720;
+  --c-surface-3: #3a352c;
+  --c-text: #ece8df;
+  --c-text-muted: #aaa397;
+  --c-text-faint: #736d62;
+  --c-border: #3a352c;
+  --c-border-strong: #57503f;
+  --c-brand: #c2a0e6;
+  --c-brand-hover: #d4b8f0;
+  --c-brand-soft: rgb(194 160 230 / 0.14);
+  --c-on-brand: #17150f;
+  --c-ink: #0f0e0a;
+  --c-ink-text: #ece8df;
+  --c-scope-anime: hsl(210 55% 68%);
+  --c-scope-anime-movie: hsl(260 50% 72%);
+  --c-scope-movie: hsl(350 60% 68%);
+  --c-scope-tv-show: hsl(25 65% 62%);
+  --c-scope-cartoon: hsl(45 60% 58%);
+  --c-scope-manga: hsl(150 40% 58%);
+  --c-scope-novel: hsl(185 45% 58%);
+  --c-scope-comic: hsl(310 45% 70%);
+  --c-scope-game: hsl(95 45% 58%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --c-canvas: #17150f;
+    --c-surface: #211e18;
+    --c-surface-2: #2b2720;
+    --c-surface-3: #3a352c;
+    --c-text: #ece8df;
+    --c-text-muted: #aaa397;
+    --c-text-faint: #736d62;
+    --c-border: #3a352c;
+    --c-border-strong: #57503f;
+    --c-brand: #c2a0e6;
+    --c-brand-hover: #d4b8f0;
+    --c-brand-soft: rgb(194 160 230 / 0.14);
+    --c-on-brand: #17150f;
+  --c-on-brand: #17150f;
+    --c-ink: #0f0e0a;
+    --c-ink-text: #ece8df;
+    --c-scope-anime: hsl(210 55% 68%);
+    --c-scope-anime-movie: hsl(260 50% 72%);
+    --c-scope-movie: hsl(350 60% 68%);
+    --c-scope-tv-show: hsl(25 65% 62%);
+    --c-scope-cartoon: hsl(45 60% 58%);
+    --c-scope-manga: hsl(150 40% 58%);
+    --c-scope-novel: hsl(185 45% 58%);
+    --c-scope-comic: hsl(310 45% 70%);
+    --c-scope-game: hsl(95 45% 58%);
+  }
 }
 
 /* Global Pointer & Interaction Fixes */
@@ -46,10 +204,75 @@ button:disabled,
     -moz-osx-font-smoothing: grayscale;
   }
 
+  body {
+    background-color: var(--c-canvas);
+    color: var(--c-text);
+  }
+
   h1,
   h2,
   h3,
   h4 {
     font-weight: 700;
   }
+  h1 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+/*
+ * Responsive-display shim.
+ *
+ * Tailwind v4 emits its utilities inside `@layer utilities`, with the base
+ * `.hidden { display: none }` and the responsive `md:flex` / `lg:grid` /
+ * `lg:table-cell` etc. all in that one layer. On some Chromium builds the
+ * responsive (media-nested) rules fail to override the earlier `.hidden`,
+ * leaving every `hidden md:flex` / `hidden lg:block` element stuck at
+ * `display: none` — this hid the whole nav bar and the dashboard sidebar.
+ *
+ * Re-declaring the responsive display utilities OUTSIDE any @layer makes them
+ * unlayered, and unlayered rules always beat layered ones, so they reliably
+ * win over `.hidden` regardless of the browser quirk. Breakpoints match the
+ * Tailwind v4 defaults (sm 40rem, md 48rem, lg 64rem, xl 80rem) and are
+ * ordered ascending so larger breakpoints still override smaller ones.
+ *
+ * Keep this list in sync with the responsive display utilities the app uses
+ * (see `grep -rohE '(sm|md|lg|xl):(flex|block|grid|table-cell|hidden|...)'`).
+ */
+@media (min-width: 40rem) {
+  .sm\:flex { display: flex; }
+  .sm\:inline-flex { display: inline-flex; }
+  .sm\:block { display: block; }
+  .sm\:inline-block { display: inline-block; }
+  .sm\:grid { display: grid; }
+  .sm\:table-cell { display: table-cell; }
+  .sm\:hidden { display: none; }
+}
+@media (min-width: 48rem) {
+  .md\:flex { display: flex; }
+  .md\:inline-flex { display: inline-flex; }
+  .md\:block { display: block; }
+  .md\:inline-block { display: inline-block; }
+  .md\:grid { display: grid; }
+  .md\:table-cell { display: table-cell; }
+  .md\:hidden { display: none; }
+}
+@media (min-width: 64rem) {
+  .lg\:flex { display: flex; }
+  .lg\:inline-flex { display: inline-flex; }
+  .lg\:block { display: block; }
+  .lg\:inline-block { display: inline-block; }
+  .lg\:grid { display: grid; }
+  .lg\:table-cell { display: table-cell; }
+  .lg\:hidden { display: none; }
+}
+@media (min-width: 80rem) {
+  .xl\:flex { display: flex; }
+  .xl\:inline-flex { display: inline-flex; }
+  .xl\:block { display: block; }
+  .xl\:inline-block { display: inline-block; }
+  .xl\:grid { display: grid; }
+  .xl\:table-cell { display: table-cell; }
+  .xl\:hidden { display: none; }
 }

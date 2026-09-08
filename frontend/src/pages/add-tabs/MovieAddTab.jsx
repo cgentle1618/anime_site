@@ -1,0 +1,400 @@
+// Frontend: add tab page file for MovieAddTab.
+import ComboBox from "../../components/forms/ComboBox";
+import MultiSelect from "../../components/forms/MultiSelect";
+import SourcesEditor from "../../components/forms/SourcesEditor";
+import {
+  CollectionNote,
+  Field,
+  SectionHeader,
+  inputCls,
+  selectCls,
+} from "../../components/forms/FormField";
+import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
+import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
+import {
+  AIRING_STATUSES,
+  IS_MAIN,
+  MOVIE_TYPES,
+  MY_RATINGS,
+  WATCHING_STATUSES,
+} from "../../config/fieldOptions";
+import StatusOptions from "../../components/ui/StatusOptions";
+
+export { defaultMovie } from "../../config/formFactories";
+
+export default function MovieAddTab({
+  franchiseCollections,
+  mf,
+  umf,
+  movieFillQuery,
+  setMovieFillQuery,
+  movieFillOpen,
+  setMovieFillOpen,
+  movieFillRef,
+  movieFillResults,
+  applyMovieAutofill,
+  allFranchises,
+  seriesItemsForMovie,
+  sources,
+}) {
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+      {/* Auto-fill search */}
+      <div ref={movieFillRef} className="relative mb-4">
+        <div className="flex items-center gap-2 bg-brand-soft border border-brand/20 rounded-xl px-4 py-2.5">
+          <i className="fas fa-magic text-brand text-sm"></i>
+          <input
+            type="text"
+            value={movieFillQuery}
+            onChange={(e) => {
+              setMovieFillQuery(e.target.value);
+              setMovieFillOpen(true);
+            }}
+            onFocus={() => setMovieFillOpen(true)}
+            placeholder="Auto-fill from existing entry — type a name to search..."
+            className="flex-1 bg-transparent text-sm font-medium focus:outline-none text-text-muted placeholder-text-faint"
+            autoComplete="off"
+          />
+          {movieFillQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setMovieFillQuery("");
+                setMovieFillOpen(false);
+              }}
+              className="text-text-faint hover:text-text-muted"
+            >
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          )}
+        </div>
+        {movieFillOpen && movieFillResults.length > 0 && (
+          <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto">
+            {movieFillResults.map((m) => {
+              const f = allFranchises.find(
+                (x) => x.system_id === m.franchise_id,
+              );
+              return (
+                <button
+                  key={m.system_id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyMovieAutofill(m)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-brand/10 hover:text-brand transition-colors border-b border-border last:border-0"
+                >
+                  <div className="flex items-center gap-2">
+                    {m.movie_type && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint shrink-0">
+                        {m.movie_type}
+                      </span>
+                    )}
+                    <span className="text-sm font-bold text-text">
+                      {m.movie_name_cn || m.movie_name_en}
+                    </span>
+                  </div>
+                  <div className="text-xs text-text-faint">
+                    {f ? getDisplayName(f, "franchise") : "Standalone"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <SectionHeader icon="fa-ticket-alt" title="Titles & Naming" />
+      <Field label="Franchise">
+        <ComboBox
+          items={allFranchises
+            .filter(
+              (f) =>
+                parseTypes(f.franchise_type).includes("Movie") ||
+                !f.franchise_type,
+            )
+            .map((f) => ({
+              id: f.system_id,
+              label: getDisplayName(f, "franchise"),
+              searchText: [
+                f.franchise_name_cn,
+                f.franchise_name_en,
+                f.franchise_name_alt,
+              ]
+                .filter(Boolean)
+                .join(" "),
+            }))}
+          selectedId={mf.franchise_id}
+          inputText={mf.franchise_text}
+          onSelect={(id, label) => {
+            umf("franchise_id", id);
+            umf("franchise_text", label);
+            umf("series_id", null);
+            umf("series_text", "");
+          }}
+          onType={(text) => {
+            umf("franchise_text", text);
+            umf("franchise_id", null);
+            umf("series_id", null);
+            umf("series_text", "");
+          }}
+          onClear={() => {
+            umf("franchise_id", null);
+            umf("franchise_text", "");
+            umf("series_id", null);
+            umf("series_text", "");
+          }}
+          placeholder="Search or type new franchise..."
+          allowNew
+        />
+        <CollectionNote
+          franchiseId={mf.franchise_id}
+          franchiseCollections={franchiseCollections}
+        />
+      </Field>
+      <Field label="Series">
+        <ComboBox
+          items={seriesItemsForMovie}
+          selectedId={mf.series_id}
+          inputText={mf.series_text}
+          onSelect={(id, label) => {
+            umf("series_id", id);
+            umf("series_text", label);
+          }}
+          onType={(text) => {
+            umf("series_text", text);
+            umf("series_id", null);
+          }}
+          onClear={() => {
+            umf("series_id", null);
+            umf("series_text", "");
+          }}
+          placeholder="Search or type new series..."
+          allowNew
+        />
+      </Field>
+      <Field label="Movie Name EN">
+        <input
+          className={inputCls}
+          value={mf.movie_name_en}
+          onChange={(e) => umf("movie_name_en", e.target.value)}
+          placeholder="English title"
+        />
+      </Field>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Movie Name CN">
+          <input
+            className={inputCls}
+            value={mf.movie_name_cn}
+            onChange={(e) => umf("movie_name_cn", e.target.value)}
+            placeholder="Chinese title"
+          />
+        </Field>
+        <Field label="Movie Name Alt">
+          <input
+            className={inputCls}
+            value={mf.movie_name_alt}
+            onChange={(e) => umf("movie_name_alt", e.target.value)}
+            placeholder="Alternative title"
+          />
+        </Field>
+      </div>
+
+      <SectionHeader icon="fa-chart-bar" title="Status & Classification" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="Airing Status">
+          <select
+            className={selectCls}
+            value={mf.airing_status}
+            onChange={(e) => umf("airing_status", e.target.value)}
+          >
+            <option value="">—</option>
+            {AIRING_STATUSES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Watching Status">
+          <select
+            className={selectCls}
+            value={mf.watching_status}
+            onChange={(e) => umf("watching_status", e.target.value)}
+          >
+            <StatusOptions statuses={WATCHING_STATUSES} />
+          </select>
+        </Field>
+        <Field label="Movie Type">
+          <select
+            className={selectCls}
+            value={mf.movie_type}
+            onChange={(e) => umf("movie_type", e.target.value)}
+          >
+            <option value="">—</option>
+            {MOVIE_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="Main / Spinoff">
+          <select
+            className={selectCls}
+            value={mf.is_main}
+            onChange={(e) => umf("is_main", e.target.value)}
+          >
+            <option value="">—</option>
+            {IS_MAIN.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="My Rating">
+          <select
+            className={selectCls}
+            value={mf.my_rating}
+            onChange={(e) => umf("my_rating", e.target.value)}
+          >
+            <option value="">—</option>
+            {MY_RATINGS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="flex flex-wrap gap-6 mt-2">
+        <Field label="Watch Next">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!mf.watch_next}
+              onChange={(e) => umf("watch_next", e.target.checked)}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-sm font-medium text-text-muted">
+              Add to Watch Next list
+            </span>
+          </label>
+        </Field>
+        <Field label="To Rewatch">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!mf.to_rewatch}
+              onChange={(e) => umf("to_rewatch", e.target.checked)}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-sm font-medium text-text-muted">
+              Mark for rewatch
+            </span>
+          </label>
+        </Field>
+      </div>
+
+      <SectionHeader icon="fa-info-circle" title="Release & Production" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={mf.release_date_tw}
+          onChange={(v) => umf("release_date_tw", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date USA"
+          value={mf.release_date_usa}
+          onChange={(v) => umf("release_date_usa", v)}
+        />
+        <Field label="Length (min)">
+          <input
+            className={inputCls}
+            type="number"
+            value={mf.length_min}
+            onChange={(e) => umf("length_min", e.target.value)}
+            placeholder="120"
+          />
+        </Field>
+        <Field label="Director">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "person",
+              role: "director",
+              scope: "non_anime",
+            })}
+            value={mf.director}
+            onChange={(v) => umf("director", v)}
+            placeholder="Select or type director..."
+          />
+        </Field>
+      </div>
+
+      <SectionHeader icon="fa-link" title="IMDb & Sources" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="IMDb ID" hint="Full IMDb ID (e.g. tt1234567)">
+          <input
+            className={inputCls}
+            type="text"
+            value={mf.imdb_id}
+            onChange={(e) => umf("imdb_id", e.target.value)}
+            placeholder="tt1234567"
+          />
+        </Field>
+        <Field label="IMDb Link">
+          <input
+            className={inputCls}
+            type="url"
+            value={mf.imdb_link}
+            onChange={(e) => umf("imdb_link", e.target.value)}
+            placeholder="https://www.imdb.com/title/tt..."
+          />
+        </Field>
+        <Field label="Original Source">
+          <MultiSelect
+            options={getSourceValues(sources, {
+              kind: "option",
+              category: "Platform",
+              scope: "movie",
+              usage: "origin",
+            })}
+            value={mf.original_source}
+            onChange={(v) => umf("original_source", v)}
+            placeholder="Select original platform(s)..."
+          />
+        </Field>
+      </div>
+
+      <SectionHeader icon="fa-broadcast-tower" title="Sources" />
+      <SourcesEditor
+        value={mf.sources}
+        onChange={(rows) => umf("sources", rows)}
+        mediaType="movie"
+        sources={sources}
+      />
+
+      <SectionHeader icon="fa-image" title="Cover & Notes" />
+      <Field label="Cover Image File" hint="e.g. movie/5114.jpg">
+        <input
+          className={inputCls}
+          value={mf.cover_image_file}
+          onChange={(e) => umf("cover_image_file", e.target.value)}
+          placeholder="movie/5114.jpg"
+        />
+      </Field>
+      <Field label="Remark">
+        <textarea
+          className={inputCls}
+          rows={3}
+          value={mf.remark}
+          onChange={(e) => umf("remark", e.target.value)}
+          placeholder="Private notes..."
+        />
+      </Field>
+    </div>
+  );
+}

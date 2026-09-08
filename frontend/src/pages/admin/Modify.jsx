@@ -1,0 +1,3791 @@
+// Frontend: page component file for Modify.
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useToast } from "../../hooks/useToast";
+import {
+  getDisplayName,
+  cleanString,
+  buildAnimePayload,
+  buildAnimeMoviePayload,
+  buildCreditsPayload,
+  creditsResponseToForm,
+  gameFieldsPayload,
+} from "../../utils/media";
+import { fetchAllSources } from "../../lib/sources";
+import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import AnimeMovieNotes from "../detail/AnimeMovieNotes";
+import MovieNotes from "../detail/MovieNotes";
+import TVShowNotes from "../detail/TVShowNotes";
+import CartoonNotes from "../detail/CartoonNotes";
+import MangaNotes from "../detail/MangaNotes";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import FranchiseCreateModal from "../../components/modals/FranchiseCreateModal";
+import CreateNewEntityModal from "../../components/modals/CreateNewEntityModal";
+import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
+import FranchiseModifyTab from "../modify-tabs/FranchiseModifyTab";
+import SeriesModifyTab from "../modify-tabs/SeriesModifyTab";
+import { cleanAliases } from "../../components/forms/AliasPicker";
+import AliasTab from "../../components/forms/AliasTab";
+import OptionsModifyTab from "../modify-tabs/OptionsModifyTab";
+import MangaModifyTab from "../modify-tabs/MangaModifyTab";
+import NovelModifyTab from "../modify-tabs/NovelModifyTab";
+import ComicModifyTab from "../modify-tabs/ComicModifyTab";
+import GameModifyTab from "../modify-tabs/GameModifyTab";
+import CartoonModifyTab from "../modify-tabs/CartoonModifyTab";
+import TvShowModifyTab from "../modify-tabs/TvShowModifyTab";
+import MovieModifyTab from "../modify-tabs/MovieModifyTab";
+import AnimeMovieModifyTab from "../modify-tabs/AnimeMovieModifyTab";
+import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
+import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
+import QuoteManageTab from "../modify-tabs/QuoteManageTab";
+import MemeManageTab from "../modify-tabs/MemeManageTab";
+import PersonModifyTab from "../modify-tabs/PersonModifyTab";
+import CharacterModifyTab from "../modify-tabs/CharacterModifyTab";
+import StudioModifyTab from "../modify-tabs/StudioModifyTab";
+import PublisherModifyTab from "../modify-tabs/PublisherModifyTab";
+import { ADMIN_TABS, FAV3X3_TAB } from "../../config/adminTabs";
+import AdminTabBar from "../../components/layout/AdminTabBar";
+import { OPTION_CATEGORIES } from "../../config/fieldOptions";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
+import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
+import {
+  fetchFormDefaults,
+  resolveDefaults,
+} from "../../hooks/useFormDefaults";
+import { endpoints } from "../../api/endpoints";
+import { enrichEntry } from "../../lib/enrich";
+import ContentLabelPicker, {
+  saveEntryLabels,
+} from "../../components/forms/ContentLabelPicker";
+import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
+
+// The four media types character_casting supports, in their hyphenated key
+// form - see docs/superpowers/specs/2026-09-05-seiyuu-character-design.md.
+const CAST_MEDIA_TYPES = new Set(["anime", "anime-movie", "manga", "novel"]);
+
+function parseSeasonPart(sp) {
+  if (!sp) return { season_num: "", part_num: "" };
+  const sMatch = sp.match(/Season (\d+)/i);
+  const pMatch = sp.match(/Part (\d+)/i);
+  return {
+    season_num: sMatch ? sMatch[1] : "",
+    part_num: pMatch ? pMatch[1] : "",
+  };
+}
+
+function animeToForm(anime, allFranchises, allSeries, defaults) {
+  const { season_num, part_num } = parseSeasonPart(anime.season_part);
+  const f = allFranchises.find((x) => x.system_id === anime.franchise_id);
+  const s = allSeries.find((x) => x.system_id === anime.series_id);
+  return {
+    anime_name_en: anime.anime_name_en || "",
+    anime_name_cn: anime.anime_name_cn || "",
+    anime_name_roman: anime.anime_name_roman || "",
+    anime_name_jp: anime.anime_name_jp || "",
+    anime_name_alt: anime.anime_name_alt || "",
+    franchise_id: anime.franchise_id || null,
+    franchise_text: f ? getDisplayName(f, "franchise") : "",
+    series_id: anime.series_id || null,
+    series_text: s ? getDisplayName(s, "series") : "",
+    season_num,
+    part_num,
+    airing_type: anime.airing_type || "",
+    airing_status: anime.airing_status || "",
+    watching_status: anime.watching_status || defaults.watching_status,
+    is_main: anime.is_main || "",
+    ep_previous: anime.ep_previous ?? "",
+    ep_total: anime.ep_total ?? "",
+    ep_fin: anime.ep_fin ?? "",
+    ep_special: anime.ep_special ?? "",
+    my_rating: anime.my_rating || "",
+    mal_rating: anime.mal_rating ?? "",
+    mal_rank: anime.mal_rank || "",
+    anilist_rating: anime.anilist_rating || "",
+    release_season: anime.release_season || "",
+    release_date: anime.release_date || "",
+    broadcast_day: anime.broadcast_day || "",
+    // API returns "23:00:00"; <input type="time"> wants "HH:MM".
+    broadcast_time: (anime.broadcast_time || "").slice(0, 5),
+    my_watch_day: anime.my_watch_day || "",
+    // genre_main, genre_sub, studio, director, producer, music: NOT read from
+    // `anime` here - those columns no longer exist on the entry response.
+    // loadCreditsIntoForm() merges them in from GET /api/credits/anime/{id}
+    // once that resolves; until then they're left `undefined` on purpose (see
+    // buildCreditsPayload) so an early save can't wipe credits it never saw.
+    is_main_entry: anime.is_main_entry === true,
+    mal_id: anime.mal_id ?? "",
+    mal_link: anime.mal_link || "",
+    sources: anime.sources || [],
+    seiyuu: anime.seiyuu || "",
+    watch_next: anime.watch_next ?? false,
+    cover_image_file: anime.cover_image_file || "",
+    remark: anime.remark || "",
+  };
+}
+
+function collectionToForm(c) {
+  return {
+    collection_name_en: c.collection_name_en || "",
+    collection_name_cn: c.collection_name_cn || "",
+    collection_name_roman: c.collection_name_roman || "",
+    collection_name_jp: c.collection_name_jp || "",
+    collection_name_alt: c.collection_name_alt || "",
+    my_rating: c.my_rating || "",
+    collection_expectation: c.collection_expectation || "",
+    cover_franchise_id: c.cover_franchise_id ?? null,
+    remark: c.remark || "",
+  };
+}
+
+function franchiseToForm(f, allCollections = []) {
+  const c = allCollections.find((x) => x.system_id === f.collection_id);
+  return {
+    collection_id: f.collection_id ?? null,
+    collection_text: c ? getDisplayName(c, "collection") : "",
+    franchise_name_en: f.franchise_name_en || "",
+    franchise_name_cn: f.franchise_name_cn || "",
+    franchise_name_roman: f.franchise_name_roman || "",
+    franchise_name_jp: f.franchise_name_jp || "",
+    franchise_name_alt: f.franchise_name_alt || "",
+    franchise_type: f.franchise_type || "",
+    my_rating: f.my_rating || "",
+    franchise_expectation: f.franchise_expectation || "",
+    cover_entry_id: f.cover_entry_id ?? null,
+    type_covers: f.type_covers ?? null,
+    type_slots: f.type_slots ?? null,
+    size_group_derived: f.size_group_derived ?? null,
+    size_group_manual: f.size_group_manual ?? null,
+    remark: f.remark || "",
+  };
+}
+
+function seriesToForm(s, allFranchises) {
+  const f = allFranchises.find((x) => x.system_id === s.franchise_id);
+  return {
+    franchise_id: s.franchise_id || null,
+    franchise_text: f ? getDisplayName(f, "franchise") : "",
+    series_name_en: s.series_name_en || "",
+    series_name_cn: s.series_name_cn || "",
+    series_name_roman: s.series_name_roman || "",
+    series_name_jp: s.series_name_jp || "",
+    series_name_alt: s.series_name_alt || "",
+    my_rating: s.my_rating || "",
+    series_expectation: s.series_expectation || "",
+    cover_entry_id: s.cover_entry_id ?? null,
+    size_group_derived: s.size_group_derived ?? null,
+    size_group_manual: s.size_group_manual ?? null,
+    remark: s.remark || "",
+  };
+}
+
+function movieToForm(movie, allFranchises, defaults) {
+  const f = allFranchises.find((x) => x.system_id === movie.franchise_id);
+  return {
+    anime_movie_name_en: movie.anime_movie_name_en || "",
+    anime_movie_name_cn: movie.anime_movie_name_cn || "",
+    anime_movie_name_roman: movie.anime_movie_name_roman || "",
+    anime_movie_name_jp: movie.anime_movie_name_jp || "",
+    anime_movie_name_alt: movie.anime_movie_name_alt || "",
+    franchise_id: movie.franchise_id || null,
+    franchise_text: f ? getDisplayName(f, "franchise") : "",
+    airing_status: movie.airing_status || "",
+    watching_status: movie.watching_status || defaults.watching_status,
+    my_rating: movie.my_rating || "",
+    mal_rating: movie.mal_rating ?? "",
+    mal_rank: movie.mal_rank || "",
+    anilist_rating: movie.anilist_rating || "",
+    release_date_jp: movie.release_date_jp || "",
+    release_date_tw: movie.release_date_tw || "",
+    length_min: movie.length_min ?? "",
+    // studio, director, distributor_tw: see the comment in animeToForm -
+    // loaded from GET /api/credits/anime-movie/{id} via
+    // loadCreditsIntoForm(), not here.
+    mal_id: movie.mal_id ?? "",
+    mal_link: movie.mal_link || "",
+    sources: movie.sources || [],
+    watch_next: movie.watch_next ?? false,
+    to_rewatch: movie.to_rewatch ?? false,
+    cover_image_file: movie.cover_image_file || "",
+    remark: movie.remark || "",
+  };
+}
+
+export default function Modify() {
+  const { showToast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  const [allAnime, setAllAnime] = useState([]);
+  const [allCollections, setAllCollections] = useState([]);
+  const [allFranchises, setAllFranchises] = useState([]);
+  const [allSeries, setAllSeries] = useState([]);
+  const [sources, setSources] = useState({ options: [], studios: [], people: {} });
+  const [allAnimeMovies, setAllAnimeMovies] = useState([]);
+  const [allMovies, setAllMovies] = useState([]);
+  const [allTvShows, setAllTvShows] = useState([]);
+  const [allCartoons, setAllCartoons] = useState([]);
+  const [allMangas, setAllMangas] = useState([]);
+  const [allNovels, setAllNovels] = useState([]);
+  const [allComics, setAllComics] = useState([]);
+  const [allGames, setAllGames] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Content labels are the same eight keys for every media type, so they
+  // live on the page rather than in each per-type form object.
+  const [contentLabels, setContentLabels] = useState([]);
+  const [activeTab, setActiveTab] = useState("anime");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editingType, setEditingType] = useState("anime");
+
+  const replaceCasting = useReplaceCasting();
+  // The entry's cast, fetched only while a cast-supporting entry is open -
+  // see the effect below that merges it into the right form once it arrives.
+  const castMediaType = CAST_MEDIA_TYPES.has(editingType) ? editingType : null;
+  const { data: castData } = useCasting(castMediaType, editingItem?.system_id);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
+
+  const [optCatFilter, setOptCatFilter] = useState("");
+  // Which half of the System Option tab is showing. People and Studios are
+  // not offered here: neither has an editor on this page.
+  const [optionsSubTab, setOptionsSubTab] = useState("options");
+  const [submitting, setSubmitting] = useState(false);
+  const [createModal, setCreateModal] = useState(null);
+  const [franchiseCreateModal, setFranchiseCreateModal] = useState(null);
+
+  const [af, setAf] = useState({});
+  const [colf, setColf] = useState({});
+  const [ff, setFf] = useState({});
+  const [sf, setSf] = useState({});
+  const [amf, setAmf] = useState({});
+  const [mmf, setMmf] = useState({});
+  const [tvmf, setTvmf] = useState({});
+  const [cmf, setCmf] = useState({});
+  const [cmgf, setCmgf] = useState({});
+  const [cnvf, setCnvf] = useState({});
+  // NOTE: cmf is the CARTOON form here; comic is ccmf. Add.jsx uses cmf for comic.
+  const [ccmf, setCcmf] = useState({});
+  const [cgmf, setCgmf] = useState({});
+  const [optValue, setOptValue] = useState("");
+  const [optScopes, setOptScopes] = useState([]);
+  const [optUsages, setOptUsages] = useState([]);
+  // What external APIs call this value. Loaded and sent explicitly: the PUT
+  // replaces the alias rows wholesale, so an omitted list deletes them.
+  const [optAliases, setOptAliases] = useState([]);
+
+  // Admin-configured form defaults, used to fill in fields a saved entry left
+  // NULL. Held in a ref rather than state because the deep-link path opens an
+  // editor from inside the load effect, before a state update would flush.
+  const formDefaultsRef = useRef({});
+  const md = (type) => resolveDefaults(type, formDefaultsRef.current);
+
+  // Splits a tags field's comma-joined string into trimmed, non-empty names.
+  const splitTags = (raw) =>
+    (raw || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  // Creates whatever named values the user typed that aren't in `sources`
+  // yet (see lib/ensureSourceValues.js — shared with Add.jsx), then
+  // refreshes `sources` so the just-created value is selectable immediately.
+  async function ensureSourceValues(fields) {
+    await ensureSourceValuesLib(fields, sources);
+    setSources(await fetchAllSources());
+  }
+
+  // Saves a form's credits/tags via PUT /api/credits/{media_type}/{entry_id},
+  // once the entry has been created or updated and its system_id is known.
+  // Surfaces a failure the same way an entry save failure is surfaced - the
+  // entry itself is already saved at this point, so a credits failure must
+  // not be silent.
+  async function saveCredits(mediaType, entryId, form) {
+    const res = await fetch(endpoints.credits.update(mediaType, entryId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildCreditsPayload(mediaType, form)),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail
+          ? JSON.stringify(err.detail)
+          : "Entry saved, but credits/tags failed to save.",
+      );
+    }
+    try {
+      await saveEntryLabels(mediaType, entryId, contentLabels);
+    } catch {
+      // The entry saved; only its visibility did not. Say so rather than
+      // letting the admin believe an entry is restricted when it is not.
+      showToast(
+        "error",
+        "Entry saved, but its content labels failed to save.",
+      );
+    }
+  }
+
+  // Saves a form's cast via PUT /api/casting/{media_type}/{entry_id}. Cast is
+  // never part of the entry payload (see docs/superpowers/specs/
+  // 2026-09-05-seiyuu-character-design.md, Decision A) - it rides its own
+  // request once the entry has been updated. Surfaces a failure rather than
+  // swallowing it: the entry itself is already saved at this point.
+  async function saveCast(mediaType, entryId, form) {
+    try {
+      await replaceCasting.mutateAsync({
+        mediaType,
+        entryId,
+        cast: form.cast || [],
+      });
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || "Entry saved, but cast failed to save.",
+      );
+    }
+  }
+
+  // Fetches an entry's current credits/tags and merges them into its open
+  // form, so the Director/Genre/etc. fields show what's actually stored
+  // instead of rendering blank. Called right after a *ToForm() seeds the form
+  // with its other fields. On failure, the credit/tag fields are simply left
+  // `undefined` (never merged in) - buildCreditsPayload skips `undefined`
+  // fields, so a save made before this resolves (or after it fails) can't
+  // wipe credits it never saw, it just leaves them untouched.
+  const creditsRequest = useRef(0);
+  async function loadCreditsIntoForm(mediaType, entryId, setForm) {
+    // Opening entry A then B quickly: A's late response must not merge
+    // into B's form, or the next Save PUTs A's credits onto B.
+    const seq = ++creditsRequest.current;
+    try {
+      const res = await fetch(endpoints.credits.get(mediaType, entryId), {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("credits fetch failed");
+      const data = await res.json();
+      if (seq !== creditsRequest.current) return;
+      setForm((prev) => ({ ...prev, ...creditsResponseToForm(mediaType, data) }));
+    } catch {
+      showToast(
+        "warning",
+        "Could not load this entry's existing credits/tags - leave those fields alone or they won't be included in this save.",
+      );
+    }
+  }
+
+  const ua = (k, v) => setAf((p) => ({ ...p, [k]: v }));
+  const ucol = (k, v) => setColf((p) => ({ ...p, [k]: v }));
+  const uf = (k, v) => setFf((p) => ({ ...p, [k]: v }));
+  const us = (k, v) => setSf((p) => ({ ...p, [k]: v }));
+  const uam = (k, v) => setAmf((p) => ({ ...p, [k]: v }));
+  const umm = (k, v) => setMmf((p) => ({ ...p, [k]: v }));
+  const utv = (k, v) => setTvmf((p) => ({ ...p, [k]: v }));
+  const uc = (k, v) => setCmf((p) => ({ ...p, [k]: v }));
+  const umg = (k, v) => setCmgf((p) => ({ ...p, [k]: v }));
+  const unv = (k, v) => setCnvf((p) => ({ ...p, [k]: v }));
+  const ucm = (k, v) => setCcmf((p) => ({ ...p, [k]: v }));
+  const ugm = (k, v) => setCgmf((p) => ({ ...p, [k]: v }));
+
+  // Merges an entry's cast (fetched by the useCasting call above) into
+  // whichever form is currently open, exactly once per opened entry - a
+  // second merge after the admin has started editing rows would clobber
+  // their in-progress changes. Guarded by (type, id) rather than just id: a
+  // stale response for a previously open entry must not land on the entry
+  // opened after it.
+  const castLoadedForRef = useRef(null);
+  // Every time a different editor opens (or closes) the guard above must be
+  // allowed to fire again - otherwise reopening the entry that was last
+  // loaded (closeEditor discards af.cast along with the rest of the form)
+  // would leave the Cast section permanently empty.
+  useEffect(() => {
+    castLoadedForRef.current = null;
+  }, [editingItem]);
+  useEffect(() => {
+    if (!castMediaType || !editingItem?.system_id || !castData) return;
+    const key = `${castMediaType}:${editingItem.system_id}`;
+    if (castLoadedForRef.current === key) return;
+    castLoadedForRef.current = key;
+    const rows = castData.cast || [];
+    if (castMediaType === "anime") setAf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "anime-movie")
+      setAmf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "manga") setCmgf((p) => ({ ...p, cast: rows }));
+    else if (castMediaType === "novel") setCnvf((p) => ({ ...p, cast: rows }));
+  }, [castMediaType, editingItem, castData]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [
+          aRes,
+          colRes,
+          fRes,
+          sRes,
+          amRes,
+          mvRes,
+          tvRes,
+          ctRes,
+          mgRes,
+          nvRes,
+          cmRes,
+          gmRes,
+        ] = await Promise.all([
+          fetch("/api/anime/?limit=2000", { credentials: "include" }),
+          fetch("/api/collection/?limit=2000", { credentials: "include" }),
+          fetch("/api/franchise/?limit=2000", { credentials: "include" }),
+          fetch("/api/series/?limit=2000", { credentials: "include" }),
+          fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
+          fetch("/api/movies/?limit=2000", { credentials: "include" }),
+          fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
+          fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
+          fetch("/api/manga/?limit=2000", { credentials: "include" }),
+          fetch("/api/novel/?limit=2000", { credentials: "include" }),
+          fetch("/api/comic/?limit=2000", { credentials: "include" }),
+          fetch("/api/game/?limit=2000", { credentials: "include" }),
+        ]);
+        // Guarded separately: on failure every form falls back to its built-ins.
+        const [fd, srcData] = await Promise.all([
+          fetchFormDefaults(),
+          fetchAllSources(),
+        ]);
+        formDefaultsRef.current = fd;
+        const [
+          anime,
+          collections,
+          franchises,
+          series,
+          animeMovies,
+          movies,
+          tvShows,
+          cartoons,
+          mangas,
+          novels,
+          comics,
+          games,
+        ] = await Promise.all([
+          aRes.json(),
+          colRes.json(),
+          fRes.json(),
+          sRes.json(),
+          amRes.json(),
+          mvRes.json(),
+          tvRes.json(),
+          ctRes.json(),
+          mgRes.json(),
+          nvRes.json(),
+          cmRes.json(),
+          gmRes.json(),
+        ]);
+        setAllAnime(anime);
+        setAllCollections(collections);
+        setAllFranchises(franchises);
+        setAllSeries(series);
+        setSources(srcData);
+        setAllAnimeMovies(animeMovies);
+        setAllMovies(movies);
+        setAllTvShows(tvShows);
+        setAllCartoons(cartoons);
+        setAllMangas(mangas);
+        setAllNovels(novels);
+        setAllComics(comics);
+        setAllGames(games);
+
+        const urlId = searchParams.get("id");
+        const urlType = searchParams.get("type");
+        if (urlId) {
+          if (urlType === "cartoon") {
+            const ct = cartoons.find((x) => x.system_id === urlId);
+            if (ct) {
+              openEditorWith(ct, "cartoon", franchises, series);
+              setActiveTab("cartoon");
+              return;
+            }
+          }
+          if (urlType === "manga") {
+            const mg = mangas.find((x) => x.system_id === urlId);
+            if (mg) {
+              openEditorWith(mg, "manga", franchises, series);
+              setActiveTab("manga");
+              return;
+            }
+          }
+          if (urlType === "novel") {
+            const nv = novels.find((x) => x.system_id === urlId);
+            if (nv) {
+              openEditorWith(nv, "novel", franchises, series);
+              setActiveTab("novel");
+              return;
+            }
+          }
+          if (urlType === "comic") {
+            const cm = comics.find((x) => x.system_id === urlId);
+            if (cm) {
+              openEditorWith(cm, "comic", franchises, series);
+              setActiveTab("comic");
+              return;
+            }
+          }
+          if (urlType === "game") {
+            const gm = games.find((x) => x.system_id === urlId);
+            if (gm) {
+              openEditorWith(gm, "game", franchises, series);
+              setActiveTab("game");
+              return;
+            }
+          }
+          if (urlType === "tv-show") {
+            const tv = tvShows.find((x) => x.system_id === urlId);
+            if (tv) {
+              openEditorWith(tv, "tv-show", franchises, series);
+              setActiveTab("tv-show");
+              return;
+            }
+          }
+          if (urlType === "movie") {
+            const mv = movies.find((x) => x.system_id === urlId);
+            if (mv) {
+              openEditorWith(mv, "movie", franchises, series);
+              setActiveTab("movie");
+              return;
+            }
+          }
+          const a = anime.find((x) => x.system_id === urlId);
+          if (a) {
+            openEditorWith(a, "anime", franchises, series);
+            return;
+          }
+          const col = collections.find((x) => x.system_id === urlId);
+          if (col) {
+            openEditorWith(col, "collection", franchises, series, collections);
+            setActiveTab("collection");
+            return;
+          }
+          const f = franchises.find((x) => x.system_id === urlId);
+          if (f) {
+            openEditorWith(f, "franchise", franchises, series, collections);
+            setActiveTab("franchise");
+            return;
+          }
+          const s = series.find((x) => x.system_id === urlId);
+          if (s) {
+            openEditorWith(s, "series", franchises, series);
+            setActiveTab("series");
+            return;
+          }
+          const m = animeMovies.find((x) => x.system_id === urlId);
+          if (m) {
+            openEditorWith(m, "anime-movie", franchises, series);
+            setActiveTab("anime-movie");
+            return;
+          }
+        }
+      } catch {
+        showToast("error", "Database load failed.");
+      } finally {
+        setDataLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target))
+        setSearchOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function liveMovieToForm(m, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === m.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === m.series_id,
+    );
+    return {
+      movie_name_en: m.movie_name_en || "",
+      movie_name_cn: m.movie_name_cn || "",
+      movie_name_alt: m.movie_name_alt || "",
+      franchise_id: m.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: m.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      airing_status: m.airing_status || "",
+      watching_status: m.watching_status || md("movie").watching_status,
+      my_rating: m.my_rating || "",
+      is_main: m.is_main || "",
+      movie_type: m.movie_type || "",
+      length_min: m.length_min ?? "",
+      release_date_usa: m.release_date_usa || "",
+      release_date_tw: m.release_date_tw || "",
+      // director: see the comment in animeToForm - loaded from
+      // GET /api/credits/movie/{id} via loadCreditsIntoForm(), not here.
+      imdb_id: m.imdb_id ?? "",
+      imdb_link: m.imdb_link || "",
+      sources: m.sources || [],
+      watch_next: m.watch_next ?? false,
+      to_rewatch: m.to_rewatch ?? false,
+      cover_image_file: m.cover_image_file || "",
+      remark: m.remark || "",
+    };
+  }
+
+  function tvShowToForm(t, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === t.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === t.series_id,
+    );
+    return {
+      tv_name_cn: t.tv_name_cn || "",
+      tv_name_en: t.tv_name_en || "",
+      tv_name_alt: t.tv_name_alt || "",
+      franchise_id: t.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: t.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      season_part: t.season_part || "",
+      region: t.region || "",
+      // original_source: see the comment in animeToForm - loaded from
+      // GET /api/credits/tv-show/{id} via loadCreditsIntoForm(), not here.
+      is_main: t.is_main || "",
+      airing_status: t.airing_status || "",
+      watching_status: t.watching_status || md("tv-show").watching_status,
+      ep_total: t.ep_total ?? "",
+      ep_fin: t.ep_fin ?? "",
+      my_rating: t.my_rating || "",
+      imdb_rating: t.imdb_rating || "",
+      release_date: t.release_date || "",
+      imdb_id: t.imdb_id ?? "",
+      imdb_link: t.imdb_link || "",
+      watch_next: t.watch_next ?? false,
+      to_rewatch: t.to_rewatch ?? false,
+      sources: t.sources || [],
+      cover_image_file: t.cover_image_file || "",
+      remark: t.remark || "",
+    };
+  }
+
+  function cartoonToForm(c, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === c.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === c.series_id,
+    );
+    return {
+      cartoon_name_cn: c.cartoon_name_cn || "",
+      cartoon_name_en: c.cartoon_name_en || "",
+      cartoon_name_alt: c.cartoon_name_alt || "",
+      franchise_id: c.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: c.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      season_part: c.season_part || "",
+      airing_type: c.airing_type || "",
+      airing_status: c.airing_status || "",
+      watching_status: c.watching_status || md("cartoon").watching_status,
+      is_main: c.is_main || "",
+      ep_total: c.ep_total ?? "",
+      ep_fin: c.ep_fin ?? "",
+      my_rating: c.my_rating || "",
+      imdb_rating: c.imdb_rating || "",
+      length_ep_min: c.length_ep_min ?? "",
+      // original_source: see the comment in animeToForm - loaded from
+      // GET /api/credits/cartoon/{id} via loadCreditsIntoForm(), not here.
+      release_date: c.release_date || "",
+      imdb_id: c.imdb_id ?? "",
+      imdb_link: c.imdb_link || "",
+      sources: c.sources || [],
+      watch_next: c.watch_next ?? false,
+      cover_image_file: c.cover_image_file || "",
+      remark: c.remark || "",
+    };
+  }
+
+  function mangaToForm(m, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === m.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === m.series_id,
+    );
+    return {
+      manga_name_cn: m.manga_name_cn || "",
+      manga_name_en: m.manga_name_en || "",
+      manga_name_roman: m.manga_name_roman || "",
+      manga_name_jp: m.manga_name_jp || "",
+      manga_name_alt: m.manga_name_alt || "",
+      franchise_id: m.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: m.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: m.region || "",
+      serialization_status: m.serialization_status || "",
+      reading_status: m.reading_status || md("manga").reading_status,
+      is_main: m.is_main || "",
+      vol_total: m.vol_total ?? "",
+      vol_fin: m.vol_fin ?? "",
+      vol_fin_page: m.vol_fin_page ?? "",
+      ch_total: m.ch_total ?? "",
+      ch_fin: m.ch_fin ?? "",
+      my_rating: m.my_rating || "",
+      mal_rating: m.mal_rating ?? "",
+      mal_rank: m.mal_rank ?? "",
+      anilist_rating: m.anilist_rating ?? "",
+      // author_plot, author_draw, publisher_tw, serialization_platform: see
+      // the comment in animeToForm - loaded from GET /api/credits/manga/{id}
+      // via loadCreditsIntoForm(), not here. anime_studio is a real column
+      // (it points at the adaptation, not a credit) and stays.
+      release_date: m.release_date ?? "",
+      end_date: m.end_date ?? "",
+      anime_studio: m.anime_studio || "",
+      mal_id: m.mal_id ?? "",
+      mal_link: m.mal_link || "",
+      sources: m.sources || [],
+      read_next: m.read_next ?? false,
+      to_reread: m.to_reread ?? false,
+      cover_image_file: m.cover_image_file || "",
+      remark: m.remark || "",
+    };
+  }
+
+  function novelToForm(n, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === n.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === n.series_id,
+    );
+    return {
+      novel_name_cn: n.novel_name_cn || "",
+      novel_name_en: n.novel_name_en || "",
+      novel_name_roman: n.novel_name_roman || "",
+      novel_name_jp: n.novel_name_jp || "",
+      novel_name_alt: n.novel_name_alt || "",
+      franchise_id: n.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: n.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      region: n.region || "",
+      type: n.type || "",
+      version: n.version || "",
+      is_main: n.is_main || "",
+      serialization_status: n.serialization_status || "",
+      reading_status: n.reading_status || md("novel").reading_status,
+      progress_display: n.progress_display || "",
+      vol_total_original: n.vol_total_original ?? "",
+      vol_total_tw: n.vol_total_tw ?? "",
+      vol_fin: n.vol_fin ?? "",
+      arc_total: n.arc_total ?? "",
+      arc_fin: n.arc_fin ?? "",
+      ch_total: n.ch_total ?? "",
+      ch_fin: n.ch_fin ?? "",
+      my_rating: n.my_rating || "",
+      mal_rating: n.mal_rating ?? "",
+      mal_rank: n.mal_rank ?? "",
+      anilist_rating: n.anilist_rating ?? "",
+      // author, illustrator, publisher_tw: see the comment in animeToForm -
+      // loaded from GET /api/credits/novel/{id} via loadCreditsIntoForm().
+      release_date: n.release_date ?? "",
+      end_date: n.end_date ?? "",
+      read_order: n.read_order ?? "",
+      units: n.units || [],
+      mal_id: n.mal_id ?? "",
+      mal_link: n.mal_link || "",
+      openlibrary_link: n.openlibrary_link || "",
+      openlibrary_id: n.openlibrary_id || "",
+      sources: n.sources || [],
+      read_next: n.read_next ?? false,
+      to_reread: n.to_reread ?? false,
+      cover_image_file: n.cover_image_file || "",
+      remark: n.remark || "",
+    };
+  }
+
+  function comicToForm(c, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === c.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === c.series_id,
+    );
+    return {
+      comic_name_en: c.comic_name_en || "",
+      comic_name_cn: c.comic_name_cn || "",
+      comic_name_alt: c.comic_name_alt || "",
+      franchise_id: c.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: c.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      volume_label: c.volume_label || "",
+      comic_type: c.comic_type || "",
+      // publisher, imprint, continuity, era, events, writer, artist: see the
+      // comment in animeToForm - loaded from GET /api/credits/comic/{id} via
+      // loadCreditsIntoForm(), not here.
+      serialization_status: c.serialization_status || "",
+      reading_status: c.reading_status || md("comic").reading_status,
+      issue_total: c.issue_total ?? "",
+      issue_fin: c.issue_fin ?? "",
+      my_rating: c.my_rating || "",
+      release_date: c.release_date ?? "",
+      end_date: c.end_date ?? "",
+      is_main_entry: c.is_main_entry ?? false,
+      read_order: c.read_order ?? "",
+      comicvine_link: c.comicvine_link || "",
+      sources: c.sources || [],
+      read_next: c.read_next ?? false,
+      to_reread: c.to_reread ?? false,
+      cover_image_file: c.cover_image_file || "",
+      remark: c.remark || "",
+    };
+  }
+
+  function gameToForm(g, allFranchises, seriesList) {
+    const f = allFranchises.find((x) => x.system_id === g.franchise_id);
+    const s = (seriesList || allSeries).find(
+      (x) => x.system_id === g.series_id,
+    );
+    // A tristate column is "" / "true" / "false" in form state - see the
+    // TRISTATE comment in config/fieldOptions.js.
+    const tri = (v) => (v == null ? "" : v ? "true" : "false");
+    return {
+      game_name_cn: g.game_name_cn || "",
+      game_name_en: g.game_name_en || "",
+      game_name_roman: g.game_name_roman || "",
+      game_name_jp: g.game_name_jp || "",
+      game_name_alt: g.game_name_alt || "",
+      franchise_id: g.franchise_id || null,
+      franchise_text: f ? getDisplayName(f, "franchise") : "",
+      series_id: g.series_id || null,
+      series_text: s ? getDisplayName(s, "series") : "",
+      game_type: g.game_type || "",
+      base_game_id: g.base_game_id || null,
+      // studio, publisher, director, composer and the four tag vocabularies:
+      // see the comment in animeToForm - loaded from GET /api/credits/game/{id}
+      // via loadCreditsIntoForm(), not here.
+      playing_status: g.playing_status || md("game").playing_status,
+      completion_level: g.completion_level || "",
+      all_endings: tri(g.all_endings),
+      all_achievements: tri(g.all_achievements),
+      all_collected: tri(g.all_collected),
+      steam_progress_sync: tri(g.steam_progress_sync),
+      achievements_earned: g.achievements_earned ?? "",
+      achievements_total: g.achievements_total ?? "",
+      release_status: g.release_status || "",
+      release_date: g.release_date ?? "",
+      current_patch: g.current_patch || "",
+      hours_played: g.hours_played ?? "",
+      hltb_main: g.hltb_main ?? "",
+      hltb_main_extra: g.hltb_main_extra ?? "",
+      hltb_completionist: g.hltb_completionist ?? "",
+      price_original_us: g.price_original_us ?? "",
+      price_original_jp: g.price_original_jp ?? "",
+      price_original_tw: g.price_original_tw ?? "",
+      price_current_us: g.price_current_us ?? "",
+      price_current_jp: g.price_current_jp ?? "",
+      price_current_tw: g.price_current_tw ?? "",
+      metacritic_score: g.metacritic_score ?? "",
+      metacritic_user_score: g.metacritic_user_score ?? "",
+      my_rating: g.my_rating || "",
+      igdb_id: g.igdb_id ?? "",
+      igdb_link: g.igdb_link || "",
+      steam_appid: g.steam_appid ?? "",
+      steam_link: g.steam_link || "",
+      sources: g.sources || [],
+      copies: g.copies || [],
+      play_next: g.play_next ?? false,
+      to_replay: g.to_replay ?? false,
+      cover_image_file: g.cover_image_file || "",
+      remark: g.remark || "",
+    };
+  }
+
+  function openEditorWith(
+    item,
+    type,
+    franchises,
+    series,
+    collections = allCollections,
+  ) {
+    setEditingItem(item);
+    setEditingType(type);
+    if (type === "anime") {
+      setAf(animeToForm(item, franchises, series, md("anime")));
+      loadCreditsIntoForm("anime", item.system_id, setAf);
+    } else if (type === "collection") setColf(collectionToForm(item));
+    else if (type === "franchise") setFf(franchiseToForm(item, collections));
+    else if (type === "series") setSf(seriesToForm(item, franchises));
+    else if (type === "anime-movie") {
+      setAmf(movieToForm(item, franchises, md("anime-movie")));
+      loadCreditsIntoForm("anime-movie", item.system_id, setAmf);
+    } else if (type === "movie") {
+      setMmf(liveMovieToForm(item, franchises, series));
+      loadCreditsIntoForm("movie", item.system_id, setMmf);
+    } else if (type === "tv-show") {
+      setTvmf(tvShowToForm(item, franchises, series));
+      loadCreditsIntoForm("tv-show", item.system_id, setTvmf);
+    } else if (type === "cartoon") {
+      setCmf(cartoonToForm(item, franchises, series));
+      loadCreditsIntoForm("cartoon", item.system_id, setCmf);
+    } else if (type === "manga") {
+      setCmgf(mangaToForm(item, franchises, series));
+      loadCreditsIntoForm("manga", item.system_id, setCmgf);
+    } else if (type === "novel") {
+      setCnvf(novelToForm(item, franchises, series));
+      loadCreditsIntoForm("novel", item.system_id, setCnvf);
+    } else if (type === "comic") {
+      setCcmf(comicToForm(item, franchises, series));
+      loadCreditsIntoForm("comic", item.system_id, setCcmf);
+    } else if (type === "game") {
+      setCgmf(gameToForm(item, franchises, series));
+      loadCreditsIntoForm("game", item.system_id, setCgmf);
+    } else if (type === "options") {
+      setOptValue(item.value || "");
+      setOptScopes(item.scopes ?? []);
+      setOptUsages(item.usages ?? []);
+      setOptAliases(item.aliases ?? []);
+    }
+    setEditorOpen(true);
+  }
+
+  function openEditor(item, type) {
+    openEditorWith(item, type, allFranchises, allSeries);
+  }
+
+  function closeEditor() {
+    setEditorOpen(false);
+    setEditingItem(null);
+    setSearchQuery("");
+    setSearchOpen(false);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (submitting || !editingItem) return;
+    setSubmitting(true);
+    try {
+      if (editingType === "anime") await saveAnime();
+      else if (editingType === "collection") await saveCollection();
+      else if (editingType === "franchise") await saveFranchise();
+      else if (editingType === "series") await saveSeries();
+      else if (editingType === "anime-movie") await saveAnimeMovie();
+      else if (editingType === "movie") await saveMovie();
+      else if (editingType === "tv-show") await saveTvShow();
+      else if (editingType === "cartoon") await saveCartoon();
+      else if (editingType === "manga") await saveManga();
+      else if (editingType === "novel") await saveNovel();
+      else if (editingType === "comic") await saveComic();
+      else if (editingType === "game") await saveGame();
+      else if (editingType === "options") await saveOption();
+    } catch (e) {
+      showToast("error", e?.message || "Request failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function saveAnime() {
+    let franchiseId = af.franchise_id;
+    if (!franchiseId && af.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: af.anime_name_en || null,
+          franchise_name_cn: af.anime_name_cn || null,
+          franchise_name_roman: af.anime_name_roman || null,
+          franchise_name_jp: af.anime_name_jp || null,
+          franchise_name_alt: af.anime_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = af.series_id;
+    if (!seriesId && af.series_text.trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: af.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const res = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: af.anime_name_en || null,
+          series_name_cn: af.anime_name_cn || null,
+          series_name_alt: af.anime_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await res.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const res = await fetch(`/api/anime/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        buildAnimePayload(af, {
+          franchiseId,
+          seriesId,
+        }),
+      ),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("anime", updated.system_id, af);
+    await saveCast("anime", updated.system_id, af);
+    setAllAnime((prev) =>
+      prev.map((a) => (a.system_id === updated.system_id ? updated : a)),
+    );
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("anime", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setAf(animeToForm(item, allFranchises, allSeries, md("anime")));
+    loadCreditsIntoForm("anime", item.system_id, setAf);
+    window.scrollTo(0, 0);
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
+  }
+
+  async function saveCollection() {
+    const res = await fetch(`/api/collection/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection_name_en: colf.collection_name_en || null,
+        collection_name_cn: colf.collection_name_cn || null,
+        collection_name_roman: colf.collection_name_roman || null,
+        collection_name_jp: colf.collection_name_jp || null,
+        collection_name_alt: colf.collection_name_alt || null,
+        my_rating: colf.my_rating || null,
+        collection_expectation: colf.collection_expectation || null,
+        cover_franchise_id: colf.cover_franchise_id || null,
+        remark: colf.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAllCollections((prev) =>
+        prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+      );
+      setEditingItem(updated);
+      window.scrollTo(0, 0);
+      showToast("success", "Update successful.");
+    } else showToast("error", "Update failed");
+  }
+
+  async function saveFranchise() {
+    const res = await fetch(`/api/franchise/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        franchise_name_en: ff.franchise_name_en || null,
+        franchise_name_cn: ff.franchise_name_cn || null,
+        franchise_name_roman: ff.franchise_name_roman || null,
+        franchise_name_jp: ff.franchise_name_jp || null,
+        franchise_name_alt: ff.franchise_name_alt || null,
+        franchise_type: ff.franchise_type || null,
+        collection_id: ff.collection_id || null,
+        my_rating: ff.my_rating || null,
+        franchise_expectation: ff.franchise_expectation || null,
+        cover_entry_id: ff.cover_entry_id || null,
+        type_covers: ff.type_covers || null,
+        type_slots: ff.type_slots || null,
+        size_group_manual: ff.size_group_manual || null,
+        remark: ff.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAllFranchises((prev) =>
+        prev.map((f) => (f.system_id === updated.system_id ? updated : f)),
+      );
+      setEditingItem(updated);
+      window.scrollTo(0, 0);
+      showToast("success", "Update successful.");
+    } else showToast("error", "Update failed");
+  }
+
+  async function saveSeries() {
+    if (!sf.franchise_id && !sf.franchise_text.trim()) {
+      showToast("warning", "A Franchise must be selected or created.");
+      return;
+    }
+    let franchiseId = sf.franchise_id;
+    if (!franchiseId && sf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const fRes = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: sf.franchise_text,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!fRes.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await fRes.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    const res = await fetch(`/api/series/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        franchise_id: franchiseId,
+        series_name_en: sf.series_name_en || null,
+        series_name_cn: sf.series_name_cn || null,
+        series_name_roman: sf.series_name_roman || null,
+        series_name_jp: sf.series_name_jp || null,
+        series_name_alt: sf.series_name_alt || null,
+        my_rating: sf.my_rating || null,
+        series_expectation: sf.series_expectation || null,
+        cover_entry_id: sf.cover_entry_id || null,
+        size_group_manual: sf.size_group_manual || null,
+        remark: sf.remark || null,
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setAllSeries((prev) =>
+        prev.map((s) => (s.system_id === updated.system_id ? updated : s)),
+      );
+      setEditingItem(updated);
+      setSf(seriesToForm(updated, allFranchises));
+      window.scrollTo(0, 0);
+      showToast("success", "Update successful.");
+    } else showToast("error", "Update failed");
+  }
+
+  async function saveOption() {
+    const res = await fetch(endpoints.options.update(editingItem.system_id), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: editingItem.category,
+        value: optValue,
+        sort_order: editingItem.sort_order ?? 0,
+        remark: editingItem.remark ?? null,
+        scopes: optScopes,
+        usages: optUsages,
+        aliases: cleanAliases(optAliases),
+      }),
+      credentials: "include",
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSources((prev) => ({
+        ...prev,
+        options: prev.options.map((o) =>
+          o.system_id === updated.system_id ? updated : o,
+        ),
+      }));
+      setEditingItem(updated);
+      // The server drops blank and duplicate rows; re-seed from its answer so
+      // the form shows what was actually stored.
+      setOptAliases(updated.aliases ?? []);
+      window.scrollTo(0, 0);
+      showToast("success", "Update successful.");
+    } else showToast("error", "Update failed");
+  }
+
+  async function saveAnimeMovie() {
+    let franchiseId = amf.franchise_id;
+    if (!franchiseId && amf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: amf.anime_movie_name_en || null,
+          franchise_name_cn: amf.anime_movie_name_cn || null,
+          franchise_name_roman: amf.anime_movie_name_roman || null,
+          franchise_name_jp: amf.anime_movie_name_jp || null,
+          franchise_name_alt: amf.anime_movie_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    const res = await fetch(`/api/anime-movie/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        buildAnimeMoviePayload(amf, {
+          franchiseId,
+        }),
+      ),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("anime-movie", updated.system_id, amf);
+    await saveCast("anime-movie", updated.system_id, amf);
+    setAllAnimeMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("anime-movie", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setAmf(movieToForm(item, allFranchises, md("anime-movie")));
+    loadCreditsIntoForm("anime-movie", item.system_id, setAmf);
+    window.scrollTo(0, 0);
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
+  }
+
+  async function saveMovie() {
+    let franchiseId = mmf.franchise_id;
+    if (!franchiseId && mmf.franchise_text.trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Movie",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: mmf.movie_name_en || null,
+          franchise_name_cn: mmf.movie_name_cn || null,
+          franchise_name_alt: mmf.movie_name_alt || null,
+          franchise_type: "Movie",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = mmf.series_id;
+    if (!seriesId && (mmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: mmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: mmf.movie_name_en || null,
+          series_name_cn: mmf.movie_name_cn || null,
+          series_name_alt: mmf.movie_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      movie_name_en: mmf.movie_name_en || null,
+      movie_name_cn: mmf.movie_name_cn || null,
+      movie_name_alt: mmf.movie_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      is_main: mmf.is_main || null,
+      airing_status: mmf.airing_status || null,
+      watching_status: mmf.watching_status || md("movie").watching_status,
+      my_rating: mmf.my_rating || null,
+      movie_type: mmf.movie_type || null,
+      length_min: mmf.length_min !== "" ? parseInt(mmf.length_min) : null,
+      release_date_usa: mmf.release_date_usa || null,
+      release_date_tw: mmf.release_date_tw || null,
+      imdb_id: mmf.imdb_id !== "" ? mmf.imdb_id : null,
+      imdb_link: mmf.imdb_link || null,
+      sources: (mmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      watch_next: mmf.watch_next ?? null,
+      to_rewatch: mmf.to_rewatch ?? false,
+      cover_image_file: mmf.cover_image_file || null,
+      remark: mmf.remark || null,
+    };
+    const res = await fetch(`/api/movies/${editingItem.system_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("movie", updated.system_id, mmf);
+    setAllMovies((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    setEditingItem(updated);
+    setMmf(liveMovieToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("movie", updated.system_id, setMmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Movie updated successfully.");
+  }
+
+  async function saveTvShow() {
+    let franchiseId = tvmf.franchise_id;
+    if (!franchiseId && (tvmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "TV",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: tvmf.tv_name_en || null,
+          franchise_name_cn: tvmf.tv_name_cn || null,
+          franchise_name_alt: tvmf.tv_name_alt || null,
+          franchise_type: "TV",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = tvmf.series_id;
+    if (!seriesId && (tvmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: tvmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: tvmf.tv_name_en || null,
+          series_name_cn: tvmf.tv_name_cn || null,
+          series_name_alt: tvmf.tv_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      tv_name_cn: tvmf.tv_name_cn || null,
+      tv_name_en: tvmf.tv_name_en || null,
+      tv_name_alt: tvmf.tv_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      season_part: tvmf.season_part || null,
+      region: tvmf.region || null,
+      is_main: tvmf.is_main || null,
+      airing_status: tvmf.airing_status || null,
+      watching_status: tvmf.watching_status || md("tv-show").watching_status,
+      ep_total: tvmf.ep_total !== "" ? parseInt(tvmf.ep_total) : null,
+      ep_fin: tvmf.ep_fin !== "" ? parseInt(tvmf.ep_fin) : null,
+      my_rating: tvmf.my_rating || null,
+      imdb_rating: tvmf.imdb_rating || null,
+      release_date: tvmf.release_date || null,
+      imdb_id: tvmf.imdb_id !== "" ? tvmf.imdb_id : null,
+      imdb_link: tvmf.imdb_link || null,
+      sources: (tvmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      watch_next: tvmf.watch_next ?? null,
+      to_rewatch: tvmf.to_rewatch ?? false,
+      cover_image_file: tvmf.cover_image_file || null,
+      remark: tvmf.remark || null,
+    };
+    const res = await fetch(`/api/tv-shows/${editingItem.system_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("tv-show", updated.system_id, tvmf);
+    setAllTvShows((prev) =>
+      prev.map((t) => (t.system_id === updated.system_id ? updated : t)),
+    );
+    setEditingItem(updated);
+    setTvmf(tvShowToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("tv-show", updated.system_id, setTvmf);
+    window.scrollTo(0, 0);
+    showToast("success", "TV show updated successfully.");
+  }
+
+  async function saveCartoon() {
+    let franchiseId = cmf.franchise_id;
+    if (!franchiseId && (cmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Cartoon",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cmf.cartoon_name_en || null,
+          franchise_name_cn: cmf.cartoon_name_cn || null,
+          franchise_name_alt: cmf.cartoon_name_alt || null,
+          franchise_type: "Cartoon",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cmf.series_id;
+    if (!seriesId && (cmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cmf.cartoon_name_en || null,
+          series_name_cn: cmf.cartoon_name_cn || null,
+          series_name_alt: cmf.cartoon_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      cartoon_name_cn: cmf.cartoon_name_cn || null,
+      cartoon_name_en: cmf.cartoon_name_en || null,
+      cartoon_name_alt: cmf.cartoon_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      season_part: cmf.season_part || null,
+      airing_type: cmf.airing_type || null,
+      airing_status: cmf.airing_status || null,
+      watching_status: cmf.watching_status || md("cartoon").watching_status,
+      is_main: cmf.is_main || null,
+      ep_total: cmf.ep_total !== "" ? parseInt(cmf.ep_total) : null,
+      ep_fin: cmf.ep_fin !== "" ? parseInt(cmf.ep_fin) : null,
+      my_rating: cmf.my_rating || null,
+      imdb_rating: cmf.imdb_rating || null,
+      length_ep_min:
+        cmf.length_ep_min !== "" ? parseInt(cmf.length_ep_min) : null,
+      release_date: cmf.release_date || null,
+      imdb_id: cmf.imdb_id !== "" ? cmf.imdb_id : null,
+      imdb_link: cmf.imdb_link || null,
+      sources: (cmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      watch_next: cmf.watch_next ?? null,
+      cover_image_file: cmf.cover_image_file || null,
+      remark: cmf.remark || null,
+    };
+    const res = await fetch(`/api/cartoon/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("cartoon", updated.system_id, cmf);
+    setAllCartoons((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("cartoon", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setCmf(cartoonToForm(item, allFranchises, allSeries));
+    loadCreditsIntoForm("cartoon", item.system_id, setCmf);
+    window.scrollTo(0, 0);
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
+  }
+
+  async function saveManga() {
+    let franchiseId = cmgf.franchise_id;
+    if (!franchiseId && (cmgf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "ACG",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cmgf.manga_name_en || null,
+          franchise_name_cn: cmgf.manga_name_cn || null,
+          franchise_name_roman: cmgf.manga_name_roman || null,
+          franchise_name_jp: cmgf.manga_name_jp || null,
+          franchise_name_alt: cmgf.manga_name_alt || null,
+          franchise_type: "ACG",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cmgf.series_id;
+    if (!seriesId && (cmgf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cmgf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cmgf.manga_name_en || null,
+          series_name_cn: cmgf.manga_name_cn || null,
+          series_name_alt: cmgf.manga_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    const payload = {
+      manga_name_cn: cmgf.manga_name_cn || null,
+      manga_name_en: cmgf.manga_name_en || null,
+      manga_name_roman: cmgf.manga_name_roman || null,
+      manga_name_jp: cmgf.manga_name_jp || null,
+      manga_name_alt: cmgf.manga_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: cmgf.region || null,
+      serialization_status: cmgf.serialization_status || null,
+      reading_status: cmgf.reading_status || md("manga").reading_status,
+      is_main: cmgf.is_main || null,
+      vol_total: cmgf.vol_total !== "" ? parseInt(cmgf.vol_total) : null,
+      vol_fin: cmgf.vol_fin !== "" ? parseInt(cmgf.vol_fin) : null,
+      vol_fin_page:
+        cmgf.vol_fin_page !== "" ? parseInt(cmgf.vol_fin_page) : null,
+      ch_total: cmgf.ch_total !== "" ? parseInt(cmgf.ch_total) : null,
+      ch_fin: cmgf.ch_fin !== "" ? parseInt(cmgf.ch_fin) : null,
+      my_rating: cmgf.my_rating || null,
+      mal_rating: cmgf.mal_rating !== "" ? parseFloat(cmgf.mal_rating) : null,
+      mal_rank: cmgf.mal_rank !== "" ? parseInt(cmgf.mal_rank) : null,
+      anilist_rating:
+        cmgf.anilist_rating !== "" ? parseFloat(cmgf.anilist_rating) : null,
+      release_date: cmgf.release_date || null,
+      end_date: cmgf.end_date || null,
+      anime_studio: cmgf.anime_studio || null,
+      mal_id: cmgf.mal_id !== "" ? parseInt(cmgf.mal_id) : null,
+      mal_link: cmgf.mal_link || null,
+      sources: (cmgf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      read_next: cmgf.read_next ?? false,
+      to_reread: cmgf.to_reread ?? false,
+      cover_image_file: cmgf.cover_image_file || null,
+      remark: cmgf.remark || null,
+    };
+    const res = await fetch(`/api/manga/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("manga", updated.system_id, cmgf);
+    await saveCast("manga", updated.system_id, cmgf);
+    setAllMangas((prev) =>
+      prev.map((m) => (m.system_id === updated.system_id ? updated : m)),
+    );
+    // Enrich first, then show the enriched row - not the pre-enrichment one.
+    const enriched = await enrichEntry("manga", updated.system_id);
+    const item = enriched ?? updated;
+    setEditingItem(item);
+    setCmgf(mangaToForm(item, allFranchises, allSeries));
+    loadCreditsIntoForm("manga", item.system_id, setCmgf);
+    window.scrollTo(0, 0);
+    if (enriched) showToast("success", "Update and enrichment successful.");
+    else showToast("warning", "Updated, but enrichment failed - run Replace later.");
+  }
+
+  async function saveNovel() {
+    let franchiseId = cnvf.franchise_id;
+    if (!franchiseId && (cnvf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Novel",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: cnvf.novel_name_en || null,
+          franchise_name_cn: cnvf.novel_name_cn || null,
+          franchise_name_roman: cnvf.novel_name_roman || null,
+          franchise_name_jp: cnvf.novel_name_jp || null,
+          franchise_name_alt: cnvf.novel_name_alt || null,
+          franchise_type: "Novel",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cnvf.series_id;
+    if (!seriesId && (cnvf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cnvf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: cnvf.novel_name_en || null,
+          series_name_cn: cnvf.novel_name_cn || null,
+          series_name_alt: cnvf.novel_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+    // Auto-create missing entities for author, illustrator and the publisher
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "novel_author" },
+        values: splitTags(cnvf.author),
+      },
+      {
+        source: { kind: "person", role: "novel_illustrator" },
+        values: splitTags(cnvf.illustrator),
+      },
+      {
+        source: { kind: "publisher", scope: "novel" },
+        values: splitTags(cnvf.publisher_tw),
+      },
+    ]);
+
+    const payload = {
+      novel_name_cn: cnvf.novel_name_cn || null,
+      novel_name_en: cnvf.novel_name_en || null,
+      novel_name_roman: cnvf.novel_name_roman || null,
+      novel_name_jp: cnvf.novel_name_jp || null,
+      novel_name_alt: cnvf.novel_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      region: cnvf.region || null,
+      type: cnvf.type || null,
+      version: cnvf.version || null,
+      is_main: cnvf.is_main || null,
+      serialization_status: cnvf.serialization_status || null,
+      reading_status: cnvf.reading_status || md("novel").reading_status,
+      progress_display: cnvf.progress_display || null,
+      vol_total_original:
+        cnvf.vol_total_original !== ""
+          ? parseFloat(cnvf.vol_total_original)
+          : null,
+      vol_total_tw:
+        cnvf.vol_total_tw !== "" ? parseFloat(cnvf.vol_total_tw) : null,
+      vol_fin: cnvf.vol_fin !== "" ? parseFloat(cnvf.vol_fin) : null,
+      arc_total: cnvf.arc_total !== "" ? parseFloat(cnvf.arc_total) : null,
+      arc_fin: cnvf.arc_fin !== "" ? parseFloat(cnvf.arc_fin) : null,
+      ch_total: cnvf.ch_total !== "" ? parseFloat(cnvf.ch_total) : null,
+      ch_fin: cnvf.ch_fin !== "" ? parseFloat(cnvf.ch_fin) : null,
+      my_rating: cnvf.my_rating || null,
+      mal_rating: cnvf.mal_rating !== "" ? parseFloat(cnvf.mal_rating) : null,
+      mal_rank: cnvf.mal_rank !== "" ? parseInt(cnvf.mal_rank) : null,
+      anilist_rating:
+        cnvf.anilist_rating !== "" ? parseFloat(cnvf.anilist_rating) : null,
+      release_date: cnvf.release_date || null,
+      end_date: cnvf.end_date || null,
+      read_order: cnvf.read_order !== "" ? parseFloat(cnvf.read_order) : null,
+      units: (cnvf.units || [])
+        .filter(
+          (u) =>
+            (u.unit_key && u.unit_key.trim()) ||
+            (u.name_cn && u.name_cn.trim()) ||
+            (u.name_en && u.name_en.trim()) ||
+            (u.remark && u.remark.trim()) ||
+            u.ch_count !== "",
+        )
+        .map((u, i) => ({
+          ...u,
+          position: i + 1,
+          ch_count: u.ch_count === "" ? null : Number(u.ch_count),
+        })),
+      mal_id: cnvf.mal_id !== "" ? parseInt(cnvf.mal_id) : null,
+      mal_link: cnvf.mal_link || null,
+      openlibrary_link: cnvf.openlibrary_link || null,
+      openlibrary_id: cnvf.openlibrary_id || null,
+      sources: (cnvf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      read_next: cnvf.read_next ?? false,
+      to_reread: cnvf.to_reread ?? false,
+      cover_image_file: cnvf.cover_image_file || null,
+      remark: cnvf.remark || null,
+    };
+    const res = await fetch(`/api/novel/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("novel", updated.system_id, cnvf);
+    await saveCast("novel", updated.system_id, cnvf);
+    setAllNovels((prev) =>
+      prev.map((n) => (n.system_id === updated.system_id ? updated : n)),
+    );
+    setEditingItem(updated);
+    setCnvf(novelToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("novel", updated.system_id, setCnvf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
+  async function saveComic() {
+    let franchiseId = ccmf.franchise_id;
+    if (!franchiseId && (ccmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Comic",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_en: ccmf.comic_name_en || null,
+          franchise_name_cn: ccmf.comic_name_cn || null,
+          franchise_name_alt: ccmf.comic_name_alt || null,
+          franchise_type: "Comic",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = ccmf.series_id;
+    if (!seriesId && (ccmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: ccmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_en: ccmf.comic_name_en || null,
+          series_name_cn: ccmf.comic_name_cn || null,
+          series_name_alt: ccmf.comic_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing entities for every comic credit/tag field.
+    await ensureSourceValues([
+      {
+        source: { kind: "person", role: "comic_writer" },
+        values: splitTags(ccmf.writer),
+      },
+      {
+        source: { kind: "person", role: "comic_artist" },
+        values: splitTags(ccmf.artist),
+      },
+      {
+        source: { kind: "publisher", scope: "comic" },
+        values: splitTags(ccmf.publisher),
+      },
+      {
+        source: { kind: "option", category: "Comic Imprint", scope: "comic" },
+        values: splitTags(ccmf.imprint),
+      },
+      {
+        source: { kind: "option", category: "Comic Continuity", scope: "comic" },
+        values: splitTags(ccmf.continuity),
+      },
+      {
+        source: { kind: "option", category: "Comic Era", scope: "comic" },
+        values: splitTags(ccmf.era),
+      },
+      {
+        source: { kind: "option", category: "Comic Event", scope: "comic" },
+        values: Array.isArray(ccmf.events) ? ccmf.events.filter(Boolean) : [],
+      },
+    ]);
+
+    const payload = {
+      comic_name_en: ccmf.comic_name_en || null,
+      comic_name_cn: ccmf.comic_name_cn || null,
+      comic_name_alt: ccmf.comic_name_alt || null,
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      volume_label: ccmf.volume_label || null,
+      comic_type: ccmf.comic_type || null,
+      is_main_entry: ccmf.is_main_entry ?? false,
+      release_date: ccmf.release_date || null,
+      end_date: ccmf.end_date || null,
+      issue_total: ccmf.issue_total !== "" ? parseInt(ccmf.issue_total) : null,
+      // NOT NULL in the database, so this one falls back to 0, never null.
+      issue_fin: ccmf.issue_fin !== "" ? parseInt(ccmf.issue_fin) : 0,
+      serialization_status: ccmf.serialization_status || null,
+      reading_status: ccmf.reading_status || md("comic").reading_status,
+      read_order: ccmf.read_order !== "" ? parseFloat(ccmf.read_order) : null,
+      my_rating: ccmf.my_rating || null,
+      comicvine_link: ccmf.comicvine_link || null,
+      sources: (ccmf.sources || [])
+        .filter((s) => (s.name || "").trim())
+        .map((s) => ({
+          kind: s.kind || "access",
+          bucket: s.bucket || "other",
+          name: s.name.trim(),
+          url: (s.url || "").trim() || null,
+          available: s.available ?? null,
+        })),
+      read_next: ccmf.read_next ?? false,
+      to_reread: ccmf.to_reread ?? false,
+      cover_image_file: ccmf.cover_image_file || null,
+      remark: ccmf.remark || null,
+    };
+    const res = await fetch(`/api/comic/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("comic", updated.system_id, ccmf);
+    setAllComics((prev) =>
+      prev.map((c) => (c.system_id === updated.system_id ? updated : c)),
+    );
+    setEditingItem(updated);
+    setCcmf(comicToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("comic", updated.system_id, setCcmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
+  async function saveGame() {
+    let franchiseId = cgmf.franchise_id;
+    if (!franchiseId && (cgmf.franchise_text || "").trim()) {
+      const result = await new Promise((resolve) => {
+        setFranchiseCreateModal({
+          franchiseType: "Game",
+          onConfirm: (exp, rem) => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: true, expectation: exp, remark: rem });
+          },
+          onCancel: () => {
+            setFranchiseCreateModal(null);
+            resolve({ confirmed: false });
+          },
+        });
+      });
+      if (!result.confirmed) return;
+      const res = await fetch("/api/franchise/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_name_cn: cgmf.game_name_cn || null,
+          franchise_name_en: cgmf.game_name_en || null,
+          franchise_name_roman: cgmf.game_name_roman || null,
+          franchise_name_jp: cgmf.game_name_jp || null,
+          franchise_name_alt: cgmf.game_name_alt || null,
+          franchise_type: "Game",
+          franchise_expectation: result.expectation,
+          remark: result.remark || null,
+        }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        showToast("error", "Failed to create franchise");
+        return;
+      }
+      const nf = await res.json();
+      franchiseId = nf.system_id;
+      setAllFranchises((prev) => [...prev, nf]);
+    }
+    let seriesId = cgmf.series_id;
+    if (!seriesId && (cgmf.series_text || "").trim()) {
+      const confirmed = await new Promise((resolve) => {
+        setCreateModal({
+          entityType: "Series",
+          text: cgmf.series_text,
+          onConfirm: () => {
+            setCreateModal(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setCreateModal(null);
+            resolve(false);
+          },
+        });
+      });
+      if (!confirmed) return;
+      const sRes = await fetch("/api/series/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          franchise_id: franchiseId,
+          series_name_cn: cgmf.game_name_cn || null,
+          series_name_en: cgmf.game_name_en || null,
+          series_name_alt: cgmf.game_name_alt || null,
+        }),
+        credentials: "include",
+      });
+      if (!sRes.ok) {
+        showToast("error", "Failed to create series");
+        return;
+      }
+      const ns = await sRes.json();
+      seriesId = ns.system_id;
+      setAllSeries((prev) => [...prev, ns]);
+    }
+
+    // Auto-create missing entities for every game credit/tag field. Developer
+    // and publisher resolve to entity rows; the four vocabularies do not.
+    await ensureSourceValues([
+      { source: { kind: "studio" }, values: splitTags(cgmf.studio) },
+      { source: { kind: "publisher" }, values: splitTags(cgmf.publisher) },
+      {
+        source: { kind: "person", role: "director", scope: "game" },
+        values: splitTags(cgmf.director),
+      },
+      {
+        source: { kind: "person", role: "composer", scope: "game" },
+        values: splitTags(cgmf.composer),
+      },
+      {
+        source: { kind: "option", category: "Game Genre", scope: "game" },
+        values: splitTags(cgmf.game_genre),
+      },
+      {
+        source: { kind: "option", category: "Game Theme", scope: "game" },
+        values: splitTags(cgmf.game_theme),
+      },
+      {
+        source: { kind: "option", category: "Game Mode", scope: "game" },
+        values: splitTags(cgmf.game_mode),
+      },
+      {
+        source: { kind: "option", category: "Combat Mode", scope: "game" },
+        values: splitTags(cgmf.combat_mode),
+      },
+      {
+        source: { kind: "option", category: "Game Platform", scope: "game" },
+        values: splitTags(cgmf.game_platform),
+      },
+      {
+        source: { kind: "option", category: "Label", scope: "game" },
+        values: splitTags(cgmf.label),
+      },
+    ]);
+
+    const payload = {
+      ...gameFieldsPayload(cgmf),
+      franchise_id: franchiseId || null,
+      series_id: seriesId || null,
+      playing_status: cgmf.playing_status || md("game").playing_status,
+    };
+    const res = await fetch(`/api/game/${editingItem.system_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(
+        "error",
+        err.detail ? JSON.stringify(err.detail) : "Update failed",
+      );
+      return;
+    }
+    const updated = await res.json();
+    await saveCredits("game", updated.system_id, cgmf);
+    setAllGames((prev) =>
+      prev.map((g) => (g.system_id === updated.system_id ? updated : g)),
+    );
+    setEditingItem(updated);
+    setCgmf(gameToForm(updated, allFranchises, allSeries));
+    loadCreditsIntoForm("game", updated.system_id, setCgmf);
+    window.scrollTo(0, 0);
+    showToast("success", "Update successful.");
+  }
+
+  function getItemLabel(item, type) {
+    if (type === "anime")
+      return item.anime_name_cn || item.anime_name_en || "Unknown";
+    if (type === "collection")
+      return item.collection_name_cn || item.collection_name_en || "Unknown";
+    if (type === "franchise")
+      return item.franchise_name_cn || item.franchise_name_en || "Unknown";
+    if (type === "series")
+      return item.series_name_cn || item.series_name_en || "Unknown";
+    if (type === "anime-movie")
+      return item.anime_movie_name_cn || item.anime_movie_name_en || "Unknown";
+    if (type === "movie")
+      return item.movie_name_cn || item.movie_name_en || "Unknown";
+    if (type === "tv-show")
+      return (
+        item.tv_name_cn || item.tv_name_en || item.tv_name_alt || "Unknown"
+      );
+    if (type === "cartoon")
+      return (
+        item.cartoon_name_cn ||
+        item.cartoon_name_en ||
+        item.cartoon_name_alt ||
+        "Unknown"
+      );
+    if (type === "manga")
+      return (
+        item.manga_name_cn ||
+        item.manga_name_en ||
+        item.manga_name_roman ||
+        item.manga_name_jp ||
+        item.manga_name_alt ||
+        "Unknown"
+      );
+    if (type === "novel")
+      return (
+        item.novel_name_cn ||
+        item.novel_name_en ||
+        item.novel_name_roman ||
+        item.novel_name_jp ||
+        item.novel_name_alt ||
+        "Unknown"
+      );
+    if (type === "comic")
+      return (
+        item.comic_name_en ||
+        item.comic_name_cn ||
+        item.comic_name_alt ||
+        "Unknown"
+      );
+    if (type === "game")
+      return (
+        item.game_name_cn ||
+        item.game_name_en ||
+        item.game_name_roman ||
+        item.game_name_jp ||
+        item.game_name_alt ||
+        "Unknown"
+      );
+    if (type === "options") return `${item.category}: ${item.value}`;
+    return "Unknown";
+  }
+
+  const searchResults = (() => {
+    if (!searchQuery.trim()) return [];
+    const q = cleanString(searchQuery);
+    if (activeTab === "anime")
+      return allAnime
+        .filter((a) =>
+          [
+            a.anime_name_en,
+            a.anime_name_cn,
+            a.anime_name_roman,
+            a.anime_name_jp,
+            a.anime_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "collection")
+      return allCollections
+        .filter((c) =>
+          [
+            c.collection_name_en,
+            c.collection_name_cn,
+            c.collection_name_roman,
+            c.collection_name_jp,
+            c.collection_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "franchise")
+      return allFranchises
+        .filter((f) =>
+          [
+            f.franchise_name_en,
+            f.franchise_name_cn,
+            f.franchise_name_roman,
+            f.franchise_name_jp,
+            f.franchise_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "series")
+      return allSeries
+        .filter((s) =>
+          [s.series_name_en, s.series_name_cn, s.series_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
+    if (activeTab === "anime-movie")
+      return allAnimeMovies
+        .filter((m) =>
+          [
+            m.anime_movie_name_en,
+            m.anime_movie_name_cn,
+            m.anime_movie_name_roman,
+            m.anime_movie_name_jp,
+            m.anime_movie_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "movie")
+      return allMovies
+        .filter((m) =>
+          [m.movie_name_en, m.movie_name_cn, m.movie_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
+    if (activeTab === "tv-show")
+      return allTvShows
+        .filter((t) =>
+          [t.tv_name_cn, t.tv_name_en, t.tv_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
+    if (activeTab === "cartoon")
+      return allCartoons
+        .filter((c) =>
+          [c.cartoon_name_cn, c.cartoon_name_en, c.cartoon_name_alt].some(
+            (n) => n && cleanString(n).includes(q),
+          ),
+        )
+        .slice(0, 10);
+    if (activeTab === "manga")
+      return allMangas
+        .filter((m) =>
+          [
+            m.manga_name_cn,
+            m.manga_name_en,
+            m.manga_name_roman,
+            m.manga_name_jp,
+            m.manga_name_alt,
+          ].some((n) => n && cleanString(n).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "novel")
+      return allNovels
+        .filter((n) =>
+          [
+            n.novel_name_cn,
+            n.novel_name_en,
+            n.novel_name_roman,
+            n.novel_name_jp,
+            n.novel_name_alt,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
+    if (activeTab === "comic")
+      return allComics
+        .filter((c) =>
+          [c.comic_name_en, c.comic_name_cn, c.comic_name_alt].some(
+            (name) => name && cleanString(name).includes(q),
+          ),
+        )
+        .slice(0, 10);
+    if (activeTab === "game")
+      return allGames
+        .filter((g) =>
+          [
+            g.game_name_cn,
+            g.game_name_en,
+            g.game_name_roman,
+            g.game_name_jp,
+            g.game_name_alt,
+          ].some((name) => name && cleanString(name).includes(q)),
+        )
+        .slice(0, 10);
+    return sources.options
+      .filter(
+        (o) =>
+          cleanString(o.value).includes(q) ||
+          cleanString(o.category).includes(q),
+      )
+      .slice(0, 10);
+  })();
+
+  const recentItems = (() => {
+    const sort = (a, b) =>
+      new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+    if (activeTab === "anime") return [...allAnime].sort(sort).slice(0, 12);
+    if (activeTab === "collection")
+      return [...allCollections].sort(sort).slice(0, 12);
+    if (activeTab === "franchise")
+      return [...allFranchises].sort(sort).slice(0, 12);
+    if (activeTab === "series") return [...allSeries].sort(sort).slice(0, 12);
+    if (activeTab === "anime-movie")
+      return [...allAnimeMovies].sort(sort).slice(0, 12);
+    if (activeTab === "movie") return [...allMovies].sort(sort).slice(0, 12);
+    if (activeTab === "tv-show") return [...allTvShows].sort(sort).slice(0, 12);
+    if (activeTab === "cartoon")
+      return [...allCartoons].sort(sort).slice(0, 12);
+    if (activeTab === "manga") return [...allMangas].sort(sort).slice(0, 12);
+    if (activeTab === "novel") return [...allNovels].sort(sort).slice(0, 12);
+    if (activeTab === "comic") return [...allComics].sort(sort).slice(0, 12);
+    if (activeTab === "game") return [...allGames].sort(sort).slice(0, 12);
+    return [];
+  })();
+
+  // See Add.jsx: the declared categories belong here even with no values yet.
+  const optionCategories = [
+    ...new Set([
+      ...OPTION_CATEGORIES,
+      ...sources.options.map((o) => o.category),
+    ]),
+  ].sort();
+  const filteredOptions = optCatFilter
+    ? sources.options.filter((o) => o.category === optCatFilter)
+    : [];
+
+  const animeRibbonSection = (() => {
+    const animeRibbon =
+      editingType === "anime" && af.franchise_id
+        ? allAnime.filter(
+            (a) =>
+              a.franchise_id === af.franchise_id &&
+              a.system_id !== editingItem?.system_id,
+          )
+        : [];
+    if (!animeRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const a of animeRibbon) {
+      if (a.series_id) {
+        (bySeries[a.series_id] = bySeries[a.series_id] || []).push(a);
+      } else noSeries.push(a);
+    }
+    const sortByEn = (x, y) =>
+      (
+        x.anime_name_en ||
+        x.anime_name_cn ||
+        x.anime_name_roman ||
+        ""
+      ).localeCompare(
+        y.anime_name_en || y.anime_name_cn || y.anime_name_roman || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+    noSeries.sort(sortByEn);
+    const renderChip = (a) => (
+      <button
+        key={a.system_id}
+        type="button"
+        onClick={() => openEditor(a, "anime")}
+        className="flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {a.airing_type && (
+          <span className="text-[9px] font-black text-text-faint shrink-0">
+            {a.airing_type}
+          </span>
+        )}
+        {a.anime_name_cn || a.anime_name_en || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const movieRibbonSection = (() => {
+    const EXCLUDED_MOVIE_FRANCHISE_NAMES = [
+      "獨立電影",
+      "影集",
+      "Disney",
+      "Marvel",
+    ];
+    if (editingType !== "movie" || !mmf.franchise_id) return null;
+    const franchise = allFranchises.find(
+      (f) => f.system_id === mmf.franchise_id,
+    );
+    if (!franchise) return null;
+    const names = [
+      franchise.franchise_name_cn,
+      franchise.franchise_name_en,
+      franchise.franchise_name_alt,
+    ].filter(Boolean);
+    if (names.some((n) => EXCLUDED_MOVIE_FRANCHISE_NAMES.includes(n)))
+      return null;
+    const movieRibbon = allMovies.filter(
+      (m) =>
+        m.franchise_id === mmf.franchise_id &&
+        m.system_id !== editingItem?.system_id,
+    );
+    if (!movieRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const m of movieRibbon) {
+      if (m.series_id) {
+        (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
+      } else noSeries.push(m);
+    }
+    const sortByEn = (x, y) =>
+      (
+        x.movie_name_en ||
+        x.movie_name_cn ||
+        x.movie_name_alt ||
+        ""
+      ).localeCompare(
+        y.movie_name_en || y.movie_name_cn || y.movie_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+    noSeries.sort(sortByEn);
+    const renderChip = (m) => (
+      <button
+        key={m.system_id}
+        type="button"
+        onClick={() => openEditor(m, "movie")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {m.movie_name_cn || m.movie_name_en || m.movie_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  // franchise system_id -> the name of the collection it belongs to, so every
+  // tab with a franchise picker can name the wider grouping.
+  const franchiseCollections = Object.fromEntries(
+    allFranchises
+      .filter((f) => f.collection_id)
+      .map((f) => [
+        f.system_id,
+        allCollections.find((c) => c.system_id === f.collection_id),
+      ])
+      .filter(([, c]) => c)
+      .map(([id, c]) => [id, getDisplayName(c, "collection")]),
+  );
+
+  const collectionItems = allCollections.map((c) => ({
+    id: c.system_id,
+    label: getDisplayName(c, "collection"),
+    searchText: [
+      c.collection_name_cn,
+      c.collection_name_en,
+      c.collection_name_jp,
+      c.collection_name_roman,
+      c.collection_name_alt,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const franchiseItems = allFranchises.map((f) => ({
+    id: f.system_id,
+    label: getDisplayName(f, "franchise"),
+    searchText: [
+      f.franchise_name_cn,
+      f.franchise_name_en,
+      f.franchise_name_jp,
+      f.franchise_name_roman,
+      f.franchise_name_alt,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForAnime = (
+    af.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForMovie = (
+    mmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === mmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForTvShow = (
+    tvmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === tvmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForCartoon = (
+    cmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+  const seriesItemsForManga = (
+    cmgf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cmgf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForNovel = (
+    cnvf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cnvf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForComic = (
+    ccmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === ccmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const seriesItemsForGame = (
+    cgmf.franchise_id
+      ? allSeries.filter((s) => s.franchise_id === cgmf.franchise_id)
+      : allSeries
+  ).map((s) => ({
+    id: s.system_id,
+    label: getDisplayName(s, "series"),
+    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
+      .filter(Boolean)
+      .join(" "),
+  }));
+
+  const tvRibbonSection = (() => {
+    const tvRibbon =
+      editingType === "tv-show" && tvmf.franchise_id
+        ? allTvShows.filter(
+            (t) =>
+              t.franchise_id === tvmf.franchise_id &&
+              t.system_id !== editingItem?.system_id,
+          )
+        : [];
+    if (!tvRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const t of tvRibbon) {
+      if (t.series_id) {
+        (bySeries[t.series_id] = bySeries[t.series_id] || []).push(t);
+      } else noSeries.push(t);
+    }
+    const sortByEn = (x, y) =>
+      (x.tv_name_en || x.tv_name_cn || x.tv_name_alt || "").localeCompare(
+        y.tv_name_en || y.tv_name_cn || y.tv_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+    noSeries.sort(sortByEn);
+    const renderChip = (t) => (
+      <button
+        key={t.system_id}
+        type="button"
+        onClick={() => openEditor(t, "tv-show")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {t.tv_name_cn || t.tv_name_en || t.tv_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const cartoonRibbonSection = (() => {
+    const cartoonRibbon = cmf.franchise_id
+      ? allCartoons.filter(
+          (c) =>
+            c.franchise_id === cmf.franchise_id &&
+            c.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!cartoonRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const c of cartoonRibbon) {
+      if (c.series_id) {
+        (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
+      } else noSeries.push(c);
+    }
+    const sortByEn = (x, y) =>
+      (
+        x.cartoon_name_en ||
+        x.cartoon_name_cn ||
+        x.cartoon_name_alt ||
+        ""
+      ).localeCompare(
+        y.cartoon_name_en || y.cartoon_name_cn || y.cartoon_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByEn));
+    noSeries.sort(sortByEn);
+    const renderChip = (c) => (
+      <button
+        key={c.system_id}
+        type="button"
+        onClick={() => openEditor(c, "cartoon")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {c.cartoon_name_cn ||
+          c.cartoon_name_en ||
+          c.cartoon_name_alt ||
+          "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const mangaRibbonSection = (() => {
+    const mangaRibbon = cmgf.franchise_id
+      ? allMangas.filter(
+          (m) =>
+            m.franchise_id === cmgf.franchise_id &&
+            m.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!mangaRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const m of mangaRibbon) {
+      if (m.series_id) {
+        (bySeries[m.series_id] = bySeries[m.series_id] || []).push(m);
+      } else noSeries.push(m);
+    }
+    const sortByName = (x, y) =>
+      (
+        x.manga_name_cn ||
+        x.manga_name_en ||
+        x.manga_name_alt ||
+        ""
+      ).localeCompare(
+        y.manga_name_cn || y.manga_name_en || y.manga_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+    noSeries.sort(sortByName);
+    const renderChip = (m) => (
+      <button
+        key={m.system_id}
+        type="button"
+        onClick={() => openEditor(m, "manga")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {m.manga_name_cn || m.manga_name_en || m.manga_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const novelRibbonSection = (() => {
+    const novelRibbon = cnvf.franchise_id
+      ? allNovels.filter(
+          (n) =>
+            n.franchise_id === cnvf.franchise_id &&
+            n.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!novelRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const n of novelRibbon) {
+      if (n.series_id) {
+        (bySeries[n.series_id] = bySeries[n.series_id] || []).push(n);
+      } else noSeries.push(n);
+    }
+    const sortByName = (x, y) =>
+      (
+        x.novel_name_cn ||
+        x.novel_name_en ||
+        x.novel_name_alt ||
+        ""
+      ).localeCompare(
+        y.novel_name_cn || y.novel_name_en || y.novel_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+    noSeries.sort(sortByName);
+    const renderChip = (n) => (
+      <button
+        key={n.system_id}
+        type="button"
+        onClick={() => openEditor(n, "novel")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {n.novel_name_cn || n.novel_name_en || n.novel_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const comicRibbonSection = (() => {
+    const comicRibbon = ccmf.franchise_id
+      ? allComics.filter(
+          (c) =>
+            c.franchise_id === ccmf.franchise_id &&
+            c.system_id !== editingItem?.system_id,
+        )
+      : [];
+    if (!comicRibbon.length) return null;
+    const bySeries = {};
+    const noSeries = [];
+    for (const c of comicRibbon) {
+      if (c.series_id) {
+        (bySeries[c.series_id] = bySeries[c.series_id] || []).push(c);
+      } else noSeries.push(c);
+    }
+    const sortByName = (x, y) =>
+      (
+        x.comic_name_en ||
+        x.comic_name_cn ||
+        x.comic_name_alt ||
+        ""
+      ).localeCompare(
+        y.comic_name_en || y.comic_name_cn || y.comic_name_alt || "",
+      );
+    Object.values(bySeries).forEach((arr) => arr.sort(sortByName));
+    noSeries.sort(sortByName);
+    const renderChip = (c) => (
+      <button
+        key={c.system_id}
+        type="button"
+        onClick={() => openEditor(c, "comic")}
+        className="px-3 py-1 bg-surface border border-border rounded-full text-xs font-bold text-text-muted hover:border-brand hover:text-brand transition"
+      >
+        {c.comic_name_en || c.comic_name_cn || c.comic_name_alt || "Unknown"}
+      </button>
+    );
+    return (
+      <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
+        <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+          Other entries in this franchise
+        </p>
+        {Object.entries(bySeries).map(([sid, entries]) => {
+          const s = allSeries.find((x) => x.system_id === sid);
+          return (
+            <div key={sid}>
+              <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+                {s ? getDisplayName(s, "series") : "Series"}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {entries.map(renderChip)}
+              </div>
+            </div>
+          );
+        })}
+        {noSeries.length > 0 && (
+          <div>
+            {Object.keys(bySeries).length > 0 && (
+              <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+                No Series
+              </p>
+            )}
+            <div className="flex gap-2 flex-wrap">
+              {noSeries.map(renderChip)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const tabDefs = [...ADMIN_TABS, FAV3X3_TAB];
+
+  if (dataLoading)
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+          <p className="text-text-faint font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-black text-text flex items-center gap-3">
+          <i className="fas fa-edit text-brand"></i> Modify Database
+        </h1>
+        <p className="text-sm text-text-faint mt-1">
+          Search for an entry to edit its fields.
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <AdminTabBar
+        tabs={tabDefs}
+        activeTab={activeTab}
+        onSelect={(key) => {
+          setActiveTab(key);
+          if (!editorOpen) setSearchQuery("");
+        }}
+      />
+
+      {/* ═══ QUOTE TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "quote" && <QuoteManageTab mode="modify" />}
+
+      {/* ═══ MEME TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "meme" && <MemeManageTab mode="modify" />}
+
+      {/* ═══ STUDIO TAB — bypasses search/edit pattern; Studio is a public
+          entity, not a media entry/collection/franchise/series shape, so it
+          owns its own picker/load/save (see StudioModifyTab.jsx). ═══ */}
+      {activeTab === "studio" && <StudioModifyTab />}
+
+      {/* ═══ PUBLISHER TAB — bypasses search/edit pattern for the same reason
+          Studio does; a publisher is a public entity with its own picker,
+          load and save (see PublisherModifyTab.jsx). ═══ */}
+      {activeTab === "publisher" && <PublisherModifyTab />}
+
+      {/* ═══ PERSON TAB — bypasses search/edit pattern for the same reason
+          Studio does; a person is a credited entity with its own role x scope
+          matrix (see PersonModifyTab.jsx). ═══ */}
+      {activeTab === "person" && <PersonModifyTab />}
+
+      {/* ═══ CHARACTER TAB — bypasses search/edit pattern for the same
+          reason Studio does; a character holds no roles, so unlike
+          PersonModifyTab it needs no role x scope matrix (see
+          CharacterModifyTab.jsx). ═══ */}
+      {activeTab === "character" && <CharacterModifyTab />}
+
+      {/* ═══ ALIAS TAB — bypasses search/edit pattern; an alias row has no
+          record of its own to search for, so the tab picks the option that
+          owns it and edits that option's list (see AliasTab.jsx). ═══ */}
+      {activeTab === "alias" && (
+        <AliasTab
+          options={sources.options}
+          showToast={showToast}
+          onSaved={(updated) =>
+            setSources((prev) => ({
+              ...prev,
+              options: prev.options.map((o) =>
+                o.system_id === updated.system_id ? updated : o,
+              ),
+            }))
+          }
+        />
+      )}
+
+      {/* ═══ FAV 3×3 TAB — bypasses search/edit pattern ═══ */}
+      {activeTab === "fav3x3" && (
+        <Fav3x3ModifyTab
+          allFranchises={allFranchises}
+          setAllFranchises={setAllFranchises}
+          allAnime={allAnime}
+          allAnimeMovies={allAnimeMovies}
+          allMovies={allMovies}
+          allTvShows={allTvShows}
+          allCartoons={allCartoons}
+          allMangas={allMangas}
+          allNovels={allNovels}
+          allComics={allComics}
+        />
+      )}
+
+      {/* ═══ DISCOVERY VIEW ═══ */}
+      {!editorOpen &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "publisher" &&
+        activeTab !== "person" &&
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
+        <div className="space-y-6">
+          {activeTab !== "options" ? (
+            <div ref={searchRef} className="relative">
+              <div className="relative">
+                <i className="fas fa-search absolute left-4 top-3.5 text-text-faint"></i>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  placeholder="Type a title to search..."
+                  autoComplete="off"
+                  className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand bg-surface shadow-sm"
+                />
+              </div>
+              {searchOpen && searchResults.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full bg-surface border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  {searchResults.map((item) => {
+                    const sub =
+                      activeTab === "anime" || activeTab === "anime-movie"
+                        ? allFranchises.find(
+                            (f) => f.system_id === item.franchise_id,
+                          )?.franchise_name_cn || "Standalone"
+                        : activeTab === "series"
+                          ? allFranchises.find(
+                              (f) => f.system_id === item.franchise_id,
+                            )?.franchise_name_cn || ""
+                          : "";
+                    return (
+                      <button
+                        key={item.system_id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          openEditor(item, activeTab);
+                          setSearchOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-brand/10 border-b border-border last:border-0 transition"
+                      >
+                        <div className="text-sm font-bold text-text">
+                          {getItemLabel(item, activeTab)}
+                        </div>
+                        {sub && (
+                          <div className="text-xs text-text-faint">{sub}</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <OptionSubTabBar
+                active={optionsSubTab}
+                onSelect={(key) => {
+                  setOptionsSubTab(key);
+                  // The selected category belongs to the sub-tab it was
+                  // picked on, so it cannot survive the switch.
+                  setOptCatFilter("");
+                }}
+              />
+              <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+                Select Category
+              </label>
+              <OptionCategorySelect
+                categories={categoriesForSubTab(
+                  optionCategories,
+                  optionsSubTab,
+                )}
+                value={optCatFilter}
+                onChange={(e) => setOptCatFilter(e.target.value)}
+              />
+            </div>
+          )}
+
+          {activeTab === "options" && optCatFilter && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {filteredOptions.map((opt) => (
+                <button
+                  key={opt.system_id}
+                  onClick={() => openEditor(opt, "options")}
+                  className="text-left px-3 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium text-text-muted hover:border-brand hover:text-brand hover:bg-brand-soft transition shadow-sm"
+                >
+                  {opt.value}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTab !== "options" && (
+            <div>
+              <p className="text-xs font-black text-text-faint uppercase tracking-widest mb-3">
+                <i className="fas fa-clock mr-1"></i> Recently Modified
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {recentItems.map((item) => {
+                  const sub =
+                    activeTab === "anime" || activeTab === "anime-movie"
+                      ? allFranchises.find(
+                          (f) => f.system_id === item.franchise_id,
+                        )?.franchise_name_cn || "Standalone"
+                      : activeTab === "series"
+                        ? allFranchises.find(
+                            (f) => f.system_id === item.franchise_id,
+                          )?.franchise_name_cn || ""
+                        : "";
+                  const badge =
+                    activeTab === "anime"
+                      ? item.airing_type
+                      : activeTab === "franchise"
+                        ? item.franchise_type
+                        : activeTab === "anime-movie"
+                          ? item.airing_status
+                          : "";
+                  return (
+                    <button
+                      key={item.system_id}
+                      onClick={() => openEditor(item, activeTab)}
+                      className="text-left bg-surface border border-border rounded-xl p-4 hover:border-brand hover:shadow-md hover:-translate-y-0.5 transition-all shadow-sm"
+                    >
+                      {badge && (
+                        <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-surface-2 text-text-faint mb-1.5">
+                          {badge}
+                        </span>
+                      )}
+                      <div className="text-sm font-bold text-text line-clamp-1">
+                        {getItemLabel(item, activeTab)}
+                      </div>
+                      {sub && (
+                        <div className="text-xs text-text-faint mt-0.5 truncate">
+                          {sub}
+                        </div>
+                      )}
+                      <div className="text-[9px] text-text-faint/60 mt-2 font-mono">
+                        {item.updated_at
+                          ? new Date(item.updated_at).toLocaleDateString()
+                          : ""}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ EDITOR VIEW ═══ */}
+      {editorOpen &&
+        editingItem &&
+        activeTab !== "fav3x3" &&
+        activeTab !== "studio" &&
+        activeTab !== "publisher" &&
+        activeTab !== "person" &&
+        activeTab !== "character" &&
+        activeTab !== "alias" && (
+        <form onSubmit={handleSave}>
+          <div className="flex items-center gap-3 mb-5">
+            <button
+              type="button"
+              onClick={closeEditor}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-sm font-bold text-text-muted hover:bg-surface-2 transition shrink-0"
+            >
+              <i className="fas fa-arrow-left text-xs"></i> Back
+            </button>
+            <span className="font-mono text-xs text-text-faint bg-surface-2 px-2 py-1 rounded truncate">
+              {editingItem.system_id}
+            </span>
+          </div>
+
+          {/* Anime ribbon — grouped by series */}
+          {editingType === "anime" && animeRibbonSection}
+
+          {/* Movie ribbon — grouped by series */}
+          {editingType === "movie" && movieRibbonSection}
+
+          {/* TV Show ribbon — grouped by series */}
+          {editingType === "tv-show" && tvRibbonSection}
+
+          {/* Cartoon ribbon — grouped by series */}
+          {editingType === "cartoon" && cartoonRibbonSection}
+
+          {/* Novel ribbon — grouped by series */}
+          {editingType === "novel" && novelRibbonSection}
+
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-2">
+            <h2 className="text-lg font-black text-text">
+              {getItemLabel(editingItem, editingType)}
+            </h2>
+            <p className="text-xs text-brand font-bold">
+              {editingType.toUpperCase()}
+            </p>
+
+            {/* ── ANIME EDITOR ── */}
+            {editingType === "anime" && (
+              <AnimeModifyTab
+                franchiseCollections={franchiseCollections}
+                af={af}
+                ua={ua}
+                franchiseItems={franchiseItems}
+                seriesItemsForAnime={seriesItemsForAnime}
+                sources={sources}
+                editingItem={editingItem}
+              />
+            )}
+
+            {/* ── COLLECTION EDITOR ── */}
+            {editingType === "collection" && (
+              <CollectionModifyTab
+                cf={colf}
+                uf={ucol}
+                allFranchises={allFranchises}
+                editingItem={editingItem}
+              />
+            )}
+
+            {/* ── FRANCHISE EDITOR ── */}
+            {editingType === "franchise" && (
+              <FranchiseModifyTab
+                ff={ff}
+                uf={uf}
+                collectionItems={collectionItems}
+                allAnime={allAnime}
+                allAnimeMovies={allAnimeMovies}
+                allMovies={allMovies}
+                allTvShows={allTvShows}
+                allCartoons={allCartoons}
+                allMangas={allMangas}
+                allNovels={allNovels}
+                allComics={allComics}
+                editingItem={editingItem}
+              />
+            )}
+
+            {/* ── SERIES EDITOR ── */}
+            {editingType === "series" && (
+              <SeriesModifyTab
+                franchiseCollections={franchiseCollections}
+                sf={sf}
+                us={us}
+                franchiseItems={franchiseItems}
+                allAnime={allAnime}
+                allMovies={allMovies}
+                allTvShows={allTvShows}
+                allCartoons={allCartoons}
+                allMangas={allMangas}
+                allNovels={allNovels}
+                allComics={allComics}
+                editingItem={editingItem}
+              />
+            )}
+
+            {/* ── ANIME MOVIE EDITOR ── */}
+            {editingType === "anime-movie" && (
+              <AnimeMovieModifyTab
+                franchiseCollections={franchiseCollections}
+                amf={amf}
+                uam={uam}
+                franchiseItems={franchiseItems}
+                sources={sources}
+                editingItem={editingItem}
+              />
+            )}
+
+            {/* ── MOVIE EDITOR ── */}
+            {editingType === "movie" && (
+              <MovieModifyTab
+                franchiseCollections={franchiseCollections}
+                mmf={mmf}
+                umm={umm}
+                allFranchises={allFranchises}
+                seriesItemsForMovie={seriesItemsForMovie}
+                editingItem={editingItem}
+                sources={sources}
+              />
+            )}
+
+            {/* ── TV SHOW EDITOR ── */}
+            {editingType === "tv-show" && (
+              <TvShowModifyTab
+                franchiseCollections={franchiseCollections}
+                tvmf={tvmf}
+                utv={utv}
+                allFranchises={allFranchises}
+                seriesItemsForTvShow={seriesItemsForTvShow}
+                editingItem={editingItem}
+                sources={sources}
+              />
+            )}
+
+            {/* ── CARTOON EDITOR ── */}
+            {editingType === "cartoon" && (
+              <CartoonModifyTab
+                franchiseCollections={franchiseCollections}
+                cmf={cmf}
+                uc={uc}
+                allFranchises={allFranchises}
+                seriesItemsForCartoon={seriesItemsForCartoon}
+                editingItem={editingItem}
+                sources={sources}
+              />
+            )}
+
+            {/* ── MANGA EDITOR ── */}
+            {editingType === "manga" && (
+              <MangaModifyTab
+                franchiseCollections={franchiseCollections}
+                cmgf={cmgf}
+                umg={umg}
+                allFranchises={allFranchises}
+                seriesItemsForManga={seriesItemsForManga}
+                editingItem={editingItem}
+                ribbonSection={mangaRibbonSection}
+                sources={sources}
+              />
+            )}
+
+            {/* ── NOVEL EDITOR ── */}
+            {editingType === "novel" && (
+              <NovelModifyTab
+                franchiseCollections={franchiseCollections}
+                cnvf={cnvf}
+                unv={unv}
+                allFranchises={allFranchises}
+                seriesItemsForNovel={seriesItemsForNovel}
+                editingItem={editingItem}
+                sources={sources}
+              />
+            )}
+
+            {/* ── COMIC EDITOR ── */}
+            {editingType === "comic" && (
+              <ComicModifyTab
+                franchiseCollections={franchiseCollections}
+                ccmf={ccmf}
+                ucm={ucm}
+                allFranchises={allFranchises}
+                seriesItemsForComic={seriesItemsForComic}
+                editingItem={editingItem}
+                ribbonSection={comicRibbonSection}
+                sources={sources}
+              />
+            )}
+
+            {/* ── GAME EDITOR ── */}
+            {editingType === "game" && (
+              <GameModifyTab
+                franchiseCollections={franchiseCollections}
+                cgmf={cgmf}
+                ugm={ugm}
+                allFranchises={allFranchises}
+                allGames={allGames}
+                seriesItemsForGame={seriesItemsForGame}
+                editingItem={editingItem}
+                ribbonSection={null}
+                sources={sources}
+              />
+            )}
+
+            {/* ── OPTIONS EDITOR ── */}
+            {editingType === "options" && (
+              <OptionsModifyTab
+                editingItem={editingItem}
+                optValue={optValue}
+                optScopes={optScopes}
+                setOptScopes={setOptScopes}
+                setOptValue={setOptValue}
+                optUsages={optUsages}
+                setOptUsages={setOptUsages}
+                optAliases={optAliases}
+                setOptAliases={setOptAliases}
+              />
+            )}
+          </div>
+
+            {/* Content labels - the picker reads the entry's current set. */}
+            {["anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "novel", "comic", "game"].includes(editingType) && editingItem?.system_id && (
+              <div className="mt-6">
+                <ContentLabelPicker
+                  mediaType={editingType}
+                  entryId={editingItem.system_id}
+                  value={contentLabels}
+                  onChange={setContentLabels}
+                />
+              </div>
+            )}
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
+            >
+              {submitting ? (
+                <i className="fas fa-spinner fa-spin"></i>
+              ) : (
+                <i className="fas fa-save"></i>
+              )}
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ── FRANCHISE CREATE MODAL ── */}
+      {franchiseCreateModal && (
+        <FranchiseCreateModal
+          onConfirm={franchiseCreateModal.onConfirm}
+          onCancel={franchiseCreateModal.onCancel}
+          franchiseType={franchiseCreateModal.franchiseType}
+        />
+      )}
+
+      {/* ── CREATE NEW PARENT MODAL ── */}
+      {createModal && (
+        <CreateNewEntityModal
+          entityType={createModal.entityType}
+          text={createModal.text}
+          onConfirm={createModal.onConfirm}
+          onCancel={createModal.onCancel}
+        />
+      )}
+    </div>
+  );
+}

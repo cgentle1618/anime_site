@@ -1,22 +1,20 @@
+// Frontend: unit tests for the pure media helpers.
 /**
- * Unit tests for src/utils/anime.js
- *
- * Tests all pure utility functions. No network calls or DB required.
+ * These used to live in src/utils/anime.js. That module was split across lib/
+ * in 407a510 and the barrel src/utils/media.js now re-exports the pieces, so
+ * the imports below name the specific modules the barrel points at rather than
+ * the barrel itself. No network calls or DB required.
  */
 
 import { describe, it, expect } from "vitest";
+import { FALLBACK_SVG, getCoverUrl } from "../lib/covers";
+import { getDisplayName, getSortName } from "../lib/naming";
 import {
-  getCoverUrl,
-  getDisplayName,
-  getSortName,
-  isBaha,
   getStatusButtonConfig,
   getStatusStyle,
   getNextStatus,
-  getReleaseFallback,
-  getRatingWeight,
-  FALLBACK_SVG,
-} from "./anime.js";
+} from "../lib/status";
+import { isBaha, getReleaseFallback, getRatingWeight } from "../lib/formatters";
 
 // ---------------------------------------------------------------------------
 // getCoverUrl
@@ -142,20 +140,32 @@ describe("getSortName", () => {
 // ---------------------------------------------------------------------------
 
 describe("isBaha", () => {
-  it("returns true when source_baha is boolean true", () => {
-    expect(isBaha({ source_baha: true })).toBe(true);
+  it("returns true when a main-access Bahamut row is available", () => {
+    expect(
+      isBaha({
+        sources: [
+          { kind: "access", bucket: "main", name: "Bahamut", available: true },
+        ],
+      }),
+    ).toBe(true);
   });
 
-  it("returns true when source_baha is string 'true'", () => {
-    expect(isBaha({ source_baha: "true" })).toBe(true);
+  it("returns false when the Bahamut row is marked not available", () => {
+    expect(
+      isBaha({
+        sources: [
+          { kind: "access", bucket: "main", name: "Bahamut", available: false },
+        ],
+      }),
+    ).toBe(false);
   });
 
-  it("returns false when source_baha is false", () => {
-    expect(isBaha({ source_baha: false })).toBe(false);
+  it("returns false when there is no Bahamut row", () => {
+    expect(isBaha({ sources: [] })).toBe(false);
   });
 
-  it("returns false when source_baha is null", () => {
-    expect(isBaha({ source_baha: null })).toBe(false);
+  it("returns false when sources is absent", () => {
+    expect(isBaha({})).toBe(false);
   });
 });
 
@@ -171,6 +181,7 @@ const STATUS_CYCLE = [
   "Passive Watching",
   "Paused",
   "Completed",
+  "Completed (解說)",
   "Temp Dropped",
   "Won't Watch",
   "Dropped",
@@ -190,7 +201,7 @@ describe("getNextStatus", () => {
     expect(getNextStatus("Not A Real Status")).toBe("Might Watch");
   });
 
-  it("covers all 10 statuses in cycle", () => {
+  it("covers all 11 statuses in cycle", () => {
     STATUS_CYCLE.forEach((status, i) => {
       const expected = STATUS_CYCLE[(i + 1) % STATUS_CYCLE.length];
       expect(getNextStatus(status)).toBe(expected);
@@ -250,17 +261,19 @@ describe("getStatusStyle", () => {
 
 describe("getReleaseFallback", () => {
   it("returns season + year when both present", () => {
-    expect(getReleaseFallback({ release_season: "WIN", release_year: "2024" })).toBe("WIN 2024");
-  });
-
-  it("returns month + year when season absent", () => {
     expect(
-      getReleaseFallback({ release_season: null, release_month: "JAN", release_year: "2024" })
-    ).toBe("JAN 2024");
+      getReleaseFallback({ release_season: "WIN", release_date: "2024-01" })
+    ).toBe("WIN 2024");
   });
 
-  it("returns year only when month/season absent", () => {
-    expect(getReleaseFallback({ release_year: "2024" })).toBe("2024");
+  it("returns the stored date verbatim when the season is absent", () => {
+    expect(
+      getReleaseFallback({ release_season: null, release_date: "2024-01" })
+    ).toBe("2024-01");
+  });
+
+  it("returns year only when that is all that is stored", () => {
+    expect(getReleaseFallback({ release_date: "2024" })).toBe("2024");
   });
 
   it("returns TBA when all absent", () => {
@@ -295,3 +308,4 @@ describe("getRatingWeight", () => {
     }
   });
 });
+

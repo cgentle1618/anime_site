@@ -1,0 +1,544 @@
+# Admin Pages
+
+Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
+
+**What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
+in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
+the rules that are easy to get wrong (cascade deletes, enrichment, form
+defaults). Public pages are in [pages.md](pages.md); the shared data layer,
+theming and component catalog are in [components.md](components.md); the
+server side of every action is in [../api.md](../api.md) and
+[../data-actions.md](../data-actions.md).
+
+All admin routes are lazy chunks (loaded on first navigation) and sit under
+the `Admin` nav section, which only renders when `useAuth().has("admin")`.
+
+| Route | File | Purpose |
+|---|---|---|
+| `/system` | `pages/admin/Admin.jsx` | Control Center: pipelines, announcements, review modals |
+| `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
+| `/review-queue` | `pages/admin/ReviewQueue.jsx` | Remarks and duplicate clusters to act on |
+| `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
+| `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
+| `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling |
+| `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults |
+| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor |
+| `/relations` | `pages/admin/Relations.jsx` | Relations canvas |
+| `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers |
+| `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source |
+| `/external-apis` | `pages/admin/ExternalApis.jsx` | Read-only view of which field each external API writes, and whether it fills or replaces it |
+| `/roles`, `/users`, `/content-labels` | `pages/admin/{Roles,Users,ContentLabels}.jsx` | RBAC administration |
+
+---
+
+## /system — Control Center (`Admin.jsx`)
+
+- **Pipelines.** Buttons start `POST /api/data-control/fill/<type>`,
+  `/replace/<type>`, `/fill/all`, `/replace/all` as Server-Sent Event streams
+  (`startStream`). The reader parses `data: {...}` events (`processing`,
+  `success`, `error`) into a status line and toasts on completion; **Stop**
+  aborts the fetch via an `AbortController`, and the page aborts any running
+  stream on unmount. Only one stream runs at a time.
+- **Sync actions.** Backup, Pull All, Pull `<tab>`, Calculate All and the
+  cover-image maintenance endpoints are plain JSON calls with a busy state.
+- **Announcements.** Create / edit / delete the dashboard board
+  (`/api/announcements/`; title is the identifier — see api.md).
+- **Current season.** Reads and writes `/api/system/config/current_season`
+  (`"SPR 2025"` shape; not validated server-side).
+- **Remarks / Duplicates modals.** The same views as the Review Queue, opened
+  in place. (The Remarks modal's media-type tab list must include every type;
+  `ReviewQueue.jsx` is the reference copy.)
+
+## /data-history (`DataHistory.jsx`)
+
+Lists `data_control_logs` (`GET /api/system/logs`) and `deleted_record`
+(`GET /api/system/deleted`), each with a per-row delete
+(`DELETE /api/system/logs/{id}`, `/deleted/{id}`). Deleted-record rows link
+back to the owning franchise/series where the ids still exist.
+
+## /review-queue (`ReviewQueue.jsx`)
+
+- **Remarks section** — `GET /api/data-control/check/remarks`: every entry
+  whose remark note is non-empty, grouped by media type, with the remark
+  editable in place through `RemarkModal` (PATCH on the entry; the remark is a
+  note section, see [../systems/notes.md](../systems/notes.md)).
+- **Duplicates section** — `GET /api/data-control/check/duplicates`: clusters
+  per type (see `find_all_duplicates` in
+  [../business-rules.md](../business-rules.md)) with links to Modify/Delete.
+
+## /add (`Add.jsx`)
+
+A two-level tab bar (`config/adminTabs.js`): **Entries** (anime, anime movie,
+movie, TV show, cartoon, manga, novel, comic, game), **Structure** (collection,
+franchise, series, quote, meme), **Entity** (studio, publisher, person,
+character) and **System** (system option, alias). Each
+tab is a form component in `pages/add-tabs/`; the page owns the state objects,
+submit handlers and the shared modals.
+
+The **System** group holds the vocabulary tables themselves rather than
+anything a visitor browses. System Option moved here out of Structure, which
+had come to mean "grouping tiers plus a vocabulary editor"; Alias is new.
+
+The **Entity** group holds things that are credited *on* entries rather than
+being entries: studios, publishers, characters, and the people credited as
+director, producer, composer, author or illustrator. Both were sub-tabs of System Options and both
+moved out once each became a public entity with pages of its own. They are in
+`FORM_TABS`: an entity is not a media entry, but each has an Add form whose
+starting values are configurable on `/defaults`. Only options, alias, quote
+and meme are excluded — those four have no factory in
+`config/formFactories.js`.
+
+**Data loaded on mount.** Every list the forms need for ComboBoxes and
+duplicate hints — franchises, series, collections, options and all nine
+media lists — each with `limit=2000`.
+
+**Form defaults.** A fresh form comes from `freshForm(type)`
+(`config/formFactories.js`) merged with the admin's saved defaults
+(`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
+
+**Autofill search box (anime, anime movie, movie, TV show, cartoon, manga,
+novel, comic).** Typing filters the loaded list client-side; picking a row
+copies its fields into the form (`lib/autofill.js`, driven by
+`config/formFields/fieldMeta.js`). Nothing is fetched from external APIs at
+this point. **Game is the exception** — its box searches IGDB instead, see the
+Game tab below.
+
+**Franchise / series pickers.** `ComboBox` over the loaded lists; "create new"
+opens `FranchiseCreateModal` / `CreateNewEntityModal`, which POST the group
+and select it. `ComboBox.onSelect` receives `(id, label)`.
+
+**Submit.** Validation (at least one name) → `POST` the entry
+(`api/endpoints.js resource(type).create()`) → `PUT /api/credits/<type>/<id>`
+with the credit/tag fields (`saveCredits`) → `PUT /api/content-labels/entry/…`
+if labels were picked → for **anime and anime movie only**, enrichment via
+`lib/enrich.js` (`POST /api/data-control/replace/<type>/<id>` then re-read the
+entry). The toast says "appended and enriched" only when enrichment
+succeeded; otherwise "Saved. Enrichment failed - run Replace later." Movie
+and TV Show toasts never claim enrichment (they are not enriched on Add).
+Content labels reset only after a successful submit; a validation
+early-return or a failed POST keeps the selection. Network failures surface
+as an error toast.
+
+**Game tab.** `GameAddTab.jsx`. The one media tab whose search box is not the
+client-side "copy an existing entry" picker: `IgdbSearchBox` queries
+`GET /api/game/search-igdb?q=&limit=10` (`endpoints.game.searchIgdb`) and lists
+IGDB's own hits. It debounces 350 ms (IGDB is rate-limited), fires nothing under
+two characters, and its effect cleanup marks in-flight answers cancelled, so a
+slow reply to an earlier query can never overwrite a newer one. The rows read
+IGDB's **raw** objects — `name`, `first_release_date` (Unix seconds UTC, shown
+as a year) and `cover.url` (protocol-relative, so `https:` is prefixed) — because
+the endpoint does not reshape them. The widget never touches form state; it
+hands the raw object to `onPick`.
+
+Its sections run Classification → **Rating** → Status → Progress → Credits →
+Release & Prices → Copies → Sources → Flags → Notes. Rating holds `my_rating`
+and the two Metacritic scores together, which is why the registry groups all
+three under `Ratings` (`fieldMeta.js`) rather than leaving `my_rating` in the
+shared `Status` group — /defaults reads those groups and is meant to match.
+
+`applyGameAutofill` (in `Add.jsx`) is what turns that object into fields, and it
+is deliberately not `makeApply`'s shape: it always sets `igdb_id` and
+`igdb_link`, and fills `game_name_en` **only when the admin left it blank**.
+Nothing else is copied — the rest is Fill Game's job.
+
+**`igdb_id` has its own input, beside `igdb_link`**, and both ids are typed
+rather than derived. The picker stores IGDB's public `www.igdb.com/games/<slug>`
+URL, while the backend's `extract_igdb_id` only parses the API shape
+`api.igdb.com/v4/games/<id>` — so a link pasted by hand identifies nothing, and
+without a separately carried id the entry saves with `igdb_id` null and Fill has
+no handle on it. `steam_appid` sits beside `steam_link` for the same
+reason — there is no Steam picker at all, so a hand-typed `steam_link` still
+needs its own id extracted before Fill can use it — but unlike `igdb_id` it
+rarely stays null in practice: `steam_appid` is also written automatically,
+either by `extract_steam_appid` parsing a store URL out of a hand-typed
+`steam_link` before every Fill, or by Fill Game itself, whose IGDB half reads
+the appid from `external_games` and writes the pair when the entry has
+neither yet. Steam itself never writes `steam_appid`/`steam_link` — it only
+reads the appid IGDB (or the admin) already supplied. `gameFieldsPayload`
+coerces both to ints
+(`lib/payloads.js`); `fieldMeta.js` marks them `defaultable: false`, since an
+identifier is per-entry by definition.
+
+The rest of the form is `GameFormBody`, exported from the same file: the five
+names, classification (game type plus a **Base Game** `ComboBox` that never
+offers the row being edited — `ck_games_not_self_parent` — and the four game
+vocabularies), status, progress and the three HLTB tiers, credits (Developer is
+a **studio** row, Publisher a **publisher** row; director and composer are
+people scoped to `game`), release date and the six price fields, **Copies**,
+sources, flags and notes. Submit needs a CN or EN name, `POST /api/game/` then
+`saveCredits`; **games are never enriched on Add** — the toast is a plain "Game
+appended successfully."
+
+**Copies editor.** `components/forms/GameCopiesEditor.jsx`, one row per copy
+owned or wanted (storefront, ownership, format, acquisition, price paid +
+currency, acquired date, remark), with move-up/down and remove. It is fully
+controlled on the `NovelUnitsEditor` contract: no internal state, the parent
+owns `items`, the array handed in is never mutated, and every change goes out
+through `onChange` with `position` renumbered 1..n. `acquired_date` is free text,
+not `<input type="date">`, because it carries the same partial precision
+`release_date` does (invalid values are flagged with a danger border). The
+entry's Ownership is derived from these rows, not typed.
+
+**Person tab (Entity).** `PersonAddTab.jsx`. No `PersonSubTabBar` here — the
+bar filters a list, and Add has no list; the role × scope matrix inside the
+form already says which types a new person holds. `PersonFields` holds the four name fields with a
+"Display name" select, the **role × scope matrix**, and gender, rating, photo
+key and remark. Ticking a type selects its first legal media type, because a
+scopeless role is a 422; the legal types per role come from
+`GET /api/person/role-scopes`, so the form cannot offer a pair the API
+rejects. Submit is blocked until at least one name is filled, matching
+`ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
+`PersonFields` is exported so the Modify tab renders the same inputs.
+
+**Options tab.** Two sub-tabs (`OptionSubTabBar`, shared with Modify and
+Delete): **Options** and **Tags**, both creating system options (category +
+value + scopes). They are the same form posting to the same endpoint; only the
+categories the Category picker offers differ (`TAG_CATEGORIES`, see
+[../options.md](../options.md)). All three pages now show the same two, so the
+Add-only `OPTION_VALUE_SUB_TABS` variant is gone. People and studios are
+**not** here — each has its own Entity tab.
+
+Below the scope and usage pickers sits `forms/AliasPicker.jsx`, repeating
+`source` + external-value rows. Its hint says the opposite of theirs on
+purpose: no scopes means *offered everywhere* and no usages means *every
+usage*, but no aliases means *nothing maps to this*.
+
+The picker appears **only for the categories in `ALIAS_CATEGORIES`** — Game
+Genre, Game Theme, Game Mode, Game Platform (`forms/AliasPicker.jsx`, mirroring
+`app/utils/source_fields.py`; see [../options.md](../options.md) for why the
+list is code). Hidden rather than disabled: unlike the multi-value case below,
+nothing the admin does to this form would make it apply. It **is** disabled,
+and explained, while more than one option value is being added — the form
+creates N values at once and an alias belongs to one value, not to the
+category.
+
+**Alias tab (System).** `forms/AliasTab.jsx`, shared verbatim with Modify.
+A `system_option_alias` row has no endpoint of its own, so the tab picks the
+option that owns it (category select, then value select) and `PUT`s that whole
+option. The category select offers only `ALIAS_CATEGORIES`, and only those of
+them that have values, in that constant's order rather than alphabetically. The body carries the option's `scopes`, `usages`, `sort_order` and
+`remark` back unchanged — the `PUT` replaces those lists wholesale too, so an
+aliases-only body would silently unscope the value. Choosing a different value
+re-seeds the picker rather than carrying the previous option's rows over. The
+page-level **Append Entry** button is hidden on this tab; the tab saves through
+its own.
+
+**Alias tab (Delete).** Not the shared component — the Delete page keeps its
+own list/confirm shape. A category filter over `ALIAS_CATEGORIES`, then one
+card per alias **row** (an option with three aliases yields three cards, since
+the row is what gets deleted), each opening the page's usual confirmation
+modal. Confirming calls `optionWithoutAlias(option, source, value)` from
+`AliasPicker.jsx` and `PUT`s the result: the row goes, the option and its
+scopes and usages stay. Deleting a conversion never deletes the value it points
+at — only the external name, after which a Fill run meeting that name logs it
+as unmatched and skips it. The match is on the `(source, value)` **pair**, not
+the external value alone, so a second API knowing a value by the same string
+keeps its own row.
+
+Category is a closed picker (`forms/OptionCategorySelect.jsx`), the same
+component and the same grouping the Modify and Delete pages browse with. Add
+used to render a text box with a `datalist` of suggestions, which made it the
+one place a category could be coined by typing — and a typo there made a
+category of its own that no other page would list. `POST /api/system-option`
+still accepts any category string; the restriction is the form's. The picker
+arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
+see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
+categories under **Other**; a list that yields a single section — the Tags
+sub-tab, whose four categories are one group — renders flat rather than under
+a heading repeating the sub-tab's own name.
+
+**Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
+Chinese, Japanese, Alternative) with a "Display name" select naming which one
+to show, plus a rating select over the shared `MY_RATINGS` vocabulary
+(S…F, the same one entries use), logo key, country, founded/defunct dates
+(`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
+and remark. Submit is blocked client-side until at least one name is filled,
+matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
+find-or-create: posting a name that already exists returns the existing
+studio rather than splitting its credits, and leaves its metadata untouched.
+`StudioFields` is exported from this file so the Modify tab renders the exact
+same inputs.
+
+**Publisher tab (Entity).** `PublisherAddTab.jsx`, the publisher twin of the
+studio tab and split the same way (`PublisherFields` exported beside the page
+wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
+fields with the "Display name" select — it is the third consumer of the shared
+`STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
+rating, logo key, country, founded/defunct `ReleaseDateInput`s, website and
+remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+carries no MAL columns, because MAL has no record of a games publisher or a
+Taiwanese distributor. Submit is blocked until at least one name is filled,
+matching `ck_publisher_has_a_name`. Below the name fields sits
+`PublisherScopePills` (`components/forms/PublisherScopePills.jsx`): one row of
+media-type pills — Anime, Anime Movie, Manga, Novel, Comic, Game — writing the
+`scopes` list the request body carries, which decides where this publisher is
+offered in the entry forms' pickers. A publisher with no pill lit is offered
+**nowhere**, which is the deliberate rule, not an oversight; the studio tab has
+no counterpart, because studios carry no scope. `POST /api/publisher/` is
+find-or-create exactly as studio's is.
+
+**Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
+`MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).
+
+## /modify (`Modify.jsx`)
+
+Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
+**Fav 3x3** (`Fav3x3ModifyTab.jsx`: the per-type favourite grids stored in
+`franchise.type_slots`).
+
+- **Finding a row.** A search box over the loaded list, or a deep link
+  `/modify?id=<system_id>[&type=<type>]` used by the dashboard cards and
+  detail-page "Quick Edit" buttons. The deep-link effect runs once on mount.
+- **Opening a row** seeds the form (`<type>ToForm(...)`), then loads its
+  credits/tags (`GET /api/credits/<type>/<id>`) and content labels. A late
+  credits response for a row that is no longer open is ignored (request
+  counter), and the label picker clears the previous selection before
+  fetching, so a slow or failed fetch can never save one entry's credits or
+  labels onto another.
+- **Save.** `PUT` the entry → `saveCredits` → labels → for **anime, anime
+  movie, cartoon and manga**, enrichment via `lib/enrich.js`; the page then
+  shows the *enriched* row (not the pre-enrichment one) and warns if
+  enrichment failed. Other types save without enrichment.
+- **Game tab.** `GameModifyTab.jsx` renders `GameAddTab`'s exported
+  `GameLineageFields` and `GameFormBody` rather than keeping its own copy, so
+  the two tabs cannot drift; the only differences are the ribbon section Modify
+  puts above the form and `excludeGameId`, which drops the row being edited from
+  its own Base Game picker. This is a deliberate divergence from the **comic**
+  pair, which still keeps two near-identical files. The Modify tab has **no IGDB
+  search box** — identification happens once, on Add — and it saves with
+  `PATCH /api/game/{id}`, without enrichment.
+- **Franchise / Series tabs** also expose the plan-next / rewatch toggles
+  (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
+- **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
+  save machinery above, which is shaped around media entries and the grouping
+  tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and
+  its own `PUT /api/studio/{id}`, rendering `StudioFields` from the Add tab.
+  The picker **lists every studio up front** in a grid of display names, the
+  way the System Option tab lists a category's values — an admin does not have
+  to already know a name to reach the record. The search box filters that grid
+  in place over **all four** name fields, not just the one
+  `display_name_field` points at, so a studio configured to display its
+  English name is still findable by its Japanese one. Opening a studio whose
+  `country` is unset seeds the field with **Japan** — the overwhelmingly
+  common case here — so saving without touching it records Japan.
+- **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the
+  same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
+  picker listing every publisher up front, the same all-four-names filter, and
+  its own `PUT /api/publisher/{id}` rendering `PublisherFields` from the Add
+  tab, `PublisherScopePills` included — and this is the **only** path that
+  narrows a publisher's scopes, since `PUT` replaces the set wholesale while
+  every other writer (the create POST, and crediting a publisher on an entry)
+  is additive. Two `activeTab !== "publisher"` guards on the page suppress the generic
+  entry search bar and save footer, as the studio and person tabs do. Unlike
+  the studio tab it seeds **no default country**: "nearly every studio here is
+  Japanese" is not true of publishers and distributors.
+- **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
+  over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
+  the option tab's category — and every person holding it is listed in the
+  same grid of display names, filtered in place by the same all-four-names
+  search. Above that search sits a row of **scope chips** — the role's legal
+  media types, from `/api/person/role-scopes` — which narrow the grid to the
+  people holding the role in one of the ticked scopes; the match is OR, so a
+  director scoped to `anime` alone still shows under {anime, anime-movie}.
+  None ticked means any scope, switching sub-tab clears them, and a role with
+  a single legal scope (producer, composer) gets no chip row. The filtering is
+  client-side over the `roles` each listed person already carries, not the
+  endpoint's single-valued `?scope=`. The form then edits the person's whole
+  record, every type they hold and not just the sub-tab's one, because `PUT` replaces the role set
+  wholesale.
+
+## /delete (`Delete.jsx`)
+
+Loads every list with `limit=2000` (the API default of 500 would silently
+truncate the search and the checks below). For a selected row it shows a
+confirmation modal with the consequences:
+
+| Deleting | What is offered |
+|---|---|
+| Collection | Never cascades; member franchises become uncollected. |
+| Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type under it (`deleteChildren("franchise_id", id)`), or leaves them with `franchise_id = NULL` if unchecked. |
+| Series | Cascade over every media type holding that `series_id`. |
+| Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
+
+The **Game tab**'s panel adds one line of its own: when the selected game has
+copy rows it warns how many will be deleted with it. Its DLC and expansion rows
+are not cascaded — they survive with `base_game_id` set to `NULL`.
+
+Counts are computed across all nine media types (`entriesIn`,
+`standaloneEntriesIn`). Deletion order is children first, then the row, then
+any orphaned parents the admin ticked. Every delete goes through the type's
+`DELETE` endpoint, which also removes cover images, plan rows, credit links and
+writes a `deleted_record`.
+
+**Person tab (Entity).** A `PersonSubTabBar` filters the picker to the people
+holding one type, then the selected person's whole record is edited through
+`PersonFields` — every type they hold, not just the sub-tab's one, because
+`PUT` replaces the role set wholesale. The picker searches all four name
+columns, not just the displayed one. The panel mirrors the studio one below:
+credit count, a warning that `media_credit.person_id` is `ON DELETE CASCADE`,
+**Merge Into Another Person** offered before Delete, and the confirmed credit
+count sent as `?credits=N` so a count that moved while the dialog was open
+comes back as a 409 rather than a silent over-deletion.
+
+**Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
+display name, id and credit count, then a warning that says exactly what
+deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
+destroys this studio's *n* credits on every entry linked to it. The panel
+therefore offers **Merge Into Another Studio** beside Delete — merge
+(`POST /api/studio/{keep}/merge` with the selected studio as `source_id`)
+repoints the credits onto the survivor first, and is the correct fix for a
+duplicate. Delete itself is two-step (confirm, then execute) and writes no
+`deleted_record`.
+
+**Publisher tab (Entity).** The same shape as the studio tab above: a picker
+over `/api/publisher/` showing display name, id and credit count; a warning
+that `media_credit.publisher_id` is `ON DELETE CASCADE`, so deleting destroys
+this publisher's *n* credits; **Merge Into Another Publisher**
+(`POST /api/publisher/{keep}/merge` with the selected publisher as
+`source_id`) offered beside Delete as the correct fix for a duplicate; and a
+two-step delete writing no `deleted_record`. The one thing the studio path
+does not do: the publisher `DELETE` endpoint also removes the publisher's logo
+object from GCS — see [../api.md](../api.md#publisher--apipublisher).
+
+## /defaults (`FormDefaults.jsx`)
+
+One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
+three grouping tiers, and the three Entity tabs. Fields come from
+`config/formFields/fieldMeta.js` (label, control, option source, `coerce`
+rule); values are stored per type via `/api/form-defaults/<type>` and applied
+by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
+defaults for that type. Note `coerce: "tristate"` is implemented but unused
+by any field.
+
+`game` is present here like any other media type, but its Add form has no
+"copy an existing entry" search (its box searches IGDB), so the auto-fill ticks
+on the Game tab currently drive nothing.
+
+**Repeater defaults (sources, game copies).** `sources` on every media tab and
+`copies` on the Game tab are lists of rows, not single values, so
+`DefaultValueControl` renders the Add form's own editors — `SourcesEditor` and
+`GameCopiesEditor` — inline, laid out across the full row rather than squeezed
+into the value column. What the admin builds here is what a new entry starts
+with: a game can default to one "Steam / Owned" copy instead of no copies at
+all. The Game tab hides the main-access block exactly as its Add form does
+(`showAccess: false`), since a game is owned rather than streamed. Rows are
+templates, so `useFormDefaults` strips any `system_id` off them on read — a
+default row must insert, never update someone else's row. Modify is unaffected:
+it reads `sources` and `copies` off the saved entry and takes only scalar
+fallbacks from the defaults.
+
+The Entity tabs (studio, publisher, person, character) are defaults-only: their Add forms
+have no "auto-fill from an existing record" search, so every one of their
+fields is `autofillable: false` and `DefaultsTab` drops the auto-fill column
+for them entirely.
+
+## /watch-orders (`WatchOrders.jsx`)
+
+Lists every watch-order list (`GET /api/watch-order/lists`, with the
+`auto=exclude|only` filter for generated Release Orders), opens
+`WatchOrderEditor` for items, sections and reordering, and can duplicate or
+delete lists. Details in [../systems/watch-orders.md](../systems/watch-orders.md).
+
+## /relations (`Relations.jsx`)
+
+Picks a lens (franchise, collection or series) and renders `RelationGraph`
+(`GET /api/media-relation/graph`), with drag-to-connect, the edge inspector,
+undo and scope reset. Details in [../systems/relations.md](../systems/relations.md).
+
+## /options (`SystemOptions.jsx`)
+
+Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
+category with their scopes, Tier 3 people and studios. Editing happens on
+Add/Modify under System → System Option — see [../options.md](../options.md).
+
+## /aliases (`Aliases.jsx`)
+
+Read-only, and the inverse of `/options`: that page answers "what values does
+this category offer?", this one answers the question Fill actually asks —
+"IGDB just said *Role-playing (RPG)*; what does that become?". Both read the
+same `GET /api/options/?limit=5000`; `lib/aliasGroups.js` turns the rows inside
+out into source → category → `{external, value, scopes}`, sorted by the
+external string so an admin can scan for what the API sent.
+
+A category appears under a source only if at least one of its values carries a
+row for it — otherwise every category would list under `igdb` with all its
+values unaliased, which says nothing (Combat Mode is not an IGDB field). Within
+a listed category, the values that carry **no** row are named underneath: those
+are the gap the page exists for, invisible from the options side, where a value
+with no aliases looks exactly like a value in a category no API touches.
+
+Neither Tier 1 nor Tier 2 is one alphabetical wall: `lib/optionsPageGroups.js`
+sorts each into named groups, with everything unclaimed under a final
+**Other**. Tier 1 (`TIER1_GROUPS`, keyed by enum name) puts the "what kind of
+work is this" lists together under Entry Type, files the game lists by the
+question they answer (`game_release_status` under Publication Status,
+`playing_status` under My Progress) and keeps only the game_copy vocabularies
+in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
+reads as Tags, Game, Comic and Source & Platform. That last group lost
+`Publisher / Distributor TW` and `Comic Publisher` when the publisher migration
+retired both categories on 2026-09-07 — publishers are edited on the Entity →
+Publisher tab now, not here — leaving it holding the platform and reference
+vocabularies, which still name an outside party.
+
+A group left with a single member is demoted into Other rather than printed as
+a heading over one card. The left-hand section index lists one level per tier —
+the group headings, not the enums and categories inside them; listing every
+leaf ran to forty-odd links, taller than the viewport on its own. Individual
+cards and tables keep their ids for saved links, but only the tiers and their
+groups carry `data-section-anchor`, since those are the entries the index can
+highlight. Grouping is presentation only — no business logic reads it, and
+a category no group claims still appears, under Other. `TIER2_GROUPS` is not
+this page's alone: the Add / Modify / Delete category picker
+(`forms/OptionCategorySelect.jsx`) arranges its dropdown with the same
+`groupTier2Categories`, so a category sits in the same company wherever an
+admin meets it.
+
+## /external-apis (`ExternalApis.jsx`)
+
+Read-only, and the third of the inventory pages: `/options` says what the
+vocabulary offers, `/aliases` says what an API's English becomes, and this one
+says which **columns** an external API writes at all — and whether it fills
+each or replaces it. Served by `GET /api/constants/external-apis` from
+`app/services/integrations/catalog.py`; the prose version, with the mapping
+rules the catalog omits, is [../external-apis.md](../external-apis.md).
+
+The distinction the page is built around, and the reason it is not laid out as
+a Fill column beside a Replace column: **Replace does not write a different set
+of fields from Fill**. `apply_single_replace_*` calls the same `autofill_*`
+function with the same `force_replace_ratings=True`; the two pipelines differ
+only in which entries they select. A two-column table would print every value
+twice and teach the wrong model, so the page states one rule per field and
+calls out the overwrite list once, up front. That list is computed from the
+catalog rather than written into the page — a stale summary here would be worse
+than none.
+
+One section per media type, in `PIPELINES` order, each holding the id it is
+keyed on, the requests it costs per entry, chips for the pipelines it actually
+has, and one table per source. A type with several sources says how they
+combine: Movie / TV Show / Cartoon are `merged` (TMDB and OMDb both fetched,
+OMDb winning on `imdb_rating`, the only key they share), Novel is `either-or`
+(a `mal_link` routes to Tenrai, otherwise Open Library). Below the sections, a
+service table with the env var and rate limit behind each API, and a legend for
+the six rules.
+
+Colour carries one thing only: `overwrite` takes the brand chip, everything
+else is muted — design rule 1, and the whole point of the page in one glance.
+The media-type key reuses `config/scopeColors.js`; Studio has no hue because
+it is not a media entry.
+
+The four pipeline chips (`in Fill All`, `bulk Replace`, `fill only`, `stops on
+quota`) are derived server-side from `PIPELINES`, never declared in the
+catalog, so flipping `in_replace_all` on a spec lights the page up without
+anyone remembering this file.
+
+## /roles, /users, /content-labels
+
+- **Roles** — create roles, replace their permission set from the catalog
+  (`/api/roles/catalog`); the guest role can never receive `admin` (409).
+- **Users** — create users with a role, change role, delete; the last
+  administrator and your own account are protected.
+- **Content Labels** — the label vocabulary; deleting a label immediately
+  re-exposes every entry that carried only that label.
+
+Rules and enforcement are in [../authorization.md](../authorization.md). These
+three pages have one-click deletes with no confirm dialog.

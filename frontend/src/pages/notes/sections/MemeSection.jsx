@@ -1,0 +1,205 @@
+// Frontend: the memes section. A meme is an ordered list of text lines plus at
+// most one image; a line carrying a quote_id is also a Quote. Memes live in
+// their own table, so this section talks to /api/meme rather than to /api/notes
+// - which is why the notes registry marks it as an `external` shape.
+//
+// It moved out of NotesTemplate when that component became registry-driven;
+// the franchise and collection pages mount it directly.
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import MemeForm, {
+  emptyMeme,
+  toMemePayload,
+} from "../../../components/forms/MemeForm";
+import { endpoints } from "../../../api/endpoints";
+import { fetchJson, jsonBody } from "../../../api/client";
+import { getQuoteImageUrl } from "../../../lib/covers";
+import {
+  ItemActions,
+  LinkPill,
+  SaveCancel,
+  SectionCard,
+  brandTagCls,
+  draftCls,
+  rowCls,
+  tagCls,
+} from "./ui";
+
+export default function MemeSection({
+  label,
+  ownerType,
+  ownerId,
+  isAdmin,
+  onCount,
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = ["memes-by-owner", ownerType, ownerId];
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchJson(endpoints.memes.byOwner(ownerType, ownerId)),
+    enabled: !!ownerType && !!ownerId,
+    staleTime: 30_000,
+  });
+
+  // This section owns its rows, so the page cannot count them from the notes
+  // it fetched. Reporting the count up is what lets the enclosing group card
+  // know whether it is empty, and null says "still loading" so the group stays
+  // open rather than collapsing on a count it does not have yet.
+  useEffect(() => {
+    onCount?.(isLoading ? null : items.length);
+  }, [onCount, isLoading, items.length]);
+
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState(emptyMeme());
+  const [editId, setEditId] = useState(null);
+  const [editVal, setEditVal] = useState(emptyMeme());
+  const [busy, setBusy] = useState(false);
+
+  // Creating a meme can create quotes too, so both caches are invalidated.
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: ["memes-grouped"] });
+    queryClient.invalidateQueries({ queryKey: ["quotes-by-entry", ownerType, ownerId] });
+    queryClient.invalidateQueries({ queryKey: ["quotes-grouped"] });
+  };
+
+  const commit = async () => {
+    if (!draft.text?.trim() && !draft.image_file?.trim()) return;
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.memes.create(), {
+        method: "POST",
+        ...jsonBody(
+          toMemePayload(draft, {
+            owner_type: ownerType,
+            owner_id: ownerId,
+            sort_index: (items.length || 0) + 1,
+          }),
+        ),
+      });
+      setDraft(emptyMeme());
+      setAdding(false);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.memes.patch(editId), {
+        method: "PATCH",
+        ...jsonBody(toMemePayload(editVal)),
+      });
+      setEditId(null);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id) => {
+    setBusy(true);
+    try {
+      await fetchJson(endpoints.memes.remove(id), { method: "DELETE" });
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      label={label}
+      count={isLoading ? null : items.length}
+      isAdmin={isAdmin}
+      onAdd={() => setAdding(true)}
+    >
+      {items.map((item) => {
+        const imageUrl = getQuoteImageUrl(item.image_file);
+        return (
+          <div
+            key={item.system_id}
+            className={rowCls}
+          >
+            {editId === item.system_id ? (
+              <div>
+                <MemeForm
+                  val={editVal}
+                  setVal={setEditVal}
+                  ownerType={ownerType}
+                  ownerId={ownerId}
+                />
+                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+              </div>
+            ) : (
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1">
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      className="mb-1 max-h-40 border border-border"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+                  {item.text && (
+                    <p className="text-sm text-text whitespace-pre-wrap">
+                      {item.text}
+                      {item.quote_id && (
+                        <span className={`${brandTagCls} ml-1.5`}>quote</span>
+                      )}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
+                    {item.episode && <span>{item.episode}</span>}
+                    {item.is_favorite && (
+                      <span className={tagCls}>favourite</span>
+                    )}
+                    {item.remark && <span>{item.remark}</span>}
+                  </div>
+                  {item.link && <LinkPill url={item.link} />}
+                </div>
+                <ItemActions
+                  isAdmin={isAdmin}
+                  onEdit={() => {
+                    setEditId(item.system_id);
+                    setEditVal(emptyMeme(item));
+                  }}
+                  onDelete={() => remove(item.system_id)}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {adding && (
+        <div className={draftCls}>
+          <MemeForm
+            val={draft}
+            setVal={setDraft}
+            ownerType={ownerType}
+            ownerId={ownerId}
+          />
+          <SaveCancel
+            onSave={commit}
+            onCancel={() => {
+              setDraft(emptyMeme());
+              setAdding(false);
+            }}
+          />
+        </div>
+      )}
+      {!items.length && !adding && (
+        <p className="text-xs text-text-faint">
+          {isLoading ? "Loading..." : "No entries."}
+        </p>
+      )}
+    </SectionCard>
+  );
+}

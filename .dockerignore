@@ -1,5 +1,5 @@
 # Python
-pycache/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -17,14 +17,25 @@ credentials.json
 .git/
 .gitignore
 
+# Not needed at runtime
+tests/
+docs/
+static/covers/
+scripts/
+.github/
+.superpowers/
+*.md
+.pytest_cache/
+.ruff_cache/
+
 # Docker
+dockerfile
 Dockerfile
 docker-compose.yml
 
 # Node & Frontend
 **/node_modules
 npm-debug.log
-package-lock.json
 frontend_dist/
 
 # Exclude Claude's working directory

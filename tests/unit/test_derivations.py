@@ -1,5 +1,5 @@
 """
-Unit tests for derivation functions in services/other_logics.py
+Unit tests for derivation functions in app/services/domain/derivation.py
 
 Uses mocked DB sessions (MagicMock with self-referential chaining) so these
 tests run without a real PostgreSQL connection.
@@ -9,15 +9,11 @@ import types
 import uuid
 from unittest.mock import MagicMock
 
-import pytest
-
-from services.other_logics import (
-    derive_watch_order_anime,
+from app.services.domain import (
+    apply_calculate_seasonal_from_month,
     derive_ep_previous_anime,
-    derive_prequel_sequel_anime,
     derive_season_1_anime,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -36,13 +32,9 @@ def make_anime(**kwargs):
         airing_type="TV",
         airing_status="Finished Airing",
         season_part="Season 1",
-        watch_order=None,
         ep_previous=None,
         ep_total=12,
         ep_special=None,
-        prequel_id=None,
-        sequel_id=None,
-        derive_related=None,
     )
     defaults.update(kwargs)
     return types.SimpleNamespace(**defaults)
@@ -74,7 +66,7 @@ def mock_db_returns(anime_list, series_list=None):
         q.first.return_value = return_val[0] if return_val else None
         return q
 
-    from models import Anime, Series
+    from app.models import Series
 
     def query_side_effect(model):
         if model is Series:
@@ -83,52 +75,6 @@ def mock_db_returns(anime_list, series_list=None):
 
     db.query.side_effect = query_side_effect
     return db
-
-
-# ---------------------------------------------------------------------------
-# derive_watch_order_anime
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveWatchOrder:
-    def test_single_eligible_entry_gets_order_1(self):
-        anime = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert anime.watch_order == 1.0
-
-    def test_already_assigned_order_not_overwritten(self):
-        anime = make_anime(season_part="Season 1", watch_order=5.0)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert anime.watch_order == 5.0  # untouched
-
-    def test_multiple_entries_assigned_sequential_order(self):
-        a1 = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        a2 = make_anime(season_part="Season 2", airing_type="TV", watch_order=None)
-        db = mock_db_returns([a1, a2])
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        orders = sorted([a1.watch_order, a2.watch_order])
-        assert orders == [1.0, 2.0]
-
-    def test_none_franchise_id_is_a_noop(self):
-        anime = make_anime(watch_order=None)
-        db = mock_db_returns([anime])
-        derive_watch_order_anime(db, None)
-        # db.query should never be called with None franchise_id
-        assert anime.watch_order is None
-
-    def test_empty_eligible_list_is_noop(self):
-        db = mock_db_returns([])
-        # Should not raise
-        derive_watch_order_anime(db, FRANCHISE_ID)
-
-    def test_tv_comes_before_ova_in_same_season(self):
-        tv = make_anime(season_part="Season 1", airing_type="TV", watch_order=None)
-        ova = make_anime(season_part="Season 1", airing_type="OVA", watch_order=None)
-        db = mock_db_returns([ova, tv])  # OVA listed first, TV should still win
-        derive_watch_order_anime(db, FRANCHISE_ID)
-        assert tv.watch_order < ova.watch_order
 
 
 # ---------------------------------------------------------------------------
@@ -177,54 +123,6 @@ class TestDeriveEpPrevious:
         db = mock_db_returns([s1, s2])
         derive_ep_previous_anime(db, FRANCHISE_ID)
         assert s2.ep_previous is None  # cannot derive
-
-
-# ---------------------------------------------------------------------------
-# derive_prequel_sequel_anime
-# ---------------------------------------------------------------------------
-
-
-class TestDerivePrequelSequel:
-    def test_middle_entry_gets_both_links(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        a3 = make_anime(watch_order=3.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2, a3])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.prequel_id == a1.system_id
-        assert a2.sequel_id == a3.system_id
-
-    def test_first_entry_has_no_prequel(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a1.prequel_id is None
-
-    def test_last_entry_has_no_sequel(self):
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=None, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.sequel_id is None
-
-    def test_existing_prequel_id_not_overwritten(self):
-        existing = uuid.uuid4()
-        a1 = make_anime(watch_order=1.0, prequel_id=None, sequel_id=None)
-        a2 = make_anime(watch_order=2.0, prequel_id=existing, sequel_id=None)
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a2.prequel_id == existing  # not overwritten
-
-    def test_derive_related_false_excludes_entry(self):
-        # derive_related=False entries are excluded from the query (filtered at DB level)
-        # We simulate this by only returning entries where derive_related != False
-        a1 = make_anime(watch_order=1.0, derive_related=None)
-        a2 = make_anime(watch_order=2.0, derive_related=None)
-        # a3 would be excluded by the DB filter, so not in returned list
-        db = mock_db_returns([a1, a2])
-        derive_prequel_sequel_anime(db, FRANCHISE_ID)
-        assert a1.sequel_id == a2.system_id
 
 
 # ---------------------------------------------------------------------------
@@ -277,3 +175,41 @@ class TestDeriveSeason1:
 
         derive_season_1_anime(anime, db)
         assert anime.season_part is None  # Not changed
+
+
+# ---------------------------------------------------------------------------
+# apply_calculate_seasonal_from_month — now reading release_date
+# ---------------------------------------------------------------------------
+
+class TestCalculateSeasonalFromReleaseDate:
+    def test_month_precision_derives_the_season(self):
+        anime = types.SimpleNamespace(release_date="2024-07", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is True
+        assert anime.release_season == "SUM"
+
+    def test_day_precision_derives_the_season_too(self):
+        anime = types.SimpleNamespace(release_date="2024-10-05", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is True
+        assert anime.release_season == "FAL"
+
+    def test_year_only_precision_leaves_an_existing_season_untouched(self):
+        # Tenrai fills release_season directly, independent of any month.
+        # Clearing it here would destroy real data.
+        anime = types.SimpleNamespace(release_date="2024", release_season="WIN")
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season == "WIN"
+
+    def test_year_only_precision_does_not_invent_a_season(self):
+        anime = types.SimpleNamespace(release_date="2024", release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season is None
+
+    def test_an_existing_season_is_never_overwritten(self):
+        anime = types.SimpleNamespace(release_date="2024-07", release_season="WIN")
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season == "WIN"
+
+    def test_a_missing_date_derives_nothing(self):
+        anime = types.SimpleNamespace(release_date=None, release_season=None)
+        assert apply_calculate_seasonal_from_month(anime) is False
+        assert anime.release_season is None

@@ -1,0 +1,255 @@
+// Frontend: centralized API endpoint builders — the single source of URL truth.
+// Import these instead of hardcoding "/api/..." strings in components.
+import { MEDIA_CONFIG } from "../config/mediaRegistry";
+
+// Generic CRUD path builder for a base like "/api/anime".
+function crud(base) {
+  return {
+    list: () => `${base}/`,
+    detail: (id) => `${base}/${id}`,
+    create: () => `${base}/`,
+    update: (id) => `${base}/${id}`,
+    patch: (id) => `${base}/${id}`,
+    remove: (id) => `${base}/${id}`,
+  };
+}
+
+// Per-type resource endpoints, derived from the media registry.
+// Works for every key in MEDIA_CONFIG (anime, movie, manga, franchise, series, ...).
+export function resource(type) {
+  const cfg = MEDIA_CONFIG[type];
+  if (!cfg) throw new Error(`Unknown resource type: ${type}`);
+  return {
+    ...crud(cfg.apiEndpoint),
+    complete: (id) => `${cfg.apiEndpoint}/${id}/complete`,
+  };
+}
+
+export const endpoints = {
+  resource,
+
+  auth: {
+    login: () => "/api/auth/login",
+    logout: () => "/api/auth/logout",
+    me: () => "/api/auth/me",
+  },
+
+  // Tier 1 closed enums. Read-only by design - they live in Python.
+  constants: {
+    list: () => "/api/constants",
+    // Admin-only, unlike the enum list above: the external-API field
+    // inventory behind /external-apis.
+    externalApis: () => "/api/constants/external-apis",
+  },
+
+  options: {
+    list: () => "/api/options/",
+    byCategory: (category) => `/api/options/${category}`,
+    create: () => "/api/options/",
+    update: (id) => `/api/options/${id}`,
+    remove: (id) => `/api/options/${id}`,
+  },
+
+  roles: {
+    list: () => "/api/roles/",
+    catalog: () => "/api/roles/catalog",
+    detail: (id) => `/api/roles/${id}`,
+    create: () => "/api/roles/",
+    update: (id) => `/api/roles/${id}`,
+    permissions: (id) => `/api/roles/${id}/permissions`,
+    remove: (id) => `/api/roles/${id}`,
+  },
+
+  users: {
+    list: () => "/api/users/",
+    create: () => "/api/users/",
+    update: (id) => `/api/users/${id}`,
+    remove: (id) => `/api/users/${id}`,
+  },
+
+  contentLabels: {
+    list: () => "/api/content-labels/",
+    create: () => "/api/content-labels/",
+    update: (id) => `/api/content-labels/${id}`,
+    remove: (id) => `/api/content-labels/${id}`,
+    forEntry: (mediaType, entryId) =>
+      `/api/content-labels/entry/${mediaType}/${entryId}`,
+  },
+
+  seasonal: {
+    list: () => "/api/seasonal/",
+    detail: (id) => `/api/seasonal/${id}`,
+    currentSeason: () => "/api/seasonal/current-season",
+    update: (id) => `/api/seasonal/${id}`,
+  },
+
+  announcements: {
+    list: () => "/api/announcements/",
+    create: () => "/api/announcements/",
+    update: () => "/api/announcements/",
+    remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
+  },
+
+  // Watch orders don't fit the resource() CRUD shape: lists and their items
+  // live under one prefix, and reorder is its own verb.
+  watchOrder: {
+    lists: () => "/api/watch-order/lists",
+    list: (id) => `/api/watch-order/lists/${id}`,
+    createList: () => "/api/watch-order/lists",
+    updateList: (id) => `/api/watch-order/lists/${id}`,
+    patchList: (id) => `/api/watch-order/lists/${id}`,
+    removeList: (id) => `/api/watch-order/lists/${id}`,
+    duplicateList: (id) => `/api/watch-order/lists/${id}/duplicate`,
+    createItem: (listId) => `/api/watch-order/lists/${listId}/items`,
+    updateItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    patchItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    removeItem: (itemId) => `/api/watch-order/items/${itemId}`,
+    reorder: (listId) => `/api/watch-order/lists/${listId}/reorder`,
+    createSection: (listId) => `/api/watch-order/lists/${listId}/sections`,
+    updateSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    patchSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    removeSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
+    reorderSections: (listId) =>
+      `/api/watch-order/lists/${listId}/sections/reorder`,
+    candidates: () => "/api/watch-order/candidates",
+    createRelease: () => "/api/watch-order/lists/release",
+    backfillRelease: () => "/api/watch-order/lists/release/backfill",
+  },
+
+  mediaRelation: {
+    kinds: () => "/api/media-relation/kinds",
+    forEntry: () => "/api/media-relation/for-entry",
+    inScope: () => "/api/media-relation/",
+    create: () => "/api/media-relation/",
+    patch: (id) => `/api/media-relation/${id}`,
+    remove: (id) => `/api/media-relation/${id}`,
+    resetScope: () => "/api/media-relation/scope",
+    graph: () => "/api/media-relation/graph",
+  },
+
+  formDefaults: {
+    list: () => "/api/form-defaults/",
+    detail: (type) => `/api/form-defaults/${type}`,
+    update: (type) => `/api/form-defaults/${type}`,
+    reset: (type) => `/api/form-defaults/${type}`,
+  },
+
+  person: {
+    list: (qs = "") => `/api/person/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/person/${id}`,
+    create: () => "/api/person/",
+    update: (id) => `/api/person/${id}`,
+    // The credit count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, credits) => `/api/person/${id}?credits=${credits}`,
+    merge: (id) => `/api/person/${id}/merge`,
+    entries: (id) => `/api/person/${id}/entries`,
+    roleCounts: () => "/api/person/role-counts",
+    roleScopes: () => "/api/person/role-scopes",
+  },
+
+  credits: {
+    get: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+    update: (mediaType, entryId) => `/api/credits/${mediaType}/${entryId}`,
+  },
+
+  character: {
+    list: (qs = "") => `/api/character/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/character/${id}`,
+    create: () => "/api/character/",
+    update: (id) => `/api/character/${id}`,
+    // The casting count the admin confirmed. Required: the API answers 409 if
+    // it no longer matches, so a stale confirmation cannot delete history.
+    remove: (id, castings) => `/api/character/${id}?castings=${castings}`,
+    merge: (id) => `/api/character/${id}/merge`,
+    entries: (id) => `/api/character/${id}/entries`,
+  },
+
+  casting: {
+    get: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+    replace: (mediaType, entryId) => `/api/casting/${mediaType}/${entryId}`,
+  },
+
+  publisher: {
+    // Optional query string, like person.list: `scope=<media-type>` narrows the
+    // list to the publishers offered on that type. Called with no argument it
+    // returns every publisher — which is what the admin list pages want, since
+    // a publisher with no scope rows yet must still be reachable to be given
+    // one.
+    list: (qs = "") => `/api/publisher/${qs ? `?${qs}` : ""}`,
+    detail: (id) => `/api/publisher/${id}`,
+    create: () => "/api/publisher/",
+    update: (id) => `/api/publisher/${id}`,
+    remove: (id) => `/api/publisher/${id}`,
+    merge: (id) => `/api/publisher/${id}/merge`,
+    entries: (id) => `/api/publisher/${id}/entries`,
+  },
+
+  studio: {
+    list: () => "/api/studio/",
+    detail: (id) => `/api/studio/${id}`,
+    create: () => "/api/studio/",
+    update: (id) => `/api/studio/${id}`,
+    remove: (id) => `/api/studio/${id}`,
+    merge: (id) => `/api/studio/${id}/merge`,
+    entries: (id) => `/api/studio/${id}/entries`,
+  },
+
+  system: {
+    currentSeason: () => "/api/system/config/current_season",
+    logs: () => "/api/system/logs",
+    log: (id) => `/api/system/logs/${id}`,
+    deleted: () => "/api/system/deleted",
+    deletedRecord: (id) => `/api/system/deleted/${id}`,
+  },
+
+  quotes: {
+    list: (qs = "") => `/api/quote/${qs ? `?${qs}` : ""}`,
+    grouped: (qs = "") => `/api/quote/grouped${qs ? `?${qs}` : ""}`,
+    byEntry: (mediaType, entryId) =>
+      `/api/quote/?media_type=${mediaType}&entry_id=${entryId}`,
+    detail: (id) => `/api/quote/${id}`,
+    create: () => "/api/quote/",
+    update: (id) => `/api/quote/${id}`,
+    patch: (id) => `/api/quote/${id}`,
+    remove: (id) => `/api/quote/${id}`,
+  },
+
+  memes: {
+    list: (qs = "") => `/api/meme/${qs ? `?${qs}` : ""}`,
+    grouped: (qs = "") => `/api/meme/grouped${qs ? `?${qs}` : ""}`,
+    byOwner: (ownerType, ownerId) =>
+      `/api/meme/?owner_type=${ownerType}&owner_id=${ownerId}`,
+    detail: (id) => `/api/meme/${id}`,
+    create: () => "/api/meme/",
+    update: (id) => `/api/meme/${id}`,
+    patch: (id) => `/api/meme/${id}`,
+    remove: (id) => `/api/meme/${id}`,
+  },
+
+  // Game CRUD comes from resource("game"); this group holds the one endpoint
+  // that is not CRUD — the admin's IGDB picker, which answers with IGDB's raw
+  // game objects (id, name, first_release_date, cover.url, url).
+  game: {
+    searchIgdb: (q, limit = 10) =>
+      `/api/game/search-igdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+  },
+
+  dataControl: {
+    fill: (type) => `/api/data-control/fill/${type}`,
+    fillAll: () => "/api/data-control/fill/all",
+    replace: (type) => `/api/data-control/replace/${type}`,
+    replaceSingle: (type, id) => `/api/data-control/replace/${type}/${id}`,
+    replaceAll: () => "/api/data-control/replace/all",
+    pull: (tab) => `/api/data-control/pull/${tab}`,
+    pullAll: () => "/api/data-control/pull",
+    backup: () => "/api/data-control/backup",
+    calculateAll: () => "/api/data-control/calculate/all",
+    checkDuplicates: () => "/api/data-control/check/duplicates",
+    checkRemarks: () => "/api/data-control/check/remarks",
+    checkCoverImage: () => "/api/data-control/calculate/check-cover-image",
+    setCoverFields: () => "/api/data-control/calculate/set-cover-image-fields",
+    downloadMissingCovers: () => "/api/data-control/calculate/download-missing-covers",
+    deleteOrphanedCovers: () => "/api/data-control/calculate/delete-orphaned-covers",
+  },
+};

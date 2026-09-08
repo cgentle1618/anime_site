@@ -5,11 +5,12 @@ Tests pure functions with no DB or network dependencies.
 """
 
 import pytest
-from utils.utils import (
-    validate_episode_math,
+
+from app.utils.utils import (
+    calculate_seasonal_from_month,
     extract_mal_id_anime,
     extract_season_from_title,
-    calculate_seasonal_from_month,
+    validate_episode_math,
 )
 
 

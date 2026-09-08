@@ -1,0 +1,212 @@
+import { describe, it, expect, afterEach } from "vitest";
+import {
+  AIRING_STATUSES,
+  CONSTANTS_FALLBACK,
+  MEDIA_TYPES,
+  OPTION_CATEGORIES,
+  PERSON_ROLES,
+  PROGRESS_DISPLAY_OPTIONS,
+  applyConstants,
+  withLegacyProgressDisplay,
+} from "./fieldOptions";
+import {
+  COMMON_FIELD_META,
+  PERSON_SOURCES,
+  TYPE_FIELD_META,
+} from "./formFields/fieldMeta";
+
+// applyConstants mutates AIRING_STATUSES (and the other bundled arrays) IN
+// PLACE, so capture the true original contents once, before any test runs,
+// and restore them after each test — otherwise later tests (and any other
+// test file that happens to import fieldOptions.js in the same worker)
+// would see whatever the last test here left behind.
+const ORIGINAL_AIRING_STATUSES = [...AIRING_STATUSES];
+const ORIGINAL_PERSON_ROLES = [...PERSON_ROLES];
+const ORIGINAL_OPTION_CATEGORIES = [...OPTION_CATEGORIES];
+afterEach(() => {
+  applyConstants({
+    airing_status: ORIGINAL_AIRING_STATUSES,
+    person_role: ORIGINAL_PERSON_ROLES,
+    option_categories: ORIGINAL_OPTION_CATEGORIES,
+  });
+});
+
+// applyConstants is how /api/constants becomes the source of truth for
+// every Add/Modify tab: it must overwrite the bundled arrays IN PLACE
+// (never reassign the binding), since every tab imported a reference to
+// the same array object. See config/useConstants.js.
+describe("applyConstants", () => {
+  it("mutates a bundled array's contents in place, not its binding", () => {
+    const before = AIRING_STATUSES;
+    applyConstants({ airing_status: ["Only From API"] });
+    expect(AIRING_STATUSES).toBe(before); // same array reference
+    expect(AIRING_STATUSES).toEqual(["Only From API"]);
+  });
+
+  it("leaves an array untouched when its key is absent from the payload", () => {
+    const before = [...AIRING_STATUSES];
+    applyConstants({ some_other_key: ["x"] });
+    expect(AIRING_STATUSES).toEqual(before);
+  });
+
+  it("ignores a null/undefined payload", () => {
+    const before = [...AIRING_STATUSES];
+    applyConstants(null);
+    applyConstants(undefined);
+    expect(AIRING_STATUSES).toEqual(before);
+  });
+});
+
+// PERSON_ROLES used to be a hand-written literal inside OptionsAddTab.jsx,
+// with nothing enforcing the match against app/utils/credit_roles.py. It is
+// served by GET /api/constants now, so it must be wired into applyConstants
+// like every other Tier 1 enum — otherwise the bundle is silently the only
+// source again and the whole change is cosmetic.
+describe("admin-form vocabularies served from /api/constants", () => {
+  it("exposes person_role and media_type to applyConstants", () => {
+    expect(CONSTANTS_FALLBACK.person_role).toBe(PERSON_ROLES);
+    expect(CONSTANTS_FALLBACK.media_type).toBe(MEDIA_TYPES);
+  });
+
+  it("updates PERSON_ROLES in place from the API payload", () => {
+    const before = PERSON_ROLES;
+    applyConstants({ person_role: ["director", "sound_director"] });
+    expect(PERSON_ROLES).toBe(before);
+    expect(PERSON_ROLES).toEqual(["director", "sound_director"]);
+  });
+
+  it("uses the hyphenated media type keys, not person-role scopes", () => {
+    expect(MEDIA_TYPES).toContain("anime-movie");
+    expect(MEDIA_TYPES).toContain("tv-show");
+    expect(MEDIA_TYPES).not.toContain("non_anime");
+  });
+});
+
+// A category with no values yet exists only in TAG_FIELDS, so the Options
+// form cannot learn it from the stored options - the reason Quality 品質 was
+// unreachable on the day its tag field shipped.
+describe("declared option categories", () => {
+  it("is wired into applyConstants like every other Tier 1 list", () => {
+    expect(CONSTANTS_FALLBACK.option_categories).toBe(OPTION_CATEGORIES);
+  });
+
+  it("offers a category that has no options stored against it", () => {
+    expect(OPTION_CATEGORIES).toContain("Quality");
+  });
+
+  it("updates in place from the API payload", () => {
+    const before = OPTION_CATEGORIES;
+    applyConstants({ option_categories: ["Genre Main", "Quality"] });
+    expect(OPTION_CATEGORIES).toBe(before);
+    expect(OPTION_CATEGORIES).toEqual(["Genre Main", "Quality"]);
+  });
+});
+
+// Every person-sourced dropdown queries /api/person?role=&scope=. person_role
+// rows are all scoped now, so a descriptor missing either half matches nobody
+// and the field silently offers an empty list - the failure this block exists
+// to catch, since nothing else in the app reads these strings until a user
+// opens the form.
+// Mirrors CREDIT_ROLES in app/utils/credit_roles.py.
+const LEGAL = {
+  director: ["anime", "anime-movie", "movie", "game"],
+  producer: ["anime"],
+  composer: ["anime", "game"],
+  author: ["manga", "novel", "comic"],
+  illustrator: ["manga", "novel", "comic"],
+};
+
+function everyMeta() {
+  return [COMMON_FIELD_META, ...Object.values(TYPE_FIELD_META)].flatMap((g) =>
+    Object.values(g),
+  );
+}
+
+describe("person field sources", () => {
+  it("every person source names a role and a scope", () => {
+    for (const meta of everyMeta()) {
+      if (meta.source?.kind !== "person") continue;
+      expect(meta.source.role, JSON.stringify(meta.source)).toBeTruthy();
+      expect(meta.source.scope, JSON.stringify(meta.source)).toBeTruthy();
+    }
+  });
+
+  it("every scope is legal for its role", () => {
+    for (const meta of everyMeta()) {
+      if (meta.source?.kind !== "person") continue;
+      expect(LEGAL[meta.source.role]).toContain(meta.source.scope);
+    }
+  });
+
+  it("no retired role key survives", () => {
+    const retired = [
+      "manga_author",
+      "novel_author",
+      "novel_illustrator",
+      "comic_writer",
+      "comic_artist",
+      "non_anime",
+    ];
+    const json = JSON.stringify([COMMON_FIELD_META, TYPE_FIELD_META]);
+    for (const key of retired) expect(json).not.toContain(`"${key}"`);
+  });
+
+  it("asks for thirteen distinct role/scope pairs", () => {
+    // Eleven before games; director|game and composer|game are the two the
+    // ninth media type adds.
+    const keys = PERSON_SOURCES.map((s) => `${s.role}|${s.scope}`);
+    expect(new Set(keys).size).toBe(13);
+    expect(keys).toHaveLength(13);
+    expect(keys).toContain("director|game");
+    expect(keys).toContain("composer|game");
+  });
+});
+
+// Superseded: this list used to be narrowed to {"", "vol_tw"} on the grounds
+// that type alone determined structure. Per-type option lists replaced that —
+// per-entry selects now build their own via progressDisplayOptions(novel), and
+// what survives here is the full vocabulary for the Form Defaults page, which
+// spans every novel type at once.
+describe("PROGRESS_DISPLAY_OPTIONS (Form Defaults vocabulary)", () => {
+  it("carries every progress display a novel can store", () => {
+    expect(PROGRESS_DISPLAY_OPTIONS.map((o) => o.value)).toEqual([
+      "",
+      "vol_original",
+      "vol_tw",
+      "ch",
+      "arc",
+      "arc_ch",
+    ]);
+  });
+
+  it("labels every option", () => {
+    for (const o of PROGRESS_DISPLAY_OPTIONS) expect(o.label).toBeTruthy();
+  });
+});
+
+describe("withLegacyProgressDisplay", () => {
+  // The options it is handed are now per-entry, so the interesting case is a
+  // value the entry's own type does not offer - a light novel still holding
+  // "ch", a web novel still holding "vol_tw".
+  const options = [
+    { value: "", label: "- Default -" },
+    { value: "vol_tw", label: "VOL TW" },
+  ];
+
+  it("returns the given list unchanged when there is no stored value", () => {
+    expect(withLegacyProgressDisplay(options, null)).toBe(options);
+    expect(withLegacyProgressDisplay(options, "")).toBe(options);
+  });
+
+  it("returns the given list unchanged when the stored value is offered", () => {
+    expect(withLegacyProgressDisplay(options, "vol_tw")).toBe(options);
+  });
+
+  it("appends a stored value the list does not offer, so it renders as selected", () => {
+    const withLegacy = withLegacyProgressDisplay(options, "arc_ch");
+    expect(withLegacy).toHaveLength(options.length + 1);
+    expect(withLegacy.find((o) => o.value === "arc_ch")).toBeTruthy();
+    // The list it was handed is untouched.
+    expect(options.map((o) => o.value)).toEqual(["", "vol_tw"]);
+  });
+});

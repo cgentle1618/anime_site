@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install dependencies first (layer cache)
 COPY frontend/package.json frontend/package-lock.json* ./frontend/
-RUN cd frontend && npm install
+RUN cd frontend && npm ci
 
 # Copy source and build
 COPY frontend/ ./frontend/
@@ -16,7 +16,7 @@ RUN cd frontend && npm run build
 # ==========================================
 # STAGE 2: Python Wheels Builder
 # ==========================================
-FROM python:3.11-slim AS py-builder
+FROM python:3.13-slim AS py-builder
 WORKDIR /app
 
 # Install system build dependencies
@@ -39,7 +39,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 # ==========================================
 # STAGE 3: Final Runtime
 # ==========================================
-FROM python:3.11-slim
+FROM python:3.13-slim
 WORKDIR /app
 
 # Install ONLY runtime dependencies to keep container ultra-lightweight

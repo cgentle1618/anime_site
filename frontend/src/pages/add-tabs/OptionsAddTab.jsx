@@ -1,0 +1,171 @@
+// Frontend: add tab page file for OptionsAddTab.
+//
+// Two sub-tabs share the "System Options" nav entry: Options and Tags, two
+// halves of one closed-vocabulary table split for navigation only - the form
+// and the endpoint are identical. See lib/optionCategoryGroups.js for the
+// split. People and Studio both used to live here as well; both are credited
+// entities with their own public pages rather than closed vocabularies, and
+// both moved to the Entity tab group - see PersonAddTab.jsx and
+// StudioAddTab.jsx.
+import AliasPicker, {
+  categoryHasAliases,
+} from "../../components/forms/AliasPicker";
+import { Field, SectionHeader, inputCls } from "../../components/forms/FormField";
+import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
+import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
+import ScopePicker from "../../components/forms/ScopePicker";
+import UsagePicker from "../../components/forms/UsagePicker";
+import { MEDIA_TYPES } from "../../config/fieldOptions";
+import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
+
+// PERSON_ROLES and MEDIA_TYPES come from GET /api/constants via
+// fieldOptions.js — this file used to carry its own hand-written copy of the
+// person-role list with nothing enforcing the match against
+// app/utils/credit_roles.py.
+//
+// The labels are derived from the keys rather than listed, so a role added in
+// Python needs no edit here.
+function roleLabel(key) {
+  return key
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function OptionsForm({
+  optCategory,
+  setOptCategory,
+  optValues,
+  setOptValues,
+  optionCategories,
+  optScopes,
+  setOptScopes,
+  optUsages,
+  setOptUsages,
+  optAliases,
+  setOptAliases,
+}) {
+  // An alias names ONE value, so it cannot be filled in while the form is
+  // adding several at once. Disabled rather than hidden: an admin who typed
+  // aliases and then added a second value should see why they greyed out.
+  const multipleValues = optValues.filter((v) => v.trim()).length > 1;
+  // Most categories carry no aliases at all, and the API rejects one that
+  // does not (ALIAS_CATEGORIES). Hidden rather than disabled here, because
+  // unlike the multi-value case there is nothing the admin could do to this
+  // form to make the picker apply.
+  const aliasable = categoryHasAliases(optCategory);
+  return (
+    <div className="space-y-4">
+      <Field label="Category" required>
+        {/* A picker, not a text box with suggestions. The categories are a
+            declared vocabulary (app/utils/credit_roles.py), and typing here
+            used to be the only way to coin a new one - a typo made a category
+            of its own that no other page would ever list. */}
+        <OptionCategorySelect
+          categories={optionCategories}
+          value={optCategory}
+          onChange={(e) => setOptCategory(e.target.value)}
+        />
+      </Field>
+      <div className="space-y-2">
+        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
+          Option Values
+        </label>
+        {optValues.map((v, i) => (
+          <div key={i} className="flex gap-2">
+            <input
+              className={inputCls}
+              value={v}
+              onChange={(e) =>
+                setOptValues((prev) =>
+                  prev.map((x, j) => (j === i ? e.target.value : x)),
+                )
+              }
+              placeholder={`Value ${i + 1}`}
+            />
+            {optValues.length > 1 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setOptValues((prev) => prev.filter((_, j) => j !== i))
+                }
+                className="px-3 py-2 text-danger/70 hover:text-danger border border-danger/40 rounded-lg hover:bg-danger/10 transition shrink-0"
+              >
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOptValues((prev) => [...prev, ""])}
+          className="text-xs font-bold text-brand hover:text-brand-hover flex items-center gap-1.5 py-1"
+        >
+          <i className="fas fa-plus-circle"></i> Add Another Entry
+        </button>
+      </div>
+      <ScopePicker
+        scopes={optScopes}
+        setScopes={setOptScopes}
+        mediaTypes={MEDIA_TYPES}
+      />
+      <UsagePicker usages={optUsages} setUsages={setOptUsages} />
+      {aliasable && (
+        <AliasPicker
+          aliases={optAliases}
+          setAliases={setOptAliases}
+          disabled={multipleValues}
+        />
+      )}
+      {aliasable && multipleValues && (
+        <p className="text-xs text-text-faint -mt-2">
+          Aliases are per value. Add one value at a time to give it an external
+          name, or attach the aliases afterwards on the Alias tab.
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function OptionsAddTab({
+  optionsSubTab,
+  setOptionsSubTab,
+  optCategory,
+  setOptCategory,
+  optValues,
+  setOptValues,
+  optionCategories,
+  optScopes,
+  setOptScopes,
+  optUsages,
+  setOptUsages,
+  optAliases,
+  setOptAliases,
+}) {
+  return (
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      <SectionHeader icon="fa-cog" title="System Options" />
+      <OptionSubTabBar active={optionsSubTab} onSelect={setOptionsSubTab} />
+      {/* Tags and Options are the same form; only the categories the
+          Category picker offers differ. */}
+      {(optionsSubTab === "options" || optionsSubTab === "tags") && (
+        <OptionsForm
+          optCategory={optCategory}
+          setOptCategory={setOptCategory}
+          optValues={optValues}
+          setOptValues={setOptValues}
+          optionCategories={categoriesForSubTab(
+            optionCategories,
+            optionsSubTab,
+          )}
+          optScopes={optScopes}
+          setOptScopes={setOptScopes}
+          optUsages={optUsages}
+          setOptUsages={setOptUsages}
+          optAliases={optAliases}
+          setOptAliases={setOptAliases}
+        />
+      )}
+    </div>
+  );
+}

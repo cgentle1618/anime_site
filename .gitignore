@@ -14,9 +14,10 @@ static/css/main.css
 frontend_dist/
 
 # Claude Code configuration and auto-memory
-.claude/
-! .claude/settings.json  # Optional: Keep if you want shared team settings
-.claude/settings.local.json
+.claude/*
+!.claude/settings.json
+.pytest_cache/
+.ruff_cache/
 
 # (Usually you want to keep this, but ignore if it's for personal use only)
 # CLAUDE.md

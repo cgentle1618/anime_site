@@ -1,0 +1,1252 @@
+"""Pull pipeline: restore data from Google Sheets tabs."""
+
+import json
+import logging
+
+from sqlalchemy import or_, text
+from sqlalchemy.orm import Session
+
+from app.database import get_taipei_now
+from app.models import (
+    Anime,
+    AnimeMovies,
+    Cartoon,
+    Collection,
+    Franchise,
+    Manga,
+    Meme,
+    Movies,
+    Note,
+    Quote,
+    Series,
+    SystemConfigs,
+    SystemOption,
+    TVShows,
+    WatchOrderList,
+)
+from app.services.domain import (
+    resolve_anime_movie_parent_hierarchy,
+    resolve_cartoon_parent_hierarchy,
+    resolve_comic_parent_hierarchy,
+    resolve_game_parent_hierarchy,
+    resolve_manga_parent_hierarchy,
+    resolve_movie_parent_hierarchy,
+    resolve_novel_parent_hierarchy,
+    resolve_tv_show_parent_hierarchy,
+)
+from app.services.domain.credits import (
+    AmbiguousNameError,
+    find_person,
+    find_publisher,
+    find_studio,
+    names_from_sheet_value,
+    replace_credits,
+    replace_tags,
+)
+from app.services.integrations.sheets import (
+    SheetsUnavailableError,
+    get_all_raw_rows,
+)
+from app.services.pipelines.tabs import (
+    MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
+)
+from app.services.pipelines.tabs import (
+    TAB_MODELS,
+    TAB_NAMES,
+    TAB_PARSERS,
+)
+from app.utils.credit_roles import (
+    CREDIT_ROLES,
+    credit_roles_for,
+    sheet_column_for,
+    tag_fields_for,
+)
+from app.utils.data_control_utils import log_data_control
+from app.utils.formatter import (
+    parse_from_sheet,
+    parse_row_to_dict,
+)
+
+logger = logging.getLogger(__name__)
+
+# The find-only half of credits.resolve_*, keyed the way CreditRole.target is.
+# Used to tell "this name matched nothing and is about to be invented" from
+# "this name resolved", which resolve_* alone cannot report.
+_FINDERS = {
+    "person": find_person,
+    "studio": find_studio,
+    "publisher": find_publisher,
+}
+
+# Hyphenated media_type key (app/utils/media_resolver.py's MEDIA_TABLES) for
+# every entry tab that carries credit/tag link columns. Drives the pop-and-
+# apply step below: a tab absent here has no link columns to restore.
+MEDIA_TYPE_FOR_TAB = _MEDIA_TYPE_FOR_TAB
+
+
+# Restore order for Pull All. STRICT: parents before children (FK constraints).
+TABS_IN_ORDER = TAB_NAMES
+
+
+# ---------------------------------------------------------------------------
+# Derived identity: rows whose system_id is minted, not carried by the source.
+#
+# system_option, person and studio hold no identity of their own in the
+# spreadsheet - they are DERIVED, minted row by row by the credit backfill and
+# by extract_system_options. Two databases that run those migrations therefore
+# end up with the SAME natural keys under COMPLETELY DIFFERENT system_ids, and
+# a sheet backed up from one of them is full of uuids the other has never seen.
+#
+# Resolving such a row by system_id alone misses every time, and the INSERT
+# that follows collides with the UNIQUE constraint the same logical row already
+# occupies - which rolls back the whole tab. So for these tabs the sheet's uuid
+# is only a hint; what actually identifies the row across databases is the
+# natural key its UNIQUE constraint already names. Same reasoning, and the same
+# keep-the-local-uuid handling, as the Note remark block further down.
+# ---------------------------------------------------------------------------
+
+# tab -> the columns of that table's natural-key UNIQUE constraint.
+DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
+    "System Options": ("category", "value"),  # uq_system_option_value
+    "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
+    "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
+    "Publisher": (
+        "name_en", "name_cn", "name_jp", "name_alt",
+    ),  # uq_publisher_name
+    "System Option Scope": ("option_id", "scope"),  # uq_system_option_scope
+    "System Option Usage": ("option_id", "usage"),  # uq_system_option_usage
+    "System Option Alias": (
+        "option_id",
+        "source",
+        "value",
+    ),  # uq_system_option_alias
+    "Content Label": ("key",),  # content_label.key is UNIQUE
+    "Person Role": ("person_id", "role", "scope"),  # uq_person_role
+    # No `role` in the key: a publisher holds exactly one.
+    "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
+    # These two mint their own uuid but cite entry ids, which the sheet does
+    # carry and which are the same in every database - so only the row's own
+    # identity needs reconciling, never what it points at.
+    "Media Relation": (
+        "from_type",
+        "from_id",
+        "relation_type",
+        "to_type",
+        "to_id",
+    ),  # uq_media_relation_pair
+    "Plan Next": ("kind", "scope", "target_id", "media_type"),  # uq_plan_next_target
+    # Mints its own uuid but cites an entry id, which is the same in every
+    # database. option_id IS part of the key (unlike the parent tabs above,
+    # whose own uuid never appears in it): two "main" rows on the same entry
+    # citing different platforms are two different rows even though both have
+    # name=NULL, and only option_id tells them apart. It is resolved from the
+    # sheet's option_category/option_value into a LOCAL option_id further
+    # down, before this match runs, so by the time it is used here it is
+    # already a same-database uuid, comparable the ordinary way.
+    "Media Source": (
+        "media_type",
+        "entry_id",
+        "kind",
+        "bucket",
+        "option_id",
+        "name",
+    ),  # uq_media_source_row
+    # Same shape as Media Source: mints its own uuid, cites an entry id that is
+    # the same everywhere, and a label_id that is NOT - but which the parent
+    # translation below has already turned into a local uuid by the time this
+    # match runs, so it compares the ordinary way.
+    "Media Content Label": (
+        "media_type",
+        "entry_id",
+        "label_id",
+    ),  # uq_media_content_label_row
+}
+
+# Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
+# database's uuid, so it has to be translated through the parent's own tab
+# before it can be stored here.
+DERIVED_IDENTITY_PARENTS: dict[str, tuple[str, str]] = {
+    "System Option Scope": ("option_id", "System Options"),
+    "System Option Usage": ("option_id", "System Options"),
+    "System Option Alias": ("option_id", "System Options"),
+    "Person Role": ("person_id", "Person"),
+    "Publisher Scope": ("publisher_id", "Publisher"),
+    "Media Content Label": ("label_id", "Content Label"),
+}
+
+# Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
+# an identity. The three parent tabs above key on a uuid: it is minted too, but
+# a uuid that misses is simply unknown, so trying it first costs nothing and
+# correctly follows a value RENAMED in the sheet to the row that already holds
+# it. The tabs below key on an autoincrement integer instead, where the sheet's
+# id=1 names a real but UNRELATED local row - a match that silently retargets
+# the wrong row and then collides. Their natural key is the only identity
+# they have.
+DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
+    {
+        "System Option Scope",
+        "System Option Usage",
+        "System Option Alias",
+        "Person Role",
+        "Publisher Scope",
+    }
+)
+
+
+
+def resync_public_id_sequence(db: Session, model) -> None:
+    """
+    Move a table's public_id sequence past the ids the restore just wrote.
+
+    Pull inserts rows carrying their own public_id from the sheet, which the
+    sequence knows nothing about. Left alone it keeps handing out values the
+    restore already used, and the failure surfaces later - on the next entry
+    an admin adds - as a unique-constraint error that says nothing about Pull.
+
+    A no-op for tables with no public_id, because Pull walks every tab.
+    """
+    column = model.__table__.columns.get("public_id")
+    if column is None:
+        return
+    table = model.__table__.name
+    sequence = f"{table}_public_id_seq"
+    # COALESCE covers an empty table: max() is NULL there and setval would
+    # fail. is_called=false makes the next nextval return exactly this value.
+    db.execute(
+        text(
+            f"SELECT setval('\"{sequence}\"', "
+            f'COALESCE((SELECT MAX(public_id) FROM "{table}"), 0) + 1, false)'
+        )
+    )
+
+
+def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
+    """
+    The local row a derived-identity sheet row denotes, or None.
+
+    A key column the sheet header never carried makes the match impossible to
+    state, so it returns None rather than matching on a partial key. A NULL
+    part of the key compares as IS NULL, which is what the constraints mean:
+    n1u2l3l4s5n6d made them NULLS NOT DISTINCT precisely so a person with no
+    name_en still collides with themselves.
+    """
+    key_cols = DERIVED_IDENTITY_KEYS.get(tab_name)
+    if not key_cols:
+        return None
+    if any(col not in payload for col in key_cols):
+        return None
+
+    Model = TAB_MODELS[tab_name]
+    query = db.query(Model)
+    for col in key_cols:
+        query = query.filter(getattr(Model, col) == payload[col])
+    return query.first()
+
+
+def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
+    """
+    {uuid as the sheet spells it: uuid as this database spells it}, for one
+    derived-identity parent tab.
+
+    Built by reading the parent's OWN tab and matching each of its rows to a
+    local row by natural key. Deriving it from the sheet rather than from a
+    map threaded through Pull All is what lets a single-tab Pull of a child
+    work on its own - the parent tab need not have been pulled first.
+    """
+    mapping: dict[str, object] = {}
+    try:
+        matrix = get_all_raw_rows(parent_tab)
+    except SheetsUnavailableError:
+        logger.warning(
+            "Could not read '%s' to translate its uuids; rows citing an "
+            "unknown parent will be skipped.",
+            parent_tab,
+        )
+        return mapping
+    if not matrix or len(matrix) < 2:
+        return mapping
+
+    headers, parser = matrix[0], TAB_PARSERS[parent_tab]
+    for row in matrix[1:]:
+        if not row or not any(row):
+            continue
+        raw = parse_row_to_dict(headers, row)
+        payload = {k: v for k, v in parser(raw).items() if k in raw}
+        sheet_uuid = payload.get("system_id")
+        if not sheet_uuid:
+            continue
+        local = _match_by_natural_key(db, parent_tab, payload)
+        if local is not None:
+            mapping[str(sheet_uuid)] = local.system_id
+    return mapping
+
+
+def execute_pull_specific(
+    db: Session, tab_name: str, action_type: str = "Manual", log_action: bool = True
+) -> dict:
+    """
+    Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
+    Tracks exact rows added vs updated for logging.
+    """
+    MODEL_MAP = TAB_MODELS
+    PARSER_MAP = TAB_PARSERS
+
+    if tab_name not in MODEL_MAP:
+        return {"status": "error", "message": f"Unknown tab: {tab_name}"}
+
+    logger.info(f"Starting Pull Pipeline for '{tab_name}'...")
+
+    try:
+        raw_matrix = get_all_raw_rows(tab_name)
+    except SheetsUnavailableError as e:
+        # A tab we could not read is not a tab with nothing in it. Reporting
+        # this as "no data / Success" is how a Google outage used to slip
+        # through a full Pull with the tab silently skipped.
+        logger.error(f"Pull aborted for '{tab_name}': {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Pull",
+                f"Pull {tab_name}",
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {
+            "status": "error",
+            "message": str(e),
+            "reason": "sheet_unavailable",
+        }
+
+    if not raw_matrix or len(raw_matrix) < 2:
+        logger.info(f"No data found in '{tab_name}' to pull.")
+        if log_action:
+            log_data_control(db, "Pull", f"Pull {tab_name}", action_type, "Success")
+        return {"status": "success", "processed": 0, "rows_added": 0, "rows_updated": 0}
+
+    headers = raw_matrix[0]
+    data_rows = raw_matrix[1:]
+
+    Model = MODEL_MAP[tab_name]
+    parser = PARSER_MAP[tab_name]
+
+    processed = 0
+    rows_added = 0
+    rows_updated = 0
+    # Ambiguous link names, collected rather than raised. An admin resolves
+    # these with the merge endpoint, and can only merge what the run reports -
+    # so every row is attempted and every collision is kept.
+    credit_conflicts: list[str] = []
+    # Names that matched no stored entity, so find-or-create is about to mint
+    # one. Not an error - a genuinely new studio typed into a sheet cell must
+    # still be created - but a silent mint is how 45 duplicate studios grew
+    # here unnoticed, so the run reports them.
+    created_entities: list[str] = []
+
+    # Built on first use, and only for the two tabs that need it: reading the
+    # parent tab costs a Sheets round trip, so a tab that cites no derived
+    # identity never pays for one.
+    parent_ref = DERIVED_IDENTITY_PARENTS.get(tab_name)
+    foreign_uuids: dict[str, object] | None = None
+
+    for row in data_rows:
+        if not row or not any(row):
+            continue
+
+        raw_header_dict = parse_row_to_dict(headers, row)
+        clean_header_dict = parser(raw_header_dict)
+
+        # Keep only the columns the sheet header actually carried. Every parser
+        # emits its full key set regardless of the incoming header, so a tab
+        # whose header row predates a migration would otherwise arrive as
+        # {"new_col": None} and the setattr loop below would null a perfectly
+        # good DB value on every Pull. parse_row_to_dict builds raw_header_dict
+        # purely from the header row, so membership in it is an exact "was this
+        # column in the sheet?" test.
+        #
+        # A blank cell is deliberately NOT filtered: the column is present, it
+        # parses to None, and that still means "clear this value".
+        clean_header_dict = {
+            key: value
+            for key, value in clean_header_dict.items()
+            if key in raw_header_dict
+        }
+
+        # Credit/tag columns (studio, director, genre_main, ...) no longer
+        # back a real column on the entry model - Task 10 dropped them once
+        # media_credit/media_tag took over. Pop them out under their legacy
+        # header names here so neither the setattr loop nor Model(**...)
+        # below ever sees them; they are applied via replace_credits/
+        # replace_tags once the row itself exists, further down.
+        media_type = MEDIA_TYPE_FOR_TAB.get(tab_name)
+        pending_credits: list[tuple[str, object]] = []
+        pending_tags: list[tuple[str, object]] = []
+        if media_type:
+            for role in credit_roles_for(media_type):
+                header = sheet_column_for(media_type, role.key)
+                if header in clean_header_dict:
+                    pending_credits.append((role.key, clean_header_dict.pop(header)))
+            for field in tag_fields_for(media_type):
+                header = sheet_column_for(media_type, field.key)
+                if header in clean_header_dict:
+                    pending_tags.append((field.key, clean_header_dict.pop(header)))
+
+        # A child of a derived-identity tab cites its parent by the uuid the
+        # OTHER database minted. Translate it to the local one before anything
+        # stores it; a reference that survives untranslated is dangling, and
+        # the FK violation it raises at commit rolls back the whole tab.
+        if parent_ref:
+            fk_column, parent_tab = parent_ref
+            sheet_ref = clean_header_dict.get(fk_column)
+            if sheet_ref is not None:
+                known_locally = (
+                    db.query(TAB_MODELS[parent_tab])
+                    .filter(TAB_MODELS[parent_tab].system_id == sheet_ref)
+                    .first()
+                )
+                if known_locally is None:
+                    if foreign_uuids is None:
+                        foreign_uuids = _foreign_uuid_map(db, parent_tab)
+                    local_ref = foreign_uuids.get(str(sheet_ref))
+                    if local_ref is None:
+                        logger.warning(
+                            "Could not resolve %s %s for the %s tab. Skipping row.",
+                            fk_column,
+                            sheet_ref,
+                            tab_name,
+                        )
+                        continue
+                    clean_header_dict[fk_column] = local_ref
+
+        # Resolve String Foreign Keys -> Actual UUIDs
+        # TV Show uses resolve_tv_show_parent_hierarchy (auto-creates franchise, looks up series)
+        if tab_name == "TV Shows" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("tv_name_en"),
+                "cn": clean_header_dict.get("tv_name_cn"),
+                "alt": clean_header_dict.get("tv_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_tv_show_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Cartoon uses resolve_cartoon_parent_hierarchy (auto-creates franchise with type "Cartoon", looks up series)
+        elif tab_name == "Cartoons" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("cartoon_name_en"),
+                "cn": clean_header_dict.get("cartoon_name_cn"),
+                "alt": clean_header_dict.get("cartoon_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_cartoon_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Manga uses resolve_manga_parent_hierarchy (auto-creates franchise with type "ACG", looks up series)
+        elif tab_name == "Manga" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("manga_name_en"),
+                "cn": clean_header_dict.get("manga_name_cn"),
+                "roman": clean_header_dict.get("manga_name_roman"),
+                "jp": clean_header_dict.get("manga_name_jp"),
+                "alt": clean_header_dict.get("manga_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_manga_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Novel uses resolve_novel_parent_hierarchy (auto-creates franchise with type "Novel", looks up series)
+        elif tab_name == "Novel" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("novel_name_en"),
+                "cn": clean_header_dict.get("novel_name_cn"),
+                "roman": clean_header_dict.get("novel_name_roman"),
+                "jp": clean_header_dict.get("novel_name_jp"),
+                "alt": clean_header_dict.get("novel_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_novel_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Comic uses resolve_comic_parent_hierarchy (auto-creates franchise with type "Comic", looks up series)
+        elif tab_name == "Comic" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("comic_name_en"),
+                "cn": clean_header_dict.get("comic_name_cn"),
+                "alt": clean_header_dict.get("comic_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_comic_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Game uses resolve_game_parent_hierarchy (auto-creates franchise with
+        # type "Game", looks up series)
+        elif tab_name == "Game" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("game_name_en"),
+                "cn": clean_header_dict.get("game_name_cn"),
+                "roman": clean_header_dict.get("game_name_roman"),
+                "jp": clean_header_dict.get("game_name_jp"),
+                "alt": clean_header_dict.get("game_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_game_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Movie uses resolve_movie_parent_hierarchy (auto-creates franchise, looks up series)
+        elif tab_name == "Movies" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            sid = clean_header_dict.get("series_id")
+            name_fields = {
+                "en": clean_header_dict.get("movie_name_en"),
+                "cn": clean_header_dict.get("movie_name_cn"),
+                "alt": clean_header_dict.get("movie_name_alt"),
+            }
+            clean_header_dict["franchise_id"], clean_header_dict["series_id"] = (
+                resolve_movie_parent_hierarchy(db, fid, sid, name_fields)
+            )
+        # Anime Movie uses resolve_anime_movie_parent_hierarchy (auto-creates franchise if missing)
+        elif tab_name == "Anime Movie" and "franchise_id" in clean_header_dict:
+            fid = clean_header_dict.get("franchise_id")
+            if fid is None or isinstance(fid, str):
+                name_fields = {
+                    "en": clean_header_dict.get("anime_movie_name_en"),
+                    "cn": clean_header_dict.get("anime_movie_name_cn"),
+                    "roman": clean_header_dict.get("anime_movie_name_roman"),
+                    "jp": clean_header_dict.get("anime_movie_name_jp"),
+                    "alt": clean_header_dict.get("anime_movie_name_alt"),
+                }
+                clean_header_dict["franchise_id"] = (
+                    resolve_anime_movie_parent_hierarchy(db, fid, name_fields)
+                )
+        elif "franchise_id" in clean_header_dict and isinstance(
+            clean_header_dict["franchise_id"], str
+        ):
+            fname = clean_header_dict["franchise_id"]
+            if fname.strip():
+                fran = (
+                    db.query(Franchise)
+                    .filter(
+                        or_(
+                            Franchise.franchise_name_en == fname,
+                            Franchise.franchise_name_cn == fname,
+                            Franchise.franchise_name_jp == fname,
+                            Franchise.franchise_name_alt == fname,
+                        )
+                    )
+                    .first()
+                )
+                if fran:
+                    clean_header_dict["franchise_id"] = fran.system_id
+                else:
+                    logger.warning(
+                        f"Could not resolve franchise FK for: {fname}. Skipping row."
+                    )
+                    continue
+
+        if "collection_id" in clean_header_dict and isinstance(
+            clean_header_dict["collection_id"], str
+        ):
+            cname = clean_header_dict["collection_id"].strip()
+            resolved = None
+            if cname:
+                resolved = (
+                    db.query(Collection)
+                    .filter(
+                        or_(
+                            Collection.collection_name_en == cname,
+                            Collection.collection_name_cn == cname,
+                            Collection.collection_name_roman == cname,
+                            Collection.collection_name_jp == cname,
+                            Collection.collection_name_alt == cname,
+                        )
+                    )
+                    .first()
+                )
+                if not resolved:
+                    logger.warning(
+                        f"Could not resolve collection FK for: {cname}. "
+                        "Leaving franchise uncollected."
+                    )
+            # Deliberately does NOT skip the row: Collection is an optional tier,
+            # so an unknown name must not drop an otherwise valid franchise.
+            clean_header_dict["collection_id"] = resolved.system_id if resolved else None
+
+        if "series_id" in clean_header_dict and isinstance(
+            clean_header_dict["series_id"], str
+        ):
+            sname = clean_header_dict["series_id"]
+            if sname.strip():
+                series = (
+                    db.query(Series)
+                    .filter(
+                        or_(
+                            Series.series_name_en == sname,
+                            Series.series_name_cn == sname,
+                            Series.series_name_alt == sname,
+                        )
+                    )
+                    .first()
+                )
+                if series:
+                    clean_header_dict["series_id"] = series.system_id
+                else:
+                    logger.warning(
+                        f"Could not resolve series FK for: {sname}. Skipping row."
+                    )
+                    continue
+
+        # Media Source carries the option it targets as (category, value),
+        # not as a raw option_id - system_option mints a different uuid in
+        # every database (see DERIVED_IDENTITY_KEYS). Resolve it into a LOCAL
+        # option_id here, before the natural-key match below runs, so that
+        # match compares option_id the ordinary way. option_category/
+        # option_value are not real columns on the model (they never reach
+        # clean_header_dict, which parse_media_source_from_sheet never
+        # emits them into), so they are read straight out of the raw sheet
+        # row - the same source pending_credits/pending_tags read from above.
+        if tab_name == "Media Source":
+            if "option_category" in raw_header_dict or "option_value" in raw_header_dict:
+                category = parse_from_sheet(raw_header_dict.get("option_category"), str)
+                value = parse_from_sheet(raw_header_dict.get("option_value"), str)
+                option = None
+                if category and value:
+                    option = (
+                        db.query(SystemOption)
+                        .filter(
+                            SystemOption.category == category,
+                            SystemOption.value == value,
+                        )
+                        .first()
+                    )
+                    if option is None:
+                        # Skipping the row, not blanking option_id: a `main`
+                        # row with neither option_id nor name violates
+                        # ck_media_source_one_target and rolls the WHOLE tab
+                        # back, so one value renamed on the other machine
+                        # would lose every source. Same treatment as an
+                        # unresolvable series FK above.
+                        logger.warning(
+                            "Could not resolve system_option (%s, %s) for the "
+                            "Media Source tab. Skipping row.",
+                            category,
+                            value,
+                        )
+                        continue
+                clean_header_dict["option_id"] = option.system_id if option else None
+
+        # System Configs, Person Role, Publisher Scope, System Option Scope
+        # and System Option Usage are autoincrement integer PKs and use 'id',
+        # Seasonal uses 'seasonal', others use 'system_id'. System Options used
+        # to have an 'id' PK too, but Task 4 reshaped it onto 'system_id' and
+        # Task 10 dropped the 'id' column outright - it belongs with the
+        # 'system_id' tabs now.
+        if tab_name in (
+            "System Configs",
+            "Person Role",
+            "Publisher Scope",
+            "System Option Scope",
+            "System Option Usage",
+        ):
+            pk_field = "id"
+        elif tab_name == "Seasonal":
+            pk_field = "seasonal"
+        else:
+            pk_field = "system_id"
+        pk_value = clean_header_dict.get(pk_field)
+
+        # Smart Primary Key Logic (Upsert vs Insert)
+        if not pk_value or (isinstance(pk_value, str) and not pk_value.strip()):
+            existing_record = None
+            if tab_name == "Franchise":
+                name = clean_header_dict.get(
+                    "franchise_name_en"
+                ) or clean_header_dict.get("franchise_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(Franchise)
+                        .filter(
+                            or_(
+                                Franchise.franchise_name_en == name,
+                                Franchise.franchise_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Collection":
+                name = clean_header_dict.get(
+                    "collection_name_en"
+                ) or clean_header_dict.get("collection_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(Collection)
+                        .filter(
+                            or_(
+                                Collection.collection_name_en == name,
+                                Collection.collection_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "System Configs":
+                # config_key is UNIQUE, so an id-less row whose key already
+                # exists locally would fail the INSERT and roll back the whole
+                # tab. Match on the key instead and update it in place.
+                config_key = clean_header_dict.get("config_key")
+                if config_key:
+                    existing_record = (
+                        db.query(SystemConfigs)
+                        .filter(SystemConfigs.config_key == config_key)
+                        .first()
+                    )
+            elif tab_name == "Watch Order List":
+                # An id-less row is matched on owner + name. Items have no
+                # natural key at all, so an id-less item row always inserts.
+                name = clean_header_dict.get("list_name")
+                owner_franchise = clean_header_dict.get("franchise_id")
+                owner_collection = clean_header_dict.get("collection_id")
+                if name and (owner_franchise or owner_collection):
+                    existing_record = (
+                        db.query(WatchOrderList)
+                        .filter(
+                            WatchOrderList.list_name == name,
+                            WatchOrderList.franchise_id == owner_franchise,
+                            WatchOrderList.collection_id == owner_collection,
+                        )
+                        .first()
+                    )
+            elif tab_name == "Meme":
+                # An id-less row is matched on the owner plus its text, so
+                # re-importing the same sheet updates rather than duplicating.
+                # Memes have no name of their own to match on.
+                m_owner_type = clean_header_dict.get("owner_type")
+                m_owner_id = clean_header_dict.get("owner_id")
+                m_text = clean_header_dict.get("text")
+                if m_owner_type and m_owner_id and m_text:
+                    existing_record = (
+                        db.query(Meme)
+                        .filter(
+                            Meme.owner_type == m_owner_type,
+                            Meme.owner_id == m_owner_id,
+                            Meme.text == m_text,
+                        )
+                        .first()
+                    )
+            elif tab_name == "Note":
+                # An id-less row is matched on owner + section + content, so
+                # re-importing the same sheet updates rather than duplicating.
+                # Notes have no name of their own to match on.
+                n_owner_type = clean_header_dict.get("owner_type")
+                n_owner_id = clean_header_dict.get("owner_id")
+                n_section = clean_header_dict.get("section")
+                n_content = clean_header_dict.get("content")
+                # Deliberately not guarded on n_content like the other three:
+                # a blank cell parses to None (parse_note_from_sheet blanks
+                # empty strings before typing), and SQLAlchemy renders
+                # `Note.content == None` as IS NULL, so a content-less note
+                # still matches its existing row instead of duplicating on
+                # every pull. Guarding on it here would make every blank-
+                # content row skip the match and insert fresh each time.
+                if n_owner_type and n_owner_id and n_section:
+                    existing_record = (
+                        db.query(Note)
+                        .filter(
+                            Note.owner_type == n_owner_type,
+                            Note.owner_id == n_owner_id,
+                            Note.section == n_section,
+                            Note.content == n_content,
+                        )
+                        .first()
+                    )
+            elif tab_name == "Quote":
+                # An id-less row is matched on the entry it belongs to plus its
+                # text, so re-importing the same sheet updates rather than
+                # duplicating. Quotes have no name of their own to match on.
+                q_media_type = clean_header_dict.get("media_type")
+                q_entry_id = clean_header_dict.get("entry_id")
+                q_text = clean_header_dict.get("text")
+                if q_media_type and q_entry_id and q_text:
+                    existing_record = (
+                        db.query(Quote)
+                        .filter(
+                            Quote.media_type == q_media_type,
+                            Quote.entry_id == q_entry_id,
+                            Quote.text == q_text,
+                        )
+                        .first()
+                    )
+            elif tab_name == "Series":
+                name = clean_header_dict.get("series_name_en") or clean_header_dict.get(
+                    "series_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Series)
+                        .filter(
+                            or_(
+                                Series.series_name_en == name,
+                                Series.series_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Anime":
+                name = clean_header_dict.get("anime_name_en") or clean_header_dict.get(
+                    "anime_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Anime)
+                        .filter(
+                            or_(
+                                Anime.anime_name_en == name, Anime.anime_name_cn == name
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Anime Movie":
+                name = clean_header_dict.get(
+                    "anime_movie_name_en"
+                ) or clean_header_dict.get("anime_movie_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(AnimeMovies)
+                        .filter(
+                            or_(
+                                AnimeMovies.anime_movie_name_en == name,
+                                AnimeMovies.anime_movie_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Movies":
+                name = clean_header_dict.get("movie_name_en") or clean_header_dict.get(
+                    "movie_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Movies)
+                        .filter(
+                            or_(
+                                Movies.movie_name_en == name,
+                                Movies.movie_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "TV Shows":
+                name = clean_header_dict.get("tv_name_en") or clean_header_dict.get(
+                    "tv_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(TVShows)
+                        .filter(
+                            or_(
+                                TVShows.tv_name_en == name,
+                                TVShows.tv_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Cartoons":
+                name = clean_header_dict.get(
+                    "cartoon_name_en"
+                ) or clean_header_dict.get("cartoon_name_cn")
+                if name:
+                    existing_record = (
+                        db.query(Cartoon)
+                        .filter(
+                            or_(
+                                Cartoon.cartoon_name_en == name,
+                                Cartoon.cartoon_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+            elif tab_name == "Manga":
+                name = clean_header_dict.get("manga_name_en") or clean_header_dict.get(
+                    "manga_name_cn"
+                )
+                if name:
+                    existing_record = (
+                        db.query(Manga)
+                        .filter(
+                            or_(
+                                Manga.manga_name_en == name,
+                                Manga.manga_name_cn == name,
+                            )
+                        )
+                        .first()
+                    )
+
+            if existing_record:
+                pk_value = getattr(existing_record, pk_field)
+                clean_header_dict[pk_field] = pk_value
+            else:
+                clean_header_dict.pop(pk_field, None)
+                pk_value = None
+
+        # A remark note is a singleton per owner - ix_note_one_remark_per_owner
+        # forbids a second row - so a blind INSERT is fatal to the WHOLE tab:
+        # the IntegrityError surfaces at db.commit() below, which rolls back
+        # every row and returns {"status": "error"}. A sheet remark row whose
+        # system_id is missing locally takes exactly that path, and that is the
+        # normal case rather than a rare one: the r1e2m3a4r5k6 migration minted
+        # fresh UUIDs for every migrated remark, and clearing then re-typing a
+        # remark after a backup mints another. So retarget such a row at the
+        # remark row the owner already has and update it in place, keeping the
+        # local system_id (popped from the payload so it is not overwritten).
+        if tab_name == "Note" and clean_header_dict.get("section") == "remark":
+            rk_owner_type = clean_header_dict.get("owner_type")
+            rk_owner_id = clean_header_dict.get("owner_id")
+            if rk_owner_type and rk_owner_id:
+                local_remark = (
+                    db.query(Note)
+                    .filter(
+                        Note.owner_type == rk_owner_type,
+                        Note.owner_id == rk_owner_id,
+                        Note.section == "remark",
+                    )
+                    .first()
+                )
+                if local_remark is not None:
+                    clean_header_dict.pop(pk_field, None)
+                    pk_value = local_remark.system_id
+
+        # Resolve the target row BEFORE sanitizing. The defaults below exist to
+        # make an INSERT valid, so applying them to an UPDATE would overwrite a
+        # good DB value with a default every time the sheet omits that column -
+        # the same silent wipe the header filter above prevents for every other
+        # column. A missing PK, or a PK with no local row, means INSERT.
+        existing = None
+        if pk_value:
+            existing = (
+                db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
+            )
+
+        # A derived-identity row whose uuid is unknown here is almost never a
+        # new row - it is this database's own copy under a locally minted uuid
+        # (see DERIVED_IDENTITY_KEYS). Retarget it by natural key and keep the
+        # LOCAL uuid: media_credit, media_tag, person_role and
+        # system_option_scope all point at it, and the sheet's uuid belongs to
+        # whichever database last ran a Backup. Popping the PK from the payload
+        # is what stops the setattr loop below from overwriting it.
+        if tab_name in DERIVED_IDENTITY_MINTED_PK:
+            # The sheet's id is meaningless here, including when it "matches".
+            clean_header_dict.pop(pk_field, None)
+            existing = _match_by_natural_key(db, tab_name, clean_header_dict)
+        elif existing is None and tab_name in DERIVED_IDENTITY_KEYS:
+            local_row = _match_by_natural_key(db, tab_name, clean_header_dict)
+            if local_row is not None:
+                clean_header_dict.pop(pk_field, None)
+                existing = local_row
+
+        # Data Sanitization (Prevent Pydantic Schema 500 Validation Errors).
+        # INSERT-only: an UPDATE keeps whatever the row already holds.
+        if existing is None:
+            # Blank airing_status / airing_type stay NULL: "" is in no
+            # vocabulary and defeats every `airing_type in {...}` check.
+            if tab_name in ("Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons"):
+                if clean_header_dict.get("watching_status") is None:
+                    clean_header_dict["watching_status"] = "Might Watch"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Game":
+                if clean_header_dict.get("playing_status") is None:
+                    clean_header_dict["playing_status"] = "Might Play"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Manga":
+                if clean_header_dict.get("reading_status") is None:
+                    clean_header_dict["reading_status"] = "Might Read"
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name in ("Collection", "Franchise", "Series"):
+                # created_at/updated_at are non-nullable on these models, so a
+                # tier tab that never carried them still needs a stamp to
+                # insert at all.
+                if clean_header_dict.get("created_at") is None:
+                    clean_header_dict["created_at"] = get_taipei_now()
+                if clean_header_dict.get("updated_at") is None:
+                    clean_header_dict["updated_at"] = get_taipei_now()
+
+        # UPSERT LOGIC
+        if existing is not None:
+            # Update existing record
+            for key, value in clean_header_dict.items():
+                setattr(existing, key, value)
+            rows_updated += 1
+            entry = existing
+        else:
+            # Create new record (PK missing, or provided but absent locally)
+            new_record = Model(**clean_header_dict)
+            db.add(new_record)
+            rows_added += 1
+            entry = new_record
+
+        # Apply the credit/tag columns popped out above, now that the row
+        # exists. A fresh insert needs a flush first: system_id is a
+        # server/Python-side default that is not guaranteed to be populated
+        # on the instance until the row actually goes to the database, and
+        # media_credit/media_tag rows need a real entry_id to point at.
+        if media_type and (pending_credits or pending_tags):
+            if entry.system_id is None:
+                db.flush()
+            for role_key, raw_value in pending_credits:
+                # A duplicate entity is a data fault, not a reason to lose the
+                # restore: skip this one link, leaving it unset rather than
+                # guessing which row was meant, and keep the rest of the row.
+                names = names_from_sheet_value(raw_value)
+                try:
+                    # Looked up before the write, because resolve_* creates on
+                    # a miss and afterwards the two cases are indistinguishable.
+                    # Held aside until the write succeeds: an ambiguous name
+                    # later in the list skips the whole call, and nothing is
+                    # created then.
+                    finder = _FINDERS[CREDIT_ROLES[role_key].target]
+                    minted = [n for n in names if finder(db, n) is None]
+                    replace_credits(
+                        db, media_type, entry.system_id, role_key,
+                        names,
+                    )
+                except AmbiguousNameError as e:
+                    credit_conflicts.append(f"{tab_name} [{role_key}]: {e}")
+                    logger.warning(f"Ambiguous {role_key} on '{tab_name}' row: {e}")
+                else:
+                    for name in minted:
+                        created_entities.append(
+                            f"{tab_name} [{role_key}]: created {name!r}"
+                        )
+                        logger.warning(
+                            f"Pull created a new {CREDIT_ROLES[role_key].target} "
+                            f"for '{tab_name}' [{role_key}]: {name!r}"
+                        )
+            for field_key, raw_value in pending_tags:
+                try:
+                    replace_tags(
+                        db, media_type, entry.system_id, field_key,
+                        names_from_sheet_value(raw_value),
+                    )
+                except AmbiguousNameError as e:
+                    credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
+                    logger.warning(f"Ambiguous {field_key} on '{tab_name}' row: {e}")
+
+        processed += 1
+
+        # Flush periodically so DB generates new UUIDs immediately for Foreign Key references
+        if processed % 50 == 0:
+            db.flush()
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error committing batch for {tab_name}: {e}")
+        if log_action:
+            log_data_control(
+                db,
+                "Pull",
+                f"Pull {tab_name}",
+                action_type,
+                "Failed",
+                error_message=str(e),
+            )
+        return {"status": "error", "message": str(e)}
+
+    # Tabs whose rows restore with the sheet's own integer PK. Postgres does
+    # not advance a sequence when a value is supplied explicitly, so after a
+    # restore into a fresh instance the table holds ids 1..N while its
+    # sequence still sits at 1 - and the next INSERT that lets the sequence
+    # pick a value fails on the primary key. Resync every one of them.
+    #
+    # Note there is deliberately NO system_options_id_seq here: that table's
+    # key became a UUID (system_id), so it has no sequence to resync.
+    id_sequences = {
+        "System Configs": ("system_configs_id_seq", "system_configs"),
+        "Person Role": ("person_role_id_seq", "person_role"),
+        "Publisher Scope": ("publisher_scope_id_seq", "publisher_scope"),
+        "System Option Scope": ("system_option_scope_id_seq", "system_option_scope"),
+        "System Option Usage": ("system_option_usage_id_seq", "system_option_usage"),
+    }
+    if tab_name in id_sequences:
+        sequence, table = id_sequences[tab_name]
+        db.execute(
+            text(
+                f"SELECT setval('{sequence}', "
+                f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
+            )
+        )
+        db.commit()
+
+    # The same hazard for public_id, which every entity tab restores from the
+    # sheet. Runs after the commit above so MAX() reads the rows that landed.
+    resync_public_id_sequence(db, Model)
+    db.commit()
+
+    logger.info(
+        f"Successfully pulled and upserted {processed} records from '{tab_name}'."
+    )
+    if log_action:
+        log_data_control(
+            db,
+            "Pull",
+            f"Pull {tab_name}",
+            action_type,
+            "Success",
+            rows_added=rows_added,
+            rows_updated=rows_updated,
+        )
+
+    return {
+        "status": "success",
+        "processed": processed,
+        "rows_added": rows_added,
+        "rows_updated": rows_updated,
+        "credit_conflicts": credit_conflicts,
+        "created_entities": created_entities,
+    }
+
+
+def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
+    """
+    Pulls ALL tabs from Google Sheets into the database.
+    WARNING: The execution order is STRICT to satisfy Foreign Key constraints.
+    """
+    logger.info("Starting Full Pull Pipeline (All Tabs)...")
+
+    tabs_in_order = TABS_IN_ORDER
+
+    results = {}
+    unread_tabs = {}
+    total_added = 0
+    total_updated = 0
+    # Every ambiguous link seen across every tab. The admin page shows a
+    # generic toast and reloads the log table, so the audit row below is the
+    # only place these actually reach a human.
+    credit_conflicts: list[str] = []
+    created_entities: list[str] = []
+
+    try:
+        for tab in tabs_in_order:
+            res = execute_pull_specific(db, tab, action_type="Manual", log_action=True)
+
+            if res.get("status") == "error":
+                # A Sheets outage on one tab says nothing about the next one,
+                # so carry on and report the gap at the end rather than losing
+                # a twenty-tab restore to a blip. Any other error is about the
+                # data or the DB and stops the run where it stands.
+                if res.get("reason") == "sheet_unavailable":
+                    logger.error(f"Tab '{tab}' could not be read: {res.get('message')}")
+                    unread_tabs[tab] = res.get("message")
+                    continue
+
+                raise Exception(f"Pull failed on tab {tab}: {res.get('message')}")
+
+            total_added += res.get("rows_added", 0)
+            total_updated += res.get("rows_updated", 0)
+            results[tab] = res.get("processed", 0)
+            credit_conflicts.extend(res.get("credit_conflicts", []))
+            created_entities.extend(res.get("created_entities", []))
+
+    except Exception as e:
+        logger.error(f"Full Pull Pipeline crashed: {e}")
+        log_data_control(
+            db, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
+        )
+        raise e
+
+    if unread_tabs:
+        summary = (
+            "Full Pull Pipeline incomplete. Tabs not pulled: "
+            f"{', '.join(unread_tabs)}"
+        )
+        logger.error(summary)
+        log_data_control(
+            db,
+            "Pull",
+            "Pull All",
+            action_type,
+            "Failed",
+            rows_added=total_added,
+            rows_updated=total_updated,
+            error_message=summary,
+            details_json=json.dumps({"pulled": results, "unread": unread_tabs}),
+        )
+        raise SheetsUnavailableError(summary)
+
+    if credit_conflicts:
+        # Every tab pulled, but some links were skipped - an incomplete
+        # restore, audited the way an unread tab is. Not raised: the caller
+        # needs the list to act on, and a raise would replace it with a
+        # generic error.
+        summary = (
+            f"Full Pull Pipeline completed with {len(credit_conflicts)} "
+            "ambiguous link(s) skipped. Merge the duplicate entities, then "
+            "pull again: " + "; ".join(credit_conflicts)
+        )
+        logger.error(summary)
+        log_data_control(
+            db,
+            "Pull",
+            "Pull All",
+            action_type,
+            "Failed",
+            rows_added=total_added,
+            rows_updated=total_updated,
+            error_message=summary,
+            details_json=json.dumps(
+                {
+                    "pulled": results,
+                    "credit_conflicts": credit_conflicts,
+                    "created_entities": created_entities,
+                }
+            ),
+        )
+        return {
+            "status": "success",
+            "details": results,
+            "credit_conflicts": credit_conflicts,
+            "created_entities": created_entities,
+        }
+
+    if created_entities:
+        # Deliberately still a Success: inventing a studio the sheet named is
+        # correct behaviour, and colouring the row red would train the reader
+        # to ignore red. The names ride in details_json instead.
+        logger.warning(
+            f"Full Pull Pipeline created {len(created_entities)} new "
+            f"entit(ies) from names that matched nothing: "
+            + "; ".join(created_entities)
+        )
+    else:
+        logger.info("Full Pull Pipeline completed successfully.")
+    log_data_control(
+        db,
+        "Pull",
+        "Pull All",
+        action_type,
+        "Success",
+        rows_added=total_added,
+        rows_updated=total_updated,
+        details_json=json.dumps(
+            {"pulled": results, "created_entities": created_entities}
+        ),
+    )
+    return {
+        "status": "success",
+        "details": results,
+        "credit_conflicts": [],
+        "created_entities": created_entities,
+    }

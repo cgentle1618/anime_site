@@ -1,0 +1,118 @@
+// Shared logic for auto-creating the person/studio/option rows a user typed
+// into a "tags" field that don't exist in `sources` yet — routed by
+// source.kind rather than always POSTing a system option, since a director
+// is an entity with a profile and a genre is a vocabulary value. Used by
+// both Add.jsx and Modify.jsx, which differ only in what they do with the
+// refreshed sources bag afterward (both re-fetch via fetchAllSources()).
+import { endpoints } from "../api/endpoints";
+import { getSourceValues } from "./formatters";
+
+/**
+ * Pure: given [{source, values}] (one entry per tags field on the form) and
+ * the current sources bag, returns the {source, value} pairs that are not
+ * already present for that source — i.e. what still needs to be created.
+ */
+export function computeMissingSourceValues(fields, sources) {
+  const toCreate = [];
+  for (const { source, values } of fields || []) {
+    const existing = new Set(getSourceValues(sources, source));
+    for (const v of values || []) {
+      if (v && !existing.has(v)) toCreate.push({ source, value: v });
+    }
+  }
+  return toCreate;
+}
+
+/**
+ * Builds the [url, init] fetch() arguments for creating one missing value,
+ * dispatched on source.kind. A person is created with the role AND scope
+ * the field asked for — get that wrong and the person exists but never
+ * appears in the dropdown that just "created" it.
+ */
+export function buildCreateRequest(source, value) {
+  if (source.kind === "studio") {
+    return [
+      endpoints.studio.create(),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name_en: value }),
+        credentials: "include",
+      },
+    ];
+  }
+  if (source.kind === "publisher") {
+    // Same one-name shape as a studio: a publisher is little more than its
+    // names, and which of the four columns a typed value belongs in is the
+    // admin's call on the Add tab, not this quick-create's.
+    //
+    // The scope, though, must travel. A publisher with no publisher_scope
+    // rows is offered NOWHERE (see PublisherScope in app/models/staff.py), so
+    // omitting it here would create the publisher and leave it missing from
+    // the picker that created it. POST /api/publisher is additive on scopes,
+    // so naming one can only widen a publisher that already exists.
+    const body = { name_en: value };
+    if (source.scope) body.scopes = [source.scope];
+    return [
+      endpoints.publisher.create(),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      },
+    ];
+  }
+  if (source.kind === "person") {
+    return [
+      endpoints.person.create(),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // One unslotted name: which of the four name columns it belongs in
+          // is name_slot_for's call on the backend, and duplicating that rule
+          // here would let the same name land in two different columns.
+          name: value,
+          // No `|| null` fallback: every person source descriptor carries an
+          // explicit scope now, and PersonRoleIn.scope is required and
+          // validated against the role, so a null scope can only ever produce
+          // a 422. The fallback was the right shape when a role could be
+          // offered everywhere; there is no such state any more.
+          roles: [{ role: source.role, scope: source.scope }],
+        }),
+        credentials: "include",
+      },
+    ];
+  }
+  // source.kind === "option"
+  return [
+    endpoints.options.create(),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: source.category,
+        value,
+        scopes: source.scope ? [source.scope] : [],
+      }),
+      credentials: "include",
+    },
+  ];
+}
+
+/**
+ * Creates every {source, value} pair from `fields` that doesn't already
+ * exist in `sources`. Does not refresh `sources` itself — callers re-fetch
+ * (fetchAllSources()) afterward and update their own state with the result.
+ */
+export async function ensureSourceValues(fields, sources, fetchImpl = fetch) {
+  const toCreate = computeMissingSourceValues(fields, sources);
+  if (toCreate.length === 0) return;
+  await Promise.all(
+    toCreate.map(({ source, value }) => {
+      const [url, init] = buildCreateRequest(source, value);
+      return fetchImpl(url, init);
+    }),
+  );
+}

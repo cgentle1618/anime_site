@@ -1,0 +1,229 @@
+"""Note request/response schemas, validated against the section registry."""
+
+from datetime import datetime
+from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
+from app.utils.media_resolver import OWNER_TABLES
+from app.utils.note_sections import (
+    SHAPE_EPISODE_NAME_LINKS,
+    SHAPE_EPISODE_TEXT,
+    SHAPE_MUSIC_TRACK,
+    SHAPE_NAME_ENTRIES,
+    SHAPE_NAME_LINKS,
+    SHAPE_TEXT_OR_LINK,
+    STORED_SHAPES,
+    NoteSection,
+    group_by_key,
+    kinds_for,
+    label_for,
+    locator_for,
+    section_by_key,
+    sections_for,
+)
+
+
+class NoteBase(BaseModel):
+    owner_type: Optional[str] = None
+    owner_id: Optional[UUID] = None
+    section: Optional[str] = None
+    locator: Optional[str] = None
+    kind: Optional[str] = None
+    status: Optional[str] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    links: Optional[List[str]] = None
+    # The name_entries shape's ordered items: each is
+    # {"type": "text"|"link", "value": str, "label": str|None}. Kept apart from
+    # `links`, which is a plain list of URL strings.
+    entries: Optional[List[dict]] = None
+    sort_index: Optional[float] = None
+
+
+class NoteCreate(NoteBase):
+    pass
+
+
+class NoteUpdate(NoteBase):
+    pass
+
+
+class NoteResponse(NoteBase):
+    system_id: UUID
+    # Nullable in the database, and a blank Google Sheets cell parses to None
+    # on Pull, so one timestamp-less row must not fail the whole list endpoint.
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NoteSectionOut(BaseModel):
+    """One registry entry as the frontend needs it, resolved for one owner."""
+
+    key: str
+    shape: str
+    label: str
+    # The group card this section renders inside, resolved for the frontend so
+    # the page never has to know what a group key means. None renders flat.
+    group: Optional[str] = None
+    group_label: Optional[str] = None
+    group_icon: Optional[str] = None
+    # Render as its own top-level card rather than inside the Notes card.
+    # Mutually exclusive with `group`, which is the same lift plus a shared card.
+    standalone: bool = False
+    kinds: List[str] = []
+    default_kind: Optional[str] = None
+    statuses: List[str] = []
+    locator_placeholder: Optional[str] = None
+    locator_required: bool = False
+    singleton: bool = False
+    desc_required: bool = False
+
+
+class NoteReorder(BaseModel):
+    """New ordering for one section of one owner."""
+
+    owner_type: str
+    owner_id: UUID
+    section: str
+    ordered_ids: List[UUID]
+
+
+def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
+    """Resolve a registry entry for one owner type."""
+    group = group_by_key(section.group or "")
+    return NoteSectionOut(
+        key=section.key,
+        shape=section.shape,
+        label=label_for(section, owner_type),
+        group=group.key if group else None,
+        group_label=group.label if group else None,
+        group_icon=group.icon if group else None,
+        standalone=section.standalone,
+        kinds=list(kinds_for(section, owner_type)),
+        default_kind=section.default_kind,
+        statuses=list(section.statuses),
+        locator_placeholder=locator_for(section, owner_type),
+        locator_required=section.locator_required,
+        singleton=section.singleton,
+        desc_required=owner_type in section.desc_required,
+    )
+
+
+def sections_out(owner_type: str) -> List[NoteSectionOut]:
+    """The whole registry for one owner type, in display order."""
+    return [section_out(s, owner_type) for s in sections_for(owner_type)]
+
+
+def validate_note_payload(payload: NoteBase) -> None:
+    """
+    Check one note against the registry.
+
+    Raises ValueError, which the router turns into a 422. Singleton uniqueness
+    is not checked here - it needs a database query, so the router owns it.
+    """
+    owner_type = payload.owner_type
+    if owner_type not in OWNER_TABLES:
+        raise ValueError(f"Unknown owner_type '{owner_type}'.")
+
+    section = section_by_key(payload.section or "")
+    if section is None:
+        raise ValueError(f"Unknown note section '{payload.section}'.")
+
+    if section.shape not in STORED_SHAPES:
+        raise ValueError(
+            f"Section '{section.key}' has its own table and is not stored as a note."
+        )
+
+    if owner_type not in section.owners:
+        raise ValueError(
+            f"Section '{section.key}' does not apply to owner type '{owner_type}'."
+        )
+
+    if payload.kind:
+        allowed = kinds_for(section, owner_type)
+        if not allowed:
+            raise ValueError(
+                f"Section '{section.key}' takes no kind for owner type "
+                f"'{owner_type}'."
+            )
+        if payload.kind not in allowed:
+            raise ValueError(
+                f"'{payload.kind}' is not a valid kind for section '{section.key}'."
+            )
+
+    if payload.status:
+        if not section.statuses:
+            raise ValueError(f"Section '{section.key}' takes no status.")
+        if payload.status not in section.statuses:
+            raise ValueError(
+                f"'{payload.status}' is not a valid status for section "
+                f"'{section.key}'."
+            )
+
+    content = (payload.content or "").strip()
+    if owner_type in section.desc_required and not content:
+        raise ValueError(f"Section '{section.key}' requires content.")
+
+    # Some sections are only about where they point: an OP/ED change or a
+    # highlight with no episode names nothing.
+    if section.locator_required and not (payload.locator or "").strip():
+        raise ValueError(f"Section '{section.key}' requires a locator.")
+
+    # A row with nothing in it is never worth storing. What counts as "nothing"
+    # depends on the shape: a name_links row may carry only a title and a link,
+    # and an episode_text row may carry only an episode.
+    if section.shape == SHAPE_NAME_LINKS:
+        if not content and not (payload.title or "").strip() and not payload.links:
+            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_NAME_ENTRIES:
+        # A named bookmark with neither a name nor a single entry is nothing.
+        if not (payload.title or "").strip() and not payload.entries:
+            raise ValueError(f"Section '{section.key}' needs a name or an entry.")
+    elif section.shape == SHAPE_TEXT_OR_LINK:
+        links = [l for l in (payload.links or []) if l.strip()]
+        if not content and not links:
+            raise ValueError(f"Section '{section.key}' note is empty.")
+        # The whole point of the shape: one row says one thing. A row carrying
+        # both leaves no answer to "is this the review, or where to find it?".
+        if content and links:
+            raise ValueError(
+                f"Section '{section.key}' takes text or a link, not both."
+            )
+        if len(links) > 1:
+            raise ValueError(f"Section '{section.key}' takes one link per note.")
+    elif section.shape == SHAPE_EPISODE_TEXT:
+        if not content and not (payload.locator or "").strip():
+            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_EPISODE_NAME_LINKS:
+        # Any one of the columns carries the row. The episode alone is enough -
+        # and `locator_required` above has already insisted on it - so an insert
+        # song named later is still storable now.
+        if (
+            not content
+            and not (payload.locator or "").strip()
+            and not (payload.title or "").strip()
+            and not (payload.status or "").strip()
+            and not payload.links
+        ):
+            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif section.shape == SHAPE_MUSIC_TRACK:
+        links = [l for l in (payload.links or []) if l.strip()]
+        if len(links) > 1:
+            raise ValueError(f"Section '{section.key}' takes one link per note.")
+        # `kind` defaults to "normal" and so is always set, which would make
+        # every row non-empty; the row has to say something of its own. A
+        # status alone is enough - "I still need the OP" is a real note before
+        # the song has a name.
+        if (
+            not content
+            and not (payload.title or "").strip()
+            and not (payload.status or "").strip()
+            and not links
+        ):
+            raise ValueError(f"Section '{section.key}' note is empty.")
+    elif not content and not payload.links:
+        raise ValueError(f"Section '{section.key}' note is empty.")

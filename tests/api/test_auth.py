@@ -5,11 +5,12 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 """
 
 import uuid
-import pytest
-from fastapi.testclient import TestClient
 
-import models
-from services.security import get_password_hash
+import pytest
+
+from app import models
+from app.services.security import get_password_hash
+from tests.api.conftest import role_id_for
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def user_in_db(db_session):
         id=uuid.uuid4(),
         username="testuser",
         hashed_password=get_password_hash("correct_password"),
-        role="admin",
+        role_id=role_id_for(db_session, "admin"),
     )
     db_session.add(user)
     db_session.flush()
@@ -89,6 +90,10 @@ class TestLogout:
 
     def test_logout_clears_cookie(self, admin_client):
         response = admin_client.post("/api/auth/logout")
-        # After logout, /me should return not admin
-        me_response = admin_client.get("/api/auth/me")
-        assert me_response.json()["is_admin"] is False
+        # Assert the server's actual contract: it instructs the client to expire
+        # the auth cookie (Max-Age=0 / past expiry). We check the response header
+        # rather than re-reading /me, because the test client's cookie jar does
+        # not drop a manually-injected cookie on an expiring Set-Cookie.
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie
+        assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
