@@ -1,6 +1,6 @@
 # Deployment (self-hosted mini PC + Cloudflare Tunnel)
 
-Last verified: 2026-09-08 (commit 1bd160f)
+Last verified: 2026-09-08 (commit cb8797e)
 
 > ## Status: plan, not a deployment
 >
@@ -62,7 +62,8 @@ HP EliteDesk-ProDesk mini / Lenovo ThinkCentre Tiny class:
   else gets put on it later. Note that "upgrade the RAM later" is *not* the
   cheap escape it normally is, so pay for it up front if the budget allows.
 - **Storage** — 256 GB SSD minimum; whatever is in the machine is fine.
-- **Budget** — **NT$4,300-7,500** for the machine.
+- **Budget** — **NT$4,280-7,500** for the machine; the current pick is
+  NT$5,680 (see [Ranked, best first](#ranked-best-first)).
 
 ### How much storage this actually needs
 
@@ -150,10 +151,11 @@ point of the exercise.
 
 ## Candidate listings
 
-Surveyed **2026-09-08**. Used stock turns over in days and these were read from
-price-comparison indexes, so **confirm stock and the exact configuration with
-the seller before paying** — several explicitly ask for a message first
-(先詢問庫存). Prices are what was listed on the survey date.
+Surveyed **2026-09-08** from price-comparison indexes, then the top two were
+opened and read directly the same day (see [What the seller pages actually
+said](#what-the-seller-pages-actually-said)). Everything below rank 3 is still
+index data only, so **confirm stock and the exact configuration with the seller
+before paying** — several explicitly ask for a message first (先詢問庫存).
 
 ### Ranked, best first
 
@@ -164,7 +166,8 @@ brackets. The weighting, in order:
    one that is ruinous to add later at 2026 prices.
 2. **Cores and generation** — 6 cores beats 4; newer beats older.
 3. **Price** — as a tiebreaker between comparable machines.
-4. **Seller** — a dealer with physical stores beats an anonymous listing.
+4. **Evidence** — a fully itemised listing from a seller with a track record
+   beats a claim that the listing's own spec table contradicts.
 
 **Storage capacity is deliberately not weighted.** The whole deployment is
 about 280 MB (235 MB of covers, 23 MB of database, 22 MB of code), so a 256 GB
@@ -172,47 +175,96 @@ SSD already holds it roughly 900 times over and a 512 GB one buys nothing.
 
 | # | Machine | Price | Where |
 | --- | --- | --- | --- |
-| **1** | **Intel NUC8i5BEH** — i5-8259U (4C/8T), **32 GB**, 256 GB SSD | NT$6,500 | [Yahoo拍賣 — US3C 新北板橋店](https://tw.bid.yahoo.com/item/101760451743) |
-| **2** | **HP ProDesk 600 G4 mini** — i5-8500T (6C), 8 GB, 256 GB SSD | NT$4,280 | [Shopee — Better 3C 二手倉庫 (高雄)](https://shopee.tw/product/7123416/22021629456) |
-| **3** | Dell OptiPlex 7060 Micro — i5-8600T (6C), 16 GB, 256 GB | NT$6,999 | [Shopee — 中古電腦零件專賣 (基隆七堵)](https://biggo.com.tw/s/OptiPlex%207060%20micro) |
-| **4** | Lenovo 商用 — i5-8500 (6C), 16 GB, 512 GB SSD | NT$7,200 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
-| **5** | Lenovo M80S (SFF) — i5-10500 (6C/12T), 16 GB, 512 GB | NT$8,400 | [樺仔二手電腦](https://used-computer.tw/) (homepage feature; not in the [desktop category listing](https://used-computer.tw/Desktop-pc), so confirm stock) |
-| **6** | Lenovo 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,500 | Yahoo拍賣, same seller as #4 |
-| **7** | Acer 商用 — i5-8400 (6C), 16 GB, 512 GB | NT$7,400 | Shopee |
-| **8** | Lenovo 商用主機 — i5-8400 (6C), 8 GB, 256 GB M.2 | NT$4,800 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
-| **9** | Lenovo 商用小主機 — i5-8500 (6C), 8 GB, 256 GB M.2, 內建 WiFi | NT$5,500 | [Shopee — 桃園](https://shopee.tw/product/204914004/27729474942) |
-| **10** | HP 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,900 | Shopee |
-| **11** | HP 商用 — i5-10400 (6C/12T), 16 GB, 512 GB | NT$9,400 | Shopee |
-| **12** | HP EliteDesk 800 G3 迷你 — i5 7代, 8 GB, SSD | NT$6,500 | [Yahoo拍賣 — 樺仔南港店](https://tw.bid.yahoo.com/item/101740812164) |
+| **1** | **HP ProDesk 600 G4 mini** — i5-8500T (6C), **16 GB**, 512 GB SSD | **NT$5,680** | [Shopee — Better 3C 二手倉庫 (高雄)](https://shopee.tw/product/7123416/22021629456) |
+| **2** | Intel NUC8i5BEH — i5-8259U (4C/8T), **32 GB (unverified)**, 256 GB SSD | NT$6,500 | [Yahoo拍賣 — US3C 新北板橋店](https://tw.bid.yahoo.com/item/101760451743) |
+| **3** | HP ProDesk 600 G4 mini — i5-8500T (6C), 8 GB, 256 GB SSD | NT$4,280 | same listing as #1 — the budget floor |
+| **4** | Dell OptiPlex 7060 Micro — i5-8600T (6C), 16 GB, 256 GB | NT$6,999 | [Shopee — 中古電腦零件專賣 (基隆七堵)](https://biggo.com.tw/s/OptiPlex%207060%20micro) |
+| **5** | Lenovo 商用 — i5-8500 (6C), 16 GB, 512 GB SSD | NT$7,200 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
+| **6** | Lenovo M80S (SFF) — i5-10500 (6C/12T), 16 GB, 512 GB | NT$8,400 | [樺仔二手電腦](https://used-computer.tw/) (homepage feature; not in the [desktop category listing](https://used-computer.tw/Desktop-pc), so confirm stock) |
+| **7** | Lenovo 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,500 | Yahoo拍賣, same seller as #5 |
+| **8** | Acer 商用 — i5-8400 (6C), 16 GB, 512 GB | NT$7,400 | Shopee |
+| **9** | Lenovo 商用主機 — i5-8400 (6C), 8 GB, 256 GB M.2 | NT$4,800 | [Yahoo拍賣 — 專業電腦量販維修](https://tw.bid.yahoo.com/item/101708382491) |
+| **10** | Lenovo 商用小主機 — i5-8500 (6C), 8 GB, 256 GB M.2, 內建 WiFi | NT$5,500 | [Shopee — 桃園](https://shopee.tw/product/204914004/27729474942) |
+| **11** | HP 商用 — i5-9500 (6C), 16 GB, 512 GB | NT$7,900 | Shopee |
+| **12** | HP 商用 — i5-10400 (6C/12T), 16 GB, 512 GB | NT$9,400 | Shopee |
+| **13** | HP EliteDesk 800 G3 迷你 — i5 7代, 8 GB, SSD | NT$6,500 | [Yahoo拍賣 — 樺仔南港店](https://tw.bid.yahoo.com/item/101740812164) |
+
+### What the seller pages actually said
+
+Reading the two top listings in full moved them past each other. Recorded here
+because the reasoning is not recoverable from the table.
+
+**#1 ProDesk 600 G4 mini (Better 3C, Shopee)** — one listing with a
+configuration ladder, all at 5.0★ / 71 reviews / 192 sold, 免運, 蝦皮安心退:
+
+| Config | Price |
+| --- | --- |
+| 8 GB + SSD 256G | NT$4,280 |
+| **16 GB + SSD 512G** | **NT$5,680** |
+| 16 GB + SSD 256G + HDD 1TB | NT$5,680 |
+| 32 GB | greyed out — **out of stock** |
+
+NT$1,400 buys +8 GB and +256 GB. A single 8 GB DDR4 SO-DIMM alone runs
+NT$2,000-3,000 in the current market, so that step is the best value on this
+whole page. The description itemises **2× M.2 PCIe x4 2280/2230 slots plus a DM
+SATA connector**, so a second drive can go in later without giving up a slot.
+Ships with the (proprietary, barrel-plug) 變壓器 — which is the accessory that
+matters on these.
+
+Of the two NT$5,680 options, **take the plain 512 GB SSD**. The bundled 1 TB
+HDD is a used spinning disk of unknown age in a 1 L chassis: the most
+failure-prone part in the box, and a backup on the same machine is not a
+backup. Backups go off-box — see
+[the storage section](#what-does-need-planning-backups-not-capacity).
+
+**#2 NUC8i5BEH (US3C, Yahoo拍賣)** — the title claims 32G / 256G SSD, but the
+listing's own spec table says **記憶體「4GB(含以上)」** and **硬碟容量 250GB**.
+Those are Yahoo's coarse category dropdowns rather than real specs, so the
+title is probably right — but "probably" does not carry a #1 ranking whose
+entire justification is the 32 GB. `BOXNUC8i5BEH` is also Intel's *barebones
+kit* product code, so the RAM and SSD being physically installed needs
+confirming, not assuming. 保固 is 店保 30 天, original 變壓器 included.
+
+**Ask before buying either:**
+
+- NUC: 記憶體實際是 32GB 嗎？256GB SSD 是否已安裝並隨機附上？
+- ProDesk: 16GB 是單條 16G 還是 2×8G？(one stick leaves the second SO-DIMM slot
+  free for a later upgrade; two fills the machine)
 
 ### Why the order lands where it does
 
-**#1 NUC8i5BEH** wins on the only scarce resource. 32 GB of DDR4 alone retails
-for roughly NT$7,000-9,000 right now — the machine costs less than its own
-memory. Four cores instead of six is the trade, and it is the right one when
-the box is meant to hold several apps. US3C is a chain with physical stores.
+**#1 ProDesk 600 G4 mini at 16 GB** wins on nearly every axis at once: two more
+physical cores than #2, NT$820 cheaper, better storage expansion, an itemised
+spec sheet, and a seller with 192 units sold plus Shopee's return protection
+instead of a one-shot auction. 16 GB is genuinely enough here — the whole
+deployment is 280 MB and the app idles well under 1 GB.
 
-**#2 ProDesk 600 G4 mini** is the value outlier: six cores, 1 L, ~8 W idle, and
-NT$2,220 less than #1. Ranked second only because 8 GB is the ceiling that
-matters, and topping it up later is exactly what this market makes expensive.
-That seller's listing spans NT$3,500-8,080 across configurations, so a 16 GB
-variant may be reachable — worth asking, and would move it to #1.
+**#2 NUC8i5BEH** was ranked first while 32 GB looked certain, on the reasoning
+that memory is the scarce resource and the machine cost less than its own RAM.
+That still holds *if* the 32 GB is real. It drops to second because the
+evidence for it is a title contradicted by the same page's spec table, and
+because four cores against six is a real cost. Worth buying only if the seller
+confirms — and even then it is a close call against #1.
 
-**#3 over #4** because storage no longer counts. The OptiPlex is NT$201 cheaper
+**#3 is the same machine as #1** at its cheapest configuration. Listed
+separately because NT$4,280 for a six-core 1 L box is the budget floor of this
+entire survey, and it beats every 8 GB machine below it outright.
+
+**#4 over #5** because storage no longer counts. The OptiPlex is NT$201 cheaper
 with equivalent CPU and the same 16 GB; its 256 GB versus the Lenovo's 512 GB
 is a difference this deployment cannot use.
 
-**#5-#7** are all sound 16 GB six-core machines; the M80S ranks highest of them
+**#6-#8** are all sound 16 GB six-core machines; the M80S ranks highest of them
 for the newest CPU and a dealer with three physical stores, and is the pick if
 an SFF tower with an internal 3.5" bay is wanted anyway.
 
-**#8-#9** are fine machines held back by 8 GB, and both cost more than #2 while
-offering no more memory.
+**#9-#10** are fine machines held back by 8 GB, and both cost more than #3
+while offering no more memory.
 
-**#10-#11** are duplicates of better-priced entries above them — #10 is #6 for
-NT$400 more, #11 is the same idea at the top of the budget.
+**#11-#12** are duplicates of better-priced entries above them — #11 is #7 for
+NT$400 more, #12 is the same idea at the top of the budget.
 
-**#12 is last on merit**: 7th-generation CPU *and* 8 GB *and* NT$6,500. #2
+**#13 is last on merit**: 7th-generation CPU *and* 8 GB *and* NT$6,500. #3
 beats it on every axis for NT$2,220 less. Listed only because the seller is
 reputable and it may be the last one standing.
 
