@@ -76,12 +76,9 @@ class Comic(Base, NameFallbackMixin):
     end_date = Column(String, nullable=True)
 
     issue_total = Column(Integer, nullable=True)
-    issue_fin = Column(Integer, nullable=False, default=0)
     serialization_status = Column(String, nullable=True)
-    reading_status = Column(String, nullable=False, default="Might Read")
     read_order = Column(Float, nullable=True)
 
-    my_rating = Column(String, nullable=True)
 
     # Comic Vine volume handle. The ID is derived from the link (same idiom as
     # manga.mal_id / mal_link) and is what the Fill pipeline fetches on.
@@ -90,7 +87,6 @@ class Comic(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     @property
     def display_name(self) -> str:

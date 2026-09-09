@@ -21,10 +21,15 @@ def test_names_dict_covers_all_five():
 
 
 def test_playing_status_defaults_to_might_play(db_session):
+    """The default outlived the column: playing_status moved to the list row
+    in step 1, and a game with no row still reads back as Might Play."""
+    from app.services.domain.user_list import DEFAULT_STATUS, attach_list_fields
+
     game = models.Game(game_name_en="Default Test")
     db_session.add(game)
     db_session.flush()
-    assert game.playing_status == "Might Play"
+    attach_list_fields(db_session, "game", game, None)
+    assert game.playing_status == DEFAULT_STATUS["game"] == "Might Play"
 
 
 def test_a_base_game_may_not_have_a_parent(db_session):

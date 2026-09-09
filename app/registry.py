@@ -20,9 +20,9 @@ from app import models, schemas
 from app.services.domain import (
     derive_novel_catalog,
     derive_novel_list,
-    mark_comic_completed,
+    mark_comic_catalog,
     mark_comic_list,
-    mark_game_completed,
+    mark_game_catalog,
     mark_game_list,
     mark_movie_catalog,
     mark_movie_list,
@@ -315,8 +315,9 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         hierarchy_names={"en": "comic_name_en", "cn": "comic_name_cn", "alt": "comic_name_alt"},
         search_fields=("comic_name_en", "comic_name_cn", "comic_name_alt"),
         resolve_hierarchy=resolve_comic_parent_hierarchy,
-        mark_completed=mark_comic_completed,
+        mark_completed=mark_comic_catalog,
         mark_completed_list=mark_comic_list,
+        list_backed=True,
         write_hook=execute_replace_single_comic,
         nested_collections={"sources": media_sources_writer("comic")},
     ),
@@ -335,8 +336,9 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
                          "jp": "game_name_jp", "alt": "game_name_alt"},
         search_fields=("game_name_en", "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
         resolve_hierarchy=resolve_game_parent_hierarchy,
-        mark_completed=mark_game_completed,
+        mark_completed=mark_game_catalog,
         mark_completed_list=mark_game_list,
+        list_backed=True,
         extra_filters=_game_ownership,
         # Nothing external is fetched yet, so this only re-runs the shared
         # post-write step; the name exists from Task 9's pipeline spec.

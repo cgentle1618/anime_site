@@ -43,8 +43,8 @@ same hazard and reordered for it.
 | 13. Flip `cartoons` | done |
 | 14. Flip `manga` | done |
 | 15. Flip `novel` | done |
-| 16. Flip `comic` | todo |
-| 17. Flip `games` | todo |
+| 16. Flip `comic` | done |
+| 17. Flip `games` | done |
 | 18. Remove the flag and the dead helpers | todo |
 | 18. `game_copy.user_id` | todo |
 | 19. `novel_unit.my_rating` | todo |

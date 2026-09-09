@@ -3,7 +3,8 @@
 from app import models
 from app.services.domain import (
     derive_game_ownership,
-    mark_game_completed,
+    mark_game_catalog,
+    mark_game_list,
     write_game_copies,
 )
 
@@ -23,13 +24,16 @@ def test_an_auto_created_franchise_is_stamped_game(admin_client, db_session):
 
 
 def test_mark_completed_sets_status_and_leaves_depth_alone():
-    game = models.Game(
-        game_name_en="X",
-        playing_status="Active Playing",
-        completion_level="Main Story",
-    )
-    mark_game_completed(game)
-    assert game.playing_status == "Completed"
+    """completion_level is a fact about the work's depth of finish that only
+    the player knows, and it stayed on `games` in step 1; the status moved to
+    the list row. The halves must respect that division."""
+    from types import SimpleNamespace
+
+    game = models.Game(game_name_en="X", completion_level="Main Story")
+    row = SimpleNamespace(status="Active Playing")
+    mark_game_catalog(game)
+    mark_game_list(row, game)
+    assert row.status == "Completed"
     # Only the user knows how deep the finish went.
     assert game.completion_level == "Main Story"
 

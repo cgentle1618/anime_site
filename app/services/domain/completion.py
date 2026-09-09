@@ -8,7 +8,6 @@ from app.models import (
     Anime,
     AnimeMovies,
     Cartoon,
-    Comic,
     Manga,
     Movies,
     TVShows,
@@ -69,68 +68,6 @@ def check_is_reading_completed(entry: Manga) -> bool:
         return True
     return False
 
-
-
-def mark_tv_completed(entry: Union[Anime, Cartoon, TVShows]) -> None:
-    """
-    Forcefully mutates an TV type (Anime, TV Show, Cartoon) entry's fields to represent a 100% finished state.
-    """
-    entry.watching_status = "Completed"
-    entry.airing_status = "Finished Airing"
-
-    if entry.ep_total is not None:
-        entry.ep_fin = entry.ep_total
-
-
-def mark_movie_completed(entry: Union[AnimeMovies, Movies]) -> None:
-    """Mutates an AnimeMovies or Movie entry to represent a fully finished state."""
-    entry.watching_status = "Completed"
-    entry.airing_status = "Finished Airing"
-
-
-def mark_reading_completed(entry: Manga) -> None:
-    """Sets a manga entry to represent a fully finished reading state."""
-    if entry.serialization_status != "腰斬":
-        entry.serialization_status = "完結"
-    entry.reading_status = "Completed"
-    if entry.ch_total:
-        entry.ch_fin = entry.ch_total
-    if entry.vol_total:
-        entry.vol_fin = entry.vol_total
-    entry.vol_fin_page = 0
-
-
-def mark_game_completed(entry) -> None:
-    """
-    Sets a game to Completed without touching how deep the finish went.
-
-    completion_level, the three all_* flags and the achievement pair are
-    independent axes and only the user knows their values, so unlike the
-    watch/read helpers this sets no progress numbers.
-    """
-    entry.playing_status = "Completed"
-
-
-def mark_comic_completed(entry: Comic) -> None:
-    """Sets a comic entry to a fully finished reading state."""
-    entry.serialization_status = "完結"
-    entry.reading_status = "Completed"
-
-    issue_vals = [v for v in [entry.issue_total, entry.issue_fin] if v is not None]
-    if issue_vals:
-        issue_max = max(issue_vals)
-        entry.issue_fin = issue_max
-        if entry.issue_total is not None:
-            entry.issue_total = issue_max
-
-
-# ----------------------------------------------------------------------
-# The split halves. Each mark_* above mutates both a fact about the work
-# and a fact about one person's progress; these separate the two so the
-# catalogue half can run in a pipeline and the list half can run against
-# one user's user_media_list row. The combined originals stay until every
-# type is list_backed and nothing calls them.
-# ----------------------------------------------------------------------
 
 
 def mark_tv_catalog(entry) -> None:

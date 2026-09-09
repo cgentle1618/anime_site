@@ -99,7 +99,6 @@ class Game(Base, NameFallbackMixin):
         nullable=True,
     )
 
-    playing_status = Column(String, nullable=False, default="Might Play")
     # How deep the finish went. Independent of playing_status: "Active Playing"
     # plus "Main Story" is the ordinary state of having rolled credits and
     # still playing for achievements.
@@ -146,7 +145,6 @@ class Game(Base, NameFallbackMixin):
     metacritic_score = Column(Integer, nullable=True)
     metacritic_user_score = Column(Float, nullable=True)
 
-    my_rating = Column(String, nullable=True)
 
     igdb_id = Column(Integer, nullable=True)
     igdb_link = Column(String, nullable=True)
@@ -155,7 +153,6 @@ class Game(Base, NameFallbackMixin):
     steam_appid = Column(Integer, nullable=True)
     steam_link = Column(String, nullable=True)
 
-    completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

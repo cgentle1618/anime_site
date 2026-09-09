@@ -32,7 +32,6 @@ def make_game(db_session, **kwargs):
     game = models.Game(
         system_id=str(uuid.uuid4()),
         game_name_en="Test Game",
-        playing_status="Might Play",
         **kwargs,
     )
     db_session.add(game)

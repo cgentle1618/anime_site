@@ -53,5 +53,11 @@ class TestComicColumns:
         assert "progress_display" not in cols
 
     def test_issue_columns_exist(self):
+        """issue_total is the work's and stays; issue_fin is one reader's and
+        moved to user_media_list in step 1."""
+        from app import models as _m
+
         cols = {c.name for c in Comic.__table__.columns}
-        assert {"issue_total", "issue_fin"} <= cols
+        assert "issue_total" in cols
+        assert "issue_fin" not in cols
+        assert "issue_fin" in {c.name for c in _m.UserMediaList.__table__.columns}

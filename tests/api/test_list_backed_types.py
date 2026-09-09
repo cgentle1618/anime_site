@@ -52,6 +52,14 @@ CASES = {
         models.Novel, "novel_name_en", "novel",
         "reading_status", "Completed", "vol_total_original", 12,
     ),
+    "/api/comic": (
+        models.Comic, "comic_name_en", "comic",
+        "reading_status", "Completed", "issue_total", 6,
+    ),
+    "/api/game": (
+        models.Game, "game_name_en", "game",
+        "playing_status", "Completed", "hltb_main", 24.5,
+    ),
 }
 
 

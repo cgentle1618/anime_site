@@ -494,17 +494,16 @@ def anime_with_studio(db_session, sample_franchise):
 
 
 @pytest.fixture
-def sample_comic(db_session, sample_franchise):
+def sample_comic(db_session, sample_franchise, list_row):
     c = models.Comic(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         comic_name_en="Test Comic",
-        reading_status="Completed",
         issue_total=6,
-        issue_fin=6,
     )
     db_session.add(c)
     db_session.flush()
+    list_row(c, status="Completed", issue_fin=6)
     return c
 
 
