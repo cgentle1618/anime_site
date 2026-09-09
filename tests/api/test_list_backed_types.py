@@ -44,6 +44,10 @@ CASES = {
         models.Cartoon, "cartoon_name_en", "cartoon",
         "watching_status", "Completed", "ep_total", 26,
     ),
+    "/api/manga": (
+        models.Manga, "manga_name_en", "manga",
+        "reading_status", "Completed", "ch_total", 150,
+    ),
 }
 
 

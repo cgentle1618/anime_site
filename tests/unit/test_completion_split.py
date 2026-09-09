@@ -99,3 +99,25 @@ def test_no_catalog_half_writes_a_status_or_a_fin_column():
     entry = Manga(serialization_status="連載中", ch_total=100, vol_total=10)
     mark_reading_catalog(entry)
     assert getattr(entry, "reading_status", None) in (None, "Might Read")
+
+
+def test_vol_math_no_longer_touches_progress():
+    """vol_fin is one reader's position and lives on their list row; a
+    pipeline clamping it would be editing somebody's list."""
+    from app.models import Manga
+    from app.services.domain.checking import apply_validate_vol_math
+
+    entry = Manga(vol_total=-3)
+    apply_validate_vol_math(entry)
+    assert entry.vol_total in (0, None)
+    assert not hasattr(entry, "vol_fin")
+
+
+def test_ch_math_no_longer_touches_progress():
+    from app.models import Manga
+    from app.services.domain.checking import apply_validate_ch_math
+
+    entry = Manga(ch_total=-9)
+    apply_validate_ch_math(entry)
+    assert entry.ch_total in (0, None)
+    assert not hasattr(entry, "ch_fin")

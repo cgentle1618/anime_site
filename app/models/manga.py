@@ -72,15 +72,10 @@ class Manga(Base, NameFallbackMixin):
     region = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
-    reading_status = Column(String, nullable=False, default="Might Read")
 
     vol_total = Column(Integer, nullable=True)
-    vol_fin = Column(Integer, nullable=False, default=0)
-    vol_fin_page = Column(Integer, nullable=False, default=0)
     ch_total = Column(Integer, nullable=True)
-    ch_fin = Column(Integer, nullable=False, default=0)
 
-    my_rating = Column(String, nullable=True)
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
@@ -94,7 +89,6 @@ class Manga(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     @property
     def display_name(self) -> str:

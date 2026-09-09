@@ -73,21 +73,19 @@ def sample_movie(db_session, sample_franchise, list_row):
 
 
 @pytest.fixture
-def sample_manga(db_session, sample_franchise):
+def sample_manga(db_session, sample_franchise, list_row):
     entry = models.Manga(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         manga_name_en="Test Manga",
-        reading_status="Reading",
         serialization_status="連載中",
         ch_total=50,
-        ch_fin=20,
         vol_total=5,
-        vol_fin=2,
-        vol_fin_page=100,
     )
     db_session.add(entry)
     db_session.flush()
+    # Part-read: the position /complete must carry to the totals.
+    list_row(entry, status="Reading", ch_fin=20, vol_fin=2, vol_fin_page=100)
     return entry
 
 
@@ -257,7 +255,6 @@ class TestCompleteManga:
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
             manga_name_en="Cancelled Manga",
-            reading_status="Reading",
             serialization_status="腰斬",
         )
         db_session.add(cancelled)

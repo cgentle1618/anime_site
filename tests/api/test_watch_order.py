@@ -647,7 +647,6 @@ class TestAnimeOnlyBuiltIn:
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     manga_name_en="A Manga",
-                    reading_status="Might Read",
                     release_date="2003",
                 ),
             ]
@@ -714,7 +713,6 @@ class TestAnimeOnlyBuiltIn:
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     manga_name_en=f"Manga {n}",
-                    reading_status="Might Read",
                 )
                 for n in (1, 2)
             ]

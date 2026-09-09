@@ -41,7 +41,7 @@ same hazard and reordered for it.
 | 11. Flip `movies` | done |
 | 12. Flip `tv_shows` | done |
 | 13. Flip `cartoons` | done |
-| 14. Flip `manga` | todo |
+| 14. Flip `manga` | done |
 | 15. Flip `novel` | todo |
 | 16. Flip `comic` | todo |
 | 17. Flip `games` | todo |

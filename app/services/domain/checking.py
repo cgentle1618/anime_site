@@ -55,23 +55,28 @@ def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
 
 
 def apply_validate_vol_math(manga: Manga) -> bool:
-    """Clamps vol_fin <= vol_total. Returns True if any value changed."""
-    safe_total, safe_fin = validate_vol_math(manga.vol_total, manga.vol_fin)
-    changed = manga.vol_total != safe_total or manga.vol_fin != safe_fin
-    if changed:
+    """
+    Clamps vol_total to a sane value. Returns True if it changed.
+
+    vol_fin used to be clamped alongside it, back when both lived on this row.
+    It is now on user_media_list and belongs to whoever is reading, so this
+    function - which runs inside Fill and Replace - may not touch it. A None
+    second argument is what validate_vol_math already treats as "no progress".
+    """
+    safe_total, _ = validate_vol_math(manga.vol_total, None)
+    if manga.vol_total != safe_total:
         manga.vol_total = safe_total
-        manga.vol_fin = safe_fin
-    return changed
+        return True
+    return False
 
 
 def apply_validate_ch_math(manga: Manga) -> bool:
-    """Clamps ch_fin <= ch_total. Returns True if any value changed."""
-    safe_total, safe_fin = validate_ch_math(manga.ch_total, manga.ch_fin)
-    changed = manga.ch_total != safe_total or manga.ch_fin != safe_fin
-    if changed:
+    """Clamps ch_total. See apply_validate_vol_math for why ch_fin is gone."""
+    safe_total, _ = validate_ch_math(manga.ch_total, None)
+    if manga.ch_total != safe_total:
         manga.ch_total = safe_total
-        manga.ch_fin = safe_fin
-    return changed
+        return True
+    return False
 
 
 def has_missing_values_anime(anime: Anime) -> bool:

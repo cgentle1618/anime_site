@@ -132,12 +132,12 @@ def make_anime(entry_id, name="Some Anime", ep_total=12, ep_special=None):
 
 
 def make_manga(entry_id, name="Some Manga", ch_total=100):
+    """No reading_status: `manga` went list_backed in step 1 too."""
     return SimpleNamespace(
         system_id=entry_id,
         display_name=name,
         cover_image_file="manga.jpg",
         franchise_id=uuid.uuid4(),
-        reading_status="Reading",
         ch_total=ch_total,
     )
 
@@ -250,7 +250,10 @@ class TestResolveItems:
 
     def test_reading_status_is_used_for_manga(self):
         entry_id = uuid.uuid4()
-        db = FakeSession({MEDIA_TYPE_MODELS["manga"]: [make_manga(entry_id)]})
+        db = FakeSession(
+            {MEDIA_TYPE_MODELS["manga"]: [make_manga(entry_id)]},
+            list_rows=[make_list_row(entry_id, "manga", reading_status="Reading")],
+        )
 
         result = resolve_items(db, [make_item("manga", entry_id)])[0]
 

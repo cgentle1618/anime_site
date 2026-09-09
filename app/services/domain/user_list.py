@@ -49,6 +49,24 @@ DEFAULT_STATUS: dict[str, str] = {
     "game": "Might Play",
 }
 
+# The counters that were NOT NULL DEFAULT 0 on their detail table. On
+# user_media_list every field is nullable, so an entry the viewer has no row
+# for would otherwise read back None where the column always said 0 - and the
+# response schemas still declare them `int`, not `int | None`. "Read zero
+# chapters" and "never opened it" are the same thing today; inventing a
+# distinction here would be a data change dressed up as a move.
+#
+# anime/tv_shows/cartoons `ep_fin` is deliberately absent: it was nullable on
+# those tables, so None is a value it always could have had.
+LIST_FIELD_DEFAULTS: dict[str, int] = {
+    "vol_fin": 0,
+    "vol_fin_page": 0,
+    "ch_fin": 0,
+    "arc_fin": 0,
+    "ch_fin_in_arc": 0,
+    "issue_fin": 0,
+}
+
 # Every payload key that lives on the list row, per type. The status key is
 # included and is translated to `status` on the way in and back on the way out.
 LIST_FIELDS: dict[str, tuple[str, ...]] = {
@@ -170,6 +188,8 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
                 value = row.status if row is not None else DEFAULT_STATUS[media_type]
             else:
                 value = getattr(row, field) if row is not None else None
+                if value is None and field in LIST_FIELD_DEFAULTS:
+                    value = LIST_FIELD_DEFAULTS[field]
             setattr(entry, field, value)
 
 
