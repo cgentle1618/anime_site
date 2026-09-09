@@ -265,6 +265,43 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_user_media_list_from_sheet(raw: dict) -> dict:
+    """
+    One user's list row, keyed naturally rather than by uuid.
+
+    media_type + public_id identifies the entry and username identifies the
+    person, because the sheet's uuids belong to whichever database last ran a
+    Backup while public_id is stable and is already in the URLs. Pull resolves
+    both to real ids before writing; a row whose key is incomplete is refused
+    rather than guessed at.
+    """
+    media_type = parse_from_sheet(raw.get("media_type"), str)
+    public_id = parse_from_sheet(raw.get("public_id"), int)
+    username = parse_from_sheet(raw.get("username"), str)
+    if not media_type or public_id is None or not username:
+        raise ValueError(
+            "User Media List row needs media_type, public_id and username; "
+            f"got {media_type!r}, {public_id!r}, {username!r}"
+        )
+    return {
+        "media_type": media_type,
+        "public_id": public_id,
+        "username": username,
+        "status": parse_from_sheet(raw.get("status"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "vol_fin": parse_from_sheet(raw.get("vol_fin"), float),
+        "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int),
+        "ch_fin": parse_from_sheet(raw.get("ch_fin"), float),
+        "arc_fin": parse_from_sheet(raw.get("arc_fin"), float),
+        "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float),
+        "progress_display": parse_from_sheet(raw.get("progress_display"), str),
+        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
+    }
+
+
 def parse_media_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Media sheet into typed data.

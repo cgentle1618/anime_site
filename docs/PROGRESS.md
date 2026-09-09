@@ -31,7 +31,7 @@ same hazard and reordered for it.
 | 2. `user_list` service (the vocabulary) | done |
 | 3. Backfill to the admin user | done |
 | 4. `Viewer.user_id` | done |
-| 22. `User Media List` sheet tab (run early, before Task 9) | todo |
+| 22. `User Media List` sheet tab (run early, before Task 9) | done |
 | 5. `list_backed` and the read path | todo |
 | 6. The write path | todo |
 | 7. Completion services become per-user | todo |

@@ -74,6 +74,25 @@ def _media_display_name(row: Any, db: Session) -> str:
 # `media` (app/models/media_sync.py). It is the same value for every row on the
 # tab and is re-supplied by the column's server_default on restore, so it would
 # only add a column of noise for the human reading the sheet.
+def _list_row_media(row: Any, db: Session) -> Optional["models.Media"]:
+    return db.get(models.Media, row.media_id)
+
+
+def _list_row_media_type(row: Any, db: Session) -> Optional[str]:
+    media = _list_row_media(row, db)
+    return media.media_type if media else None
+
+
+def _list_row_public_id(row: Any, db: Session) -> Optional[int]:
+    media = _list_row_media(row, db)
+    return media.public_id if media else None
+
+
+def _list_row_username(row: Any, db: Session) -> Optional[str]:
+    user = db.get(models.User, row.user_id)
+    return user.username if user else None
+
+
 MEDIA_TYPE_ONLY: tuple[str, ...] = ("media_type",)
 
 
@@ -132,6 +151,21 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY, extra_columns=DISPLAY_NAME_EXTRA),
     # After Game: game_id is a real FK, so the parent rows must exist first.
     SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
+    # Personal list rows. After every media tab: media_id resolves through
+    # media_type + public_id, and user_id through username, so both must
+    # already be restored. Backup drops the three database-local ids and
+    # writes the natural key in their place.
+    SheetTab(
+        "User Media List",
+        models.UserMediaList,
+        f.parse_user_media_list_from_sheet,
+        drop_columns=("system_id", "user_id", "media_id"),
+        extra_columns=(
+            ("media_type", _list_row_media_type),
+            ("public_id", _list_row_public_id),
+            ("username", _list_row_username),
+        ),
+    ),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.
     SheetTab("Watch Order List", models.WatchOrderList, f.parse_watch_order_list_from_sheet),
     SheetTab("Watch Order Section", models.WatchOrderSection, f.parse_watch_order_section_from_sheet),

@@ -16,6 +16,7 @@ from app.models import (
     Collection,
     Franchise,
     Manga,
+    Media,
     Meme,
     Movies,
     Note,
@@ -24,6 +25,7 @@ from app.models import (
     SystemConfigs,
     SystemOption,
     TVShows,
+    User,
     WatchOrderList,
 )
 from app.services.domain import (
@@ -160,6 +162,10 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "media_id",
         "label_id",
     ),  # uq_media_content_label_row
+    # Its system_id is minted per database and the sheet carries a natural key
+    # instead; resolve_user_media_list_key turns that into these two ids before
+    # the match runs.
+    "User Media List": ("user_id", "media_id"),  # uq_user_media
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -189,6 +195,9 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
         "System Option Alias",
         "Person Role",
         "Publisher Scope",
+        # Its uuid is minted per database and the sheet carries no id at all -
+        # only the natural key resolve_user_media_list_key turns into two.
+        "User Media List",
     }
 )
 
@@ -270,6 +279,51 @@ def drop_non_columns(model, payload: dict) -> dict:
         is AssociationProxyExtensionType.ASSOCIATION_PROXY
     }
     return {k: v for k, v in payload.items() if k in allowed}
+
+
+def resolve_user_media_list_key(db: Session, payload: dict) -> bool:
+    """
+    Turn a User Media List row's natural key into real ids, in place.
+
+    The sheet identifies the entry by (media_type, public_id) and the person by
+    username, because a uuid in the sheet belongs to whichever database last
+    ran a Backup while public_id is stable and already appears in the URLs.
+    This resolves both, writes `media_id` and `user_id` onto the payload and
+    removes the three key columns, which are not columns of the model.
+
+    Returns False when either end cannot be resolved. The caller skips the row:
+    inserting it would put a NULL in a NOT NULL foreign key and take the whole
+    restore down with it, and guessing which entry was meant is worse than
+    saying so in the log.
+    """
+    media_type = payload.pop("media_type", None)
+    public_id = payload.pop("public_id", None)
+    username = payload.pop("username", None)
+
+    media = None
+    if media_type and public_id is not None:
+        media = (
+            db.query(Media)
+            .filter(Media.media_type == media_type, Media.public_id == public_id)
+            .first()
+        )
+    if media is None:
+        logger.warning(
+            "User Media List: no %s entry with public_id %s; row skipped.",
+            media_type, public_id,
+        )
+        return False
+
+    user = db.query(User).filter(User.username == username).first() if username else None
+    if user is None:
+        logger.warning(
+            "User Media List: no user named %r; row skipped.", username
+        )
+        return False
+
+    payload["media_id"] = media.system_id
+    payload["user_id"] = user.id
+    return True
 
 
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
@@ -385,6 +439,9 @@ def execute_pull_specific(
     processed = 0
     rows_added = 0
     rows_updated = 0
+    # Rows whose natural key names an entry or a user this database does
+    # not have. Reported rather than inserted with a null foreign key.
+    rows_skipped = 0
     # Ambiguous link names, collected rather than raised. An admin resolves
     # these with the merge endpoint, and can only merge what the run reports -
     # so every row is attempted and every collision is kept.
@@ -423,6 +480,15 @@ def execute_pull_specific(
             for key, value in clean_header_dict.items()
             if key in raw_header_dict
         }
+
+        # The list tab carries a natural key and never the three ids, so this
+        # has to run before ANYTHING tries to match the row: the natural-key
+        # match itself is on (user_id, media_id), which do not exist in the
+        # payload until this resolves them.
+        if tab_name == "User Media List":
+            if not resolve_user_media_list_key(db, clean_header_dict):
+                rows_skipped += 1
+                continue
 
         # Credit/tag columns (studio, director, genre_main, ...) no longer
         # back a real column on the entry model - Task 10 dropped them once
@@ -1171,6 +1237,7 @@ def execute_pull_specific(
         "processed": processed,
         "rows_added": rows_added,
         "rows_updated": rows_updated,
+        "rows_skipped": rows_skipped,
         "credit_conflicts": credit_conflicts,
         "created_entities": created_entities,
     }
