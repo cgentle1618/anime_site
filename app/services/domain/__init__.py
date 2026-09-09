@@ -44,6 +44,7 @@ from app.services.domain.checking import (
 )
 from app.services.domain.completion import (
     apply_completion_timestamp,
+    apply_list_completion_timestamp,
     check_is_movie_completed,
     check_is_reading_completed,
     check_is_tv_completed,
@@ -208,6 +209,7 @@ __all__ = [
     "mark_comic_completed",
     "mark_game_completed",
     "apply_completion_timestamp",
+    "apply_list_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",
     "pop_remark",

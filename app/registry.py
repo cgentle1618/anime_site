@@ -83,6 +83,11 @@ class MediaTypeSpec:
     # which patch deliberately does not call. Only novel uses this.
     progress_hook: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
+    # True once this type's personal columns have moved to user_media_list.
+    # Set per type by the Phase B task that drops that type's columns; the
+    # flag and the DROP COLUMN migration land in the same commit, so a
+    # personal column is never writable in two places at once.
+    list_backed: bool = False
     # (query, query_params) -> query, for filters that are not plain equality.
     extra_filters: Optional[Callable] = None
 

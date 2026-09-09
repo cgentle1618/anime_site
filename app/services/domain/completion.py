@@ -174,3 +174,14 @@ def apply_completion_timestamp(entry, status_value: Optional[str]) -> None:
     """Sets completed_at the first time an entry reaches Completed status."""
     if status_value in COMPLETED_WATCH_STATUSES and entry.completed_at is None:
         entry.completed_at = get_taipei_now()
+
+
+def apply_list_completion_timestamp(row, status_value: Optional[str]) -> None:
+    """
+    Sets the list row's completed_at the first time this user reaches a
+    Completed status. The per-user twin of apply_completion_timestamp: when
+    two people finish the same anime on different days, two different dates
+    are the correct answer and one shared column cannot hold them.
+    """
+    if status_value in COMPLETED_WATCH_STATUSES and row.completed_at is None:
+        row.completed_at = get_taipei_now()
