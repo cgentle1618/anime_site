@@ -186,7 +186,7 @@ def test_an_unknown_role_is_rejected(admin_client):
 
 def test_you_cannot_delete_yourself(admin_client, db_session):
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
     response = admin_client.delete(f"/api/users/{me.id}")
     assert response.status_code == 409
@@ -196,7 +196,7 @@ def test_the_last_administrator_cannot_be_demoted(admin_client, db_session):
     """Otherwise one PATCH locks everyone out of their own site."""
     guest = _role_id(admin_client, "guest")
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
 
     # The lifespan seeds a real "admin" account into the test database, so
@@ -218,7 +218,7 @@ def test_demotion_is_allowed_while_another_admin_remains(admin_client, db_sessio
     )
 
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
     response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
     assert response.status_code == 200

@@ -93,7 +93,6 @@ def orderable_franchise(db_session, sample_franchise, sample_anime):
             franchise_id=sample_franchise.system_id,
             anime_name_en="Second Entry",
             airing_type="TV",
-            watching_status="Might Watch",
             release_date="2005",
         )
     )
@@ -165,7 +164,7 @@ class TestGetWatchOrderDetail:
         assert (anime_steps[1]["ep_start"], anime_steps[1]["ep_end"]) == (11, 12)
 
     def test_ep_special_is_resolved_onto_the_step(
-        self, client, db_session, sample_franchise, sample_list
+        self, client, db_session, sample_franchise, sample_list, list_row
     ):
         """ep_special 0 is a real episode number, not an absent value."""
         anime = models.Anime(
@@ -173,11 +172,11 @@ class TestGetWatchOrderDetail:
             franchise_id=sample_franchise.system_id,
             anime_name_en="Episode Zero",
             airing_type="Special",
-            watching_status="Completed",
             ep_special=0,
         )
         db_session.add(anime)
         db_session.flush()
+        list_row(anime, status="Completed")
         db_session.add(
             models.WatchOrderItem(
                 system_id=uuid.uuid4(),
@@ -403,7 +402,6 @@ class TestReleaseOrder:
                 franchise_id=orderable_franchise.system_id,
                 anime_name_en="Added Later",
                 airing_type="TV",
-                watching_status="Might Watch",
                 release_date="2030",
             )
         )
@@ -429,7 +427,6 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en=name,
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date=date,
                 )
             )
@@ -451,14 +448,12 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="No date",
                     airing_type="TV",
-                    watching_status="Might Watch",
                 ),
                 models.Anime(
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Dated",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="1999",
                 ),
             ]
@@ -646,7 +641,6 @@ class TestAnimeOnlyBuiltIn:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Second Anime",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="2005",
                 ),
                 models.Manga(
@@ -755,7 +749,6 @@ class TestSeriesOwnedBuiltIn:
                     series_id=sample_series.system_id,
                     anime_name_en=f"Series Anime {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date=year,
                 )
                 for n, year in ((1, "2010"), (2, "2012"))
@@ -782,7 +775,6 @@ class TestSeriesOwnedBuiltIn:
                 franchise_id=sample_franchise.system_id,
                 anime_name_en="Outside The Series",
                 airing_type="TV",
-                watching_status="Might Watch",
                 release_date="2011",
             )
         )
@@ -840,7 +832,6 @@ class TestCollectionOptOut:
                     franchise_id=sample_collected_franchise.system_id,
                     anime_name_en=f"Disney-ish {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="200%d" % n,
                 )
                 for n in (1, 2)
@@ -879,7 +870,6 @@ class TestCollectionOptOut:
                     franchise_id=sample_collected_franchise.system_id,
                     anime_name_en=f"Fine {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                 )
                 for n in (1, 2)
             ]
@@ -903,18 +893,18 @@ class TestCandidates:
         assert any(c["display_name"] == "Test Anime" for c in data)
 
     def test_collection_candidates_come_from_member_franchises(
-        self, client, db_session, sample_collection, sample_collected_franchise
+        self, client, db_session, sample_collection, sample_collected_franchise,
+        list_row,
     ):
-        db_session.add(
-            models.Anime(
-                system_id=uuid.uuid4(),
-                franchise_id=sample_collected_franchise.system_id,
-                anime_name_en="Collected Anime",
-                airing_type="TV",
-                watching_status="Completed",
-            )
+        collected = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_collected_franchise.system_id,
+            anime_name_en="Collected Anime",
+            airing_type="TV",
         )
+        db_session.add(collected)
         db_session.flush()
+        list_row(collected, status="Completed")
 
         data = client.get(
             f"/api/watch-order/candidates?collection_id={sample_collection.system_id}"
@@ -939,19 +929,18 @@ class TestCandidates:
         assert anime["franchise_id"] == str(sample_franchise.system_id)
 
     def test_candidate_carries_ep_special(
-        self, client, db_session, sample_franchise
+        self, client, db_session, sample_franchise, list_row
     ):
-        db_session.add(
-            models.Anime(
-                system_id=uuid.uuid4(),
-                franchise_id=sample_franchise.system_id,
-                anime_name_en="Special Episode",
-                airing_type="Special",
-                watching_status="Completed",
-                ep_special=14.5,
-            )
+        special_entry = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Special Episode",
+            airing_type="Special",
+            ep_special=14.5,
         )
+        db_session.add(special_entry)
         db_session.flush()
+        list_row(special_entry, status="Completed")
 
         data = client.get(
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"

@@ -62,17 +62,18 @@ def nsfw_label(db_session):
 
 
 @pytest.fixture
-def hidden_anime(db_session, sample_franchise, nsfw_label):
+def hidden_anime(db_session, sample_franchise, nsfw_label, list_row):
     entry = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_name_en=HIDDEN_NAME,
         airing_type="TV",
         airing_status="Finished Airing",
-        watching_status="Completed",
     )
     db_session.add(entry)
     db_session.flush()
+    # Completed lives on the acting user's list row since step 1.
+    list_row(entry, status="Completed")
     db_session.add(
         models.MediaContentLabel(
             system_id=uuid.uuid4(),

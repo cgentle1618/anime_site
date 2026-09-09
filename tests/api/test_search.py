@@ -23,7 +23,6 @@ def punctuated_anime(db_session, sample_franchise):
         franchise_id=sample_franchise.system_id,
         anime_name_en="Re:Zero - Starting Life",
         airing_type="TV",
-        watching_status="Completed",
     )
     db_session.add(a)
     db_session.flush()
@@ -108,7 +107,6 @@ class TestFranchiseExpansion:
             franchise_id=sample_franchise.system_id,
             anime_name_en="Totally Unrelated Title",
             airing_type="TV",
-            watching_status="Completed",
         )
         db_session.add(a)
         db_session.flush()
@@ -121,7 +119,6 @@ class TestFranchiseExpansion:
             franchise_id=sample_franchise.system_id,
             anime_name_en="Totally Unrelated Title",
             airing_type="TV",
-            watching_status="Completed",
         )
         db_session.add(a)
         db_session.flush()
@@ -155,7 +152,6 @@ class TestLimits:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en=f"Limited Anime {i}",
                     airing_type="TV",
-                    watching_status="Completed",
                 )
             )
         db_session.flush()

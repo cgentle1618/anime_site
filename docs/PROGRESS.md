@@ -25,38 +25,6 @@ not last as the plan lists it: Task 9 starts dropping personal columns and
 Task 9 and Task 22 would write no ratings or progress at all. Step 0 hit the
 same hazard and reordered for it.
 
-> ## ⚠ HANDOVER 2026-09-09: work moved company -> home, mid-Task-9
->
-> **The suite is RED on `dev` at this commit and that is deliberate.** Task 9's
-> app side is finished and committed (anime's five personal columns dropped);
-> its *test* fallout is not. Expect roughly **19 failed / 69 errors**, every one
-> of them a test that still constructs or reads `models.Anime(watching_status=…,
-> ep_fin=…, my_rating=…, my_watch_day=…, completed_at=…)`. No app code reads
-> those columns any more - checked by grep; the only hit is a comment in
-> `seasonal.py` explaining why.
->
-> **Finish Task 9 first, before anything else.** The fix per site:
-> build the `Anime` without those kwargs, `flush()`, then add a
-> `models.UserMediaList(system_id=uuid4(), user_id=admin_user.id,
-> media_id=entry.system_id, status=…, ep_fin=…)`. Use the **`admin_user`**
-> fixture, not `acting_user_id(db, None)`: the app lifespan seeds a second admin
-> called `"admin"` which sorts first and would win that fallback, so a row hung
-> on it reads back as the type's default. `tests/api/conftest.py:sample_anime`
-> is the worked example and is already correct.
->
-> Failing files: `test_watch_order.py` (33 errors, 8 failures),
-> `test_visibility_aggregates.py` (18), `test_visibility.py` (9),
-> `test_pull_narrow_header.py` (5), `test_search.py` (6),
-> `test_visibility_graph.py` (3), `test_studio_entries.py` (2),
-> `test_pull_insert_defaults.py`, `test_media_supertable.py`,
-> `test_complete_endpoints.py`, `test_casting_router.py` (1 each).
-> `test_list_backed_reads.py` and `test_list_backed_writes.py` are already
-> green - do not touch them.
->
-> Also still open from Task 9: the plan's Step 8 manual check - open an anime
-> detail page on :5173 and confirm status, rating, episode progress and watch
-> day render and save, then that the list page filters by status.
-
 | Task | Status |
 |---|---|
 | 1. `user_media_list` model and table | done |
@@ -68,7 +36,7 @@ same hazard and reordered for it.
 | 6. The write path | done |
 | 7. Completion services become per-user | done |
 | 8. Seasonal counters stop reading `anime.watching_status` | done |
-| 9. Flip `anime` | **wip home-1 — app side done, fixing test fallout** |
+| 9. Flip `anime` | done |
 | 10-17. Flip the other eight types | todo |
 | 18. `game_copy.user_id` | todo |
 | 19. `novel_unit.my_rating` | todo |

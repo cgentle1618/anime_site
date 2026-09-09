@@ -102,7 +102,7 @@ def test_me_reports_the_guest_role_for_an_anonymous_caller(client):
 def test_me_reports_superuser_for_an_admin(admin_client):
     body = admin_client.get("/api/auth/me").json()
     assert body["is_admin"] is True
-    assert body["username"] == "testadmin"
+    assert body["username"] == "aaa_testadmin"
     assert body["is_superuser"] is True
 
 

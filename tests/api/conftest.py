@@ -158,13 +158,21 @@ def admin_user(db_session):
 
     Its own fixture because personal data now hangs off a user: a test that
     seeds a user_media_list row has to hang it on the SAME user the request
-    will resolve to, and `acting_user_id(db, None)` is not that user - the
-    app's lifespan seeds one called "admin", which sorts first and would win
-    the fallback.
+    will resolve to.
+
+    The name sorts before the "admin" the app's lifespan seeds
+    (app/main.py:108), and that is the whole point. `acting_user_id` resolves
+    a GUEST to the lowest-username admin, so without the prefix a fixture row
+    written here is invisible to every anonymous `client` read while being
+    visible to `admin_client` - and a Completed entry silently reads back as
+    "Might Watch" through one client and not the other. Production has exactly
+    one admin and no such split; sorting first is what reproduces that here.
+    `an_admin` in test_viewer_user_id.py uses the same trick for the same
+    reason.
     """
     user = models.User(
         id=uuid.uuid4(),
-        username="testadmin",
+        username="aaa_testadmin",
         hashed_password=get_password_hash("testpass"),
         role_id=role_id_for(db_session, "admin"),
     )
@@ -244,6 +252,36 @@ def sample_series(db_session, sample_franchise):
     db_session.add(s)
     db_session.flush()
     return s
+
+
+@pytest.fixture
+def list_row(db_session, admin_user):
+    """Give an entry the acting user's `user_media_list` row.
+
+    Step 1 moved the personal fields off the detail tables, so a test that
+    needs an entry to be Completed (or rated, or part-watched) writes them
+    here instead of as constructor kwargs.
+
+    `admin_user` and not `acting_user_id(db, None)`: the app lifespan seeds a
+    second admin named "admin" that sorts first and would win that fallback,
+    so a row hung on it reads back as the type's default and the test lies.
+
+    A status the type already defaults to needs no row at all - an entry with
+    no list row reads back as DEFAULT_STATUS.
+    """
+
+    def _make(entry, **fields):
+        row = models.UserMediaList(
+            system_id=uuid.uuid4(),
+            user_id=admin_user.id,
+            media_id=entry.system_id,
+            **fields,
+        )
+        db_session.add(row)
+        db_session.flush()
+        return row
+
+    return _make
 
 
 @pytest.fixture

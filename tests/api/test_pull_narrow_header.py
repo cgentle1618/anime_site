@@ -22,6 +22,7 @@ import uuid
 import pytest
 
 from app import models
+from app.services.domain.user_list import acting_user_id, attach_list_fields
 from app.services.pipelines import pull
 
 
@@ -35,17 +36,27 @@ def sheet(monkeypatch):
     return _install
 
 
+def effective_status(db, entry):
+    """What a reader sees for an anime now that status lives on the list row.
+
+    `anime.watching_status` is gone, so asserting on the column is not an
+    option; this is the same call the read path makes.
+    """
+    attach_list_fields(db, "anime", entry, acting_user_id(db, None))
+    return entry.watching_status
+
+
 # ---------------------------------------------------------------------------
 # An absent column leaves the DB value alone
 # ---------------------------------------------------------------------------
 
 
 def test_absent_column_does_not_wipe_an_existing_value(db_session, sheet):
-    anime = models.Anime(anime_name_en="Frieren", my_rating="S")
+    anime = models.Anime(anime_name_en="Frieren", mal_rank="S")
     db_session.add(anime)
     db_session.flush()
 
-    # A header row from before my_rating existed.
+    # A header row from before mal_rank existed.
     sheet(["system_id", "anime_name_en"], [[str(anime.system_id), "Frieren"]])
 
     result = pull.execute_pull_specific(db_session, "Anime", log_action=False)
@@ -53,17 +64,17 @@ def test_absent_column_does_not_wipe_an_existing_value(db_session, sheet):
     assert result["status"] == "success"
     assert result["rows_updated"] == 1
     db_session.refresh(anime)
-    assert anime.my_rating == "S"
+    assert anime.mal_rank == "S"
 
 
 def test_blank_cell_still_clears_the_value(db_session, sheet):
-    anime = models.Anime(anime_name_en="Frieren", my_rating="S")
+    anime = models.Anime(anime_name_en="Frieren", mal_rank="S")
     db_session.add(anime)
     db_session.flush()
 
     # The column IS present, the cell is just empty -> an intentional clear.
     sheet(
-        ["system_id", "anime_name_en", "my_rating"],
+        ["system_id", "anime_name_en", "mal_rank"],
         [[str(anime.system_id), "Frieren", ""]],
     )
 
@@ -71,7 +82,7 @@ def test_blank_cell_still_clears_the_value(db_session, sheet):
 
     assert result["status"] == "success"
     db_session.refresh(anime)
-    assert anime.my_rating is None
+    assert anime.mal_rank is None
 
 
 def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, sheet):
@@ -102,10 +113,19 @@ def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, shee
 # ---------------------------------------------------------------------------
 
 
-def test_absent_status_column_does_not_reset_an_existing_status(db_session, sheet):
-    anime = models.Anime(anime_name_en="Frieren", watching_status="Completed")
+def test_pulling_anime_does_not_reset_the_status_on_the_list_row(
+    db_session, sheet, list_row
+):
+    """The Anime tab no longer carries a status; `User Media List` does.
+
+    The INSERT sanitizer still injects a "Might Watch" default for the Anime
+    tab, and drop_non_columns discards it because the column is gone. This
+    pins that it stays discarded rather than finding its way to the list row.
+    """
+    anime = models.Anime(anime_name_en="Frieren")
     db_session.add(anime)
     db_session.flush()
+    list_row(anime, status="Completed")
 
     sheet(["system_id", "anime_name_en"], [[str(anime.system_id), "Frieren"]])
 
@@ -113,7 +133,7 @@ def test_absent_status_column_does_not_reset_an_existing_status(db_session, shee
 
     assert result["status"] == "success"
     db_session.refresh(anime)
-    assert anime.watching_status == "Completed"
+    assert effective_status(db_session, anime) == "Completed"
 
 
 def test_absent_created_at_does_not_restamp_an_existing_movie(db_session, sheet):
@@ -145,7 +165,9 @@ def test_insert_still_gets_its_defaults(db_session, sheet):
         .filter(models.Anime.anime_name_en == "Bocchi the Rock!")
         .one()
     )
-    assert fresh.watching_status == "Might Watch"
+    # No list row is made by a catalogue pull, and an entry without one reads
+    # back as the type's default - the same value the old column defaulted to.
+    assert effective_status(db_session, fresh) == "Might Watch"
 
 
 def test_movie_insert_still_gets_its_timestamps(db_session, sheet):
@@ -176,4 +198,4 @@ def test_row_with_a_uuid_missing_locally_still_inserts_with_defaults(
     assert result["status"] == "success"
     assert result["rows_added"] == 1
     fresh = db_session.query(models.Anime).filter_by(system_id=orphan_id).one()
-    assert fresh.watching_status == "Might Watch"
+    assert effective_status(db_session, fresh) == "Might Watch"

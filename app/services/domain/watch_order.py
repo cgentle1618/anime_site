@@ -93,6 +93,35 @@ def normalize_importance(value: Any) -> str:
     return text if text in ITEM_IMPORTANCE else DEFAULT_IMPORTANCE
 
 
+def _attach_personal(db: Session, media_type: str, rows, viewer) -> None:
+    """Put the viewer's own status (and the rest of the list row) back on rows.
+
+    Both payload builders below read `status` with
+    `getattr(entry, _STATUS_FIELDS[media_type])`. Step 1 moves those columns
+    off the detail tables onto `user_media_list`, and getattr on an absent
+    column returns the default silently - so a type that had gone list_backed
+    showed None for the status of every step and every candidate, with nothing
+    raising. Re-attaching first is what keeps the guide honest.
+
+    Costs one IN query per media type, not one per row.
+
+    Imported inside the function, not at module scope: `app.registry` imports
+    the mark_* helpers out of `app.services.domain`, so a top-level import
+    would close a cycle. `drop_hidden_rows` above is imported the same way.
+    """
+    from app.registry import MEDIA_REGISTRY
+    from app.services.domain.user_list import acting_user_id, attach_list_fields
+
+    if not rows:
+        return
+    if not any(
+        spec.owner_type == media_type and spec.list_backed
+        for spec in MEDIA_REGISTRY.values()
+    ):
+        return
+    attach_list_fields(db, media_type, rows, acting_user_id(db, viewer))
+
+
 def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
     """Pulls the display fields the guide needs off a resolved entry."""
     total = getattr(entry, _TOTAL_FIELDS[media_type], None) if media_type in _TOTAL_FIELDS else None
@@ -206,6 +235,7 @@ def resolve_items(
         rows = (
             db.query(model).filter(model.system_id.in_(list(entry_ids))).all()
         )
+        _attach_personal(db, media_type, rows, viewer)
         resolved[media_type] = {row.system_id: row for row in rows}
 
     output: List[Dict[str, Any]] = []
@@ -287,6 +317,7 @@ def list_candidate_entries(
 
             query = apply_entry_visibility(query, model, media_type, db, viewer)
         rows = query.all()
+        _attach_personal(db, media_type, rows, viewer)
         for row in rows:
             total = (
                 getattr(row, _TOTAL_FIELDS[media_type], None)

@@ -4,17 +4,30 @@ Unit tests for the Watch Order entry resolver.
 resolve_items turns FK-less (media_type, entry_id) pairs into display data.
 No database: the Session and the query chain are stubbed, which also lets the
 batching guarantee be asserted directly.
+
+Step 1 moved the personal fields onto `user_media_list`, so for a media type
+that has gone `list_backed` the resolver reads `status` from the acting user's
+list row rather than off the entry. The stub therefore has to answer three
+queries, not one: the entry table, the admin lookup behind `acting_user_id`,
+and the list rows. `queried_models` still records only the ENTRY queries -
+that is what the one-round-trip-per-media-type guarantee is about - and the
+personal lookups are counted separately in `personal_queries`.
 """
 
 import uuid
 from types import SimpleNamespace
 
+from app import models
+from app.services.domain.user_list import LIST_FIELDS
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
     release_sort_key,
     resolve_items,
 )
+
+# One admin, so acting_user_id resolves a guest the way it does in production.
+FAKE_ADMIN = SimpleNamespace(id=uuid.uuid4())
 
 
 class FakeQuery:
@@ -24,23 +37,64 @@ class FakeQuery:
     def filter(self, *args, **kwargs):
         return self
 
+    def join(self, *args, **kwargs):
+        return self
+
+    def order_by(self, *args, **kwargs):
+        return self
+
+    def first(self):
+        return self._rows[0] if self._rows else None
+
     def all(self):
         return self._rows
 
 
 class FakeSession:
     """
-    Records every query() call so tests can assert the number of round trips.
+    Records every entry query() so tests can assert the number of round trips.
     Returns whichever stub rows were registered for the queried model.
+
+    `models.User` and `models.UserMediaList` are served separately and are NOT
+    recorded in `queried_models`: they are the personal-field lookup, which is
+    batched per media type just like the entry query, and folding them into the
+    same counter would make the batching assertions untestable.
     """
 
-    def __init__(self, rows_by_model=None):
+    def __init__(self, rows_by_model=None, list_rows=None):
         self.rows_by_model = rows_by_model or {}
+        self.list_rows = list_rows or []
         self.queried_models = []
+        self.personal_queries = []
 
     def query(self, model):
+        if model is models.User:
+            self.personal_queries.append(model)
+            return FakeQuery([FAKE_ADMIN])
+        if model is models.UserMediaList:
+            self.personal_queries.append(model)
+            return FakeQuery(self.list_rows)
         self.queried_models.append(model)
         return FakeQuery(self.rows_by_model.get(model, []))
+
+
+def make_list_row(media_id, media_type="anime", **fields):
+    """The acting user's list row for one entry.
+
+    Every key LIST_FIELDS names for the type is present, defaulting to None,
+    because attach_list_fields getattr()s each one unconditionally.
+    """
+    data = {field: None for field in LIST_FIELDS[media_type]}
+    data.update(fields)
+    # attach_list_fields reads the status through `.status`, not through the
+    # type's own status key, so both spellings have to agree on the stub.
+    status_key = LIST_FIELDS[media_type][0]
+    return SimpleNamespace(
+        media_id=media_id,
+        user_id=FAKE_ADMIN.id,
+        status=data.get("status", data[status_key]),
+        **{k: v for k, v in data.items() if k != "status"},
+    )
 
 
 def make_item(media_type, entry_id, **overrides):
@@ -65,12 +119,13 @@ def make_item(media_type, entry_id, **overrides):
 
 
 def make_anime(entry_id, name="Some Anime", ep_total=12, ep_special=None):
+    """No watching_status: the column left `anime` in step 1. A test that
+    cares about status registers a list row with the session instead."""
     return SimpleNamespace(
         system_id=entry_id,
         display_name=name,
         cover_image_file="cover.jpg",
         franchise_id=uuid.uuid4(),
-        watching_status="Completed",
         ep_total=ep_total,
         ep_special=ep_special,
     )
@@ -140,7 +195,10 @@ class TestResolveItems:
     def test_resolved_item_carries_display_data(self):
         entry_id = uuid.uuid4()
         anime = make_anime(entry_id, name="Fate/Zero")
-        db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [anime]})
+        db = FakeSession(
+            {MEDIA_TYPE_MODELS["anime"]: [anime]},
+            list_rows=[make_list_row(entry_id, watching_status="Completed")],
+        )
 
         result = resolve_items(db, [make_item("anime", entry_id)])[0]
 

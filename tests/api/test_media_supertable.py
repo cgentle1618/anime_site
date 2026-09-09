@@ -69,11 +69,12 @@ def test_an_anime_cannot_point_at_a_manga_media_row(db):
 
     db.execute(
         text(
-            # watching_status is NOT NULL with a Python-side default, so a raw
-            # INSERT has to supply it or the row fails on that instead.
-            # public_id is not listed: it lives on `media` now.
-            "INSERT INTO anime (system_id, media_type, anime_name_cn, "
-            "watching_status) VALUES (:s, 'anime', '錯型別', 'Might Watch')"
+            # Neither public_id nor watching_status is listed: the first
+            # lives on `media` now, and step 1 moved the second to
+            # user_media_list. Nothing left on `anime` is NOT NULL without a
+            # default, so the row reaches the FK check this test is about.
+            "INSERT INTO anime (system_id, media_type, anime_name_cn) "
+            "VALUES (:s, 'anime', '錯型別')"
         ),
         {"s": m.system_id},
     )

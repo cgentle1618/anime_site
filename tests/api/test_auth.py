@@ -67,7 +67,7 @@ class TestGetMe:
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is True
-        assert data["username"] == "testadmin"
+        assert data["username"] == "aaa_testadmin"
 
     def test_without_cookie_returns_admin_false(self, client):
         response = client.get("/api/auth/me")

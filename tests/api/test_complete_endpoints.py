@@ -105,19 +105,21 @@ class TestCompleteAnime:
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
-    def test_ep_fin_set_to_ep_total(self, admin_client, db_session, sample_franchise):
+    def test_ep_fin_set_to_ep_total(
+        self, admin_client, db_session, sample_franchise, list_row
+    ):
         entry = models.Anime(
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
             anime_name_en="Incomplete Anime",
             airing_type="TV",
             airing_status="Finished Airing",
-            watching_status="Watching",
             ep_total=24,
-            ep_fin=10,
         )
         db_session.add(entry)
         db_session.flush()
+        # Part-watched: the progress the endpoint must carry to ep_total.
+        list_row(entry, status="Watching", ep_fin=10)
         response = admin_client.post(f"/api/anime/{entry.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["ep_fin"] == 24

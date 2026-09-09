@@ -11,6 +11,7 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 import pytest
 
 from app import models
+from app.services.domain.user_list import acting_user_id, attach_list_fields
 from app.services.pipelines import pull
 from app.utils.constants import WatchStatus
 
@@ -30,6 +31,8 @@ def test_blank_anime_statuses_insert_as_valid_values(db_session, sheet):
 
     assert result["rows_added"] == 1, result
     anime = db_session.query(models.Anime).filter_by(anime_name_en="Frieren").one()
+    # Status left `anime` in step 1; read it the way the app does.
+    attach_list_fields(db_session, "anime", anime, acting_user_id(db_session, None))
     assert anime.watching_status == "Might Watch"
     assert anime.watching_status in {s.value for s in WatchStatus}
     # Unknown is NULL, never an empty string that no vocabulary contains.
