@@ -81,7 +81,7 @@ class MediaTypeSpec:
     resolve_hierarchy: Callable    # (db, franchise_id, series_id, names) -> (fid, sid)
     mark_completed: Callable       # (entry) -> None
     # (row, entry) -> None. The personal half of mark_completed, used by the
-    # /complete endpoint once this type is list_backed. Kept beside its
+    # /complete endpoint. Kept beside its
     # catalogue twin so a type can never declare one without the other.
     mark_completed_list: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
@@ -98,11 +98,6 @@ class MediaTypeSpec:
     # after the payload so it sees the reader's NEW cursor.
     progress_hook_list: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
-    # True once this type's personal columns have moved to user_media_list.
-    # Set per type by the Phase B task that drops that type's columns; the
-    # flag and the DROP COLUMN migration land in the same commit, so a
-    # personal column is never writable in two places at once.
-    list_backed: bool = False
     # (query, query_params) -> query, for filters that are not plain equality.
     extra_filters: Optional[Callable] = None
 
@@ -167,7 +162,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         # combined helper until Tasks 12 and 13.
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
-        list_backed=True,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
         nested_collections={"sources": media_sources_writer("anime")},
@@ -190,7 +184,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=lambda db, fid, sid, names: (resolve_anime_movie_parent_hierarchy(db, fid, names), None),
         mark_completed=mark_movie_catalog,
         mark_completed_list=mark_movie_list,
-        list_backed=True,
         has_series=False,
         nested_collections={"sources": media_sources_writer("anime-movie")},
     ),
@@ -210,7 +203,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_movie_parent_hierarchy,
         mark_completed=mark_movie_catalog,
         mark_completed_list=mark_movie_list,
-        list_backed=True,
         write_hook=execute_replace_single_movie,
         nested_collections={"sources": media_sources_writer("movie")},
     ),
@@ -230,7 +222,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_tv_show_parent_hierarchy,
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
-        list_backed=True,
         write_hook=execute_replace_single_tv_show,
         nested_collections={"sources": media_sources_writer("tv-show")},
     ),
@@ -250,7 +241,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_cartoon_parent_hierarchy,
         mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
-        list_backed=True,
         write_hook=execute_replace_single_cartoon,
         nested_collections={"sources": media_sources_writer("cartoon")},
     ),
@@ -271,7 +261,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_manga_parent_hierarchy,
         mark_completed=mark_reading_catalog,
         mark_completed_list=mark_reading_list,
-        list_backed=True,
         write_hook=execute_replace_single_manga,
         nested_collections={"sources": media_sources_writer("manga")},
     ),
@@ -292,7 +281,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_catalog,
         mark_completed_list=mark_novel_list,
-        list_backed=True,
         write_hook=execute_replace_single_novel,
         nested_collections={
             "units": write_novel_units,
@@ -317,7 +305,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_comic_parent_hierarchy,
         mark_completed=mark_comic_catalog,
         mark_completed_list=mark_comic_list,
-        list_backed=True,
         write_hook=execute_replace_single_comic,
         nested_collections={"sources": media_sources_writer("comic")},
     ),
@@ -338,7 +325,6 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         resolve_hierarchy=resolve_game_parent_hierarchy,
         mark_completed=mark_game_catalog,
         mark_completed_list=mark_game_list,
-        list_backed=True,
         extra_filters=_game_ownership,
         # Nothing external is fetched yet, so this only re-runs the shared
         # post-write step; the name exists from Task 9's pipeline spec.

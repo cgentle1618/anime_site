@@ -45,7 +45,7 @@ same hazard and reordered for it.
 | 15. Flip `novel` | done |
 | 16. Flip `comic` | done |
 | 17. Flip `games` | done |
-| 18. Remove the flag and the dead helpers | todo |
+| 18. Remove the flag and the dead helpers | done |
 | 18. `game_copy.user_id` | todo |
 | 19. `novel_unit.my_rating` | todo |
 | 20. Pipelines stop writing personal fields | todo |

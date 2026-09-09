@@ -99,9 +99,9 @@ def _attach_personal(db: Session, media_type: str, rows, viewer) -> None:
     Both payload builders below read `status` with
     `getattr(entry, _STATUS_FIELDS[media_type])`. Step 1 moves those columns
     off the detail tables onto `user_media_list`, and getattr on an absent
-    column returns the default silently - so a type that had gone list_backed
-    showed None for the status of every step and every candidate, with nothing
-    raising. Re-attaching first is what keeps the guide honest.
+    column returns the default silently - so the guide showed None for the
+    status of every step and every candidate, with nothing raising.
+    Re-attaching first is what keeps it honest.
 
     Costs one IN query per media type, not one per row.
 
@@ -109,15 +109,9 @@ def _attach_personal(db: Session, media_type: str, rows, viewer) -> None:
     the mark_* helpers out of `app.services.domain`, so a top-level import
     would close a cycle. `drop_hidden_rows` above is imported the same way.
     """
-    from app.registry import MEDIA_REGISTRY
     from app.services.domain.user_list import acting_user_id, attach_list_fields
 
     if not rows:
-        return
-    if not any(
-        spec.owner_type == media_type and spec.list_backed
-        for spec in MEDIA_REGISTRY.values()
-    ):
         return
     attach_list_fields(db, media_type, rows, acting_user_id(db, viewer))
 

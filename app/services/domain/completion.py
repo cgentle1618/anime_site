@@ -1,73 +1,14 @@
 """Completion checks and mark-completed mutations."""
 
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 from app.database import get_taipei_now
-from app.models import (
-    Anime,
-    AnimeMovies,
-    Cartoon,
-    Manga,
-    Movies,
-    TVShows,
-)
 from app.utils.constants import (
     COMPLETED_WATCH_STATUSES,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def check_is_tv_completed(entry: Union[Anime, TVShows, Cartoon]) -> bool:
-    """
-    Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
-    should be considered completed.
-    Returns True if watching_status is a completed one or ep_fin equals ep_total.
-    """
-    if entry.watching_status in COMPLETED_WATCH_STATUSES:
-        return True
-
-    ep_total = getattr(entry, "ep_total", None)
-    ep_fin = getattr(entry, "ep_fin", None)
-    if ep_total is not None and ep_total > 0 and ep_fin == ep_total:
-        return True
-
-    return False
-
-
-def check_is_movie_completed(entry: Union[AnimeMovies, Movies]) -> bool:
-    """
-    Determine if a Watching-type entry (Anime, Anime Movie, Movie, TV Show, Cartoon)
-    should be considered completed.
-    Returns True if watching_status is a completed one or ep_fin equals ep_total.
-    """
-    if entry.watching_status in COMPLETED_WATCH_STATUSES:
-        return True
-
-    return False
-
-
-def check_is_reading_completed(entry: Manga) -> bool:
-    """
-    Returns True if a manga entry should be considered completed.
-    Conditions (any one is sufficient):
-    - serialization_status is "完結" or "腰斬"
-    - ch_fin == ch_total and ch_total is not None and not 0
-    - vol_fin == vol_total and vol_total is not None and not 0
-    """
-    if entry.serialization_status not in ("完結", "腰斬"):
-        return False
-    ch_total = getattr(entry, "ch_total", None)
-    ch_fin = getattr(entry, "ch_fin", None)
-    if ch_total is not None and ch_total > 0 and ch_fin == ch_total:
-        return True
-    vol_total = getattr(entry, "vol_total", None)
-    vol_fin = getattr(entry, "vol_fin", None)
-    if vol_total is not None and vol_total > 0 and vol_fin == vol_total:
-        return True
-    return False
-
 
 
 def mark_tv_catalog(entry) -> None:
@@ -194,16 +135,11 @@ def mark_novel_list(row, entry) -> None:
         row.ch_fin = max(ch_vals)
 
 
-def apply_completion_timestamp(entry, status_value: Optional[str]) -> None:
-    """Sets completed_at the first time an entry reaches Completed status."""
-    if status_value in COMPLETED_WATCH_STATUSES and entry.completed_at is None:
-        entry.completed_at = get_taipei_now()
-
-
 def apply_list_completion_timestamp(row, status_value: Optional[str]) -> None:
     """
     Sets the list row's completed_at the first time this user reaches a
-    Completed status. The per-user twin of apply_completion_timestamp: when
+    Completed status. The per-user twin of the retired
+    apply_completion_timestamp: when
     two people finish the same anime on different days, two different dates
     are the correct answer and one shared column cannot hold them.
     """

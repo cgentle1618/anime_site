@@ -20,7 +20,6 @@ from app.models.media import Media
 from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
 from app.services.domain import (
-    apply_completion_timestamp,
     apply_list_completion_timestamp,
     pop_remark,
     upsert_remark,
@@ -108,7 +107,7 @@ def make_media_router(spec) -> APIRouter:
     def _write_list(db: Session, entry, personal: dict, viewer) -> None:
         """Apply the personal half of a payload to the acting user's row.
 
-        Called for every write on a list_backed type, including one with an
+        Called for every write, including one with an
         empty personal half: a brand-new entry needs its default-status row to
         exist so the detail page has something to read and to edit.
         """
@@ -126,10 +125,7 @@ def make_media_router(spec) -> APIRouter:
             spec.progress_hook_list(row, entry)
 
     def _finish(db: Session, entry, viewer=None):
-        if spec.list_backed:
-            attach_list_fields(
-                db, spec.owner_type, entry, acting_user_id(db, viewer)
-            )
+        attach_list_fields(db, spec.owner_type, entry, acting_user_id(db, viewer))
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
@@ -177,13 +173,12 @@ def make_media_router(spec) -> APIRouter:
         for name in (spec.nested_collections or {}):
             if name in spec.model.__mapper__.relationships:
                 query = query.options(selectinload(getattr(spec.model, name)))
-        # The viewer's personal columns live on user_media_list once this type
-        # is list_backed, so a filter naming one has to go through an OUTER
-        # join rather than resolving against the model.
-        user_id = acting_user_id(db, viewer) if spec.list_backed else None
-        personal = set(LIST_FIELDS[spec.owner_type]) if spec.list_backed else set()
-        if spec.list_backed:
-            query = join_list(query, spec.model, user_id)
+        # The viewer's personal columns live on user_media_list, so a filter
+        # naming one has to go through an OUTER join rather than resolving
+        # against the model.
+        user_id = acting_user_id(db, viewer)
+        personal = set(LIST_FIELDS[spec.owner_type])
+        query = join_list(query, spec.model, user_id)
         columns = spec.model.__table__.columns
         joined_media = False
         for field in spec.list_filters:
@@ -226,8 +221,7 @@ def make_media_router(spec) -> APIRouter:
         attach_link_fields(db, spec.owner_type, entries)
         attach_sources(db, spec.owner_type, entries, viewer)
         # One IN query for the whole page, not one per entry.
-        if spec.list_backed:
-            attach_list_fields(db, spec.owner_type, entries, user_id)
+        attach_list_fields(db, spec.owner_type, entries, user_id)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")
@@ -252,9 +246,7 @@ def make_media_router(spec) -> APIRouter:
         payload, remark, has_remark = pop_remark(data.model_dump())
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
-        personal = {}
-        if spec.list_backed:
-            payload, personal = split_list_payload(spec.owner_type, payload)
+        payload, personal = split_list_payload(spec.owner_type, payload)
         entry = spec.model(**payload)
         entry.system_id = uuid.uuid4()
         _resolve_parents(db, entry)
@@ -267,9 +259,8 @@ def make_media_router(spec) -> APIRouter:
             spec.pre_commit_hook(db, entry)
         # After the pre-commit hook: the list row's FK points at `media`, and
         # that row is written by Step 0's write path as part of the flush.
-        if spec.list_backed:
-            db.flush()
-            _write_list(db, entry, personal, viewer)
+        db.flush()
+        _write_list(db, entry, personal, viewer)
         db.commit()
         db.refresh(entry)
 
@@ -299,9 +290,7 @@ def make_media_router(spec) -> APIRouter:
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
-        personal = {}
-        if spec.list_backed:
-            payload, personal = split_list_payload(spec.owner_type, payload)
+        payload, personal = split_list_payload(spec.owner_type, payload)
         for key, value in payload.items():
             setattr(entry, key, value)
         _write_nested(db, entry, nested, viewer)
@@ -311,10 +300,7 @@ def make_media_router(spec) -> APIRouter:
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
-        if spec.list_backed:
-            _write_list(db, entry, personal, viewer)
-        else:
-            apply_completion_timestamp(entry, payload.get(spec.status_field))
+        _write_list(db, entry, personal, viewer)
         _resolve_parents(db, entry)
         if spec.pre_commit_hook:
             spec.pre_commit_hook(db, entry)
@@ -338,9 +324,7 @@ def make_media_router(spec) -> APIRouter:
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
-        personal = {}
-        if spec.list_backed:
-            payload, personal = split_list_payload(spec.owner_type, payload)
+        payload, personal = split_list_payload(spec.owner_type, payload)
         apply_column_patch(entry, payload)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
@@ -349,10 +333,7 @@ def make_media_router(spec) -> APIRouter:
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
-        if spec.list_backed:
-            _write_list(db, entry, personal, viewer)
-        else:
-            apply_completion_timestamp(entry, payload.get(spec.status_field))
+        _write_list(db, entry, personal, viewer)
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
@@ -367,21 +348,16 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         spec.mark_completed(entry)
-        # Finishing something is one person's fact once the type is
-        # list_backed: it lands on the acting user's row, and the shared
-        # entry keeps only what mark_completed said about the work itself.
-        if spec.list_backed:
-            user_id = acting_user_id(db, None)
-            if user_id is not None:
-                row = ensure_list_row(
-                    db, user_id, entry.system_id, spec.owner_type
-                )
-                spec.mark_completed_list(row, entry)
-                if row.completed_at is None:
-                    row.completed_at = get_taipei_now()
-                row.updated_at = get_taipei_now()
-        elif entry.completed_at is None:
-            entry.completed_at = get_taipei_now()
+        # Finishing something is one person's fact: it lands on the acting
+        # user's row, and the shared entry keeps only what mark_completed
+        # said about the work itself.
+        user_id = acting_user_id(db, None)
+        if user_id is not None:
+            row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
+            spec.mark_completed_list(row, entry)
+            if row.completed_at is None:
+                row.completed_at = get_taipei_now()
+            row.updated_at = get_taipei_now()
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
