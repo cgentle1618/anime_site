@@ -78,21 +78,14 @@ class Novel(Base, NameFallbackMixin):
     version = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
-    reading_status = Column(String, nullable=False, default="Might Read")
 
     vol_total_original = Column(Float, nullable=True)
     vol_total_tw = Column(Float, nullable=True)
-    vol_fin = Column(Float, nullable=False, default=0)
     arc_total = Column(Float, nullable=True)
-    arc_fin = Column(Float, nullable=False, default=0)
     ch_total = Column(Float, nullable=True)
-    ch_fin = Column(Float, nullable=False, default=0)
     # Chapters read into the arc *currently* being read, which is the arc at
     # position arc_fin + 1. Zero for every novel with no arc rows.
-    ch_fin_in_arc = Column(Float, nullable=False, default=0)
-    progress_display = Column(String, nullable=True)
 
-    my_rating = Column(String, nullable=True)
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
@@ -113,7 +106,6 @@ class Novel(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     units = relationship(
         "NovelUnit",

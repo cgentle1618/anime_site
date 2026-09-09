@@ -120,6 +120,10 @@ def make_media_router(spec) -> APIRouter:
         apply_list_completion_timestamp(
             row, personal.get(STATUS_FIELD[spec.owner_type])
         )
+        # After the payload, never before: the derivation folds the cursor the
+        # writer just sent through the work's arc widths.
+        if spec.progress_hook_list is not None:
+            spec.progress_hook_list(row, entry)
 
     def _finish(db: Session, entry, viewer=None):
         if spec.list_backed:

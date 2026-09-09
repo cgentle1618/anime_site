@@ -58,7 +58,6 @@ from app.services.domain.completion import (
     mark_movie_completed,
     mark_movie_list,
     mark_novel_catalog,
-    mark_novel_completed,
     mark_novel_list,
     mark_reading_catalog,
     mark_reading_completed,
@@ -121,7 +120,8 @@ from app.services.domain.novel_unit_writer import (
     write_novel_units,
 )
 from app.services.domain.novel_units import (
-    derive_novel_progress,
+    derive_novel_catalog,
+    derive_novel_list,
     normalize_arc_progress,
     unit_display_key,
 )
@@ -217,7 +217,6 @@ __all__ = [
     "mark_tv_completed",
     "mark_movie_completed",
     "mark_reading_completed",
-    "mark_novel_completed",
     "mark_comic_completed",
     "mark_game_completed",
     "mark_tv_catalog",
@@ -304,7 +303,8 @@ __all__ = [
     "cartoon_post_processing",
     "manga_post_processing",
     "derive_ep_previous_all_anime",
-    "derive_novel_progress",
+    "derive_novel_catalog",
+    "derive_novel_list",
     "normalize_arc_progress",
     "unit_display_key",
     "write_novel_units",

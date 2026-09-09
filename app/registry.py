@@ -18,14 +18,15 @@ from sqlalchemy import exists, func
 
 from app import models, schemas
 from app.services.domain import (
-    derive_novel_progress,
+    derive_novel_catalog,
+    derive_novel_list,
     mark_comic_completed,
     mark_comic_list,
     mark_game_completed,
     mark_game_list,
     mark_movie_catalog,
     mark_movie_list,
-    mark_novel_completed,
+    mark_novel_catalog,
     mark_novel_list,
     mark_reading_catalog,
     mark_reading_list,
@@ -92,6 +93,10 @@ class MediaTypeSpec:
     # and nested collections are applied. Distinct from pre_commit_hook,
     # which patch deliberately does not call. Only novel uses this.
     progress_hook: Optional[Callable] = None
+    # (row, entry) -> None, run after a list payload is applied. Only novel
+    # uses it; it is the per-user twin of progress_hook, and it has to run
+    # after the payload so it sees the reader's NEW cursor.
+    progress_hook_list: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
     # True once this type's personal columns have moved to user_media_list.
     # Set per type by the Phase B task that drops that type's columns; the
@@ -285,14 +290,16 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
                          "jp": "novel_name_jp", "alt": "novel_name_alt"},
         search_fields=("novel_name_cn", "novel_name_en", "novel_name_roman", "novel_name_jp", "novel_name_alt"),
         resolve_hierarchy=resolve_novel_parent_hierarchy,
-        mark_completed=mark_novel_completed,
+        mark_completed=mark_novel_catalog,
         mark_completed_list=mark_novel_list,
+        list_backed=True,
         write_hook=execute_replace_single_novel,
         nested_collections={
             "units": write_novel_units,
             "sources": media_sources_writer("novel"),
         },
-        progress_hook=lambda db, entry: derive_novel_progress(entry),
+        progress_hook=lambda db, entry: derive_novel_catalog(entry),
+        progress_hook_list=lambda row, entry: derive_novel_list(row, entry),
     ),
     "comic": MediaTypeSpec(
         key="comic",

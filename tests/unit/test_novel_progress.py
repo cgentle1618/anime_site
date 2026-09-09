@@ -5,10 +5,28 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.domain.novel_units import (
-    derive_novel_progress,
+    derive_novel_catalog,
+    derive_novel_list,
     normalize_arc_progress,
     unit_display_key,
 )
+
+# The derivation split in step 1: arc_total and ch_total are the work's,
+# arc_fin / ch_fin / ch_fin_in_arc / vol_fin are one reader's and live on
+# their user_media_list row. These two helpers keep every assertion below
+# reading the way it did, aimed at whichever object now owns the field.
+_ROW_FIELDS = ("arc_fin", "ch_fin", "ch_fin_in_arc", "vol_fin")
+
+
+def split(**kw):
+    """Build the (entry, row) pair from one pre-split field set."""
+    row = SimpleNamespace(**{k: kw.pop(k) for k in _ROW_FIELDS if k in kw})
+    return SimpleNamespace(**kw), row
+
+
+def derive(entry, row):
+    derive_novel_catalog(entry)
+    derive_novel_list(row, entry)
 
 
 def arc(position, ch_count):
@@ -67,10 +85,10 @@ def test_no_arcs_is_a_no_op():
     assert normalize_arc_progress([], 0, 0) == (0, 0)
 
 
-# --- derive_novel_progress --------------------------------------------------
+# --- derive_novel_catalog / derive_novel_list --------------------------------------------------
 
 def test_derives_totals_and_absolute_chapters():
-    entry = SimpleNamespace(
+    entry, row = split(
         units=[arc(1, 100), arc(2, 112)],
         arc_fin=1,
         ch_fin_in_arc=101,
@@ -78,16 +96,16 @@ def test_derives_totals_and_absolute_chapters():
         ch_total=None,
         ch_fin=0,
     )
-    derive_novel_progress(entry)
+    derive(entry, row)
     assert entry.arc_total == 2
     assert entry.ch_total == 212
-    assert entry.ch_fin == 201          # 100 finished + 101 into arc 2
-    assert entry.arc_fin == 1
-    assert entry.ch_fin_in_arc == 101
+    assert row.ch_fin == 201            # 100 finished + 101 into arc 2
+    assert row.arc_fin == 1
+    assert row.ch_fin_in_arc == 101
 
 
 def test_absolute_chapters_after_the_arc_closes():
-    entry = SimpleNamespace(
+    entry, row = split(
         units=[arc(1, 100), arc(2, 112)],
         arc_fin=1,
         ch_fin_in_arc=112,
@@ -95,14 +113,14 @@ def test_absolute_chapters_after_the_arc_closes():
         ch_total=None,
         ch_fin=0,
     )
-    derive_novel_progress(entry)
-    assert entry.arc_fin == 2
-    assert entry.ch_fin_in_arc == 0
-    assert entry.ch_fin == 212
+    derive(entry, row)
+    assert row.arc_fin == 2
+    assert row.ch_fin_in_arc == 0
+    assert row.ch_fin == 212
 
 
 def test_units_are_read_in_position_order_not_list_order():
-    entry = SimpleNamespace(
+    entry, row = split(
         units=[arc(2, 112), arc(1, 100)],
         arc_fin=1,
         ch_fin_in_arc=101,
@@ -110,14 +128,14 @@ def test_units_are_read_in_position_order_not_list_order():
         ch_total=None,
         ch_fin=0,
     )
-    derive_novel_progress(entry)
-    assert entry.ch_fin == 201
+    derive(entry, row)
+    assert row.ch_fin == 201
 
 
 def test_volume_rows_do_not_touch_progress():
     # Decision B: volume rows are optional enrichment. vol_fin may exceed the
     # number of named volumes and nothing derives from them.
-    entry = SimpleNamespace(
+    entry, row = split(
         units=[volume(1), volume(2)],
         arc_fin=0,
         ch_fin_in_arc=0,
@@ -127,16 +145,16 @@ def test_volume_rows_do_not_touch_progress():
         vol_fin=9,
         vol_total_original=12,
     )
-    derive_novel_progress(entry)
-    assert entry.vol_fin == 9
+    derive(entry, row)
+    assert row.vol_fin == 9
     assert entry.vol_total_original == 12
     assert entry.ch_total == 7          # untouched
-    assert entry.ch_fin == 3            # untouched
+    assert row.ch_fin == 3              # untouched
     assert entry.arc_total is None      # untouched
 
 
 def test_no_arc_rows_zeroes_only_the_in_arc_cursor():
-    entry = SimpleNamespace(
+    entry, row = split(
         units=[],
         arc_fin=0,
         ch_fin_in_arc=44,
@@ -144,9 +162,9 @@ def test_no_arc_rows_zeroes_only_the_in_arc_cursor():
         ch_total=300,
         ch_fin=120,
     )
-    derive_novel_progress(entry)
-    assert entry.ch_fin_in_arc == 0
-    assert entry.ch_fin == 120          # flat pair still governs
+    derive(entry, row)
+    assert row.ch_fin_in_arc == 0
+    assert row.ch_fin == 120            # flat pair still governs
 
 
 # --- unit_display_key -------------------------------------------------------
@@ -191,72 +209,72 @@ def light_novel(**kw):
         vol_total_tw=11,
     )
     base.update(kw)
-    return SimpleNamespace(**base)
+    return split(**base)
 
 
 def test_light_novel_clears_chapter_and_arc_columns():
-    entry = light_novel()
-    derive_novel_progress(entry)
+    entry, row = light_novel()
+    derive(entry, row)
     assert entry.ch_total is None
     assert entry.arc_total is None
-    assert entry.ch_fin == 0
-    assert entry.arc_fin == 0
-    assert entry.ch_fin_in_arc == 0
+    assert row.ch_fin == 0
+    assert row.arc_fin == 0
+    assert row.ch_fin_in_arc == 0
 
 
 def test_light_novel_keeps_its_volume_columns():
-    entry = light_novel()
-    derive_novel_progress(entry)
-    assert entry.vol_fin == 3
+    entry, row = light_novel()
+    derive(entry, row)
+    assert row.vol_fin == 3
     assert entry.vol_total_original == 11
     assert entry.vol_total_tw == 11
 
 
 def test_novel_type_clears_chapter_and_arc_columns_too():
-    entry = light_novel(type="Novel")
-    derive_novel_progress(entry)
+    entry, row = light_novel(type="Novel")
+    derive(entry, row)
     assert entry.ch_total is None
-    assert entry.ch_fin == 0
+    assert row.ch_fin == 0
 
 
 def test_clearing_is_idempotent():
-    entry = light_novel()
-    derive_novel_progress(entry)
-    derive_novel_progress(entry)
+    entry, row = light_novel()
+    derive(entry, row)
+    derive(entry, row)
     assert entry.ch_total is None
-    assert entry.ch_fin == 0
-    assert entry.vol_fin == 3
+    assert row.ch_fin == 0
+    assert row.vol_fin == 3
 
 
 def test_arc_rows_on_a_light_novel_do_not_resurrect_chapters():
     # Arc rows cannot be created for this type through the editor, but a Pull
     # from the sheet can carry them. The type wins: nothing is derived.
-    entry = light_novel(units=[arc(1, 100), arc(2, 112)])
-    derive_novel_progress(entry)
+    entry, row = light_novel(units=[arc(1, 100), arc(2, 112)])
+    derive(entry, row)
     assert entry.ch_total is None
     assert entry.arc_total is None
-    assert entry.ch_fin == 0
+    assert row.ch_fin == 0
 
 
 def test_web_novel_keeps_its_flat_chapter_pair():
-    entry = light_novel(type="Web")
-    derive_novel_progress(entry)
+    entry, row = light_novel(type="Web")
+    derive(entry, row)
     assert entry.ch_total == 110
-    assert entry.ch_fin == 44
-    assert entry.ch_fin_in_arc == 0     # no arc rows, so the cursor is zeroed
+    assert row.ch_fin == 44
+    assert row.ch_fin_in_arc == 0     # no arc rows, so the cursor is zeroed
 
 
 def test_web_novel_with_arcs_still_derives():
-    entry = light_novel(type="Web", units=[arc(1, 100), arc(2, 112)], arc_fin=1, ch_fin_in_arc=101)
-    derive_novel_progress(entry)
+    entry, row = light_novel(type="Web", units=[arc(1, 100), arc(2, 112)], arc_fin=1, ch_fin_in_arc=101)
+    derive(entry, row)
     assert entry.arc_total == 2
     assert entry.ch_total == 212
-    assert entry.ch_fin == 201
+    assert row.ch_fin == 201
 
 
 def test_other_type_keeps_its_chapters():
     # "Other" may count volumes, chapters or stories, so nothing is cleared.
-    entry = light_novel(type="Other")
-    derive_novel_progress(entry)
+    entry, row = light_novel(type="Other")
+    derive(entry, row)
     assert entry.ch_total == 110
-    assert entry.ch_fin == 44
+    assert row.ch_fin == 44

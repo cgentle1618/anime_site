@@ -40,13 +40,15 @@ from app.services.domain import (
     cartoon_post_processing,
     create_missing_seasonal,
     derive_ep_previous_all_anime,
-    derive_novel_progress,
+    derive_novel_catalog,
+    derive_novel_list,
     extract_system_options,
     manga_post_processing,
     sync_seasonal_counts,
     tv_show_post_processing,
 )
 from app.services.domain.plan_next import derive_size_groups
+from app.services.domain.user_list import acting_user_id, list_row
 from app.services.integrations.image_manager import (
     cover_image_exists,
     cover_key,
@@ -537,7 +539,12 @@ def run_sync_novel(db: Session) -> dict:
     # straight to the tables without going through the router, lands with
     # consistent totals.
     for entry in db.query(Novel).options(selectinload(Novel.units)).all():
-        derive_novel_progress(entry)
+        derive_novel_catalog(entry)
+        # The reader's half only exists if they have a list row; Calculate
+        # must not mint one for an entry nobody has touched.
+        row = list_row(db, acting_user_id(db, None), entry.system_id)
+        if row is not None:
+            derive_novel_list(row, entry)
     db.commit()
     return {
         "status": "success",
