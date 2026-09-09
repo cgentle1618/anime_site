@@ -58,12 +58,23 @@ def test_anime_movie_create_without_a_franchise_creates_one_from_its_titles(admi
     assert fran.franchise_name_en == "Your Name"
 
 
-def test_anime_movie_list_filters_by_watching_status(client, db_session, sample_franchise):
+def test_anime_movie_list_filters_by_watching_status(
+    client, db_session, sample_franchise, list_row
+):
+    """The filter joins user_media_list since step 1, rather than reading a
+    column on anime_movies. "Unseen" gets no list row at all, which is what an
+    untouched entry looks like and still reads back as Might Watch."""
     fid = sample_franchise.system_id
+    seen = models.AnimeMovies(
+        system_id=uuid.uuid4(), franchise_id=fid, anime_movie_name_en="Seen"
+    )
     db_session.add_all([
-        models.AnimeMovies(system_id=uuid.uuid4(), franchise_id=fid, anime_movie_name_en="Seen", watching_status="Completed"),
-        models.AnimeMovies(system_id=uuid.uuid4(), franchise_id=fid, anime_movie_name_en="Unseen", watching_status="Might Watch"),
+        seen,
+        models.AnimeMovies(
+            system_id=uuid.uuid4(), franchise_id=fid, anime_movie_name_en="Unseen"
+        ),
     ])
     db_session.flush()
+    list_row(seen, status="Completed")
     body = client.get("/api/anime-movie/", params={"watching_status": "Completed"}).text
     assert "Seen" in body and "Unseen" not in body

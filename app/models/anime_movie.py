@@ -72,8 +72,6 @@ class AnimeMovies(Base, NameFallbackMixin):
     anime_movie_name_alt = Column(String, nullable=True)
 
     airing_status = Column(String, nullable=True)
-    watching_status = Column(String, nullable=False, default="Might Watch")
-    my_rating = Column(String, nullable=True)
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
@@ -88,7 +86,6 @@ class AnimeMovies(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     @property
     def names_dict(self) -> dict:

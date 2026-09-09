@@ -15,16 +15,16 @@ from app import models
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def sample_anime_movie(db_session, sample_franchise):
+def sample_anime_movie(db_session, sample_franchise, list_row):
     entry = models.AnimeMovies(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_movie_name_en="Test Anime Movie",
-        watching_status="Watching",
         airing_status="Finished Airing",
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching")
     return entry
 
 

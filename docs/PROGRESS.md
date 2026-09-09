@@ -37,7 +37,15 @@ same hazard and reordered for it.
 | 7. Completion services become per-user | done |
 | 8. Seasonal counters stop reading `anime.watching_status` | done |
 | 9. Flip `anime` | done |
-| 10-17. Flip the other eight types | todo |
+| 10. Flip `anime_movies` | done |
+| 11. Flip `movies` | todo |
+| 12. Flip `tv_shows` | todo |
+| 13. Flip `cartoons` | todo |
+| 14. Flip `manga` | todo |
+| 15. Flip `novel` | todo |
+| 16. Flip `comic` | todo |
+| 17. Flip `games` | todo |
+| 18. Remove the flag and the dead helpers | todo |
 | 18. `game_copy.user_id` | todo |
 | 19. `novel_unit.my_rating` | todo |
 | 20. Pipelines stop writing personal fields | todo |
