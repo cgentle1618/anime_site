@@ -1,9 +1,9 @@
 """
 Where an entry can be watched, read, or looked up.
 
-Shaped like media_credit: no single foreign key can span the eight media
-tables, so the (media_type, entry_id) pair is resolved at read time through
-MEDIA_TABLES in app/utils/media_resolver.py.
+Shaped like media_credit: one row per source, addressing its entry by
+media_id - a real foreign key up to the `media` supertable, which is what
+lets a delete cascade instead of needing a service call to clean up.
 
 Two axes, both plain strings so a value added in a newer version survives a
 round trip through an older one:
@@ -50,8 +50,7 @@ class MediaSource(Base):
         # entry collide instead of both being stored - option_id is NULL on
         # both, and the default NULL-is-distinct rule would let them through.
         UniqueConstraint(
-            "media_type",
-            "entry_id",
+            "media_id",
             "kind",
             "bucket",
             "option_id",
@@ -59,16 +58,18 @@ class MediaSource(Base):
             name="uq_media_source_row",
             postgresql_nulls_not_distinct=True,
         ),
-        Index("ix_media_source_entry", "media_type", "entry_id"),
+        Index("ix_media_source_entry", "media_id"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
 
-    # MEDIA_TYPE_KEYS, hyphenated. No FK - see the module docstring.
-    media_type = Column(String, nullable=False)
-    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     kind = Column(String, nullable=False, index=True)
     bucket = Column(String, nullable=False, index=True)

@@ -144,8 +144,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # down, before this match runs, so by the time it is used here it is
     # already a same-database uuid, comparable the ordinary way.
     "Media Source": (
-        "media_type",
-        "entry_id",
+        "media_id",
         "kind",
         "bucket",
         "option_id",

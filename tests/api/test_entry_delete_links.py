@@ -85,3 +85,31 @@ def test_another_entrys_links_are_left_alone(admin_client, db_session):
 
     admin_client.delete(f"/api/anime/{a.system_id}")
     assert _links(db_session, "anime", b.system_id) == 1
+
+
+# ---------------------------------------------------------------------------
+# The cascade, once the link tables address their entry by a real media FK
+# ---------------------------------------------------------------------------
+# The assertions above go through the router, which used to call an explicit
+# cleanup. These go straight at the database: deleting the media row must take
+# the link rows with it with no service code involved at all.
+
+def test_deleting_the_media_row_cascades_to_media_source(db_session):
+    from sqlalchemy import text
+
+    from app.services.domain import sources as sources_service
+
+    a = models.Anime(anime_name_cn="來源測試")
+    db_session.add(a)
+    db_session.commit()
+    sid = a.system_id
+    sources_service.replace_sources(
+        db_session, sid, [{"kind": "watch", "bucket": "other", "name": "X"}]
+    )
+    db_session.commit()
+    assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 1
+
+    db_session.execute(text("DELETE FROM media WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 0

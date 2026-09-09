@@ -27,7 +27,7 @@ from app.services.domain.plan_next import (
     pop_plan_flag,
     set_entry_flag,
 )
-from app.services.domain.sources import attach_sources, delete_sources_for
+from app.services.domain.sources import attach_sources
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
@@ -292,7 +292,8 @@ def make_media_router(spec) -> APIRouter:
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
         delete_links_for(db, spec.owner_type, entry.system_id)
-        delete_sources_for(db, spec.owner_type, entry.system_id)
+        # media_source needs no cleanup call: its media_id FK cascades from
+        # the media row, which the entry's own delete trigger removes.
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}

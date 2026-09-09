@@ -63,8 +63,7 @@ def attach_sources(
     entry_ids = [e.system_id for e in rows_in]
 
     query = db.query(models.MediaSource).filter(
-        models.MediaSource.media_type == media_type,
-        models.MediaSource.entry_id.in_(entry_ids),
+        models.MediaSource.media_id.in_(entry_ids),
     )
     if withheld:
         query = query.filter(models.MediaSource.bucket.notin_(withheld))
@@ -90,7 +89,7 @@ def attach_sources(
             # The option was deleted out from under the row. Skip rather than
             # render a nameless link.
             continue
-        by_entry.setdefault(row.entry_id, []).append(
+        by_entry.setdefault(row.media_id, []).append(
             SourceRef(
                 system_id=row.system_id,
                 kind=row.kind,
@@ -108,7 +107,7 @@ def attach_sources(
 
 
 def replace_sources(
-    db: Session, media_type: str, entry_id: UUID, payload: list[dict], viewer=None
+    db: Session, media_id: UUID, payload: list[dict], viewer=None
 ) -> None:
     """
     Make the entry's sources exactly `payload`, in that order.
@@ -128,9 +127,7 @@ def replace_sources(
 
     withheld = set(gated_source_buckets(viewer))
 
-    doomed = db.query(models.MediaSource).filter_by(
-        media_type=media_type, entry_id=entry_id
-    )
+    doomed = db.query(models.MediaSource).filter_by(media_id=media_id)
     if withheld:
         doomed = doomed.filter(models.MediaSource.bucket.notin_(withheld))
     doomed.delete(synchronize_session=False)
@@ -154,8 +151,7 @@ def replace_sources(
 
         db.add(
             models.MediaSource(
-                media_type=media_type,
-                entry_id=entry_id,
+                media_id=media_id,
                 kind=kind,
                 bucket=bucket,
                 option_id=option_id,
@@ -168,9 +164,7 @@ def replace_sources(
     db.flush()
 
 
-def find_main_source(
-    db: Session, media_type: str, entry_id: UUID, kind: str, value: str
-):
+def find_main_source(db: Session, media_id: UUID, kind: str, value: str):
     """
     The entry's `main` row pointing at one vocabulary value, or None.
 
@@ -188,8 +182,7 @@ def find_main_source(
             models.SystemOption.system_id == models.MediaSource.option_id,
         )
         .filter(
-            models.MediaSource.media_type == media_type,
-            models.MediaSource.entry_id == entry_id,
+            models.MediaSource.media_id == media_id,
             models.MediaSource.kind == kind,
             models.MediaSource.bucket == "main",
             models.SystemOption.category == category_for_kind(kind),
@@ -204,8 +197,7 @@ def find_main_source(
 
 def upsert_main_source(
     db: Session,
-    media_type: str,
-    entry_id: UUID,
+    media_id: UUID,
     kind: str,
     value: str,
     url: str,
@@ -221,14 +213,13 @@ def upsert_main_source(
 
     if not url:
         return False
-    if find_main_source(db, media_type, entry_id, kind, value) is not None:
+    if find_main_source(db, media_id, kind, value) is not None:
         return False
 
     option = resolve_option(db, category_for_kind(kind), value)
     db.add(
         models.MediaSource(
-            media_type=media_type,
-            entry_id=entry_id,
+            media_id=media_id,
             kind=kind,
             bucket="main",
             option_id=option.system_id,
@@ -239,25 +230,17 @@ def upsert_main_source(
     return True
 
 
-def delete_sources_for(db: Session, media_type: str, entry_id: UUID) -> int:
-    """Remove every source row for one entry. Nothing cascades - no FK."""
-    return (
-        db.query(models.MediaSource)
-        .filter_by(media_type=media_type, entry_id=entry_id)
-        .delete(synchronize_session=False)
-    )
-
-
 def media_sources_writer(media_type: str):
     """
     Build the `nested_collections` adapter for one media type.
 
-    A factory rather than a plain function because entries do not carry their
-    own media type - the registry knows it, so it is closed over at spec
-    declaration time. See app/routers/_factory.py:83-96.
+    Kept as a factory even though media_type is no longer needed to write a
+    row: the registry declares one writer per spec, and the signature the
+    factory produces is what nested_collections expects.
+    See app/routers/_factory.py:83-96.
     """
 
     def write(db: Session, entry, value, viewer=None) -> None:
-        replace_sources(db, media_type, entry.system_id, value or [], viewer=viewer)
+        replace_sources(db, entry.system_id, value or [], viewer=viewer)
 
     return write

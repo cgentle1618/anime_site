@@ -33,8 +33,7 @@ def _viewer(*permissions):
 @pytest.fixture
 def restricted_row(db_session, sample_anime):
     row = models.MediaSource(
-        media_type="anime",
-        entry_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         kind="access",
         bucket="restricted",
         name="Hidden Site",
@@ -52,7 +51,6 @@ def test_a_withheld_bucket_survives_a_save(
 
     replace_sources(
         db_session,
-        "anime",
         sample_anime.system_id,
         [{"kind": "access", "bucket": "other", "name": "Visible"}],
         viewer=viewer,
@@ -61,9 +59,7 @@ def test_a_withheld_bucket_survives_a_save(
 
     buckets = {
         (r.bucket, r.name)
-        for r in db_session.query(models.MediaSource).filter_by(
-            media_type="anime", entry_id=sample_anime.system_id
-        )
+        for r in db_session.query(models.MediaSource).filter_by(media_id=sample_anime.system_id)
     }
     assert ("restricted", "Hidden Site") in buckets
     assert ("other", "Visible") in buckets
@@ -78,14 +74,12 @@ def test_a_holder_can_still_clear_the_bucket(
         field_group_perm("sources_restricted"),
     )
 
-    replace_sources(
-        db_session, "anime", sample_anime.system_id, [], viewer=viewer
-    )
+    replace_sources(db_session, sample_anime.system_id, [], viewer=viewer)
     db_session.commit()
 
     assert (
         db_session.query(models.MediaSource)
-        .filter_by(media_type="anime", entry_id=sample_anime.system_id)
+        .filter_by(media_id=sample_anime.system_id)
         .count()
         == 0
     )
@@ -95,12 +89,12 @@ def test_no_viewer_still_replaces_everything(
     db_session, sample_anime, restricted_row
 ):
     """Internal callers pass no viewer and mean the whole set."""
-    replace_sources(db_session, "anime", sample_anime.system_id, [])
+    replace_sources(db_session, sample_anime.system_id, [])
     db_session.commit()
 
     assert (
         db_session.query(models.MediaSource)
-        .filter_by(media_type="anime", entry_id=sample_anime.system_id)
+        .filter_by(media_id=sample_anime.system_id)
         .count()
         == 0
     )
@@ -127,7 +121,7 @@ def test_the_patch_endpoint_honours_the_gate(
     db_session.expire_all()
     survivors = (
         db_session.query(models.MediaSource)
-        .filter_by(media_type="anime", entry_id=sample_anime.system_id)
+        .filter_by(media_id=sample_anime.system_id)
         .all()
     )
     assert {r.bucket for r in survivors} == {"other", "restricted"}

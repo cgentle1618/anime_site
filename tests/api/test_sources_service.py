@@ -1,11 +1,9 @@
 """Reading and writing an entry's media_source rows."""
 
-import uuid
 
 from app import models
 from app.services.domain.sources import (
     attach_sources,
-    delete_sources_for,
     replace_sources,
 )
 
@@ -30,8 +28,7 @@ def test_a_main_row_reports_its_option_value(db_session, sample_anime):
     option = _option(db_session, "Netflix")
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="main",
             option_id=option.system_id,
@@ -54,8 +51,7 @@ def test_a_main_row_reports_its_option_value(db_session, sample_anime):
 def test_a_free_form_row_reports_its_typed_name(db_session, sample_anime):
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="restricted",
             name="Some Site",
@@ -76,8 +72,7 @@ def test_attach_batches_across_entries(db_session, sample_anime):
     option = _option(db_session, "Bahamut")
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="main",
             option_id=option.system_id,
@@ -93,7 +88,6 @@ def test_replace_is_a_whole_set_replace(db_session, sample_anime):
     _option(db_session, "Netflix")
     replace_sources(
         db_session,
-        "anime",
         sample_anime.system_id,
         [{"kind": "access", "bucket": "other", "name": "First", "url": None}],
     )
@@ -101,7 +95,6 @@ def test_replace_is_a_whole_set_replace(db_session, sample_anime):
 
     replace_sources(
         db_session,
-        "anime",
         sample_anime.system_id,
         [{"kind": "access", "bucket": "other", "name": "Second", "url": None}],
     )
@@ -115,7 +108,6 @@ def test_replace_resolves_a_main_row_by_option_value(db_session, sample_anime):
     _option(db_session, "Crunchyroll")
     replace_sources(
         db_session,
-        "anime",
         sample_anime.system_id,
         [
             {
@@ -137,7 +129,6 @@ def test_replace_resolves_a_main_row_by_option_value(db_session, sample_anime):
 def test_replace_records_order(db_session, sample_anime):
     replace_sources(
         db_session,
-        "anime",
         sample_anime.system_id,
         [
             {"kind": "access", "bucket": "other", "name": "A"},
@@ -150,25 +141,34 @@ def test_replace_records_order(db_session, sample_anime):
     assert [r.position for r in rows] == [0, 1]
 
 
-def test_delete_removes_only_this_entry(db_session, sample_anime):
-    other_id = uuid.uuid4()
-    for entry_id in (sample_anime.system_id, other_id):
+def test_deleting_one_entry_leaves_another_entrys_sources(db_session, sample_anime):
+    """
+    There is no delete_sources_for any more: media_id cascades from `media`,
+    and the entry's own AFTER DELETE trigger removes that. This pins that the
+    cascade is scoped to the one entry.
+    """
+    from sqlalchemy import text
+
+    other = models.Anime(anime_name_cn="另一部")
+    db_session.add(other)
+    db_session.commit()
+    for media_id in (sample_anime.system_id, other.system_id):
         db_session.add(
             models.MediaSource(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=media_id,
                 kind="access",
                 bucket="other",
                 name="Site",
             )
         )
     db_session.commit()
+    doomed = sample_anime.system_id
 
-    removed = delete_sources_for(db_session, "anime", sample_anime.system_id)
+    db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": doomed})
     db_session.commit()
 
-    assert removed == 1
-    assert db_session.query(models.MediaSource).count() == 1
+    rows = db_session.query(models.MediaSource).all()
+    assert [r.media_id for r in rows] == [other.system_id]
 
 
 # ---------------------------------------------------------------------------
@@ -184,8 +184,7 @@ def test_main_rows_follow_the_vocabulary_sort_order(db_session, sample_anime):
         option = _option(db_session, value, sort_order=sort_order)
         db_session.add(
             models.MediaSource(
-                media_type="anime",
-                entry_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 kind="access",
                 bucket="main",
                 option_id=option.system_id,
@@ -203,8 +202,7 @@ def test_free_form_rows_keep_insertion_order(db_session, sample_anime):
     for position, name in enumerate(["Zeta", "Alpha", "Mu"]):
         db_session.add(
             models.MediaSource(
-                media_type="anime",
-                entry_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 kind="access",
                 bucket="other",
                 name=name,
@@ -223,8 +221,7 @@ def test_a_row_carries_its_option_id(db_session, sample_anime):
     option = _option(db_session, "Bahamut")
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="main",
             option_id=option.system_id,
@@ -241,8 +238,7 @@ def test_a_row_carries_its_option_id(db_session, sample_anime):
 def test_a_free_form_row_has_no_option_id(db_session, sample_anime):
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="other",
             name="Site",

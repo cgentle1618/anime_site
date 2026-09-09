@@ -35,8 +35,7 @@ def anime_with_sources(db_session, sample_franchise):
     db_session.flush()
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=entry.system_id,
+            media_id=entry.system_id,
             kind="access",
             bucket="other",
             name="Bilibili",
@@ -58,8 +57,7 @@ def movie_with_sources(db_session, sample_franchise):
     db_session.flush()
     db_session.add(
         models.MediaSource(
-            media_type="movie",
-            entry_id=entry.system_id,
+            media_id=entry.system_id,
             kind="access",
             bucket="other",
             name="Bilibili",
@@ -176,7 +174,7 @@ def test_gating_does_not_erase_the_stored_row(
     db_session.expire_all()
     stored = (
         db_session.query(models.MediaSource)
-        .filter_by(media_type="anime", entry_id=anime_with_sources.system_id)
+        .filter_by(media_id=anime_with_sources.system_id)
         .all()
     )
     assert len(stored) == 1
@@ -394,8 +392,7 @@ def test_a_viewer_without_restricted_sources_does_not_see_them(
     for bucket in ("other", "restricted"):
         db_session.add(
             models.MediaSource(
-                media_type="anime",
-                entry_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 kind="access",
                 bucket=bucket,
                 name=f"{bucket} site",

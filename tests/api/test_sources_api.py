@@ -54,8 +54,7 @@ def test_deleting_the_entry_deletes_its_sources(
 ):
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="access",
             bucket="other",
             name="Site",
@@ -71,8 +70,7 @@ def test_deleting_the_entry_deletes_its_sources(
 def test_the_list_endpoint_attaches_sources(admin_client, sample_anime, db_session):
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="reference",
             bucket="main",
             name=None,

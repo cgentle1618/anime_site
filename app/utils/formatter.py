@@ -1129,6 +1129,19 @@ def parse_system_option_alias_from_sheet(raw: dict) -> dict:
     }
 
 
+def _media_id_or_none(raw: dict):
+    """
+    The media row a link table's sheet row points at.
+
+    Reads `media_id`, falling back to `entry_id` for a sheet written before
+    the link tables moved onto the media supertable. The fallback is exact,
+    not a guess: media.system_id IS the old entry_id - the Phase A backfill
+    reused each detail row's existing UUID - so an older sheet restores with
+    no loss. Kept so a Backup taken before the move can still be pulled.
+    """
+    return _uuid_or_none(raw.get("media_id") or raw.get("entry_id"))
+
+
 def parse_media_source_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Media Source sheet into typed data ready
@@ -1137,7 +1150,7 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     option_id is deliberately absent. system_option mints a different uuid in
     every database, so the sheet carries the option's category and value
     instead and pull.py resolves them - the same treatment credits and tags
-    get. entry_id needs no such step: entry ids are identical everywhere.
+    get. media_id needs no such step: entry ids are identical everywhere.
 
     option_category/option_value themselves are also absent here: they are
     not Model columns, so parse_row_to_dict's raw dict (still available to
@@ -1147,8 +1160,7 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "media_id": _media_id_or_none(raw),
         # Preserved as written, not coerced: a kind or bucket added in a newer
         # version must survive a round trip through an older one.
         "kind": parse_from_sheet(raw.get("kind"), str),

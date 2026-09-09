@@ -75,7 +75,7 @@ def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
         (TWITTER_VALUE, "twitter_link"),
     ):
         upsert_main_source(
-            db, media_type, entry.system_id, "reference", value, j_data.get(key)
+            db, entry.system_id, "reference", value, j_data.get(key)
         )
 
 

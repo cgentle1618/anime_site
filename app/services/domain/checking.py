@@ -297,9 +297,7 @@ def apply_check_baha(
     from app.services.domain.sources import find_main_source
     from app.utils.source_fields import BAHAMUT_VALUE
 
-    row = find_main_source(
-        db, media_type, entry.system_id, "access", BAHAMUT_VALUE
-    )
+    row = find_main_source(db, entry.system_id, "access", BAHAMUT_VALUE)
     if row is not None and row.url and row.available is None:
         row.available = True
 

@@ -54,8 +54,7 @@ def _rows(db, media_type, entry):
             models.SystemOption.system_id == models.MediaSource.option_id,
         )
         .filter(
-            models.MediaSource.media_type == media_type,
-            models.MediaSource.entry_id == entry.system_id,
+            models.MediaSource.media_id == entry.system_id,
         )
         .all()
     }
@@ -100,8 +99,7 @@ def test_an_existing_row_is_not_overwritten(db_session, sample_anime, patched):
     db_session.flush()
     db_session.add(
         models.MediaSource(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             kind="reference",
             bucket="main",
             option_id=option.system_id,
