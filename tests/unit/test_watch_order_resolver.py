@@ -143,12 +143,12 @@ def make_manga(entry_id, name="Some Manga", ch_total=100):
 
 
 def make_movie(entry_id, name="Some Movie"):
+    """No watching_status: `movies` went list_backed in step 1 too."""
     return SimpleNamespace(
         system_id=entry_id,
         display_name=name,
         cover_image_file="movie.jpg",
         franchise_id=uuid.uuid4(),
-        watching_status="Completed",
     )
 
 
@@ -260,7 +260,12 @@ class TestResolveItems:
     def test_types_without_a_unit_count_report_none(self):
         """Movies have neither episodes nor chapters to range over."""
         entry_id = uuid.uuid4()
-        db = FakeSession({MEDIA_TYPE_MODELS["movie"]: [make_movie(entry_id)]})
+        db = FakeSession(
+            {MEDIA_TYPE_MODELS["movie"]: [make_movie(entry_id)]},
+            list_rows=[
+                make_list_row(entry_id, "movie", watching_status="Completed")
+            ],
+        )
 
         result = resolve_items(db, [make_item("movie", entry_id)])[0]
 

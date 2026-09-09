@@ -61,16 +61,16 @@ def sample_cartoon(db_session, sample_franchise):
 
 
 @pytest.fixture
-def sample_movie(db_session, sample_franchise):
+def sample_movie(db_session, sample_franchise, list_row):
     entry = models.Movies(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Test Movie",
-        watching_status="Watching",
         airing_status="Finished Airing",
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching")
     return entry
 
 

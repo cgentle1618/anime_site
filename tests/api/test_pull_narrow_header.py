@@ -36,13 +36,13 @@ def sheet(monkeypatch):
     return _install
 
 
-def effective_status(db, entry):
-    """What a reader sees for an anime now that status lives on the list row.
+def effective_status(db, entry, media_type="anime"):
+    """What a reader sees for an entry whose status lives on the list row.
 
-    `anime.watching_status` is gone, so asserting on the column is not an
-    option; this is the same call the read path makes.
+    The personal columns are gone from these tables, so asserting on the
+    column is not an option; this is the same call the read path makes.
     """
-    attach_list_fields(db, "anime", entry, acting_user_id(db, None))
+    attach_list_fields(db, media_type, entry, acting_user_id(db, None))
     return entry.watching_status
 
 
@@ -136,10 +136,13 @@ def test_pulling_anime_does_not_reset_the_status_on_the_list_row(
     assert effective_status(db_session, anime) == "Completed"
 
 
-def test_absent_created_at_does_not_restamp_an_existing_movie(db_session, sheet):
-    movie = models.Movies(movie_name_en="Arrival", watching_status="Completed")
+def test_absent_created_at_does_not_restamp_an_existing_movie(
+    db_session, sheet, list_row
+):
+    movie = models.Movies(movie_name_en="Arrival")
     db_session.add(movie)
     db_session.flush()
+    list_row(movie, status="Completed")
     original_created_at = movie.created_at
 
     sheet(["system_id", "movie_name_en"], [[str(movie.system_id), "Arrival"]])
@@ -149,7 +152,7 @@ def test_absent_created_at_does_not_restamp_an_existing_movie(db_session, sheet)
     assert result["status"] == "success"
     db_session.refresh(movie)
     assert movie.created_at == original_created_at
-    assert movie.watching_status == "Completed"
+    assert effective_status(db_session, movie, "movie") == "Completed"
 
 
 def test_insert_still_gets_its_defaults(db_session, sheet):
@@ -181,7 +184,7 @@ def test_movie_insert_still_gets_its_timestamps(db_session, sheet):
         .filter(models.Movies.movie_name_en == "Dune")
         .one()
     )
-    assert fresh.watching_status == "Might Watch"
+    assert effective_status(db_session, fresh, "movie") == "Might Watch"
     assert fresh.created_at is not None
     assert fresh.updated_at is not None
 

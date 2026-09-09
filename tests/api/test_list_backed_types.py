@@ -32,6 +32,10 @@ CASES = {
         models.AnimeMovies, "anime_movie_name_en", "anime-movie",
         "watching_status", "Completed", "length_min", 120,
     ),
+    "/api/movies": (
+        models.Movies, "movie_name_en", "movie",
+        "watching_status", "Completed", "length_min", 148,
+    ),
 }
 
 

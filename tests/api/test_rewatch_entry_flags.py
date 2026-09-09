@@ -23,7 +23,6 @@ def seeded_movie(db_session, sample_franchise):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Test Movie",
-        watching_status="Might Watch",
     )
     db_session.add(m)
     db_session.flush()

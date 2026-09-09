@@ -38,7 +38,7 @@ same hazard and reordered for it.
 | 8. Seasonal counters stop reading `anime.watching_status` | done |
 | 9. Flip `anime` | done |
 | 10. Flip `anime_movies` | done |
-| 11. Flip `movies` | todo |
+| 11. Flip `movies` | done |
 | 12. Flip `tv_shows` | todo |
 | 13. Flip `cartoons` | todo |
 | 14. Flip `manga` | todo |
