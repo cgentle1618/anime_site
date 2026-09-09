@@ -172,7 +172,6 @@ class Game(Base, NameFallbackMixin):
     metacritic_user_score = Column(Float, nullable=True)
 
     my_rating = Column(String, nullable=True)
-    cover_image_file = Column(String, nullable=True)
 
     igdb_id = Column(Integer, nullable=True)
     igdb_link = Column(String, nullable=True)

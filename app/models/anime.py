@@ -125,7 +125,6 @@ class Anime(Base, NameFallbackMixin):
 
     seiyuu = Column(String, nullable=True)
 
-    cover_image_file = Column(String, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

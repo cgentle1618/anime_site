@@ -30,6 +30,20 @@ def _writes(coverage):
             yield block, write
 
 
+def _writable_fields(model) -> set[str]:
+    """
+    Every name the Fill pipeline may legally write on this model.
+
+    Wider than the column list, and deliberately so: `cover_image_file` is an
+    association proxy onto the entry's `media` row, not a column of the entry's
+    own table, and the pipeline writes it exactly as it always did. What the
+    guard is for is catching a Write() that names nothing at all, and
+    all_orm_descriptors is the set that answers that - it holds columns,
+    proxies and hybrids alike.
+    """
+    return set(sa_inspect(model).all_orm_descriptors.keys())
+
+
 # ---------------------------------------------------------------------------
 # Catalog integrity
 # ---------------------------------------------------------------------------
@@ -47,7 +61,7 @@ def test_every_pipeline_is_covered():
 
 @pytest.mark.parametrize("coverage", EXTERNAL_APIS, ids=lambda c: c.key)
 def test_column_writes_name_real_columns(coverage):
-    columns = {c.key for c in sa_inspect(PIPELINES[coverage.key].model).columns}
+    columns = _writable_fields(PIPELINES[coverage.key].model)
     for _block, write in _writes(coverage):
         if write.target in COLUMN_TARGETS:
             assert write.field in columns, f"{coverage.key}.{write.field}"
@@ -55,7 +69,7 @@ def test_column_writes_name_real_columns(coverage):
 
 @pytest.mark.parametrize("coverage", EXTERNAL_APIS, ids=lambda c: c.key)
 def test_keyed_by_names_a_real_column(coverage):
-    columns = {c.key for c in sa_inspect(PIPELINES[coverage.key].model).columns}
+    columns = _writable_fields(PIPELINES[coverage.key].model)
     assert coverage.keyed_by in columns, coverage.key
 
 

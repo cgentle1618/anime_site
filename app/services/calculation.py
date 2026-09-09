@@ -17,6 +17,7 @@ from app.models import (
     Comic,
     Game,
     Manga,
+    Media,
     Movies,
     Novel,
     Person,
@@ -59,16 +60,11 @@ from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
 # The four entity tables belong here as much as the media ones: their portraits
 # and logos share the same storage, and leaving them out of the orphan scan
 # reported every one of them as unreferenced.
-COVER_OWNER_TABLES: tuple[tuple[str, type, str], ...] = (
-    ("anime", Anime, "cover_image_file"),
-    ("anime-movie", AnimeMovies, "cover_image_file"),
-    ("movie", Movies, "cover_image_file"),
-    ("tv-show", TVShows, "cover_image_file"),
-    ("cartoon", Cartoon, "cover_image_file"),
-    ("manga", Manga, "cover_image_file"),
-    ("novel", Novel, "cover_image_file"),
-    ("comic", Comic, "cover_image_file"),
-    ("game", Game, "cover_image_file"),
+# The nine media types collapse into one row: their covers live on `media`, and
+# `media.media_type` IS the folder name, so one query answers for all nine
+# where there used to be nine. owner_type None means "read it from the row".
+COVER_OWNER_TABLES: tuple[tuple[str | None, type, str], ...] = (
+    (None, Media, "cover_image_file"),
     ("staff", Person, "photo_file"),
     ("character", Character, "photo_file"),
     ("publisher", Publisher, "logo_file"),
@@ -100,7 +96,8 @@ def bulk_check_unused_cover_images(db: Session) -> dict:
             row[0] for row in db.query(col).filter(col.isnot(None)).all()
         }
         for row in db.query(model).all():
-            owned[cover_key(owner_type, str(row.system_id))] = row
+            folder = owner_type if owner_type is not None else row.media_type
+            owned[cover_key(folder, str(row.system_id))] = row
 
     # A casting may override a character's portrait with its own photo. It has
     # no folder of its own - the file sits among the character images - so it
@@ -139,7 +136,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
     missing = []
 
-    query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
+    query = db.query(Anime).join(Anime.media_row).filter(Media.cover_image_file.isnot(None))
     if entry_type:
         query = query.filter(Anime.airing_type == entry_type)
     animes = query.all()
@@ -155,7 +152,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
 
     if not entry_type:
         anime_movies = (
-            db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None)).all()
+            db.query(AnimeMovies).join(AnimeMovies.media_row).filter(Media.cover_image_file.isnot(None)).all()
         )
         for am in anime_movies:
             if not cover_image_exists("anime-movie", str(am.system_id)):
@@ -167,7 +164,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        cartoons = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None)).all()
+        cartoons = db.query(Cartoon).join(Cartoon.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for c in cartoons:
             if not cover_image_exists("cartoon", str(c.system_id)):
                 missing.append(
@@ -178,7 +175,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        movies = db.query(Movies).filter(Movies.cover_image_file.isnot(None)).all()
+        movies = db.query(Movies).join(Movies.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for m in movies:
             if not cover_image_exists("movie", str(m.system_id)):
                 missing.append(
@@ -189,7 +186,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        tv_shows = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None)).all()
+        tv_shows = db.query(TVShows).join(TVShows.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for t in tv_shows:
             if not cover_image_exists("tv-show", str(t.system_id)):
                 missing.append(
@@ -200,7 +197,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        mangas = db.query(Manga).filter(Manga.cover_image_file.isnot(None)).all()
+        mangas = db.query(Manga).join(Manga.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for mg in mangas:
             if not cover_image_exists("manga", str(mg.system_id)):
                 missing.append(
@@ -211,7 +208,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        novels = db.query(Novel).filter(Novel.cover_image_file.isnot(None)).all()
+        novels = db.query(Novel).join(Novel.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for nv in novels:
             if not cover_image_exists("novel", str(nv.system_id)):
                 missing.append(
@@ -222,7 +219,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        games = db.query(Game).filter(Game.cover_image_file.isnot(None)).all()
+        games = db.query(Game).join(Game.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for gm in games:
             if not cover_image_exists("game", str(gm.system_id)):
                 missing.append(
@@ -233,7 +230,7 @@ def bulk_check_cover_image(db: Session, entry_type: Optional[str] = None) -> dic
                     }
                 )
 
-        comics = db.query(Comic).filter(Comic.cover_image_file.isnot(None)).all()
+        comics = db.query(Comic).join(Comic.media_row).filter(Media.cover_image_file.isnot(None)).all()
         for cm in comics:
             if not cover_image_exists("comic", str(cm.system_id)):
                 missing.append(
@@ -283,8 +280,9 @@ def bulk_set_cover_image_fields(db: Session) -> dict:
         col = getattr(model, column)
         for entry in db.query(model).filter(col.is_(None)).all():
             sid = str(entry.system_id)
-            if cover_image_exists(owner_type, sid):
-                entry.cover_image_file = cover_key(owner_type, sid)
+            folder = owner_type if owner_type is not None else entry.media_type
+            if cover_image_exists(folder, sid):
+                entry.cover_image_file = cover_key(folder, sid)
                 updated += 1
     if updated:
         db.commit()
@@ -319,7 +317,7 @@ def bulk_download_missing_covers(
             if not cover_image_exists(owner_type, str(e.system_id))
         ]
 
-    anime_query = db.query(Anime).filter(Anime.cover_image_file.isnot(None))
+    anime_query = db.query(Anime).join(Anime.media_row).filter(Media.cover_image_file.isnot(None))
     for anime in _collect(anime_query, Anime, "anime"):
         total += 1
         if anime.airing_type in ALLOWED_AIRING_TYPES:
@@ -330,7 +328,7 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    am_query = db.query(AnimeMovies).filter(AnimeMovies.cover_image_file.isnot(None))
+    am_query = db.query(AnimeMovies).join(AnimeMovies.media_row).filter(Media.cover_image_file.isnot(None))
     for am in _collect(am_query, AnimeMovies, "anime-movie"):
         total += 1
         am.cover_image_file = None
@@ -338,7 +336,7 @@ def bulk_download_missing_covers(
         if am.cover_image_file:
             downloaded += 1
 
-    movie_query = db.query(Movies).filter(Movies.cover_image_file.isnot(None))
+    movie_query = db.query(Movies).join(Movies.media_row).filter(Media.cover_image_file.isnot(None))
     for movie in _collect(movie_query, Movies, "movie"):
         total += 1
         movie.cover_image_file = None
@@ -346,7 +344,7 @@ def bulk_download_missing_covers(
         if movie.cover_image_file:
             downloaded += 1
 
-    tv_query = db.query(TVShows).filter(TVShows.cover_image_file.isnot(None))
+    tv_query = db.query(TVShows).join(TVShows.media_row).filter(Media.cover_image_file.isnot(None))
     for tv in _collect(tv_query, TVShows, "tv-show"):
         total += 1
         tv.cover_image_file = None
@@ -354,7 +352,7 @@ def bulk_download_missing_covers(
         if tv.cover_image_file:
             downloaded += 1
 
-    cartoon_query = db.query(Cartoon).filter(Cartoon.cover_image_file.isnot(None))
+    cartoon_query = db.query(Cartoon).join(Cartoon.media_row).filter(Media.cover_image_file.isnot(None))
     for cartoon in _collect(cartoon_query, Cartoon, "cartoon"):
         total += 1
         cartoon.cover_image_file = None
@@ -362,7 +360,7 @@ def bulk_download_missing_covers(
         if cartoon.cover_image_file:
             downloaded += 1
 
-    manga_query = db.query(Manga).filter(Manga.cover_image_file.isnot(None))
+    manga_query = db.query(Manga).join(Manga.media_row).filter(Media.cover_image_file.isnot(None))
     for manga in _collect(manga_query, Manga, "manga"):
         total += 1
         manga.cover_image_file = None
@@ -370,7 +368,7 @@ def bulk_download_missing_covers(
         if manga.cover_image_file:
             downloaded += 1
 
-    novel_query = db.query(Novel).filter(Novel.cover_image_file.isnot(None))
+    novel_query = db.query(Novel).join(Novel.media_row).filter(Media.cover_image_file.isnot(None))
     for novel in _collect(novel_query, Novel, "novel"):
         total += 1
         if novel.mal_link:
@@ -381,7 +379,7 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    comic_query = db.query(Comic).filter(Comic.cover_image_file.isnot(None))
+    comic_query = db.query(Comic).join(Comic.media_row).filter(Media.cover_image_file.isnot(None))
     for comic in _collect(comic_query, Comic, "comic"):
         total += 1
         if comic.comicvine_id:
@@ -392,7 +390,7 @@ def bulk_download_missing_covers(
         else:
             skipped += 1
 
-    game_query = db.query(Game).filter(Game.cover_image_file.isnot(None))
+    game_query = db.query(Game).join(Game.media_row).filter(Media.cover_image_file.isnot(None))
     for game in _collect(game_query, Game, "game"):
         total += 1
         if game.igdb_id:

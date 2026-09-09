@@ -327,3 +327,44 @@ def test_download_missing_covers_skips_games_without_igdb_id(db_session, monkeyp
     )
     assert "Downloaded 0 of 1" in result["message"]
     assert "1 skipped" in result["message"]
+
+
+def test_a_cover_referenced_only_by_the_media_row_is_not_orphaned(
+    db_session, monkeypatch
+):
+    """
+    The nine entry tables no longer store cover_image_file - `media` does. The
+    orphan scan must therefore read it from there, or every entry cover in
+    storage is reported as a stray and bulk_delete_orphaned_cover_images
+    deletes the lot.
+    """
+    a = models.Anime(anime_name_cn="有封面")
+    db_session.add(a)
+    db_session.flush()
+    key = cover_key("anime", str(a.system_id))
+    a.cover_image_file = key
+    db_session.flush()
+
+    monkeypatch.setattr(calculation, "list_all_cover_images", lambda: [key])
+
+    result = calculation.bulk_check_unused_cover_images(db_session)
+
+    assert result["orphaned"] == []
+    assert result["should_use"] == []
+
+
+def test_the_cover_is_stored_on_the_media_row(db_session):
+    """cover_image_file on an entry is a proxy onto its media row."""
+    a = models.Anime(anime_name_cn="封面位置")
+    a.cover_image_file = "anime/x.jpg"
+    db_session.add(a)
+    db_session.flush()
+
+    assert "cover_image_file" not in models.Anime.__table__.columns
+    assert (
+        db_session.query(models.Media)
+        .filter_by(system_id=a.system_id)
+        .one()
+        .cover_image_file
+        == "anime/x.jpg"
+    )

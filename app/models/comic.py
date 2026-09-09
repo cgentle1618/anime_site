@@ -114,7 +114,6 @@ class Comic(Base, NameFallbackMixin):
     comicvine_id = Column(Integer, nullable=True)
     comicvine_link = Column(String, nullable=True)
 
-    cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
     completed_at = Column(DateTime, nullable=True)
