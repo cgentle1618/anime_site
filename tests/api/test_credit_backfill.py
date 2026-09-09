@@ -27,6 +27,9 @@ from app.services.domain.credits import (
 
 
 def _add_legacy_column(db_session, table, column):
+    # The pending deferred fk_<table>_media event from the flush above blocks
+    # ALTER TABLE; resolving it early is what a real COMMIT would do anyway.
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.execute(text(f'ALTER TABLE {table} ADD COLUMN "{column}" VARCHAR'))
 
 

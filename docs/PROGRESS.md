@@ -19,9 +19,9 @@ Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
 
 | Task | Status |
 |---|---|
-| 1. `media` model and table | done |
-| 2. `compute_display_name` | done |
-| 3. Port `anime` | todo |
+| 1. `media` model and table | done 159ab302 |
+| 2. `compute_display_name` | done 08ac7c33 |
+| 3. Port `anime` | done |
 | 4. Port `anime_movies` | todo |
 | 5. Port `movies` | todo |
 | 6. Port `tv_shows` | todo |
@@ -61,7 +61,7 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0a1media` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0a2anime` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
 | Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |

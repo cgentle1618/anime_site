@@ -164,3 +164,22 @@ User.role = column_property(
     .correlate_except(Role)
     .scalar_subquery()
 )
+
+
+# ---------------------------------------------------------------------------
+# `media`, write side
+# ---------------------------------------------------------------------------
+# Every media entry has one row in `media`. The parent row is maintained by
+# mapper events rather than by a router hook, because entries are written
+# through the ORM directly as often as through the API. Registered here, after
+# all models are imported, so the registrations sit together and no model
+# module has to import Media. See app/models/media_sync.py for why.
+from app.models.media_sync import register_media_sync  # noqa: E402
+
+# (model, hyphenated MEDIA_TABLES key). Grows as each type is ported.
+_MEDIA_TYPES = (
+    (Anime, "anime"),
+)
+
+for _model, _media_type in _MEDIA_TYPES:
+    register_media_sync(_model, _media_type)
