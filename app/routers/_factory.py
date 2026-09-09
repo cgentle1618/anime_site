@@ -363,7 +363,20 @@ def make_media_router(spec) -> APIRouter:
     ):
         entry = _get_or_404(db, entry_id)
         spec.mark_completed(entry)
-        if entry.completed_at is None:
+        # Finishing something is one person's fact once the type is
+        # list_backed: it lands on the acting user's row, and the shared
+        # entry keeps only what mark_completed said about the work itself.
+        if spec.list_backed:
+            user_id = acting_user_id(db, None)
+            if user_id is not None:
+                row = ensure_list_row(
+                    db, user_id, entry.system_id, spec.owner_type
+                )
+                spec.mark_completed_list(row, entry)
+                if row.completed_at is None:
+                    row.completed_at = get_taipei_now()
+                row.updated_at = get_taipei_now()
+        elif entry.completed_at is None:
             entry.completed_at = get_taipei_now()
         entry.updated_at = get_taipei_now()
         db.commit()

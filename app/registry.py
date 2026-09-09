@@ -20,11 +20,17 @@ from app import models, schemas
 from app.services.domain import (
     derive_novel_progress,
     mark_comic_completed,
+    mark_comic_list,
     mark_game_completed,
+    mark_game_list,
     mark_movie_completed,
+    mark_movie_list,
     mark_novel_completed,
+    mark_novel_list,
     mark_reading_completed,
+    mark_reading_list,
     mark_tv_completed,
+    mark_tv_list,
     resolve_anime_movie_parent_hierarchy,
     resolve_anime_parent_hierarchy,
     resolve_cartoon_parent_hierarchy,
@@ -73,6 +79,10 @@ class MediaTypeSpec:
     search_fields: tuple[str, ...]
     resolve_hierarchy: Callable    # (db, franchise_id, series_id, names) -> (fid, sid)
     mark_completed: Callable       # (entry) -> None
+    # (row, entry) -> None. The personal half of mark_completed, used by the
+    # /complete endpoint once this type is list_backed. Kept beside its
+    # catalogue twin so a type can never declare one without the other.
+    mark_completed_list: Optional[Callable] = None
     write_hook: Optional[Callable] = None   # async (db, id_str, action_type, log_action), after commit
     pre_commit_hook: Optional[Callable] = None  # (db, entry) inside the create/update transaction
     # Payload key -> writer(db, entry, value), popped before the model is
@@ -144,6 +154,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
         resolve_hierarchy=resolve_anime_parent_hierarchy,
         mark_completed=mark_tv_completed,
+        mark_completed_list=mark_tv_list,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
         nested_collections={"sources": media_sources_writer("anime")},
@@ -165,6 +176,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
                        "anime_movie_name_jp", "anime_movie_name_alt"),
         resolve_hierarchy=lambda db, fid, sid, names: (resolve_anime_movie_parent_hierarchy(db, fid, names), None),
         mark_completed=mark_movie_completed,
+        mark_completed_list=mark_movie_list,
         has_series=False,
         nested_collections={"sources": media_sources_writer("anime-movie")},
     ),
@@ -183,6 +195,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("movie_name_cn", "movie_name_en", "movie_name_alt"),
         resolve_hierarchy=resolve_movie_parent_hierarchy,
         mark_completed=mark_movie_completed,
+        mark_completed_list=mark_movie_list,
         write_hook=execute_replace_single_movie,
         nested_collections={"sources": media_sources_writer("movie")},
     ),
@@ -201,6 +214,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("tv_name_cn", "tv_name_en", "tv_name_alt"),
         resolve_hierarchy=resolve_tv_show_parent_hierarchy,
         mark_completed=mark_tv_completed,
+        mark_completed_list=mark_tv_list,
         write_hook=execute_replace_single_tv_show,
         nested_collections={"sources": media_sources_writer("tv-show")},
     ),
@@ -219,6 +233,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("cartoon_name_cn", "cartoon_name_en", "cartoon_name_alt"),
         resolve_hierarchy=resolve_cartoon_parent_hierarchy,
         mark_completed=mark_tv_completed,
+        mark_completed_list=mark_tv_list,
         write_hook=execute_replace_single_cartoon,
         nested_collections={"sources": media_sources_writer("cartoon")},
     ),
@@ -238,6 +253,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("manga_name_cn", "manga_name_en", "manga_name_roman", "manga_name_jp", "manga_name_alt"),
         resolve_hierarchy=resolve_manga_parent_hierarchy,
         mark_completed=mark_reading_completed,
+        mark_completed_list=mark_reading_list,
         write_hook=execute_replace_single_manga,
         nested_collections={"sources": media_sources_writer("manga")},
     ),
@@ -257,6 +273,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("novel_name_cn", "novel_name_en", "novel_name_roman", "novel_name_jp", "novel_name_alt"),
         resolve_hierarchy=resolve_novel_parent_hierarchy,
         mark_completed=mark_novel_completed,
+        mark_completed_list=mark_novel_list,
         write_hook=execute_replace_single_novel,
         nested_collections={
             "units": write_novel_units,
@@ -279,6 +296,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("comic_name_en", "comic_name_cn", "comic_name_alt"),
         resolve_hierarchy=resolve_comic_parent_hierarchy,
         mark_completed=mark_comic_completed,
+        mark_completed_list=mark_comic_list,
         write_hook=execute_replace_single_comic,
         nested_collections={"sources": media_sources_writer("comic")},
     ),
@@ -298,6 +316,7 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         search_fields=("game_name_en", "game_name_cn", "game_name_roman", "game_name_jp", "game_name_alt"),
         resolve_hierarchy=resolve_game_parent_hierarchy,
         mark_completed=mark_game_completed,
+        mark_completed_list=mark_game_list,
         extra_filters=_game_ownership,
         # Nothing external is fetched yet, so this only re-runs the shared
         # post-write step; the name exists from Task 9's pipeline spec.

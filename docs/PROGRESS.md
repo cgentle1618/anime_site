@@ -34,7 +34,7 @@ same hazard and reordered for it.
 | 22. `User Media List` sheet tab (run early, before Task 9) | done |
 | 5. `list_backed` and the read path | done |
 | 6. The write path | done |
-| 7. Completion services become per-user | todo |
+| 7. Completion services become per-user | done |
 | 8. Seasonal counters stop reading `anime.watching_status` | done |
 | 9. Flip `anime` | todo |
 | 10-17. Flip the other eight types | todo |
