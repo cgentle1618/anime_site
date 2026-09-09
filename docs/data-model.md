@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-08 (image columns hold local storage keys, not GCS object keys)
+Last verified: 2026-09-09 (the `media` supertable and the link tables' `media_id`)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -28,6 +28,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
 - [Access control](#access-control): role, role_permission, users, content_label, media_content_label
 - [Logs](#logs): data_control_logs, deleted_record
+- [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
 - [Corrections to the old schema doc](#corrections-to-the-old-schema-doc)
 
@@ -215,7 +216,11 @@ Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 
 ## Media entries
 
-Columns common to all nine entry tables (listed once here):
+Columns common to all nine entry tables (listed once here). Each table also
+carries a constant `media_type` discriminator, the child half of its composite
+FK up to [the `media` supertable](#the-media-supertable); `public_id`,
+`display_name`, `cover_image_file`, `franchise_id` and `series_id` are
+mirrored onto that row on every write.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -979,8 +984,7 @@ person/studio pair until 2026-09-06, when `publisher_id` widened it to three.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_type` | String | no | | Hyphenated MEDIA_TYPE_KEYS (`anime-movie`, `tv-show`, ...) |
-| `entry_id` | UUID | no | | FK-less - see [Cross-table references](#cross-table-references-without-foreign-keys) |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
 | `role` | String | no | | One of CREDIT_ROLE_KEYS, indexed |
 | `person_id` | UUID | yes | | FK `person.system_id` ON DELETE CASCADE |
 | `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE |
@@ -1005,8 +1009,7 @@ rather than category because one category can back several fields.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_type` | String | no | | |
-| `entry_id` | UUID | no | | FK-less |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
 | `field` | String | no | | One of TAG_FIELD_KEYS, indexed |
 | `option_id` | UUID | no | | FK `system_option.system_id` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` | |
@@ -1026,8 +1029,7 @@ Model: `MediaSource` (`app/models/media_source.py`).
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, indexed |
-| `media_type` | String | no | | Hyphenated MEDIA_TYPE_KEYS, no FK |
-| `entry_id` | UUID | no | | FK-less |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
 | `kind` | String | no | | `access` (somewhere to watch/read) or `reference` (somewhere to read *about* it — a wiki, a database), indexed |
 | `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, gated by field group `sources_other`), or `restricted` (free-form, gated by `sources_restricted`), indexed |
 | `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
@@ -1123,8 +1125,7 @@ a specific work). Model: `Quote`.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_type` | String | yes | | Indexed |
-| `entry_id` | UUID | yes | | FK-less, indexed; resolved against MEDIA_TABLES |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
 | `text` | Text | yes | | |
 | `translation` | Text | yes | | |
 | `language` | String | yes | | |
@@ -1243,8 +1244,7 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | `system_id` | UUID | no | uuid4 | PK |
 | `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE, indexed |
 | `position` | Float | yes | | Float so a step can be slotted between two others |
-| `media_type` | String | yes | | |
-| `entry_id` | UUID | yes | | FK-less, indexed |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id). `media_type` and `entry_id` are still served by the API, derived from this |
 | `section_id` | UUID | yes | | FK `watch_order_section` ON DELETE **SET NULL** - deleting a part leaves its steps unsectioned |
 | `ep_start` / `ep_end` | Integer | yes | | Both NULL = the whole entry. Unit depends on type (Ep / Ch / issue #) - see [entry-types.md](entry-types.md) |
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
@@ -1477,8 +1477,7 @@ One content label on one media entry. Deliberately **not** stored in
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `media_type` | String | no | | MEDIA_TYPE_KEYS |
-| `entry_id` | UUID | no | | FK-less |
+| `media_id` | UUID | no | | FK `media.system_id` ON DELETE CASCADE - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
 | `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` (server default) | |
 | `created_at` | DateTime | yes | now | |
@@ -1525,16 +1524,81 @@ deleted. Model: `DeletedRecord`.
 
 ---
 
+## The `media` supertable
+
+Every media entry has exactly one row in `media`, keyed by the **same**
+`system_id` the detail row already had. It exists so that anything pointing at
+"some entry" can use a real foreign key instead of an ambiguous (type, id)
+pair, and so the fields all nine types share can be queried in one place.
+
+| Column | Type | Null | Description |
+|---|---|:-:|---|
+| `system_id` | UUID | no | PK, **equal to the detail row's `system_id`** |
+| `media_type` | String | no | Hyphenated `MEDIA_TABLES` key |
+| `public_id` | Integer | no | Copy of the detail row's value, still minted by that table's own `<table>_public_id_seq` |
+| `display_name` | String | no | Derived, see below |
+| `cover_image_file` | String | yes | |
+| `franchise_id` | UUID | yes | FK `franchise.system_id` ON DELETE SET NULL |
+| `series_id` | UUID | yes | FK `series.system_id` ON DELETE SET NULL - always NULL for `anime-movie` |
+| `created_at` / `updated_at` | DateTime | yes | |
+
+Constraints: `uq_media_id_type` UNIQUE `(system_id, media_type)` and
+`uq_media_type_public_id` UNIQUE `(media_type, public_id)` DEFERRABLE INITIALLY
+DEFERRED.
+
+**How the two rows stay together.** Each detail table carries a constant
+`media_type` discriminator and a composite FK
+`fk_<table>_media (system_id, media_type)` referencing
+`media (system_id, media_type)`, ON DELETE CASCADE, pinned by
+`ck_<table>_media_type`. The pair is what stops an anime row attaching itself
+to a manga's `media` row. The FK is **DEFERRABLE INITIALLY DEFERRED** because
+the parent row is written *after* the child: it copies `public_id`, which a
+`Sequence` default does not mint until the detail INSERT runs. In the other
+direction an `AFTER DELETE` trigger, `trg_<table>_delete_media`, removes the
+`media` row when the detail row is deleted, so a delete against either table
+cleans up both.
+
+**Who writes it.** Mapper events in `app/models/media_sync.py`, registered for
+all nine types at the bottom of `app/models/__init__.py`. Not a router hook:
+entries are written through the ORM directly as often as through the API. The
+insert is an upsert, because Pull restores the `Media` tab before the nine
+entry tabs.
+
+**`display_name` is denormalized.** It is derived from the detail row's
+`*_name_*` columns, CN first, by the single producer
+`compute_display_name` in `app/services/domain/display_name.py`; an entry with
+no name at all gets `(unnamed <type> <public_id>)`.
+`tests/api/test_display_name_drift.py` is what catches it going stale - the one
+new class of bug the supertable adds.
+
+**Promotion rule.** A field belongs on `media` only when all nine types have it
+AND something queries across types by it. Both halves are required, or this
+becomes a junk drawer and the detail tables hollow out. Deliberately not here:
+`my_rating` and `watching_status` (per-user, not catalogue), `mal_rating` and
+`mal_id` (only the MAL-sourced types have them), `airing_status` (spelled
+differently elsewhere and not the same concept).
+
+`tests/unit/test_media_constraints.py` pins the FK, the CHECK and the
+discriminator on all nine types, and a companion in
+`tests/api/test_media_supertable.py` pins the triggers in the database -
+Alembic autogenerates none of them, so nothing else would catch a tenth media
+type added without them.
+
+---
+
 ## Cross-table references without foreign keys
 
-Nine entry tables each have their own `system_id` space, so a bare UUID is
-ambiguous and no single foreign key can span them. Tables that need to point
-at "any entry" therefore store a **(type, id) pair** with no FK, and resolve
-it at read time through `app/utils/media_resolver.py`:
+Nine entry tables each have their own `system_id` space, so a bare UUID used to
+be ambiguous. Since the `media` supertable exists, a media entry's id is unique
+across all nine, and six tables now hold a real `media_id` FK instead of a
+pair. The ones still storing a **(type, id) pair** with no FK are those whose
+owner may be a **grouping tier**, which has no row in `media`, plus the two
+that point at entries on both ends. They resolve at read time through
+`app/utils/media_resolver.py`:
 
-| Registry | Keys | Used by |
+| Registry | Keys | Still used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_credit`, `media_tag`, `media_content_label`, `media_relation` (both ends), `watch_order_item`, `quote`, `media_source`, `character_casting` (anime, anime-movie, manga, novel only) |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` (anime, anime-movie, manga, novel only) |
 | `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | `note`, `meme` (`owner_type` / `owner_id`), `plan_next` (`scope` + `media_type` + `target_id`) |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
@@ -1542,6 +1606,32 @@ row no longer exists resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
 **deleting an entry does not cascade** to these tables (only the franchise and
 series delete paths clear `plan_next` explicitly).
+
+### The six tables that moved to `media_id`
+
+Each now has a real FK to `media.system_id`, so the database cleans up after a
+delete and no service call is involved. The rules differ on purpose:
+
+| Table | On delete | Why |
+|---|---|---|
+| `media_source` | CASCADE | Replaced `delete_sources_for` |
+| `media_credit` | CASCADE | Replaced `delete_links_for` |
+| `media_tag` | CASCADE | Replaced `delete_links_for` |
+| `media_content_label` | CASCADE | A label on a deleted entry means nothing. Had no cleanup path at all before, so its orphans were collected for the first time |
+| `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
+| `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
+
+`media_credit` and `media_tag` keep their unique rows as
+`(media_id, role, person_id, studio_id, publisher_id)` and
+`(media_id, field, option_id)`.
+
+`quote` and `watch_order_item` still expose `media_type` and `entry_id` **in
+the API**, because the SPA reads that pair in ~93 places and Step 0 changes no
+user-visible behaviour. They are derived, not stored: `entry_id` is a
+SQLAlchemy synonym for `media_id`, and `media_type` is a read-only
+`column_property` off the `media` row - the same pattern `remark` and
+`User.role` use. That also removes a latent bug class: the old pair could store
+`media_type="manga"` beside an anime's `entry_id` and nothing objected.
 
 The same hyphenated keys are what `system_option_scope.scope`, permission
 names (`media_type.tv-show`) and the sheet tab registry use.
