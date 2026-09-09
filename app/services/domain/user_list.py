@@ -193,6 +193,42 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
             setattr(entry, field, value)
 
 
+def attach_unit_ratings(db: Session, media_type: str, entries, user_id) -> None:
+    """Put the reader's per-unit rating back on each of a novel's units.
+
+    Task 20 moved novel_unit.my_rating to user_novel_unit_rating, but
+    NovelUnitResponse still declares my_rating and reads it off the ORM object
+    - so without this every unit serialises as None. The same trick
+    attach_list_fields uses, one level down.
+
+    Novel-only, and one query for every unit of every entry passed, not one
+    per unit.
+    """
+    if media_type != "novel":
+        return
+    if isinstance(entries, Iterable) and not hasattr(entries, "system_id"):
+        items = list(entries)
+    else:
+        items = [entries]
+    units = [u for e in items for u in (getattr(e, "units", None) or [])]
+    if not units:
+        return
+
+    rows = {}
+    if user_id is not None:
+        rows = {
+            r.unit_id: r.my_rating
+            for r in db.query(models.UserNovelUnitRating)
+            .filter(
+                models.UserNovelUnitRating.user_id == user_id,
+                models.UserNovelUnitRating.unit_id.in_([u.system_id for u in units]),
+            )
+            .all()
+        }
+    for unit in units:
+        unit.my_rating = rows.get(unit.system_id)
+
+
 def split_list_payload(media_type: str, payload: dict) -> tuple[dict, dict]:
     """
     Split a write payload into (catalogue keys, personal keys).

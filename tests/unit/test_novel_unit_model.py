@@ -5,6 +5,8 @@ from app.utils.constants import NOVEL_UNIT_KINDS, NOVEL_UNIT_KINDS_BY_TYPE
 
 
 def test_novel_unit_columns():
+    """my_rating is deliberately absent: it is one reader's opinion of one
+    unit and moved to user_novel_unit_rating in step 1."""
     cols = {c.name for c in models.NovelUnit.__table__.columns}
     assert cols == {
         "system_id",
@@ -17,7 +19,6 @@ def test_novel_unit_columns():
         "remark",
         "ch_count",
         # Per-unit grade on the MY_RATINGS scale; nothing derives from it.
-        "my_rating",
         "created_at",
         "updated_at",
     }

@@ -41,6 +41,7 @@ from app.services.domain.user_list import (
     acting_user_id,
     apply_list_payload,
     attach_list_fields,
+    attach_unit_ratings,
     ensure_list_row,
     join_list,
     split_list_payload,
@@ -125,7 +126,9 @@ def make_media_router(spec) -> APIRouter:
             spec.progress_hook_list(row, entry)
 
     def _finish(db: Session, entry, viewer=None):
-        attach_list_fields(db, spec.owner_type, entry, acting_user_id(db, viewer))
+        user_id = acting_user_id(db, viewer)
+        attach_list_fields(db, spec.owner_type, entry, user_id)
+        attach_unit_ratings(db, spec.owner_type, entry, user_id)
         attach_plan_flag(db, spec.owner_type, entry)
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
@@ -222,6 +225,7 @@ def make_media_router(spec) -> APIRouter:
         attach_sources(db, spec.owner_type, entries, viewer)
         # One IN query for the whole page, not one per entry.
         attach_list_fields(db, spec.owner_type, entries, user_id)
+        attach_unit_ratings(db, spec.owner_type, entries, user_id)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")

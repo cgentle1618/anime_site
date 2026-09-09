@@ -48,6 +48,7 @@ from app.models.system import (
 )
 from app.models.tv_show import TVShows
 from app.models.user_media_list import UserMediaList
+from app.models.user_novel_unit_rating import UserNovelUnitRating
 from app.models.watch_order import (
     WatchOrderItem,
     WatchOrderList,
@@ -63,6 +64,7 @@ __all__ = [
     "Series",
     "Media",
     "UserMediaList",
+    "UserNovelUnitRating",
     "Anime",
     "AnimeMovies",
     "Movies",
