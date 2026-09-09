@@ -106,3 +106,67 @@ def test_an_unnamed_entry_gets_the_placeholder_display_name(db):
 
     m = db.query(models.Media).filter_by(system_id=a.system_id).one()
     assert m.display_name == f"(unnamed anime {a.public_id})"
+
+
+# The other eight types. Name columns re-confirmed against each model's
+# _name_fields: movies, tv_shows, cartoons and comic have three, and tv_shows
+# uses the tv_ prefix, not tv_show_.
+@pytest.mark.parametrize(
+    "model, kwargs, key, expected_name",
+    [
+        (models.AnimeMovies, {"anime_movie_name_cn": "電影"}, "anime-movie", "電影"),
+        (models.Movies, {"movie_name_cn": "電影二"}, "movie", "電影二"),
+        (models.TVShows, {"tv_name_cn": "影集"}, "tv-show", "影集"),
+        (models.Cartoon, {"cartoon_name_cn": "卡通"}, "cartoon", "卡通"),
+        (models.Manga, {"manga_name_cn": "漫畫"}, "manga", "漫畫"),
+        (models.Novel, {"novel_name_cn": "小說"}, "novel", "小說"),
+        (models.Comic, {"comic_name_cn": "美漫"}, "comic", "美漫"),
+        (models.Game, {"game_name_cn": "遊戲"}, "game", "遊戲"),
+    ],
+)
+def test_every_type_gets_a_media_row(db, model, kwargs, key, expected_name):
+    entry = model(**kwargs)
+    db.add(entry)
+    db.commit()
+
+    m = db.query(models.Media).filter_by(system_id=entry.system_id).one()
+    assert m.media_type == key
+    assert m.display_name == expected_name
+
+
+@pytest.mark.parametrize(
+    "model, kwargs, table",
+    [
+        (models.AnimeMovies, {"anime_movie_name_cn": "刪除"}, "anime_movies"),
+        (models.Movies, {"movie_name_cn": "刪除"}, "movies"),
+        (models.TVShows, {"tv_name_cn": "刪除"}, "tv_shows"),
+        (models.Cartoon, {"cartoon_name_cn": "刪除"}, "cartoons"),
+        (models.Manga, {"manga_name_cn": "刪除"}, "manga"),
+        (models.Novel, {"novel_name_cn": "刪除"}, "novel"),
+        (models.Comic, {"comic_name_cn": "刪除"}, "comic"),
+        (models.Game, {"game_name_cn": "刪除"}, "games"),
+    ],
+)
+def test_deleting_the_detail_row_removes_its_media(db, model, kwargs, table):
+    entry = model(**kwargs)
+    db.add(entry)
+    db.commit()
+    sid = entry.system_id
+
+    db.execute(text(f"DELETE FROM {table} WHERE system_id = :s"), {"s": sid})
+    db.commit()
+
+    assert db.query(models.Media).filter_by(system_id=sid).first() is None
+
+
+def test_an_anime_movie_has_no_series(db, sample_series):
+    """
+    anime_movies is the one type with no series_id column, so its media row
+    must carry NULL there however the entry was written.
+    """
+    m = models.AnimeMovies(anime_movie_name_cn="無系列")
+    db.add(m)
+    db.commit()
+
+    row = db.query(models.Media).filter_by(system_id=m.system_id).one()
+    assert row.series_id is None

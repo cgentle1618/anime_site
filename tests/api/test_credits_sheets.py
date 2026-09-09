@@ -109,7 +109,12 @@ def test_backup_appends_credit_columns_after_the_plain_anime_columns(
 
     anime_matrix = written["Anime"]
     headers = anime_matrix[0]
-    plain_headers = [c.name for c in models.Anime.__table__.columns]
+    # media_type is dropped from every entry tab (MEDIA_TYPE_ONLY in tabs.py):
+    # it is the constant discriminator for the FK up to `media`, identical on
+    # every row and re-supplied by its server_default on restore.
+    plain_headers = [
+        c.name for c in models.Anime.__table__.columns if c.name != "media_type"
+    ]
 
     # Every original column is still there, in the same order, untouched.
     assert headers[: len(plain_headers)] == plain_headers

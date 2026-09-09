@@ -179,6 +179,14 @@ from app.models.media_sync import register_media_sync  # noqa: E402
 # (model, hyphenated MEDIA_TABLES key). Grows as each type is ported.
 _MEDIA_TYPES = (
     (Anime, "anime"),
+    (AnimeMovies, "anime-movie"),
+    (Movies, "movie"),
+    (TVShows, "tv-show"),
+    (Cartoon, "cartoon"),
+    (Manga, "manga"),
+    (Novel, "novel"),
+    (Comic, "comic"),
+    (Game, "game"),
 )
 
 for _model, _media_type in _MEDIA_TYPES:

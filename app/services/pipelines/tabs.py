@@ -56,6 +56,13 @@ def _option_value(row: Any, db: Session) -> Optional[str]:
     return option.value if option else None
 
 
+# media_type is the constant discriminator half of each entry table's FK up to
+# `media` (app/models/media_sync.py). It is the same value for every row on the
+# tab and is re-supplied by the column's server_default on restore, so it would
+# only add a column of noise for the human reading the sheet.
+MEDIA_TYPE_ONLY: tuple[str, ...] = ("media_type",)
+
+
 SHEET_TABS: tuple[SheetTab, ...] = (
     # Vocabulary first; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
@@ -87,17 +94,17 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Franchise", models.Franchise, f.parse_franchise_from_sheet),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
     # Media entries. The sheet tab for anime_movies is named "Anime Movie".
-    SheetTab("Anime", models.Anime, f.parse_anime_from_sheet, "anime"),
-    SheetTab("Anime Movie", models.AnimeMovies, f.parse_anime_movie_from_sheet, "anime-movie"),
-    SheetTab("Movies", models.Movies, f.parse_movie_from_sheet, "movie"),
-    SheetTab("TV Shows", models.TVShows, f.parse_tv_show_from_sheet, "tv-show"),
-    SheetTab("Cartoons", models.Cartoon, f.parse_cartoon_from_sheet, "cartoon"),
-    SheetTab("Manga", models.Manga, f.parse_manga_from_sheet, "manga"),
-    SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel"),
+    SheetTab("Anime", models.Anime, f.parse_anime_from_sheet, "anime", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Anime Movie", models.AnimeMovies, f.parse_anime_movie_from_sheet, "anime-movie", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Movies", models.Movies, f.parse_movie_from_sheet, "movie", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("TV Shows", models.TVShows, f.parse_tv_show_from_sheet, "tv-show", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Cartoons", models.Cartoon, f.parse_cartoon_from_sheet, "cartoon", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Manga", models.Manga, f.parse_manga_from_sheet, "manga", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Novel", models.Novel, f.parse_novel_from_sheet, "novel", drop_columns=MEDIA_TYPE_ONLY),
     # After Novel: novel_id is a real FK, so the parent rows must exist first.
     SheetTab("Novel Unit", models.NovelUnit, f.parse_novel_unit_from_sheet),
-    SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic"),
-    SheetTab("Game", models.Game, f.parse_game_from_sheet, "game"),
+    SheetTab("Comic", models.Comic, f.parse_comic_from_sheet, "comic", drop_columns=MEDIA_TYPE_ONLY),
+    SheetTab("Game", models.Game, f.parse_game_from_sheet, "game", drop_columns=MEDIA_TYPE_ONLY),
     # After Game: game_id is a real FK, so the parent rows must exist first.
     SheetTab("Game Copy", models.GameCopy, f.parse_game_copy_from_sheet),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.

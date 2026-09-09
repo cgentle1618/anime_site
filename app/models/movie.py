@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Sequence,
     String,
@@ -23,6 +24,22 @@ class Movies(Base, NameFallbackMixin):
 
     __tablename__ = "movies"
     __table_args__ = (
+        # Pins this row to a media row of its own type: with media's
+        # UNIQUE (system_id, media_type) on the other end, this table's row can
+        # never attach itself to another type's media row.
+        ForeignKeyConstraint(
+            ["system_id", "media_type"],
+            ["media.system_id", "media.media_type"],
+            name="fk_movies_media",
+            ondelete="CASCADE",
+            # Deferred because the parent row is written *after* this one: the
+            # media row copies public_id, which a Sequence default does not
+            # mint until this INSERT runs. Both rows land in one transaction
+            # and the pairing is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("media_type = 'movie'", name="ck_movies_media_type"),
         CheckConstraint(
             r"release_date_usa ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_movies_release_date_usa_iso",
@@ -50,6 +67,10 @@ class Movies(Base, NameFallbackMixin):
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
     public_id = Column(Integer, Sequence("movies_public_id_seq"), nullable=False)
+    # The discriminator half of the composite FK up to `media`. Constant per
+    # table and pinned by ck_movies_media_type; it exists so the FK can carry
+    # the type, not because a row could ever be anything else.
+    media_type = Column(String, nullable=False, server_default="movie")
     franchise_id = Column(
         UUID(as_uuid=True),
         ForeignKey("franchise.system_id", ondelete="SET NULL"),

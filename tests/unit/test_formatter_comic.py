@@ -61,6 +61,11 @@ class TestParseComicFromSheet:
         from app.models.comic import Comic
 
         model_cols = {c.name for c in Comic.__table__.columns}
+        # media_type is the constant discriminator for the FK up to `media`.
+        # It never reaches the sheet (MEDIA_TYPE_ONLY in tabs.py drops it) and
+        # its server_default re-supplies it on restore, so there is nothing for
+        # the parser to round-trip.
+        model_cols.discard("media_type")
         raw = {c: "" for c in model_cols}
         raw["public_id"] = "47"
         parsed = parse_comic_from_sheet(raw)
