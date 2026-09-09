@@ -3,7 +3,7 @@
 import json
 import logging
 
-from sqlalchemy import or_, text
+from sqlalchemy import Sequence, or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
@@ -201,13 +201,20 @@ def resync_public_id_sequence(db: Session, model) -> None:
     restore already used, and the failure surfaces later - on the next entry
     an admin adds - as a unique-constraint error that says nothing about Pull.
 
-    A no-op for tables with no public_id, because Pull walks every tab.
+    A no-op for tables with no public_id, because Pull walks every tab, and a
+    no-op for `media`, which has a public_id but owns no sequence: its value is
+    a copy of the detail row's, minted by that table's own sequence. The name
+    therefore comes from the column's declared Sequence, never from the table's
+    name - deriving it made Pull All crash on "media_public_id_seq does not
+    exist" before a single tab was restored.
     """
     column = model.__table__.columns.get("public_id")
     if column is None:
         return
     table = model.__table__.name
-    sequence = f"{table}_public_id_seq"
+    if not isinstance(column.default, Sequence):
+        return
+    sequence = column.default.name
     # COALESCE covers an empty table: max() is NULL there and setval would
     # fail. is_called=false makes the next nextval return exactly this value.
     db.execute(
