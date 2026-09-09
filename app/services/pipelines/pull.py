@@ -1054,7 +1054,7 @@ def execute_pull_specific(
             for field_key, raw_value in pending_tags:
                 try:
                     replace_tags(
-                        db, media_type, entry.system_id, field_key,
+                        db, entry.system_id, field_key,
                         names_from_sheet_value(raw_value),
                     )
                 except AmbiguousNameError as e:

@@ -1,26 +1,22 @@
 """
 Deleting a media entry must take its credit and tag rows with it.
 
-media_credit / media_tag address their entry by a FK-less
-(media_type, entry_id) pair - no single foreign key can span the eight media
-tables - so nothing cascades on its own. Without an explicit cleanup the rows
-outlive the entry forever, and the orphans then feed extract_system_options
-and the duplicate checks. delete_plans_for already solves the same problem for
-plan_next; these tests pin the equivalent for links.
+media_credit / media_tag address their entry by media_id, a real foreign key
+to media.system_id with ON DELETE CASCADE. Deleting an entry drops its media
+row (the detail table's AFTER DELETE trigger), which takes the link rows with
+it. Without that cascade the rows would outlive the entry forever, and the
+orphans would then feed extract_system_options and the duplicate checks.
+These tests pin the cascade.
 """
 
 from app import models
 from app.services.domain import credits as credits_service
 
 
-def _links(db_session, media_type, entry_id):
+def _links(db_session, entry_id):
     return (
-        db_session.query(models.MediaCredit)
-        .filter_by(media_type=media_type, entry_id=entry_id)
-        .count()
-        + db_session.query(models.MediaTag)
-        .filter_by(media_type=media_type, entry_id=entry_id)
-        .count()
+        db_session.query(models.MediaCredit).filter_by(media_id=entry_id).count()
+        + db_session.query(models.MediaTag).filter_by(media_id=entry_id).count()
     )
 
 
@@ -29,14 +25,12 @@ def test_deleting_an_anime_removes_its_links(admin_client, db_session):
     db_session.add(a)
     db_session.commit()
     credits_service.replace_credits(db_session, "anime", a.system_id, "studio", ["MAPPA"])
-    credits_service.replace_tags(
-        db_session, "anime", a.system_id, "genre_main", ["Action"]
-    )
+    credits_service.replace_tags(db_session, a.system_id, "genre_main", ["Action"])
     db_session.commit()
-    assert _links(db_session, "anime", a.system_id) == 2
+    assert _links(db_session, a.system_id) == 2
 
     assert admin_client.delete(f"/api/anime/{a.system_id}").status_code == 200
-    assert _links(db_session, "anime", a.system_id) == 0
+    assert _links(db_session, a.system_id) == 0
 
 
 def test_deleting_an_anime_movie_removes_its_links(admin_client, db_session):
@@ -47,10 +41,10 @@ def test_deleting_an_anime_movie_removes_its_links(admin_client, db_session):
         db_session, "anime-movie", m.system_id, "director", ["新海誠"]
     )
     db_session.commit()
-    assert _links(db_session, "anime-movie", m.system_id) == 1
+    assert _links(db_session, m.system_id) == 1
 
     assert admin_client.delete(f"/api/anime-movie/{m.system_id}").status_code == 200
-    assert _links(db_session, "anime-movie", m.system_id) == 0
+    assert _links(db_session, m.system_id) == 0
 
 
 def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_session):
@@ -62,17 +56,17 @@ def test_deleting_a_factory_type_entry_removes_its_links(admin_client, db_sessio
         db_session, "comic", c.system_id, "author", ["Brian K. Vaughan"]
     )
     credits_service.replace_tags(
-        db_session, "comic", c.system_id, "comic_era", ["Modern Age"]
+        db_session, c.system_id, "comic_era", ["Modern Age"]
     )
     db_session.commit()
-    assert _links(db_session, "comic", c.system_id) == 2
+    assert _links(db_session, c.system_id) == 2
 
     assert admin_client.delete(f"/api/comic/{c.system_id}").status_code == 200
-    assert _links(db_session, "comic", c.system_id) == 0
+    assert _links(db_session, c.system_id) == 0
 
 
 def test_another_entrys_links_are_left_alone(admin_client, db_session):
-    """The delete is scoped to one (media_type, entry_id), not to the role."""
+    """The delete is scoped to one entry's media_id, not to the role."""
     a = models.Anime(anime_name_cn="甲")
     b = models.Anime(anime_name_cn="乙")
     db_session.add_all([a, b])
@@ -84,7 +78,7 @@ def test_another_entrys_links_are_left_alone(admin_client, db_session):
     db_session.commit()
 
     admin_client.delete(f"/api/anime/{a.system_id}")
-    assert _links(db_session, "anime", b.system_id) == 1
+    assert _links(db_session, b.system_id) == 1
 
 
 # ---------------------------------------------------------------------------

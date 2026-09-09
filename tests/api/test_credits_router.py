@@ -90,8 +90,7 @@ def test_anime_payload_carries_linkable_studio_refs(
     db_session.flush()
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             role="studio",
             studio_id=studio.system_id,
             position=0,

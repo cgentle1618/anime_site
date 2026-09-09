@@ -33,7 +33,8 @@ Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
 | 12. Constraint drift test | done |
 | 13. `display_name` drift test | done |
 | 14. `media_source` to `media_id` | done |
-| 15–19. Link tables to `media_id` | todo |
+| 15–16. `media_credit`, `media_tag` to `media_id` | done |
+| 17–19. `media_content_label`, `quote`, `watch_order_item` | todo |
 | 20. Contract `cover_image_file` | todo |
 | 21. Contract `franchise_id` / `series_id` | todo |
 | 22. Contract `public_id` + `entity_ref_filter` | todo |
@@ -62,7 +63,7 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0c1source` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0c2credit` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
 | Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |

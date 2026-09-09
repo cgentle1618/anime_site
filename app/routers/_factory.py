@@ -18,7 +18,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
-from app.services.domain.credits import attach_link_fields, delete_links_for
+from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import (
     PLAN_FLAG_FIELDS,
     attach_plan_flag,
@@ -291,9 +291,9 @@ def make_media_router(spec) -> APIRouter:
             delete_cover_image(spec.owner_type, str(entry.system_id))
         log_deleted_record(db, entry, spec.label)
         delete_plans_for(db, "entry", entry.system_id)
-        delete_links_for(db, spec.owner_type, entry.system_id)
-        # media_source needs no cleanup call: its media_id FK cascades from
-        # the media row, which the entry's own delete trigger removes.
+        # media_credit, media_tag and media_source need no cleanup call:
+        # each has a media_id FK that cascades from the media row, which the
+        # entry's own AFTER DELETE trigger removes.
         db.delete(entry)
         db.commit()
         return {"status": "success", "message": f"{spec.label} entry deleted successfully."}

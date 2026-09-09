@@ -22,10 +22,9 @@ class MediaCredit(Base):
     """
     One person, studio or publisher credited on one media entry.
 
-    The entry endpoint is a FK-less (media_type, entry_id) pair, the same
-    contract media_relation and watch_order_item use: no single foreign key can
-    span the eight media tables, so the pair is resolved at read time through
-    MEDIA_TABLES in app/utils/media_resolver.py.
+    The entry endpoint is media_id, a real foreign key up to the `media`
+    supertable. The row's media type is media.media_type, one join away; this
+    table does not store its own copy.
 
     Exactly one of person_id / studio_id / publisher_id is set - the target is
     one of three entity tables - enforced by a CHECK rather than by
@@ -48,8 +47,7 @@ class MediaCredit(Base):
         # same role on the same entry twice, since (person_id, NULL, NULL)
         # would never collide with itself.
         UniqueConstraint(
-            "media_type",
-            "entry_id",
+            "media_id",
             "role",
             "person_id",
             "studio_id",
@@ -57,15 +55,18 @@ class MediaCredit(Base):
             name="uq_media_credit_row",
             postgresql_nulls_not_distinct=True,
         ),
-        Index("ix_media_credit_entry", "media_type", "entry_id"),
+        Index("ix_media_credit_entry", "media_id"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
     # One of MEDIA_TYPE_KEYS (hyphenated).
-    media_type = Column(String, nullable=False)
-    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     # One of credit_roles.CREDIT_ROLE_KEYS whose credited_via == "media_credit" -
     # i.e. every key except "seiyuu", whose castings live in character_casting
     # (see app/models/character.py) instead of this table.
@@ -106,16 +107,19 @@ class MediaTag(Base):
     __tablename__ = "media_tag"
     __table_args__ = (
         UniqueConstraint(
-            "media_type", "entry_id", "field", "option_id", name="uq_media_tag_row"
+            "media_id", "field", "option_id", name="uq_media_tag_row"
         ),
-        Index("ix_media_tag_entry", "media_type", "entry_id"),
+        Index("ix_media_tag_entry", "media_id"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    media_type = Column(String, nullable=False)
-    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     # One of credit_roles.TAG_FIELD_KEYS.
     field = Column(String, nullable=False, index=True)
     option_id = Column(

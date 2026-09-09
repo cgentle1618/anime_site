@@ -5,6 +5,14 @@ import uuid
 from app import models
 
 
+def _anime_id(db_session, name="測試"):
+    """media_credit.media_id is a real FK, so the entry has to exist."""
+    a = models.Anime(anime_name_cn=name)
+    db_session.add(a)
+    db_session.flush()
+    return a.system_id
+
+
 def _create(admin_client, name, roles):
     return admin_client.post(
         "/api/person/", json={"name": name, "roles": roles}
@@ -57,8 +65,7 @@ def test_response_carries_a_credit_count(admin_client, client, db_session):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             role="director",
             person_id=created["system_id"],
         )
@@ -71,8 +78,7 @@ def test_delete_cascades_the_credits(admin_client, db_session):
     created = _create(admin_client, "新海誠", [{"role": "director", "scope": "anime"}])
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             role="director",
             person_id=created["system_id"],
         )
@@ -95,11 +101,10 @@ def test_merge_repoints_credits_onto_the_survivor(admin_client, db_session):
     drop = _create(
         admin_client, "Makoto Shinkai", [{"role": "director", "scope": "anime"}]
     )
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=entry_id,
+            media_id=entry_id,
             role="director",
             person_id=drop["system_id"],
         )
@@ -121,12 +126,11 @@ def test_merge_does_not_duplicate_a_credit_both_already_had(
 ):
     keep = _create(admin_client, "A", [{"role": "director", "scope": "anime"}])
     drop = _create(admin_client, "B", [{"role": "director", "scope": "anime"}])
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     for pid in (keep["system_id"], drop["system_id"]):
         db_session.add(
             models.MediaCredit(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=entry_id,
                 role="director",
                 person_id=pid,
             )

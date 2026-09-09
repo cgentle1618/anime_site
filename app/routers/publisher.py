@@ -37,7 +37,8 @@ def _to_response(
     db: Session, publisher: models.Publisher, viewer=None
 ) -> schemas.PublisherResponse:
     credit_rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.publisher_id == publisher.system_id)
         .all()
     )
@@ -137,7 +138,8 @@ def get_publisher_entries(
         raise HTTPException(status_code=404, detail="Publisher not found.")
 
     rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.publisher_id == system_id)
         .all()
     )
@@ -313,15 +315,17 @@ def merge_publisher(
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Publisher not found.")
 
+    # media_id alone identifies the entry - it is globally unique across the
+    # nine media tables, which is what the supertable bought.
     held = {
-        (c.media_type, c.entry_id, c.role)
+        (c.media_id, c.role)
         for c in db.query(models.MediaCredit).filter_by(publisher_id=system_id).all()
     }
     moved = 0
     for credit in (
         db.query(models.MediaCredit).filter_by(publisher_id=payload.source_id).all()
     ):
-        if (credit.media_type, credit.entry_id, credit.role) in held:
+        if (credit.media_id, credit.role) in held:
             db.delete(credit)
             continue
         credit.publisher_id = system_id

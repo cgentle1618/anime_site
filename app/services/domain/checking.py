@@ -135,9 +135,9 @@ def _link_missing(db, media_type, entry_id, link_fields) -> bool:
 
     for kind, key in link_fields:
         values = (
-            credit_names(db, media_type, entry_id, key)
+            credit_names(db, entry_id, key)
             if kind == "credit"
-            else tag_values(db, media_type, entry_id, key)
+            else tag_values(db, entry_id, key)
         )
         if not values:
             return True

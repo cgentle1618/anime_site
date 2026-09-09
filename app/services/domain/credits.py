@@ -226,13 +226,19 @@ _TARGET_COLUMNS = {
 
 
 def replace_credits(
-    db: Session, media_type: str, entry_id: UUID, role: str, names: list[str]
+    db: Session, media_type: str, media_id: UUID, role: str, names: list[str]
 ) -> None:
-    """Make the entry's credits for one role exactly `names`, in that order."""
+    """
+    Make the entry's credits for one role exactly `names`, in that order.
+
+    media_type is still a parameter after the move to media_id, and is not
+    redundant: it is the SCOPE a resolved person or publisher is registered
+    under. The row itself is keyed only by media_id.
+    """
     spec = CREDIT_ROLES[role]
 
     db.query(models.MediaCredit).filter_by(
-        media_type=media_type, entry_id=entry_id, role=role
+        media_id=media_id, role=role
     ).delete(synchronize_session=False)
 
     for position, name in enumerate(names):
@@ -248,8 +254,7 @@ def replace_credits(
             target = _RESOLVERS[spec.target](db, name)
         db.add(
             models.MediaCredit(
-                media_type=media_type,
-                entry_id=entry_id,
+                media_id=media_id,
                 role=role,
                 position=position,
                 **{_TARGET_COLUMNS[spec.target]: target.system_id},
@@ -259,13 +264,19 @@ def replace_credits(
 
 
 def replace_tags(
-    db: Session, media_type: str, entry_id: UUID, field: str, values: list[str]
+    db: Session, media_id: UUID, field: str, values: list[str]
 ) -> None:
-    """Make the entry's tags for one field exactly `values`, in that order."""
+    """
+    Make the entry's tags for one field exactly `values`, in that order.
+
+    No media_type parameter, unlike replace_credits: a tag registers no scope
+    (Ruling R27, below), so once the row is keyed by media_id the type has
+    nothing left to do here.
+    """
     spec = TAG_FIELDS[field]
 
     db.query(models.MediaTag).filter_by(
-        media_type=media_type, entry_id=entry_id, field=field
+        media_id=media_id, field=field
     ).delete(synchronize_session=False)
 
     for position, value in enumerate(values):
@@ -281,8 +292,7 @@ def replace_tags(
         option = resolve_option(db, spec.category, value)
         db.add(
             models.MediaTag(
-                media_type=media_type,
-                entry_id=entry_id,
+                media_id=media_id,
                 field=field,
                 option_id=option.system_id,
                 position=position,
@@ -291,39 +301,11 @@ def replace_tags(
     db.flush()
 
 
-def delete_links_for(db: Session, media_type: str, entry_id: UUID) -> int:
-    """
-    Remove every credit and tag row belonging to one deleted media entry.
-
-    The (media_type, entry_id) endpoint is FK-less - no single foreign key can
-    span the eight media tables - so nothing cascades when the entry goes.
-    Without this, deleting an entry leaves its rows behind forever, and the
-    orphans then feed extract_system_options and the duplicate checks. Called
-    from every entry delete endpoint alongside delete_plans_for, which solves
-    the same problem for plan_next.
-
-    Returns the number of rows removed.
-    """
-    removed = (
-        db.query(models.MediaCredit)
-        .filter_by(media_type=media_type, entry_id=entry_id)
-        .delete(synchronize_session=False)
-    )
-    removed += (
-        db.query(models.MediaTag)
-        .filter_by(media_type=media_type, entry_id=entry_id)
-        .delete(synchronize_session=False)
-    )
-    return removed
-
-
-def credit_names(
-    db: Session, media_type: str, entry_id: UUID, role: str
-) -> list[str]:
+def credit_names(db: Session, media_id: UUID, role: str) -> list[str]:
     """The entry's credited names for one role, in stored order."""
     rows = (
         db.query(models.MediaCredit)
-        .filter_by(media_type=media_type, entry_id=entry_id, role=role)
+        .filter_by(media_id=media_id, role=role)
         .order_by(models.MediaCredit.position)
         .all()
     )
@@ -343,13 +325,11 @@ def credit_names(
     return out
 
 
-def tag_values(
-    db: Session, media_type: str, entry_id: UUID, field: str
-) -> list[str]:
+def tag_values(db: Session, media_id: UUID, field: str) -> list[str]:
     """The entry's vocabulary values for one field, in stored order."""
     rows = (
         db.query(models.MediaTag)
-        .filter_by(media_type=media_type, entry_id=entry_id, field=field)
+        .filter_by(media_id=media_id, field=field)
         .order_by(models.MediaTag.position)
         .all()
     )
@@ -361,18 +341,14 @@ def tag_values(
     return out
 
 
-def credits_to_sheet_value(
-    db: Session, media_type: str, entry_id: UUID, role: str
-) -> str:
+def credits_to_sheet_value(db: Session, media_id: UUID, role: str) -> str:
     """Comma-joined names, the shape the entry sheet columns keep."""
-    return ", ".join(credit_names(db, media_type, entry_id, role))
+    return ", ".join(credit_names(db, media_id, role))
 
 
-def tags_to_sheet_value(
-    db: Session, media_type: str, entry_id: UUID, field: str
-) -> str:
+def tags_to_sheet_value(db: Session, media_id: UUID, field: str) -> str:
     """Comma-joined values, the shape the entry sheet columns keep."""
-    return ", ".join(tag_values(db, media_type, entry_id, field))
+    return ", ".join(tag_values(db, media_id, field))
 
 
 def sheet_link_rows(db: Session, media_type: str, entries) -> list[list[str]]:
@@ -416,11 +392,11 @@ def sheet_link_values(db: Session, media_type: str, entry) -> list[str]:
     """Comma-joined values for every credit role and tag field, aligned with
     `sheet_link_headers`."""
     values = [
-        credits_to_sheet_value(db, media_type, entry.system_id, role.key)
+        credits_to_sheet_value(db, entry.system_id, role.key)
         for role in credit_roles_for(media_type)
     ]
     values += [
-        tags_to_sheet_value(db, media_type, entry.system_id, field.key)
+        tags_to_sheet_value(db, entry.system_id, field.key)
         for field in tag_fields_for(media_type)
     ]
     return values
@@ -521,7 +497,7 @@ def backfill_credits(db: Session) -> dict:
                 replace_credits(db, media_type, row.system_id, key, names)
                 credits_written += len(names)
             else:
-                replace_tags(db, media_type, row.system_id, key, names)
+                replace_tags(db, row.system_id, key, names)
                 tags_written += len(names)
 
     db.commit()
@@ -683,24 +659,27 @@ def backfill_publishers(db: Session) -> dict:
     scoped: set[tuple] = set()
     kept_options: set[UUID] = set()
 
+    # media_type comes from the joined media row: the link tables no longer
+    # carry their own copy.
     rows = (
-        db.query(models.MediaTag, models.SystemOption)
+        db.query(models.MediaTag, models.SystemOption, models.Media.media_type)
         .join(
             models.SystemOption,
             models.MediaTag.option_id == models.SystemOption.system_id,
         )
+        .join(models.Media, models.MediaTag.media_id == models.Media.system_id)
         .filter(models.MediaTag.field.in_(_RETIRED_TAG_FIELDS))
         .order_by(models.MediaTag.position)
         .all()
     )
 
-    for tag, option in rows:
-        if tag.media_type == "comic" and tag.field == "publisher_tw":
+    for tag, option, media_type in rows:
+        if media_type == "comic" and tag.field == "publisher_tw":
             # Decision C: expected to be unreachable. Report, never drop.
             skipped.append(
                 {
-                    "media_type": tag.media_type,
-                    "entry_id": str(tag.entry_id),
+                    "media_type": media_type,
+                    "entry_id": str(tag.media_id),
                     "field": tag.field,
                     "value": option.value,
                     "reason": "comic publisher_tw is retired, not migrated",
@@ -716,8 +695,7 @@ def backfill_publishers(db: Session) -> dict:
         exists = (
             db.query(models.MediaCredit)
             .filter_by(
-                media_type=tag.media_type,
-                entry_id=tag.entry_id,
+                media_id=tag.media_id,
                 role="publisher",
                 publisher_id=publisher.system_id,
             )
@@ -726,8 +704,7 @@ def backfill_publishers(db: Session) -> dict:
         if exists is None:
             db.add(
                 models.MediaCredit(
-                    media_type=tag.media_type,
-                    entry_id=tag.entry_id,
+                    media_id=tag.media_id,
                     role="publisher",
                     publisher_id=publisher.system_id,
                     position=tag.position,
@@ -735,7 +712,7 @@ def backfill_publishers(db: Session) -> dict:
             )
             credits_written += 1
 
-        scoped.add((publisher.system_id, tag.media_type))
+        scoped.add((publisher.system_id, media_type))
         db.delete(tag)
 
     db.flush()
@@ -744,8 +721,11 @@ def backfill_publishers(db: Session) -> dict:
     # derived-from-usage pass backfill_credits ends with for option scopes.
     # Also covers the game publishers that predate this table.
     for publisher_id, media_type in scoped | {
-        (c.publisher_id, c.media_type)
-        for c in db.query(models.MediaCredit)
+        (publisher_id, media_type)
+        for publisher_id, media_type in db.query(
+            models.MediaCredit.publisher_id, models.Media.media_type
+        )
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.role == "publisher")
         .all()
     }:
@@ -861,9 +841,9 @@ def verify_backfill_lossless(db: Session) -> dict:
             legacy_keys = {normalize_name(n) for n in legacy_names}
 
             if kind == "credit":
-                current = credit_names(db, media_type, row.system_id, key)
+                current = credit_names(db, row.system_id, key)
             else:
-                current = tag_values(db, media_type, row.system_id, key)
+                current = tag_values(db, row.system_id, key)
             current_keys = {normalize_name(n) for n in current}
 
             missing = legacy_keys - current_keys
@@ -938,8 +918,7 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     credit_rows = (
         db.query(models.MediaCredit)
         .filter(
-            models.MediaCredit.media_type == media_type,
-            models.MediaCredit.entry_id.in_(entry_ids),
+            models.MediaCredit.media_id.in_(entry_ids),
         )
         .order_by(models.MediaCredit.position)
         .all()
@@ -947,8 +926,7 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     tag_rows = (
         db.query(models.MediaTag)
         .filter(
-            models.MediaTag.media_type == media_type,
-            models.MediaTag.entry_id.in_(entry_ids),
+            models.MediaTag.media_id.in_(entry_ids),
         )
         .order_by(models.MediaTag.position)
         .all()
@@ -1020,15 +998,15 @@ def _values_from_rows(
         else:
             publisher = publishers.get(row.publisher_id)
             name = publisher.display_name if publisher else None
-        if name is None or row.entry_id not in out:
+        if name is None or row.media_id not in out:
             continue
-        out[row.entry_id].setdefault(row.role, []).append(name)
+        out[row.media_id].setdefault(row.role, []).append(name)
 
     for row in tag_rows:
         value = options.get(row.option_id)
-        if value is None or row.entry_id not in out:
+        if value is None or row.media_id not in out:
             continue
-        out[row.entry_id].setdefault(row.field, []).append(value)
+        out[row.media_id].setdefault(row.field, []).append(value)
 
     return out
 
@@ -1107,7 +1085,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
         person = people.get(row.person_id)
         if person is None or not person.display_name:
             continue
-        credit_refs_by_entry.setdefault(row.entry_id, {}).setdefault(
+        credit_refs_by_entry.setdefault(row.media_id, {}).setdefault(
             row.role, []
         ).append(
             PersonRef(
@@ -1127,7 +1105,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             studio = studios.get(row.studio_id)
             if studio is None:
                 continue
-            studio_refs_by_entry.setdefault(row.entry_id, []).append(
+            studio_refs_by_entry.setdefault(row.media_id, []).append(
                 StudioRef(
                     system_id=studio.system_id,
                     public_id=studio.public_id,
@@ -1149,7 +1127,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
             publisher = publishers.get(row.publisher_id)
             if publisher is None:
                 continue
-            publisher_refs_by_entry.setdefault(row.entry_id, []).append(
+            publisher_refs_by_entry.setdefault(row.media_id, []).append(
                 PublisherRef(
                     system_id=publisher.system_id,
                     public_id=publisher.public_id,

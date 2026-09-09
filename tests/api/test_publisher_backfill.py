@@ -35,7 +35,7 @@ def db(db_session):
     return db_session
 
 
-def _tag(db, media_type, entry_id, field, value, category):
+def _tag(db, entry_id, field, value, category):
     # Find-or-create: (category, value) is unique, so two entries sharing a
     # distributor share the one option row - which is what the live data does.
     option = (
@@ -47,21 +47,21 @@ def _tag(db, media_type, entry_id, field, value, category):
         option = models.SystemOption(category=category, value=value)
         db.add(option)
         db.flush()
-    db.add(models.MediaTag(media_type=media_type, entry_id=entry_id,
-                           field=field, option_id=option.system_id, position=0))
+    db.add(models.MediaTag(media_id=entry_id, field=field,
+                           option_id=option.system_id, position=0))
     db.flush()
 
 
 def test_a_tag_row_becomes_a_publisher_credit(db, sample_anime):
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "Muse木棉花",
+    _tag(db, anime.system_id, "publisher_tw", "Muse木棉花",
          "Publisher / Distributor TW")
     db.commit()
 
     report = backfill_publishers(db)
 
     credit = db.query(models.MediaCredit).filter_by(
-        media_type="anime", entry_id=anime.system_id, role="publisher"
+        media_id=anime.system_id, role="publisher"
     ).one()
     assert credit.publisher_id is not None
     assert report["credits"] == 1
@@ -70,7 +70,7 @@ def test_a_tag_row_becomes_a_publisher_credit(db, sample_anime):
 
 def test_the_name_map_splits_a_mixed_name(db, sample_anime):
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "Proware普威爾",
+    _tag(db, anime.system_id, "publisher_tw", "Proware普威爾",
          "Publisher / Distributor TW")
     db.commit()
 
@@ -92,7 +92,7 @@ def test_the_old_spelling_still_resolves(db, sample_anime):
     the gap is recorded rather than discovered during a restore.
     """
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "Muse木棉花",
+    _tag(db, anime.system_id, "publisher_tw", "Muse木棉花",
          "Publisher / Distributor TW")
     db.commit()
     backfill_publishers(db)
@@ -106,7 +106,7 @@ def test_a_split_row_without_an_alt_does_not_answer_to_its_old_spelling(
 ):
     """Records the known gap - see PUBLISHER_NAME_MAP's round-trip note."""
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "Proware普威爾",
+    _tag(db, anime.system_id, "publisher_tw", "Proware普威爾",
          "Publisher / Distributor TW")
     db.commit()
     backfill_publishers(db)
@@ -118,9 +118,9 @@ def test_a_split_row_without_an_alt_does_not_answer_to_its_old_spelling(
 def test_scope_is_seeded_from_the_credits(db, sample_anime, manga_entry):
     anime = sample_anime
     manga = manga_entry
-    _tag(db, "anime", anime.system_id, "publisher_tw", "角川",
+    _tag(db, anime.system_id, "publisher_tw", "角川",
          "Publisher / Distributor TW")
-    _tag(db, "manga", manga.system_id, "publisher_tw", "角川",
+    _tag(db, manga.system_id, "publisher_tw", "角川",
          "Publisher / Distributor TW")
     db.commit()
 
@@ -132,7 +132,7 @@ def test_scope_is_seeded_from_the_credits(db, sample_anime, manga_entry):
 
 def test_it_is_idempotent(db, sample_anime):
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "尖端",
+    _tag(db, anime.system_id, "publisher_tw", "尖端",
          "Publisher / Distributor TW")
     db.commit()
 
@@ -146,7 +146,7 @@ def test_it_is_idempotent(db, sample_anime):
 def test_an_existing_publisher_is_reused_not_duplicated(db, sample_anime):
     db.add(models.Publisher(name_en="Aniplex"))
     anime = sample_anime
-    _tag(db, "anime", anime.system_id, "publisher_tw", "Aniplex",
+    _tag(db, anime.system_id, "publisher_tw", "Aniplex",
          "Publisher / Distributor TW")
     db.commit()
 
@@ -158,15 +158,18 @@ def test_an_existing_publisher_is_reused_not_duplicated(db, sample_anime):
 def test_a_comic_publisher_tw_row_is_reported_not_dropped(db, sample_comic):
     """Decision C: the column is empty in reality; if it isn't, say so."""
     comic = sample_comic
-    _tag(db, "comic", comic.system_id, "publisher_tw", "曼迪 Mightymedia",
+    _tag(db, comic.system_id, "publisher_tw", "曼迪 Mightymedia",
          "Publisher / Distributor TW")
     db.commit()
 
     report = backfill_publishers(db)
 
     assert report["skipped"] and report["skipped"][0]["media_type"] == "comic"
-    assert db.query(models.MediaTag).filter_by(
-        media_type="comic", field="publisher_tw"
+    assert db.query(models.MediaTag).join(
+        models.Media, models.MediaTag.media_id == models.Media.system_id
+    ).filter(
+        models.Media.media_type == "comic",
+        models.MediaTag.field == "publisher_tw",
     ).count() == 1
 
 

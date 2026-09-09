@@ -72,11 +72,11 @@ class TestAutofillMovieDirectorCredits:
         self, db_session, patched
     ):
         movie = make_movie(db_session)
-        assert credit_names(db_session, "movie", movie.system_id, "director") == []
+        assert credit_names(db_session, movie.system_id, "director") == []
 
         autofill_movie_from_imdb(movie, db_session)
 
-        assert credit_names(db_session, "movie", movie.system_id, "director") == [
+        assert credit_names(db_session, movie.system_id, "director") == [
             "David Fincher"
         ]
 
@@ -91,7 +91,7 @@ class TestAutofillMovieDirectorCredits:
 
         autofill_movie_from_imdb(movie, db_session)
 
-        assert credit_names(db_session, "movie", movie.system_id, "director") == [
+        assert credit_names(db_session, movie.system_id, "director") == [
             "Someone Else"
         ]
 

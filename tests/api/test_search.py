@@ -215,8 +215,7 @@ class TestStaff:
         db_session.add(
             models.MediaCredit(
                 system_id=uuid.uuid4(),
-                media_type="anime",
-                entry_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 role="studio",
                 studio_id=studio.system_id,
             )

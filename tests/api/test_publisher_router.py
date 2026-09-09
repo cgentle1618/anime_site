@@ -5,6 +5,14 @@ import uuid
 from app import models
 
 
+def _game_id(db_session, name="Elden Ring"):
+    """media_credit.media_id is a real FK, so the entry has to exist."""
+    g = models.Game(game_name_en=name)
+    db_session.add(g)
+    db_session.flush()
+    return g.system_id
+
+
 def test_create_and_list(admin_client, client):
     admin_client.post("/api/publisher/", json={"name_en": "Bandai Namco"})
     assert [p["name_en"] for p in client.get("/api/publisher/").json()] == [
@@ -42,8 +50,7 @@ def test_credit_count_reflects_credits(admin_client, db_session):
     created = admin_client.post("/api/publisher/", json={"name_en": "Devolver"}).json()
     db_session.add(
         models.MediaCredit(
-            media_type="game",
-            entry_id=uuid.uuid4(),
+            media_id=_game_id(db_session),
             role="publisher",
             publisher_id=created["system_id"],
         )
@@ -80,8 +87,7 @@ def test_merge_moves_credits_and_deletes_the_loser(admin_client, db_session):
     lose = admin_client.post("/api/publisher/", json={"name_en": "Lose"}).json()
     db_session.add(
         models.MediaCredit(
-            media_type="game",
-            entry_id=uuid.uuid4(),
+            media_id=_game_id(db_session),
             role="publisher",
             publisher_id=lose["system_id"],
         )

@@ -38,7 +38,8 @@ router = APIRouter(prefix="/api/person", tags=["Person Management"])
 
 def _to_response(db: Session, person: models.Person, viewer=None) -> schemas.PersonResponse:
     credit_rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.person_id == person.system_id)
         .all()
     )
@@ -186,8 +187,11 @@ def get_person_entries(
     if person is None:
         raise HTTPException(status_code=404, detail="Person not found.")
 
+    # Joined to media for the row's type: media_credit no longer carries its
+    # own copy, and one join answers for every media table at once.
     rows = (
-        db.query(models.MediaCredit)
+        db.query(models.MediaCredit, models.Media.media_type)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.person_id == system_id)
         .order_by(models.MediaCredit.position)
         .all()
@@ -206,7 +210,7 @@ def get_person_entries(
         filter_visible_pairs(
             db,
             viewer,
-            [(r.media_type, r.entry_id) for r in rows if r.media_type and r.entry_id]
+            [(media_type, r.media_id) for r, media_type in rows]
             + [
                 (r.media_type, r.entry_id)
                 for r in casting_rows
@@ -217,9 +221,9 @@ def get_person_entries(
 
     # One query per media type that appears, not one per credit/casting row.
     wanted: dict[str, set[UUID]] = {}
-    for row in rows:
-        if (row.media_type, row.entry_id) in visible:
-            wanted.setdefault(row.media_type, set()).add(row.entry_id)
+    for row, media_type in rows:
+        if (media_type, row.media_id) in visible:
+            wanted.setdefault(media_type, set()).add(row.media_id)
     for row in casting_rows:
         if (row.media_type, row.entry_id) in visible:
             wanted.setdefault(row.media_type, set()).add(row.entry_id)
@@ -250,14 +254,14 @@ def get_person_entries(
     )
 
     groups: dict[tuple[str, str], list] = {}
-    for row in rows:
-        if row.media_type not in MEDIA_TABLES:
+    for row, media_type in rows:
+        if media_type not in MEDIA_TABLES:
             continue
         # setdefault before the visibility check on purpose: a group the viewer
         # may not see any entry of still exists, empty. Hiding the group as
         # well would tell them the person has no such credits at all.
-        payload = groups.setdefault((row.media_type, row.role), [])
-        entry = loaded.get(row.media_type, {}).get(row.entry_id)
+        payload = groups.setdefault((media_type, row.role), [])
+        entry = loaded.get(media_type, {}).get(row.media_id)
         if entry is None:
             continue
         payload.append(
@@ -266,7 +270,7 @@ def get_person_entries(
                 "display_name": entry.display_name,
                 "public_id": entry.public_id,
                 "cover_image_file": getattr(entry, "cover_image_file", None),
-                "release_date": primary_release_value(row.media_type, entry),
+                "release_date": primary_release_value(media_type, entry),
             }
         )
 
@@ -498,15 +502,17 @@ def merge_person(
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Person not found.")
 
+    # media_id alone identifies the entry - it is globally unique across the
+    # nine media tables, which is what the supertable bought.
     held = {
-        (c.media_type, c.entry_id, c.role)
+        (c.media_id, c.role)
         for c in db.query(models.MediaCredit).filter_by(person_id=system_id).all()
     }
     moved = 0
     for credit in (
         db.query(models.MediaCredit).filter_by(person_id=payload.source_id).all()
     ):
-        if (credit.media_type, credit.entry_id, credit.role) in held:
+        if (credit.media_id, credit.role) in held:
             db.delete(credit)
             continue
         credit.person_id = system_id

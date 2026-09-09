@@ -1,7 +1,5 @@
 """The media_credit and media_tag link tables."""
 
-import uuid
-
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -24,10 +22,24 @@ def studio(db_session):
     return s
 
 
+def _anime_id(db_session, name="測試"):
+    """media_id is a real FK to media.system_id, so the entry must exist."""
+    a = models.Anime(anime_name_cn=name)
+    db_session.add(a)
+    db_session.flush()
+    return a.system_id
+
+
+def _game_id(db_session, name="Elden Ring"):
+    g = models.Game(game_name_en=name)
+    db_session.add(g)
+    db_session.flush()
+    return g.system_id
+
+
 def test_a_credit_points_at_a_person(db_session, person):
     c = models.MediaCredit(
-        media_type="anime",
-        entry_id=uuid.uuid4(),
+        media_id=_anime_id(db_session),
         role="director",
         person_id=person.system_id,
     )
@@ -38,8 +50,7 @@ def test_a_credit_points_at_a_person(db_session, person):
 
 def test_a_credit_points_at_a_studio(db_session, studio):
     c = models.MediaCredit(
-        media_type="anime",
-        entry_id=uuid.uuid4(),
+        media_id=_anime_id(db_session),
         role="studio",
         studio_id=studio.system_id,
     )
@@ -51,8 +62,7 @@ def test_a_credit_points_at_a_studio(db_session, studio):
 def test_a_credit_cannot_point_at_both(db_session, person, studio):
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             role="director",
             person_id=person.system_id,
             studio_id=studio.system_id,
@@ -65,9 +75,7 @@ def test_a_credit_cannot_point_at_both(db_session, person, studio):
 
 def test_a_credit_cannot_point_at_neither(db_session):
     db_session.add(
-        models.MediaCredit(
-            media_type="anime", entry_id=uuid.uuid4(), role="director"
-        )
+        models.MediaCredit(media_id=_anime_id(db_session), role="director")
     )
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -77,12 +85,11 @@ def test_a_credit_cannot_point_at_neither(db_session):
 def test_the_same_person_cannot_hold_one_role_on_one_entry_twice(
     db_session, person
 ):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     for _ in range(2):
         db_session.add(
             models.MediaCredit(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=entry_id,
                 role="director",
                 person_id=person.system_id,
             )
@@ -93,18 +100,16 @@ def test_the_same_person_cannot_hold_one_role_on_one_entry_twice(
 
 
 def test_one_person_can_hold_two_roles_on_one_entry(db_session, person):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     db_session.add_all(
         [
             models.MediaCredit(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=entry_id,
                 role="director",
                 person_id=person.system_id,
             ),
             models.MediaCredit(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=entry_id,
                 role="composer",
                 person_id=person.system_id,
             ),
@@ -115,15 +120,14 @@ def test_one_person_can_hold_two_roles_on_one_entry(db_session, person):
 
 
 def test_position_preserves_the_original_comma_order(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     for i, name in enumerate(["A", "B", "C"]):
         p = models.Person(name_jp=name)
         db_session.add(p)
         db_session.commit()
         db_session.add(
             models.MediaCredit(
-                media_type="anime",
-                entry_id=entry_id,
+                media_id=entry_id,
                 role="director",
                 person_id=p.system_id,
                 position=i,
@@ -133,7 +137,7 @@ def test_position_preserves_the_original_comma_order(db_session):
 
     rows = (
         db_session.query(models.MediaCredit)
-        .filter_by(entry_id=entry_id)
+        .filter_by(media_id=entry_id)
         .order_by(models.MediaCredit.position)
         .all()
     )
@@ -143,8 +147,7 @@ def test_position_preserves_the_original_comma_order(db_session):
 def test_deleting_a_person_cascades_their_credits(db_session, person):
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             role="director",
             person_id=person.system_id,
         )
@@ -162,8 +165,7 @@ def test_a_tag_points_at_an_option(db_session):
     db_session.commit()
 
     t = models.MediaTag(
-        media_type="anime",
-        entry_id=uuid.uuid4(),
+        media_id=_anime_id(db_session),
         field="genre_main",
         option_id=opt.system_id,
     )
@@ -178,8 +180,7 @@ def test_deleting_an_option_cascades_its_tags(db_session):
     db_session.commit()
     db_session.add(
         models.MediaTag(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             field="genre_main",
             option_id=opt.system_id,
         )
@@ -197,8 +198,7 @@ def test_a_credit_may_point_at_a_publisher(db_session):
     db_session.flush()
     db_session.add(
         models.MediaCredit(
-            media_type="game",
-            entry_id=uuid.uuid4(),
+            media_id=_game_id(db_session),
             role="publisher",
             publisher_id=publisher.system_id,
         )
@@ -217,8 +217,7 @@ def test_a_credit_may_not_point_at_two_entities_at_once(db_session):
     db_session.flush()
     db_session.add(
         models.MediaCredit(
-            media_type="game",
-            entry_id=uuid.uuid4(),
+            media_id=_game_id(db_session),
             role="publisher",
             studio_id=studio.system_id,
             publisher_id=publisher.system_id,
@@ -231,7 +230,7 @@ def test_a_credit_may_not_point_at_two_entities_at_once(db_session):
 
 def test_a_credit_must_point_at_something(db_session):
     db_session.add(
-        models.MediaCredit(media_type="game", entry_id=uuid.uuid4(), role="publisher")
+        models.MediaCredit(media_id=_game_id(db_session), role="publisher")
     )
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -244,8 +243,7 @@ def test_deleting_a_publisher_cascades_its_credits(db_session):
     db_session.flush()
     db_session.add(
         models.MediaCredit(
-            media_type="game",
-            entry_id=uuid.uuid4(),
+            media_id=_game_id(db_session),
             role="publisher",
             publisher_id=publisher.system_id,
         )

@@ -23,11 +23,10 @@ def mappa(db_session):
     return studio
 
 
-def credit(db_session, studio, media_type, entry_id):
+def credit(db_session, studio, entry_id):
     db_session.add(
         models.MediaCredit(
-            media_type=media_type,
-            entry_id=entry_id,
+            media_id=entry_id,
             role="studio",
             studio_id=studio.system_id,
         )
@@ -38,7 +37,7 @@ def credit(db_session, studio, media_type, entry_id):
 def test_lists_the_entries_credited_to_the_studio(
     admin_client, db_session, mappa, sample_anime
 ):
-    credit(db_session, mappa, "anime", sample_anime.system_id)
+    credit(db_session, mappa, sample_anime.system_id)
     body = admin_client.get(f"/api/studio/{mappa.system_id}/entries").json()
     assert body["groups"][0]["media_type"] == "anime"
     assert body["groups"][0]["entries"][0]["system_id"] == str(sample_anime.system_id)
@@ -57,7 +56,7 @@ def test_unknown_studio_is_404(admin_client):
 def test_a_labelled_entry_is_hidden_from_a_viewer_without_the_permission(
     client, db_session, mappa, hidden_anime, nsfw_label
 ):
-    credit(db_session, mappa, "anime", hidden_anime.system_id)
+    credit(db_session, mappa, hidden_anime.system_id)
     make_viewer(db_session, client, "plain", default_guest_permissions())
     r = client.get(f"/api/studio/{mappa.system_id}/entries")
     # Assert on the whole body, not parsed fields: a title can leak through a
@@ -69,7 +68,7 @@ def test_a_labelled_entry_is_hidden_from_a_viewer_without_the_permission(
 def test_the_same_entry_is_visible_to_a_viewer_holding_the_label(
     client, db_session, mappa, hidden_anime, nsfw_label
 ):
-    credit(db_session, mappa, "anime", hidden_anime.system_id)
+    credit(db_session, mappa, hidden_anime.system_id)
     make_viewer(
         db_session,
         client,

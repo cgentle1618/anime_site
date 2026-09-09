@@ -33,7 +33,8 @@ router = APIRouter(prefix="/api/studio", tags=["Studio Management"])
 
 def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.StudioResponse:
     credit_rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.studio_id == studio.system_id)
         .all()
     )
@@ -118,7 +119,8 @@ def get_studio_entries(
         raise HTTPException(status_code=404, detail="Studio not found.")
 
     rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.studio_id == system_id)
         .all()
     )
@@ -271,15 +273,17 @@ def merge_studio(
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Studio not found.")
 
+    # media_id alone identifies the entry - it is globally unique across the
+    # nine media tables, which is what the supertable bought.
     held = {
-        (c.media_type, c.entry_id, c.role)
+        (c.media_id, c.role)
         for c in db.query(models.MediaCredit).filter_by(studio_id=system_id).all()
     }
     moved = 0
     for credit in (
         db.query(models.MediaCredit).filter_by(studio_id=payload.source_id).all()
     ):
-        if (credit.media_type, credit.entry_id, credit.role) in held:
+        if (credit.media_id, credit.role) in held:
             db.delete(credit)
             continue
         credit.studio_id = system_id

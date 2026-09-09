@@ -51,7 +51,7 @@ def test_backfill_writes_credits_from_a_legacy_column(db_session):
 
     assert report["credits"] >= 2
     assert report["studios"] >= 2
-    assert set(credit_names(db_session, "anime", a.system_id, "studio")) == {
+    assert set(credit_names(db_session, a.system_id, "studio")) == {
         "MAPPA",
         "WIT STUDIO",
     }
@@ -67,7 +67,7 @@ def test_backfill_writes_tags_from_a_legacy_column(db_session):
     report = backfill_credits(db_session)
 
     assert report["tags"] >= 2
-    assert set(tag_values(db_session, "anime", a.system_id, "genre_main")) == {
+    assert set(tag_values(db_session, a.system_id, "genre_main")) == {
         "奇幻",
         "冒險",
     }

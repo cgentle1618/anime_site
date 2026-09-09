@@ -304,7 +304,7 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
 
     try:
         want_editions = not novel.release_date
-        want_authors = not credit_names(db, "novel", novel.system_id, "author")
+        want_authors = not credit_names(db, novel.system_id, "author")
 
         raw_data = fetch_openlibrary_work(
             work_id, want_editions=want_editions, want_authors=want_authors
@@ -355,7 +355,7 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         # Fill-only fields
         if movie.length_min is None:
             movie.length_min = mapped.get("length_min")
-        if not credit_names(db, "movie", movie.system_id, "director"):
+        if not credit_names(db, movie.system_id, "director"):
             replace_credits(
                 db, "movie", movie.system_id, "director", split_names(mapped.get("director"))
             )
@@ -564,15 +564,15 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             if getattr(comic, field, None) is None:
                 setattr(comic, field, cv_data.get(field))
 
-        if not credit_names(db, "comic", comic.system_id, "author"):
+        if not credit_names(db, comic.system_id, "author"):
             replace_credits(
                 db, "comic", comic.system_id, "author", split_names(cv_data.get("writer"))
             )
-        if not credit_names(db, "comic", comic.system_id, "illustrator"):
+        if not credit_names(db, comic.system_id, "illustrator"):
             replace_credits(
                 db, "comic", comic.system_id, "illustrator", split_names(cv_data.get("artist"))
             )
-        if not credit_names(db, "comic", comic.system_id, "publisher"):
+        if not credit_names(db, comic.system_id, "publisher"):
             replace_credits(
                 db, "comic", comic.system_id, "publisher", split_names(cv_data.get("publisher"))
             )
@@ -681,11 +681,11 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
 
         # A game's developer IS its studio; the publisher is the third entity
         # target, which is why the publisher credit role exists.
-        if not credit_names(db, "game", game.system_id, "studio"):
+        if not credit_names(db, game.system_id, "studio"):
             replace_credits(
                 db, "game", game.system_id, "studio", g_data.get("developers") or []
             )
-        if not credit_names(db, "game", game.system_id, "publisher"):
+        if not credit_names(db, game.system_id, "publisher"):
             replace_credits(
                 db, "game", game.system_id, "publisher", g_data.get("publishers") or []
             )
@@ -699,7 +699,7 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
             ("game_mode", "Game Mode", g_data.get("game_modes")),
             ("game_platform", "Game Platform", g_data.get("platforms")),
         ):
-            if tag_values(db, "game", game.system_id, field):
+            if tag_values(db, game.system_id, field):
                 continue
             resolved = []
             for english in values or []:
@@ -718,7 +718,7 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
                 if option.value not in resolved:
                     resolved.append(option.value)
             if resolved:
-                replace_tags(db, "game", game.system_id, field, resolved)
+                replace_tags(db, game.system_id, field, resolved)
 
         # parent_game is why IGDB was chosen over RAWG: it resolves the DLC
         # link automatically. A parent not yet in the database leaves the

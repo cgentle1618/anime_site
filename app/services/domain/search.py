@@ -272,9 +272,10 @@ def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: li
     rows = [
         (owner, media_type, entry_id)
         for owner, media_type, entry_id in db.query(
-            owner_column, models.MediaCredit.media_type, models.MediaCredit.entry_id
-        ).filter(owner_column.in_(ids))
-        if media_type and entry_id
+            owner_column, models.Media.media_type, models.MediaCredit.media_id
+        )
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
+        .filter(owner_column.in_(ids))
     ]
     if spec.key == "person":
         rows += [

@@ -1,8 +1,14 @@
 """The studio router."""
 
-import uuid
-
 from app import models
+
+
+def _anime_id(db_session, name="測試"):
+    """media_credit.media_id is a real FK, so the entry has to exist."""
+    a = models.Anime(anime_name_cn=name)
+    db_session.add(a)
+    db_session.flush()
+    return a.system_id
 
 
 def test_create_and_list(admin_client, client):
@@ -27,11 +33,10 @@ def test_renaming_a_studio_changes_every_entry_that_credits_it(
     created = admin_client.post(
         "/api/studio/", json={"name_en": "MAPPA"}
     ).json()
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=entry_id,
+            media_id=entry_id,
             role="studio",
             studio_id=created["system_id"],
         )
@@ -43,7 +48,7 @@ def test_renaming_a_studio_changes_every_entry_that_credits_it(
     )
     from app.services.domain.credits import credit_names
 
-    assert credit_names(db_session, "anime", entry_id, "studio") == ["MAPPA Inc."]
+    assert credit_names(db_session, entry_id, "studio") == ["MAPPA Inc."]
 
 
 def test_delete_cascades_the_credits(admin_client, db_session):
@@ -52,8 +57,7 @@ def test_delete_cascades_the_credits(admin_client, db_session):
     ).json()
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=_anime_id(db_session),
             role="studio",
             studio_id=created["system_id"],
         )

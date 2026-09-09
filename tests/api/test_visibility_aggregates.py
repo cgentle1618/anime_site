@@ -273,8 +273,7 @@ def test_a_credit_on_a_hidden_entry_is_not_counted(
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=hidden_anime.system_id,
+            media_id=hidden_anime.system_id,
             role="director",
             person_id=person.system_id,
         )
@@ -293,8 +292,7 @@ def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=hidden_anime.system_id,
+            media_id=hidden_anime.system_id,
             role="director",
             person_id=person.system_id,
         )

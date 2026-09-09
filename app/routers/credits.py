@@ -59,13 +59,13 @@ def get_credits(
 
     credits_out: Dict[str, List[str]] = {}
     for role_spec in credit_roles_for(media_type):
-        names = credits_service.credit_names(db, media_type, entry_id, role_spec.key)
+        names = credits_service.credit_names(db, entry_id, role_spec.key)
         if names:
             credits_out[role_spec.key] = names
 
     tags_out: Dict[str, List[str]] = {}
     for field_spec in tag_fields_for(media_type):
-        values = credits_service.tag_values(db, media_type, entry_id, field_spec.key)
+        values = credits_service.tag_values(db, entry_id, field_spec.key)
         if values:
             tags_out[field_spec.key] = values
 
@@ -110,7 +110,7 @@ def replace_credits(
     for role, names in payload.credits.items():
         credits_service.replace_credits(db, media_type, entry_id, role, names)
     for field, values in payload.tags.items():
-        credits_service.replace_tags(db, media_type, entry_id, field, values)
+        credits_service.replace_tags(db, entry_id, field, values)
 
     db.commit()
     return {"status": "success"}

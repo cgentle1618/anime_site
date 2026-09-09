@@ -45,7 +45,7 @@ def test_an_ambiguous_credit_name_does_not_abort_the_tab(db_session, monkeypatch
     # The run survives, and the row AFTER the collision still pulls.
     assert result["status"] == "success"
     later = db_session.query(models.Anime).filter_by(anime_name_cn="進擊的巨人").one()
-    assert credit_names(db_session, "anime", later.system_id, "studio") == ["WIT"]
+    assert credit_names(db_session, later.system_id, "studio") == ["WIT"]
 
 
 def test_the_row_itself_still_pulls_when_only_its_credit_is_ambiguous(
@@ -61,7 +61,7 @@ def test_the_row_itself_still_pulls_when_only_its_credit_is_ambiguous(
     # The scalar columns are not collateral damage - only the link is skipped,
     # and it is left unset rather than guessed at.
     entry = db_session.query(models.Anime).filter_by(anime_name_cn="無職轉生").one()
-    assert credit_names(db_session, "anime", entry.system_id, "studio") == []
+    assert credit_names(db_session, entry.system_id, "studio") == []
 
 
 def test_every_collision_is_reported_not_just_the_first(db_session, monkeypatch):

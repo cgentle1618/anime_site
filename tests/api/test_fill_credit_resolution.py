@@ -15,7 +15,7 @@ def test_a_fetched_studio_name_lands_on_a_studio_row(db_session):
     db_session.commit()
 
     assert db_session.query(models.Studio).count() == 1
-    assert credit_names(db_session, "anime", a.system_id, "studio") == ["MAPPA"]
+    assert credit_names(db_session, a.system_id, "studio") == ["MAPPA"]
 
 
 def test_a_fetched_name_reuses_an_existing_studio(db_session):

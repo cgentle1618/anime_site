@@ -1,7 +1,5 @@
 """Name <-> entity resolution and link replacement."""
 
-import uuid
-
 from app import models
 from app.services.domain import credits as svc
 
@@ -59,58 +57,69 @@ def test_resolve_option_records_a_scope(db_session):
     assert [s.scope for s in o.scopes] == ["tv-show"]
 
 
+def _anime_id(db_session, name="測試"):
+    """A real anime entry: media_credit.media_id is a FK to media.system_id."""
+    a = models.Anime(anime_name_cn=name)
+    db_session.add(a)
+    db_session.flush()
+    return a.system_id
+
+
 def test_replace_credits_writes_rows_in_order(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A", "B"])
-    assert svc.credit_names(db_session, "anime", entry_id, "studio") == ["A", "B"]
+    assert svc.credit_names(db_session, entry_id, "studio") == ["A", "B"]
 
 
 def test_replace_credits_is_idempotent(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A", "B"])
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A", "B"])
     assert db_session.query(models.MediaCredit).count() == 2
 
 
 def test_replace_credits_removes_names_no_longer_listed(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A", "B"])
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["B"])
-    assert svc.credit_names(db_session, "anime", entry_id, "studio") == ["B"]
+    assert svc.credit_names(db_session, entry_id, "studio") == ["B"]
 
 
 def test_replace_credits_leaves_other_roles_alone(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A"])
     svc.replace_credits(db_session, "anime", entry_id, "director", ["D"])
-    assert svc.credit_names(db_session, "anime", entry_id, "studio") == ["A"]
+    assert svc.credit_names(db_session, entry_id, "studio") == ["A"]
 
 
 def test_replace_credits_with_an_empty_list_clears_the_role(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "studio", ["A"])
     svc.replace_credits(db_session, "anime", entry_id, "studio", [])
-    assert svc.credit_names(db_session, "anime", entry_id, "studio") == []
+    assert svc.credit_names(db_session, entry_id, "studio") == []
 
 
 def test_replace_credits_does_not_delete_the_person_itself(db_session):
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     svc.replace_credits(db_session, "anime", entry_id, "director", ["D"])
     svc.replace_credits(db_session, "anime", entry_id, "director", [])
     assert db_session.query(models.Person).count() == 1
 
 
 def test_replace_tags_round_trips(db_session):
-    entry_id = uuid.uuid4()
-    svc.replace_tags(db_session, "anime", entry_id, "genre_main", ["Action", "SF"])
-    assert svc.tag_values(db_session, "anime", entry_id, "genre_main") == [
+    entry_id = _anime_id(db_session)
+    svc.replace_tags(db_session, entry_id, "genre_main", ["Action", "SF"])
+    assert svc.tag_values(db_session, entry_id, "genre_main") == [
         "Action",
         "SF",
     ]
 
 
 def test_director_scope_follows_the_media_type(db_session):
-    svc.replace_credits(db_session, "movie", uuid.uuid4(), "director", ["Nolan"])
+    movie = models.Movies(movie_name_en="Tenet")
+    db_session.add(movie)
+    db_session.flush()
+    svc.replace_credits(db_session, "movie", movie.system_id, "director", ["Nolan"])
     p = db_session.query(models.Person).one()
     assert [r.scope for r in p.roles] == ["movie"]
 
@@ -133,8 +142,6 @@ def test_find_studio_matches_an_alt_name(db_session):
 
 def test_a_credited_display_name_resolves_back_to_the_same_row(db_session):
     """The Sheets round trip: backup writes display_name, restore resolves it."""
-    import uuid
-
     from app.services.domain.credits import credit_names, resolve_studio
 
     studio = models.Studio(
@@ -142,18 +149,17 @@ def test_a_credited_display_name_resolves_back_to_the_same_row(db_session):
     )
     db_session.add(studio)
     db_session.flush()
-    entry_id = uuid.uuid4()
+    entry_id = _anime_id(db_session)
     db_session.add(
         models.MediaCredit(
-            media_type="anime",
-            entry_id=entry_id,
+            media_id=entry_id,
             role="studio",
             studio_id=studio.system_id,
         )
     )
     db_session.commit()
 
-    written = credit_names(db_session, "anime", entry_id, "studio")
+    written = credit_names(db_session, entry_id, "studio")
     assert written == ["KyoAni"]
     assert resolve_studio(db_session, written[0]).system_id == studio.system_id
 
@@ -188,7 +194,7 @@ def test_a_person_name_round_trips_through_sheets(db_session, manga_entry):
     )
     db_session.flush()
 
-    written = svc.credit_names(db_session, "manga", manga_entry.system_id, "author")
+    written = svc.credit_names(db_session, manga_entry.system_id, "author")
     assert written == ["諫山創"]
 
     same = svc.resolve_person(db_session, written[0], role="author", scope="manga")

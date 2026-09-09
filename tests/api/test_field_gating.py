@@ -192,8 +192,7 @@ def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             role="studio",
             studio_id=studio.system_id,
         )
@@ -225,8 +224,7 @@ def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             role="composer",
             person_id=person.system_id,
         )
