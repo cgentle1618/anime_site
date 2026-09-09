@@ -166,6 +166,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
     "User Media List": ("user_id", "media_id"),  # uq_user_media
+    # The Steam import mints these locally, so the same purchase carries a
+    # different system_id on each machine while the natural key is identical.
+    # game_id is a real entry uuid and is the same everywhere, so no parent
+    # translation is needed - only the fallback match.
+    "Game Copy": ("game_id", "storefront", "copy_format"),  # uq_game_copy_row
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER

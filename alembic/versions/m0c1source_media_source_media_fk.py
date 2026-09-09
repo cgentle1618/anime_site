@@ -18,6 +18,25 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def drop_uniqueness(bind, table: str, name: str) -> None:
+    """Drop `name` off `table` whether it is a table CONSTRAINT or a bare INDEX.
+
+    `uq_media_source_row` has two shapes in the wild. `ms1o2u3r4c5e` created it
+    with raw `CREATE UNIQUE INDEX` (NULLS NOT DISTINCT was not expressible as a
+    `sa.UniqueConstraint` then), so every database built by the migration chain
+    holds an index. A database built by `Base.metadata.create_all` -- or one
+    that has cycled down and back up through this revision -- holds a real
+    constraint instead, because `app.models.MediaSource` declares one.
+
+    `ALTER TABLE ... DROP CONSTRAINT` cannot remove an index, which is how the
+    index-shaped databases died here. Issue both drops: in Postgres, dropping a
+    constraint takes its backing index with it, so the second statement is a
+    no-op in that case, and `IF EXISTS` makes each harmless when absent.
+    """
+    bind.execute(sa.text(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {name}"))
+    bind.execute(sa.text(f"DROP INDEX IF EXISTS {name}"))
+
+
 def upgrade() -> None:
     op.add_column(
         "media_source",
@@ -48,7 +67,7 @@ def upgrade() -> None:
         ["media_id"], ["system_id"], ondelete="CASCADE",
     )
 
-    op.drop_constraint("uq_media_source_row", "media_source", type_="unique")
+    drop_uniqueness(op.get_bind(), "media_source", "uq_media_source_row")
     op.drop_index("ix_media_source_entry", table_name="media_source")
     op.drop_column("media_source", "media_type")
     op.drop_column("media_source", "entry_id")
@@ -78,7 +97,7 @@ def downgrade() -> None:
     op.alter_column("media_source", "entry_id", nullable=False)
 
     op.drop_index("ix_media_source_entry", table_name="media_source")
-    op.drop_constraint("uq_media_source_row", "media_source", type_="unique")
+    drop_uniqueness(op.get_bind(), "media_source", "uq_media_source_row")
     op.drop_constraint("fk_media_source_media", "media_source", type_="foreignkey")
     op.drop_column("media_source", "media_id")
 

@@ -502,3 +502,75 @@ def test_scope_row_for_an_unknown_option_is_skipped_not_crashed(db_session, shee
 
     assert result["status"] == "success"
     assert db_session.query(models.SystemOptionScope).count() == 0
+
+
+# --- Game Copy -------------------------------------------------------------
+
+GAME_COPY_HEADERS = [
+    "system_id",
+    "game_id",
+    "storefront",
+    "ownership",
+    "copy_format",
+    "acquisition",
+    "price_paid",
+    "price_currency",
+    "acquired_date",
+    "remark",
+    "position",
+]
+
+
+def test_game_copy_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
+    """`game_copy` mints its uuid per database, exactly like the tabs above.
+
+    The Steam import creates these rows locally, so the same purchase carries a
+    different `system_id` on each machine while `(game_id, storefront,
+    copy_format)` is identical. Resolving by uuid alone made the sheet's row an
+    INSERT, which hit `uq_game_copy_row` and rolled the whole tab back -- Pull
+    All died here on the home machine on 2026-09-09.
+    """
+    game = models.Game(system_id=uuid.uuid4(), game_name_en="Test Game")
+    db_session.add(game)
+    db_session.flush()
+
+    local = models.GameCopy(
+        system_id=uuid.uuid4(),
+        game_id=game.system_id,
+        storefront="Steam",
+        copy_format="Digital",
+        ownership="Owned",
+    )
+    db_session.add(local)
+    db_session.flush()
+    local_id = local.system_id
+
+    # The same purchase, under a uuid this database has never seen.
+    sheets(
+        {
+            "Game Copy": [
+                GAME_COPY_HEADERS,
+                [
+                    str(uuid.uuid4()),
+                    str(game.system_id),
+                    "Steam",
+                    "Owned",
+                    "Digital",
+                    "Bought",
+                    "25.49",
+                    "USD",
+                    "2024-06-12",
+                    "",
+                    "1",
+                ],
+            ]
+        }
+    )
+
+    result = pull.execute_pull_specific(db_session, "Game Copy", log_action=False)
+
+    assert result["status"] == "success"
+    rows = db_session.query(models.GameCopy).filter_by(game_id=game.system_id).all()
+    assert len(rows) == 1, "the sheet's row must update the local one, not insert"
+    assert rows[0].system_id == local_id, "the LOCAL uuid must survive"
+    assert rows[0].acquisition == "Bought"
