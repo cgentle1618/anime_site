@@ -72,6 +72,7 @@ from app.services.domain.derivation import (
     derive_season_1_cartoon,
     derive_season_1_tv_show,
 )
+from app.services.domain.display_name import compute_display_name
 from app.services.domain.duplicates import (
     find_all_duplicates,
     find_duplicate_anime,
@@ -154,6 +155,7 @@ from app.services.domain.watch_order import (
 )
 
 __all__ = [
+    "compute_display_name",
     "casting_rows",
     "replace_casting",
     "CastingValidationError",
