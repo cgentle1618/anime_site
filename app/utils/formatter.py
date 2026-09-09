@@ -504,18 +504,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
         "ep_special": parse_from_sheet(raw.get("ep_special"), float),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "broadcast_day": parse_from_sheet(raw.get("broadcast_day"), str),
         "broadcast_time": parse_from_sheet(raw.get("broadcast_time"), time),
-        "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
         "producer": parse_from_sheet(raw.get("producer"), str),
@@ -534,7 +530,6 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -556,8 +551,6 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "anime_movie_name_jp": parse_from_sheet(raw.get("anime_movie_name_jp"), str),
         "anime_movie_name_alt": parse_from_sheet(raw.get("anime_movie_name_alt"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
@@ -574,7 +567,6 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -593,8 +585,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "movie_name_cn": parse_from_sheet(raw.get("movie_name_cn"), str),
         "movie_name_alt": parse_from_sheet(raw.get("movie_name_alt"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
@@ -615,7 +605,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -637,17 +626,13 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "source_official": parse_from_sheet(raw.get("source_official"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -671,18 +656,14 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "source_official": parse_from_sheet(raw.get("source_official"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
         "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -707,14 +688,8 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "vol_total": parse_from_sheet(raw.get("vol_total"), int),
-        "vol_fin": parse_from_sheet(raw.get("vol_fin"), int) or 0,
-        "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int) or 0,
         "ch_total": parse_from_sheet(raw.get("ch_total"), int),
-        "ch_fin": parse_from_sheet(raw.get("ch_fin"), int) or 0,
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
@@ -727,7 +702,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -754,18 +728,10 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "version": parse_from_sheet(raw.get("version"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "vol_total_original": parse_from_sheet(raw.get("vol_total_original"), float),
         "vol_total_tw": parse_from_sheet(raw.get("vol_total_tw"), float),
-        "vol_fin": parse_from_sheet(raw.get("vol_fin"), float) or 0.0,
         "arc_total": parse_from_sheet(raw.get("arc_total"), float),
-        "arc_fin": parse_from_sheet(raw.get("arc_fin"), float) or 0.0,
         "ch_total": parse_from_sheet(raw.get("ch_total"), float),
-        "ch_fin": parse_from_sheet(raw.get("ch_fin"), float) or 0.0,
-        "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float) or 0.0,
-        "progress_display": parse_from_sheet(raw.get("progress_display"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
         "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
@@ -781,7 +747,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "openlibrary_link": parse_from_sheet(raw.get("openlibrary_link"), str),
         "openlibrary_id": parse_from_sheet(raw.get("openlibrary_id"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -843,16 +808,11 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         # still carrying the column is ignored rather than restored - the
         # comic publisher is the `publisher` column above.
         "issue_total": parse_from_sheet(raw.get("issue_total"), int),
-        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int) or 0,
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "read_order": parse_from_sheet(raw.get("read_order"), float),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
         "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -880,8 +840,6 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "game_name_alt": parse_from_sheet(raw.get("game_name_alt"), str),
         "game_type": parse_from_sheet(raw.get("game_type"), str),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
-        "playing_status": parse_from_sheet(raw.get("playing_status"), str)
-        or "Might Play",
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
         "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
         "all_achievements": parse_from_sheet(raw.get("all_achievements"), bool),
@@ -908,13 +866,11 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "metacritic_user_score": parse_from_sheet(
             raw.get("metacritic_user_score"), float
         ),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
         "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
         "steam_link": parse_from_sheet(raw.get("steam_link"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

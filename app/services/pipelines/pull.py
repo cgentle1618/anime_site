@@ -1090,23 +1090,21 @@ def execute_pull_specific(
         if existing is None:
             # Blank airing_status / airing_type stay NULL: "" is in no
             # vocabulary and defeats every `airing_type in {...}` check.
-            if tab_name in ("Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons"):
-                if clean_header_dict.get("watching_status") is None:
-                    clean_header_dict["watching_status"] = "Might Watch"
-                if clean_header_dict.get("created_at") is None:
-                    clean_header_dict["created_at"] = get_taipei_now()
-                if clean_header_dict.get("updated_at") is None:
-                    clean_header_dict["updated_at"] = get_taipei_now()
-            elif tab_name == "Game":
-                if clean_header_dict.get("playing_status") is None:
-                    clean_header_dict["playing_status"] = "Might Play"
-                if clean_header_dict.get("created_at") is None:
-                    clean_header_dict["created_at"] = get_taipei_now()
-                if clean_header_dict.get("updated_at") is None:
-                    clean_header_dict["updated_at"] = get_taipei_now()
-            elif tab_name == "Manga":
-                if clean_header_dict.get("reading_status") is None:
-                    clean_header_dict["reading_status"] = "Might Read"
+            #
+            # The watching/reading/playing status defaults that used to live
+            # here are gone: status is on user_media_list now, and Pull
+            # restoring a media tab must not touch anybody's list. The User
+            # Media List tab carries them, and an entry with no list row reads
+            # back as user_list.DEFAULT_STATUS anyway.
+            #
+            # The seven tabs are the ones that had a status default to lose,
+            # unchanged. Novel and Comic were never in this branch and are not
+            # added here - whether they need a timestamp stamp is a separate
+            # question from confining the pipelines.
+            if tab_name in (
+                "Anime", "Movies", "Anime Movie", "TV Shows", "Cartoons",
+                "Game", "Manga",
+            ):
                 if clean_header_dict.get("created_at") is None:
                     clean_header_dict["created_at"] = get_taipei_now()
                 if clean_header_dict.get("updated_at") is None:

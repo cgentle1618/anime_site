@@ -121,3 +121,16 @@ def test_ch_math_no_longer_touches_progress():
     apply_validate_ch_math(entry)
     assert entry.ch_total in (0, None)
     assert not hasattr(entry, "ch_fin")
+
+
+def test_episode_math_no_longer_touches_progress():
+    """ep_fin is one viewer's position and lives on their list row. Deferred
+    from Task 9 (the plan keeps that task to one idea) and confined here with
+    the manga pair."""
+    from app.models import Anime
+    from app.services.domain.checking import apply_validate_episode_math
+
+    entry = Anime(ep_total=-4)
+    apply_validate_episode_math(entry)
+    assert entry.ep_total in (0, None)
+    assert not hasattr(entry, "ep_fin")

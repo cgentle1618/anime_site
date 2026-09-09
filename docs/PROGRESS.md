@@ -48,7 +48,7 @@ same hazard and reordered for it.
 | 18. Remove the flag and the dead helpers | done |
 | 19. `game_copy.user_id` | done |
 | 20. `novel_unit.my_rating` | done |
-| 21. Confine the pipelines | todo |
+| 21. Confine the pipelines | done |
 | 23. Documentation | todo |
 | 24. Definition of done | todo |
 

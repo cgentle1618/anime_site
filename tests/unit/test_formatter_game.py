@@ -7,11 +7,20 @@ from app.utils.formatter import (
 )
 
 
-def test_blank_cells_become_none_and_defaults_apply():
-    parsed = parse_game_from_sheet({"game_name_en": "Hades", "playing_status": ""})
-    assert parsed["playing_status"] == "Might Play"
+def test_blank_cells_become_none():
+    parsed = parse_game_from_sheet({"game_name_en": "Hades"})
     assert parsed["hours_played"] is None
     assert parsed["game_name_cn"] is None
+
+
+def test_playing_status_is_not_parsed_at_all():
+    """Step 1 confined the pipelines: the status is the player's and travels
+    in the User Media List tab, so the Game parser no longer emits it and the
+    Might Play default it used to apply lives in user_list.DEFAULT_STATUS."""
+    parsed = parse_game_from_sheet(
+        {"game_name_en": "Hades", "playing_status": "Completed"}
+    )
+    assert "playing_status" not in parsed
 
 
 def test_release_date_is_normalised():

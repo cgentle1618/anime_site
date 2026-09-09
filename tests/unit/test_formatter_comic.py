@@ -26,18 +26,20 @@ class TestParseComicFromSheet:
         parsed = parse_comic_from_sheet({"franchise_id": "Spider-Man"})
         assert parsed["franchise_id"] == "Spider-Man"
 
-    def test_issue_counts_parse_as_ints(self):
-        parsed = parse_comic_from_sheet({"issue_total": "93", "issue_fin": "74"})
+    def test_issue_total_parses_as_an_int(self):
+        parsed = parse_comic_from_sheet({"issue_total": "93"})
         assert parsed["issue_total"] == 93
-        assert parsed["issue_fin"] == 74
 
-    def test_blank_issue_fin_defaults_to_zero(self):
-        parsed = parse_comic_from_sheet({"issue_fin": ""})
-        assert parsed["issue_fin"] == 0
-
-    def test_blank_reading_status_defaults_to_might_read(self):
-        parsed = parse_comic_from_sheet({"reading_status": ""})
-        assert parsed["reading_status"] == "Might Read"
+    def test_the_personal_columns_are_not_parsed_at_all(self):
+        """Step 1 confined the pipelines: issue_fin and reading_status are the
+        reader's and travel in the User Media List tab. A parser that still
+        emitted them would setattr onto a model that no longer declares them -
+        silently, because pull upserts with setattr."""
+        parsed = parse_comic_from_sheet(
+            {"issue_fin": "74", "reading_status": "Completed"}
+        )
+        assert "issue_fin" not in parsed
+        assert "reading_status" not in parsed
 
     def test_events_stay_a_comma_joined_string(self):
         parsed = parse_comic_from_sheet({"events": "Hunted, Sinister War"})

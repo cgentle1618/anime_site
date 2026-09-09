@@ -42,14 +42,21 @@ logger = logging.getLogger(__name__)
 
 
 def apply_validate_episode_math(entry: Union[Anime, TVShows, Cartoon]) -> bool:
+    """
+    Clamps ep_total to a sane value. Returns True if it changed.
+
+    The episode count a viewer has reached used to be clamped alongside it,
+    back when both lived on this row. It is on user_media_list now and belongs
+    to whoever is watching, so this function - which runs inside Fill and
+    Replace - may not touch it. A None second argument is what
+    validate_episode_math already reads as "no progress".
+    """
     ep_total = getattr(entry, "ep_total", None)
-    ep_fin = getattr(entry, "ep_fin", None)
-    if ep_total is None and ep_fin is None:
+    if ep_total is None:
         return False
-    safe_total, safe_fin = validate_episode_math(ep_total, ep_fin)
-    if ep_total != safe_total or ep_fin != safe_fin:
+    safe_total, _ = validate_episode_math(ep_total, None)
+    if ep_total != safe_total:
         entry.ep_total = safe_total
-        entry.ep_fin = safe_fin
         return True
     return False
 
