@@ -246,11 +246,9 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "list_id": _uuid_or_none(raw.get("list_id")),
         "position": parse_from_sheet(raw.get("position"), float),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        # entry_id has no foreign key - it points at whichever media table
-        # media_type names - so an unparseable cell becomes None and the row
-        # shows up in the guide as a missing step.
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # media_id is a real FK now; an unparseable cell becomes None and the
+        # row shows up in the guide as a missing step.
+        "media_id": _media_id_or_none(raw),
         # Real FK, unlike entry_id: an unparseable cell becomes None and the
         # step restores ungrouped rather than pointing at nothing.
         "section_id": _uuid_or_none(raw.get("section_id")),
@@ -1200,13 +1198,12 @@ def parse_media_content_label_from_sheet(raw: dict) -> dict:
 
     label_id round-trips as a plain UUID: the Content Label tab restores first
     and pull.py translates the other database's label uuid into the local one
-    before this row is stored. entry_id needs no such step - entry ids are
+    before this row is stored. media_id needs no such step - entry ids are
     identical everywhere.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "media_id": _media_id_or_none(raw),
         "label_id": _uuid_or_none(raw.get("label_id")),
         "position": parse_from_sheet(raw.get("position"), int),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -1245,12 +1242,11 @@ def parse_quote_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        # entry_id has no foreign key - it points at whichever media table
-        # media_type names - and unlike the media tabs there is no
-        # name-resolution step for it in Pull, so an unparseable cell becomes
-        # None and the quote shows up on the page as unlinked.
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # media_id is a real FK now, but there is no name-resolution step for
+        # it in Pull, so an unparseable cell becomes None and the quote shows
+        # up on the page as unlinked - the same state SET NULL leaves a quote
+        # in when its entry is deleted.
+        "media_id": _media_id_or_none(raw),
         "text": parse_from_sheet(raw.get("text"), str),
         "translation": parse_from_sheet(raw.get("translation"), str),
         "language": parse_from_sheet(raw.get("language"), str),

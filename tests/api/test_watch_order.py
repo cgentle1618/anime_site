@@ -203,16 +203,21 @@ class TestGetWatchOrderDetail:
         # An unmarked step reads back as Normal, not as null.
         assert items[0]["importance"] == "Normal"
 
-    def test_dangling_entry_is_flagged_not_dropped(
+    def test_an_entryless_step_is_flagged_not_dropped(
         self, client, db_session, sample_list
     ):
+        """
+        A step can no longer point at an entry that does not exist - media_id
+        is a real FK - but it can still point at nothing at all, which is what
+        the m0c5worder migration left pre-existing orphans as. Such a step is
+        still rendered, flagged, rather than silently dropped from the list.
+        """
         db_session.add(
             models.WatchOrderItem(
                 system_id=uuid.uuid4(),
                 list_id=sample_list.system_id,
                 position=1.0,
-                media_type="anime",
-                entry_id=uuid.uuid4(),
+                entry_id=None,
             )
         )
         db_session.flush()
@@ -223,6 +228,38 @@ class TestGetWatchOrderDetail:
         assert len(items) == 1
         assert items[0]["missing"] is True
         assert items[0]["display_name"] is None
+
+    def test_deleting_the_entry_takes_its_step_with_it(
+        self, client, db_session, sample_list
+    ):
+        """
+        media_id CASCADEs, unlike quote's SET NULL: a step is almost pure
+        pointer - ep_start, ep_end and position only mean something relative to
+        an entry - so an entry-less step would be a blank row in a curated list.
+        """
+        from sqlalchemy import text
+
+        anime = models.Anime(anime_name_cn="會被刪除的")
+        db_session.add(anime)
+        db_session.flush()
+        sid = anime.system_id
+        db_session.add(
+            models.WatchOrderItem(
+                system_id=uuid.uuid4(),
+                list_id=sample_list.system_id,
+                position=1.0,
+                entry_id=sid,
+            )
+        )
+        db_session.commit()
+
+        db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+        db_session.commit()
+
+        items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
+            "items"
+        ]
+        assert items == []
 
 
 class TestMediaScope:

@@ -155,8 +155,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # translation below has already turned into a local uuid by the time this
     # match runs, so it compares the ordinary way.
     "Media Content Label": (
-        "media_type",
-        "entry_id",
+        "media_id",
         "label_id",
     ),  # uq_media_content_label_row
 }
@@ -778,15 +777,13 @@ def execute_pull_specific(
                 # An id-less row is matched on the entry it belongs to plus its
                 # text, so re-importing the same sheet updates rather than
                 # duplicating. Quotes have no name of their own to match on.
-                q_media_type = clean_header_dict.get("media_type")
-                q_entry_id = clean_header_dict.get("entry_id")
+                q_media_id = clean_header_dict.get("media_id")
                 q_text = clean_header_dict.get("text")
-                if q_media_type and q_entry_id and q_text:
+                if q_media_id and q_text:
                     existing_record = (
                         db.query(Quote)
                         .filter(
-                            Quote.media_type == q_media_type,
-                            Quote.entry_id == q_entry_id,
+                            Quote.media_id == q_media_id,
                             Quote.text == q_text,
                         )
                         .first()

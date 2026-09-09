@@ -107,3 +107,52 @@ def test_deleting_the_media_row_cascades_to_media_source(db_session):
     db_session.commit()
 
     assert db_session.query(models.MediaSource).filter_by(media_id=sid).count() == 0
+
+
+def test_deleting_the_entry_unattaches_its_quotes_but_keeps_them(db_session):
+    """
+    quote.media_id is ON DELETE SET NULL, deliberately unlike every other link
+    table here. A quote carries its own content - text, translation, speaker,
+    episode - so deleting an entry must never destroy hand-written text. The
+    quote survives, unattached.
+    """
+    from sqlalchemy import text
+
+    a = models.Anime(anime_name_cn="有引言的作品")
+    db_session.add(a)
+    db_session.commit()
+    sid = a.system_id
+
+    q = models.Quote(entry_id=sid, text="活著就是要好好活著", speaker="某人")
+    db_session.add(q)
+    db_session.commit()
+    quote_id = q.system_id
+
+    db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    survivor = db_session.query(models.Quote).filter_by(system_id=quote_id).one()
+    assert survivor.media_id is None
+    assert survivor.text == "活著就是要好好活著"
+    assert survivor.speaker == "某人"
+
+
+def test_deleting_the_entry_cascades_to_its_content_labels(db_session):
+    from sqlalchemy import text
+
+    label = models.ContentLabel(key="nsfw-cascade", label="NSFW", sort_order=0)
+    a = models.Anime(anime_name_cn="有標籤的作品")
+    db_session.add_all([label, a])
+    db_session.commit()
+    sid = a.system_id
+    db_session.add(
+        models.MediaContentLabel(media_id=sid, label_id=label.system_id)
+    )
+    db_session.commit()
+
+    db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+    db_session.commit()
+
+    assert (
+        db_session.query(models.MediaContentLabel).filter_by(media_id=sid).count() == 0
+    )

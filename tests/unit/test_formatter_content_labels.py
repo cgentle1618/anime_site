@@ -45,28 +45,41 @@ def test_a_full_media_content_label_row_parses():
     parsed = parse_media_content_label_from_sheet(
         {
             "system_id": "22222222-2222-2222-2222-222222222222",
-            "media_type": "anime",
-            "entry_id": "33333333-3333-3333-3333-333333333333",
+            "media_id": "33333333-3333-3333-3333-333333333333",
             "label_id": "44444444-4444-4444-4444-444444444444",
             "position": "1",
             "created_at": "2026-01-02 03:04:05",
         }
     )
 
-    assert parsed["media_type"] == "anime"
-    assert parsed["entry_id"] == UUID("33333333-3333-3333-3333-333333333333")
+    assert parsed["media_id"] == UUID("33333333-3333-3333-3333-333333333333")
     assert parsed["label_id"] == UUID("44444444-4444-4444-4444-444444444444")
     assert parsed["position"] == 1
 
 
 def test_an_unparseable_pointer_becomes_none_rather_than_reaching_the_db():
     """
-    entry_id and label_id are plain UUID pointers with no name-resolution
+    media_id and label_id are plain UUID pointers with no name-resolution
     fallback, so a stray string must not be handed to Postgres as one.
     """
     parsed = parse_media_content_label_from_sheet(
-        {"entry_id": "Tokyo Ghoul", "label_id": "nsfw"}
+        {"media_id": "Tokyo Ghoul", "label_id": "nsfw"}
     )
 
-    assert parsed["entry_id"] is None
+    assert parsed["media_id"] is None
     assert parsed["label_id"] is None
+
+
+def test_a_sheet_written_before_the_move_still_restores():
+    """
+    An older Backup spells the link `entry_id`, with a `media_type` beside it.
+    media.system_id IS that entry_id, so the older sheet restores exactly.
+    """
+    parsed = parse_media_content_label_from_sheet(
+        {
+            "media_type": "anime",
+            "entry_id": "33333333-3333-3333-3333-333333333333",
+        }
+    )
+
+    assert parsed["media_id"] == UUID("33333333-3333-3333-3333-333333333333")

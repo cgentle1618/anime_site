@@ -157,10 +157,7 @@ def get_entry_labels(
             models.MediaContentLabel,
             models.MediaContentLabel.label_id == models.ContentLabel.system_id,
         )
-        .filter(
-            models.MediaContentLabel.media_type == media_type,
-            models.MediaContentLabel.entry_id == entry_id,
-        )
+        .filter(models.MediaContentLabel.media_id == entry_id)
         .all()
     )
     return sorted(key for (key,) in rows)
@@ -195,14 +192,12 @@ def replace_entry_labels(
         )
 
     db.query(models.MediaContentLabel).filter(
-        models.MediaContentLabel.media_type == media_type,
-        models.MediaContentLabel.entry_id == entry_id,
+        models.MediaContentLabel.media_id == entry_id
     ).delete(synchronize_session=False)
     for position, key in enumerate(wanted):
         db.add(
             models.MediaContentLabel(
-                media_type=media_type,
-                entry_id=entry_id,
+                media_id=entry_id,
                 label_id=found[key],
                 position=position,
             )

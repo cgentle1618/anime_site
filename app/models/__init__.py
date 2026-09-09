@@ -191,3 +191,30 @@ _MEDIA_TYPES = (
 
 for _model, _media_type in _MEDIA_TYPES:
     register_media_sync(_model, _media_type)
+
+
+# ---------------------------------------------------------------------------
+# `quote` and `watch_order_item`, read side
+# ---------------------------------------------------------------------------
+# Both tables now store a single `media_id` - a real FK up to `media` - where
+# they used to carry a FK-less (media_type, entry_id) pair. The API keeps the
+# pair: the SPA reads `media_type` and `entry_id` from quotes, memes, watch
+# order steps and relations in 93 places, and Step 0 changes no user-visible
+# behaviour. So the pair is derived here rather than stored.
+#
+# `entry_id` is a synonym: it IS media_id, the same uuid under the name the API
+# uses, readable, writable and usable in a filter.
+# `media_type` is read-only by construction, like `remark` and `User.role`
+# above - the media row is the only place it lives, so the two cannot disagree.
+# That is a real gain: the old pair could store media_type="manga" beside an
+# anime's entry_id and nothing would object.
+from sqlalchemy.orm import synonym  # noqa: E402
+
+for _model in (Quote, WatchOrderItem):
+    _model.entry_id = synonym("media_id")
+    _model.media_type = column_property(
+        select(Media.media_type)
+        .where(Media.system_id == _model.media_id)
+        .correlate_except(Media)
+        .scalar_subquery()
+    )

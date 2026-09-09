@@ -566,8 +566,7 @@ def labelled_hidden_anime(db_session, sample_franchise):
     db_session.add(
         models.MediaContentLabel(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=entry.system_id,
+            media_id=entry.system_id,
             label_id=label.system_id,
         )
     )

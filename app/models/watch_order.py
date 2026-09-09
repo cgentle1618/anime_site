@@ -154,8 +154,18 @@ class WatchOrderItem(Base):
     # slotted between two others without renumbering the whole list.
     position = Column(Float, nullable=True)
 
-    media_type = Column(String, nullable=True)
-    entry_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # CASCADE, unlike quote's SET NULL, and for the opposite reason: a step is
+    # almost pure pointer - ep_start, ep_end, position and section_id only mean
+    # something relative to an entry - so a step left pointing at nothing is a
+    # blank row in a curated list. Nullable all the same: a step may be written
+    # without an entry, and pre-existing orphans were left unattached rather
+    # than deleted by the migration.
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # The optional grouping tier this step belongs to. SET NULL, not CASCADE:
     # deleting a section must leave its steps in the list and simply

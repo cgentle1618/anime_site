@@ -61,17 +61,19 @@ class MediaContentLabel(Base):
     __tablename__ = "media_content_label"
     __table_args__ = (
         UniqueConstraint(
-            "media_type", "entry_id", "label_id", name="uq_media_content_label_row"
+            "media_id", "label_id", name="uq_media_content_label_row"
         ),
-        Index("ix_media_content_label_entry", "media_type", "entry_id"),
+        Index("ix_media_content_label_entry", "media_id"),
     )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # One of MEDIA_TYPE_KEYS (hyphenated).
-    media_type = Column(String, nullable=False)
-    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     label_id = Column(
         UUID(as_uuid=True),
         ForeignKey("content_label.system_id", ondelete="CASCADE"),

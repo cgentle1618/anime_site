@@ -43,11 +43,15 @@ def hidden_label_ids(db: Session, viewer: Viewer) -> list[UUID]:
     ]
 
 
-def _label_anti_join(model, media_type: str, hidden: list[UUID]):
+def _label_anti_join(model, hidden: list[UUID]):
+    """
+    No media_type test: media_content_label.media_id is a media.system_id,
+    which is unique across all nine media tables, so matching the entry's own
+    system_id already pins the type.
+    """
     return ~sa.exists().where(
         sa.and_(
-            models.MediaContentLabel.media_type == media_type,
-            models.MediaContentLabel.entry_id == model.system_id,
+            models.MediaContentLabel.media_id == model.system_id,
             models.MediaContentLabel.label_id.in_(hidden),
         )
     )
@@ -64,7 +68,7 @@ def apply_entry_visibility(
     hidden = hidden_label_ids(db, viewer)
     if not hidden:
         return query
-    return query.filter(_label_anti_join(model, media_type, hidden))
+    return query.filter(_label_anti_join(model, hidden))
 
 
 def entry_visible(
@@ -85,8 +89,7 @@ def entry_visible(
     return (
         db.query(models.MediaContentLabel.system_id)
         .filter(
-            models.MediaContentLabel.media_type == media_type,
-            models.MediaContentLabel.entry_id == entry_id,
+            models.MediaContentLabel.media_id == entry_id,
             models.MediaContentLabel.label_id.in_(hidden),
         )
         .first()
@@ -122,19 +125,16 @@ def filter_visible_pairs(
     if not hidden or not allowed:
         return allowed
 
-    labelled = {
-        (row.media_type, row.entry_id)
-        for row in db.query(
-            models.MediaContentLabel.media_type, models.MediaContentLabel.entry_id
-        ).filter(
+    # One id column, not a tuple: media_id is unique across the nine media
+    # tables, so a pair is hidden exactly when its id carries a hidden label.
+    hidden_ids = {
+        media_id
+        for (media_id,) in db.query(models.MediaContentLabel.media_id).filter(
             models.MediaContentLabel.label_id.in_(hidden),
-            sa.tuple_(
-                models.MediaContentLabel.media_type,
-                models.MediaContentLabel.entry_id,
-            ).in_([(mt, eid) for mt, eid in allowed]),
+            models.MediaContentLabel.media_id.in_([eid for _, eid in allowed]),
         )
     }
-    return allowed - labelled
+    return {pair for pair in allowed if pair[1] not in hidden_ids}
 
 
 def drop_hidden_rows(
