@@ -22,6 +22,7 @@ from app.models import (
     Comic,
     Game,
     Manga,
+    Media,
     Movies,
     Novel,
     TVShows,
@@ -264,12 +265,22 @@ def list_candidate_entries(
     for media_type, model in MEDIA_TYPE_MODELS.items():
         if media_type not in wanted:
             continue
+        # The parent links live on `media`, and an association proxy cannot be
+        # a column expression, so these go through the joined row.
         if series_ids is not None:
             if not hasattr(model, "series_id"):
                 continue
-            query = db.query(model).filter(model.series_id.in_(series_ids))
+            query = (
+                db.query(model)
+                .join(model.media_row)
+                .filter(Media.series_id.in_(series_ids))
+            )
         else:
-            query = db.query(model).filter(model.franchise_id.in_(franchise_ids))
+            query = (
+                db.query(model)
+                .join(model.media_row)
+                .filter(Media.franchise_id.in_(franchise_ids))
+            )
         # The picker must not offer an entry the viewer cannot see.
         if viewer is not None:
             from app.services.rbac.enforcement import apply_entry_visibility
@@ -422,6 +433,8 @@ def get_entry_franchise_id(
     if model is None:
         return None
     row = (
-        db.query(model.franchise_id).filter(model.system_id == entry_id).first()
+        db.query(Media.franchise_id)
+        .filter(Media.system_id == entry_id)
+        .first()
     )
     return row[0] if row else None

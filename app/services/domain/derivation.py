@@ -17,6 +17,7 @@ from app.models import (
     Cartoon,
     Comic,
     Manga,
+    Media,
     Movies,
     Novel,
     Studio,
@@ -240,8 +241,10 @@ def derive_ep_previous_anime(
                 break
             entry.ep_previous = prev.ep_previous + prev.ep_total
 
-    base_query = db.query(Anime).filter(
-        Anime.franchise_id == franchise_id,
+    # Joined to media: the parent links live there now, so a filter on them
+    # cannot go through the association proxy.
+    base_query = db.query(Anime).join(Anime.media_row).filter(
+        Media.franchise_id == franchise_id,
         Anime.airing_type.in_(["TV", "ONA"]),
         Anime.ep_special.is_(None),
         Anime.season_part.isnot(None),
@@ -250,9 +253,9 @@ def derive_ep_previous_anime(
     if series_id is not _SERIES_UNSET:
         # Specific group: series UUID or None (no-series)
         if series_id is None:
-            base_query = base_query.filter(Anime.series_id.is_(None))
+            base_query = base_query.filter(Media.series_id.is_(None))
         else:
-            base_query = base_query.filter(Anime.series_id == series_id)
+            base_query = base_query.filter(Media.series_id == series_id)
         process_group(base_query.all())
     else:
         # All groups: partition by series_id and process each independently
@@ -271,7 +274,8 @@ def derive_season_1_anime(anime: Anime, db: Session) -> None:
         return
     tv_count = (
         db.query(Anime)
-        .filter(Anime.franchise_id == anime.franchise_id, Anime.airing_type == "TV")
+        .join(Anime.media_row)
+        .filter(Media.franchise_id == anime.franchise_id, Anime.airing_type == "TV")
         .count()
     )
     if tv_count == 1:
@@ -284,7 +288,10 @@ def derive_season_1_tv_show(tv_show: TVShows, db: Session) -> None:
     if not tv_show.franchise_id:
         return
     count = (
-        db.query(TVShows).filter(TVShows.franchise_id == tv_show.franchise_id).count()
+        db.query(TVShows)
+        .join(TVShows.media_row)
+        .filter(Media.franchise_id == tv_show.franchise_id)
+        .count()
     )
     if count == 1:
         tv_show.season_part = "Season 1"
@@ -299,8 +306,9 @@ def derive_season_1_cartoon(cartoon: Cartoon, db: Session) -> None:
         return
     count = (
         db.query(Cartoon)
+        .join(Cartoon.media_row)
         .filter(
-            Cartoon.franchise_id == cartoon.franchise_id,
+            Media.franchise_id == cartoon.franchise_id,
             Cartoon.airing_type == "TV",
         )
         .count()

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
+from app.models.media import Media
 from app.routers._patching import apply_column_patch
 from app.services.domain import apply_completion_timestamp, pop_remark, upsert_remark
 from app.services.domain.credits import attach_link_fields
@@ -36,6 +37,9 @@ from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import entity_ref_filter
 
 logger = logging.getLogger(__name__)
+
+# Filter fields that live on `media`, not on the entry's own table.
+MEDIA_OWNED_FIELDS = frozenset({"franchise_id", "series_id"})
 
 
 def make_media_router(spec) -> APIRouter:
@@ -133,9 +137,19 @@ def make_media_router(spec) -> APIRouter:
             if name in spec.model.__mapper__.relationships:
                 query = query.options(selectinload(getattr(spec.model, name)))
         columns = spec.model.__table__.columns
+        joined_media = False
         for field in spec.list_filters:
             raw = request.query_params.get(field)
             if raw is None:
+                continue
+            if field in MEDIA_OWNED_FIELDS:
+                # These live on `media` now, and an association proxy cannot
+                # be used as a column expression - the filter has to go
+                # through the joined row.
+                if not joined_media:
+                    query = query.join(spec.model.media_row)
+                    joined_media = True
+                query = query.filter(getattr(Media, field) == raw)
                 continue
             value = raw.lower() in ("true", "1", "yes") if isinstance(columns[field].type, Boolean) else raw
             query = query.filter(getattr(spec.model, field) == value)

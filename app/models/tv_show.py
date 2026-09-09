@@ -6,7 +6,6 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
-    ForeignKey,
     ForeignKeyConstraint,
     Integer,
     Sequence,
@@ -67,16 +66,6 @@ class TVShows(Base, NameFallbackMixin):
     # table and pinned by ck_tv_shows_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.
     media_type = Column(String, nullable=False, server_default="tv-show")
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
 
     tv_name_en = Column(String, nullable=True)
     tv_name_cn = Column(String, nullable=True)

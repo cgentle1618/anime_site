@@ -8,7 +8,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
-    ForeignKey,
     ForeignKeyConstraint,
     Integer,
     Sequence,
@@ -17,7 +16,6 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
@@ -79,16 +77,6 @@ class Anime(Base, NameFallbackMixin):
     # table and pinned by ck_anime_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.
     media_type = Column(String, nullable=False, server_default="anime")
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
 
     anime_name_en = Column(String, nullable=True)
     anime_name_cn = Column(String, nullable=True)
@@ -130,10 +118,6 @@ class Anime(Base, NameFallbackMixin):
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
     # Relationships
-    franchise = relationship(
-        "Franchise", back_populates="animes", foreign_keys="[Anime.franchise_id]"
-    )
-    series = relationship("Series", back_populates="animes")
 
     @property
     def names_dict(self) -> dict:

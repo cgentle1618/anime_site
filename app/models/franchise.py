@@ -90,9 +90,6 @@ class Franchise(Base, NameFallbackMixin):
     collection = relationship(
         "Collection", back_populates="franchises", foreign_keys=[collection_id]
     )
-    animes = relationship(
-        "Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]"
-    )
 
     @property
     def display_name(self) -> str:
@@ -171,7 +168,6 @@ class Series(Base, NameFallbackMixin):
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
-    animes = relationship("Anime", back_populates="series")
 
     @property
     def names_dict(self) -> dict:

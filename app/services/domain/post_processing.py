@@ -10,6 +10,7 @@ from app.models import (
     Cartoon,
     Game,
     Manga,
+    Media,
     Movies,
     Novel,
     TVShows,
@@ -245,8 +246,8 @@ def derive_ep_previous_all_anime(db: Session) -> None:
     guessed, so ep_previous is all that is still derived franchise-wide.
     """
     rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
+        db.query(Media.franchise_id)
+        .filter(Media.media_type == "anime", Media.franchise_id.isnot(None))
         .distinct()
         .all()
     )

@@ -4,6 +4,8 @@ import json
 import logging
 
 from sqlalchemy import Sequence, or_, text
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.ext.associationproxy import AssociationProxyExtensionType
 from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
@@ -227,14 +229,26 @@ def resync_public_id_sequence(db: Session, model) -> None:
 
 def drop_non_columns(model, payload: dict) -> dict:
     """
-    Keep only keys that are real columns on `model`.
+    Keep only keys the model can actually be given.
 
-    A tab may carry columns for a human reader that are not the model's own -
+    A tab may carry columns for a human reader that the model cannot take -
     display_name is derived and lives on `media`. Without this, Pull passes it
     to Model(**payload) and TypeErrors the whole tab.
+
+    "Can be given" is wider than "is a column": cover_image_file, franchise_id
+    and series_id are association proxies onto the entry's media row, and
+    dropping them here would silently strip the franchise this very module
+    just resolved by name a few hundred lines above. Relationships and
+    read-only column_properties (media_row, remark) are NOT included - only
+    columns and proxies.
     """
-    columns = {c.name for c in model.__table__.columns}
-    return {k: v for k, v in payload.items() if k in columns}
+    allowed = {c.name for c in model.__table__.columns} | {
+        name
+        for name, descriptor in sa_inspect(model).all_orm_descriptors.items()
+        if descriptor.extension_type
+        is AssociationProxyExtensionType.ASSOCIATION_PROXY
+    }
+    return {k: v for k, v in payload.items() if k in allowed}
 
 
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):

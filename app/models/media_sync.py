@@ -87,7 +87,7 @@ def _display_name_or_none(entry) -> str | None:
         return None
 
 
-def register_media_sync(model, media_type: str) -> None:
+def register_media_sync(model, media_type: str, has_series: bool = True) -> None:
     """
     Wire one detail model to `media`: give it a parent row on construction,
     keep the derived columns current at flush, and create the delete trigger
@@ -110,6 +110,11 @@ def register_media_sync(model, media_type: str) -> None:
     # A QUERY cannot go through the proxy: use
     # `.join(Model.media_row).filter(Media.cover_image_file...)` instead.
     model.cover_image_file = association_proxy("media_row", "cover_image_file")
+    model.franchise_id = association_proxy("media_row", "franchise_id")
+    if has_series:
+        # anime_movies never had a series_id column and must not gain one:
+        # anime movies have no series. Its media row keeps NULL there.
+        model.series_id = association_proxy("media_row", "series_id")
 
     @event.listens_for(model, "init")
     def _on_init(target, args, kwargs):  # noqa: ARG001

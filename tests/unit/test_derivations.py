@@ -49,7 +49,7 @@ def make_series(system_id=None, display_name="Series A"):
 
 def mock_db_returns(anime_list, series_list=None):
     """
-    Returns a mock DB session where any .query().filter()...all() chain
+    Returns a mock DB session where any .query().join().filter()...all() chain
     returns the provided anime_list. Series queries return series_list.
     The mock is self-referential so chained .filter().filter() works.
     """
@@ -63,6 +63,9 @@ def mock_db_returns(anime_list, series_list=None):
         q.filter.return_value = q
         q.filter_by.return_value = q
         q.order_by.return_value = q
+        # The parent links live on `media`, so the derivations reach them by
+        # joining rather than by reading a column of the entry's own table.
+        q.join.return_value = q
         q.first.return_value = return_val[0] if return_val else None
         return q
 

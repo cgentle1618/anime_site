@@ -98,16 +98,6 @@ class Game(Base, NameFallbackMixin):
     # table and pinned by ck_games_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.
     media_type = Column(String, nullable=False, server_default="game")
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
 
     game_name_en = Column(String, nullable=True)
     game_name_cn = Column(String, nullable=True)

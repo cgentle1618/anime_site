@@ -7,7 +7,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
-    ForeignKey,
     ForeignKeyConstraint,
     Integer,
     Sequence,
@@ -78,16 +77,6 @@ class Manga(Base, NameFallbackMixin):
     # table and pinned by ck_manga_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.
     media_type = Column(String, nullable=False, server_default="manga")
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
 
     manga_name_en = Column(String, nullable=True)
     manga_name_cn = Column(String, nullable=True)

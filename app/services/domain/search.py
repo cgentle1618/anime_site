@@ -16,7 +16,7 @@ matches - the same rule the browser used to apply after the fact.
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -358,10 +358,17 @@ def search(db: Session, viewer, query: str, scope: str = "all", limit: int = 500
         if spec.key == "anime" and scope == "all":
             matched_franchises = raw.get("franchise", [])
             if matched_franchises:
+                # A subquery, not a join: `criteria` is OR-ed into a query
+                # whose shape the caller owns, and adding a join here would
+                # change what it returns.
                 criteria = or_(
                     criteria,
-                    models.Anime.franchise_id.in_(
-                        [f.system_id for f in matched_franchises]
+                    models.Anime.system_id.in_(
+                        select(models.Media.system_id).where(
+                            models.Media.franchise_id.in_(
+                                [f.system_id for f in matched_franchises]
+                            )
+                        )
                     ),
                 )
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)

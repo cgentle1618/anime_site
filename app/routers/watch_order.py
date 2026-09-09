@@ -343,24 +343,35 @@ def _summarize_generated(db: Session, auto_lists: List[Any]) -> dict:
     # (franchise_id | series_id) -> {media_type: count}
     by_franchise: dict = {}
     by_series: dict = {}
-    for media_type, model in MEDIA_TYPE_MODELS.items():
-        if every_franchise:
-            for franchise_id, count in (
-                db.query(model.franchise_id, func.count(model.system_id))
-                .filter(model.franchise_id.in_(list(every_franchise)))
-                .group_by(model.franchise_id)
-                .all()
-            ):
-                by_franchise.setdefault(franchise_id, {})[media_type] = count
-        # anime_movies has no series_id, so it never appears in a series scope.
-        if every_series and hasattr(model, "series_id"):
-            for series_key, count in (
-                db.query(model.series_id, func.count(model.system_id))
-                .filter(model.series_id.in_(list(every_series)))
-                .group_by(model.series_id)
-                .all()
-            ):
-                by_series.setdefault(series_key, {})[media_type] = count
+    # One table answers for every media type: the parent links live on `media`,
+    # and media_type is a column there, so what used to be nine grouped queries
+    # per owner is now one grouped query per owner kind.
+    if every_franchise:
+        for media_type, franchise_id, count in (
+            db.query(
+                models.Media.media_type,
+                models.Media.franchise_id,
+                func.count(models.Media.system_id),
+            )
+            .filter(models.Media.franchise_id.in_(list(every_franchise)))
+            .group_by(models.Media.media_type, models.Media.franchise_id)
+            .all()
+        ):
+            by_franchise.setdefault(franchise_id, {})[media_type] = count
+    if every_series:
+        # anime_movies has no series, so its media rows carry series_id NULL
+        # and never match here - the same exclusion the per-model loop made.
+        for media_type, series_key, count in (
+            db.query(
+                models.Media.media_type,
+                models.Media.series_id,
+                func.count(models.Media.system_id),
+            )
+            .filter(models.Media.series_id.in_(list(every_series)))
+            .group_by(models.Media.media_type, models.Media.series_id)
+            .all()
+        ):
+            by_series.setdefault(series_key, {})[media_type] = count
 
     summary = {}
     for l in auto_lists:
@@ -838,29 +849,36 @@ def backfill_release_lists(
     skipped_too_small = 0
     skipped_opted_out = 0
 
-    # Entries per franchise and per series, split by media type, in one grouped
-    # query per table rather than per owner.
+    # Entries per franchise and per series, split by media type. The parent
+    # links live on `media`, which also carries media_type, so this is two
+    # grouped queries in total rather than two per table.
     by_franchise: dict = {}
     by_series: dict = {}
-    for media_type, model in MEDIA_TYPE_MODELS.items():
-        for franchise_id, count in (
-            db.query(model.franchise_id, func.count(model.system_id))
-            .group_by(model.franchise_id)
-            .all()
-        ):
-            if franchise_id is not None:
-                bucket = by_franchise.setdefault(franchise_id, {})
-                bucket[media_type] = bucket.get(media_type, 0) + count
+    for media_type, franchise_id, count in (
+        db.query(
+            models.Media.media_type,
+            models.Media.franchise_id,
+            func.count(models.Media.system_id),
+        )
+        .group_by(models.Media.media_type, models.Media.franchise_id)
+        .all()
+    ):
+        if franchise_id is not None:
+            bucket = by_franchise.setdefault(franchise_id, {})
+            bucket[media_type] = bucket.get(media_type, 0) + count
 
-        if hasattr(model, "series_id"):
-            for series_key, count in (
-                db.query(model.series_id, func.count(model.system_id))
-                .group_by(model.series_id)
-                .all()
-            ):
-                if series_key is not None:
-                    bucket = by_series.setdefault(series_key, {})
-                    bucket[media_type] = bucket.get(media_type, 0) + count
+    for media_type, series_key, count in (
+        db.query(
+            models.Media.media_type,
+            models.Media.series_id,
+            func.count(models.Media.system_id),
+        )
+        .group_by(models.Media.media_type, models.Media.series_id)
+        .all()
+    ):
+        if series_key is not None:
+            bucket = by_series.setdefault(series_key, {})
+            bucket[media_type] = bucket.get(media_type, 0) + count
 
     # Franchises whose collection opts out.
     blocked = {
