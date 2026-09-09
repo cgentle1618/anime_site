@@ -16,6 +16,7 @@ from app.models.franchise import Franchise, Series
 from app.models.game import Game
 from app.models.game_copy import GameCopy
 from app.models.manga import Manga
+from app.models.media import Media
 from app.models.media_credit import MediaCredit, MediaTag
 from app.models.media_relation import MediaRelation
 from app.models.media_source import MediaSource  # noqa: F401
@@ -59,6 +60,7 @@ __all__ = [
     "Collection",
     "Franchise",
     "Series",
+    "Media",
     "Anime",
     "AnimeMovies",
     "Movies",

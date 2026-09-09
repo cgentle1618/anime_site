@@ -101,6 +101,11 @@ def test_migration_tables_match_models_with_a_public_id_column():
         for name, table in Base.metadata.tables.items()
         if "public_id" in table.columns
     }
+    # `media` is the one table whose public_id is not its own: it stores a copy
+    # of the detail row's value, still minted by that table's
+    # <table>_public_id_seq, so it has no entry in this migration and needs no
+    # sequence of its own. See app/models/media.py.
+    tables_with_public_id.discard("media")
     assert set(_migration.TABLES) == tables_with_public_id
 
 

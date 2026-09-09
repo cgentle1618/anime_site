@@ -7,15 +7,37 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-07
+Last updated: 2026-09-09
 
 ---
 
 ## In flight
 
-Nothing. The GCP code paths were removed on 2026-09-08; the publisher
-migration and the `public_id` + slug URL plan shipped on 2026-09-07.
-`docs/roadmap.md` keeps the record.
+### Step 0 — `media` supertable (`docs/superpowers/plans/2026-09-08-step0-media-supertable.md`)
+
+Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
+
+| Task | Status |
+|---|---|
+| 1. `media` model and table | done |
+| 2. `compute_display_name` | done |
+| 3. Port `anime` | todo |
+| 4. Port `anime_movies` | todo |
+| 5. Port `movies` | todo |
+| 6. Port `tv_shows` | todo |
+| 7. Port `cartoons` | todo |
+| 8. Port `manga` | todo |
+| 9. Port `novel` | todo |
+| 10. Port `comic` | todo |
+| 11. Port `games` | todo |
+| 12. Constraint drift test | todo |
+| 13. `display_name` drift test | todo |
+| 14–19. Link tables to `media_id` | todo |
+| 20. Contract `cover_image_file` | todo |
+| 21. Contract `franchise_id` / `series_id` | todo |
+| 22. Contract `public_id` + `entity_ref_filter` | todo |
+| 23. `Media` sheet tab (run before 20) | todo |
+| 24. Documentation | todo |
 
 ## Open items
 
@@ -39,10 +61,10 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `pdf1e2r3d4e5` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0a1media` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
 | Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |
 | Studio data | 45 duplicate studios removed by hand 2026-09-07; the delete cascaded ~377 credits away, rebuilt by Pull All from the entry tabs' `studio` columns. Now 78 studios, 483 studio credits, 0 duplicate clusters, and all 78 local ids match the sheet (28 were realigned to the sheet's ids after Pull matched them by name) |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
-| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test` and `anime_site_test_gcprm`; both are droppable |
+| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_gcprm` and `anime_site_test_step0` (this session's, created 2026-09-09); all three are droppable |
