@@ -31,10 +31,11 @@ same `(unnamed <type> <public_id>)` placeholder the backfill migrations use.
 
 import uuid
 
-from sqlalchemy import DDL, event, text
+from sqlalchemy import DDL, Sequence, event, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship
 
+from app.database import Base
 from app.models.media import Media
 
 # The shared trigger function. Attached to `media` so create_all defines it
@@ -62,6 +63,12 @@ SHARED_COLUMNS = ("cover_image_file", "franchise_id", "series_id")
 
 # {detail model: hyphenated media_type key}, filled by register_media_sync.
 MEDIA_TYPE_FOR_MODEL: dict[type, str] = {}
+
+# {detail model: the sequence its media rows draw public_id from}. The
+# per-table sequences are kept deliberately: media.public_id stays
+# per-type, so existing ids and every URL built from them are unchanged.
+# Recorded here because the detail table no longer declares the column.
+PUBLIC_ID_SEQUENCE: dict[type, str] = {}
 
 
 def delete_trigger_sql(table: str) -> str:
@@ -98,6 +105,13 @@ def register_media_sync(model, media_type: str, has_series: bool = True) -> None
     """
     table = model.__table__.name
     MEDIA_TYPE_FOR_MODEL[model] = media_type
+    # Declared against the metadata, not against a column: the detail table no
+    # longer has a public_id column to hang it on, but create_all still has to
+    # create the sequence (the suite builds its schema that way) and the real
+    # database already holds it, unchanged, from before the column moved.
+    PUBLIC_ID_SEQUENCE[model] = Sequence(
+        f"{table}_public_id_seq", metadata=Base.metadata
+    ).name
 
     model.media_row = relationship(Media, lazy="joined")
 
@@ -109,6 +123,7 @@ def register_media_sync(model, media_type: str, has_series: bool = True) -> None
     #
     # A QUERY cannot go through the proxy: use
     # `.join(Model.media_row).filter(Media.cover_image_file...)` instead.
+    model.public_id = association_proxy("media_row", "public_id")
     model.cover_image_file = association_proxy("media_row", "cover_image_file")
     model.franchise_id = association_proxy("media_row", "franchise_id")
     if has_series:
@@ -138,13 +153,8 @@ def register_media_sync(model, media_type: str, has_series: bool = True) -> None
 
 
 def _sequence_name(entry) -> str | None:
-    """The public_id sequence the entry's own table owns, if it has one."""
-    from sqlalchemy import Sequence
-
-    column = entry.__table__.columns.get("public_id")
-    if column is None or not isinstance(column.default, Sequence):
-        return None
-    return column.default.name
+    """The sequence this entry's public_id is drawn from, if any."""
+    return PUBLIC_ID_SEQUENCE.get(type(entry))
 
 
 def sync_media_row(session: Session, entry) -> None:

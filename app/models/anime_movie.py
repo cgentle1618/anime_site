@@ -9,9 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKeyConstraint,
     Integer,
-    Sequence,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -50,16 +48,6 @@ class AnimeMovies(Base, NameFallbackMixin):
             r"release_date_tw ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_anime_movies_release_date_tw_iso",
         ),
-        UniqueConstraint(
-            "public_id",
-            name="uq_anime_movies_public_id",
-            # Deferred so a Pull can permute public_id across rows inside
-            # one transaction: the sheet can hand row A an id row B still
-            # holds until the restore reaches B. Only the end state has to
-            # be unique, and it is still checked, at COMMIT.
-            deferrable=True,
-            initially="DEFERRED",
-        ),
     )
     _name_fields = [
         "anime_movie_name_en",
@@ -71,11 +59,6 @@ class AnimeMovies(Base, NameFallbackMixin):
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
-    )
-    # Short, stable, per-table id shown in SPA URLs; system_id remains the
-    # join key and never leaves the API.
-    public_id = Column(
-        Integer, Sequence("anime_movies_public_id_seq"), nullable=False
     )
     # The discriminator half of the composite FK up to `media`. Constant per
     # table and pinned by ck_anime_movies_media_type; it exists so the FK can carry

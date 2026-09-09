@@ -12,9 +12,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     Numeric,
-    Sequence,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -68,16 +66,6 @@ class Game(Base, NameFallbackMixin):
             "base_game_id IS NULL OR base_game_id <> system_id",
             name="ck_games_not_self_parent",
         ),
-        UniqueConstraint(
-            "public_id",
-            name="uq_games_public_id",
-            # Deferred so a Pull can permute public_id across rows inside
-            # one transaction: the sheet can hand row A an id row B still
-            # holds until the restore reaches B. Only the end state has to
-            # be unique, and it is still checked, at COMMIT.
-            deferrable=True,
-            initially="DEFERRED",
-        ),
     )
 
     _name_fields = [
@@ -91,9 +79,6 @@ class Game(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id shown in SPA URLs; system_id remains the
-    # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("games_public_id_seq"), nullable=False)
     # The discriminator half of the composite FK up to `media`. Constant per
     # table and pinned by ck_games_media_type; it exists so the FK can carry
     # the type, not because a row could ever be anything else.

@@ -7,11 +7,23 @@ other and restored unchanged.
 
 from app.services.pipelines.tabs import SHEET_TABS, TAB_PARSERS
 
-PUBLIC_ID_TABS = {
-    "Anime", "Anime Movie", "Movies", "TV Shows", "Cartoons", "Manga",
-    "Novel", "Comic", "Game", "Collection", "Franchise", "Series",
+# The eight entities that still hold public_id on their own table, so it is
+# their own tab that must carry it.
+OWN_ID_TABS = {
+    "Collection", "Franchise", "Series",
     "Person", "Studio", "Publisher", "Character", "Watch Order List",
 }
+
+# The nine media types keep a public_id, but it lives on `media` now, so it
+# rides on the Media tab instead of on each entry tab. The guarantee is
+# unchanged - the id still travels, and is still restored unchanged - only its
+# seat in the sheet moved.
+MEDIA_TABS = {
+    "Anime", "Anime Movie", "Movies", "TV Shows", "Cartoons", "Manga",
+    "Novel", "Comic", "Game",
+}
+
+PUBLIC_ID_TABS = OWN_ID_TABS | {"Media"}
 
 
 def test_public_id_is_never_dropped_from_a_tab():
@@ -29,6 +41,19 @@ def test_every_public_id_tab_has_the_column_in_its_backup_header():
         tab = by_name[name]
         columns = {c.name for c in tab.model.__table__.columns}
         assert "public_id" in columns, name
+
+
+def test_the_media_tab_carries_the_nine_entry_tabs_ids():
+    """
+    The entry tabs no longer carry public_id - it moved to `media`. That is
+    only safe because the Media tab does carry it, and restores before them.
+    """
+    by_name = {tab.name: tab for tab in SHEET_TABS}
+    names = [tab.name for tab in SHEET_TABS]
+    for name in MEDIA_TABS:
+        columns = {c.name for c in by_name[name].model.__table__.columns}
+        assert "public_id" not in columns, name
+        assert names.index("Media") < names.index(name), name
 
 
 def test_parsers_carry_public_id_through():

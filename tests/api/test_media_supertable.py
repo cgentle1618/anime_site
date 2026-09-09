@@ -71,8 +71,9 @@ def test_an_anime_cannot_point_at_a_manga_media_row(db):
         text(
             # watching_status is NOT NULL with a Python-side default, so a raw
             # INSERT has to supply it or the row fails on that instead.
-            "INSERT INTO anime (system_id, media_type, public_id, anime_name_cn, "
-            "watching_status) VALUES (:s, 'anime', 999998, '錯型別', 'Might Watch')"
+            # public_id is not listed: it lives on `media` now.
+            "INSERT INTO anime (system_id, media_type, anime_name_cn, "
+            "watching_status) VALUES (:s, 'anime', '錯型別', 'Might Watch')"
         ),
         {"s": m.system_id},
     )

@@ -210,6 +210,27 @@ def resync_public_id_sequence(db: Session, model) -> None:
     name - deriving it made Pull All crash on "media_public_id_seq does not
     exist" before a single tab was restored.
     """
+    from app.models.media import Media
+    from app.models.media_sync import MEDIA_TYPE_FOR_MODEL, PUBLIC_ID_SEQUENCE
+
+    if model in PUBLIC_ID_SEQUENCE:
+        # A media type: its ids live on `media` now, but each type still draws
+        # from its own historic sequence, so existing ids and the URLs built
+        # from them are unchanged.
+        db.execute(
+            text(
+                f"SELECT setval('\"{PUBLIC_ID_SEQUENCE[model]}\"', "
+                "COALESCE((SELECT MAX(public_id) FROM media "
+                "WHERE media_type = :t), 0) + 1, false)"
+            ),
+            {"t": MEDIA_TYPE_FOR_MODEL[model]},
+        )
+        return
+    if model is Media:
+        # The Media tab itself: every type's sequence is resynced by its own
+        # entry tab, which restores after it.
+        return
+
     column = model.__table__.columns.get("public_id")
     if column is None:
         return

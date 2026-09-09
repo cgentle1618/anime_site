@@ -276,17 +276,24 @@ def parse_media_from_sheet(raw: dict) -> dict:
     tab pulled before its entry tab satisfies the NOT NULL, and the entry tab
     then overwrites it with the freshly computed value.
     """
-    return {
+    parsed = {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "public_id": parse_from_sheet(raw.get("public_id"), int),
-        "display_name": parse_from_sheet(raw.get("display_name"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
         "series_id": parse_from_sheet(raw.get("series_id"), UUID),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+    # public_id and display_name are both NOT NULL. A blank cell - a row a
+    # human added to the sheet by hand - must omit the key rather than emit
+    # None, which would abort the whole tab on the constraint. Omitted, an
+    # UPDATE keeps the stored value and an INSERT fails on that one row.
+    parsed.update(_public_id_from_sheet(raw))
+    display_name = parse_from_sheet(raw.get("display_name"), str)
+    if display_name is not None:
+        parsed["display_name"] = display_name
+    return parsed
 
 
 def parse_media_relation_from_sheet(raw: dict) -> dict:
