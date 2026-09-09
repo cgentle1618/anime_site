@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-09 (the `media` supertable owns the shared columns)
+Last verified: 2026-09-09 (`user_media_list` owns the personal columns)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -20,6 +20,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Grouping tiers](#grouping-tiers): collection, franchise, series
 - [Media entries](#media-entries): anime, anime_movies, movies, tv_shows, cartoons, manga, novel, novel_unit, comic, games, game_copy
 - [Virtual fields on media entries](#virtual-fields-on-media-entries)
+- [Personal data](#personal-data): user_media_list, user_novel_unit_rating
 - [People, studios and links](#people-studios-and-links): person, person_role, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
@@ -224,9 +225,7 @@ FK up to [the `media` supertable](#the-media-supertable).
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK, and the FK up to `media` |
 | `media_type` | String | no | per table | Constant discriminator, pinned by `ck_<table>_media_type` |
-| `my_rating` | String | yes | | MY_RATINGS |
-| `completed_at` | DateTime | yes | | Stamped when the status becomes a completed status (see `app/services/domain/completion.py`). |
-| `created_at` / `updated_at` | DateTime | yes | now | |
+| `created_at` / `updated_at` | DateTime | yes | now | Catalogue timestamps. The list row has its own pair. |
 
 **Four columns are NOT here any more.** `public_id`, `cover_image_file`,
 `franchise_id` and `series_id` live on `media` and nowhere else - a value has
@@ -246,10 +245,21 @@ or, better, queries `media` directly, which answers for every type at once.
 `<table>_public_id_seq`, declared against the metadata now that no column hangs
 it, so existing ids and every SPA URL built from one are unchanged.
 
-Each entry also has: a status column (`watching_status` NOT NULL default
-`"Might Watch"` for the five watch types; `reading_status` NOT NULL default
-`"Might Read"` for manga, novel, comic; `playing_status` NOT NULL default
-`"Might Play"` for game), its name columns, and the virtual
+**The personal columns are NOT here any more either.** Status, rating and
+progress moved to [`user_media_list`](#user_media_list): they are one person's
+facts, and they sat on a row everybody shares. Entries still expose every one
+of them **as attributes** - `attach_list_fields` sets them on the instance for
+the acting user before the response schema reads them - so the API's field
+names, the SPA and the sheet's own column names are unchanged. An entry the
+viewer has no list row for reads back as the type's default status and None
+for the rest, which is what the column held for an untouched entry.
+
+The same caveat as the association proxies applies: **a plain attribute cannot
+be used as a column expression**, so a list page filtering by status goes
+through an OUTER join onto `user_media_list` (`join_list` in
+`app/services/domain/user_list.py`), not a column comparison.
+
+Each entry also has its name columns and the virtual
 fields in [Virtual fields](#virtual-fields-on-media-entries). There is no
 `source_other` column any more - a `media_source` `bucket='other'` row is
 what every read and write path uses now (see [`media_source`](#media_source)).
@@ -270,12 +280,10 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `season_part` | String | yes | | "Season 2", "Part 1", "Cour 2"... parsed by `SEASON_PATTERN` / `PART_PATTERN`; part of the duplicate key. |
 | `airing_type` | String | yes | | ANIME_AIRING_TYPES |
 | `airing_status` | String | yes | | AiringStatus |
-| `watching_status` | String | **no** | `"Might Watch"` | WatchStatus |
 | `is_main` | String | yes | | IS_MAIN (本傳/外傳/...) |
 | `is_main_entry` | Boolean | yes | | Marks the representative entry of its group. |
 | `ep_previous` | Integer | yes | | Episodes accumulated by prequels; **derived** by `derive_ep_previous_all_anime` after Fill/Replace. |
 | `ep_total` | Integer | yes | | |
-| `ep_fin` | Integer | yes | `0` | Clamped to `[0, ep_total]` by `validate_episode_math`. |
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |
@@ -284,7 +292,6 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `release_date` | String | yes | | ISO date string |
 | `broadcast_day` | String | yes | | WEEKDAYS |
 | `broadcast_time` | Time | yes | | Postgres TIME, exchanged as `"HH:MM:SS"` |
-| `my_watch_day` | String | yes | | WEEKDAYS |
 | `mal_id` | Integer | yes | | Derived from `mal_link` by `apply_extract_mal_id_anime` |
 | `mal_link` | String | yes | | |
 | `seiyuu` | String | yes | | SEIYUU_STATUSES - a Need/Done work-status flag, **not** a cast list |
@@ -303,7 +310,6 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 |---|---|:-:|---|---|
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
 | `airing_status` | String | yes | | AiringStatus |
-| `watching_status` | String | **no** | `"Might Watch"` | |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` / `anilist_rating` | String | yes | | |
 | `length_min` | Integer | yes | | Runtime in minutes |
@@ -326,7 +332,6 @@ Live-action and animated (non-anime) films. Model: `Movies`. CHECKs:
 |---|---|:-:|---|---|
 | `movie_name_en` / `_cn` / `_alt` | String | yes | | Three names only |
 | `airing_status` | String | yes | | |
-| `watching_status` | String | **no** | `"Might Watch"` | |
 | `imdb_rating` | String | yes | | From OMDb |
 | `movie_type` | String | yes | | MOVIE_TYPES (`Reality` / `Animation`) |
 | `is_main` | String | yes | | IS_MAIN |
@@ -352,10 +357,8 @@ Live-action / scripted TV. Model: `TVShows`. CHECK: `ck_tv_shows_release_date_is
 | `region` | String | yes | | TV_REGIONS |
 | `season_part` | String | yes | | |
 | `airing_status` | String | yes | | |
-| `watching_status` | String | **no** | `"Might Watch"` | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
-| `ep_fin` | Integer | yes | `0` | |
 | `imdb_rating` | String | yes | | |
 | `release_date` | String | yes | | |
 | `imdb_id` / `imdb_link` | String | yes | | |
@@ -375,10 +378,8 @@ Western animation. Model: `Cartoon`. CHECK: `ck_cartoons_release_date_iso`.
 | `season_part` | String | yes | | |
 | `airing_type` | String | yes | | CARTOON_AIRING_TYPES. Fill/Replace only touch `TV` and `Movie`. |
 | `airing_status` | String | yes | | |
-| `watching_status` | String | **no** | `"Might Watch"` | |
 | `is_main` | String | yes | | |
 | `ep_total` | Integer | yes | | |
-| `ep_fin` | Integer | yes | `0` | |
 | `length_ep_min` | Integer | yes | | Minutes per episode |
 | `imdb_rating` | String | yes | | |
 | `release_date` | String | yes | | |
@@ -399,12 +400,8 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `region` | String | yes | | MANGA_REGIONS |
 | `is_main` | String | yes | | |
 | `serialization_status` | String | yes | | MANGA_SERIALIZATION_STATUSES |
-| `reading_status` | String | **no** | `"Might Read"` | ReadStatus |
 | `vol_total` | Integer | yes | | |
-| `vol_fin` | Integer | **no** | `0` | Clamped by `validate_vol_math` |
-| `vol_fin_page` | Integer | **no** | `0` | Page reached inside the current volume |
 | `ch_total` | Integer | yes | | |
-| `ch_fin` | Integer | **no** | `0` | Clamped by `validate_ch_math` |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` / `anilist_rating` | String | yes | | |
 | `release_date` / `end_date` | String | yes | | |
@@ -438,16 +435,10 @@ Alembic revision `nv1u2n3i4t5s`.
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
 | `serialization_status` | String | yes | | NOVEL_SERIALIZATION_STATUSES |
-| `reading_status` | String | **no** | `"Might Read"` | |
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `novel_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `novel_unit` rows |
-| `vol_fin` | Float | **no** | `0` | Not derived |
 | `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows, and null on every volume-only type (see below) |
-| `arc_fin` | Float | **no** | `0` | Number of arcs fully finished. Together with `ch_fin_in_arc` this is the two-stage reading cursor; normalised (never left out of range) on every write; forced to `0` on every volume-only type |
 | `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows; null on every volume-only type |
-| `ch_fin` | Float | **no** | `0` | **Derived**: `sum(ch_count of fully-finished arcs) + ch_fin_in_arc`; forced to `0` on every volume-only type |
-| `ch_fin_in_arc` | Float | **no** | `0` | Chapters read into the arc currently being read (the arc at position `arc_fin`). Zero for every novel with no arc rows. Not clamped at the last recorded arc - see the rollover rule in business-rules.md |
-| `progress_display` | String | yes | | Which pair the UI shows. Canonical values (Decision G, narrowed to the JP/KR-vs-TW volume choice): `""` (default, VOL JP/KR) or `vol_tw`. Older stored values (`ch`, `vol_original`, `arc_ch`) still render on detail/card views - see PROGRESS_DISPLAY_OPTIONS and `withLegacyProgressDisplay` in `fieldOptions.js` |
 | `mal_rating` | Float | yes | | |
 | `mal_rank` / `anilist_rating` | String | yes | | |
 | `release_date` / `end_date` | String | yes | | |
@@ -485,7 +476,6 @@ languages. CHECKs: `ck_novel_unit_kind` (`unit_kind` in
 | `name_cn` / `name_en` | String | yes | | |
 | `remark` | String | yes | | |
 | `ch_count` | Float | yes | | Chapters in this arc. Meaningful only on `unit_kind = 'arc'` rows (guarded by the CHECK); the sole source of `novel.ch_total` and `novel.ch_fin` |
-| `my_rating` | String | yes | | This unit's own grade, one of `constants.MY_RATINGS`. Applies to every kind, not just volumes. No CHECK, matching `novel` / `character` / `staff` - the dropdown enforces the vocabulary, and a Pull must be able to carry an odd cell rather than fail the tab. **Nothing derives from it**: `novel.my_rating` stays hand-set and is not computed from the rated units |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Written through `POST`/`PUT /api/novel` via the `units` payload key (popped
@@ -508,6 +498,11 @@ the historical values once and deleted any non-`volume` `novel_unit` rows
 belonging to these types; its downgrade is a deliberate no-op, because nothing
 else in the schema records what those values were.
 
+A unit's `my_rating` is NOT a column here: it is one reader's grade of
+one volume or arc and lives in
+[`user_novel_unit_rating`](#user_novel_unit_rating). It is still served
+and accepted as `my_rating` on each unit of a novel's response.
+
 ### `comic`
 
 Western comic runs, Marvel-focused; one row is one numbered run. Model:
@@ -523,9 +518,7 @@ titles).
 | `is_main_entry` | Boolean | yes | | Part of the duplicate key (comic has no `is_main` string) |
 | `release_date` / `end_date` | String | yes | | |
 | `issue_total` | Integer | yes | | Also the entry's own size-bucket measure |
-| `issue_fin` | Integer | **no** | `0` | |
 | `serialization_status` | String | yes | | Same idiom as manga/novel; no dedicated tuple in `constants.py` |
-| `reading_status` | String | **no** | `"Might Read"` | |
 | `read_order` | Float | yes | | |
 | `comicvine_id` | Integer | yes | | Derived from `comicvine_link`; what Fill fetches on and what duplicate detection treats as conclusive |
 | `comicvine_link` | String | yes | | |
@@ -550,7 +543,6 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `game_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | `display_name` order CN -> EN -> Alt -> Roman -> JP |
 | `game_type` | String | yes | | GAME_TYPES (Base Game / DLC / Expansion / Bundle) |
 | `base_game_id` | UUID | yes | | Self-FK `games.system_id` ON DELETE **SET NULL** - deleting a base game must not delete the DLC rows bought separately. Deliberately nullable even for a DLC: a DLC is often entered before its base game exists, and a link filled in later beats a write that fails on entry order. |
-| `playing_status` | String | **no** | `"Might Play"` | `PlayStatus` |
 | `completion_level` | String | yes | | COMPLETION_LEVELS (Main Story / Main + Extras / Post-game / Completionist). Independent of `playing_status`. |
 | `all_endings` | Boolean | yes | | Tristate, orthogonal to `completion_level` |
 | `all_achievements` | Boolean | yes | | Tristate. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against |
@@ -595,6 +587,7 @@ row, so one FK covers game and DLC purchases identically.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `game_id` | UUID | **no** | | FK `games.system_id` ON DELETE CASCADE, indexed (`ix_game_copy_game`) |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed (`ix_game_copy_user`). Whose purchase this is. A copy is a purchase record, not a fact about the game, so two people own two rows for the same edition - and `uq_game_copy_row` leads with this column. |
 | `storefront` | String | yes | | GAME_STOREFRONTS |
 | `ownership` | String | yes | | GAME_OWNERSHIP_KINDS (Owned / Wishlist / Subscription / Free / Not Owned) |
 | `copy_format` | String | yes | | GAME_COPY_FORMATS (Digital / Physical) |
@@ -664,6 +657,84 @@ once already (`TV.jsx`/`Cartoon.jsx` read `original_source`, which is
 [api.md](api.md#reading-credits-the-entry-payload-not-this-endpoint).
 
 ---
+
+## Personal data
+
+Two tables, and the reason there are two.
+
+`user_media_list` is **one wide, null-heavy table** rather than nine per-type
+ones. That was the accepted trade and it is not worth relitigating: nine
+tables would mean nine models, nine migrations, nine joins in every list
+query, and a `media_type` switch at every call site - to buy column-level
+tidiness on a table nobody queries by column. One table means one join, one
+service (`app/services/domain/user_list.py`), and `LIST_FIELDS` as the single
+place that says which keys a type actually owns. The cost is real: a game row
+carries `ch_fin_in_arc` as NULL forever. It is cheaper than the alternative.
+
+`user_novel_unit_rating` exists because a novel *unit* is not a media entry.
+`user_media_list` is keyed by `media_id`, so a per-unit rating has nowhere to
+sit on it; a two-column join table is the smallest thing that is correct.
+
+### `user_media_list`
+
+One person's relationship with one entry: what they think of it, how far they
+got, and when they finished. Model: `UserMediaList`
+(`app/models/user_media_list.py`).
+
+Keyed by `(user_id, media_id)` - `uq_user_media`. `media_id` points at the
+[`media` supertable](#the-media-supertable), not at a detail table, so one row
+shape serves all nine types and a deleted entry takes its list rows with it.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE. Deleting a user removes their whole list and nothing else. |
+| `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
+| `status` | String | **no** | per type | The one status column for all nine types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
+| `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
+| `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
+| `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
+| `ep_fin` | Float | yes | | anime, tv_shows, cartoons |
+| `vol_fin` | Float | yes | | manga, novel. Float because novel counts in halves. |
+| `vol_fin_page` | Integer | yes | | manga |
+| `ch_fin` | Float | yes | | manga, novel |
+| `arc_fin` | Float | yes | | novel |
+| `ch_fin_in_arc` | Float | yes | | novel - the two-stage cursor's second stage |
+| `progress_display` | String | yes | | novel |
+| `issue_fin` | Integer | yes | | comic |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+**Which keys a type owns** is `LIST_FIELDS`, not this table's shape. A write
+naming a key the type does not own is left in the catalogue half deliberately,
+so it hits the model and raises the usual unknown-column error instead of
+being silently swallowed into a list row where it means nothing.
+
+**Reading zero and never opening it are the same thing.** `vol_fin`,
+`vol_fin_page`, `ch_fin`, `arc_fin`, `ch_fin_in_arc` and `issue_fin` were
+`NOT NULL DEFAULT 0` on their detail tables and are nullable here, so an entry
+with no list row reads them back as `0` (`LIST_FIELD_DEFAULTS`) rather than
+None - the value the column always held. `ep_fin` is deliberately excluded: it
+was nullable on `anime` / `tv_shows` / `cartoons`, so None is a value it always
+could have had.
+
+### `user_novel_unit_rating`
+
+One reader's grade of one novel unit. Model: `UserNovelUnitRating`
+(`app/models/user_novel_unit_rating.py`). Keyed by `(user_id, unit_id)` -
+`uq_user_novel_unit`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE |
+| `unit_id` | UUID | **no** | | FK `novel_unit.system_id` ON DELETE CASCADE |
+| `my_rating` | String | yes | | MY_RATINGS |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+A null rating stores **no row**: `write_novel_units` deletes an existing one
+rather than keeping it holding None, so "never graded" and "graded, then
+cleared" do not become two different states. `attach_unit_ratings` puts the
+value back on each unit for the reader, one query per page.
 
 ## People, studios and links
 

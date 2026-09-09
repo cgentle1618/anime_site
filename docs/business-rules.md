@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-07 (Play Anytime playing status)
+Last verified: 2026-09-09 (completion is two facts, not one)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -206,38 +206,59 @@ there is no games analogue of the 解說 status, but the frozenset is declared
 anyway so it reads beside its two siblings and a second completed-ish status
 later is a one-line change.
 
-### Checks
+### Finishing is two facts, not one
 
-| Function                     | Applies to              | Returns True when                                                                                                              |
-| ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `check_is_tv_completed`      | Anime, TV Show, Cartoon | `watching_status` is a completed status, **or** `ep_total > 0` and `ep_fin == ep_total`.                                         |
-| `check_is_movie_completed`   | Anime Movie, Movie      | `watching_status` is a completed status. (No episode rule.)                                                                     |
-| `check_is_reading_completed` | Manga                   | `serialization_status` is `完結` or `腰斬` **AND** (`ch_total > 0 and ch_fin == ch_total` **or** `vol_total > 0 and vol_fin == vol_total`). |
+Step 1 split every completion helper in half, because "this finished airing"
+and "I finished it" are different claims about different things:
 
-Note the manga rule: the function's own docstring says "any one is
-sufficient", but the code requires **both** the status and a count match. A
-manga with `ch_fin == ch_total` but status `連載中` is never auto-completed;
-neither is a `完結` manga whose counts do not line up. This is how the code
-behaves today; whether it is the intended rule is an open question (see the
-review notes), but this file documents the code.
+- the **catalogue** half is a fact about the work - it finished airing, the
+  serialisation closed, the published volume count settled. It lives on the
+  entry, everyone sees it, and a pipeline may assert it.
+- the **personal** half is a fact about one person - their status, their
+  rating, how far they got. It lives on that person's `user_media_list` row,
+  and **a pipeline may never write it**. Fill, Replace, Pull and the autofill
+  hooks are held to that by
+  `tests/services/test_pipelines_write_no_personal_columns.py`.
 
-### Mark-completed mutations
+| Type | Catalogue half | Personal half |
+| --- | --- | --- |
+| Anime, TV Show, Cartoon | `mark_tv_catalog` - `airing_status = "Finished Airing"` | `mark_tv_list` - `status = "Completed"`, `ep_fin = ep_total` when the total is known |
+| Anime Movie, Movie | `mark_movie_catalog` - `airing_status = "Finished Airing"` | `mark_movie_list` - `status = "Completed"` |
+| Manga | `mark_reading_catalog` - `serialization_status = "完結"` unless it is `腰斬` | `mark_reading_list` - `status`, `ch_fin`, `vol_fin`, `vol_fin_page = 0` |
+| Novel | `mark_novel_catalog` - serialisation, and the volume totals agree on the largest **published** figure | `mark_novel_list` - `status`, `vol_fin`, and the arc cursor closed |
+| Comic | `mark_comic_catalog` - serialisation | `mark_comic_list` - `status`, `issue_fin` |
+| Game | `mark_game_catalog` | `mark_game_list` - `status` only; a game's depth of finish is not a fraction (see below) |
 
-Applied by post-processing (section 8) when the check passes and the entry is
-not already in a completed status.
+Two of those halves are narrower than the single helper they replace, on
+purpose:
 
-| Function                 | Sets                                                                                                                                                                                                                                                                       |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mark_tv_completed`      | `watching_status = "Completed"`, `airing_status = "Finished Airing"` (always, even if the trigger was a provisional `ep_total`), `ep_fin = ep_total` when `ep_total` is set.                                                                                              |
-| `mark_movie_completed`   | `watching_status = "Completed"`, `airing_status = "Finished Airing"`.                                                                                                                                                                                                       |
-| `mark_reading_completed` | (manga) `serialization_status = "完結"` unless it is `腰斬`; `reading_status = "Completed"`; `ch_fin = ch_total` and `vol_fin = vol_total` when those totals are truthy; `vol_fin_page = 0`.                                                                                  |
-| `mark_novel_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`; `vol_fin`, `vol_total_original`, `vol_total_tw` all set to the max of whichever are non-null. Arc handling branches on whether the novel has `novel_unit` arc rows: if it does, every arc is closed (`arc_fin = len(arcs)`, `ch_fin_in_arc = 0`) and `derive_novel_progress` recomputes `arc_total`/`ch_total`/`ch_fin` from them, so the totals cannot disagree with the rows; if it has none, the old max-rule applies to `arc_fin`/`arc_total` and `ch_fin`/`ch_total` (whichever are non-null) and `ch_fin_in_arc` is zeroed. **Not called by any post-processing** — used by the novel router's "mark completed" action only. |
-| `mark_comic_completed`   | `serialization_status = "完結"`, `reading_status = "Completed"`, `issue_fin`/`issue_total` set to the max of the two. Same: router-only.                                                                                                                                    |
-| `mark_game_completed`    | `playing_status = "Completed"` and **nothing else**. Unlike every helper above it sets no progress numbers, because a game's depth of finish is not a fraction — see the three axes below. Registry `mark_completed`, so the `POST /{id}/complete` action reaches it. |
+- `mark_novel_catalog` does **not** read `vol_fin`. The original took the max
+  across it as well, so one reader's progress could set the work's published
+  length.
+- `mark_comic_catalog` does **not** raise `issue_total` to meet a reader who
+  is further along. One person being ahead of the recorded issue count is not
+  evidence about how many issues were published.
 
-`apply_completion_timestamp(entry, status)` stamps `completed_at` with Taipei
-now the first time a write moves an entry into a completed status; it never
-overwrites an existing timestamp.
+`POST /{id}/complete` runs both halves: the catalogue one on the entry, the
+personal one on the acting user's list row, creating that row if it does not
+exist yet. `apply_list_completion_timestamp` stamps `completed_at` on the list
+row the first time a write moves it into a completed status, and never
+overwrites an existing stamp.
+
+### The automatic completion checks are gone
+
+`check_is_tv_completed`, `check_is_movie_completed` and
+`check_is_reading_completed` were deleted in step 1, along with the
+post-processing calls that used them. A pipeline that concluded "`ep_fin ==
+ep_total`, therefore this is Completed" was deciding one person's fact from
+numbers, and once `ep_fin` is one reader's position that conclusion is not
+the pipeline's to draw. What a pipeline may still say is that the **work**
+has finished airing, and only when the source it fetched from says so - which
+`autofill` already writes.
+
+This also settles the old manga question this file used to flag: the
+`check_is_reading_completed` rule requiring both `完結` and a count match is
+not "the intended rule" or otherwise - it is gone.
 
 ### A game has five completion axes, and they are independent
 

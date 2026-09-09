@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-09 (the `Media` tab)
+Last verified: 2026-09-09 (pipelines write catalogue columns only)
 
 ## What this is for
 
@@ -45,6 +45,24 @@ Outcome:
 ---
 
 ## 2. Sheet tab registry (`tabs.py`)
+
+**Pipelines write catalogue columns only.** Fill, Replace, Pull and the
+autofill hooks may not touch anybody's `user_media_list` row - status, rating
+and progress are one person's, and a pipeline that rewrote them would be
+silent data loss the moment there is more than one user. It is silent for a
+second reason: a pipeline setting an attribute the model does not declare
+raises on `Model(**dict)` but **not** on `setattr`, and Pull upserts with
+`setattr`. The rule is enforced statically by
+`tests/services/test_pipelines_write_no_personal_columns.py`, which derives
+the forbidden names from `LIST_FIELDS` so a new column on `user_media_list` is
+guarded from the day it lands. The personal values travel in the **User Media
+List** tab instead, and the nine media tabs' parsers no longer emit them.
+
+The restore order follows from that: `users` and every media tab must land
+before **User Media List**, because a list row is keyed by `(user_id,
+media_id)` and resolves both by natural key. **Game Copy** is restored to the
+acting user rather than to whatever `user_id` the sheet carries, since a uuid
+in the sheet names whichever database wrote it.
 
 `SHEET_TABS` is the single list Backup writes and Pull restores. Its order is the **restore** order and is strict: a parent tab precedes every tab that points at it, through a real FK or an FK-less `(media_type, entry_id)` pair.
 

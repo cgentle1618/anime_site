@@ -17,40 +17,9 @@ Step 0 - the `media` supertable - shipped 2026-09-09 (`159ab302`..`c7ccb5b3`);
 `docs/roadmap.md` keeps the record and its table is deleted per the convention
 above.
 
-### Step 1 - `user_media_list` (`docs/superpowers/plans/2026-09-08-step1-user-media-list.md`)
-
-Task 22 (the `User Media List` sheet tab) is executed EARLY, right after Task 4,
-not last as the plan lists it: Task 9 starts dropping personal columns and
-`format_model_for_sheet` derives a tab from its model, so a Backup taken between
-Task 9 and Task 22 would write no ratings or progress at all. Step 0 hit the
-same hazard and reordered for it.
-
-| Task | Status |
-|---|---|
-| 1. `user_media_list` model and table | done |
-| 2. `user_list` service (the vocabulary) | done |
-| 3. Backfill to the admin user | done |
-| 4. `Viewer.user_id` | done |
-| 22. `User Media List` sheet tab (run early, before Task 9) | done |
-| 5. `list_backed` and the read path | done |
-| 6. The write path | done |
-| 7. Completion services become per-user | done |
-| 8. Seasonal counters stop reading `anime.watching_status` | done |
-| 9. Flip `anime` | done |
-| 10. Flip `anime_movies` | done |
-| 11. Flip `movies` | done |
-| 12. Flip `tv_shows` | done |
-| 13. Flip `cartoons` | done |
-| 14. Flip `manga` | done |
-| 15. Flip `novel` | done |
-| 16. Flip `comic` | done |
-| 17. Flip `games` | done |
-| 18. Remove the flag and the dead helpers | done |
-| 19. `game_copy.user_id` | done |
-| 20. `novel_unit.my_rating` | done |
-| 21. Confine the pipelines | done |
-| 23. Documentation | todo |
-| 24. Definition of done | todo |
+Step 1 - `user_media_list` - shipped 2026-09-09 (`87108271` onwards);
+`docs/roadmap.md` keeps the record and its table is deleted per the convention
+above. Steps 2-5 of the multi-user spec are not started.
 
 ## Open items
 
@@ -58,6 +27,7 @@ Unclaimed. None block using the app.
 
 | Item | Where | Status |
 |---|---|---|
+| The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |
 | Startup dies when stdout is not UTF-8 - emoji prints, and the error handler itself throws, hiding the real cause | `app/main.py` 108/118/123/129 | todo |
@@ -83,4 +53,4 @@ Unclaimed. None block using the app.
 | Pull All | run on home 2026-09-09 after the migration, all 40 tabs, 0 credit conflicts, 0 invented entities. Needed the `Game Copy` fix below first. Post-pull: 2081 `media` / `user_media_list`, 833 `anime`, 88 `game_copy`, 0 orphans |
 | `Game Copy` identity | `game_copy` mints its uuid per database (the Steam import creates the rows), so the sheet's uuid always missed and the INSERT hit `uq_game_copy_row`, killing the whole Pull. Added to `DERIVED_IDENTITY_KEYS` on 2026-09-09 |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
-| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |
+| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |
