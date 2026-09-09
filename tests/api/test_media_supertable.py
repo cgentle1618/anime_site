@@ -170,3 +170,20 @@ def test_an_anime_movie_has_no_series(db, sample_series):
 
     row = db.query(models.Media).filter_by(system_id=m.system_id).one()
     assert row.series_id is None
+
+
+def test_every_media_table_has_its_delete_trigger_in_the_database(db):
+    """
+    The database-level companion to tests/unit/test_media_constraints.py. The
+    suite builds its schema with create_all, so this also proves the metadata
+    DDL in media_sync.py stays in step with the migrations.
+    """
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    rows = db.execute(
+        text("SELECT tgname FROM pg_trigger WHERE NOT tgisinternal")
+    ).all()
+    present = {r[0] for r in rows}
+    for ref in MEDIA_TABLES.values():
+        name = f"trg_{ref.model.__table__.name}_delete_media"
+        assert name in present, f"missing trigger {name}"

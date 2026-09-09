@@ -28,7 +28,6 @@ from sqlalchemy import DDL, event, text
 
 from app.database import get_taipei_now
 from app.models.media import Media
-from app.services.domain.display_name import compute_display_name
 
 # The shared trigger function. Attached to `media` so create_all defines it
 # before any detail table's trigger references it; the porting migrations
@@ -60,6 +59,13 @@ def delete_trigger_sql(table: str) -> str:
 
 
 def _display_name_or_none(entry) -> str | None:
+    # Imported here, not at module scope: this module is loaded from
+    # app/models/__init__.py, and importing anything under
+    # app.services.domain runs that package's __init__, which imports
+    # app.utils.media_resolver, which imports app.models. The cycle only
+    # closes at import time, so deferring the import to first call breaks it.
+    from app.services.domain.display_name import compute_display_name
+
     try:
         return compute_display_name(entry)
     except ValueError:

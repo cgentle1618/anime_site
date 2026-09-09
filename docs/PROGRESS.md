@@ -22,16 +22,16 @@ Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
 | 1. `media` model and table | done 159ab302 |
 | 2. `compute_display_name` | done 08ac7c33 |
 | 3. Port `anime` | done 76f50e4e |
-| 4. Port `anime_movies` | done |
-| 5. Port `movies` | done |
-| 6. Port `tv_shows` | done |
-| 7. Port `cartoons` | done |
-| 8. Port `manga` | done |
-| 9. Port `novel` | done |
-| 10. Port `comic` | done |
-| 11. Port `games` | done |
-| 12. Constraint drift test | todo |
-| 13. `display_name` drift test | todo |
+| 4. Port `anime_movies` | done 98fc7c4d |
+| 5. Port `movies` | done 98fc7c4d |
+| 6. Port `tv_shows` | done 98fc7c4d |
+| 7. Port `cartoons` | done 98fc7c4d |
+| 8. Port `manga` | done 98fc7c4d |
+| 9. Port `novel` | done 98fc7c4d |
+| 10. Port `comic` | done 98fc7c4d |
+| 11. Port `games` | done 98fc7c4d |
+| 12. Constraint drift test | done |
+| 13. `display_name` drift test | done |
 | 14–19. Link tables to `media_id` | todo |
 | 20. Contract `cover_image_file` | todo |
 | 21. Contract `franchise_id` / `series_id` | todo |
