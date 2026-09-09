@@ -1,7 +1,7 @@
 """
 Keeps every media detail row's `media` parent row in step, in both directions.
 
-Three facts about this codebase decide the shape of what follows.
+Four facts about this codebase decide the shape of what follows.
 
 1. The suite builds its schema with `Base.metadata.create_all`, never Alembic
    (`tests/api/conftest.py`). A trigger that exists only inside a migration is
@@ -11,22 +11,29 @@ Three facts about this codebase decide the shape of what follows.
 2. Entries are written through the ORM directly as often as through the router
    (`db.add(models.Anime(...)); db.commit()`), so a `pre_commit_hook` on the
    router's spec would miss most writes. The parent row is therefore maintained
-   by mapper events, which fire wherever the write came from.
-3. `public_id` is a `Sequence` default, so it does not exist until the INSERT
-   has run. That rules out building a `Media(...)` before the flush; the parent
-   row is written by an INSERT ... SELECT off the row just inserted, which
-   reads the minted value back in the same statement.
+   by session and mapper events, which fire wherever the write came from.
+3. The parent row is created when the detail object is CONSTRUCTED, not after
+   it is inserted. Phase C moves writable columns onto `media` - the cover, the
+   parent links, the public id - and the code that writes them does so before
+   the flush (`entry.cover_image_file = key` on a brand-new entry). A parent
+   row that appeared only at INSERT time would not be there to receive them.
+   The composite FK makes `media` the parent in SQLAlchemy's eyes, so it is
+   inserted first and the child's FK is populated from it automatically.
+4. `public_id` is a `Sequence` default, which Postgres would not mint until the
+   detail INSERT. Since `media.public_id` is NOT NULL and `media` is now
+   inserted FIRST, the value is minted explicitly at flush time and written to
+   both rows, which is what the sequence default would have done anyway.
 
-`display_name` is computed in Python by the single producer,
-`compute_display_name`. An entry with no name at all makes it raise, and
-`media.display_name` is NOT NULL, so that one case falls through to the same
-`(unnamed <type> <public_id>)` placeholder the backfill migrations use - built
-in SQL, where public_id is in scope.
+`display_name` is computed by the single producer, `compute_display_name`. An
+entry with no name at all makes it raise, so that one case falls through to the
+same `(unnamed <type> <public_id>)` placeholder the backfill migrations use.
 """
 
-from sqlalchemy import DDL, event, text
+import uuid
 
-from app.database import get_taipei_now
+from sqlalchemy import DDL, event, text
+from sqlalchemy.orm import Session, relationship
+
 from app.models.media import Media
 
 # The shared trigger function. Attached to `media` so create_all defines it
@@ -41,12 +48,19 @@ END;
 $$ LANGUAGE plpgsql
 """
 
-
 event.listen(
     Media.__table__,
     "after_create",
     DDL(DELETE_MEDIA_FUNCTION_SQL).execute_if(dialect="postgresql"),
 )
+
+# Columns `media` shares with the detail tables, in the order Phase C moves
+# them. Copied only while the detail table still declares them - see
+# sync_media_row.
+SHARED_COLUMNS = ("cover_image_file", "franchise_id", "series_id")
+
+# {detail model: hyphenated media_type key}, filled by register_media_sync.
+MEDIA_TYPE_FOR_MODEL: dict[type, str] = {}
 
 
 def delete_trigger_sql(table: str) -> str:
@@ -74,88 +88,123 @@ def _display_name_or_none(entry) -> str | None:
 
 def register_media_sync(model, media_type: str) -> None:
     """
-    Wire one detail model to `media`: insert the parent row after an insert,
-    keep the shared columns current after an update, and create the delete
-    trigger when the table is created.
+    Wire one detail model to `media`: give it a parent row on construction,
+    keep the derived columns current at flush, and create the delete trigger
+    when the table is created.
 
     Called once per media type from `app/models/__init__.py`, so that the nine
     registrations sit together and no model module has to import Media.
     """
     table = model.__table__.name
-    # anime_movies has no series_id column: anime movies have no series.
-    series = "series_id" if "series_id" in model.__table__.c else "NULL"
+    MEDIA_TYPE_FOR_MODEL[model] = media_type
 
-    insert_sql = text(f"""
-        INSERT INTO media (system_id, media_type, public_id, display_name,
-                           cover_image_file, franchise_id, series_id,
-                           created_at, updated_at)
-        SELECT system_id,
-               :media_type,
-               public_id,
-               COALESCE(
-                   :display_name,
-                   '(unnamed {media_type} ' || public_id::text || ')'
-               ),
-               cover_image_file,
-               franchise_id,
-               {series},
-               :now,
-               :now
-        FROM {table}
-        WHERE system_id = :system_id
-        -- Pull restores the Media tab before the nine entry tabs, so the
-        -- parent row can already exist when the detail row arrives. The
-        -- detail row is the producer of these columns, so it wins.
-        ON CONFLICT (system_id) DO UPDATE SET
-            media_type = EXCLUDED.media_type,
-            public_id = EXCLUDED.public_id,
-            display_name = EXCLUDED.display_name,
-            cover_image_file = EXCLUDED.cover_image_file,
-            franchise_id = EXCLUDED.franchise_id,
-            series_id = EXCLUDED.series_id,
-            updated_at = EXCLUDED.updated_at
-    """)
+    model.media_row = relationship(Media, lazy="joined")
 
-    update_sql = text(f"""
-        UPDATE media SET
-            public_id = d.public_id,
-            display_name = COALESCE(
-                :display_name,
-                '(unnamed {media_type} ' || d.public_id::text || ')'
-            ),
-            cover_image_file = d.cover_image_file,
-            franchise_id = d.franchise_id,
-            series_id = {"d.series_id" if series != "NULL" else "NULL"},
-            updated_at = :now
-        FROM {table} d
-        WHERE media.system_id = d.system_id AND d.system_id = :system_id
-    """)
+    @event.listens_for(model, "init")
+    def _on_init(target, args, kwargs):  # noqa: ARG001
+        """
+        Attach the parent row before the constructor assigns anything, so a
+        caller can write a media-owned column on the very next line.
 
-    @event.listens_for(model, "after_insert")
-    def _after_insert(mapper, connection, target):  # noqa: ARG001
-        connection.execute(
-            insert_sql,
-            {
-                "media_type": media_type,
-                "display_name": _display_name_or_none(target),
-                "now": get_taipei_now(),
-                "system_id": target.system_id,
-            },
-        )
-
-    @event.listens_for(model, "after_update")
-    def _after_update(mapper, connection, target):  # noqa: ARG001
-        connection.execute(
-            update_sql,
-            {
-                "display_name": _display_name_or_none(target),
-                "now": get_taipei_now(),
-                "system_id": target.system_id,
-            },
-        )
+        The id is minted here rather than left to the column default because
+        both rows must carry the same one, and `system_id=` passed to the
+        constructor is reconciled at flush.
+        """
+        system_id = uuid.uuid4()
+        target.system_id = system_id
+        target.media_row = Media(system_id=system_id, media_type=media_type)
 
     event.listen(
         model.__table__,
         "after_create",
         DDL(delete_trigger_sql(table)).execute_if(dialect="postgresql"),
     )
+
+
+def _sequence_name(entry) -> str | None:
+    """The public_id sequence the entry's own table owns, if it has one."""
+    from sqlalchemy import Sequence
+
+    column = entry.__table__.columns.get("public_id")
+    if column is None or not isinstance(column.default, Sequence):
+        return None
+    return column.default.name
+
+
+def sync_media_row(session: Session, entry) -> None:
+    """
+    Make the entry's `media` row agree with the entry, before either is written.
+
+    Called for every new and every changed detail row. Everything it sets is
+    either derived (display_name) or shared identity (system_id, public_id):
+    the columns that live only on `media` are written straight there by the
+    code that owns them, and are deliberately not copied from anywhere.
+    """
+    media = entry.media_row
+    if media is None or media.system_id != entry.system_id:
+        # Either the entry was loaded from the database (no parent attached),
+        # or it was constructed with an explicit system_id - Pull does that -
+        # which overrode the one `init` minted. In the second case a parent row
+        # for that id may already exist, and adopting it is the whole point:
+        # Pull restores the Media tab BEFORE the nine entry tabs, so the parent
+        # is usually already there when the detail row arrives.
+        existing = session.get(Media, entry.system_id)
+        if existing is not None:
+            if media is not None and media in session.new:
+                session.expunge(media)
+            media = existing
+        elif media is None:
+            media = Media(
+                system_id=entry.system_id,
+                media_type=MEDIA_TYPE_FOR_MODEL[type(entry)],
+            )
+            session.add(media)
+        entry.media_row = media
+
+    media.system_id = entry.system_id
+    media.media_type = MEDIA_TYPE_FOR_MODEL[type(entry)]
+
+    if media.public_id is None:
+        detail_id = getattr(entry, "public_id", None)
+        if detail_id is None:
+            sequence = _sequence_name(entry)
+            detail_id = (
+                session.execute(text(f"SELECT nextval('{sequence}')")).scalar_one()
+                if sequence
+                else None
+            )
+            if "public_id" in entry.__table__.columns:
+                entry.public_id = detail_id
+        media.public_id = detail_id
+
+    # Phase C moves these onto `media` one at a time. While a column is still
+    # on the detail table, the detail table owns it and the copy keeps `media`
+    # current; the moment a task drops it, this stops copying it on its own and
+    # `media` becomes the only home. That is what keeps a column from ever
+    # being writable in two places at once.
+    for column in SHARED_COLUMNS:
+        if column in entry.__table__.columns:
+            setattr(media, column, getattr(entry, column))
+
+    name = _display_name_or_none(entry)
+    media.display_name = (
+        name if name is not None else f"(unnamed {media.media_type} {media.public_id})"
+    )
+
+
+@event.listens_for(Session, "before_flush")
+def _sync_media_rows(session: Session, flush_context, instances):  # noqa: ARG001
+    """
+    One listener for all nine types, rather than nine mapper events.
+
+    before_flush, not after_insert: the parent row has to be INSERTed before
+    the child, so it must be in the session as an object while there is still
+    a flush plan to put it in.
+    """
+    for entry in list(session.new) + list(session.dirty):
+        if type(entry) not in MEDIA_TYPE_FOR_MODEL:
+            continue
+        if entry in session.new or session.is_modified(
+            entry, include_collections=False
+        ):
+            sync_media_row(session, entry)
