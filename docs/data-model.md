@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-09 (the `media` supertable and the link tables' `media_id`)
+Last verified: 2026-09-09 (the `media` supertable owns the shared columns)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -218,19 +218,33 @@ Relationships: `franchise`, `animes`. Virtual: `remark`, `display_name`,
 
 Columns common to all nine entry tables (listed once here). Each table also
 carries a constant `media_type` discriminator, the child half of its composite
-FK up to [the `media` supertable](#the-media-supertable); `public_id`,
-`display_name`, `cover_image_file`, `franchise_id` and `series_id` are
-mirrored onto that row on every write.
+FK up to [the `media` supertable](#the-media-supertable).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
-| `system_id` | UUID | no | uuid4 | PK |
-| `franchise_id` | UUID | yes | | FK `franchise.system_id` ON DELETE SET NULL |
-| `series_id` | UUID | yes | | FK `series.system_id` ON DELETE SET NULL - **absent on `anime_movies`** |
+| `system_id` | UUID | no | uuid4 | PK, and the FK up to `media` |
+| `media_type` | String | no | per table | Constant discriminator, pinned by `ck_<table>_media_type` |
 | `my_rating` | String | yes | | MY_RATINGS |
-| `cover_image_file` | String | yes | | Storage key of the cover image, `<owner_type>/<system_id>.jpg` under `static/covers/`. |
 | `completed_at` | DateTime | yes | | Stamped when the status becomes a completed status (see `app/services/domain/completion.py`). |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+
+**Four columns are NOT here any more.** `public_id`, `cover_image_file`,
+`franchise_id` and `series_id` live on `media` and nowhere else - a value has
+one home, so it cannot drift. Entries still expose all four **as attributes**:
+each is an `association_proxy` onto the entry's `media_row`, so response
+schemas, the cover upload, the hierarchy resolver, the Fill pipeline and the
+SPA read and write them exactly as before.
+
+The one thing that changed for callers: **an association proxy cannot be used
+as a column expression**, so a query filters through the joined row -
+`db.query(Anime).join(Anime.media_row).filter(Media.franchise_id == fid)` -
+or, better, queries `media` directly, which answers for every type at once.
+`app/routers/_factory.py` does this for `franchise_id` / `series_id` in
+`MEDIA_OWNED_FIELDS`, and `media_entity_ref_filter` does it for `public_id`.
+
+`public_id` keeps its per-type numbering: each type still draws from its own
+`<table>_public_id_seq`, declared against the metadata now that no column hangs
+it, so existing ids and every SPA URL built from one are unchanged.
 
 Each entry also has: a status column (`watching_status` NOT NULL default
 `"Might Watch"` for the five watch types; `reading_status` NOT NULL default
@@ -1535,7 +1549,7 @@ pair, and so the fields all nine types share can be queried in one place.
 |---|---|:-:|---|
 | `system_id` | UUID | no | PK, **equal to the detail row's `system_id`** |
 | `media_type` | String | no | Hyphenated `MEDIA_TABLES` key |
-| `public_id` | Integer | no | Copy of the detail row's value, still minted by that table's own `<table>_public_id_seq` |
+| `public_id` | Integer | no | The entry's id, drawn from that type's own `<table>_public_id_seq` - numbering stays per type |
 | `display_name` | String | no | Derived, see below |
 | `cover_image_file` | String | yes | |
 | `franchise_id` | UUID | yes | FK `franchise.system_id` ON DELETE SET NULL |
@@ -1558,11 +1572,23 @@ direction an `AFTER DELETE` trigger, `trg_<table>_delete_media`, removes the
 `media` row when the detail row is deleted, so a delete against either table
 cleans up both.
 
-**Who writes it.** Mapper events in `app/models/media_sync.py`, registered for
-all nine types at the bottom of `app/models/__init__.py`. Not a router hook:
-entries are written through the ORM directly as often as through the API. The
-insert is an upsert, because Pull restores the `Media` tab before the nine
-entry tabs.
+**Who writes it.** `app/models/media_sync.py`, registered for all nine types
+at the bottom of `app/models/__init__.py`. Not a router hook: entries are
+written through the ORM directly as often as through the API.
+
+The row is created by an `init` event, when the detail object is
+**constructed** - not after it is inserted. That matters because the columns
+`media` owns are written before the flush (`entry.cover_image_file = key` on a
+brand-new entry), and a parent row that appeared at INSERT time would not be
+there to receive them. The composite FK makes `media` the parent in
+SQLAlchemy's eyes, so it is inserted first. One session-level `before_flush`
+listener then fills the derived and shared identity columns; `public_id` is
+minted there explicitly, which is what the old `Sequence` column default did
+implicitly.
+
+An entry constructed with an explicit `system_id` - Pull carries one - adopts
+the `media` row already under that id rather than colliding with it, which is
+what lets Pull restore the `Media` tab before the nine entry tabs.
 
 **`display_name` is denormalized.** It is derived from the detail row's
 `*_name_*` columns, CN first, by the single producer

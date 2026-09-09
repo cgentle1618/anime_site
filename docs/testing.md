@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-08 (test database now lives in the postgres:17 container)
+Last verified: 2026-09-09 (counts recounted; the `media` supertable guards)
 
 ## What this is for
 
@@ -15,10 +15,10 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 59 | 722 | Python only, no database, no network |
-| `tests/api/` | 78 | 878 | PostgreSQL database `anime_site_test` |
+| `tests/unit/` | 94 | 1043 | Python only, no database, no network |
+| `tests/api/` | 126 | 1301 | PostgreSQL database `anime_site_test` |
 | `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 62 | 495 `it`/`test` blocks | Node + jsdom |
+| `frontend/src/**/*.test.{js,jsx}` | 103 | 852 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
@@ -165,6 +165,33 @@ npm run lint            # eslint src
 `POSTGRES_PASSWORD` must be set in `.env` for the API tier to connect. The
 `test_engine` guard aborts if the configured database name lacks `test`, so a
 mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
+
+## The `media` supertable in tests
+
+`tests/api/conftest.py` builds its schema with `Base.metadata.create_all` and
+**never runs Alembic**, so anything a migration creates has to be attached to
+the metadata as well or it simply does not exist under test. Two things in this
+category, both in `app/models/media_sync.py`:
+
+- the `delete_media_row()` function and the nine `trg_<table>_delete_media`
+  triggers, attached as `after_create` DDL;
+- the nine `<table>_public_id_seq` sequences, declared against the metadata now
+  that no column hangs them.
+
+Four guards keep the supertable honest, and a failure in any of them names the
+media type that was missed rather than the symptom:
+
+| Test | Guards |
+|---|---|
+| `tests/unit/test_media_constraints.py` | Every detail table declares the composite FK, the CHECK and the `media_type` column, and the FK is deferred. Alembic autogenerates none of these |
+| `tests/api/test_media_supertable.py` | The same, in the database: the triggers really exist, a detail row cannot attach to a media row of the wrong type, and deleting either end cleans up both |
+| `tests/api/test_display_name_drift.py` | `media.display_name` is denormalized; this walks every entry and compares the stored value with `compute_display_name` |
+| `tests/api/test_public_id.py` | All nine detail routes resolve by `public_id` **and** by `system_id`, and a non-media route still resolves by its own |
+
+A test that invents a `uuid4()` for a link row's `media_id` will now fail on the
+foreign key: create a real entry and use its `system_id`. Every media entry gets
+its `media` row automatically when it is constructed, so adding the entry is
+enough.
 
 ## Adding tests for a new media type
 

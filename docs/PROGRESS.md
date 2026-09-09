@@ -13,33 +13,10 @@ Last updated: 2026-09-09
 
 ## In flight
 
-### Step 0 — `media` supertable (`docs/superpowers/plans/2026-09-08-step0-media-supertable.md`)
-
-Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
-
-| Task | Status |
-|---|---|
-| 1. `media` model and table | done 159ab302 |
-| 2. `compute_display_name` | done 08ac7c33 |
-| 3. Port `anime` | done 76f50e4e |
-| 4. Port `anime_movies` | done 98fc7c4d |
-| 5. Port `movies` | done 98fc7c4d |
-| 6. Port `tv_shows` | done 98fc7c4d |
-| 7. Port `cartoons` | done 98fc7c4d |
-| 8. Port `manga` | done 98fc7c4d |
-| 9. Port `novel` | done 98fc7c4d |
-| 10. Port `comic` | done 98fc7c4d |
-| 11. Port `games` | done 98fc7c4d |
-| 12. Constraint drift test | done |
-| 13. `display_name` drift test | done |
-| 14. `media_source` to `media_id` | done |
-| 15–16. `media_credit`, `media_tag` to `media_id` | done |
-| 17–19. `media_content_label`, `quote`, `watch_order_item` | done |
-| 20. Contract `cover_image_file` | done |
-| 21. Contract `franchise_id` / `series_id` | done |
-| 22. Contract `public_id` + `entity_ref_filter` | done |
-| 23. `Media` sheet tab (run before 20) | done |
-| 24. Documentation | todo |
+Nothing. Step 0 of the multi-user plan - the `media` supertable - shipped on
+2026-09-09 (`159ab302`..`7efa5bf8`); `docs/roadmap.md` keeps the record and the
+plan's own table is deleted per the convention above. Steps 1-5 have plans in
+`docs/superpowers/plans/` and are not started.
 
 ## Open items
 
