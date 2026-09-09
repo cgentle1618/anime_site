@@ -11,17 +11,6 @@ import uuid
 import pytest
 
 from app import models
-from app.services.domain.user_list import acting_user_id
-
-# Applied per test, not to the module: four of the five below only pass once
-# anime is list_backed (Task 9), but the last one passes today as well - an
-# untouched entry has always read as "Might Watch" - and a strict xfail on a
-# test that already passes is itself a failure. Marking it would hide the fact
-# that it is a regression guard for behaviour Task 9 must NOT change.
-needs_task_9 = pytest.mark.xfail(
-    strict=True,
-    reason="anime is not list_backed until Task 9; these are its acceptance tests",
-)
 
 
 @pytest.fixture
@@ -30,7 +19,7 @@ def db(db_session):
 
 
 @pytest.fixture
-def anime_with_list_row(db, admin_client, sample_franchise):
+def anime_with_list_row(db, admin_client, admin_user, sample_franchise):
     """One anime plus the acting user's list row saying Completed / 9.5 / 28."""
     entry = models.Anime(
         system_id=uuid.uuid4(),
@@ -41,7 +30,7 @@ def anime_with_list_row(db, admin_client, sample_franchise):
     )
     db.add(entry)
     db.flush()
-    user_id = acting_user_id(db, None)
+    user_id = admin_user.id
     db.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
@@ -57,7 +46,6 @@ def anime_with_list_row(db, admin_client, sample_franchise):
     return entry
 
 
-@needs_task_9
 def test_get_one_serves_the_personal_fields_from_the_list_row(
     admin_client, anime_with_list_row
 ):
@@ -68,7 +56,6 @@ def test_get_one_serves_the_personal_fields_from_the_list_row(
     assert body["my_watch_day"] == "Friday"
 
 
-@needs_task_9
 def test_an_entry_with_no_list_row_reads_as_the_type_default(
     admin_client, db, sample_franchise
 ):
@@ -86,7 +73,6 @@ def test_an_entry_with_no_list_row_reads_as_the_type_default(
     assert body["ep_fin"] is None
 
 
-@needs_task_9
 def test_the_list_endpoint_serves_the_personal_fields_too(
     admin_client, anime_with_list_row
 ):
@@ -97,9 +83,8 @@ def test_the_list_endpoint_serves_the_personal_fields_too(
     assert found[0]["my_rating"] == "9.5"
 
 
-@needs_task_9
 def test_a_status_filter_matches_through_the_joined_list_row(
-    admin_client, db, sample_franchise, anime_with_list_row
+    admin_client, db, admin_user, sample_franchise, anime_with_list_row
 ):
     other = models.Anime(
         system_id=uuid.uuid4(),
@@ -112,7 +97,7 @@ def test_a_status_filter_matches_through_the_joined_list_row(
     db.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=acting_user_id(db, None),
+            user_id=admin_user.id,
             media_id=other.system_id,
             status="Active Watching",
         )

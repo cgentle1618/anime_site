@@ -10,16 +10,6 @@ import uuid
 import pytest
 
 from app import models
-from app.services.domain.user_list import acting_user_id
-
-# Applied per test, not to the module. Six of the seven below only pass once
-# anime is list_backed (Task 9), but test_the_catalogue_columns_still_land_on_
-# the_detail_table passes today too - it asserts what must NOT change - and a
-# strict xfail on a test that already passes is itself a failure.
-needs_task_9 = pytest.mark.xfail(
-    strict=True,
-    reason="anime is not list_backed until Task 9; these are its acceptance tests",
-)
 
 
 @pytest.fixture
@@ -35,8 +25,9 @@ def _list_row(db, media_id):
     )
 
 
-@needs_task_9
-def test_create_writes_the_personal_fields_to_a_list_row(admin_client, db):
+def test_create_writes_the_personal_fields_to_a_list_row(
+    admin_client, db, admin_user
+):
     response = admin_client.post(
         "/api/anime/",
         json={
@@ -59,10 +50,9 @@ def test_create_writes_the_personal_fields_to_a_list_row(admin_client, db):
     assert row.status == "Active Watching"
     assert row.my_rating == "8"
     assert row.ep_fin == 6
-    assert row.user_id == acting_user_id(db, None)
+    assert row.user_id == admin_user.id
 
 
-@needs_task_9
 def test_create_with_no_personal_fields_still_makes_a_default_row(admin_client, db):
     response = admin_client.post(
         "/api/anime/", json={"anime_name_en": "Bare Sentinel", "airing_type": "TV"}
@@ -88,7 +78,6 @@ def test_the_catalogue_columns_still_land_on_the_detail_table(admin_client, db):
     assert entry.anime_name_en == "Split Sentinel"
 
 
-@needs_task_9
 def test_patch_updates_the_list_row_not_the_entry(admin_client, db):
     created = admin_client.post(
         "/api/anime/", json={"anime_name_en": "Patched Sentinel", "airing_type": "TV"}
@@ -104,7 +93,6 @@ def test_patch_updates_the_list_row_not_the_entry(admin_client, db):
     assert row.ep_fin == 3
 
 
-@needs_task_9
 def test_put_updates_the_list_row(admin_client, db):
     created = admin_client.post(
         "/api/anime/", json={"anime_name_en": "Put Sentinel", "airing_type": "TV"}
@@ -124,7 +112,6 @@ def test_put_updates_the_list_row(admin_client, db):
     assert row.my_rating == "10"
 
 
-@needs_task_9
 def test_reaching_completed_stamps_completed_at_on_the_list_row(admin_client, db):
     created = admin_client.post(
         "/api/anime/", json={"anime_name_en": "Stamp Sentinel", "airing_type": "TV"}
@@ -137,7 +124,6 @@ def test_reaching_completed_stamps_completed_at_on_the_list_row(admin_client, db
     assert row.completed_at is not None
 
 
-@needs_task_9
 def test_completed_at_is_stamped_once_and_not_refreshed(admin_client, db):
     created = admin_client.post(
         "/api/anime/", json={"anime_name_en": "Once Sentinel", "airing_type": "TV"}

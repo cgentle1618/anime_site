@@ -152,7 +152,29 @@ def client(db_session):
 
 
 @pytest.fixture(scope="function")
-def admin_client(db_session):
+def admin_user(db_session):
+    """
+    The account admin_client's requests act as.
+
+    Its own fixture because personal data now hangs off a user: a test that
+    seeds a user_media_list row has to hang it on the SAME user the request
+    will resolve to, and `acting_user_id(db, None)` is not that user - the
+    app's lifespan seeds one called "admin", which sorts first and would win
+    the fallback.
+    """
+    user = models.User(
+        id=uuid.uuid4(),
+        username="testadmin",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "admin"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def admin_client(db_session, admin_user):
     """Authenticated admin test client — sets valid JWT cookie."""
 
     def override_get_db():
@@ -160,17 +182,7 @@ def admin_client(db_session):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Create admin user in the test DB
-    admin = models.User(
-        id=uuid.uuid4(),
-        username="testadmin",
-        hashed_password=get_password_hash("testpass"),
-        role_id=role_id_for(db_session, "admin"),
-    )
-    db_session.add(admin)
-    db_session.flush()
-
-    token = create_access_token({"sub": "testadmin", "role": "admin"})
+    token = create_access_token({"sub": admin_user.username, "role": "admin"})
 
     with TestClient(app) as c:
         c.cookies.set("access_token", f"Bearer {token}")
@@ -235,18 +247,35 @@ def sample_series(db_session, sample_franchise):
 
 
 @pytest.fixture
-def sample_anime(db_session, sample_franchise):
+def sample_anime(db_session, admin_user, sample_franchise):
+    """
+    A finished anime, watched to the end.
+
+    The status and the episode count moved to user_media_list in step 1, so
+    they are written as the acting user's list row rather than as columns.
+    `admin_user` and not `acting_user_id(db, None)`: a request through
+    admin_client resolves to that account, and a row hung on any other user
+    would read back as the type's default.
+    """
     a = models.Anime(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_name_en="Test Anime",
         airing_type="TV",
         airing_status="Finished Airing",
-        watching_status="Completed",
         ep_total=12,
-        ep_fin=12,
     )
     db_session.add(a)
+    db_session.flush()
+    db_session.add(
+        models.UserMediaList(
+            system_id=uuid.uuid4(),
+            user_id=admin_user.id,
+            media_id=a.system_id,
+            status="Completed",
+            ep_fin=12,
+        )
+    )
     db_session.flush()
     return a
 

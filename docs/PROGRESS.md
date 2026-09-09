@@ -25,6 +25,38 @@ not last as the plan lists it: Task 9 starts dropping personal columns and
 Task 9 and Task 22 would write no ratings or progress at all. Step 0 hit the
 same hazard and reordered for it.
 
+> ## ⚠ HANDOVER 2026-09-09: work moved company -> home, mid-Task-9
+>
+> **The suite is RED on `dev` at this commit and that is deliberate.** Task 9's
+> app side is finished and committed (anime's five personal columns dropped);
+> its *test* fallout is not. Expect roughly **19 failed / 69 errors**, every one
+> of them a test that still constructs or reads `models.Anime(watching_status=…,
+> ep_fin=…, my_rating=…, my_watch_day=…, completed_at=…)`. No app code reads
+> those columns any more - checked by grep; the only hit is a comment in
+> `seasonal.py` explaining why.
+>
+> **Finish Task 9 first, before anything else.** The fix per site:
+> build the `Anime` without those kwargs, `flush()`, then add a
+> `models.UserMediaList(system_id=uuid4(), user_id=admin_user.id,
+> media_id=entry.system_id, status=…, ep_fin=…)`. Use the **`admin_user`**
+> fixture, not `acting_user_id(db, None)`: the app lifespan seeds a second admin
+> called `"admin"` which sorts first and would win that fallback, so a row hung
+> on it reads back as the type's default. `tests/api/conftest.py:sample_anime`
+> is the worked example and is already correct.
+>
+> Failing files: `test_watch_order.py` (33 errors, 8 failures),
+> `test_visibility_aggregates.py` (18), `test_visibility.py` (9),
+> `test_pull_narrow_header.py` (5), `test_search.py` (6),
+> `test_visibility_graph.py` (3), `test_studio_entries.py` (2),
+> `test_pull_insert_defaults.py`, `test_media_supertable.py`,
+> `test_complete_endpoints.py`, `test_casting_router.py` (1 each).
+> `test_list_backed_reads.py` and `test_list_backed_writes.py` are already
+> green - do not touch them.
+>
+> Also still open from Task 9: the plan's Step 8 manual check - open an anime
+> detail page on :5173 and confirm status, rating, episode progress and watch
+> day render and save, then that the list page filters by status.
+
 | Task | Status |
 |---|---|
 | 1. `user_media_list` model and table | done |
@@ -36,7 +68,7 @@ same hazard and reordered for it.
 | 6. The write path | done |
 | 7. Completion services become per-user | done |
 | 8. Seasonal counters stop reading `anime.watching_status` | done |
-| 9. Flip `anime` | todo |
+| 9. Flip `anime` | **wip — app side done, tests RED** |
 | 10-17. Flip the other eight types | todo |
 | 18. `game_copy.user_id` | todo |
 | 19. `novel_unit.my_rating` | todo |
@@ -67,7 +99,7 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m1a2umbackfill` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m1b1anime` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
 | Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |

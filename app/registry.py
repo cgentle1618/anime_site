@@ -29,6 +29,7 @@ from app.services.domain import (
     mark_novel_list,
     mark_reading_completed,
     mark_reading_list,
+    mark_tv_catalog,
     mark_tv_completed,
     mark_tv_list,
     resolve_anime_movie_parent_hierarchy,
@@ -148,13 +149,21 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         update_schema=schemas.AnimeUpdate,
         response_schema=schemas.AnimeResponse,
         status_field="watching_status",
-        list_filters=("franchise_id", "series_id"),
+        # watching_status joins the filters here: it was never declared, so the
+        # parameter was silently ignored, and now that it resolves through the
+        # joined list row it should be declared rather than half-supported.
+        list_filters=("franchise_id", "series_id", "watching_status"),
         hierarchy_names={"en": "anime_name_en", "cn": "anime_name_cn", "roman": "anime_name_roman",
                          "jp": "anime_name_jp", "alt": "anime_name_alt"},
         search_fields=("anime_name_en", "anime_name_cn", "anime_name_roman", "anime_name_jp", "anime_name_alt"),
         resolve_hierarchy=resolve_anime_parent_hierarchy,
-        mark_completed=mark_tv_completed,
+        # The catalogue half only: from here the personal half of finishing an
+        # anime lives on the list row, and mark_tv_completed would try to set a
+        # column that no longer exists. tv_show and cartoon still point at the
+        # combined helper until Tasks 12 and 13.
+        mark_completed=mark_tv_catalog,
         mark_completed_list=mark_tv_list,
+        list_backed=True,
         pre_commit_hook=prepare_anime_write,
         extra_filters=_anime_airing_season,
         nested_collections={"sources": media_sources_writer("anime")},

@@ -72,16 +72,13 @@ class Anime(Base, NameFallbackMixin):
     season_part = Column(String, nullable=True)
     airing_type = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
-    watching_status = Column(String, nullable=False, default="Might Watch")
     is_main = Column(String, nullable=True)
     is_main_entry = Column(Boolean, nullable=True)
 
     ep_previous = Column(Integer, nullable=True)
     ep_total = Column(Integer, nullable=True)
-    ep_fin = Column(Integer, nullable=True, default=0)
     ep_special = Column(Float, nullable=True)
 
-    my_rating = Column(String, nullable=True)
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
     anilist_rating = Column(String, nullable=True)
@@ -91,14 +88,12 @@ class Anime(Base, NameFallbackMixin):
 
     broadcast_day = Column(String, nullable=True)
     broadcast_time = Column(Time, nullable=True)
-    my_watch_day = Column(String, nullable=True)
 
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
 
     seiyuu = Column(String, nullable=True)
 
-    completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
