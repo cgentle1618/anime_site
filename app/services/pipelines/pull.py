@@ -220,6 +220,18 @@ def resync_public_id_sequence(db: Session, model) -> None:
     )
 
 
+def drop_non_columns(model, payload: dict) -> dict:
+    """
+    Keep only keys that are real columns on `model`.
+
+    A tab may carry columns for a human reader that are not the model's own -
+    display_name is derived and lives on `media`. Without this, Pull passes it
+    to Model(**payload) and TypeErrors the whole tab.
+    """
+    columns = {c.name for c in model.__table__.columns}
+    return {k: v for k, v in payload.items() if k in columns}
+
+
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
     """
     The local row a derived-identity sheet row denotes, or None.
@@ -981,6 +993,13 @@ def execute_pull_specific(
                     clean_header_dict["created_at"] = get_taipei_now()
                 if clean_header_dict.get("updated_at") is None:
                     clean_header_dict["updated_at"] = get_taipei_now()
+
+        # Drop any header the sheet carries that is not a column of this
+        # model. Placed before the branch, not inside the insert arm: the
+        # insert arm would raise TypeError, but the update arm setattr()s
+        # silently onto the instance and the row appears to update while
+        # nothing is persisted. Only a guard here catches both.
+        clean_header_dict = drop_non_columns(Model, clean_header_dict)
 
         # UPSERT LOGIC
         if existing is not None:

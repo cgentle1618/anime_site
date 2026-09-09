@@ -36,7 +36,7 @@ Phase C execution order is 23 → 20 → 21 → 22 (see the plan's warning).
 | 20. Contract `cover_image_file` | todo |
 | 21. Contract `franchise_id` / `series_id` | todo |
 | 22. Contract `public_id` + `entity_ref_filter` | todo |
-| 23. `Media` sheet tab (run before 20) | todo |
+| 23. `Media` sheet tab (run before 20) | done |
 | 24. Documentation | todo |
 
 ## Open items

@@ -103,6 +103,17 @@ def register_media_sync(model, media_type: str) -> None:
                :now
         FROM {table}
         WHERE system_id = :system_id
+        -- Pull restores the Media tab before the nine entry tabs, so the
+        -- parent row can already exist when the detail row arrives. The
+        -- detail row is the producer of these columns, so it wins.
+        ON CONFLICT (system_id) DO UPDATE SET
+            media_type = EXCLUDED.media_type,
+            public_id = EXCLUDED.public_id,
+            display_name = EXCLUDED.display_name,
+            cover_image_file = EXCLUDED.cover_image_file,
+            franchise_id = EXCLUDED.franchise_id,
+            series_id = EXCLUDED.series_id,
+            updated_at = EXCLUDED.updated_at
     """)
 
     update_sql = text(f"""

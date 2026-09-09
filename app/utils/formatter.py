@@ -267,6 +267,30 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_media_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Media sheet into typed data.
+
+    `media` is the supertable every entry has a row in. Its system_id IS the
+    detail row's system_id, so it is a real identity and travels in the sheet
+    (no DERIVED_IDENTITY_KEYS entry). display_name is derived from the detail
+    row's name columns by compute_display_name; it is restored here so a Media
+    tab pulled before its entry tab satisfies the NOT NULL, and the entry tab
+    then overwrites it with the freshly computed value.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "public_id": parse_from_sheet(raw.get("public_id"), int),
+        "display_name": parse_from_sheet(raw.get("display_name"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 def parse_media_relation_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Media Relation sheet into typed data

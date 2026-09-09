@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-08 (cover storage is local disk only)
+Last verified: 2026-09-09 (the `Media` tab)
 
 ## What this is for
 
@@ -65,29 +65,37 @@ Outcome:
 | 13 | `Collection` | `Collection` |  |
 | 14 | `Franchise` | `Franchise` |  |
 | 15 | `Series` | `Series` |  |
-| 16 | `Anime` | `Anime` | `anime` |
-| 17 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 18 | `Movies` | `Movies` | `movie` |
-| 19 | `TV Shows` | `TVShows` | `tv-show` |
-| 20 | `Cartoons` | `Cartoon` | `cartoon` |
-| 21 | `Manga` | `Manga` | `manga` |
-| 22 | `Novel` | `Novel` | `novel` |
-| 23 | `Novel Unit` | `NovelUnit` |  |
-| 24 | `Comic` | `Comic` | `comic` |
-| 25 | `Game` | `Game` | `game` |
-| 26 | `Game Copy` | `GameCopy` |  |
-| 27 | `Watch Order List` | `WatchOrderList` |  |
-| 28 | `Watch Order Section` | `WatchOrderSection` |  |
-| 29 | `Watch Order Item` | `WatchOrderItem` |  |
-| 30 | `Media Relation` | `MediaRelation` |  |
-| 31 | `Plan Next` | `PlanNext` |  |
-| 32 | `Quote` | `Quote` |  |
-| 33 | `Character Casting` | `CharacterCasting` |  |
-| 34 | `Meme` | `Meme` |  |
-| 35 | `Note` | `Note` |  |
-| 36 | `Media Source` | `MediaSource` |  |
-| 37 | `Media Content Label` | `MediaContentLabel` |  |
-| 38 | `Seasonal` | `Seasonal` |  |
+| 16 | `Media` | `Media` |  |
+| 17 | `Anime` | `Anime` | `anime` |
+| 18 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 19 | `Movies` | `Movies` | `movie` |
+| 20 | `TV Shows` | `TVShows` | `tv-show` |
+| 21 | `Cartoons` | `Cartoon` | `cartoon` |
+| 22 | `Manga` | `Manga` | `manga` |
+| 23 | `Novel` | `Novel` | `novel` |
+| 24 | `Novel Unit` | `NovelUnit` |  |
+| 25 | `Comic` | `Comic` | `comic` |
+| 26 | `Game` | `Game` | `game` |
+| 27 | `Game Copy` | `GameCopy` |  |
+| 28 | `Watch Order List` | `WatchOrderList` |  |
+| 29 | `Watch Order Section` | `WatchOrderSection` |  |
+| 30 | `Watch Order Item` | `WatchOrderItem` |  |
+| 31 | `Media Relation` | `MediaRelation` |  |
+| 32 | `Plan Next` | `PlanNext` |  |
+| 33 | `Quote` | `Quote` |  |
+| 34 | `Character Casting` | `CharacterCasting` |  |
+| 35 | `Meme` | `Meme` |  |
+| 36 | `Note` | `Note` |  |
+| 37 | `Media Source` | `MediaSource` |  |
+| 38 | `Media Content Label` | `MediaContentLabel` |  |
+| 39 | `Seasonal` | `Seasonal` |  |
+
+`Media` sits immediately before the nine entry tabs: every entry table has a
+composite FK `(system_id, media_type)` up to `media`, and although that FK is
+deferred, Pull commits tab by tab, so an entry tab restored first would fail at
+its own commit. Each of the nine entry tabs drops its constant `media_type`
+column and appends a derived, read-only `display_name` for the human reader;
+Pull drops any header that is not a column of the model (`drop_non_columns`).
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the nine entry tabs).
 
