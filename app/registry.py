@@ -106,7 +106,7 @@ class MediaTypeSpec:
         return [f"{self.label} Management"]
 
 
-def _anime_airing_season(query, params):
+def _anime_airing_season(query, params, user_id=None):
     """?airing_season=SPR 2024 -> release_season + year prefix of release_date."""
     raw = params.get("airing_season")
     if not raw:
@@ -120,11 +120,13 @@ def _anime_airing_season(query, params):
     )
 
 
-def _game_ownership(query, params):
-    """?ownership=Owned -> games with at least one copy row saying so.
+def _game_ownership(query, params, user_id=None):
+    """?ownership=Owned -> games the acting user owns a copy row for.
 
     Ownership is derived from the copy rows rather than stored, so the filter
-    is an EXISTS over game_copy instead of a column comparison.
+    is an EXISTS over game_copy instead of a column comparison. Scoped to
+    user_id since Task 19: one person's purchases must not filter another's
+    list.
     """
     wanted = params.get("ownership")
     if not wanted:
@@ -133,6 +135,7 @@ def _game_ownership(query, params):
         exists().where(
             models.GameCopy.game_id == models.Game.system_id,
             models.GameCopy.ownership == wanted,
+            models.GameCopy.user_id == user_id,
         )
     )
 

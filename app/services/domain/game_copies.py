@@ -11,6 +11,7 @@ import uuid
 from typing import Optional
 
 from app.models import GameCopy
+from app.services.domain.user_list import acting_user_id
 
 
 def write_game_copies(db, entry, copies, viewer=None) -> None:
@@ -24,9 +25,18 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
     if copies is None:
         return
 
+    # Scoped to the acting user: a copy belongs to whoever bought it, and a
+    # reconcile that saw everyone's rows would delete other people's
+    # purchases as soon as this payload omitted them.
+    user_id = acting_user_id(db, viewer)
     existing = {
         c.system_id: c
-        for c in db.query(GameCopy).filter(GameCopy.game_id == entry.system_id).all()
+        for c in db.query(GameCopy)
+        .filter(
+            GameCopy.game_id == entry.system_id,
+            GameCopy.user_id == user_id,
+        )
+        .all()
     }
     seen = set()
 
@@ -57,7 +67,12 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
 
         row = existing.get(copy_id) if copy_id else None
         if row is None:
-            row = GameCopy(system_id=uuid.uuid4(), game_id=entry.system_id, **fields)
+            row = GameCopy(
+                system_id=uuid.uuid4(),
+                game_id=entry.system_id,
+                user_id=user_id,
+                **fields,
+            )
             db.add(row)
         else:
             for key, value in fields.items():

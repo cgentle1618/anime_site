@@ -47,6 +47,7 @@ from app.services.domain.credits import (
     replace_credits,
     replace_tags,
 )
+from app.services.domain.user_list import acting_user_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
@@ -169,8 +170,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # The Steam import mints these locally, so the same purchase carries a
     # different system_id on each machine while the natural key is identical.
     # game_id is a real entry uuid and is the same everywhere, so no parent
-    # translation is needed - only the fallback match.
-    "Game Copy": ("game_id", "storefront", "copy_format"),  # uq_game_copy_row
+    # translation is needed - only the fallback match. user_id joined the key
+    # in Task 19 and is resolved below, not read from the sheet.
+    "Game Copy": (
+        "user_id", "game_id", "storefront", "copy_format",
+    ),  # uq_game_copy_row
 }
 
 # Tabs that cite one of the above by raw uuid. The sheet carries the OTHER
@@ -494,6 +498,19 @@ def execute_pull_specific(
             if not resolve_user_media_list_key(db, clean_header_dict):
                 rows_skipped += 1
                 continue
+
+        # A copy row belongs to whoever bought it (Task 19). The sheet holds
+        # one person's collection and carries no owner column, so the acting
+        # user owns every row it restores - and a stale user_id that a Backup
+        # did write is ignored rather than trusted, because it names a uuid
+        # from whichever database wrote it. Runs before the natural-key match,
+        # which now keys on user_id.
+        if tab_name == "Game Copy":
+            owner = acting_user_id(db, None)
+            if owner is None:
+                rows_skipped += 1
+                continue
+            clean_header_dict["user_id"] = owner
 
         # Credit/tag columns (studio, director, genre_main, ...) no longer
         # back a real column on the entry model - Task 10 dropped them once

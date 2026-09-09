@@ -46,10 +46,9 @@ same hazard and reordered for it.
 | 16. Flip `comic` | done |
 | 17. Flip `games` | done |
 | 18. Remove the flag and the dead helpers | done |
-| 18. `game_copy.user_id` | todo |
-| 19. `novel_unit.my_rating` | todo |
-| 20. Pipelines stop writing personal fields | todo |
-| 21. Personal columns leave the nine media parsers | todo |
+| 19. `game_copy.user_id` | done |
+| 20. `novel_unit.my_rating` | todo |
+| 21. Confine the pipelines | todo |
 | 23. Documentation | todo |
 | 24. Definition of done | todo |
 

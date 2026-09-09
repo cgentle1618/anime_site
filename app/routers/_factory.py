@@ -209,7 +209,7 @@ def make_media_router(spec) -> APIRouter:
             value = raw.lower() in ("true", "1", "yes") if isinstance(columns[field].type, Boolean) else raw
             query = query.filter(getattr(spec.model, field) == value)
         if spec.extra_filters:
-            query = spec.extra_filters(query, request.query_params)
+            query = spec.extra_filters(query, request.query_params, user_id)
         if search_query and spec.search_fields:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
