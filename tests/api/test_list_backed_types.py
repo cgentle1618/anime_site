@@ -36,6 +36,14 @@ CASES = {
         models.Movies, "movie_name_en", "movie",
         "watching_status", "Completed", "length_min", 148,
     ),
+    "/api/tv-shows": (
+        models.TVShows, "tv_name_en", "tv-show",
+        "watching_status", "Completed", "ep_total", 10,
+    ),
+    "/api/cartoon": (
+        models.Cartoon, "cartoon_name_en", "cartoon",
+        "watching_status", "Completed", "ep_total", 26,
+    ),
 }
 
 

@@ -40,7 +40,6 @@ def seeded_cartoon(db_session, sample_franchise):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         cartoon_name_en="Test Cartoon",
-        watching_status="Might Watch",
     )
     db_session.add(c)
     db_session.flush()

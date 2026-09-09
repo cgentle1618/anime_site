@@ -59,13 +59,10 @@ class TVShows(Base, NameFallbackMixin):
     region = Column(String, nullable=True)
     season_part = Column(String, nullable=True)
     airing_status = Column(String, nullable=True)
-    watching_status = Column(String, nullable=False, default="Might Watch")
     is_main = Column(String, nullable=True)
 
     ep_total = Column(Integer, nullable=True)
-    ep_fin = Column(Integer, nullable=True, default=0)
 
-    my_rating = Column(String, nullable=True)
     imdb_rating = Column(String, nullable=True)
     release_date = Column(String, nullable=True)
 
@@ -74,7 +71,6 @@ class TVShows(Base, NameFallbackMixin):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     @property
     def display_name(self) -> str:

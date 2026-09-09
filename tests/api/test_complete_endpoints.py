@@ -29,34 +29,32 @@ def sample_anime_movie(db_session, sample_franchise, list_row):
 
 
 @pytest.fixture
-def sample_tv_show(db_session, sample_franchise):
+def sample_tv_show(db_session, sample_franchise, list_row):
     entry = models.TVShows(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         tv_name_en="Test TV Show",
-        watching_status="Watching",
         airing_status="Finished Airing",
         ep_total=10,
-        ep_fin=5,
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching", ep_fin=5)
     return entry
 
 
 @pytest.fixture
-def sample_cartoon(db_session, sample_franchise):
+def sample_cartoon(db_session, sample_franchise, list_row):
     entry = models.Cartoon(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         cartoon_name_en="Test Cartoon",
-        watching_status="Watching",
         airing_status="Finished Airing",
         ep_total=8,
-        ep_fin=3,
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching", ep_fin=3)
     return entry
 
 
