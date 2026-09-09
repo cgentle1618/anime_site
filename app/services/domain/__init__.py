@@ -143,6 +143,18 @@ from app.services.domain.seasonal import (
     create_missing_seasonal,
     sync_seasonal_counts,
 )
+from app.services.domain.user_list import (
+    DEFAULT_STATUS,
+    LIST_FIELDS,
+    STATUS_FIELD,
+    acting_user_id,
+    apply_list_payload,
+    attach_list_fields,
+    ensure_list_row,
+    join_list,
+    list_row,
+    split_list_payload,
+)
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
     VALID_WATCH_ORDER_MEDIA_TYPES,
@@ -272,4 +284,14 @@ __all__ = [
     "write_novel_units",
     "write_game_copies",
     "derive_game_ownership",
+    "STATUS_FIELD",
+    "DEFAULT_STATUS",
+    "LIST_FIELDS",
+    "acting_user_id",
+    "list_row",
+    "ensure_list_row",
+    "attach_list_fields",
+    "split_list_payload",
+    "apply_list_payload",
+    "join_list",
 ]

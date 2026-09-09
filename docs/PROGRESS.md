@@ -13,10 +13,37 @@ Last updated: 2026-09-09
 
 ## In flight
 
-Nothing. Step 0 of the multi-user plan - the `media` supertable - shipped on
-2026-09-09 (`159ab302`..`7efa5bf8`); `docs/roadmap.md` keeps the record and the
-plan's own table is deleted per the convention above. Steps 1-5 have plans in
-`docs/superpowers/plans/` and are not started.
+Step 0 - the `media` supertable - shipped 2026-09-09 (`159ab302`..`c7ccb5b3`);
+`docs/roadmap.md` keeps the record and its table is deleted per the convention
+above.
+
+### Step 1 - `user_media_list` (`docs/superpowers/plans/2026-09-08-step1-user-media-list.md`)
+
+Task 22 (the `User Media List` sheet tab) is executed EARLY, right after Task 4,
+not last as the plan lists it: Task 9 starts dropping personal columns and
+`format_model_for_sheet` derives a tab from its model, so a Backup taken between
+Task 9 and Task 22 would write no ratings or progress at all. Step 0 hit the
+same hazard and reordered for it.
+
+| Task | Status |
+|---|---|
+| 1. `user_media_list` model and table | done |
+| 2. `user_list` service (the vocabulary) | done |
+| 3. Backfill to the admin user | done |
+| 4. `Viewer.user_id` | done |
+| 22. `User Media List` sheet tab (run early, before Task 9) | todo |
+| 5. `list_backed` and the read path | todo |
+| 6. The write path | todo |
+| 7. Completion services become per-user | todo |
+| 8. Seasonal counters stop reading `anime.watching_status` | todo |
+| 9. Flip `anime` | todo |
+| 10-17. Flip the other eight types | todo |
+| 18. `game_copy.user_id` | todo |
+| 19. `novel_unit.my_rating` | todo |
+| 20. Pipelines stop writing personal fields | todo |
+| 21. Personal columns leave the nine media parsers | todo |
+| 23. Documentation | todo |
+| 24. Definition of done | todo |
 
 ## Open items
 
@@ -40,10 +67,10 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m0d3publicid` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m1a2umbackfill` (head). Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
 | Home dumps | `~/anime_site_home_pre_publisher_20260907.sql` (before the publisher backfill) and `~/anime_site_home_pre_pull_20260907.sql` (before Pull All) |
 | Studio data | 45 duplicate studios removed by hand 2026-09-07; the delete cascaded ~377 credits away, rebuilt by Pull All from the entry tabs' `studio` columns. Now 78 studios, 483 studio credits, 0 duplicate clusters, and all 78 local ids match the sheet (28 were realigned to the sheet's ids after Pull matched them by name) |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
-| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_gcprm` and `anime_site_test_step0` (this session's, created 2026-09-09); all three are droppable |
+| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` (this session's, created 2026-09-09; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

@@ -33,6 +33,13 @@ class Viewer:
     role_name: str
     is_superuser: bool
     permissions: frozenset[str]
+    # The resolved user's id, so a request can join their user_media_list row
+    # without a second lookup. None for a guest - see user_list.acting_user_id
+    # for what a guest reads until step 2 ships accounts. Declared here rather
+    # than beside `username` as the plan suggested: a dataclass cannot put a
+    # defaulted field before an undefaulted one, and GUEST_FALLBACK does not
+    # pass it.
+    user_id: Optional[UUID] = None
     # The decoded JWT, kept only so get_current_admin can hand back what it
     # always did. Nothing reads it for authorization.
     token_payload: Optional[dict[str, Any]] = field(default=None)
@@ -94,6 +101,7 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
 
         return Viewer(
             username=user.username if user else None,
+            user_id=user.id if user else None,
             role_id=role.system_id,
             role_name=role.name,
             is_superuser=bool(role.is_superuser),

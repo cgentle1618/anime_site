@@ -47,6 +47,7 @@ from app.models.system import (
     User,
 )
 from app.models.tv_show import TVShows
+from app.models.user_media_list import UserMediaList
 from app.models.watch_order import (
     WatchOrderItem,
     WatchOrderList,
@@ -61,6 +62,7 @@ __all__ = [
     "Franchise",
     "Series",
     "Media",
+    "UserMediaList",
     "Anime",
     "AnimeMovies",
     "Movies",
