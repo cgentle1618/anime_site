@@ -55,10 +55,11 @@ cd frontend && npm run test:run && npm run lint  # frontend tests + ESLint
 
 ## Required Environment Variables
 
-See `.env.example` (authoritative) and `docs/setup-local.md`. There is no production/development switch in the code — the app has one mode. Two things to know:
+See `.env.example` (authoritative) and `docs/setup-local.md`. Three things to know:
 
 - `DATABASE_URL` is honoured **verbatim** when set (`app/config.py`); otherwise the URL is built from `POSTGRES_*` against localhost. A stale `DATABASE_URL` in a machine's `.env` will be used and will break that machine.
-- The login cookie is `secure=False` unconditionally, and nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`. Both must be fixed before the app is ever exposed — see `docs/deployment-selfhost.md`.
+- `APP_ENV` (`development` or `production`) names the runtime, and **unset means production** — deliberately, so that forgetting it fails loudly on a dev machine rather than quietly on a public one. It drives the login cookie's `Secure` flag. Both dev machines need `APP_ENV=development` in `.env`.
+- The app **refuses to start** while `JWT_SECRET_KEY` or `ADMIN_PASSWORD` still holds the value `.env.example` ships, in every environment. Fill both in before a fresh machine will boot.
 
 ## Common Points of Confusion
 

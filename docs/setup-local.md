@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-08 (GCP variables removed; covers are always local disk; docker-compose postgres:17 is the only supported server)
+Last verified: 2026-09-10 (APP_ENV, and the two secrets the app now refuses to start without)
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -107,10 +107,11 @@ list. Variable names are case-insensitive.
 | `POSTGRES_PASSWORD` | `password` | DB password. Tests read it from here too (section 9). |
 | `POSTGRES_DB` | `anime_site_db` | Dev database name |
 | `DATABASE_URL` | unset | Optional full connection URL override, used **verbatim** when set. Leave it commented out for local dev; see "Common problems". |
-| `JWT_SECRET_KEY` | insecure dev default | JWT signing secret |
+| `APP_ENV` | **`production`** | `development` or `production`. Unset means production, deliberately — see `authentication.md`. **Set `APP_ENV=development` in your `.env`**, or the login cookie is issued `Secure` and your browser drops it over plain HTTP, so login silently stops working. |
+| `JWT_SECRET_KEY` | *(none — required)* | JWT signing secret. The app **refuses to start** while this is the value `.env.example` ships. |
 | `ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Cookie/JWT lifetime |
-| `ADMIN_PASSWORD` | `admin123` | Password of the `admin` user seeded on first boot |
+| `ADMIN_PASSWORD` | *(none — required)* | Password of the `admin` user seeded on first boot. The app **refuses to start** while this is the value `.env.example` ships. |
 | `TMDB_API_KEY` | unset | TMDB: movie/TV cover, release date, director |
 | `OMDB_API_KEY` | unset | OMDb: IMDb rating |
 | `COMICVINE_API_KEY` | unset | Comic Vine: comic run metadata and covers |
@@ -260,7 +261,7 @@ npm run test          # watch mode
 How the backend tests find the database: `tests/conftest.py` runs before any
 `app` module is imported and does `os.environ.setdefault(...)` for
 `POSTGRES_DB=anime_site_test`, `POSTGRES_USER=postgres`, a test
-`JWT_SECRET_KEY` and `ADMIN_PASSWORD`. It deliberately does **not** default
+`JWT_SECRET_KEY` and `ADMIN_PASSWORD`, and `APP_ENV=development`. It deliberately does **not** default
 `POSTGRES_PASSWORD`; pydantic-settings reads that from your `.env` (or from the
 CI job environment). If `.env` has a wrong password the API tests fail at
 `test_engine` setup with an authentication error. `tests/api/conftest.py`

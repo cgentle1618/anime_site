@@ -60,9 +60,20 @@ minting the plan's proposed `note.write_own`, because the two name one idea.
 
 Unclaimed. None block using the app.
 
+**The auth-hardening gate is closed** (2026-09-10). `APP_ENV` drives the login
+cookie's `Secure` flag and `Settings.validate_secrets()` refuses a default
+`JWT_SECRET_KEY` or `ADMIN_PASSWORD` in every environment. Two auth items stay
+open by choice and neither blocks inviting somebody: **session lifetime** is a
+flat 24 hours with no refresh or revocation, and there is **no password reset**
+- an admin sets one at `/users`.
+
+**Both machines need `APP_ENV=development` in `.env`.** Done on home; the
+**company** machine needs it, and needs real `JWT_SECRET_KEY` and
+`ADMIN_PASSWORD` values if it is still on the ones `.env.example` shipped, or
+the app will refuse to start there.
+
 | Item | Where | Status |
 |---|---|---|
-| **The auth-hardening gate. Step 2 shipped the `user` role, so an admin can now invite a non-admin - and must not, until this lands** | Two defects, both pre-existing and both deliberately out of Step 2's scope: the login cookie is set `secure=False` **unconditionally** (`app/routers/auth.py`), and **nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`** (`app/config.py`; `validate_production()` went away with the GCP code). Tolerable for one local user; an authentication bypass once somebody else has a password here. `docs/authentication.md` states the gate | todo |
 | The `acting_user_id` guest-to-admin fallback still stands | A logged-out visitor still reads the lowest-username admin's list, so the public pages still show that account's statuses and ratings. Step 2's plan neither removes it nor lists it in its Definition of done; removing it is a visible behaviour change and needs a decision about what a guest should see. Step 3 narrowed it - `plan_next` and `seasonal` answer 401 now, and `viewer_user_id` has no fallback at all - but `acting_user_id` still falls back for the list columns. `app/services/domain/user_list.py` | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |

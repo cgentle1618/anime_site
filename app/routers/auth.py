@@ -12,6 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app import models
+from app.config import settings
 from app.dependencies import get_db
 from app.services.rbac.permissions import PERM_ADMIN
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
@@ -64,9 +65,14 @@ def login_for_access_token(
         httponly=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
-        # Plain HTTP today; make this conditional on the request scheme once
-        # the app is served over HTTPS (self-hosting).
-        secure=False,
+        # Follows APP_ENV, not the request scheme. Behind a tunnel the scheme
+        # is only trustworthy if proxy headers are configured correctly, and a
+        # missing header would silently produce an insecure cookie over HTTPS -
+        # the failure this flag exists to prevent. Django's
+        # SESSION_COOKIE_SECURE and Rails' config.force_ssl are per-environment
+        # settings for the same reason. Read per request, not at import, so a
+        # test can move the setting.
+        secure=not settings.is_development,
     )
 
     logger.info(f"Successful login for user: {user.username}")

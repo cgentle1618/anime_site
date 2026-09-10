@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-10 (accounts on the `user` role; the unusable-password marker)
+Last verified: 2026-09-10 (APP_ENV, the secret fail-fast, and the closed hardening gate)
 
 ## What this is for
 
@@ -34,26 +34,51 @@ Authentication answers one question: *who is making this request?* The app has a
 
 There is no self-registration and no password reset. Accounts are created by an admin through `/api/users` (see [authorization.md](authorization.md)).
 
-> ### The hardening gate, now that accounts are real
+> ### The hardening gate — closed on 2026-09-10
 >
-> Step 2 of the multi-user programme shipped the `user` role, so an admin can
-> now invite somebody who is not an administrator. **Two defects on this page
-> are tolerable for one local user and are not tolerable once another person
-> has a password in this database, and neither is fixed:**
+> Step 2 shipped the `user` role, so an admin could invite somebody who is not
+> an administrator, and two defects made that unsafe: the login cookie was
+> `secure=False` unconditionally, and nothing refused a default
+> `JWT_SECRET_KEY` or `ADMIN_PASSWORD`. **Both are fixed.** The cookie's
+> `Secure` flag now follows `APP_ENV`, and `Settings.validate_secrets()` runs
+> from the lifespan in **every** environment. See
+> [The production signal](#the-production-signal-app_env) below.
 >
-> 1. the login cookie is set with **`secure=False` unconditionally**
->    (`app/routers/auth.py`), so a session cookie travels over plain HTTP;
-> 2. **nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`**
->    (`app/config.py`) — `validate_production()` did that and went away with
->    the GCP code on 2026-09-08. A default signing secret means anyone can mint
->    a token for any username, including one holding the admin role.
->
-> Fixing them is a **separate project**, deliberately out of Step 2's scope
-> along with session lifetime and password reset. The gate, in one line: land
-> that project, then invite anyone. Until it lands, create no account for
-> anybody but yourself. Recorded in
-> `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md` (the
-> BLOCKING PREREQUISITE section) and in `docs/PROGRESS.md`'s open items.
+> **Two things this did not do**, both still deliberately open: session
+> lifetime is still a flat 24 hours with no refresh or revocation, and there is
+> **no password reset** — an admin sets a password at `/users` and that is the
+> only path. Neither blocks inviting somebody; both are worth designing before
+> more than a handful of people use this.
+
+## The production signal (`APP_ENV`)
+
+`APP_ENV` names the runtime: `development` or `production`. A typo is rejected
+at settings-validation time rather than interpreted, because "not development"
+and "not production" fail in opposite directions and neither announces itself.
+
+**Unset means `production`.** That is the minority convention — Rails, Django,
+Laravel and Node all default to development — and it is chosen for the
+direction it fails in. A dev machine that forgets `APP_ENV` sets a `Secure`
+cookie over plain HTTP, the browser drops it, and login stops working
+immediately on the machine you are sitting at. The opposite default lets a
+public box run with an insecure cookie and say nothing. ASP.NET Core defaults
+to Production for the same reason. Both dev machines therefore carry
+`APP_ENV=development` in `.env`, and so does CI.
+
+`Settings.validate_secrets()` is **not** gated on it, and that separation is
+the point. It refuses to start while `JWT_SECRET_KEY` or `ADMIN_PASSWORD`
+still holds the value `.env.example` used to ship, in development as well as
+production — Django's `SECRET_KEY` raises whether or not `DEBUG` is set, for
+exactly the reason this codebase already learned: the previous check,
+`validate_production()`, returned early unless it was running on Cloud Run, so
+it never fired on a developer's machine and then left with the GCP code
+without anybody noticing it had gone. Both problems are reported in one
+message, and neither message quotes the offending value.
+
+It is called as the first statement of the lifespan in `app/main.py`, before
+the `try` that swallows seeding errors into a printed line, and before the
+admin account is seeded from `settings.admin_password` — otherwise the example
+password would be hashed into the database before anything objected.
 
 ## Passwords (bcrypt)
 
@@ -103,7 +128,7 @@ There is no startup check on the secrets any more. `settings.validate_production
 | `key` | `access_token` | Read by `resolver._decode`, which expects the `Bearer ` prefix |
 | `HttpOnly` | true | `document.cookie` cannot read it; XSS cannot exfiltrate the token |
 | `SameSite` | `Lax` | Sent on same-site navigation and fetches; not on cross-site POSTs |
-| `Secure` | **always false** | Hard-coded `secure=False` in `app/routers/auth.py`. Local development is plain HTTP, and a `Secure` cookie would never be sent over it. It used to be `settings.is_cloud_run`; that switch went away with the GCP deployment on 2026-09-08. **This must become conditional on HTTPS before the app is ever exposed publicly** - a login cookie sent in the clear is the whole session. The code carries a comment saying so, and self-hosting tracks it. |
+| `Secure` | `not settings.is_development` | Follows `APP_ENV`, not the request scheme: behind a tunnel the scheme is only trustworthy when proxy headers are configured correctly, and a missing header would produce an insecure cookie over HTTPS silently - the failure the flag exists to prevent. Django's `SESSION_COOKIE_SECURE` and Rails' `config.force_ssl` are per-environment settings for the same reason. Read per request rather than at import, so a test can move it. |
 | `max_age` | 86400 s | Matches the JWT expiry |
 
 The browser sends it automatically; the SPA always fetches with `credentials: "include"`.

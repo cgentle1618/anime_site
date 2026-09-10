@@ -919,9 +919,12 @@ proceed in parallel with the hardware bring-up.
    section rather than this line, and stop at its "When this is done" checklist.
 2. **Verify the hardware** — phase B of that section, in the bundled Windows,
    before anything is erased and while the machine can still be returned.
-3. **Build the production signal** — there is none in the code at all (see
-   below); the secure cookie and the secret-defaults check both hang off it.
-   This gates exposing the box publicly, so it comes before the tunnel.
+3. ~~**Build the production signal**~~ — **done on 2026-09-10.** `APP_ENV`
+   exists, the cookie's `Secure` flag follows it, and the secret-defaults check
+   runs in every environment rather than hanging off the signal. The production
+   `docker-compose.yml` in step 4 must set `APP_ENV=production`, and must set
+   real `JWT_SECRET_KEY` and `ADMIN_PASSWORD` values or the container will
+   refuse to start.
 4. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
    named volume for the database, bind mount for `static/covers/`.
 5. **Load the data** — restore the database, copy `static/covers/` across.
@@ -938,28 +941,32 @@ proceed in parallel with the hardware bring-up.
 (the inventory is in [deployment-gcp.md](deployment-gcp.md)), which settled the
 cover-image half of this list and changed the shape of the other half.
 
-The remaining work is no longer "fix branches that take the wrong path" — those
-branches are gone. It is **to build a production signal that does not exist**.
-There is now no concept of production anywhere in the code: `is_cloud_run`,
-`K_SERVICE` and `validate_production()` were all deleted, and nothing replaced
-them. The app has exactly one mode, and it is the development one.
+The production signal was built on 2026-09-10 and the first two rows below are
+now closed. `APP_ENV` names the runtime and defaults to **production** when
+unset, so a box that is never told what it is gets the hardened behaviour
+rather than the lax one; `Settings.validate_secrets()` refuses to start on a
+default `JWT_SECRET_KEY` or `ADMIN_PASSWORD` in every environment, deliberately
+**not** gated on the signal. See
+[authentication.md](authentication.md#the-production-signal-app_env).
 
-**These are still real blockers before exposing the box to the Internet:**
+**What remains before exposing the box to the Internet:**
 
 | Location | State today | Why it matters here |
 | --- | --- | --- |
-| `app/routers/auth.py` | The login cookie is set with `secure=False`, unconditionally. A comment in the code marks it to be made scheme-conditional under HTTPS. | The tunnel serves real HTTPS, so the flag should be on. Browsers accept the cookie either way, so this fails quietly. |
-| `app/config.py` | **No startup validation at all.** `validate_production()` was deleted along with its call site in `app/main.py`. | Nothing refuses a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD` any more. A public deployment could come up on `admin123` with nothing complaining. This is still the most dangerous one, and it is now worse than it was: the check does not exist rather than merely not firing. |
+| `app/routers/auth.py` | **Done.** `secure=not settings.is_development`, so the flag is on wherever `APP_ENV` is not `development`. Deliberately not scheme-conditional: behind the tunnel the scheme is only trustworthy if proxy headers are right, and a missing header would fail exactly as quietly as the old hard-coded `False`. | Set `APP_ENV=production` in the compose file and the flag is on. |
+| `app/config.py` | **Done.** `Settings.validate_secrets()` runs as the first statement of the lifespan - before the `try` that swallows seeding errors, and before the admin account is seeded from `admin_password`. Not gated on `APP_ENV`, because gating the old check on Cloud Run is precisely why it never fired. | A container started without real secrets exits at startup with both problems named. Verified by booting with the defaults. |
 | `app/config.py` (`sqlalchemy_database_url`) | `DATABASE_URL` is honoured **verbatim** when set; otherwise a localhost URL from `POSTGRES_*`. | Fine for a container pointed at `db:5432`, but the old "ignore a localhost URL" guard is gone — see the warning under [Intended runtime shape](#intended-runtime-shape). |
 | Covers (backend) | **Done.** `image_manager.py` writes and reads `static/covers/<owner_type>/<system_id>.jpg` with no bucket branch; `GCP_BUCKET_NAME` and `app/utils/gcp_utils.py` no longer exist. | Nothing to configure. A bind mount for that directory is all the deployment needs. |
 | `frontend/src/lib/covers.js` (`getCoverUrl`) | **Done.** Returns `/static/covers/<coverFile>` on every host; the `storage.googleapis.com` URL and the hard-coded `BUCKET_NAME` are gone. | This was the blocker that would have blanked every cover behind the tunnel. It is fixed. |
 | `frontend/src/lib/covers.js` (`getQuoteImageUrl`) | Still gated on `isLocalHost()`, still returns `null` off localhost. | Left in place deliberately — see [Cover images](#cover-images-the-backend-and-the-frontend-are-both-local-now). Worth revisiting on a box with a persistent disk. |
 
-The fix for the first two is one design decision: a general **"this is a
-production runtime" signal** in `app/config.py` — an explicit env var, since
-there is no longer any implicit way to detect one — that the cookie flag and a
-re-introduced fail-fast check both read. **Not designed yet; decide before
-implementing.**
+The first two were one design decision, taken on 2026-09-10 and **half**
+implemented the way this section proposed. `APP_ENV` is the explicit signal the
+cookie flag reads. The fail-fast check deliberately does **not** read it: a
+single variable gating both protections is one thing you can forget, and
+forgetting it would disable the secret check as well as the cookie flag —
+which is the shape of the failure that produced this list. Django splits them
+the same way, requiring `SECRET_KEY` regardless of `DEBUG`.
 
 ### Cover images: the backend and the frontend are both local now
 

@@ -89,6 +89,13 @@ async def lifespan(app: FastAPI):
     Executes startup logic (e.g., seeding the admin user) before receiving requests,
     and handles safe shutdown logic upon termination.
     """
+    # First, and outside the try below: that block swallows every exception
+    # into a printed message, which is right for a seeding hiccup and wrong
+    # for this. A refusal to start has to actually stop the start. It also
+    # runs before the admin account is seeded from settings.admin_password,
+    # which would otherwise bake the example password into the database.
+    settings.validate_secrets()
+
     db = database.SessionLocal()
     try:
         # Roles first: the admin user below is created holding one, and every

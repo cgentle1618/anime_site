@@ -14,3 +14,8 @@ os.environ.setdefault("POSTGRES_USER", "postgres")
 # developer's .env (via pydantic-settings) or the CI job's environment.
 os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_testing_only_do_not_use_in_prod")
 os.environ.setdefault("ADMIN_PASSWORD", "testadmin123")
+# APP_ENV defaults to production in the app, so a run on a machine with no .env
+# would set a Secure login cookie over the test client's plain HTTP. Pinned here
+# rather than in the CI job so the suite owns its own environment; the tests
+# that assert production behaviour move the setting themselves.
+os.environ.setdefault("APP_ENV", "development")
