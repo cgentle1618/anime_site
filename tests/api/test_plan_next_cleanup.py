@@ -1,58 +1,78 @@
 """
-Deleting a planned thing removes its plan_next rows.
+Deleting a planned thing removes its plan_next rows - IN THE DATABASE.
 
-The target is FK-less, so nothing cascades on its own. Requires PostgreSQL
-(anime_site_test DB). See tests/api/conftest.py.
+This file used to test delete_plans_for, the hand-written sweep that existed
+only because the target was FK-less. Step 3 gave plan_next real foreign keys
+with ON DELETE CASCADE, so the sweep is gone and what is worth testing is that
+PostgreSQL does the work. Requires PostgreSQL. See tests/api/conftest.py.
 """
 
 import uuid
 
+import pytest
+
 from app import models
-from app.services.domain.plan_next import delete_plans_for
+from app.utils.plan_next_kinds import owner_kwargs
 
 
-def _plan(db, scope, target_id, media_type="anime", kind="next"):
+@pytest.fixture
+def db(db_session):
+    return db_session
+
+
+@pytest.fixture
+def owner(admin_user):
+    """The account admin_client acts as (conftest's admin_user)."""
+    return admin_user
+
+
+def _plan(db, owner, scope, target_id, media_type="anime", kind="next"):
     db.add(
         models.PlanNext(
             system_id=uuid.uuid4(),
+            user_id=owner.id,
             media_type=media_type,
-            scope=scope,
-            target_id=target_id,
             kind=kind,
+            **owner_kwargs(scope, target_id),
         )
     )
     db.flush()
 
 
-def test_deleting_a_franchise_clears_every_media_type(db_session, sample_franchise):
-    # delete_plans_for is scoped by (scope, target_id) only - it deliberately
-    # takes no kind parameter, so it must clear rows of every kind too.
-    _plan(db_session, "franchise", sample_franchise.system_id, "anime", kind="next")
-    _plan(db_session, "franchise", sample_franchise.system_id, "anime", kind="rewatch")
-    _plan(db_session, "franchise", sample_franchise.system_id, "tv-show", kind="next")
+def test_deleting_a_franchise_cascades_every_media_type(db, owner, sample_franchise):
+    _plan(db, owner, "franchise", sample_franchise.system_id, "anime", "next")
+    _plan(db, owner, "franchise", sample_franchise.system_id, "anime", "rewatch")
+    _plan(db, owner, "franchise", sample_franchise.system_id, "tv-show", "next")
 
-    assert delete_plans_for(db_session, "franchise", sample_franchise.system_id) == 3
-    db_session.flush()
-    assert db_session.query(models.PlanNext).count() == 0
+    db.delete(sample_franchise)
+    db.flush()
+    db.expire_all()
+
+    assert db.query(models.PlanNext).count() == 0
 
 
-def test_cleanup_is_scoped(db_session, sample_franchise, sample_series):
-    _plan(db_session, "franchise", sample_franchise.system_id)
-    _plan(db_session, "series", sample_series.system_id)
+def test_the_cascade_is_scoped(db, owner, sample_franchise, sample_series):
+    _plan(db, owner, "franchise", sample_franchise.system_id)
+    _plan(db, owner, "series", sample_series.system_id)
 
-    delete_plans_for(db_session, "franchise", sample_franchise.system_id)
-    db_session.flush()
+    db.delete(sample_franchise)
+    db.flush()
+    db.expire_all()
 
-    remaining = db_session.query(models.PlanNext).one()
+    remaining = db.query(models.PlanNext).one()
     assert remaining.scope == "series"
 
 
-def test_cleanup_on_an_unplanned_target_is_a_no_op(db_session, sample_series):
-    assert delete_plans_for(db_session, "series", sample_series.system_id) == 0
+def test_deleting_a_user_cascades_their_plans(db, owner, sample_franchise):
+    _plan(db, owner, "franchise", sample_franchise.system_id)
+    db.delete(owner)
+    db.flush()
+    db.expire_all()
+    assert db.query(models.PlanNext).count() == 0
 
 
 def test_deleting_a_franchise_through_the_api_clears_its_plan(
-    admin_client, db_session, sample_franchise
+    admin_client, sample_franchise
 ):
     admin_client.post(
         "/api/plan-next/",
@@ -68,10 +88,14 @@ def test_deleting_a_franchise_through_the_api_clears_its_plan(
     assert admin_client.get("/api/plan-next/").json() == []
 
 
-def test_deleting_an_entry_through_the_api_clears_its_plan(
-    admin_client, sample_anime
-):
+def test_deleting_an_entry_through_the_api_clears_its_plan(admin_client, sample_anime):
     admin_client.put(f"/api/anime/{sample_anime.system_id}", json={"watch_next": True})
     res = admin_client.delete(f"/api/anime/{sample_anime.system_id}")
     assert res.status_code in (200, 204)
     assert admin_client.get("/api/plan-next/").json() == []
+
+
+def test_delete_plans_for_is_gone():
+    import app.services.domain.plan_next as service
+
+    assert not hasattr(service, "delete_plans_for")

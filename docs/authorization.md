@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-10 (the `self` family and the `user` role)
+Last verified: 2026-09-10 (the authenticated-user gate)
 
 ## What this is for
 
@@ -242,6 +242,22 @@ grant an admin removed is not handed back on restart.
   `resolve_viewer` then `viewer.has("admin")`, else **401**. Stricter than the
   old token check: a valid token for a deleted user or a de-admined role is
   rejected.
+- `app/dependencies.py::get_current_user_id` is the **third** gate, added in
+  Step 3, and it asks a different question from the other two: not "does this
+  viewer hold a permission" but "is there an account at all". It returns
+  `viewer.user_id` or **401**. Every `/api/plan-next` and `/api/seasonal` route
+  depends on it, because those tables hold one account's private queues and
+  ratings; the seasonal rating PATCH uses it *instead of*
+  `get_current_admin`, since the rating it writes is the caller's own.
+  `app/services/rbac/resolver.py::viewer_user_id(viewer)` is the non-raising
+  companion for the handful of routes that stay public and must simply show
+  nothing per-user - the entry `watch_next` / `read_next` flags and the
+  `seasonal` bucket of `/api/search`. It returns the viewer's own id or `None`,
+  and there is deliberately **no fallback to another account**.
+- The frontend counterpart is `ProtectedRoute`'s `requireAuth` prop
+  (`frontend/src/components/layout/ProtectedRoute.jsx`), which gates on
+  `username` rather than on `has(permission)`. `/plan`, `/seasonal`,
+  `/seasonal/:seasonal_id` and `/statistics` use it.
 - `/api/auth/me` returns `is_admin`, `username`, `role`, `is_superuser`,
   `permissions` (sorted); `AuthContext.jsx` builds a `Set` and exposes `has()`.
 

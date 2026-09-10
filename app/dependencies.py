@@ -5,6 +5,7 @@ Centralizes database session management and security middleware.
 """
 
 from typing import Any, Dict, Generator
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -75,3 +76,28 @@ def get_current_admin(
         "sub": viewer.username,
         "role": viewer.role_name,
     }
+
+
+def get_current_user_id(request: Request, db: Session = Depends(get_db)) -> UUID:
+    """
+    The authenticated caller's user id, or 401.
+
+    The guard on every per-user route, read as well as write: plan_next and
+    seasonal hold one account's private queues and ratings, so an anonymous
+    caller gets a refusal rather than an empty page. Distinct from
+    get_current_admin, which asks for a permission - this asks only for an
+    account, because a seasonal rating is the caller's OWN. 401 rather than
+    403, matching the one error shape the SPA knows.
+    """
+    # Imported here for the same reason get_current_admin does it: the resolver
+    # imports this module for SECRET_KEY and get_db.
+    from app.services.rbac.resolver import resolve_viewer
+
+    viewer = resolve_viewer(request, db)
+    if viewer.user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials or insufficient permissions",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return viewer.user_id

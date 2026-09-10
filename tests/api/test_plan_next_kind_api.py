@@ -124,8 +124,9 @@ def test_delete_by_target_is_kind_scoped(admin_client, seeded_movie):
     assert [r["kind"] for r in left] == ["next"]
 
 
-def test_kinds_endpoint_exposes_both_maps(client):
-    body = client.get("/api/plan-next/kinds").json()
+def test_kinds_endpoint_exposes_both_maps(admin_client):
+    # Authenticated from Step 3 on: everything under the prefix needs a login.
+    body = admin_client.get("/api/plan-next/kinds").json()
     assert body["kinds"] == ["next", "rewatch"]
     assert body["allowed_scopes"]["next"]["anime"] == ["entry", "series", "franchise"]
     assert body["allowed_scopes"]["rewatch"]["anime"] == ["franchise"]

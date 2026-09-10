@@ -30,8 +30,9 @@ def punctuated_anime(db_session, sample_franchise):
 
 
 @pytest.fixture
-def sample_seasonal(db_session):
-    s = models.Seasonal(seasonal="WIN 2026")
+def sample_seasonal(db_session, admin_user):
+    # A seasonal row belongs to a user from Step 3 on: this one is the admin's.
+    s = models.Seasonal(user_id=admin_user.id, seasonal="WIN 2026")
     db_session.add(s)
     db_session.flush()
     return s
@@ -134,13 +135,21 @@ class TestFranchiseExpansion:
 
 
 class TestSeasonal:
-    def test_seasonal_is_searchable(self, client, sample_seasonal):
-        payload = client.get("/api/search/?q=WIN+2026").json()
+    def test_seasonal_is_searchable(self, admin_client, sample_seasonal):
+        payload = admin_client.get("/api/search/?q=WIN+2026").json()
         assert [s["seasonal"] for s in payload["results"]["seasonal"]] == ["WIN 2026"]
 
-    def test_seasonal_normalises_like_the_rest(self, client, sample_seasonal):
-        payload = client.get("/api/search/?q=win2026").json()
+    def test_seasonal_normalises_like_the_rest(self, admin_client, sample_seasonal):
+        payload = admin_client.get("/api/search/?q=win2026").json()
         assert [s["seasonal"] for s in payload["results"]["seasonal"]] == ["WIN 2026"]
+
+    def test_the_bucket_is_empty_for_an_anonymous_searcher(
+        self, client, sample_seasonal
+    ):
+        # Search stays public - it is the shared catalogue - but a season's
+        # counters and rating belong to one account.
+        payload = client.get("/api/search/?q=WIN+2026").json()
+        assert payload["results"]["seasonal"] == []
 
 
 class TestLimits:

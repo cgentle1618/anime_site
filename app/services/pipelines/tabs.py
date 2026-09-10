@@ -46,6 +46,16 @@ def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
     return db.get(models.SystemOption, row.option_id)
 
 
+def _plan_scope(row: Any, db: Session) -> Optional[str]:
+    """The owner kind, for the sheet's human reader. See models/plan_next.py."""
+    return row.scope or None
+
+
+def _plan_target_id(row: Any, db: Session) -> Optional[object]:
+    """The owner's id, whichever of the three columns holds it."""
+    return row.target_id
+
+
 def _option_category(row: Any, db: Session) -> Optional[str]:
     option = _resolved_option(row, db)
     return option.category if option else None
@@ -172,7 +182,17 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Watch Order Item", models.WatchOrderItem, f.parse_watch_order_item_from_sheet),
     # FK-less (media_type, id) pairs: both endpoints must already exist.
     SheetTab("Media Relation", models.MediaRelation, f.parse_media_relation_from_sheet),
-    SheetTab("Plan Next", models.PlanNext, f.parse_plan_next_from_sheet),
+    # The sheet keeps the (scope, target_id) pair a human reads during an
+    # environment switch; the table stores three foreign keys. user_id is
+    # dropped because the sheet has no user column until Step 4 - Pull stamps
+    # the restore owner (_restore_owner_id in pull.py).
+    SheetTab(
+        "Plan Next",
+        models.PlanNext,
+        f.parse_plan_next_from_sheet,
+        drop_columns=("user_id", "media_id", "franchise_id", "series_id"),
+        extra_columns=(("scope", _plan_scope), ("target_id", _plan_target_id)),
+    ),
     SheetTab("Quote", models.Quote, f.parse_quote_from_sheet),
     # After every media tab: a casting reaches its entry by the FK-less
     # (media_type, entry_id) pair, so each entry must already exist.
@@ -205,7 +225,15 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         models.MediaContentLabel,
         f.parse_media_content_label_from_sheet,
     ),
-    SheetTab("Seasonal", models.Seasonal, f.parse_seasonal_from_sheet),
+    # user_id is dropped for the same reason the Plan Next tab drops it: the
+    # sheet has no user column until Step 4, and Pull stamps the restore
+    # owner (_restore_owner_id in pull.py).
+    SheetTab(
+        "Seasonal",
+        models.Seasonal,
+        f.parse_seasonal_from_sheet,
+        drop_columns=("user_id",),
+    ),
 )
 
 TAB_BY_NAME: dict[str, SheetTab] = {tab.name: tab for tab in SHEET_TABS}

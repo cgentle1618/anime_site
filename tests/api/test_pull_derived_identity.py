@@ -388,6 +388,44 @@ RELATION_HEADERS = [
 PLAN_HEADERS = ["system_id", "kind", "media_type", "scope", "target_id", "remark"]
 
 
+def _plan_owner(db):
+    """The account pull._restore_owner_id will stamp: `admin`, created if absent."""
+    owner = db.query(models.User).filter_by(username="admin").first()
+    if owner is None:
+        from app.services.security import get_password_hash
+        from tests.api.conftest import role_id_for
+
+        owner = models.User(
+            id=uuid.uuid4(),
+            username="admin",
+            hashed_password=get_password_hash("x"),
+            role_id=role_id_for(db, "admin"),
+        )
+        db.add(owner)
+        db.flush()
+    return owner
+
+
+def _plan_movie(db):
+    """A real movie entry: the plan's owner column is a foreign key now."""
+    franchise = models.Franchise(
+        system_id=uuid.uuid4(),
+        franchise_type="Movie",
+        franchise_name_en=f"Pull Plan Franchise {uuid.uuid4()}",
+    )
+    db.add(franchise)
+    db.flush()
+    movie = models.Movies(
+        system_id=uuid.uuid4(),
+        franchise_id=franchise.system_id,
+        movie_name_en="Pull Plan Movie",
+    )
+    db.add(movie)
+    db.flush()
+    return movie
+
+
+
 def test_relation_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     from_id, to_id = uuid.uuid4(), uuid.uuid4()
     local = models.MediaRelation(
@@ -424,13 +462,14 @@ def test_relation_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
 
 
 def test_plan_next_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
-    target = uuid.uuid4()
+    owner = _plan_owner(db_session)
+    target = _plan_movie(db_session).system_id
     local = models.PlanNext(
         system_id=uuid.uuid4(),
+        user_id=owner.id,
         kind="next",
         media_type="movie",
-        scope="entry",
-        target_id=target,
+        media_id=target,
     )
     db_session.add(local)
     db_session.flush()
@@ -456,14 +495,15 @@ def test_plan_next_with_a_foreign_uuid_updates_the_local_row(db_session, sheets)
 
 def test_a_different_kind_is_a_different_plan_row(db_session, sheets):
     """kind is part of the key: queued and rewatch coexist for one target."""
-    target = uuid.uuid4()
+    owner = _plan_owner(db_session)
+    target = _plan_movie(db_session).system_id
     db_session.add(
         models.PlanNext(
             system_id=uuid.uuid4(),
+            user_id=owner.id,
             kind="next",
             media_type="movie",
-            scope="entry",
-            target_id=target,
+            media_id=target,
         )
     )
     db_session.flush()

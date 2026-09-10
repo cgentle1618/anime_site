@@ -17,7 +17,6 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
-from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -207,8 +206,7 @@ def delete_franchise(
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_franchise, "Franchise")
 
-    delete_plans_for(db, "franchise", db_franchise.system_id)
-
+    # fk_plan_next_franchise cascades the franchise's plan rows away.
     db.delete(db_franchise)
     db.commit()
 

@@ -17,7 +17,6 @@ from app import models, schemas
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
-from app.services.domain.plan_next import delete_plans_for
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -195,8 +194,7 @@ def delete_series(
 
     log_deleted_record(db, db_series, "Series")
 
-    delete_plans_for(db, "series", db_series.system_id)
-
+    # fk_plan_next_series cascades the series' plan rows away.
     db.delete(db_series)
     db.commit()
 

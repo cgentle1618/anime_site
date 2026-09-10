@@ -17,7 +17,13 @@ import uuid
 import pytest
 
 from app import models
-from tests.api.test_visibility import HIDDEN_NAME, hidden_anime, nsfw_label  # noqa: F401
+from app.services.rbac.seed import default_guest_permissions
+from tests.api.test_visibility import (  # noqa: F401
+    HIDDEN_NAME,
+    hidden_anime,
+    make_viewer,
+    nsfw_label,
+)
 
 QUOTE_TEXT = "Zvornik quote body that must not leak"
 MEME_TEXT = "Zvornik meme caption that must not leak"
@@ -61,13 +67,19 @@ def hidden_meme(db_session, hidden_anime):
 
 
 @pytest.fixture
-def hidden_plan(db_session, hidden_anime):
+def hidden_plan(db_session, admin_user, hidden_anime):
+    """The admin's own plan row on a hidden entry.
+
+    A plan row belongs to a user from Step 3 on, so the row a viewer might leak
+    is one of their OWN - queued before the entry was labelled, or labelled for
+    their role but not for another's.
+    """
     p = models.PlanNext(
         system_id=uuid.uuid4(),
+        user_id=admin_user.id,
         kind="next",
         media_type="anime",
-        scope="entry",
-        target_id=hidden_anime.system_id,
+        media_id=hidden_anime.system_id,
     )
     db_session.add(p)
     db_session.flush()
@@ -151,11 +163,33 @@ def test_notes_for_a_visible_entry_still_work(client, sample_anime):
 # Plan Next
 # ---------------------------------------------------------------------------
 
-def test_a_plan_row_for_a_hidden_entry_is_dropped(client, hidden_plan):
+def test_an_anonymous_visitor_cannot_read_the_plan_queue_at_all(client, hidden_plan):
+    # Per-user from Step 3 on: a refusal, not a filtered page.
+    assert client.get("/api/plan-next/").status_code == 401
+
+
+def test_a_plan_row_for_a_hidden_entry_is_dropped(
+    client, db_session, hidden_anime, hidden_plan
+):
+    # A logged-in viewer whose role lacks the label: their OWN plan row on the
+    # hidden entry must not come back.
+    make_viewer(db_session, client, "untrusted", default_guest_permissions())
+    viewer = db_session.query(models.User).filter_by(username="untrusted").one()
+    db_session.add(
+        models.PlanNext(
+            system_id=uuid.uuid4(),
+            user_id=viewer.id,
+            kind="next",
+            media_type="anime",
+            media_id=hidden_anime.system_id,
+        )
+    )
+    db_session.flush()
+
     response = client.get("/api/plan-next/")
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
-    assert str(hidden_plan.target_id) not in response.text
+    assert str(hidden_anime.system_id) not in response.text
 
 
 def test_admin_still_sees_the_plan_row(admin_client, hidden_plan):

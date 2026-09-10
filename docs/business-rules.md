@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-09 (completion is two facts, not one)
+Last verified: 2026-09-10 (the seasonal counters are per user)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -448,13 +448,21 @@ space: `"SPR 2025"`, `"WIN 2024"`. (Older docs said `"2025 SPR"`; that is wrong.
 `system_configs.current_season` is free-form, so an admin typing the old order
 would point at a bucket that never matches.)
 
+**A seasonal row is per user** since Step 3: the primary key is
+`(user_id, seasonal)`, the rating is that user's, and so are the four counters.
+
 `create_missing_seasonal` scans anime for distinct `(release_season, first 4
 chars of release_date)` pairs where both are non-null and inserts a `Seasonal`
-row for each key that does not exist. Commits only if it added something.
+row for **every user** and every key that does not already exist - the seasons
+are a catalogue fact, the row is a per-user one, so it is the cross product
+that has to exist. A user with nothing in that season gets a row of zeroes.
+Commits only if it added something.
 
 `sync_seasonal_counts` zeroes every seasonal's four counters and recounts from
-anime that have a season, a date, and `airing_type` in **`{TV, ONA, Movie,
-Special}`** (OVA, OAD, Other are excluded):
+**that row's user's `user_media_list` rows** (not from `anime.watching_status`,
+which Step 1 removed), joined through `media` to anime that have a season, a
+date, and `airing_type` in **`{TV, ONA, Movie, Special}`** (OVA, OAD, Other are
+excluded):
 
 | Counter           | Statuses                                              |
 | ----------------- | ----------------------------------------------------- |
@@ -463,9 +471,9 @@ Special}`** (OVA, OAD, Other are excluded):
 | `entry_watching`  | `Active Watching`, `Passive Watching`, `Paused`        |
 | `entry_dropped`   | `Temp Dropped`, `Dropped`                              |
 
-`Might Watch` and `Won't Watch` are counted nowhere. An anime whose key has no
-`Seasonal` row is skipped (run `create_missing_seasonal` first — `run_sync_anime`
-does).
+`Might Watch` and `Won't Watch` are counted nowhere, and neither is an entry
+the user has no list row for at all. A `(user_id, key)` pair with no `Seasonal`
+row is skipped (run `create_missing_seasonal` first — `run_sync_anime` does).
 
 ---
 

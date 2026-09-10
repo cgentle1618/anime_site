@@ -16,7 +16,7 @@ matches - the same rule the browser used to apply after the fact.
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -25,6 +25,7 @@ from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import planned_entry_ids
 from app.services.rbac.enforcement import apply_entry_visibility, filter_visible_pairs
 from app.services.rbac.field_gate import gate
+from app.services.rbac.resolver import viewer_user_id
 from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS
 
 # The characters cleanString deletes: whitespace plus the punctuation that
@@ -305,8 +306,9 @@ def _decorate(db: Session, viewer, spec: SearchableType, entries: list):
         return entries
     if spec.owner_type is None:
         return entries
+    user_id = viewer_user_id(viewer)
     for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):
-        planned = planned_entry_ids(db, spec.owner_type, kind)
+        planned = planned_entry_ids(db, spec.owner_type, kind, user_id=user_id)
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
     attach_link_fields(db, spec.owner_type, entries)
@@ -371,6 +373,15 @@ def search(db: Session, viewer, query: str, scope: str = "all", limit: int = 500
                         )
                     ),
                 )
+        # seasonal rows are per user. A logged-in searcher gets their own; a
+        # stranger gets an empty bucket rather than somebody else's ratings -
+        # the same rule the /api/seasonal routes enforce with a 401.
+        if spec.key == "seasonal":
+            searcher_id = viewer_user_id(viewer)
+            if searcher_id is None:
+                raw[spec.key] = []
+                continue
+            criteria = and_(criteria, models.Seasonal.user_id == searcher_id)
         raw[spec.key] = _run(db, viewer, spec, criteria, q_clean, limit)
 
     related = _related_franchises(db, raw.get("anime", []), limit)

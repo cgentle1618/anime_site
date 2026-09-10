@@ -3,8 +3,9 @@ routers/plan_next.py
 Handles Plan Next - what is queued to watch or read, at entry, series or
 franchise scope.
 
-Reads are public (a plan is ordinary catalogue data); every write is
-admin-only, matching media relations and watch orders.
+Every route needs an account. A plan queue belongs to one user from Step 3 on,
+so a logged-out caller gets a 401 rather than somebody else's queue; the write
+routes additionally stay admin-only, matching media relations and watch orders.
 
 Replaces the watch_next / read_next booleans and franchise.watch_next_group.
 Nothing here derives plans automatically: they are curated on the admin forms
@@ -19,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_current_admin, get_current_user_id, get_db
 from app.services.domain.plan_next import validate_plan_target
 from app.services.rbac.enforcement import drop_hidden_rows
 from app.services.rbac.resolver import Viewer, get_viewer
@@ -27,10 +28,12 @@ from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.plan_next_kinds import (
     KINDS,
+    OWNER_COLUMN,
     SCOPES,
     SIZE_GROUPS,
     allowed_scopes_for,
     kind_valid,
+    owner_kwargs,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,7 +78,7 @@ def _resolve(db: Session, row: models.PlanNext) -> schemas.PlanNextRead:
 
 
 @router.get("/kinds")
-def list_kinds():
+def list_kinds(_user_id: UUID = Depends(get_current_user_id)):
     """The vocabulary the admin dropdowns and the Plan page tabs read from."""
     return {
         "scopes": list(SCOPES),
@@ -106,12 +109,16 @@ def list_plan_next(
     scope: Optional[str] = Query(None),
     kind: Optional[str] = Query(None),
     viewer: Viewer = Depends(get_viewer),
+    user_id: UUID = Depends(get_current_user_id),
 ):
-    query = db.query(models.PlanNext)
+    query = db.query(models.PlanNext).filter(models.PlanNext.user_id == user_id)
     if media_type:
         query = query.filter(models.PlanNext.media_type == media_type)
     if scope:
-        query = query.filter(models.PlanNext.scope == scope)
+        column = OWNER_COLUMN.get(scope)
+        if column is None:
+            raise HTTPException(status_code=400, detail=f"Unknown scope: {scope}")
+        query = query.filter(getattr(models.PlanNext, column).isnot(None))
     if kind:
         query = query.filter(models.PlanNext.kind == kind)
     # scope names the tier for a group plan and "entry" for an entry plan;
@@ -136,6 +143,7 @@ def create_plan_next(
     payload: schemas.PlanNextCreate,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
+    user_id: UUID = Depends(get_current_user_id),
 ):
     if not kind_valid(payload.kind):
         raise HTTPException(status_code=422, detail=f"Unknown kind: {payload.kind}")
@@ -150,11 +158,12 @@ def create_plan_next(
     if reason:
         raise HTTPException(status_code=400, detail=reason)
 
+    column = OWNER_COLUMN[payload.scope]
     existing = (
         db.query(models.PlanNext)
         .filter(
-            models.PlanNext.scope == payload.scope,
-            models.PlanNext.target_id == payload.target_id,
+            models.PlanNext.user_id == user_id,
+            getattr(models.PlanNext, column) == payload.target_id,
             models.PlanNext.media_type == payload.media_type,
             models.PlanNext.kind == payload.kind,
         )
@@ -163,7 +172,13 @@ def create_plan_next(
     if existing:
         raise HTTPException(status_code=409, detail="Already planned.")
 
-    row = models.PlanNext(**payload.model_dump())
+    row = models.PlanNext(
+        user_id=user_id,
+        kind=payload.kind,
+        media_type=payload.media_type,
+        remark=payload.remark,
+        **owner_kwargs(payload.scope, payload.target_id),
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -178,14 +193,18 @@ def delete_plan_next_by_target(
     kind: str = Query("next"),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
+    user_id: UUID = Depends(get_current_user_id),
 ):
     """Un-plan without knowing the row id, so a toggle needs one call."""
+    column = OWNER_COLUMN.get(scope)
+    if column is None:
+        raise HTTPException(status_code=400, detail=f"Unknown scope: {scope}")
     row = (
         db.query(models.PlanNext)
         .filter(
-            models.PlanNext.scope == scope,
+            models.PlanNext.user_id == user_id,
             models.PlanNext.media_type == media_type,
-            models.PlanNext.target_id == target_id,
+            getattr(models.PlanNext, column) == target_id,
             models.PlanNext.kind == kind,
         )
         .first()
@@ -203,10 +222,15 @@ def delete_plan_next(
     system_id: UUID,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
+    user_id: UUID = Depends(get_current_user_id),
 ):
+    # One user may not delete another's row by id.
     row = (
         db.query(models.PlanNext)
-        .filter(models.PlanNext.system_id == system_id)
+        .filter(
+            models.PlanNext.system_id == system_id,
+            models.PlanNext.user_id == user_id,
+        )
         .first()
     )
     if not row:

@@ -145,16 +145,9 @@ export default function App() {
                 <Route path="/person/:publicId/:slug?" element={<Person />} />
                 <Route path="/character/:publicId/:slug?" element={<Character />} />
                 <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
-                <Route path="/seasonal" element={<SeasonalOverall />} />
-                <Route
-                  path="/seasonal/:seasonal_id"
-                  element={<SeasonalDetail />}
-                />
-                <Route path="/statistics" element={<Statistics />} />
                 <Route path="/completions" element={<Completions />} />
                 <Route path="/quote" element={<Quotes />} />
                 <Route path="/meme" element={<Memes />} />
-                <Route path="/plan" element={<Plan />} />
                 {/* Public: the server answers 404 for a list the caller may
                     not read, so no ProtectedRoute belongs here. */}
                 <Route path="/user/:username" element={<Profile />} />
@@ -162,6 +155,18 @@ export default function App() {
                   path="/under-development"
                   element={<UnderDevelopment />}
                 />
+
+                {/* Per-user pages: a plan queue and a season's counters belong
+                    to one account, and their APIs 401 a stranger. */}
+                <Route element={<ProtectedRoute requireAuth />}>
+                  <Route path="/seasonal" element={<SeasonalOverall />} />
+                  <Route
+                    path="/seasonal/:seasonal_id"
+                    element={<SeasonalDetail />}
+                  />
+                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/plan" element={<Plan />} />
+                </Route>
 
                 {/* Any signed-in member, not an admin: ProtectedRoute takes
                     the permission and defaults to "admin", so this block asks

@@ -160,7 +160,27 @@ describe("visibleSections", () => {
     const routes = sectionItems(insights).map((i) => i.to);
     expect(routes).not.toContain("/relations");
     expect(routes).not.toContain("/watch-orders");
-    expect(routes).toContain("/statistics");
+  });
+
+  it("hides the per-user rows from a logged-out visitor", () => {
+    // Plan, Seasonal and Statistics are per-user pages: their APIs answer 401
+    // and their routes redirect to login, so the rows would only bounce a
+    // guest. self.list is the nav's spelling of "a signed-in member".
+    const holdsSelfList = (p) => p === "self.list";
+    const routesFor = (has) =>
+      visibleSections(NAV_SECTIONS, has).flatMap((s) =>
+        sectionItems(s).map((i) => i.to),
+      );
+
+    const forGuest = routesFor(holdsNothing);
+    expect(forGuest).not.toContain("/plan");
+    expect(forGuest).not.toContain("/seasonal");
+    expect(forGuest).not.toContain("/statistics");
+
+    const forMember = routesFor(holdsSelfList);
+    expect(forMember).toContain("/plan");
+    expect(forMember).toContain("/seasonal");
+    expect(forMember).toContain("/statistics");
   });
 
   it("shows Settings to a member holding self.list and to nobody else", () => {

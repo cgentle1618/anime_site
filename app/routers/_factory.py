@@ -28,7 +28,6 @@ from app.services.domain.credits import attach_link_fields
 from app.services.domain.plan_next import (
     PLAN_FLAG_FIELDS,
     attach_plan_flag,
-    delete_plans_for,
     planned_entry_ids,
     pop_plan_flag,
     set_entry_flag,
@@ -49,7 +48,7 @@ from app.services.domain.user_list import (
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, viewer_user_id
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
 
@@ -129,7 +128,7 @@ def make_media_router(spec) -> APIRouter:
         user_id = acting_user_id(db, viewer)
         attach_list_fields(db, spec.owner_type, entry, user_id)
         attach_unit_ratings(db, spec.owner_type, entry, user_id)
-        attach_plan_flag(db, spec.owner_type, entry)
+        attach_plan_flag(db, spec.owner_type, entry, user_id=viewer_user_id(viewer))
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
         return entry
@@ -217,8 +216,9 @@ def make_media_router(spec) -> APIRouter:
             q = f"%{search_query}%"
             query = query.filter(or_(*[getattr(spec.model, f).ilike(q) for f in spec.search_fields]))
         entries = query.order_by(spec.model.created_at.desc()).limit(limit).offset(offset).all()
+        plan_user_id = viewer_user_id(viewer)
         for field, kind in PLAN_FLAG_FIELDS.get(spec.owner_type, ()):
-            planned = planned_entry_ids(db, spec.owner_type, kind)
+            planned = planned_entry_ids(db, spec.owner_type, kind, user_id=plan_user_id)
             for entry in entries:
                 setattr(entry, field, entry.system_id in planned)
         attach_link_fields(db, spec.owner_type, entries)
@@ -270,7 +270,14 @@ def make_media_router(spec) -> APIRouter:
 
         if plan_flags:
             for kind, planned in plan_flags:
-                set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
+                set_entry_flag(
+                    db,
+                    spec.owner_type,
+                    entry.system_id,
+                    bool(planned),
+                    kind=kind,
+                    user_id=viewer_user_id(viewer),
+                )
             db.commit()
 
         await _run_write_hook(db, entry)
@@ -300,7 +307,14 @@ def make_media_router(spec) -> APIRouter:
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
         for kind, planned in plan_flags:
-            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
+            set_entry_flag(
+                db,
+                spec.owner_type,
+                entry.system_id,
+                bool(planned),
+                kind=kind,
+                user_id=viewer_user_id(viewer),
+            )
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
@@ -333,7 +347,14 @@ def make_media_router(spec) -> APIRouter:
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
         for kind, planned in plan_flags:
-            set_entry_flag(db, spec.owner_type, entry.system_id, bool(planned), kind=kind)
+            set_entry_flag(
+                db,
+                spec.owner_type,
+                entry.system_id,
+                bool(planned),
+                kind=kind,
+                user_id=viewer_user_id(viewer),
+            )
         if has_remark:
             upsert_remark(db, spec.owner_type, entry.system_id, remark)
 
@@ -380,7 +401,9 @@ def make_media_router(spec) -> APIRouter:
             # no blob matches and orphan the cover silently.
             delete_cover_image(spec.owner_type, str(entry.system_id))
         log_deleted_record(db, entry, spec.label)
-        delete_plans_for(db, "entry", entry.system_id)
+        # plan_next needs no cleanup call either: fk_plan_next_media_type
+        # cascades from the media row, which the entry's own AFTER DELETE
+        # trigger removes.
         # media_credit, media_tag and media_source need no cleanup call:
         # each has a media_id FK that cascades from the media row, which the
         # entry's own AFTER DELETE trigger removes.

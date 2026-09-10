@@ -6,6 +6,8 @@ Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
 
 import uuid
 
+import pytest
+
 from app import models
 from app.services.domain.plan_next import (
     entry_flag,
@@ -14,8 +16,14 @@ from app.services.domain.plan_next import (
 )
 
 
-def test_setting_the_flag_creates_a_row(db_session, sample_anime):
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
+@pytest.fixture
+def owner(admin_user):
+    """A plan row belongs to a user; these call the services directly."""
+    return admin_user
+
+
+def test_setting_the_flag_creates_a_row(db_session, owner, sample_anime):
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
     db_session.flush()
 
     row = db_session.query(models.PlanNext).one()
@@ -24,37 +32,37 @@ def test_setting_the_flag_creates_a_row(db_session, sample_anime):
     assert row.target_id == sample_anime.system_id
 
 
-def test_setting_the_flag_twice_creates_one_row(db_session, sample_anime):
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
+def test_setting_the_flag_twice_creates_one_row(db_session, owner, sample_anime):
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
     db_session.flush()
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
     db_session.flush()
     assert db_session.query(models.PlanNext).count() == 1
 
 
-def test_clearing_the_flag_deletes_the_row(db_session, sample_anime):
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
+def test_clearing_the_flag_deletes_the_row(db_session, owner, sample_anime):
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
     db_session.flush()
-    set_entry_flag(db_session, "anime", sample_anime.system_id, False)
-    db_session.flush()
-    assert db_session.query(models.PlanNext).count() == 0
-
-
-def test_clearing_an_unset_flag_is_a_no_op(db_session, sample_anime):
-    set_entry_flag(db_session, "anime", sample_anime.system_id, False)
+    set_entry_flag(db_session, "anime", sample_anime.system_id, False, user_id=owner.id)
     db_session.flush()
     assert db_session.query(models.PlanNext).count() == 0
 
 
-def test_entry_flag_reads_back(db_session, sample_anime):
-    assert entry_flag(db_session, "anime", sample_anime.system_id) is False
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
+def test_clearing_an_unset_flag_is_a_no_op(db_session, owner, sample_anime):
+    set_entry_flag(db_session, "anime", sample_anime.system_id, False, user_id=owner.id)
     db_session.flush()
-    assert entry_flag(db_session, "anime", sample_anime.system_id) is True
+    assert db_session.query(models.PlanNext).count() == 0
+
+
+def test_entry_flag_reads_back(db_session, owner, sample_anime):
+    assert entry_flag(db_session, "anime", sample_anime.system_id, user_id=owner.id) is False
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
+    db_session.flush()
+    assert entry_flag(db_session, "anime", sample_anime.system_id, user_id=owner.id) is True
 
 
 def test_planned_entry_ids_is_scoped_to_one_media_type(
-    db_session, sample_anime, sample_franchise
+    db_session, owner, sample_anime, sample_franchise
 ):
     movie = models.Movies(
         system_id=uuid.uuid4(),
@@ -64,26 +72,26 @@ def test_planned_entry_ids_is_scoped_to_one_media_type(
     db_session.add(movie)
     db_session.flush()
 
-    set_entry_flag(db_session, "anime", sample_anime.system_id, True)
-    set_entry_flag(db_session, "movie", movie.system_id, True)
+    set_entry_flag(db_session, "anime", sample_anime.system_id, True, user_id=owner.id)
+    set_entry_flag(db_session, "movie", movie.system_id, True, user_id=owner.id)
     db_session.flush()
 
-    assert planned_entry_ids(db_session, "anime") == {sample_anime.system_id}
-    assert planned_entry_ids(db_session, "movie") == {movie.system_id}
+    assert planned_entry_ids(db_session, "anime", user_id=owner.id) == {sample_anime.system_id}
+    assert planned_entry_ids(db_session, "movie", user_id=owner.id) == {movie.system_id}
 
 
-def test_a_group_scope_row_is_not_an_entry_flag(db_session, sample_franchise):
+def test_a_group_scope_row_is_not_an_entry_flag(db_session, owner, sample_franchise):
     db_session.add(
         models.PlanNext(
             system_id=uuid.uuid4(),
+            user_id=owner.id,
             media_type="anime",
-            scope="franchise",
-            target_id=sample_franchise.system_id,
+            franchise_id=sample_franchise.system_id,
             kind="next",
         )
     )
     db_session.flush()
-    assert planned_entry_ids(db_session, "anime") == set()
+    assert planned_entry_ids(db_session, "anime", user_id=owner.id) == set()
 
 
 def test_anime_detail_round_trips_watch_next(admin_client, sample_anime):

@@ -11,7 +11,6 @@ import pytest
 
 from app import models
 from app.services.domain.seasonal import sync_seasonal_counts
-from app.services.domain.user_list import acting_user_id
 
 
 @pytest.fixture
@@ -33,11 +32,11 @@ def _anime(db, franchise, name, season, year):
     return entry
 
 
-def _list_row(db, media_id, status):
+def _list_row(db, owner, media_id, status):
     db.add(
         models.UserMediaList(
             system_id=uuid.uuid4(),
-            user_id=acting_user_id(db, None),
+            user_id=owner.id,
             media_id=media_id,
             status=status,
         )
@@ -46,10 +45,13 @@ def _list_row(db, media_id, status):
 
 
 @pytest.fixture
-def one_season(db, admin_client, sample_franchise):
+def one_season(db, admin_client, admin_user, sample_franchise):
     """FAL 2023 with one entry in each of the four counted buckets, plus one
-    the counters must ignore because no list row exists for it."""
-    season = models.Seasonal(seasonal="FAL 2023")
+    the counters must ignore because no list row exists for it.
+
+    The season belongs to the admin: a seasonal row is per user from Step 3 on.
+    """
+    season = models.Seasonal(user_id=admin_user.id, seasonal="FAL 2023")
     db.add(season)
     db.flush()
 
@@ -60,7 +62,7 @@ def one_season(db, admin_client, sample_franchise):
         ("Seasonal Dropped", "Dropped"),
     ]:
         entry = _anime(db, sample_franchise, name, "FAL", 2023)
-        _list_row(db, entry.system_id, status)
+        _list_row(db, admin_user, entry.system_id, status)
 
     _anime(db, sample_franchise, "Seasonal Untouched", "FAL", 2023)
     return season
@@ -92,8 +94,8 @@ def test_an_entry_with_no_list_row_counts_in_no_bucket(db, one_season):
 def test_another_users_row_does_not_leak_into_the_admins_counts(
     db, one_season, sample_franchise
 ):
-    """Pins the scoping before step 2 makes it reachable: a second user's
-    Completed row must not raise the admin's completed count."""
+    """A second user's Completed row must not raise the admin's count: the
+    counters are per user, keyed (user_id, seasonal)."""
     from app.services.security import get_password_hash
     from tests.api.conftest import role_id_for
 

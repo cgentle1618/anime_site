@@ -169,11 +169,25 @@ class SystemConfigs(Base):
 
 
 class Seasonal(Base):
-    """Aggregates metrics for specific airing seasons."""
+    """
+    One user's view of one airing season: their rating and their four counts.
+
+    The counters are aggregates over THAT USER's list rows (see
+    app/services/domain/seasonal.py) and my_rating is their own; both were
+    global before Step 3 only because the database held one person. The
+    primary key is therefore the pair, and a deleted user takes their seasons
+    with them.
+    """
 
     __tablename__ = "seasonal"
 
-    seasonal = Column(String, primary_key=True, unique=True, index=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_seasonal_user"),
+        primary_key=True,
+    )
+    # No longer unique on its own: two users hold "WIN 2026" independently.
+    seasonal = Column(String, primary_key=True, index=True)
     my_rating = Column(String, nullable=True)
     entry_planned = Column(Integer, nullable=False, default=0)
     entry_completed = Column(Integer, nullable=False, default=0)

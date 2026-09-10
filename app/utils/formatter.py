@@ -15,6 +15,10 @@ from uuid import UUID
 from app.services.domain.watch_order import normalize_importance
 from app.utils import release_date
 
+# The scope -> owner column map. plan_next_kinds imports only media_resolver,
+# so there is no cycle.
+from app.utils.plan_next_kinds import OWNER_COLUMN
+
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
 # ==========================================
@@ -361,17 +365,29 @@ def parse_plan_next_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Plan Next sheet into typed data ready for
     the Database.
+
+    The SHEET still carries the (scope, target_id) pair a human can read; the
+    TABLE carries three mutually exclusive foreign keys. The translation is
+    here, so a sheet written before Step 3 restores unchanged. user_id is not
+    in the sheet at all - pull.py stamps the restore owner, the `admin`
+    account (Step 4 of the programme replaces that with a username column).
     """
+    scope = parse_from_sheet(raw.get("scope"), str)
+    # No foreign key in the sheet - the target is whichever table scope and
+    # media_type name - so an unparseable cell becomes None and the row is
+    # rejected by pull.py rather than failing the whole tab.
+    target_id = _uuid_or_none(raw.get("target_id"))
+    owners = {"media_id": None, "franchise_id": None, "series_id": None}
+    column = OWNER_COLUMN.get(scope or "")
+    if column and target_id is not None:
+        owners[column] = target_id
+
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        # Preserved as written, not coerced: a media type or scope added in a
-        # newer version must survive a round trip through an older one.
+        # Preserved as written, not coerced: a media type added in a newer
+        # version must survive a round trip through an older one.
         "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "scope": parse_from_sheet(raw.get("scope"), str),
-        # No foreign key - the target is whichever table scope and media_type
-        # name - so an unparseable cell becomes None and the row shows up in
-        # the admin page as a missing target rather than failing the Pull.
-        "target_id": _uuid_or_none(raw.get("target_id")),
+        **owners,
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

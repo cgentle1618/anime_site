@@ -10,49 +10,65 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app import models
+from app.utils.plan_next_kinds import owner_kwargs
 
 
-def _row(scope, target_id, media_type="anime", kind="next"):
+def _row(owner, scope, target_id, media_type="anime", kind="next"):
     return models.PlanNext(
         system_id=uuid.uuid4(),
+        user_id=owner.id,
         kind=kind,
         media_type=media_type,
-        scope=scope,
-        target_id=target_id,
+        **owner_kwargs(scope, target_id),
     )
 
 
-def test_a_franchise_can_be_planned(db_session, sample_franchise):
-    db_session.add(_row("franchise", sample_franchise.system_id))
+def test_a_franchise_can_be_planned(db_session, admin_user, sample_franchise):
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id))
     db_session.flush()
     assert db_session.query(models.PlanNext).count() == 1
 
 
 def test_the_same_target_cannot_repeat_within_one_media_type(
-    db_session, sample_franchise
+    db_session, admin_user, sample_franchise
 ):
-    db_session.add(_row("franchise", sample_franchise.system_id))
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id))
     db_session.flush()
-    db_session.add(_row("franchise", sample_franchise.system_id))
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id))
     with pytest.raises(IntegrityError):
         db_session.flush()
 
 
 def test_one_franchise_may_be_planned_under_two_media_types(
-    db_session, sample_franchise
+    db_session, admin_user, sample_franchise
 ):
-    db_session.add(_row("franchise", sample_franchise.system_id, "anime"))
-    db_session.add(_row("franchise", sample_franchise.system_id, "tv-show"))
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id, "anime"))
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id, "tv-show"))
     db_session.flush()
     assert db_session.query(models.PlanNext).count() == 2
 
 
-def test_the_same_uuid_may_be_planned_at_two_scopes(db_session, sample_franchise):
-    # Contrived, but the constraint keys on scope, so it must be permitted.
-    db_session.add(_row("franchise", sample_franchise.system_id))
-    db_session.add(_row("series", sample_franchise.system_id))
-    db_session.flush()
-    assert db_session.query(models.PlanNext).count() == 2
+def test_the_same_uuid_may_not_be_planned_at_two_scopes(
+    db_session, admin_user, sample_franchise
+):
+    # It used to be permitted: the constraint keyed on scope, and the two
+    # system_id spaces were separate. A real foreign key ends the question -
+    # a franchise's uuid is not in series, so the second row cannot exist.
+    db_session.add(_row(admin_user, "franchise", sample_franchise.system_id))
+    db_session.add(_row(admin_user, "series", sample_franchise.system_id))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+
+
+def test_an_entry_plan_may_not_claim_the_wrong_media_type(
+    db_session, admin_user, sample_anime
+):
+    # fk_plan_next_media_type resolves (media_id, media_type) against
+    # media(system_id, media_type): an anime's id filed under 'manga' has no
+    # parent row.
+    db_session.add(_row(admin_user, "entry", sample_anime.system_id, "manga"))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
 
 
 def test_franchise_carries_both_size_group_maps(db_session, sample_franchise):

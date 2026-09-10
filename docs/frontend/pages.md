@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-07 (Play Anytime dashboard section)
+Last verified: 2026-09-10 (Plan, Seasonal and Statistics need a login)
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -46,12 +46,12 @@ are a large share of the bundle and never needed on first paint.
 | `/person/:system_id` | `detail/Person.jsx` | lazy |
 | `/character/:system_id` | `detail/Character.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
-| `/seasonal` | `public/SeasonalOverall.jsx` | lazy |
-| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy |
+| `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
+| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
 | `/future-releases` | `public/FutureReleases.jsx` | lazy |
-| `/statistics` | `public/Statistics.jsx` | lazy |
+| `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
 | `/completions` | `public/Completions.jsx` | lazy |
-| `/plan` | `public/Plan.jsx` | lazy |
+| `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
@@ -69,7 +69,7 @@ about styling.
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`), Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
-| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
+| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
@@ -616,6 +616,19 @@ scope, chips for 2–6 lists (select above 6), inline guide capped at 10 steps
 with a "see full" link, and an admin-only **Add built-in order** button
 (`POST /api/watch-order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/watch-orders` page.
+
+### Four pages that need an account
+
+`/plan`, `/seasonal`, `/seasonal/:seasonal_id` and `/statistics` sit inside
+`<Route element={<ProtectedRoute requireAuth />}>` in `App.jsx` since Step 3.
+They are built from `plan_next` and `seasonal`, which are per-user tables whose
+API routes answer `401` to a stranger, so a logged-out visitor is redirected to
+`/login?next=…` rather than shown a page that fills with errors. `requireAuth`
+gates on "is anyone logged in" rather than on a permission, mirroring the
+server's `get_current_user_id`. Their nav rows carry `requires: "self.list"`,
+the navigation config's spelling of "a signed-in member" (the guest role does
+not hold it; both `user` and `admin` do), so a guest is not shown links that
+would only bounce them.
 
 ### SeasonalOverall — `/seasonal` · SeasonalDetail — `/seasonal/:seasonal_id`
 

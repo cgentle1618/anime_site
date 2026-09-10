@@ -136,3 +136,21 @@ def require_permission(permission: str):
         return viewer
 
     return _dependency
+
+
+def viewer_user_id(viewer) -> Optional[UUID]:
+    """
+    The viewer's OWN user id, or None when nobody is logged in.
+
+    There is deliberately no fallback to another account. plan_next and
+    seasonal are per-user from Step 3 on, and every route that returns them
+    demands a real account through get_current_user_id. This helper exists for
+    the two paths that stay public and must simply show nothing per-user: the
+    entry watch_next / read_next flags on the catalogue endpoints, and the
+    seasonal bucket of /api/search. None there means "no flags, empty bucket",
+    never "somebody else's".
+
+    Takes no Session and holds no policy - it is one attribute read plus the
+    None-viewer guard that _factory._finish(db, entry, viewer=None) needs.
+    """
+    return getattr(viewer, "user_id", None) if viewer is not None else None

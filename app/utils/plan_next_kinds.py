@@ -161,6 +161,44 @@ PLAN_FLAG_FIELDS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
+# Which plan_next column holds the owner, per scope. The three columns are
+# mutually exclusive - ck_plan_next_one_owner enforces exactly one non-null -
+# and this map is the only place the correspondence is written down.
+#
+# There is no "collection" entry because SCOPES has no collection value: a plan
+# is filed against an entry, a series or a franchise and nothing else. note and
+# meme DO resolve through the full OWNER_TABLES and will need a fourth column
+# in Step 5; plan_next does not.
+OWNER_COLUMN: dict[str, str] = {
+    "entry": "media_id",
+    "series": "series_id",
+    "franchise": "franchise_id",
+}
+
+
+def owner_kwargs(scope: str, target_id) -> dict:
+    """{the owner column for this scope: target_id}, for a PlanNext(...) call."""
+    column = OWNER_COLUMN.get(scope)
+    if column is None:
+        raise ValueError(f"Unknown plan scope: {scope}")
+    return {column: target_id}
+
+
+def scope_for_columns(media_id, franchise_id, series_id) -> str:
+    """The scope a row's non-null owner column implies. '' when none is set."""
+    if media_id is not None:
+        return "entry"
+    if franchise_id is not None:
+        return "franchise"
+    if series_id is not None:
+        return "series"
+    return ""
+
+
+# The map and the vocabulary must agree, or a scope the API accepts would have
+# nowhere to be stored.
+assert set(OWNER_COLUMN) == set(SCOPES)
+
 # Guards the maps against drifting from the resolver's key list.
 assert set(ALLOWED_SCOPES) == set(KINDS)
 for _kind, _map in ALLOWED_SCOPES.items():

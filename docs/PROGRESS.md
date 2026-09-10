@@ -23,7 +23,30 @@ above. Steps 3-5 of the multi-user spec are not started.
 
 Step 2 - accounts, the `user` role, profiles and community aggregates - shipped
 2026-09-10 (`6bb22b29`..`242a6509`); `docs/roadmap.md` keeps the record and its
-table is deleted per the convention above. Steps 3-5 are not started.
+table is deleted per the convention above. Steps 4-5 are not started.
+
+Step 3 - per-user `plan_next` and `seasonal`
+(`docs/superpowers/plans/2026-09-08-step3-per-user-planning.md`).
+
+| Task | Status |
+|---|---|
+| 1 - `Viewer.user_id`, `viewer_user_id`, `get_current_user_id` | done step3-session |
+| 2 - expand `plan_next` (`m3a1plannext`) | done step3-session |
+| 3 - model, vocabulary and services | done step3-session |
+| 4 - every caller; `delete_plans_for` removed | done step3-session |
+| 5 - Backup / Pull keep the Plan Next tab shape | done step3-session |
+| 6 - contract: drop `scope` / `target_id` (`m3a2plandrop`) | done step3-session |
+| 7 - `seasonal` keyed `(user_id, seasonal)` (`m3b1seasonal`) | done step3-session |
+| 8 - counters per user from `user_media_list` | done step3-session |
+| 9 - seasonal API, search bucket and Pull | done step3-session |
+| 10 - Plan / Seasonal / Statistics behind a login | done step3-session |
+| 11 - documentation and the four checks | done step3-session |
+
+Not done by this session, and both need a human at the app: the `/system` ->
+**Backup** round trip that Tasks 5, 9 and 11 ask for (confirm the Plan Next tab
+still shows `scope` / `target_id` and no `user_id`, the Seasonal tab no
+`user_id`, then Pull each tab and compare row counts), and the browser pass of
+Task 10 Step 7 (log out, visit `/plan`, `/seasonal`, `/statistics`).
 
 ## Open items
 
@@ -52,6 +75,7 @@ Unclaimed. None block using the app.
 | | |
 |---|---|
 | Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m1b1anime` (head), reached from `pdf1e2r3d4e5` on 2026-09-09 after the `m0c1source` fix below. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Step 3 migrations | the **company** db is at `m3b1seasonal` (head) as of 2026-09-10: `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. The home db is still at `m1b1anime` and needs `alembic upgrade head` on arrival. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
 | Pre-Step-1 dump | `~/anime_site_home_pre_step1_20260909.sql` (3.2 MB, home, taken before the `m0a*`..`m1b1anime` run; that run deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows, by design) |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
@@ -60,4 +84,4 @@ Unclaimed. None block using the app.
 | Pull All | run on home 2026-09-09 after the migration, all 40 tabs, 0 credit conflicts, 0 invented entities. Needed the `Game Copy` fix below first. Post-pull: 2081 `media` / `user_media_list`, 833 `anime`, 88 `game_copy`, 0 orphans |
 | `Game Copy` identity | `game_copy` mints its uuid per database (the Steam import creates the rows), so the sheet's uuid always missed and the INSERT hit `uq_game_copy_row`, killing the whole Pull. Added to `DERIVED_IDENTITY_KEYS` on 2026-09-09 |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
-| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |
+| Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10 for Step 3; **in use**), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-10 (`users.list_is_public`)
+Last verified: 2026-09-10 (Step 3: per-user `plan_next` and `seasonal`)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -84,8 +84,8 @@ deleting a group leaves its members in place and simply ungrouped.
   `uuid.uuid4`, indexed). The exceptions are link/log tables with an
   auto-increment `id INTEGER` (`system_option_scope`, `system_configs`,
   `role_permission`, `data_control_logs`, `deleted_record`, `person_role`),
-  `users.id` (UUID, named `id`), and `seasonal`, whose primary key is the
-  season string itself.
+  `users.id` (UUID, named `id`), and `seasonal`, whose primary key is the pair
+  `(user_id, seasonal)` - one row per user per season string.
 - **Public id.** Every entity with a detail page - the nine media tables plus
   `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
   `character` and `watch_order_list`, seventeen in all - also carries
@@ -1352,15 +1352,27 @@ Model: `PlanNext` (`app/models/plan_next.py`).
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `kind` | String | no | **server_default `"next"`** | `next` / `rewatch` (KINDS). The server default is load-bearing: a Pull of a Plan Next sheet backed up before this column existed carries no `kind` header, and the ORM must omit the column so the DB fills it. |
-| `media_type` | String | no | | Hyphenated key. Stored even for `scope = entry` (it is the Plan page's tab discriminator). |
-| `scope` | String | no | | `entry` / `series` / `franchise` (SCOPES); which combinations are legal per kind and type is `ALLOWED_SCOPES` |
-| `target_id` | UUID | no | | FK-less - an entry, series or franchise id, resolved through OWNER_TABLES |
+| `user_id` | UUID | no | | FK `users.id` `ON DELETE CASCADE` (`fk_plan_next_user`) - whose queue this is |
+| `media_type` | String | no | | Hyphenated key. Stored on every row, group scopes included (it is the Plan page's tab discriminator, not the owner kind). |
+| `media_id` | UUID | yes | | Entry-scope owner. Composite FK `fk_plan_next_media_type` on `(media_id, media_type)` -> `media(system_id, media_type)`, `ON DELETE CASCADE` |
+| `franchise_id` | UUID | yes | | Franchise-scope owner. FK `fk_plan_next_franchise` `ON DELETE CASCADE` |
+| `series_id` | UUID | yes | | Series-scope owner. FK `fk_plan_next_series` `ON DELETE CASCADE` |
 | `remark` | Text | yes | | e.g. "after the movie" |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraints: `uq_plan_next_target` UNIQUE (`kind`, `scope`, `target_id`,
-`media_type`); index `ix_plan_next_kind_type_scope`. Franchise and series
-delete paths clear these rows explicitly.
+Exactly one owner column is set: `ck_plan_next_one_owner` is
+`CHECK (num_nonnulls(media_id, franchise_id, series_id) = 1)`. There is no
+collection scope, because `SCOPES` has none.
+
+Constraints: `uq_plan_next_target`
+`UNIQUE NULLS NOT DISTINCT (user_id, kind, media_type, media_id, franchise_id,
+series_id)`; index `ix_plan_next_user_kind_type` on
+`(user_id, kind, media_type)`. Nothing clears these rows by hand any more -
+every owner, and the user, cascades in the database.
+
+`scope` and `target_id` are gone from the table (`m3a2plandrop`) and survive as
+read-only properties on the model, derived from whichever owner column is set.
+They remain the API's wire format and the Google Sheets tab's headers.
 
 ---
 
@@ -1473,19 +1485,23 @@ Neither has a table of its own.
 
 ### `seasonal`
 
-Aggregated per-season anime metrics, rebuilt by `run_sync_anime`
-(`app/services/domain/seasonal.py`). Model: `Seasonal`.
+One user's view of one airing season: their rating and their four counters,
+rebuilt by `run_sync_anime` (`app/services/domain/seasonal.py`) from **that
+user's** `user_media_list` rows. Model: `Seasonal`. Per-user since Step 3
+(`m3b1seasonal`); every `/api/seasonal` route requires an account.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
-| `seasonal` | String | no | | PK - the season string (`anime.release_season`) |
+| `user_id` | UUID | no | | PK part 1. FK `users.id` `ON DELETE CASCADE` (`fk_seasonal_user`) |
+| `seasonal` | String | no | | PK part 2 - the season string (`anime.release_season`). Indexed on its own; no longer unique on its own |
 | `my_rating` | String | yes | | |
 | `entry_planned` | Integer | no | `0` | |
 | `entry_completed` | Integer | no | `0` | |
 | `entry_watching` | Integer | no | `0` | |
 | `entry_dropped` | Integer | no | `0` | |
 
-No timestamps.
+Primary key `pk_seasonal` on `(user_id, seasonal)`: two users hold "WIN 2026"
+independently. No timestamps.
 
 ---
 
@@ -1701,13 +1717,14 @@ that point at entries on both ends. They resolve at read time through
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` (anime, anime-movie, manga, novel only) |
-| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | `note`, `meme` (`owner_type` / `owner_id`), `plan_next` (`scope` + `media_type` + `target_id`) |
+| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | `note`, `meme` (`owner_type` / `owner_id`). **Not `plan_next`** since Step 3: its owner is three real foreign keys, and `OWNER_TABLES` is only read there to resolve a row's display data. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row no longer exists resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
-**deleting an entry does not cascade** to these tables (only the franchise and
-series delete paths clear `plan_next` explicitly).
+**deleting an entry does not cascade** to these tables. `plan_next` left this
+group in Step 3 and now cascades in the database like the `media_id` tables
+below.
 
 ### The six tables that moved to `media_id`
 

@@ -16,8 +16,9 @@ def _payload(scope, target_id, media_type="anime", remark=None):
     }
 
 
-def test_kinds_exposes_scopes_and_bucket_vocabularies(client):
-    res = client.get("/api/plan-next/kinds")
+def test_kinds_exposes_scopes_and_bucket_vocabularies(admin_client):
+    # Authenticated from Step 3 on: everything under the prefix needs a login.
+    res = admin_client.get("/api/plan-next/kinds")
     assert res.status_code == 200
     body = res.json()
     assert body["scopes"] == ["entry", "series", "franchise"]
@@ -29,10 +30,15 @@ def test_kinds_exposes_scopes_and_bucket_vocabularies(client):
     ]
 
 
-def test_list_is_public_and_starts_empty(client):
-    res = client.get("/api/plan-next/")
+def test_the_list_starts_empty_for_the_caller(admin_client):
+    res = admin_client.get("/api/plan-next/")
     assert res.status_code == 200
     assert res.json() == []
+
+
+def test_the_list_refuses_an_anonymous_caller(client):
+    # A plan queue belongs to one account: a refusal, not an empty page.
+    assert client.get("/api/plan-next/").status_code == 401
 
 
 def test_create_requires_admin(client, sample_franchise):
@@ -130,13 +136,13 @@ def test_delete_by_target_404s_when_not_planned(admin_client, sample_franchise):
     assert res.status_code == 404
 
 
-def test_a_row_whose_target_was_deleted_reads_as_missing(
+def test_a_row_whose_target_was_deleted_is_gone(
     admin_client, db_session, sample_franchise
 ):
+    # It used to survive as missing=True, because the target was FK-less.
+    # fk_plan_next_franchise cascades now, so there is nothing left to flag.
     admin_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
     db_session.delete(sample_franchise)
     db_session.flush()
 
-    rows = admin_client.get("/api/plan-next/").json()
-    assert len(rows) == 1
-    assert rows[0]["missing"] is True
+    assert admin_client.get("/api/plan-next/").json() == []

@@ -142,8 +142,14 @@ export const NAV_SECTIONS = [
     key: "track",
     label: "Track",
     items: [
-      { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan" },
-      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal" },
+      // Plan and Seasonal are per-user pages: their APIs answer 401 to a
+      // stranger and their routes redirect to login (App.jsx, ProtectedRoute
+      // requireAuth), so showing the rows logged out would only bounce people.
+      // self.list is the nav's spelling of "a signed-in member" - the guest
+      // role does not hold it and both user and admin do, which is why the
+      // Settings row below is gated the same way.
+      { label: "Plan", icon: "fas fa-clipboard-list", to: "/plan", requires: "self.list" },
+      { label: "Seasonal", icon: "fas fa-leaf", to: "/seasonal", requires: "self.list" },
       {
         label: "Future Releases",
         icon: "fas fa-calendar-plus",
@@ -156,7 +162,9 @@ export const NAV_SECTIONS = [
     key: "insights",
     label: "Insights",
     items: [
-      { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics" },
+      // Per-user, like Plan and Seasonal above: the page is built from the
+      // caller's own seasonal rows.
+      { label: "Statistics", icon: "fas fa-chart-bar", to: "/statistics", requires: "self.list" },
       { label: "Quotes", icon: "fas fa-quote-left", to: "/quote" },
       { label: "Memes", icon: "fas fa-face-grin-squint", to: "/meme" },
       // Relations and Watch Orders are ways of reading the collection, so they

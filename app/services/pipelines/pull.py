@@ -139,7 +139,16 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "to_type",
         "to_id",
     ),  # uq_media_relation_pair
-    "Plan Next": ("kind", "scope", "target_id", "media_type"),  # uq_plan_next_target
+    # user_id is part of the key: the same franchise may be queued by two
+    # users, and the sheet's uuid belongs to whichever database last backed up.
+    "Plan Next": (
+        "kind",
+        "media_type",
+        "user_id",
+        "media_id",
+        "franchise_id",
+        "series_id",
+    ),  # uq_plan_next_target
     # Mints its own uuid but cites an entry id, which is the same in every
     # database. option_id IS part of the key (unlike the parent tabs above,
     # whose own uuid never appears in it): two "main" rows on the same entry
@@ -335,6 +344,24 @@ def resolve_user_media_list_key(db: Session, payload: dict) -> bool:
     return True
 
 
+def _restore_owner_id(db: Session):
+    """
+    Which account a restored plan_next / seasonal row belongs to.
+
+    The sheet has no user column until Step 4 of the multi-user rollout, and
+    both tables' user_id is NOT NULL, so a restore has to name somebody. It
+    names the same account the Step 3 migrations backfilled to: `admin`, or the
+    alphabetically first user when no account carries that name.
+
+    Restore-time only. No request path calls this, and it is deliberately not a
+    "whose rows does a visitor see" rule - a visitor sees neither table at all.
+    """
+    owner = db.query(User).filter(User.username == "admin").first()
+    if owner is None:
+        owner = db.query(User).order_by(User.username).first()
+    return owner.id if owner else None
+
+
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
     """
     The local row a derived-identity sheet row denotes, or None.
@@ -484,11 +511,22 @@ def execute_pull_specific(
         #
         # A blank cell is deliberately NOT filtered: the column is present, it
         # parses to None, and that still means "clear this value".
+        parsed_all = clean_header_dict
         clean_header_dict = {
             key: value
             for key, value in clean_header_dict.items()
             if key in raw_header_dict
         }
+
+        # The Plan Next tab's header carries the human-readable (scope,
+        # target_id) pair, and parse_plan_next_from_sheet translates it into
+        # the three owner columns. Those columns are not in the header, so the
+        # filter above would drop exactly what the row is about - put them
+        # back. All three are written, because "no owner at all" is what the
+        # CHECK constraint rejects and what should reject the row.
+        if tab_name == "Plan Next" and "target_id" in raw_header_dict:
+            for column in ("media_id", "franchise_id", "series_id"):
+                clean_header_dict[column] = parsed_all[column]
 
         # The list tab carries a natural key and never the three ids, so this
         # has to run before ANYTHING tries to match the row: the natural-key
@@ -498,6 +536,19 @@ def execute_pull_specific(
             if not resolve_user_media_list_key(db, clean_header_dict):
                 rows_skipped += 1
                 continue
+
+        # plan_next.user_id and seasonal.user_id are NOT NULL and the sheet
+        # carries no user column yet. Stamped before the natural-key match
+        # below, because user_id is part of both tables' keys.
+        if tab_name in ("Plan Next", "Seasonal"):
+            owner = _restore_owner_id(db)
+            if owner is None:
+                logger.warning(
+                    "No user account exists; skipping the %s row.", tab_name
+                )
+                rows_skipped += 1
+                continue
+            clean_header_dict["user_id"] = owner
 
         # A copy row belongs to whoever bought it (Task 19). The sheet holds
         # one person's collection and carries no owner column, so the acting
@@ -1066,6 +1117,18 @@ def execute_pull_specific(
         if pk_value:
             existing = (
                 db.query(Model).filter(getattr(Model, pk_field) == pk_value).first()
+            )
+
+        # seasonal's primary key is (user_id, seasonal); matching on the season
+        # string alone would update whichever user's row happened to be first.
+        if tab_name == "Seasonal" and pk_value:
+            existing = (
+                db.query(Model)
+                .filter(
+                    Model.user_id == clean_header_dict["user_id"],
+                    Model.seasonal == pk_value,
+                )
+                .first()
             )
 
         # A derived-identity row whose uuid is unknown here is almost never a

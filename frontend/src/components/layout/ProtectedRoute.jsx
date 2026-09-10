@@ -3,14 +3,21 @@
 // Guards a route on one permission. It defaults to "admin", so every existing
 // <Route element={<ProtectedRoute />}> keeps behaving exactly as it did.
 //
+// `requireAuth` asks the weaker question instead - "is anyone logged in?" -
+// mirroring the server's get_current_user_id. The per-user pages (Plan,
+// Seasonal, Statistics) need an account, not a role.
+//
 // This is a redirect, not a security boundary: the API refuses the request on
 // its own. The point is to send someone to the login page instead of showing
 // them a screen that will only fill with errors.
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function ProtectedRoute({ permission = "admin" }) {
-  const { has, loading } = useAuth();
+export default function ProtectedRoute({
+  permission = "admin",
+  requireAuth = false,
+}) {
+  const { has, username, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -24,8 +31,11 @@ export default function ProtectedRoute({ permission = "admin" }) {
     );
   }
 
-  // Without the permission, send them to login and preserve the page they wanted.
-  return has(permission) ? (
+  // requireAuth gates on "is anyone logged in" rather than on a permission.
+  const allowed = requireAuth ? Boolean(username) : has(permission);
+
+  // Without it, send them to login and preserve the page they wanted.
+  return allowed ? (
     <Outlet />
   ) : (
     <Navigate

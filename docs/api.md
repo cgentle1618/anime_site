@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-10 (account settings, profiles, community aggregates, /api/me/list)
+Last verified: 2026-09-10 (Step 3: plan-next and seasonal are per user and authenticated)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -507,17 +507,21 @@ from either end without a second copy of the kind vocabulary.
 What is queued to watch or read (kind `next`), or marked for rewatch/reread
 (kind `rewatch`), at entry, series, or franchise scope. **One table backs
 both Plan-page queues** — the `plan_next` name predates the second one; see
-data-model.md. Reads are public (planning state is ordinary catalogue
-data); every write is admin-only, matching media relations and watch orders.
+data-model.md. **Per user and authenticated since Step 3:** every route requires an
+account (`get_current_user_id`, `401` otherwise) and answers only with the
+caller's own rows; the writes additionally stay admin-only, matching media
+relations and watch orders. There is no site-owner fallback and no public view
+of anybody's queue. The wire format is unchanged - `scope` and `target_id` are
+still sent and accepted, derived from the row's owner foreign key.
 Replaces the `watch_next` / `read_next` booleans, `franchise.watch_next_group`,
 and the nine `to_rewatch` / `to_reread` booleans — see data-model.md and
 business-rules.md.
 
 | Method   | Path                                          | Auth   | Description                                                                                                     |
 | -------- | ---------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                       | Public | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `kinds` (`["next", "rewatch"]`), `allowed_scopes` (keyed by kind, then media type, scopes ordered entry/series/franchise), `size_groups` (per media type, `{key, label}` list). |
-| `GET`    | `/?media_type=&scope=&kind=`                   | Public | Every row, each resolved to its target's display data. All three filters optional; omitting `kind` returns both kinds in one call, so the Plan page still loads its whole dataset in one request. |
-| `POST`   | `/`                                            | Admin  | Create one row. Body includes `kind`, defaulting to `"next"` when omitted so every pre-rewatch caller keeps working. `422` for an unknown kind, `400` if the media type may not be planned at that scope for that kind, `404` if the target does not exist, `409` if the `(kind, scope, target_id, media_type)` quadruple already exists. |
+| `GET`    | `/kinds`                                       | Account | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `kinds` (`["next", "rewatch"]`), `allowed_scopes` (keyed by kind, then media type, scopes ordered entry/series/franchise), `size_groups` (per media type, `{key, label}` list). |
+| `GET`    | `/?media_type=&scope=&kind=`                   | Account | The caller's own rows, each resolved to its target's display data. All three filters optional; omitting `kind` returns both kinds in one call, so the Plan page still loads its whole dataset in one request. |
+| `POST`   | `/`                                            | Admin  | Create one row. Body includes `kind`, defaulting to `"next"` when omitted so every pre-rewatch caller keeps working. `422` for an unknown kind, `400` if the media type may not be planned at that scope for that kind, `404` if the target does not exist, `409` if the caller has already planned that `(kind, scope, target_id, media_type)` combination. |
 | `DELETE` | `/target?scope=&media_type=&target_id=&kind=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. Query params only. `kind` defaults to `"next"` when omitted. `404` if not planned. |
 | `DELETE` | `/{system_id}`                                 | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
 
@@ -675,12 +679,20 @@ has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
-| `GET`   | `/`               | Public | List all seasonal records, ordered by `seasonal` descending.                                        |
-| `GET`   | `/{seasonal_id}`  | Public | Get a single seasonal record by its string key (e.g. `"WIN 2026"`).                                 |
-| `PATCH` | `/{seasonal_id}`  | Admin  | Update `my_rating` for a seasonal record. Body: `SeasonalUpdate`.                                   |
+| `GET`   | `/current-season` | Account | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/`               | Account | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
+| `GET`   | `/{seasonal_id}`  | Account | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
+| `PATCH` | `/{seasonal_id}`  | Account | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
-**Response model:** `SeasonalResponse`
+**Response model:** `SeasonalResponse` (unchanged).
+
+**Per user and authenticated since Step 3.** A seasonal row is keyed
+`(user_id, seasonal)`, its four counters are aggregates over that user's
+`user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
+gets `401` from every route here rather than somebody else's numbers. The admin
+mirror of the season value, `/api/system/config/current_season`, is untouched.
+`/api/search` stays public, but its `seasonal` bucket holds the caller's own
+rows and is empty for an anonymous searcher.
 
 ---
 
