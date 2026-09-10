@@ -96,6 +96,29 @@ class ManagedUserResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# The caller's own account
+# ---------------------------------------------------------------------------
+
+class AccountSettingsResponse(BaseModel):
+    """What the caller may see and change about their own account."""
+
+    username: str
+    role_name: str
+    list_is_public: bool
+
+
+class AccountSettingsUpdate(BaseModel):
+    """
+    One field, deliberately. There is no username or user id here: the caller
+    is taken from the session, so this payload cannot name somebody else.
+    Pydantic ignores unknown keys by default, so a stray "username" in the body
+    is dropped rather than honoured.
+    """
+
+    list_is_public: bool
+
+
+# ---------------------------------------------------------------------------
 # Content labels
 # ---------------------------------------------------------------------------
 

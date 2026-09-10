@@ -141,6 +141,8 @@ from app.schemas.quote import (
     QuoteUpdate,
 )
 from app.schemas.rbac import (
+    AccountSettingsResponse,
+    AccountSettingsUpdate,
     ContentLabelBase,
     ContentLabelCreate,
     ContentLabelResponse,
@@ -228,6 +230,8 @@ __all__ = [
     "ManagedUserCreate",
     "ManagedUserUpdate",
     "ManagedUserResponse",
+    "AccountSettingsResponse",
+    "AccountSettingsUpdate",
     "ContentLabelBase",
     "ContentLabelCreate",
     "ContentLabelUpdate",
