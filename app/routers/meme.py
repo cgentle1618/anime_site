@@ -5,9 +5,14 @@ is one text, one image, or one of each, and belongs to a media entry or to a
 whole series, franchise or collection. Includes public reads for the Meme page
 and secure administrative CRUD lifecycle.
 
-A meme references its owner with an (owner_type, owner_id) pair rather than a
-foreign key, because no single FK spans the ten owner tables; resolution goes
-through OWNER_TABLES rather than the entry-only MEDIA_TABLES.
+A meme names its owner with one of four foreign keys - `media_id` for any of
+the nine media types, plus one each for collection, franchise and series -
+because no single FK spans the twelve owner tables. The API still speaks the
+(owner_type, owner_id) pair, which `_owner_filters` and `_owner_columns`
+translate in one place.
+
+Resolution for display goes through OWNER_TABLES rather than the entry-only
+MEDIA_TABLES, because a tier is a valid owner here.
 
 `quote_id` by contrast IS a real foreign key, so the two rules that used to need
 router code are now database constraints: ON DELETE SET NULL means a deleted

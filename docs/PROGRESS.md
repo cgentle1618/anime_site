@@ -37,27 +37,24 @@ Step 4 - Google Sheets for multiple users - shipped 2026-09-10, all eleven
 tasks plus a twelfth the plan did not list (`username` on the Plan Next and
 Seasonal tabs, the debt Step 3 named). The by-hand Backup and Pull All round
 trip was run on the live company database afterwards. `docs/roadmap.md` keeps
-the record and this table is deleted per the convention above. Step 5 (note
-scoping) is not started.
+the record and this table is deleted per the convention above.
 
-## Step 5 - notes scoped per section
+Step 5 - notes scoped per section - shipped 2026-09-10 on the **home** machine,
+all twelve tasks (`061c0072`..`7bed5b3b`), five migrations `m5a1notescope` ..
+`m5b2memefks`. `docs/roadmap.md` keeps the record and this table is deleted per
+the convention above. **The multi-user programme is finished.** One deviation
+from the plan: Task 8 enforces Step 2's `self.personal_notes` rather than
+minting the plan's proposed `note.write_own`, because the two name one idea.
 
-`docs/superpowers/plans/2026-09-08-step5-notes-scoping.md`. `<who>` = `step5-home`.
+**Two things Step 5 needs a human for**, neither of which a session can do:
 
-| # | Task | Status |
-|---|---|---|
-| 1 | `scope` on `NoteSection` | done 061c0072 |
-| 2 | Serve `scope` on `/api/notes/sections` | done 85c9c9f1 |
-| 3 | `Viewer.user_id` | done 85c9c9f1 (the field already existed; this adds its test) |
-| 4 | `note.author_id` | done 735a6fd6 |
-| 5 | `quote.author_id` | done a15128a1 |
-| 6 | `meme.author_id` | done a15128a1 |
-| 7 | Personal sections are read only by their author | done 209ec659 |
-| 8 | Writes follow the scope, and one public-profile read | done 3c4cea3d (enforces Step 2's `self.personal_notes`, not the plan's new `note.write_own`) |
-| 9 | `remark` - author recorded, one-per-owner kept | done 66638e3d |
-| 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | done ac626696 |
-| 11 | `meme` - four owner FKs and a `num_nonnulls` CHECK | done |
-| 12 | Record what changed | wip step5-home |
+1. **Run `/system` -> Backup on the home machine.** The Note and Meme tabs
+   changed shape (they lost `owner_type` / `owner_id`, gained four owner
+   columns, and Note, Quote and Meme each gained `author_id`), and the sheet
+   still holds the old headers. Pull reads the old pair as a fallback, so an
+   un-backed-up sheet is survivable, but the sheet is the only copy.
+2. **The company machine must `git pull` and `alembic upgrade head` before its
+   next Pull All**, and its database is still at `m3b1seasonal`.
 
 ## Open items
 
@@ -67,7 +64,6 @@ Unclaimed. None block using the app.
 |---|---|---|
 | **The auth-hardening gate. Step 2 shipped the `user` role, so an admin can now invite a non-admin - and must not, until this lands** | Two defects, both pre-existing and both deliberately out of Step 2's scope: the login cookie is set `secure=False` **unconditionally** (`app/routers/auth.py`), and **nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`** (`app/config.py`; `validate_production()` went away with the GCP code). Tolerable for one local user; an authentication bypass once somebody else has a password here. `docs/authentication.md` states the gate | todo |
 | The `acting_user_id` guest-to-admin fallback still stands | A logged-out visitor still reads the lowest-username admin's list, so the public pages still show that account's statuses and ratings. Step 2's plan neither removes it nor lists it in its Definition of done; removing it is a visible behaviour change and needs a decision about what a guest should see. Step 3 narrowed it - `plan_next` and `seasonal` answer 401 now, and `viewer_user_id` has no fallback at all - but `acting_user_id` still falls back for the list columns. `app/services/domain/user_list.py` | todo |
-| `self.personal_notes` is granted but enforced nowhere | Closed by Step 5 Task 8: it now gates every personal-scope note write in `app/routers/note.py` | done |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |
@@ -85,8 +81,8 @@ Unclaimed. None block using the app.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m1b1anime` (head), reached from `pdf1e2r3d4e5` on 2026-09-09 after the `m0c1source` fix below. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
-| Step 3 migrations | the **company** db is at `m3b1seasonal` (head) as of 2026-09-10: `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db is still at `m1b1anime`: `alembic upgrade head` **before** any Pull there, or the sheet's Plan Next and Seasonal tabs will not fit the schema. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
+| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m5b2memefks` (head) since Step 5 ran there on 2026-09-10, having reached `m1b1anime`, reached from `pdf1e2r3d4e5` on 2026-09-09 after the `m0c1source` fix below. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Step 3 migrations | the **company** db is at `m3b1seasonal` (head) as of 2026-09-10: `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db went to head on 2026-09-10 (Step 5); the **company** db is the one that now needs `git pull` then `alembic upgrade head` before any Pull. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
 | Pre-Step-1 dump | `~/anime_site_home_pre_step1_20260909.sql` (3.2 MB, home, taken before the `m0a*`..`m1b1anime` run; that run deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows, by design) |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
@@ -97,5 +93,5 @@ Unclaimed. None block using the app.
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
 | Step 4 sheet | the **company** database ran a Backup and a Pull All by hand on 2026-09-10, after the code landed: the sheet now carries the `Users` and `User Media List` tabs and a `username` column on Plan Next and Seasonal. **The home machine must `git pull` before its next Pull All** - an older checkout has no Users tab and no username resolution, so it would restore the accounts nowhere and file every plan and season rating under `admin`. No migration is involved; the schema is unchanged by this step |
 | Step 4 test db | `anime_site_test_step4`, created 2026-09-10 in the container; droppable |
-| Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); droppable |
+| Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); Step 5 was finished on it; droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-10 (the authenticated-user gate)
+Last verified: 2026-09-10 (Step 5: note scope enforcement)
 
 ## What this is for
 
@@ -96,12 +96,9 @@ schema. It copies **this installation's** guest grants rather than recomputing
 the defaults, so an admin who narrowed guest gets a `user` role narrowed the
 same way.
 
-> **`self.personal_notes` is granted but not yet enforced anywhere.** Nothing
-> reads it: note scoping is Step 5 of the multi-user programme and has not
-> shipped, so personal notes remain gated only by the `personal_notes` *field
-> group*. The permission exists now because the role that holds it is seeded
-> now, and adding it later would mean a second migration over the same rows.
-> Until Step 5 lands it is a promise the schema cannot yet keep.
+`self.personal_notes` is enforced since Step 5 - it is what
+`app/routers/note.py` requires of every personal-scope note write. See
+[Note scope](#note-scope) below.
 
 ### Field groups
 
@@ -109,7 +106,7 @@ same way.
 |---|---|---|---|
 | `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, on every media type | fifth `FieldGroup` flavour, `source_buckets`; filtered inside `attach_sources` before the response is built (not `field_gate.gate()` — see below) |
 | `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, on every media type | same flavour, `source_buckets=("restricted",)` |
-| `personal_notes` | Personal Reviews | note section `personal_reviews` | note rows filtered in `routers/note.py` |
+| `personal_notes` | Personal Reviews | reading **another user's** personal notes, through `GET /api/notes?author=<username>` | Step 5 narrowed it: personal sections filter by `author_id` on the entry page, so this group no longer withholds anything a viewer wrote. See [Note scope](#note-scope) |
 | `system_info` | System Info | `created_at` / `updated_at` on every media type, plus the entry id printed down a detail page's poster spine | timestamps are real columns, stripped from a copy; the spine id is `ui_block` only |
 | `credits` | Credits | every credit-kind link field (studio, director, …), derived from `credit_roles` | link attrs blanked before response |
 
@@ -342,7 +339,48 @@ one entry or a list:
   rows in the first place. `gate()` and `gated_columns()` know nothing about
   `source_buckets` — see [Field groups](#field-groups) above.
 - Returns the ORM instances untouched when nothing is withheld (the common case).
-- `gated_note_sections(viewer)` lists `note.section` values to withhold.
+- `gated_note_sections(viewer)` lists `note.section` values to withhold. It is
+  applied **only to rows the viewer did not author** - hiding somebody's own
+  notes from them is not a permission, it is a bug.
+
+## Note scope
+
+Every entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`) declares a
+`scope`, with no default: **`catalog`** (20 sections) holds one shared set of
+rows, **`personal`** (7) holds one set per user, and the two `SHAPE_EXTERNAL`
+sections - `quotes` and `memes` - declare `None`, because they store no `note`
+row and are universal by design. The distinction lives in the registry rather
+than in the schema, so reclassifying a section stays a registry edit plus a
+data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
+
+| Scope | Write | Read |
+|---|---|---|
+| `catalog` | admin only (`admin`) | everyone, unfiltered |
+| `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer` - or the profile owner's, through `?author=`, when their `list_is_public` **and** the viewer holds `field_group.personal_notes` |
+
+A logged-out visitor has no `user_id` and therefore sees **no** personal rows
+at all, and may write nothing: both answers are 403, from
+`_authorize_write` / `_authorize_edit` in `app/routers/note.py`. An unknown
+username, a private list and a viewer without the field group all answer the
+same 403 on `?author=`, so the reply cannot be read as "this account exists".
+
+**Quotes and memes are untouched by scope.** They carry an `author_id` for
+provenance and every viewer reads the same rows.
+
+**This is not the authorization redesign.** The spec calls for one, and it is
+still deferred. Three consequences stand:
+
+- **One remark per owner, site-wide.** `remark` is personal-scope, but its read
+  path is a class-level `column_property` that cannot know who is asking, so
+  `ix_note_one_remark_per_owner` stays per-owner and a second user's remark is
+  **refused by the database** rather than shown to the first user. The
+  conservative failure, recorded in `app/models/__init__.py` and pinned by
+  `tests/api/test_remark_author.py`.
+- **The `personal_notes` field group is only half rebuilt.** It governs the
+  `author` parameter and nothing else.
+- **No frontend.** `scope` reaches the API and nothing renders it; the notes
+  page still shows its editors to admins only, so a `user`-role account can
+  write personal notes through the API but not through the UI.
 
 ## Admin routes
 

@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-10 (the Users and User Media List tabs, and unresolved_refs)
+Last verified: 2026-09-10 (Step 5: the reshaped Note and Meme tabs)
 
 ## What this is for
 
@@ -324,8 +324,8 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | `Collection` | `collection_name_en` or `collection_name_cn` |
      | `System Configs` | `config_key` (UNIQUE — a blind insert would roll back the whole tab) |
      | `Watch Order List` | `list_name` + `franchise_id` + `collection_id` |
-     | `Meme` | `owner_type` + `owner_id` + `text` |
-     | `Note` | `owner_type` + `owner_id` + `section` + `content` (content may be `None`) |
+     | `Meme` | whichever owner column is set + `text` |
+     | `Note` | whichever owner column is set + `section` + `content` (content may be `None`) |
      | `Quote` | `media_type` + `entry_id` + `text` |
      | `Series` | `series_name_en` or `series_name_cn` |
      | `Anime`, `Anime Movie`, `Movies`, `TV Shows`, `Cartoons`, `Manga` | the type's `*_name_en` or `*_name_cn` |
@@ -333,6 +333,24 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
+   - **The Note and Meme tabs changed shape in Step 5.** Both lost `owner_type`
+     and `owner_id` and gained `media_id`, `collection_id`, `franchise_id` and
+     `series_id` — one of the four is set per row and a CHECK enforces it — and
+     all three of `Note`, `Quote` and `Meme` gained `author_id`. Consequences
+     for a round trip:
+     - **An older sheet still Pulls.** `parse_note_from_sheet` and
+       `parse_meme_from_sheet` read the old pair as `_legacy_owner_type` /
+       `_legacy_owner_id`, and `_resolve_owner_columns` in `pull.py` turns it
+       into the right column against `media` and the three tier tables. A row
+       whose owner resolves to nothing is **skipped and reported** in
+       `unresolved_refs` rather than written, because the CHECK would reject it.
+     - **`author_id` travels as a raw uuid.** Ids agree across machines because
+       Step 4 gave the sheet a `Users` tab. A blank cell, or one naming a user
+       this database does not have, falls back to the **admin** — the column is
+       `NOT NULL`, and a note whose author is uncertain is still the note.
+     - **Back up after the change, and do not Pull an older sheet over a newer
+       database.** The dropped headers have nowhere to land once the sheet is
+       rewritten.
    - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
 
      | Tab | Matched on | Sheet PK |

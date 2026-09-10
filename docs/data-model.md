@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-10 (Step 3: per-user `plan_next` and `seasonal`)
+Last verified: 2026-09-10 (Step 5: note scope, note/quote/meme authorship, disjoint owner FKs)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -622,7 +622,7 @@ are not columns on the entry tables.
 
 | Field | Where it comes from | Tables |
 |---|---|---|
-| `remark` | `column_property` scalar subquery over `note` (`section = 'remark'`, matched on `owner_type` + `owner_id`), attached at the bottom of `app/models/__init__.py`. **Read-only** - assigning raises; writes go through `app.services.domain.remark_field.upsert_remark`. The partial unique index `ix_note_one_remark_per_owner` is what keeps the subquery from returning two rows. | all 9 entries + series, franchise, collection |
+| `remark` | `column_property` scalar subquery over `note` (`section = 'remark'`, matched on `note.media_id` for the nine entry types and on `collection_id` / `franchise_id` / `series_id` for the tiers), attached at the bottom of `app/models/__init__.py`. **Read-only** - assigning raises; writes go through `app.services.domain.remark_field.upsert_remark`. The partial unique index `ix_note_one_remark_per_owner` is what keeps the subquery from returning two rows. | all 9 entries + series, franchise, collection |
 | `display_name` | `NameFallbackMixin` property, first non-empty name in language order. | all entries and tiers |
 | `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games |
 | `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games |
@@ -1709,22 +1709,39 @@ type added without them.
 Nine entry tables each have their own `system_id` space, so a bare UUID used to
 be ambiguous. Since the `media` supertable exists, a media entry's id is unique
 across all nine, and six tables now hold a real `media_id` FK instead of a
-pair. The ones still storing a **(type, id) pair** with no FK are those whose
-owner may be a **grouping tier**, which has no row in `media`, plus the two
-that point at entries on both ends. They resolve at read time through
-`app/utils/media_resolver.py`:
+pair. Since Step 5, `note` and `meme` do not store a pair either: an owner
+that may be a **grouping tier** cannot be one FK, so it is **four nullable FKs
+with a CHECK that exactly one is set** (`ck_note_one_owner`,
+`ck_meme_one_owner`) - `media_id`, `collection_id`, `franchise_id`,
+`series_id`, each `ON DELETE CASCADE`. `owner_type` and `owner_id` survive as
+**read-only Python properties** derived from whichever column is set, so every
+caller and the whole API shape are unchanged; being properties rather than
+columns, they are also absent from the Google Sheets row. What still stores a
+**(type, id) pair** with no FK are the two tables that point at entries on both
+ends. They resolve at read time through `app/utils/media_resolver.py`:
 
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` (anime, anime-movie, manga, novel only) |
-| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | `note`, `meme` (`owner_type` / `owner_id`). **Not `plan_next`** since Step 3: its owner is three real foreign keys, and `OWNER_TABLES` is only read there to resolve a row's display data. |
+| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here any more. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns (Step 5); `plan_next` does the same over its three (Step 3). |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row no longer exists resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
-**deleting an entry does not cascade** to these tables. `plan_next` left this
-group in Step 3 and now cascades in the database like the `media_id` tables
-below.
+**deleting an entry does not cascade** to `media_relation` or
+`character_casting`. `plan_next` left this group in Step 3, and `note` and
+`meme` left it in Step 5; all three cascade in the database now, like the
+`media_id` tables below.
+
+### `note`, `quote` and `meme`: who wrote it
+
+Step 5 gave all three a `NOT NULL author_id` referencing `users(id)
+ON DELETE CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`).
+It is always set - a catalogue note has an author too, and recording it is the
+only provenance the catalogue has. What the section's **scope** changes is who
+a row is *filtered* for, not whether somebody wrote it; quotes and memes are
+universal and nothing filters on their author at all. See
+[authorization.md](authorization.md) for the read and write rules.
 
 ### The six tables that moved to `media_id`
 
