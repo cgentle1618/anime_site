@@ -424,22 +424,27 @@ _NOTE_TIER_COLUMNS = {
 }
 
 
-def _note_owner_filters(payload: dict) -> list:
-    """The WHERE clauses naming one note's owner, from whichever column is set."""
+def _owner_column_filters(model, payload: dict) -> list:
+    """The WHERE clauses naming one row's owner, from whichever column is set."""
     return [
-        getattr(Note, name) == payload[name]
+        getattr(model, name) == payload[name]
         for name in _NOTE_OWNER_COLUMNS
         if payload.get(name) is not None
     ]
 
 
-def _resolve_note_owner(db: Session, payload: dict):
+def _note_owner_filters(payload: dict) -> list:
+    """The WHERE clauses naming one note's owner."""
+    return _owner_column_filters(Note, payload)
+
+
+def _resolve_owner_columns(db: Session, tab_name: str, payload: dict):
     """
-    Turn a sheet row's owner into exactly one of note's four FK columns.
+    Turn a Note or Meme row's owner into exactly one of its four FK columns.
 
     A current sheet carries the columns themselves. One backed up before
-    m5b1notefks carries the old (owner_type, owner_id) pair instead, which
-    parse_note_from_sheet passes through as `_legacy_owner_type` /
+    m5b1notefks / m5b2memefks carries the old (owner_type, owner_id) pair
+    instead, which the parsers pass through as `_legacy_owner_type` /
     `_legacy_owner_id`; they are resolved here against `media` and the three
     tier tables and then dropped, because they are not columns.
 
@@ -454,7 +459,7 @@ def _resolve_note_owner(db: Session, payload: dict):
         return None
 
     if not owner_type or owner_id is None:
-        return "Note: a row names no owner; row skipped"
+        return f"{tab_name}: a row names no owner; row skipped"
 
     if owner_type in _NOTE_TIER_COLUMNS:
         payload[_NOTE_TIER_COLUMNS[owner_type]] = owner_id
@@ -467,7 +472,7 @@ def _resolve_note_owner(db: Session, payload: dict):
     )
     if media_row is None:
         return (
-            f"Note: no {owner_type} entry {owner_id} here for a note to hang on; "
+            f"{tab_name}: no {owner_type} entry {owner_id} here to hang a row on; "
             "row skipped"
         )
     payload["media_id"] = owner_id
@@ -655,11 +660,11 @@ def execute_pull_specific(
             for column in ("media_id", "franchise_id", "series_id"):
                 clean_header_dict[column] = parsed_all[column]
 
-        # The same shape for Note. parse_note_from_sheet renames a pre-
+        # The same shape for Note and Meme. Their parsers rename a pre-
         # m5b1notefks sheet's (owner_type, owner_id) pair to `_legacy_*`, and
         # those names are not in the header either, so the filter above would
         # drop the row's only statement of its owner.
-        if tab_name == "Note":
+        if tab_name in ("Note", "Meme"):
             for key in ("_legacy_owner_type", "_legacy_owner_id"):
                 if key in parsed_all:
                     clean_header_dict[key] = parsed_all[key]
@@ -718,8 +723,8 @@ def execute_pull_specific(
         # existed - or one naming a user this database does not have falls back
         # to the admin rather than skipping the row: a note whose author is
         # uncertain is still the note, and the sheet is its only copy.
-        if tab_name == "Note":
-            unresolved = _resolve_note_owner(db, clean_header_dict)
+        if tab_name in ("Note", "Meme"):
+            unresolved = _resolve_owner_columns(db, tab_name, clean_header_dict)
             if unresolved is not None:
                 unresolved_refs.append(unresolved)
                 rows_skipped += 1
@@ -1126,17 +1131,12 @@ def execute_pull_specific(
                 # An id-less row is matched on the owner plus its text, so
                 # re-importing the same sheet updates rather than duplicating.
                 # Memes have no name of their own to match on.
-                m_owner_type = clean_header_dict.get("owner_type")
-                m_owner_id = clean_header_dict.get("owner_id")
+                m_owner = _owner_column_filters(Meme, clean_header_dict)
                 m_text = clean_header_dict.get("text")
-                if m_owner_type and m_owner_id and m_text:
+                if m_owner and m_text:
                     existing_record = (
                         db.query(Meme)
-                        .filter(
-                            Meme.owner_type == m_owner_type,
-                            Meme.owner_id == m_owner_id,
-                            Meme.text == m_text,
-                        )
+                        .filter(*m_owner, Meme.text == m_text)
                         .first()
                     )
             elif tab_name == "Note":

@@ -1318,12 +1318,15 @@ def parse_meme_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
-        # owner_id has no foreign key - it points at whichever of the ten owner
-        # tables owner_type names - and there is no name-resolution step for it
-        # in Pull, so an unparseable cell becomes None and the meme shows up on
-        # the page as unlinked.
-        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # The four owner columns replaced the (owner_type, owner_id) pair, as
+        # on Note. A sheet backed up before that change still carries the pair,
+        # so it is read as a fallback and resolved by pull.py.
+        "media_id": _uuid_or_none(raw.get("media_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "_legacy_owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        "_legacy_owner_id": _uuid_or_none(raw.get("owner_id")),
         # NOT NULL in the database; Pull falls back to the admin when the cell
         # is blank or names no known user.
         "author_id": _uuid_or_none(raw.get("author_id")),

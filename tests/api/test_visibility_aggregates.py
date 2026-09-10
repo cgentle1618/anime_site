@@ -60,8 +60,7 @@ def hidden_meme(db_session, hidden_anime, admin_user):
     m = models.Meme(
         author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=hidden_anime.system_id,
+        media_id=hidden_anime.system_id,
         text=MEME_TEXT,
     )
     db_session.add(m)

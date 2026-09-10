@@ -19,6 +19,7 @@ import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -69,6 +70,68 @@ def _to_resolved(
     )
 
 
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_filters(owner_type: Optional[str], owner_id) -> list:
+    """
+    The WHERE clauses selecting one owner's memes, or a whole owner type.
+
+    A tier key filters its own column; a media key filters `media_id`, and with
+    no id given it asks `media` which rows are of that type - "every anime
+    meme" is a question the pair used to answer directly and the FK answers
+    through the supertable.
+    """
+    clauses = []
+    if owner_type in _TIER_COLUMNS:
+        column = getattr(models.Meme, _TIER_COLUMNS[owner_type])
+        clauses.append(column.isnot(None))
+        if owner_id:
+            clauses.append(column == owner_id)
+        return clauses
+    if owner_type:
+        clauses.append(
+            models.Meme.media_id.in_(
+                select(models.Media.system_id).where(
+                    models.Media.media_type == owner_type
+                )
+            )
+        )
+    if owner_id:
+        clauses.append(
+            or_(
+                models.Meme.media_id == owner_id,
+                models.Meme.collection_id == owner_id,
+                models.Meme.franchise_id == owner_id,
+                models.Meme.series_id == owner_id,
+            )
+        )
+    return clauses
+
+
+def _owner_columns(owner_type: str, owner_id) -> dict:
+    """The column assignment writing one owner onto a meme."""
+    if owner_type in _TIER_COLUMNS:
+        return {_TIER_COLUMNS[owner_type]: owner_id}
+    return {"media_id": owner_id}
+
+
+def _apply_owner(target, owner_type, owner_id) -> None:
+    """
+    Write the (owner_type, owner_id) pair the API speaks onto the four columns.
+
+    The other three are cleared, so the CHECK still sees exactly one - a meme
+    moved from an anime to its franchise must not keep both.
+    """
+    columns = _owner_columns(owner_type, owner_id)
+    for column in ("media_id", "collection_id", "franchise_id", "series_id"):
+        setattr(target, column, columns.get(column))
+
+
 def _apply_filters(
     query,
     owner_type: Optional[str],
@@ -77,10 +140,9 @@ def _apply_filters(
     search_query: Optional[str],
 ):
     """Shared filter chain for the list and grouped endpoints."""
-    if owner_type:
-        query = query.filter(models.Meme.owner_type == owner_type)
-    if owner_id:
-        query = query.filter(models.Meme.owner_id == owner_id)
+    owner_clauses = _owner_filters(owner_type, owner_id)
+    if owner_clauses:
+        query = query.filter(*owner_clauses)
     if is_favorite is not None:
         query = query.filter(models.Meme.is_favorite.is_(is_favorite))
     if search_query:
@@ -187,9 +249,14 @@ def get_memes_grouped(
         db.query(models.Meme), owner_type, None, is_favorite, search_query
     )
     memes = (
+        # Ordered by the four owner columns rather than the old pair, so
+        # every meme of one owner still arrives together for the grouping
+        # below. Which of the four is set is what identifies the owner.
         query.order_by(
-            models.Meme.owner_type,
-            models.Meme.owner_id,
+            models.Meme.media_id,
+            models.Meme.collection_id,
+            models.Meme.franchise_id,
+            models.Meme.series_id,
             models.Meme.sort_index.nullslast(),
             models.Meme.created_at,
         )
@@ -259,6 +326,10 @@ def create_meme(
         data = payload.model_dump(exclude_unset=True)
         # The author is who is asking, not who the payload says they are.
         data.pop("author_id", None)
+        # The API still speaks (owner_type, owner_id); the table speaks four FKs.
+        data.pop("owner_type", None)
+        data.pop("owner_id", None)
+        data.update(_owner_columns(payload.owner_type, payload.owner_id))
         db_meme = models.Meme(
             system_id=uuid.uuid4(),
             created_at=get_taipei_now(),
@@ -296,7 +367,16 @@ def update_meme(
     _validate_owner_type(payload.owner_type)
     _quote_conflict(db, payload.quote_id, exclude_meme_id=meme_id)
     try:
-        for key, value in payload.model_dump(exclude_unset=True).items():
+        data = payload.model_dump(exclude_unset=True)
+        if "owner_type" in data or "owner_id" in data:
+            _apply_owner(
+                db_meme,
+                data.get("owner_type", db_meme.owner_type),
+                data.get("owner_id", db_meme.owner_id),
+            )
+        data.pop("owner_type", None)
+        data.pop("owner_id", None)
+        for key, value in data.items():
             setattr(db_meme, key, value)
         db_meme.updated_at = get_taipei_now()
         db.commit()
@@ -330,6 +410,14 @@ def patch_meme(
     if "quote_id" in payload:
         _quote_conflict(db, payload["quote_id"], exclude_meme_id=meme_id)
     try:
+        if "owner_type" in payload or "owner_id" in payload:
+            _apply_owner(
+                db_meme,
+                payload.get("owner_type", db_meme.owner_type),
+                payload.get("owner_id", db_meme.owner_id),
+            )
+        payload.pop("owner_type", None)
+        payload.pop("owner_id", None)
         apply_column_patch(db_meme, payload)
         db_meme.updated_at = get_taipei_now()
         db.commit()

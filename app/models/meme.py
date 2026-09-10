@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 
@@ -33,10 +35,13 @@ class Meme(Base):
     sitting in one episode. Quotes stay entry-only by contrast: a quote is said
     in a specific work.
 
-    `owner_id` is deliberately FK-less: it points at whichever of the ten tables
-    `owner_type` names, and no single foreign key can span them.
-    `app.utils.media_resolver` flags a deleted owner as missing at read time
-    rather than dropping the row.
+    The owner is four nullable foreign keys with a CHECK that exactly one is
+    set: `media_id` for any of the nine media types, and one column each for
+    collection, franchise and series. No single FK can span them, because
+    `media.system_id` cannot hold a franchise id. `owner_type` and `owner_id`
+    survive as read-only Python properties derived from whichever column is
+    set, so every existing caller keeps working - and, being properties rather
+    than columns, they stay out of the Google Sheets row.
 
     Column order matters: `format_model_for_sheet` walks __table__.columns in
     declaration order, so this is also the Google Sheets column order.
@@ -49,10 +54,34 @@ class Meme(Base):
     )
 
     # --- Linkage ---
-    # The owner is a media entry OR one of the three grouping tiers, so this is
-    # owner_* rather than media_*: see OWNER_TABLES in app/utils/media_resolver.
-    owner_type = Column(String, nullable=True, index=True)
-    owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # The owner is a media entry OR one of the three grouping tiers - see
+    # OWNER_TABLES in app/utils/media_resolver - and no single FK spans them,
+    # so there are four, with a CHECK that exactly one is set. Same shape as
+    # `note`; see app/models/note.py for the full reasoning.
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    collection_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("collection.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("franchise.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     # Who added this meme. Memes are universal - a running gag belongs to the
     # work, not to a reader - so this is provenance only and no read consults
     # it. Matches note.author_id and quote.author_id.
@@ -98,3 +127,31 @@ class Meme(Base):
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    media = relationship("Media", lazy="joined")
+
+    # Read-only, derived from whichever of the four owner columns is set. Being
+    # properties rather than columns also keeps them out of the Google Sheets
+    # row, which format_model_for_sheet builds from __table__.columns.
+    @property
+    def owner_type(self):
+        if self.media_id is not None:
+            return self.media.media_type if self.media is not None else None
+        if self.collection_id is not None:
+            return "collection"
+        if self.franchise_id is not None:
+            return "franchise"
+        if self.series_id is not None:
+            return "series"
+        return None
+
+    @property
+    def owner_id(self):
+        return self.media_id or self.collection_id or self.franchise_id or self.series_id
+
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1",
+            name="ck_meme_one_owner",
+        ),
+    )
