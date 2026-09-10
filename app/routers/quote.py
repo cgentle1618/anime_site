@@ -266,15 +266,20 @@ def create_quote(
     payload: schemas.QuoteCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Quote attached to a media entry."""
     _validate_media_type(payload.media_type)
     try:
+        data = payload.model_dump(exclude_unset=True)
+        # The author is who is asking, not who the payload says they are.
+        data.pop("author_id", None)
         db_quote = models.Quote(
             system_id=uuid.uuid4(),
             created_at=get_taipei_now(),
             updated_at=get_taipei_now(),
-            **payload.model_dump(exclude_unset=True),
+            author_id=viewer.user_id,
+            **data,
         )
         db.add(db_quote)
         db.commit()

@@ -56,6 +56,16 @@ class Quote(Base):
         nullable=True,
         index=True,
     )
+    # Who added this line. Quotes are universal - shared, unfiltered, no
+    # per-user copies - so this is provenance and nothing else: no read
+    # consults it. It exists so that "who put this here?" has an answer, and so
+    # that quote, meme and note agree on the same column.
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # --- Content ---
     text = Column(Text, nullable=True)

@@ -250,16 +250,21 @@ def create_meme(
     payload: schemas.MemeCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Meme attached to an entry, series, franchise or collection."""
     _validate_owner_type(payload.owner_type)
     _quote_conflict(db, payload.quote_id)
     try:
+        data = payload.model_dump(exclude_unset=True)
+        # The author is who is asking, not who the payload says they are.
+        data.pop("author_id", None)
         db_meme = models.Meme(
             system_id=uuid.uuid4(),
             created_at=get_taipei_now(),
             updated_at=get_taipei_now(),
-            **payload.model_dump(exclude_unset=True),
+            author_id=viewer.user_id,
+            **data,
         )
         db.add(db_meme)
         db.commit()
@@ -318,6 +323,9 @@ def patch_meme(
 ):
     """Partially updates a Meme (used for inline edits on the Meme page)."""
     db_meme = _get_or_404(db, meme_id)
+    # A patch may not reassign authorship: `payload` is a raw dict here, so
+    # nothing else would stop it.
+    payload.pop("author_id", None)
     _validate_owner_type(payload.get("owner_type"))
     if "quote_id" in payload:
         _quote_conflict(db, payload["quote_id"], exclude_meme_id=meme_id)

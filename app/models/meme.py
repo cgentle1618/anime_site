@@ -53,6 +53,15 @@ class Meme(Base):
     # owner_* rather than media_*: see OWNER_TABLES in app/utils/media_resolver.
     owner_type = Column(String, nullable=True, index=True)
     owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # Who added this meme. Memes are universal - a running gag belongs to the
+    # work, not to a reader - so this is provenance only and no read consults
+    # it. Matches note.author_id and quote.author_id.
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # --- Content ---
     # One text and/or one image - never a list. Both optional individually, but

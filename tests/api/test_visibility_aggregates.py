@@ -30,8 +30,9 @@ MEME_TEXT = "Zvornik meme caption that must not leak"
 
 
 @pytest.fixture
-def hidden_quote(db_session, hidden_anime):
+def hidden_quote(db_session, hidden_anime, admin_user):
     q = models.Quote(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         media_type="anime",
         entry_id=hidden_anime.system_id,
@@ -43,9 +44,10 @@ def hidden_quote(db_session, hidden_anime):
 
 
 @pytest.fixture
-def general_quote(db_session):
+def general_quote(db_session, admin_user):
     """Not tied to any entry - must survive the filter."""
     q = models.Quote(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(), text="A general quote tied to nothing"
     )
     db_session.add(q)
@@ -54,8 +56,9 @@ def general_quote(db_session):
 
 
 @pytest.fixture
-def hidden_meme(db_session, hidden_anime):
+def hidden_meme(db_session, hidden_anime, admin_user):
     m = models.Meme(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         owner_type="anime",
         owner_id=hidden_anime.system_id,

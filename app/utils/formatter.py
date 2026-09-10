@@ -1289,6 +1289,9 @@ def parse_quote_from_sheet(raw: dict) -> dict:
         # up on the page as unlinked - the same state SET NULL leaves a quote
         # in when its entry is deleted.
         "media_id": _media_id_or_none(raw),
+        # NOT NULL in the database; Pull falls back to the admin when the cell
+        # is blank or names no known user.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "text": parse_from_sheet(raw.get("text"), str),
         "translation": parse_from_sheet(raw.get("translation"), str),
         "language": parse_from_sheet(raw.get("language"), str),
@@ -1321,6 +1324,9 @@ def parse_meme_from_sheet(raw: dict) -> dict:
         # in Pull, so an unparseable cell becomes None and the meme shows up on
         # the page as unlinked.
         "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # NOT NULL in the database; Pull falls back to the admin when the cell
+        # is blank or names no known user.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "text": parse_from_sheet(raw.get("text"), str),
         "image_file": parse_from_sheet(raw.get("image_file"), str),
         # A real foreign key with a UNIQUE constraint, so a junk cell must not
