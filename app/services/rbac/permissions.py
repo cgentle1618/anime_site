@@ -29,12 +29,36 @@ PERM_ADMIN = "admin"
 FAMILY_MEDIA_TYPE = "media_type"
 FAMILY_FIELD_GROUP = "field_group"
 FAMILY_LABEL = "label"
+# What a viewer may write about their OWN rows. Every other family answers
+# "may you see this"; this one answers "may you write your own". It is the
+# whole of the `user` role beyond the guest reads, which is why it is two
+# permissions rather than a subsystem.
+FAMILY_SELF = "self"
 
 PERMISSION_FAMILIES: tuple[str, ...] = (
     FAMILY_MEDIA_TYPE,
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
+    FAMILY_SELF,
 )
+
+# Declared here rather than derived from a table: like every other permission
+# these name code (a router dependency), so a row with no code behind it would
+# be inert.
+SELF_PERMISSION_KEYS: tuple[str, ...] = ("list", "personal_notes")
+
+SELF_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
+    "list": (
+        "Own List",
+        "Add, change and remove entries on your own list. Does not grant any "
+        "write access to the catalogue itself.",
+    ),
+    "personal_notes": (
+        "Own Personal Notes",
+        "Write your own personal-scope notes on an entry. Catalogue notes stay "
+        "admin-only.",
+    ),
+}
 
 
 def media_type_perm(media_type: str) -> str:
@@ -52,6 +76,15 @@ def label_perm(key: str) -> str:
     return f"{FAMILY_LABEL}.{key}"
 
 
+def self_perm(key: str) -> str:
+    """Permission to write one kind of your own rows."""
+    return f"{FAMILY_SELF}.{key}"
+
+
+PERM_SELF_LIST = self_perm("list")
+PERM_SELF_PERSONAL_NOTES = self_perm("personal_notes")
+
+
 def split_perm(permission: str) -> tuple[str, str]:
     """
     ("media_type", "tv-show") for "media_type.tv-show"; (perm, "") for a bare
@@ -67,6 +100,7 @@ def static_catalog() -> frozenset[str]:
         {PERM_ADMIN}
         | {media_type_perm(media_type) for media_type in MEDIA_TYPE_KEYS}
         | {field_group_perm(key) for key in FIELD_GROUP_KEYS}
+        | {self_perm(key) for key in SELF_PERMISSION_KEYS}
     )
 
 

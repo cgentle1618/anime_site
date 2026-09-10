@@ -7,7 +7,7 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ---
 
@@ -19,7 +19,25 @@ above.
 
 Step 1 - `user_media_list` - shipped 2026-09-09 (`87108271` onwards);
 `docs/roadmap.md` keeps the record and its table is deleted per the convention
-above. Steps 2-5 of the multi-user spec are not started.
+above. Steps 3-5 of the multi-user spec are not started.
+
+Step 2 - accounts, the `user` role, profiles and community aggregates.
+Plan: `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md`.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | The `self` permission family | wip step2-company |
+| 2 | The `user` role (`m2a1users`) | todo |
+| 3 | `users.list_is_public` (`m2a2public`) | todo |
+| 4 | Gate list writes on `self.list` | todo |
+| 5 | `/api/account/settings` | todo |
+| 6 | Rating points helper | todo |
+| 7 | `GET /api/profile/{username}` | todo |
+| 8 | `GET /api/community/{media_id}` | todo |
+| 9 | Endpoint builders and the settings page | todo |
+| 10 | The `/user/:username` profile page | todo |
+| 11 | The community block on detail pages | todo |
+| 12 | Record what shipped | todo |
 
 ## Open items
 

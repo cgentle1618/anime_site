@@ -17,9 +17,11 @@ from app.services.rbac.permissions import (
     FAMILY_LABEL,
     FAMILY_MEDIA_TYPE,
     PERM_ADMIN,
+    SELF_PERMISSION_KEYS,
     field_group_perm,
     label_perm,
     media_type_perm,
+    self_perm,
     split_perm,
     static_catalog,
 )
@@ -63,6 +65,7 @@ def test_static_catalog_holds_admin_every_media_type_and_every_field_group():
         {PERM_ADMIN}
         | {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS}
         | {field_group_perm(key) for key in FIELD_GROUP_KEYS}
+        | {self_perm(key) for key in SELF_PERMISSION_KEYS}
     )
     assert catalog == expected
 

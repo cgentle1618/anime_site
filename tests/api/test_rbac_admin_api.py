@@ -40,7 +40,37 @@ def test_the_admin_api_is_closed_to_a_guest(client, path):
 
 def test_the_catalog_lists_every_family(admin_client):
     families = {f["family"] for f in admin_client.get("/api/roles/catalog").json()}
-    assert families == {"admin", "media_type", "field_group", "label"}
+    assert families == {"admin", "media_type", "field_group", "label", "self"}
+
+
+def test_catalog_serves_the_self_family(admin_client):
+    """
+    The role editor's checkbox grid is built from this response, so a new
+    family appears in the UI with no frontend change. That is the point of
+    serving the catalog instead of mirroring it.
+    """
+    r = admin_client.get("/api/roles/catalog")
+    assert r.status_code == 200
+
+    families = {block["family"]: block for block in r.json()}
+    assert "self" in families
+
+    names = {p["permission"] for p in families["self"]["permissions"]}
+    assert names == {"self.list", "self.personal_notes"}
+
+
+def test_a_self_permission_can_be_granted_to_a_role(admin_client):
+    role_id = admin_client.post(
+        ROLES,
+        json={"name": "listers", "label": "Listers", "permissions": []},
+    ).json()["system_id"]
+
+    r = admin_client.put(
+        f"/api/roles/{role_id}/permissions",
+        json={"permissions": ["self.list"]},
+    )
+    assert r.status_code == 200
+    assert "self.list" in r.json()["permissions"]
 
 
 def test_a_new_label_appears_in_the_catalog(admin_client):

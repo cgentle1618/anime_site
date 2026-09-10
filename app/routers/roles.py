@@ -28,11 +28,15 @@ from app.services.rbac.permissions import (
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
     FAMILY_MEDIA_TYPE,
+    FAMILY_SELF,
     PERM_ADMIN,
+    SELF_PERMISSION_KEYS,
+    SELF_PERMISSION_LABELS,
     catalog,
     field_group_perm,
     label_perm,
     media_type_perm,
+    self_perm,
 )
 from app.services.rbac.seed import GUEST_ROLE
 from app.utils.media_resolver import MEDIA_TABLES
@@ -133,6 +137,18 @@ def get_catalog(db: Session = Depends(get_db)):
                     description=group.description,
                 )
                 for group in FIELD_GROUPS.values()
+            ],
+        ),
+        schemas.PermissionFamilyOut(
+            family=FAMILY_SELF,
+            label="Own Rows",
+            permissions=[
+                schemas.PermissionOut(
+                    permission=self_perm(key),
+                    label=SELF_PERMISSION_LABELS[key][0],
+                    description=SELF_PERMISSION_LABELS[key][1],
+                )
+                for key in SELF_PERMISSION_KEYS
             ],
         ),
         schemas.PermissionFamilyOut(
