@@ -3,9 +3,12 @@ routers/note.py
 Handles all operations for Notes - the structured commentary attached to a
 media entry or to a collection, franchise or series.
 
-A note references its owner with an (owner_type, owner_id) pair rather than a
-foreign key, because no single FK spans the ten owner tables; resolution goes
-through OWNER_TABLES rather than the entry-only MEDIA_TABLES.
+A note names its owner with one of four foreign keys - `media_id` for any of
+the nine media types, plus one column each for collection, franchise and series
+- because no single FK spans the twelve owner tables. The API still speaks the
+(owner_type, owner_id) pair: `_owner_filters` and `_owner_columns` translate it
+in one place, and resolution goes through OWNER_TABLES rather than the
+entry-only MEDIA_TABLES.
 
 Every write is validated against app/utils/note_sections.NOTE_SECTIONS, which
 is the authority on what a section is. That is the point of the table: the
@@ -33,7 +36,7 @@ from app.services.rbac.permissions import (
 )
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
-from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES
+from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES, TIER_TABLES
 from app.utils.note_sections import (
     NOTE_SECTIONS,
     PERSONAL_SECTIONS,
@@ -58,6 +61,33 @@ def _validate_owner_type(owner_type: Optional[str]) -> None:
         raise HTTPException(
             status_code=400, detail=f"Unknown owner_type '{owner_type}'."
         )
+
+
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_filters(owner_type: str, owner_id) -> list:
+    """
+    The WHERE clauses selecting one owner's notes.
+
+    A media owner is matched on `media_id`, because note.media_id points at
+    media.system_id and Step 0's backfill reused each entry's own uuid; the
+    three tiers are matched on their own column directly.
+    """
+    if owner_type in TIER_TABLES:
+        return [getattr(models.Note, _TIER_COLUMNS[owner_type]) == owner_id]
+    return [models.Note.media_id == owner_id]
+
+
+def _owner_columns(owner_type: str, owner_id) -> dict:
+    """The column assignment writing one owner onto a new note."""
+    if owner_type in TIER_TABLES:
+        return {_TIER_COLUMNS[owner_type]: owner_id}
+    return {"media_id": owner_id}
 
 
 def _get_or_404(db: Session, note_id: str) -> models.Note:
@@ -89,8 +119,7 @@ def _reject_second_singleton(
     if not section or not section.singleton:
         return
     query = db.query(models.Note).filter(
-        models.Note.owner_type == payload.owner_type,
-        models.Note.owner_id == payload.owner_id,
+        *_owner_filters(payload.owner_type, payload.owner_id),
         models.Note.section == section.key,
     )
     if section.scope == SCOPE_PERSONAL and author_id is not None:
@@ -152,8 +181,7 @@ def _next_sort_index(db: Session, payload: schemas.NoteBase) -> float:
     last = (
         db.query(models.Note.sort_index)
         .filter(
-            models.Note.owner_type == payload.owner_type,
-            models.Note.owner_id == payload.owner_id,
+            *_owner_filters(payload.owner_type, payload.owner_id),
             models.Note.section == payload.section,
             models.Note.sort_index.isnot(None),
         )
@@ -208,9 +236,7 @@ def list_notes(
         db, viewer, owner_type, owner_id
     ):
         raise HTTPException(status_code=404, detail="Owner not found.")
-    query = db.query(models.Note).filter(
-        models.Note.owner_type == owner_type, models.Note.owner_id == owner_id
-    )
+    query = db.query(models.Note).filter(*_owner_filters(owner_type, owner_id))
 
     # Personal sections hold one set of rows per user. A viewer sees their own
     # and nobody else's; a logged-out viewer, having no id, sees none. This is
@@ -283,6 +309,10 @@ def create_note(
     # Never taken from the payload: the author is who is asking, not who says
     # they are. NoteBase has no author_id field, so nothing can supply one.
     data.pop("author_id", None)
+    # The API still speaks (owner_type, owner_id); the table speaks four FKs.
+    data.pop("owner_type", None)
+    data.pop("owner_id", None)
+    data.update(_owner_columns(payload.owner_type, payload.owner_id))
 
     db_note = models.Note(system_id=uuid.uuid4(), author_id=viewer.user_id, **data)
     db.add(db_note)
@@ -313,8 +343,7 @@ def reorder_notes(
     _authorize_write(viewer, payload.section)
 
     query = db.query(models.Note).filter(
-        models.Note.owner_type == payload.owner_type,
-        models.Note.owner_id == payload.owner_id,
+        *_owner_filters(payload.owner_type, payload.owner_id),
         models.Note.section == payload.section,
     )
     if section.scope == SCOPE_PERSONAL:
@@ -372,6 +401,16 @@ def update_note(
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )
+
+    # owner_type / owner_id are read-only properties now, so a PATCH that
+    # names them is translated into the four columns - clearing the other three
+    # so the CHECK still sees exactly one.
+    if "owner_type" in data or "owner_id" in data:
+        columns = _owner_columns(merged.owner_type, merged.owner_id)
+        for column in ("media_id", "collection_id", "franchise_id", "series_id"):
+            setattr(db_note, column, columns.get(column))
+    data.pop("owner_type", None)
+    data.pop("owner_id", None)
 
     for key, value in data.items():
         setattr(db_note, key, value)

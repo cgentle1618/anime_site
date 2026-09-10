@@ -9,13 +9,25 @@ import uuid
 
 from app import models
 
+# `note` addresses its owner with four FK columns now; these suites still think
+# in (owner_type, owner_id), so the pair is translated here.
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_filters(owner_type, owner_id):
+    column = _TIER_COLUMNS.get(owner_type, "media_id")
+    return [getattr(models.Note, column) == owner_id]
+
 
 def _remark_rows(db_session, owner_type, owner_id):
     return (
         db_session.query(models.Note)
         .filter(
-            models.Note.owner_type == owner_type,
-            models.Note.owner_id == owner_id,
+            *_owner_filters(owner_type, owner_id),
             models.Note.section == "remark",
         )
         .all()

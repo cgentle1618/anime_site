@@ -9,8 +9,10 @@ def test_column_order_is_the_sheet_order():
     # reorders the sheet.
     assert [c.name for c in models.Note.__table__.columns] == [
         "system_id",
-        "owner_type",
-        "owner_id",
+        "media_id",
+        "collection_id",
+        "franchise_id",
+        "series_id",
         "author_id",
         "section",
         "locator",
@@ -26,9 +28,17 @@ def test_column_order_is_the_sheet_order():
     ]
 
 
-def test_owner_is_fk_less():
-    # No single foreign key can span the ten owner tables.
-    assert not models.Note.__table__.c.owner_id.foreign_keys
+def test_every_owner_column_is_a_real_foreign_key():
+    # No single foreign key can span the twelve owner tables, so there are
+    # four, and a CHECK requires exactly one of them per row.
+    for name in ("media_id", "collection_id", "franchise_id", "series_id"):
+        assert models.Note.__table__.c[name].foreign_keys
+    checks = {
+        c.name
+        for c in models.Note.__table__.constraints
+        if c.__class__.__name__ == "CheckConstraint"
+    }
+    assert "ck_note_one_owner" in checks
 
 
 def test_lookup_index_exists():

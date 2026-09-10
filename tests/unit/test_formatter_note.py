@@ -24,7 +24,11 @@ def test_parses_a_full_row():
             "updated_at": "",
         }
     )
-    assert parsed["owner_id"] == owner_id
+    # The pair is carried through as `_legacy_*`; pull.py resolves it into
+    # media_id / collection_id / franchise_id / series_id.
+    assert parsed["_legacy_owner_type"] == "anime"
+    assert parsed["_legacy_owner_id"] == owner_id
+    assert parsed["media_id"] is None
     assert parsed["section"] == "op_ed_changes"
     assert parsed["locator"] == "ep 10"
     assert parsed["kind"] == "變化OP"
@@ -34,10 +38,21 @@ def test_parses_a_full_row():
 
 
 def test_unparseable_owner_id_becomes_none():
-    # owner_id is FK-less with no name-resolution step in Pull, so a junk cell
-    # must not fail the import - the note shows up unlinked instead.
+    # A junk cell must not fail the import; pull.py then reports the row as
+    # having no resolvable owner and skips it rather than writing a null FK.
     parsed = parse_note_from_sheet({"owner_id": "not-a-uuid", "section": "advantages"})
-    assert parsed["owner_id"] is None
+    assert parsed["_legacy_owner_id"] is None
+
+
+def test_the_four_owner_columns_are_read_when_present():
+    media_id = uuid.uuid4()
+    parsed = parse_note_from_sheet(
+        {"media_id": str(media_id), "section": "advantages"}
+    )
+    assert parsed["media_id"] == media_id
+    assert parsed["collection_id"] is None
+    assert parsed["franchise_id"] is None
+    assert parsed["series_id"] is None
 
 
 def test_blank_links_cell_becomes_none():

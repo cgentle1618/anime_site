@@ -18,8 +18,7 @@ def anime_note(db_session, sample_anime, admin_user):
     n = models.Note(
         author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="advantages",
         content="敘事結構精巧",
         sort_index=0.0,
@@ -99,8 +98,7 @@ def test_list_is_registry_ordered(admin_client, db_session, sample_anime, admin_
             models.Note(
                 author_id=admin_user.id,
                 system_id=uuid.uuid4(),
-                owner_type="anime",
-                owner_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 section=section,
                 content=content,
                 sort_index=0.0,
@@ -224,8 +222,7 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
         models.Note(
             author_id=admin_user.id,
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="advantages",
             content="無序號",
             sort_index=None,
@@ -235,8 +232,7 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
         models.Note(
             author_id=admin_user.id,
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="advantages",
             content="第三",
             sort_index=2.0,
@@ -293,8 +289,7 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
         models.Note(
             author_id=admin_user.id,
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="remark",
             content="既有備註",
             sort_index=0.0,
@@ -344,8 +339,7 @@ def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime, adm
         n = models.Note(
             author_id=admin_user.id,
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="advantages",
             content=text,
             sort_index=float(i),

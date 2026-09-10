@@ -64,8 +64,7 @@ def test_a_user_may_not_edit_someone_elses_personal_note(
 ):
     note = models.Note(
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="advantages",
         content="admin 的",
         author_id=admin_user.id,
@@ -110,8 +109,7 @@ def test_a_public_list_owners_personal_notes_reach_a_permitted_viewer(
     db.add(
         models.Note(
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="advantages",
             content="carol 的優點",
             author_id=carol.id,

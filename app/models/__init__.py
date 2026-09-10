@@ -134,29 +134,37 @@ __all__ = [
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.orm import column_property  # noqa: E402
 
-_REMARK_OWNERS = (
-    (Anime, "anime"),
-    (AnimeMovies, "anime-movie"),
-    (Movies, "movie"),
-    (TVShows, "tv-show"),
-    (Cartoon, "cartoon"),
-    (Manga, "manga"),
-    (Novel, "novel"),
-    (Comic, "comic"),
-    (Game, "game"),
-    (Series, "series"),
-    (Franchise, "franchise"),
-    (Collection, "collection"),
+# The media branch needs no per-type key: note.media_id already pins the type
+# through `media`, which is what the four owner FKs bought.
+_REMARK_MEDIA_OWNERS = (
+    Anime,
+    AnimeMovies,
+    Movies,
+    TVShows,
+    Cartoon,
+    Manga,
+    Novel,
+    Comic,
+    Game,
+)
+_REMARK_TIER_OWNERS = (
+    (Series, Note.series_id),
+    (Franchise, Note.franchise_id),
+    (Collection, Note.collection_id),
 )
 
-for _model, _owner_type in _REMARK_OWNERS:
+for _model in _REMARK_MEDIA_OWNERS:
     _model.remark = column_property(
         select(Note.content)
-        .where(
-            Note.owner_type == _owner_type,
-            Note.owner_id == _model.system_id,
-            Note.section == "remark",
-        )
+        .where(Note.media_id == _model.system_id, Note.section == "remark")
+        .correlate_except(Note)
+        .scalar_subquery()
+    )
+
+for _model, _column in _REMARK_TIER_OWNERS:
+    _model.remark = column_property(
+        select(Note.content)
+        .where(_column == _model.system_id, Note.section == "remark")
         .correlate_except(Note)
         .scalar_subquery()
     )

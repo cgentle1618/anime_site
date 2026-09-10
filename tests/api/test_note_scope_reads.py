@@ -37,8 +37,7 @@ def two_authors(db):
 def _note(owner_id, section, content, author_id):
     return models.Note(
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=owner_id,
+        media_id=owner_id,
         section=section,
         content=content,
         author_id=author_id,

@@ -415,6 +415,65 @@ def _restore_owner_id(db: Session):
     return owner.id if owner else None
 
 
+_NOTE_OWNER_COLUMNS = ("media_id", "collection_id", "franchise_id", "series_id")
+
+_NOTE_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _note_owner_filters(payload: dict) -> list:
+    """The WHERE clauses naming one note's owner, from whichever column is set."""
+    return [
+        getattr(Note, name) == payload[name]
+        for name in _NOTE_OWNER_COLUMNS
+        if payload.get(name) is not None
+    ]
+
+
+def _resolve_note_owner(db: Session, payload: dict):
+    """
+    Turn a sheet row's owner into exactly one of note's four FK columns.
+
+    A current sheet carries the columns themselves. One backed up before
+    m5b1notefks carries the old (owner_type, owner_id) pair instead, which
+    parse_note_from_sheet passes through as `_legacy_owner_type` /
+    `_legacy_owner_id`; they are resolved here against `media` and the three
+    tier tables and then dropped, because they are not columns.
+
+    Returns None when the row is ready to apply, or a message when its owner
+    cannot be resolved - the CHECK would reject such a row anyway, so it is
+    skipped and reported rather than written.
+    """
+    owner_type = payload.pop("_legacy_owner_type", None)
+    owner_id = payload.pop("_legacy_owner_id", None)
+
+    if any(payload.get(name) is not None for name in _NOTE_OWNER_COLUMNS):
+        return None
+
+    if not owner_type or owner_id is None:
+        return "Note: a row names no owner; row skipped"
+
+    if owner_type in _NOTE_TIER_COLUMNS:
+        payload[_NOTE_TIER_COLUMNS[owner_type]] = owner_id
+        return None
+
+    media_row = (
+        db.query(Media.system_id)
+        .filter(Media.system_id == owner_id, Media.media_type == owner_type)
+        .first()
+    )
+    if media_row is None:
+        return (
+            f"Note: no {owner_type} entry {owner_id} here for a note to hang on; "
+            "row skipped"
+        )
+    payload["media_id"] = owner_id
+    return None
+
+
 def _match_by_natural_key(db: Session, tab_name: str, payload: dict):
     """
     The local row a derived-identity sheet row denotes, or None.
@@ -596,6 +655,15 @@ def execute_pull_specific(
             for column in ("media_id", "franchise_id", "series_id"):
                 clean_header_dict[column] = parsed_all[column]
 
+        # The same shape for Note. parse_note_from_sheet renames a pre-
+        # m5b1notefks sheet's (owner_type, owner_id) pair to `_legacy_*`, and
+        # those names are not in the header either, so the filter above would
+        # drop the row's only statement of its owner.
+        if tab_name == "Note":
+            for key in ("_legacy_owner_type", "_legacy_owner_id"):
+                if key in parsed_all:
+                    clean_header_dict[key] = parsed_all[key]
+
         # The list tab carries a natural key and never the three ids, so this
         # has to run before ANYTHING tries to match the row: the natural-key
         # match itself is on (user_id, media_id), which do not exist in the
@@ -651,6 +719,12 @@ def execute_pull_specific(
         # to the admin rather than skipping the row: a note whose author is
         # uncertain is still the note, and the sheet is its only copy.
         if tab_name == "Note":
+            unresolved = _resolve_note_owner(db, clean_header_dict)
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
+                rows_skipped += 1
+                continue
+
             author = clean_header_dict.get("author_id")
             known = (
                 db.query(User).filter(User.id == author).first()
@@ -1069,8 +1143,7 @@ def execute_pull_specific(
                 # An id-less row is matched on owner + section + content, so
                 # re-importing the same sheet updates rather than duplicating.
                 # Notes have no name of their own to match on.
-                n_owner_type = clean_header_dict.get("owner_type")
-                n_owner_id = clean_header_dict.get("owner_id")
+                n_owner = _note_owner_filters(clean_header_dict)
                 n_section = clean_header_dict.get("section")
                 n_content = clean_header_dict.get("content")
                 # Deliberately not guarded on n_content like the other three:
@@ -1080,12 +1153,11 @@ def execute_pull_specific(
                 # still matches its existing row instead of duplicating on
                 # every pull. Guarding on it here would make every blank-
                 # content row skip the match and insert fresh each time.
-                if n_owner_type and n_owner_id and n_section:
+                if n_owner and n_section:
                     existing_record = (
                         db.query(Note)
                         .filter(
-                            Note.owner_type == n_owner_type,
-                            Note.owner_id == n_owner_id,
+                            *n_owner,
                             Note.section == n_section,
                             Note.content == n_content,
                         )
@@ -1229,16 +1301,11 @@ def execute_pull_specific(
         # remark row the owner already has and update it in place, keeping the
         # local system_id (popped from the payload so it is not overwritten).
         if tab_name == "Note" and clean_header_dict.get("section") == "remark":
-            rk_owner_type = clean_header_dict.get("owner_type")
-            rk_owner_id = clean_header_dict.get("owner_id")
-            if rk_owner_type and rk_owner_id:
+            rk_owner = _note_owner_filters(clean_header_dict)
+            if rk_owner:
                 local_remark = (
                     db.query(Note)
-                    .filter(
-                        Note.owner_type == rk_owner_type,
-                        Note.owner_id == rk_owner_id,
-                        Note.section == "remark",
-                    )
+                    .filter(*rk_owner, Note.section == "remark")
                     .first()
                 )
                 if local_remark is not None:

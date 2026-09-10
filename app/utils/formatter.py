@@ -1349,12 +1349,17 @@ def parse_note_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
-        # owner_id has no foreign key - it points at whichever of the ten owner
-        # tables owner_type names - and there is no name-resolution step for it
-        # in Pull, so an unparseable cell becomes None and the note shows up
-        # unlinked rather than failing the import.
-        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # The four owner columns replaced the (owner_type, owner_id) pair. A
+        # sheet backed up before that change still carries the pair, so it is
+        # read as a fallback and resolved by pull.py against media and the
+        # three tier tables - otherwise every note in an old sheet loses its
+        # owner on the round trip.
+        "media_id": _uuid_or_none(raw.get("media_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "_legacy_owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        "_legacy_owner_id": _uuid_or_none(raw.get("owner_id")),
         # A real foreign key that is NOT NULL, so an unparseable or absent cell
         # cannot become None. Pull resolves it in a second pass against the
         # Users tab; `None` here means "fall back to the admin", which

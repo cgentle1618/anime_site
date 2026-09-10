@@ -28,9 +28,7 @@ def test_upsert_remark_records_its_author(db, sample_anime, admin_user):
 
     row = (
         db.query(models.Note)
-        .filter_by(
-            owner_type="anime", owner_id=sample_anime.system_id, section="remark"
-        )
+        .filter_by(media_id=sample_anime.system_id, section="remark")
         .one()
     )
     assert row.author_id == admin_user.id
@@ -58,8 +56,7 @@ def test_a_second_users_remark_on_the_same_owner_is_refused(
     db.add(
         models.Note(
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="remark",
             content="erin 的備註",
             author_id=erin.id,

@@ -18,8 +18,23 @@ from sqlalchemy.orm import Session
 
 from app.database import get_taipei_now
 from app.models import Note
+from app.utils.media_resolver import TIER_TABLES
 
 REMARK_SECTION = "remark"
+
+# The owner is four nullable FK columns on `note` now, not an (owner_type,
+# owner_id) pair; callers still speak the pair, so it is translated here.
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_columns(owner_type: str, owner_id: Any) -> dict:
+    if owner_type in TIER_TABLES:
+        return {_TIER_COLUMNS[owner_type]: owner_id}
+    return {"media_id": owner_id}
 
 
 def pop_remark(data: dict) -> Tuple[dict, Optional[str], bool]:
@@ -54,11 +69,11 @@ def upsert_remark(
     NOT yet filtered by author on read - see the note in app/models/__init__.py
     about the `remark` column_property, and Task 9 of the Step 5 plan.
     """
+    owner_columns = _owner_columns(owner_type, owner_id)
     row = (
         db.query(Note)
         .filter(
-            Note.owner_type == owner_type,
-            Note.owner_id == owner_id,
+            *[getattr(Note, name) == value for name, value in owner_columns.items()],
             Note.section == REMARK_SECTION,
         )
         .first()
@@ -77,8 +92,7 @@ def upsert_remark(
     db.add(
         Note(
             system_id=uuid.uuid4(),
-            owner_type=owner_type,
-            owner_id=owner_id,
+            **owner_columns,
             section=REMARK_SECTION,
             content=text,
             sort_index=0.0,

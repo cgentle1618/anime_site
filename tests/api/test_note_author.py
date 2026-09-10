@@ -46,8 +46,7 @@ def test_a_note_without_an_author_is_rejected(db, sample_anime):
     db.add(
         models.Note(
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="advantages",
             content="無作者",
         )
@@ -69,8 +68,7 @@ def test_deleting_a_user_deletes_their_notes(db, sample_anime):
 
     note = models.Note(
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="advantages",
         content="會被連帶刪除",
         author_id=user.id,

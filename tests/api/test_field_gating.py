@@ -254,8 +254,7 @@ def personal_note(db_session, sample_anime, admin_user):
     n = models.Note(
         author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="personal_reviews",
         content="Zvornik private assessment",
     )
@@ -269,8 +268,7 @@ def public_note(db_session, sample_anime, admin_user):
     n = models.Note(
         author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="public_reviews",
         content="A public review anyone may read",
     )

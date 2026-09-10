@@ -12,13 +12,25 @@ from sqlalchemy.exc import IntegrityError
 from app import models
 from app.services.domain.remark_field import upsert_remark
 
+# `note` addresses its owner with four FK columns now; these suites still think
+# in (owner_type, owner_id), so the pair is translated here.
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_filters(owner_type, owner_id):
+    column = _TIER_COLUMNS.get(owner_type, "media_id")
+    return [getattr(models.Note, column) == owner_id]
+
 
 def _rows(db_session, owner_type, owner_id):
     return (
         db_session.query(models.Note)
         .filter(
-            models.Note.owner_type == owner_type,
-            models.Note.owner_id == owner_id,
+            *_owner_filters(owner_type, owner_id),
             models.Note.section == "remark",
         )
         .all()
@@ -88,8 +100,7 @@ def test_upsert_leaves_other_sections_alone(db_session, sample_anime, admin_user
     other = models.Note(
         author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=sample_anime.system_id,
+        media_id=sample_anime.system_id,
         section="advantages",
         content="敘事結構精巧",
         sort_index=0.0,
@@ -121,8 +132,7 @@ def test_a_second_remark_row_is_rejected_by_the_database(db_session, sample_anim
         models.Note(
             author_id=admin_user.id,
             system_id=uuid.uuid4(),
-            owner_type="anime",
-            owner_id=sample_anime.system_id,
+            media_id=sample_anime.system_id,
             section="remark",
             content="a second one",
             sort_index=0.0,
@@ -145,8 +155,7 @@ def test_the_index_does_not_constrain_other_sections(db_session, sample_anime, a
             models.Note(
                 author_id=admin_user.id,
                 system_id=uuid.uuid4(),
-                owner_type="anime",
-                owner_id=sample_anime.system_id,
+                media_id=sample_anime.system_id,
                 section="advantages",
                 content=content,
                 sort_index=0.0,
@@ -155,6 +164,6 @@ def test_the_index_does_not_constrain_other_sections(db_session, sample_anime, a
     db_session.flush()
 
     assert db_session.query(models.Note).filter(
-        models.Note.owner_id == sample_anime.system_id,
+        models.Note.media_id == sample_anime.system_id,
         models.Note.section == "advantages",
     ).count() == 2
