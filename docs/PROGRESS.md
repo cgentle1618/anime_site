@@ -13,8 +13,13 @@ Last updated: 2026-09-10
 
 ## In flight
 
-**The authorization system** - `wip authz-home`, brainstorm stage. No plan yet,
-so there is no task table to claim against.
+**The authorization system** - `wip authz-home`, brainstorm stage, paused at an
+environment switch on 2026-09-10 and resuming on **company**. No plan yet, so
+there is no task table to claim against. Five decisions are settled and section
+1 of six is written but unapproved:
+**[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**
+(draft, not implementable). Resume by answering the two questions at the head of
+its section 1, then continue at section 2.
 
 Multi-user Steps 0-5 are finished and their entries are gone from this file;
 `docs/roadmap.md` keeps the record, per the convention above.
