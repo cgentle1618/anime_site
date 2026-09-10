@@ -1,5 +1,5 @@
 """
-The two roles the app reads by name.
+The three roles the app reads by name.
 
 Called from the lifespan AND from migration A, because tests/api/conftest.py
 resets the schema with Base.metadata.create_all and never runs Alembic - a seed
@@ -19,11 +19,19 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
-from app.services.rbac.permissions import field_group_perm, media_type_perm
+from app.services.rbac.permissions import (
+    PERM_SELF_LIST,
+    PERM_SELF_PERSONAL_NOTES,
+    field_group_perm,
+    media_type_perm,
+)
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 GUEST_ROLE = "guest"
 ADMIN_ROLE = "admin"
+# A signed-in member. Not an administrator and not a second kind of admin:
+# guest reads plus the two self.* writes, and nothing else.
+USER_ROLE = "user"
 
 # Field groups a brand-new guest role does NOT receive. A group lands here
 # when its purpose is to withhold something from ordinary viewers, so
@@ -44,6 +52,19 @@ def default_guest_permissions() -> set[str]:
     }
 
 
+def default_user_permissions() -> set[str]:
+    """
+    A signed-in member's grants: everything a guest may read, plus the two
+    permissions over their own rows.
+
+    Derived from default_guest_permissions() rather than restated, so a media
+    type or field group added later reaches both roles at once. The spec is
+    explicit that this role is three permissions and not a new system - if this
+    function ever grows a fourth idea, that is a design change, not a tidy-up.
+    """
+    return default_guest_permissions() | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+
+
 def _ensure_role(db: Session, name: str, **fields) -> models.Role:
     role = db.query(models.Role).filter(models.Role.name == name).first()
     if role is None:
@@ -54,7 +75,7 @@ def _ensure_role(db: Session, name: str, **fields) -> models.Role:
 
 
 def ensure_rbac_seed(db: Session) -> None:
-    """Create the guest and admin roles and top up guest's grants."""
+    """Create the guest, admin and user roles and top up their grants."""
     guest = _ensure_role(
         db,
         GUEST_ROLE,
@@ -73,6 +94,18 @@ def ensure_rbac_seed(db: Session) -> None:
         is_superuser=True,
         sort_order=100,
     )
+    user = _ensure_role(
+        db,
+        USER_ROLE,
+        label="User",
+        description=(
+            "A signed-in member. Reads what a guest reads, and writes their "
+            "own list and their own personal notes."
+        ),
+        is_system=True,
+        is_superuser=False,
+        sort_order=50,
+    )
 
     # Only add what is missing. An admin who deliberately removed a grant from
     # guest must not have it handed back on the next restart, so this tops up
@@ -87,6 +120,20 @@ def ensure_rbac_seed(db: Session) -> None:
         for permission in sorted(default_guest_permissions()):
             db.add(
                 models.RolePermission(role_id=guest.system_id, permission=permission)
+            )
+
+    # Same rule as guest above: top up only a role holding nothing at all, so
+    # a grant an admin deliberately removed is not handed back on restart.
+    user_held = {
+        row.permission
+        for row in db.query(models.RolePermission).filter(
+            models.RolePermission.role_id == user.system_id
+        )
+    }
+    if not user_held:
+        for permission in sorted(default_user_permissions()):
+            db.add(
+                models.RolePermission(role_id=user.system_id, permission=permission)
             )
 
     db.flush()

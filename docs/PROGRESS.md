@@ -26,9 +26,9 @@ Plan: `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md`.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | The `self` permission family | wip step2-company |
-| 2 | The `user` role (`m2a1users`) | todo |
-| 3 | `users.list_is_public` (`m2a2public`) | todo |
+| 1 | The `self` permission family | done 6bb22b29 |
+| 2 | The `user` role (`m2a1users`) | wip step2-company |
+| 3 | `users.list_is_public` (`m2a2public`) | wip step2-company |
 | 4 | Gate list writes on `self.list` | todo |
 | 5 | `/api/account/settings` | todo |
 | 6 | Rating points helper | todo |
