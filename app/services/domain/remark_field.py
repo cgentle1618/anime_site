@@ -37,7 +37,11 @@ def pop_remark(data: dict) -> Tuple[dict, Optional[str], bool]:
 
 
 def upsert_remark(
-    db: Session, owner_type: str, owner_id: Any, text: Optional[str]
+    db: Session,
+    owner_type: str,
+    owner_id: Any,
+    text: Optional[str],
+    author_id: Any,
 ) -> None:
     """
     Create, update or clear one owner's singleton remark note.
@@ -45,6 +49,10 @@ def upsert_remark(
     Empty or whitespace-only text deletes the row rather than storing a blank
     one, so a cleared remark leaves no empty section on the notes page. The
     text itself is stored as typed - only the emptiness test is stripped.
+
+    `remark` is a personal-scope section, so the row records its author. It is
+    NOT yet filtered by author on read - see the note in app/models/__init__.py
+    about the `remark` column_property, and Task 9 of the Step 5 plan.
     """
     row = (
         db.query(Note)
@@ -74,5 +82,6 @@ def upsert_remark(
             section=REMARK_SECTION,
             content=text,
             sort_index=0.0,
+            author_id=author_id,
         )
     )

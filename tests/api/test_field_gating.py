@@ -250,8 +250,9 @@ def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def personal_note(db_session, sample_anime):
+def personal_note(db_session, sample_anime, admin_user):
     n = models.Note(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         owner_type="anime",
         owner_id=sample_anime.system_id,
@@ -264,8 +265,9 @@ def personal_note(db_session, sample_anime):
 
 
 @pytest.fixture
-def public_note(db_session, sample_anime):
+def public_note(db_session, sample_anime, admin_user):
     n = models.Note(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         owner_type="anime",
         owner_id=sample_anime.system_id,

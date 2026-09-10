@@ -17,6 +17,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -90,6 +91,7 @@ def create_franchise(
     payload: schemas.FranchiseCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
     try:
@@ -110,7 +112,9 @@ def create_franchise(
         db.refresh(new_franchise)
 
         if has_remark:
-            upsert_remark(db, "franchise", new_franchise.system_id, remark)
+            upsert_remark(
+                db, "franchise", new_franchise.system_id, remark, viewer.user_id
+            )
             db.commit()
             db.refresh(new_franchise)
 
@@ -131,6 +135,7 @@ def update_franchise(
     payload: schemas.FranchiseUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Franchise's metadata."""
     db_franchise = (
@@ -145,7 +150,9 @@ def update_franchise(
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
     if has_remark:
-        upsert_remark(db, "franchise", db_franchise.system_id, remark)
+        upsert_remark(
+            db, "franchise", db_franchise.system_id, remark, viewer.user_id
+        )
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()
@@ -162,6 +169,7 @@ def patch_franchise(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Franchise (useful for quick inline rating edits)."""
     db_franchise = (
@@ -175,7 +183,9 @@ def patch_franchise(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_franchise, payload)
     if has_remark:
-        upsert_remark(db, "franchise", db_franchise.system_id, remark)
+        upsert_remark(
+            db, "franchise", db_franchise.system_id, remark, viewer.user_id
+        )
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()

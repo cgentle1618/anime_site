@@ -165,6 +165,7 @@ def create_note(
     payload: schemas.NoteCreate,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     _validate_or_422(payload)
     _reject_second_singleton(db, payload)
@@ -172,8 +173,11 @@ def create_note(
     data = payload.model_dump(exclude_unset=True)
     if data.get("sort_index") is None:
         data["sort_index"] = _next_sort_index(db, payload)
+    # Never taken from the payload: the author is who is asking, not who says
+    # they are. NoteBase has no author_id field, so nothing can supply one.
+    data.pop("author_id", None)
 
-    db_note = models.Note(system_id=uuid.uuid4(), **data)
+    db_note = models.Note(system_id=uuid.uuid4(), author_id=viewer.user_id, **data)
     db.add(db_note)
     db.commit()
     db.refresh(db_note)

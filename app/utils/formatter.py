@@ -1349,6 +1349,11 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # in Pull, so an unparseable cell becomes None and the note shows up
         # unlinked rather than failing the import.
         "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # A real foreign key that is NOT NULL, so an unparseable or absent cell
+        # cannot become None. Pull resolves it in a second pass against the
+        # Users tab; `None` here means "fall back to the admin", which
+        # app/services/pipelines/pull.py applies.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "section": parse_from_sheet(raw.get("section"), str),
         # `episode` is the column's pre-rename header. Sheets backed up before
         # the rename must still Pull, or every anchor in them is lost, so the

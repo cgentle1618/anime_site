@@ -17,6 +17,7 @@ from app.database import get_taipei_now
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -91,6 +92,7 @@ def create_collection(
     payload: schemas.CollectionCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Collection."""
     try:
@@ -109,7 +111,9 @@ def create_collection(
         db.refresh(new_collection)
 
         if has_remark:
-            upsert_remark(db, "collection", new_collection.system_id, remark)
+            upsert_remark(
+                db, "collection", new_collection.system_id, remark, viewer.user_id
+            )
             db.commit()
             db.refresh(new_collection)
 
@@ -132,6 +136,7 @@ def update_collection(
     payload: schemas.CollectionUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Collection's metadata."""
     db_collection = (
@@ -146,7 +151,9 @@ def update_collection(
     for key, value in update_data.items():
         setattr(db_collection, key, value)
     if has_remark:
-        upsert_remark(db, "collection", db_collection.system_id, remark)
+        upsert_remark(
+            db, "collection", db_collection.system_id, remark, viewer.user_id
+        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
@@ -165,6 +172,7 @@ def patch_collection(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Collection (used for quick inline hub edits)."""
     db_collection = (
@@ -178,7 +186,9 @@ def patch_collection(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_collection, payload)
     if has_remark:
-        upsert_remark(db, "collection", db_collection.system_id, remark)
+        upsert_remark(
+            db, "collection", db_collection.system_id, remark, viewer.user_id
+        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()

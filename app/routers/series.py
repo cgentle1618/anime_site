@@ -17,6 +17,7 @@ from app import models, schemas
 from app.dependencies import get_current_admin, get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
+from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -87,6 +88,7 @@ def create_series(
     series_in: schemas.SeriesCreate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Creates a new Series.
@@ -105,7 +107,7 @@ def create_series(
     db.refresh(new_series)
 
     if has_remark:
-        upsert_remark(db, "series", new_series.system_id, remark)
+        upsert_remark(db, "series", new_series.system_id, remark, viewer.user_id)
         db.commit()
         db.refresh(new_series)
 
@@ -120,6 +122,7 @@ def update_series(
     series_in: schemas.SeriesUpdate,
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Series' metadata and smartly resolves hierarchy changes."""
     db_series = (
@@ -132,7 +135,9 @@ def update_series(
     for key, value in update_data.items():
         setattr(db_series, key, value)
     if has_remark:
-        upsert_remark(db, "series", db_series.system_id, remark)
+        upsert_remark(
+            db, "series", db_series.system_id, remark, viewer.user_id
+        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -152,6 +157,7 @@ def patch_series(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     admin: dict = Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Series."""
     db_series = (
@@ -163,7 +169,9 @@ def patch_series(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_series, payload)
     if has_remark:
-        upsert_remark(db, "series", db_series.system_id, remark)
+        upsert_remark(
+            db, "series", db_series.system_id, remark, viewer.user_id
+        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict

@@ -284,7 +284,9 @@ def make_media_router(spec) -> APIRouter:
         db.refresh(entry)
 
         if has_remark:
-            upsert_remark(db, spec.owner_type, entry.system_id, remark)
+            upsert_remark(
+                db, spec.owner_type, entry.system_id, remark, viewer.user_id
+            )
             db.commit()
             db.refresh(entry)
         return _finish(db, entry, viewer)
@@ -316,7 +318,9 @@ def make_media_router(spec) -> APIRouter:
                 user_id=viewer_user_id(viewer),
             )
         if has_remark:
-            upsert_remark(db, spec.owner_type, entry.system_id, remark)
+            upsert_remark(
+                db, spec.owner_type, entry.system_id, remark, viewer.user_id
+            )
 
         _write_list(db, entry, personal, viewer)
         _resolve_parents(db, entry)
@@ -356,7 +360,9 @@ def make_media_router(spec) -> APIRouter:
                 user_id=viewer_user_id(viewer),
             )
         if has_remark:
-            upsert_remark(db, spec.owner_type, entry.system_id, remark)
+            upsert_remark(
+                db, spec.owner_type, entry.system_id, remark, viewer.user_id
+            )
 
         _write_list(db, entry, personal, viewer)
         entry.updated_at = get_taipei_now()

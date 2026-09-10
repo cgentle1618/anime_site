@@ -11,6 +11,7 @@ def test_column_order_is_the_sheet_order():
         "system_id",
         "owner_type",
         "owner_id",
+        "author_id",
         "section",
         "locator",
         "kind",

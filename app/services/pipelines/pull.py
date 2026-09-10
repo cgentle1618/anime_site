@@ -644,6 +644,22 @@ def execute_pull_specific(
                 continue
             clean_header_dict["user_id"] = owner
 
+        # note.author_id is NOT NULL, and it travels as a raw uuid: Step 4 gave
+        # the sheet a Users tab, so the same account holds the same id on both
+        # machines. A blank cell - an older sheet, written before the column
+        # existed - or one naming a user this database does not have falls back
+        # to the admin rather than skipping the row: a note whose author is
+        # uncertain is still the note, and the sheet is its only copy.
+        if tab_name == "Note":
+            author = clean_header_dict.get("author_id")
+            known = (
+                db.query(User).filter(User.id == author).first()
+                if author is not None
+                else None
+            )
+            if known is None:
+                clean_header_dict["author_id"] = _restore_owner_id(db)
+
         # A copy row belongs to whoever bought it (Task 19). The sheet holds
         # one person's collection and carries no owner column, so the acting
         # user owns every row it restores - and a stale user_id that a Backup

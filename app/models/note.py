@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import Column, DateTime, Float, Index, String, Text, text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base, get_taipei_now
@@ -28,7 +28,9 @@ class Note(Base):
     `app.utils.media_resolver` flags as missing rather than silently dropping.
 
     Column order matters: `format_model_for_sheet` walks __table__.columns in
-    declaration order, so this is also the Google Sheets column order.
+    declaration order, so this is also the Google Sheets column order. Adding
+    or removing a column here reshapes the Note tab, so a change to this list
+    is a Backup-before and a Backup-after.
     """
 
     __tablename__ = "note"
@@ -42,6 +44,16 @@ class Note(Base):
     # OWNER_TABLES in app/utils/media_resolver.
     owner_type = Column(String, nullable=True, index=True)
     owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # Who wrote this row. Always set, whatever the section's scope: a catalogue
+    # note has an author too, and recording it is the only provenance the
+    # catalogue has. What scope changes is who the row is FILTERED for, not
+    # whether somebody wrote it - see app/utils/note_sections.py.
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # --- Which section this item belongs to ---
     section = Column(String, nullable=True, index=True)
