@@ -156,6 +156,35 @@ class ProfileResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Community aggregates
+# ---------------------------------------------------------------------------
+
+class CommunityStatusCount(BaseModel):
+    status: str
+    count: int
+
+
+class CommunityAggregate(BaseModel):
+    """
+    What the public lists say about one entry.
+
+    sample_size is separate from list_count on purpose: a work can be on forty
+    lists and rated by six, and a "6" beside an average is the difference
+    between a figure and a rumour.
+    """
+
+    media_id: UUID
+    # How many public lists hold this entry at all.
+    list_count: int
+    statuses: List[CommunityStatusCount] = []
+    # How many of those carried a rating.
+    sample_size: int
+    # The mean on the 1-8 letter scale, and that mean as the nearest letter.
+    average_points: Optional[float] = None
+    average_rating: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
 # Content labels
 # ---------------------------------------------------------------------------
 

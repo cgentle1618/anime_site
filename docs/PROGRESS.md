@@ -32,9 +32,9 @@ Plan: `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md`.
 | 4 | Gate list writes on `self.list` | done 24d86371 - the plan assumed Step 1 shipped /api/me; it did not, so the router was created here |
 | 5 | `/api/account/settings` | done c541a50e |
 | 6 | Rating points helper | done a5ec3338 |
-| 7 | `GET /api/profile/{username}` | done (this commit) |
-| 8 | `GET /api/community/{media_id}` | wip step2-company |
-| 9 | Endpoint builders and the settings page | todo |
+| 7 | `GET /api/profile/{username}` | done 96a19692 |
+| 8 | `GET /api/community/{media_id}` | done (this commit) |
+| 9 | Endpoint builders and the settings page | wip step2-company |
 | 10 | The `/user/:username` profile page | todo |
 | 11 | The community block on detail pages | todo |
 | 12 | Record what shipped | todo |

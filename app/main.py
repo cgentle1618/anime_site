@@ -28,6 +28,7 @@ from app.routers import (
     character,
     collection,
     comic,
+    community,
     constants,
     content_labels,
     credits,
@@ -210,6 +211,7 @@ app.include_router(roles.router)
 app.include_router(users.router)
 app.include_router(account.router)
 app.include_router(profile.router)
+app.include_router(community.router)
 app.include_router(me_list.router)
 app.include_router(content_labels.router)
 

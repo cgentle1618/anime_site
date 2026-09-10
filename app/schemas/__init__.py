@@ -143,6 +143,8 @@ from app.schemas.quote import (
 from app.schemas.rbac import (
     AccountSettingsResponse,
     AccountSettingsUpdate,
+    CommunityAggregate,
+    CommunityStatusCount,
     ContentLabelBase,
     ContentLabelCreate,
     ContentLabelResponse,
@@ -238,6 +240,8 @@ __all__ = [
     "ProfileEntry",
     "ProfileStatusCount",
     "ProfileResponse",
+    "CommunityStatusCount",
+    "CommunityAggregate",
     "ContentLabelBase",
     "ContentLabelCreate",
     "ContentLabelUpdate",
