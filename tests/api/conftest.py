@@ -325,6 +325,26 @@ def anime(sample_anime):
 
 
 @pytest.fixture
+def sample_manga(db_session, sample_franchise):
+    """
+    A manga, for tests that need a second media type in one query - a profile
+    and a community aggregate both span every type at once.
+
+    Deliberately without a user_media_list row: sample_anime hangs one on the
+    admin because the entry it describes is "watched to the end", while a test
+    that needs a list row here wants to choose whose it is.
+    """
+    m = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        manga_name_en="Test Manga",
+    )
+    db_session.add(m)
+    db_session.flush()
+    return m
+
+
+@pytest.fixture
 def manga(manga_entry):
     """Alias for manga_entry, matching the character/casting test briefs."""
     return manga_entry

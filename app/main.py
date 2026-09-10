@@ -45,6 +45,7 @@ from app.routers import (
     options,
     person,
     plan_next,
+    profile,
     publisher,
     quote,
     roles,
@@ -208,6 +209,7 @@ app.include_router(casting.router)
 app.include_router(roles.router)
 app.include_router(users.router)
 app.include_router(account.router)
+app.include_router(profile.router)
 app.include_router(me_list.router)
 app.include_router(content_labels.router)
 

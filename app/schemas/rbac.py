@@ -119,6 +119,43 @@ class AccountSettingsUpdate(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Public profiles
+# ---------------------------------------------------------------------------
+
+class ProfileEntry(BaseModel):
+    """One row of somebody's list, joined to the catalogue."""
+
+    media_id: UUID
+    media_type: str
+    public_id: int
+    display_name: str
+    cover_image_file: Optional[str] = None
+    status: str
+    my_rating: Optional[str] = None
+
+
+class ProfileStatusCount(BaseModel):
+    status: str
+    count: int
+
+
+class ProfileResponse(BaseModel):
+    """
+    One user's list. Carries no personal notes and no email or password: a
+    profile says what somebody has watched and what they thought of it, and
+    nothing else about them.
+    """
+
+    username: str
+    list_is_public: bool
+    # True when the caller is looking at their own profile, so the SPA can
+    # offer the visibility toggle rather than guessing from the username.
+    is_self: bool
+    counts: List[ProfileStatusCount] = []
+    entries: List[ProfileEntry] = []
+
+
+# ---------------------------------------------------------------------------
 # Content labels
 # ---------------------------------------------------------------------------
 

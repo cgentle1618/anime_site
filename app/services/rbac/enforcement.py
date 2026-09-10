@@ -71,6 +71,44 @@ def apply_entry_visibility(
     return query.filter(_label_anti_join(model, hidden))
 
 
+def apply_media_visibility(query: Query, db: Session, viewer: Optional[Viewer]):
+    """
+    The same two gates as apply_entry_visibility, over the `media` supertable
+    rather than one detail table.
+
+    A profile and a community aggregate both span every media type in one
+    query, so the media-type check becomes an IN over the types the viewer
+    holds instead of a boolean per query, and the label anti-join goes through
+    media_content_label.media_id (a real FK since step 0) instead of the old
+    (media_type, entry_id) pair.
+
+    The query must already select from or join `models.Media`.
+    """
+    if viewer is None or viewer.is_superuser:
+        return query
+
+    allowed = [
+        media_type
+        for media_type in MEDIA_TABLES
+        if viewer.has(media_type_perm(media_type))
+    ]
+    if not allowed:
+        return query.filter(sa.false())
+    query = query.filter(models.Media.media_type.in_(allowed))
+
+    hidden = hidden_label_ids(db, viewer)
+    if not hidden:
+        return query
+    return query.filter(
+        ~sa.exists().where(
+            sa.and_(
+                models.MediaContentLabel.media_id == models.Media.system_id,
+                models.MediaContentLabel.label_id.in_(hidden),
+            )
+        )
+    )
+
+
 def entry_visible(
     db: Session, viewer: Optional[Viewer], media_type: str, entry_id
 ) -> bool:
