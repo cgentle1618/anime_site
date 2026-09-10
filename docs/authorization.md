@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-05
+Last verified: 2026-09-10 (the `self` family and the `user` role)
 
 ## What this is for
 
@@ -56,12 +56,52 @@ the bare `admin`.
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
 | `label.<key>` | may see entries carrying that content label | `content_label.key`, read at request time |
+| `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+
+`self` is the odd family out and deliberately so: every other family answers
+"may you *see* this", and this one answers "may you *write* your own". It is
+also the only family whose keys are constants rather than derived, because each
+one names a router dependency — a `self.<key>` with no route behind it would be
+an inert grant.
 
 `static_catalog()` is the half knowable without a database; `catalog(db)` adds
 the label half. Writes to `PUT /api/roles/{id}/permissions` validate every
 name against `catalog(db)` and reject unknown ones with **422**, so a grant
 naming nothing is never stored. `split_perm()` partitions on the first dot so
 hyphenated keys survive.
+
+### Roles
+
+Three roles are seeded by `app/services/rbac/seed.py`, and the app reads all
+three by name:
+
+| Name | `sort_order` | System | Superuser | Holds |
+|---|---|---|---|---|
+| `guest` | 0 | yes | no | `default_guest_permissions()` — every media type and every field group except `GUEST_WITHHELD_FIELD_GROUPS` |
+| `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus `self.list` and `self.personal_notes` |
+| `admin` | 100 | yes | **yes** | nothing explicitly; a superuser role holds every permission implicitly |
+
+`default_user_permissions()` is *derived* from `default_guest_permissions()`
+rather than restated, so a media type or field group added later reaches both
+roles at once. The `user` role is three ideas and not a subsystem: guest reads,
+write-own-list, write-own-personal-notes. Catalogue writes stay behind
+`Depends(get_current_admin)`, so granting this role adds **no admin surface**.
+
+The same `if not held:` top-up rule applies to `user` as to `guest`: the seed
+grants the defaults only to a role holding nothing at all, so a permission an
+admin deliberately removed is never handed back on the next restart.
+
+Migration `m2a1users` seeds the role for a database that already has its
+schema. It copies **this installation's** guest grants rather than recomputing
+the defaults, so an admin who narrowed guest gets a `user` role narrowed the
+same way.
+
+> **`self.personal_notes` is granted but not yet enforced anywhere.** Nothing
+> reads it: note scoping is Step 5 of the multi-user programme and has not
+> shipped, so personal notes remain gated only by the `personal_notes` *field
+> group*. The permission exists now because the role that holds it is seeded
+> now, and adding it later would mean a second migration over the same rows.
+> Until Step 5 lands it is a promise the schema cannot yet keep.
 
 ### Field groups
 

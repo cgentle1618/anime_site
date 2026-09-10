@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-09 (`user_media_list` owns the personal columns)
+Last verified: 2026-09-10 (`users.list_is_public`)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1535,8 +1535,13 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `username` | String | no | | UNIQUE, indexed |
 | `hashed_password` | String | no | | |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
+| `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. Added by `m2a2public`. |
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
+
+Three roles are seeded and read by name - `guest`, `user`, `admin`; see
+[authorization.md](authorization.md#roles). An account on the `user` role holds
+guest's reads plus `self.list` and `self.personal_notes`.
 
 ### `content_label`
 

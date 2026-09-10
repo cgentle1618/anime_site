@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-09 (personal fields are served from user_media_list)
+Last verified: 2026-09-10 (account settings, profiles, community aggregates, /api/me/list)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -64,6 +64,10 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
 - [Watch Order — Sections](#watch-order--sections)
+- [My List — `/api/me`](#my-list--apime)
+- [Account — `/api/account`](#account--apiaccount)
+- [Profile — `/api/profile`](#profile--apiprofile)
+- [Community — `/api/community`](#community--apicommunity)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -1413,6 +1417,91 @@ split every part the new step then sat behind.
 
 ---
 
+## My List — `/api/me`
+
+The caller's own `user_media_list` row, for one entry. Gated at **router
+level** on `self.list`, so a route added here later is closed by default; an
+anonymous visitor and a viewer without the permission both get **401**.
+
+The payload keys are the media type's own — `watching_status` for an anime,
+`reading_status` for a manga, `playing_status` for a game — read from
+`LIST_FIELDS` in `app/services/domain/user_list.py`, the single place that says
+which keys a type owns.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. |
+
+Neither route takes a user id, so there is no shape of request that writes
+somebody else's list. Catalogue writes are unaffected and stay behind
+`Depends(get_current_admin)` on the per-type entry endpoints.
+
+---
+
+## Account — `/api/account`
+
+The caller's own settings. Any signed-in account, acting only on itself — a
+separate router from `/api/users`, which is admin-only and acts on other
+people. No path takes a user id and the update payload carries no identity, so
+a stray `username` in the body is dropped by pydantic rather than honoured.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/account/settings` | session | `{username, role_name, list_is_public}`. **401** for an anonymous caller. |
+| PATCH | `/api/account/settings` | session | `AccountSettingsUpdate` — `list_is_public` only. Returns the same shape as GET. **401** for an anonymous caller. |
+
+---
+
+## Profile — `/api/profile`
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/profile/{username}` | none | One user's list, every media type in one response. |
+
+Three rules, all enforced in the endpoint:
+
+- **A private list answers 404, not 403**, to everyone but its owner and an
+  admin — the same rule `entry_visible` follows, so a private profile and a
+  username nobody has are the same answer and a stranger cannot enumerate
+  accounts. `list_is_public` is false by default.
+- **A public list is filtered by the *reader's* permissions, not the owner's.**
+  A row whose media type the reader may not see, or which carries a content
+  label they lack, is absent — `apply_media_visibility` in
+  `app/services/rbac/enforcement.py` applies the same two gates as
+  `apply_entry_visibility`, expressed over the `media` supertable.
+- **Personal notes are not on this response at all.**
+
+Response: `{username, list_is_public, is_self, counts[], entries[]}`. Each
+entry is `{media_id, media_type, public_id, display_name, cover_image_file,
+status, my_rating}`, ordered best-rated first — by *rating points*, not by the
+letter, because `my_rating` is a String and `"A+"` sorts before `"A"`
+(`app/services/domain/rating_points.py`). `counts` is tallied from the filtered
+rows rather than by a second `GROUP BY`, or a hidden entry would leak as a
+discrepancy in the totals.
+
+---
+
+## Community — `/api/community`
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/community/{media_id}` | none | What the **public** lists say about one entry. |
+
+Public lists only, which is a correctness rule and not a courtesy: a figure
+that moved when a private list changed would let anyone read a private list one
+bit at a time by watching the number.
+
+Response: `{media_id, list_count, statuses[], sample_size, average_points,
+average_rating}`. `sample_size` is separate from `list_count` on purpose — a
+work can be on forty lists and rated by six — and the average is computed in
+Python over the letter grades through the same `rating_points` mapping the
+profile ordering uses. An unknown `media_id` answers an **empty aggregate, not
+404**: the detail page's own route already decided whether the entry exists,
+and a 404 here would blank a page that is otherwise fine.
+
+---
+
 ## Authorization
 
 Every read route now resolves a **viewer** (`app/services/rbac/resolver.py`).
@@ -1447,7 +1536,7 @@ server has already withheld what the viewer may not see.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/roles/` | Roles with their grants and user counts. |
-| GET | `/api/roles/catalog` | Every grantable permission, grouped by family (`admin`, `media_type`, `field_group`, `label`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family (`admin`, `media_type`, `field_group`, `self`, `label`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. |
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
@@ -1464,7 +1553,7 @@ No self-registration; accounts are created here only.
 
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`). Passwords never leave the server. |
+| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
 | POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. 409 on a taken username, 422 on an unknown role. |
 | PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |

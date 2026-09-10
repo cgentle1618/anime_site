@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-08 (cookie Secure flag is now unconditionally false)
+Last verified: 2026-09-10 (accounts on the `user` role; the hardening gate restated)
 
 ## What this is for
 
@@ -33,6 +33,27 @@ Authentication answers one question: *who is making this request?* The app has a
 `POST /api/auth/logout` deletes the cookie (same path/flags) and returns `{"message": "Successfully logged out"}`. It does not need a valid session to succeed.
 
 There is no self-registration and no password reset. Accounts are created by an admin through `/api/users` (see [authorization.md](authorization.md)).
+
+> ### The hardening gate, now that accounts are real
+>
+> Step 2 of the multi-user programme shipped the `user` role, so an admin can
+> now invite somebody who is not an administrator. **Two defects on this page
+> are tolerable for one local user and are not tolerable once another person
+> has a password in this database, and neither is fixed:**
+>
+> 1. the login cookie is set with **`secure=False` unconditionally**
+>    (`app/routers/auth.py`), so a session cookie travels over plain HTTP;
+> 2. **nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`**
+>    (`app/config.py`) — `validate_production()` did that and went away with
+>    the GCP code on 2026-09-08. A default signing secret means anyone can mint
+>    a token for any username, including one holding the admin role.
+>
+> Fixing them is a **separate project**, deliberately out of Step 2's scope
+> along with session lifetime and password reset. The gate, in one line: land
+> that project, then invite anyone. Until it lands, create no account for
+> anybody but yourself. Recorded in
+> `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md` (the
+> BLOCKING PREREQUISITE section) and in `docs/PROGRESS.md`'s open items.
 
 ## Passwords (bcrypt)
 
