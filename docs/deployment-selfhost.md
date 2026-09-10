@@ -1,6 +1,6 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-10 (OS install, first-setup networking and Windows-first arrival checks written out; still nothing installed)
+Last verified: 2026-09-10 (OS install written out; ISO pinned to 26.04.1 LTS against releases.ubuntu.com; still nothing installed)
 
 > ## Status: hardware bought, nothing deployed yet
 >
@@ -116,13 +116,22 @@ Two things that are easy to get wrong, both of which cost real time:
 
 ### Which Ubuntu, and why Server rather than Desktop
 
-**Ubuntu Server LTS — the current LTS is 26.04**, and if the download page lists
-a point release (`26.04.1`) take that one: it is the same system with several
-months of fixes already folded in, so the first `apt upgrade` is shorter. LTS
-means five years of security updates, to 2031. Check
-[releases.ubuntu.com](https://releases.ubuntu.com/) for what the current LTS
-actually is before downloading — do not take a non-LTS release such as 25.10 or
-26.10, which are supported for nine months and would force a reinstall.
+**Ubuntu Server 26.04.1 LTS ("Resolute Raccoon")** — confirmed against
+[releases.ubuntu.com](https://releases.ubuntu.com/) on 2026-09-10. LTS means five
+years of security updates, to 2031.
+
+Take the **`.1` point release**, not the original 26.04: the directory offers
+both, and the point release is the same system with several months of fixes
+already folded in, so the first `apt upgrade` is far shorter.
+
+Two ways to pick the wrong file from that page, both easy:
+
+- **A non-LTS release** such as 25.10 or 26.10. Nine months of support, then a
+  forced reinstall.
+- **An ESM release** — 14.04, 16.04, 18.04 and 20.04 are all still listed, lower
+  down the page, under *Extended Security Maintenance*. They exist for people
+  keeping old systems alive. 14.04 is from 2014 and predates this machine's CPU
+  by four years; nothing that old belongs on it.
 
 Server, not Desktop, for four reasons:
 
@@ -169,16 +178,24 @@ left is whether the hardware is sound, not whether a 3 GB download has finished.
 #### Step 1 — Download the ISO and verify it
 
 On the dev machine, from [releases.ubuntu.com](https://releases.ubuntu.com/),
-download **`ubuntu-26.04-live-server-amd64.iso`** (about 3 GB). If the download
-crawls, use a Taiwan mirror — `free.nchc.org.tw/ubuntu-cd/` is the NCHC one.
+download **`ubuntu-26.04.1-live-server-amd64.iso`** (about 3 GB) — the listing is
+[releases.ubuntu.com/26.04/](https://releases.ubuntu.com/26.04/). If the download
+crawls, use a Taiwan mirror; `free.nchc.org.tw/ubuntu-cd/` is the NCHC one.
 
-The file name matters. `live-server` is right; `desktop` is the wrong image, and
-`netboot` / `mini` are not what this is.
+**Every part of that filename matters:**
+
+| Part | Why |
+| --- | --- |
+| `26.04.1` | The point release. Plain `26.04` sits in the same directory. |
+| `live-server` | `desktop` is the GUI image decided against above. A name with no `live-` at all — `ubuntu-...-server-amd64.iso` — is a pre-18.04 image, which means you are on the wrong release entirely. |
+| `amd64` | x86-64, which is what the i5-8500T is. |
+
+`netboot` and `mini` images are not what this is.
 
 Then check the download is intact. In PowerShell, in the folder holding the ISO:
 
 ```powershell
-Get-FileHash .\ubuntu-26.04-live-server-amd64.iso -Algorithm SHA256
+Get-FileHash .\ubuntu-26.04.1-live-server-amd64.iso -Algorithm SHA256
 ```
 
 Compare the output against the matching line in the `SHA256SUMS` file next to
@@ -631,7 +648,7 @@ The box is ready for the next build-order step when all of these are true:
 - [ ] `docker run --rm hello-world` succeeds without `sudo`.
 - [ ] `docker compose version` prints a version (note the space — not
       `docker-compose`).
-- [ ] `lsb_release -a` shows the expected LTS release.
+- [ ] `lsb_release -a` shows **26.04** — not an interim release, not an ESM one.
 - [ ] The arrival checks are done — the Windows ones before wiping, the idle-power and SMART readings after — and their answers written down somewhere off this machine.
 - [ ] The router shows a reservation for the box, on its **Ethernet** MAC.
 - [ ] If setup happened over WiFi: step 11 is done — the `wifis:` block is out
