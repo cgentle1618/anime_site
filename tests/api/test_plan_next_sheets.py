@@ -181,4 +181,11 @@ def test_the_plan_next_tab_hides_the_new_columns_and_shows_the_old_pair():
         "franchise_id",
         "series_id",
     }
-    assert [name for name, _fn in tab.extra_columns] == ["scope", "target_id"]
+    # `username` joined the pair in Step 4: user_id is dropped like the other
+    # three, but unlike them it is not derivable from the row, so the sheet
+    # has to carry the name or Pull files every restored plan under `admin`.
+    assert [name for name, _fn in tab.extra_columns] == [
+        "scope",
+        "target_id",
+        "username",
+    ]

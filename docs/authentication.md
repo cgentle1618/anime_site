@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-10 (accounts on the `user` role; the hardening gate restated)
+Last verified: 2026-09-10 (accounts on the `user` role; the unusable-password marker)
 
 ## What this is for
 
@@ -63,6 +63,25 @@ There is no self-registration and no password reset. Accounts are created by an 
 - `verify_password` applies the same truncation before `bcrypt.checkpw`, and returns `False` on any exception (malformed stored hash, bad encoding) rather than raising.
 
 The 72-byte cut is bcrypt's hard input limit. It is applied on both sides so a very long password hashes and verifies consistently; the practical consequence is that only the first 72 bytes of a password are significant.
+
+### Accounts with no password — `UNUSABLE_PASSWORD_HASH`
+
+`app/services/security.py` also defines `UNUSABLE_PASSWORD_HASH = "!"` and
+`is_unusable_password_hash(value)`. `"!"` is not a bcrypt hash and cannot be
+produced by `get_password_hash` (every bcrypt hash starts `$2`), so no input
+can verify against it: `checkpw` raises on the malformed salt and
+`verify_password` returns `False`. Django uses the same leading `"!"`
+convention for the same reason.
+
+Accounts carrying it come from **one place**: a Google Sheets Pull. Since Step
+4 the `Users` tab carries who exists and what role they hold but deliberately
+**not** `hashed_password` — it is credential material for other people's
+accounts, and a Backup writes the sheet outside this database's trust boundary
+([data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy)). Pull stamps
+the marker on an account it creates, and **never** touches an existing
+account's hash, so a Pull All cannot lock the admin out of their own machine.
+An admin gives such an account a real password through `PUT /api/users/{id}`
+at `/users`.
 
 ## The JWT
 

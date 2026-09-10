@@ -2,6 +2,7 @@
 
 import json
 import logging
+from typing import Optional
 
 from sqlalchemy import Sequence, or_, text
 from sqlalchemy import inspect as sa_inspect
@@ -21,6 +22,7 @@ from app.models import (
     Movies,
     Note,
     Quote,
+    Role,
     Series,
     SystemConfigs,
     SystemOption,
@@ -56,10 +58,12 @@ from app.services.pipelines.tabs import (
     MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
 )
 from app.services.pipelines.tabs import (
+    TAB_BY_NAME,
     TAB_MODELS,
     TAB_NAMES,
     TAB_PARSERS,
 )
+from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     credit_roles_for,
@@ -112,6 +116,14 @@ TABS_IN_ORDER = TAB_NAMES
 
 # tab -> the columns of that table's natural-key UNIQUE constraint.
 DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
+    # The admin account is minted by app/main.py's lifespan on every machine,
+    # so the same person holds a different uuid here and there. username is
+    # UNIQUE and is what actually identifies them across databases. NOT in
+    # DERIVED_IDENTITY_MINTED_PK: that set is for autoincrement integer keys,
+    # where the sheet's id names an unrelated local row. A uuid that misses is
+    # merely unknown, so trying it first is free and correctly follows a
+    # username RENAMED in the sheet to the row that already holds it.
+    "Users": ("username",),  # users.username is UNIQUE
     "System Options": ("category", "value"),  # uq_system_option_value
     "Person": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_person_name
     "Studio": ("name_en", "name_cn", "name_jp", "name_alt"),  # uq_studio_name
@@ -299,7 +311,43 @@ def drop_non_columns(model, payload: dict) -> dict:
     return {k: v for k, v in payload.items() if k in allowed}
 
 
-def resolve_user_media_list_key(db: Session, payload: dict) -> bool:
+def unexpected_headers(tab_name: str, headers: list) -> list[str]:
+    """
+    The sheet headers this tab can neither store nor explain, in sheet order.
+
+    drop_non_columns silently discards every header that is not a column, and
+    silence is right for the ones the tab writes on purpose: the denormalised
+    display_name, and the natural keys that stand in for a database-local id
+    (username, media_type, public_id on the list tab; option_category and
+    option_value on Media Source). It is wrong for a header that means "this
+    sheet predates a migration" - step 1 moved watching_status, my_rating and
+    the *_fin family onto user_media_list, and the sheet in Google Drive still
+    carries them until the next Backup - or "this header is a typo that has
+    been quietly discarding a real value". Those are named in the run's
+    unresolved_refs so they reach the admin log.
+
+    The legacy credit and tag headers (studio, director, genre_main, ...) are
+    expected too: they back no column, but execute_pull_specific pops them out
+    by name and applies them through replace_credits / replace_tags.
+    """
+    model = TAB_MODELS[tab_name]
+    known = set(drop_non_columns(model, {h: None for h in headers if h}))
+    known |= {name for name, _fn in TAB_BY_NAME[tab_name].extra_columns}
+    media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
+    if media_type:
+        for role in credit_roles_for(media_type):
+            known.add(sheet_column_for(media_type, role.key))
+        for field in tag_fields_for(media_type):
+            known.add(sheet_column_for(media_type, field.key))
+
+    seen: list[str] = []
+    for header in headers:
+        if header and header not in known and header not in seen:
+            seen.append(header)
+    return seen
+
+
+def resolve_user_media_list_key(db: Session, payload: dict) -> Optional[str]:
     """
     Turn a User Media List row's natural key into real ids, in place.
 
@@ -309,10 +357,12 @@ def resolve_user_media_list_key(db: Session, payload: dict) -> bool:
     This resolves both, writes `media_id` and `user_id` onto the payload and
     removes the three key columns, which are not columns of the model.
 
-    Returns False when either end cannot be resolved. The caller skips the row:
-    inserting it would put a NULL in a NOT NULL foreign key and take the whole
-    restore down with it, and guessing which entry was meant is worse than
-    saying so in the log.
+    Returns None on success, or a one-line reason when either end cannot be
+    resolved. The caller skips the row and puts the reason in the run's
+    `unresolved_refs`: inserting it would put a NULL in a NOT NULL foreign key
+    and take the whole restore down with it, and guessing which entry was
+    meant is worse than saying so. A skipped row is LOST DATA on a restore, so
+    the reason has to reach the admin log, not only the server log.
     """
     media_type = payload.pop("media_type", None)
     public_id = payload.pop("public_id", None)
@@ -330,18 +380,21 @@ def resolve_user_media_list_key(db: Session, payload: dict) -> bool:
             "User Media List: no %s entry with public_id %s; row skipped.",
             media_type, public_id,
         )
-        return False
+        return (
+            f"User Media List: entry ({media_type}, {public_id}) is unknown "
+            f"here, for user {username!r}"
+        )
 
     user = db.query(User).filter(User.username == username).first() if username else None
     if user is None:
         logger.warning(
             "User Media List: no user named %r; row skipped.", username
         )
-        return False
+        return f"User Media List: user {username!r} is unknown here"
 
     payload["media_id"] = media.system_id
     payload["user_id"] = user.id
-    return True
+    return None
 
 
 def _restore_owner_id(db: Session):
@@ -487,6 +540,21 @@ def execute_pull_specific(
     # still be created - but a silent mint is how 45 duplicate studios grew
     # here unnoticed, so the run reports them.
     created_entities: list[str] = []
+    # References the sheet names that this database cannot resolve - an
+    # unknown role, an unknown username, an entry no media row matches, a
+    # header that is not a column any more. The row is skipped rather than
+    # allowed to fail the whole tab, but a skipped row is LOST DATA on a
+    # restore, so it is reported rather than only logged. execute_pull_all
+    # folds these into the Pull All audit row.
+    unresolved_refs: list[str] = []
+    # A header this tab cannot store and does not mean to carry. Decided once
+    # from the header row rather than per row, because it is a property of the
+    # sheet, not of any one entry: a tab with a thousand stale rows must not
+    # write a thousand lines into the audit row.
+    for stale in unexpected_headers(tab_name, headers):
+        unresolved_refs.append(
+            f"{tab_name}: column {stale!r} is not on this model any more"
+        )
 
     # Built on first use, and only for the two tabs that need it: reading the
     # parent tab costs a Sheets round trip, so a tab that cites no derived
@@ -533,15 +601,41 @@ def execute_pull_specific(
         # match itself is on (user_id, media_id), which do not exist in the
         # payload until this resolves them.
         if tab_name == "User Media List":
-            if not resolve_user_media_list_key(db, clean_header_dict):
+            unresolved = resolve_user_media_list_key(db, clean_header_dict)
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
                 rows_skipped += 1
                 continue
 
-        # plan_next.user_id and seasonal.user_id are NOT NULL and the sheet
-        # carries no user column yet. Stamped before the natural-key match
-        # below, because user_id is part of both tables' keys.
+        # plan_next.user_id and seasonal.user_id are NOT NULL. Both tabs carry
+        # `username` since Step 4, and it is resolved here - before the
+        # natural-key match below, because user_id is part of both tables'
+        # keys, and before the Seasonal upsert, whose primary key IS the pair.
+        #
+        # The fallback is for a sheet written before Step 4, which has no
+        # username header at all: everything in it belonged to one account,
+        # and _restore_owner_id names the one the Step 3 migrations backfilled
+        # to. A header that IS present and names nobody is a different thing -
+        # that row's owner is unknown, so it is skipped and reported rather
+        # than quietly filed under the admin.
         if tab_name in ("Plan Next", "Seasonal"):
-            owner = _restore_owner_id(db)
+            username = parse_from_sheet(raw_header_dict.get("username"), str)
+            if username:
+                owner_row = (
+                    db.query(User).filter(User.username == username).first()
+                )
+                if owner_row is None:
+                    logger.warning(
+                        "%s: no user named %r; row skipped.", tab_name, username
+                    )
+                    unresolved_refs.append(
+                        f"{tab_name}: user {username!r} is unknown here"
+                    )
+                    rows_skipped += 1
+                    continue
+                owner = owner_row.id
+            else:
+                owner = _restore_owner_id(db)
             if owner is None:
                 logger.warning(
                     "No user account exists; skipping the %s row.", tab_name
@@ -831,6 +925,31 @@ def execute_pull_specific(
                         continue
                 clean_header_dict["option_id"] = option.system_id if option else None
 
+        # The Users tab carries the role NAME, not role_id: role.system_id is
+        # minted per database by ensure_rbac_seed. Resolve it locally.
+        # role_id is NOT NULL with ondelete="RESTRICT", so a row with no
+        # resolvable role cannot be stored at all - skip it and report, the
+        # way an unresolvable series FK above is handled.
+        if tab_name == "Users":
+            role_name = parse_from_sheet(raw_header_dict.get("role"), str)
+            role = None
+            if role_name:
+                role = db.query(Role).filter(Role.name == role_name).first()
+            if role is None:
+                logger.warning(
+                    "Could not resolve role %r for user %r on the Users tab. "
+                    "Skipping row.",
+                    role_name,
+                    clean_header_dict.get("username"),
+                )
+                unresolved_refs.append(
+                    f"Users: role {role_name!r} for user "
+                    f"{clean_header_dict.get('username')!r} is unknown here"
+                )
+                rows_skipped += 1
+                continue
+            clean_header_dict["role_id"] = role.system_id
+
         # System Configs, Person Role, Publisher Scope, System Option Scope
         # and System Option Usage are autoincrement integer PKs and use 'id',
         # Seasonal uses 'seasonal', others use 'system_id'. System Options used
@@ -843,6 +962,8 @@ def execute_pull_specific(
             "Publisher Scope",
             "System Option Scope",
             "System Option Usage",
+            # users.id is a UUID, but it is spelled `id`, not `system_id`.
+            "Users",
         ):
             pk_field = "id"
         elif tab_name == "Seasonal":
@@ -1172,6 +1293,14 @@ def execute_pull_specific(
                     clean_header_dict["created_at"] = get_taipei_now()
                 if clean_header_dict.get("updated_at") is None:
                     clean_header_dict["updated_at"] = get_taipei_now()
+            elif tab_name == "Users":
+                # hashed_password does not travel (see tabs.py). A restored
+                # account gets a hash nothing can verify against; an admin
+                # sets a real password through PUT /api/users/{id} here.
+                # INSERT-only by construction: an UPDATE that touched this
+                # would lock the admin out of their own machine on every
+                # Pull All.
+                clean_header_dict["hashed_password"] = UNUSABLE_PASSWORD_HASH
             elif tab_name in ("Collection", "Franchise", "Series"):
                 # created_at/updated_at are non-nullable on these models, so a
                 # tier tab that never carried them still needs a stamp to
@@ -1186,6 +1315,14 @@ def execute_pull_specific(
         # insert arm would raise TypeError, but the update arm setattr()s
         # silently onto the instance and the row appears to update while
         # nothing is persisted. Only a guard here catches both.
+        #
+        # The sheet outlives the schema: a Backup taken before a migration
+        # keeps its old headers until the next Backup overwrites them. Step 0
+        # added this for the denormalised display_name it writes on purpose;
+        # step 1's move of the personal columns (watching_status, my_rating,
+        # ep_fin, ...) off the nine detail models is the second wave. Which
+        # of those headers are UNEXPECTED is decided once per tab, above -
+        # see unexpected_headers.
         clean_header_dict = drop_non_columns(Model, clean_header_dict)
 
         # UPSERT LOGIC
@@ -1323,6 +1460,7 @@ def execute_pull_specific(
         "rows_skipped": rows_skipped,
         "credit_conflicts": credit_conflicts,
         "created_entities": created_entities,
+        "unresolved_refs": unresolved_refs,
     }
 
 
@@ -1344,6 +1482,12 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     # only place these actually reach a human.
     credit_conflicts: list[str] = []
     created_entities: list[str] = []
+    # References no local row matched - an unknown role, username or entry,
+    # or a header that is not a column any more. Each one is a row that did
+    # NOT restore, so it is reported the way an ambiguous credit is: the run
+    # still succeeds (the other rows landed), and the audit row is red so the
+    # gap is visible.
+    unresolved_refs: list[str] = []
 
     try:
         for tab in tabs_in_order:
@@ -1366,6 +1510,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             results[tab] = res.get("processed", 0)
             credit_conflicts.extend(res.get("credit_conflicts", []))
             created_entities.extend(res.get("created_entities", []))
+            unresolved_refs.extend(res.get("unresolved_refs", []))
 
     except Exception as e:
         logger.error(f"Full Pull Pipeline crashed: {e}")
@@ -1392,6 +1537,44 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             details_json=json.dumps({"pulled": results, "unread": unread_tabs}),
         )
         raise SheetsUnavailableError(summary)
+
+    if unresolved_refs:
+        # Every tab pulled, but some rows named a user, a role or an entry
+        # this database does not have, so they did not restore. Not raised:
+        # the caller needs the list to act on, and a raise would replace it
+        # with a generic error.
+        summary = (
+            f"Full Pull Pipeline completed with {len(unresolved_refs)} "
+            "unresolved reference(s); those rows did not restore. Fix the "
+            "sheet or restore the missing parent, then pull again: "
+            + "; ".join(unresolved_refs)
+        )
+        logger.error(summary)
+        log_data_control(
+            db,
+            "Pull",
+            "Pull All",
+            action_type,
+            "Failed",
+            rows_added=total_added,
+            rows_updated=total_updated,
+            error_message=summary,
+            details_json=json.dumps(
+                {
+                    "pulled": results,
+                    "unresolved_refs": unresolved_refs,
+                    "credit_conflicts": credit_conflicts,
+                    "created_entities": created_entities,
+                }
+            ),
+        )
+        return {
+            "status": "success",
+            "details": results,
+            "credit_conflicts": credit_conflicts,
+            "created_entities": created_entities,
+            "unresolved_refs": unresolved_refs,
+        }
 
     if credit_conflicts:
         # Every tab pulled, but some links were skipped - an incomplete
@@ -1426,6 +1609,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             "details": results,
             "credit_conflicts": credit_conflicts,
             "created_entities": created_entities,
+            "unresolved_refs": unresolved_refs,
         }
 
     if created_entities:
@@ -1456,4 +1640,5 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "details": results,
         "credit_conflicts": [],
         "created_entities": created_entities,
+        "unresolved_refs": [],
     }

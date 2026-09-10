@@ -1187,6 +1187,32 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_user_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Users sheet into typed data ready for the
+    Database.
+
+    Neither `hashed_password` nor `role_id` is emitted, because neither is in
+    the sheet: the password is credential material that deliberately does not
+    travel (pull.py stamps UNUSABLE_PASSWORD_HASH on a fresh account instead),
+    and role_id is minted per database - the role NAME travels as an extra
+    column and pull.py resolves it locally.
+
+    `username` is the identity, not `id`: the admin account is minted by
+    app/main.py's lifespan on every machine, so the same person holds a
+    different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
+
+    list_is_public is coerced rather than left None: the column is NOT NULL,
+    and a blank cell means "not public", not "unknown".
+    """
+    is_public = parse_from_sheet(raw.get("list_is_public"), bool)
+    return {
+        "id": parse_from_sheet(raw.get("id"), UUID),
+        "username": parse_from_sheet(raw.get("username"), str),
+        "list_is_public": bool(is_public),
+    }
+
+
 def parse_content_label_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Content Label sheet into typed data ready

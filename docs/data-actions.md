@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-09 (pipelines write catalogue columns only)
+Last verified: 2026-09-10 (the Users and User Media List tabs, and unresolved_refs)
 
 ## What this is for
 
@@ -64,49 +64,78 @@ media_id)` and resolves both by natural key. **Game Copy** is restored to the
 acting user rather than to whatever `user_id` the sheet carries, since a uuid
 in the sheet names whichever database wrote it.
 
-`SHEET_TABS` is the single list Backup writes and Pull restores. Its order is the **restore** order and is strict: a parent tab precedes every tab that points at it, through a real FK or an FK-less `(media_type, entry_id)` pair.
+`SHEET_TABS` is the single list Backup writes and Pull restores.
+
+### 2.1 The restore-order contract
+
+Its order is the **restore** order and is **strict**. It used to be strict by
+convention: most references were FK-less `(media_type, entry_id)` pairs, so an
+out-of-order restore produced quiet orphans that a later pass could fix. Steps
+0-2 of the multi-user work replaced those with real foreign keys, so the same
+mistake now raises a `ForeignKeyViolation` at the tab's commit and rolls back
+**every row on that tab** - for `User Media List`, every user's entire list.
+
+The chains that must hold:
+
+```
+Users            ->  before  User Media List   (user_media_list.user_id)
+Media            ->  before  User Media List   (user_media_list.media_id)
+Media            ->  before  the nine media tabs   (detail.system_id -> media)
+Collection -> Franchise -> Series -> Media
+Watch Order List -> Watch Order Section -> Watch Order Item
+Person / Studio / Publisher / Character / Content Label -> the media tabs
+```
+
+`Users` is first because nothing in the sheet points at it, and `Plan Next`,
+`Seasonal` and `Game Copy` all carry a NOT NULL `user_id`. The enforcement is
+`tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
+test.
+
+### 2.2 The tab list
 
 | # | Tab name | Model | `media_type` key |
 |---|---|---|---|
-| 1 | `System Options` | `SystemOption` |  |
-| 2 | `System Option Scope` | `SystemOptionScope` |  |
-| 3 | `System Option Usage` | `SystemOptionUsage` |  |
-| 4 | `System Option Alias` | `SystemOptionAlias` |  |
-| 5 | `Content Label` | `ContentLabel` |  |
-| 6 | `Person` | `Person` |  |
-| 7 | `Person Role` | `PersonRole` |  |
-| 8 | `Studio` | `Studio` |  |
-| 9 | `Publisher` | `Publisher` |  |
-| 10 | `Publisher Scope` | `PublisherScope` |  |
-| 11 | `Character` | `Character` |  |
-| 12 | `System Configs` | `SystemConfigs` |  |
-| 13 | `Collection` | `Collection` |  |
-| 14 | `Franchise` | `Franchise` |  |
-| 15 | `Series` | `Series` |  |
-| 16 | `Media` | `Media` |  |
-| 17 | `Anime` | `Anime` | `anime` |
-| 18 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 19 | `Movies` | `Movies` | `movie` |
-| 20 | `TV Shows` | `TVShows` | `tv-show` |
-| 21 | `Cartoons` | `Cartoon` | `cartoon` |
-| 22 | `Manga` | `Manga` | `manga` |
-| 23 | `Novel` | `Novel` | `novel` |
-| 24 | `Novel Unit` | `NovelUnit` |  |
-| 25 | `Comic` | `Comic` | `comic` |
-| 26 | `Game` | `Game` | `game` |
-| 27 | `Game Copy` | `GameCopy` |  |
-| 28 | `Watch Order List` | `WatchOrderList` |  |
-| 29 | `Watch Order Section` | `WatchOrderSection` |  |
-| 30 | `Watch Order Item` | `WatchOrderItem` |  |
-| 31 | `Media Relation` | `MediaRelation` |  |
-| 32 | `Plan Next` | `PlanNext` |  |
-| 33 | `Quote` | `Quote` |  |
-| 34 | `Character Casting` | `CharacterCasting` |  |
-| 35 | `Meme` | `Meme` |  |
-| 36 | `Note` | `Note` |  |
-| 37 | `Media Source` | `MediaSource` |  |
-| 38 | `Media Content Label` | `MediaContentLabel` |  |
-| 39 | `Seasonal` | `Seasonal` |  |
+| 1 | `Users` | `User` |  |
+| 2 | `System Options` | `SystemOption` |  |
+| 3 | `System Option Scope` | `SystemOptionScope` |  |
+| 4 | `System Option Usage` | `SystemOptionUsage` |  |
+| 5 | `System Option Alias` | `SystemOptionAlias` |  |
+| 6 | `Content Label` | `ContentLabel` |  |
+| 7 | `Person` | `Person` |  |
+| 8 | `Person Role` | `PersonRole` |  |
+| 9 | `Studio` | `Studio` |  |
+| 10 | `Publisher` | `Publisher` |  |
+| 11 | `Publisher Scope` | `PublisherScope` |  |
+| 12 | `Character` | `Character` |  |
+| 13 | `System Configs` | `SystemConfigs` |  |
+| 14 | `Collection` | `Collection` |  |
+| 15 | `Franchise` | `Franchise` |  |
+| 16 | `Series` | `Series` |  |
+| 17 | `Media` | `Media` |  |
+| 18 | `Anime` | `Anime` | `anime` |
+| 19 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 20 | `Movies` | `Movies` | `movie` |
+| 21 | `TV Shows` | `TVShows` | `tv-show` |
+| 22 | `Cartoons` | `Cartoon` | `cartoon` |
+| 23 | `Manga` | `Manga` | `manga` |
+| 24 | `Novel` | `Novel` | `novel` |
+| 25 | `Novel Unit` | `NovelUnit` |  |
+| 26 | `Comic` | `Comic` | `comic` |
+| 27 | `Game` | `Game` | `game` |
+| 28 | `Game Copy` | `GameCopy` |  |
+| 29 | `User Media List` | `UserMediaList` |  |
+| 30 | `Watch Order List` | `WatchOrderList` |  |
+| 31 | `Watch Order Section` | `WatchOrderSection` |  |
+| 32 | `Watch Order Item` | `WatchOrderItem` |  |
+| 33 | `Media Relation` | `MediaRelation` |  |
+| 34 | `Plan Next` | `PlanNext` |  |
+| 35 | `Quote` | `Quote` |  |
+| 36 | `Character Casting` | `CharacterCasting` |  |
+| 37 | `Meme` | `Meme` |  |
+| 38 | `Note` | `Note` |  |
+| 39 | `Media Source` | `MediaSource` |  |
+| 40 | `Media Content Label` | `MediaContentLabel` |  |
+| 41 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the nine entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -114,6 +143,41 @@ deferred, Pull commits tab by tab, so an entry tab restored first would fail at
 its own commit. Each of the nine entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
+
+**`Users`** carries `id`, `username`, `list_is_public` and `role`.
+`hashed_password` and `role_id` are dropped. `role_id` because
+`role.system_id` is minted per database by `ensure_rbac_seed`, so the role
+**name** travels instead and Pull resolves it locally - the same arrangement
+`Media Source` has with `option_id`; a role name this database does not know
+skips the row and lands in `unresolved_refs`, because `users.role_id` is NOT
+NULL with `ondelete="RESTRICT"` and one bad row must not cost every other
+account. `hashed_password` because it is credential material for other
+people's accounts and a Backup writes the sheet outside this database's trust
+boundary; Pull stamps `UNUSABLE_PASSWORD_HASH` on an account it creates and
+**never** touches an existing account's hash. The identity is `username`
+(UNIQUE), not `id`: the lifespan mints the `admin` account on every machine,
+so the same person holds a different uuid here and there.
+
+**`User Media List`** carries every user's list rows. `user_id`, `media_id`
+and `system_id` are dropped for `username`, `media_type` and `public_id` -
+both pairs are exact (`users.username` UNIQUE, `uq_media_type_public_id`), and
+a human reads this tab during an environment switch. Its natural key is
+`(user_id, media_id)` = `uq_user_media`, compared after both have been
+resolved to local uuids. A reference that resolves to nothing skips the row
+and lands in `unresolved_refs`.
+
+**`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
+reason. Step 3 made both tables per-user but left their tabs with no user
+column, so Pull stamped every restored row to the `admin` account; a second
+account's plans and season ratings came back as the admin's. Since Step 4 the
+name travels. Pull falls back to `_restore_owner_id` (the `admin` account, or
+the alphabetically first user) **only** when the header is absent altogether -
+a sheet written before Step 4, everything in which did belong to one person. A
+`username` that is present and names nobody skips the row and lands in
+`unresolved_refs`, rather than being quietly filed under the admin. `seasonal`'s
+primary key **is** the `(user_id, seasonal)` pair, so the user is not
+decoration there: without it a Pull updates whichever user's row for that
+season happened to be first.
 
 Note the tab for the `anime_movies` table is named `Anime Movie` (singular), while `Movies`, `TV Shows` and `Cartoons` are plural. Derived lookups: `TAB_BY_NAME`, `TAB_NAMES`, `TAB_MODELS`, `TAB_PARSERS`, `MEDIA_TYPE_FOR_TAB` (only the nine entry tabs).
 
@@ -220,9 +284,11 @@ a sheet carries is translated through the `Content Label` tab before it is
 stored — the same treatment `System Option Scope` gets. A labelling whose label
 cannot be resolved is skipped with a warning rather than failing the tab.
 
-Still outside the sheet, deliberately: `users`, `role`, `role_permission`
-(`ensure_rbac_seed` recreates guest and admin on any machine, but a role added
-or narrowed by hand is per-machine), `data_control_logs` and `deleted_record`.
+Still outside the sheet, deliberately: `role` and `role_permission`
+(`ensure_rbac_seed` recreates guest, user and admin on any machine, but a role
+added or narrowed by hand is per-machine), `data_control_logs` and
+`deleted_record`. `users` **is** in the sheet since Step 4, minus its
+`hashed_password` - see the per-tab note below.
 
 ---
 
@@ -249,7 +315,7 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      | string `collection_id` | look up `Collection` by any of its five names; not found → set to `None`, row kept (collection is optional) |
      | string `series_id` | look up `Series` by en/cn/alt name; **not found → row skipped** |
 
-   - **Primary key field**: `id` for `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope` and `System Option Usage`; `seasonal` for `Seasonal`; `system_id` for everything else.
+   - **Primary key field**: `id` for `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope`, `System Option Usage` and `Users` (`users.id` is a uuid, but it is spelled `id`); `seasonal` for `Seasonal`; `system_id` for everything else.
    - **Id-less matching**: when the PK cell is blank the row is matched to an existing local row by a natural key so a re-import updates instead of duplicating:
 
      | Tab | Matched on |
@@ -271,6 +337,8 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      | Tab | Matched on | Sheet PK |
      |---|---|---|
+     | `Users` | `username` (`users.username` is UNIQUE) | uuid — tried first |
+     | `User Media List` | `user_id` + `media_id` (`uq_user_media`), both resolved from `username` and `(media_type, public_id)` first | uuid — **not carried at all** |
      | `System Options` | `category` + `value` | uuid — tried first |
      | `Person`, `Studio` | `name_en` + `name_cn` + `name_jp` + `name_alt` | uuid — tried first |
      | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
@@ -298,12 +366,19 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      | Tab | Defaults |
      |---|---|
-     | `Anime`, `Movies`, `Anime Movie`, `TV Shows`, `Cartoons` | `watching_status = "Might Watch"`, `created_at` / `updated_at = get_taipei_now()` |
-     | `Manga` | `reading_status = "Might Read"`, `created_at` / `updated_at` |
-| `Game` | `playing_status = "Might Play"`, `created_at` / `updated_at` |
+     | `Anime`, `Movies`, `Anime Movie`, `TV Shows`, `Cartoons`, `Manga`, `Game` | `created_at` / `updated_at = get_taipei_now()` |
      | `Collection`, `Franchise`, `Series` | `created_at` / `updated_at` (non-nullable on these models) |
+     | `Users` | `hashed_password = UNUSABLE_PASSWORD_HASH` |
 
-     `Novel` and `Comic` get no `reading_status` default here; they rely on their parsers.
+     The `watching_status` / `reading_status` / `playing_status` defaults that
+     used to sit here are gone: Step 1 moved those columns to
+     `user_media_list`, and a status default belongs with the row that owns
+     it. An entry with no list row reads back as `user_list.DEFAULT_STATUS`
+     anyway. `Novel` and `Comic` are not in the table at all.
+
+     The `Users` default is INSERT-only *by construction*, not merely by
+     convention: an UPDATE that touched `hashed_password` would lock the admin
+     out of their own machine on every Pull All.
    - **Upsert**: existing → `setattr` every remaining key (`rows_updated += 1`); otherwise `Model(**dict)` + `db.add` (`rows_added += 1`).
    - **Link columns applied**: after the row exists (a fresh insert is `db.flush()`ed first so `system_id` is real), `replace_credits` / `replace_tags` are called per popped column with `names_from_sheet_value(raw)`.
    - `db.flush()` every 50 rows so newly minted UUIDs are visible to later FK references.
@@ -325,7 +400,32 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
    are routinely a *permutation* of the local ones, so mid-restore two rows
    briefly share a value. The whole tab is one transaction, so the check lands
    at COMMIT, by which point the end state is unique again.
-7. Log `Pull {tab_name}` / `Success` with `rows_added` / `rows_updated`; return `{"status": "success", "processed", "rows_added", "rows_updated"}`.
+7. Log `Pull {tab_name}` / `Success` with `rows_added` / `rows_updated`; return `{"status": "success", "processed", "rows_added", "rows_updated", "rows_skipped", "credit_conflicts", "created_entities", "unresolved_refs"}`.
+
+   **`unresolved_refs`** is the channel for everything the sheet named that
+   this database cannot resolve, one line each. A row it names was **skipped**,
+   which on a restore is lost data, so it is reported rather than only logged:
+
+   | Source | Line |
+   |---|---|
+   | `Users` with a role name no local role matches | `Users: role 'wizard' for user 'ghost' is unknown here` |
+   | `User Media List` with an unknown `username` | `User Media List: user 'nobody' is unknown here` |
+   | `User Media List` with an unknown `(media_type, public_id)` | `User Media List: entry (anime, 999999) is unknown here, for user 'cg1618'` |
+   | `Plan Next` / `Seasonal` naming a `username` no local account matches | `Seasonal: user 'nobody' is unknown here` |
+   | a header the tab's model no longer has | `Anime: column 'watching_status' is not on this model any more` |
+
+   The last one is the **stale-column guard** reporting itself. `drop_non_columns`
+   silently discards any header that is not a column of the model - which is
+   right for the ones the tab writes on purpose (the denormalised
+   `display_name`, the natural keys standing in for a database-local id, the
+   legacy credit and tag headers) and wrong for one that means "this sheet
+   predates a migration" or "this header is a typo that has been quietly
+   discarding a real value". `unexpected_headers(tab_name, headers)` decides
+   which is which, **once per tab from the header row**, so a tab with a
+   thousand stale rows writes one line, not a thousand. Without the guard
+   itself, `Model(**payload)` would raise `TypeError` and abort the whole tab -
+   which is what the first Pull All after Step 1 would have done, on nine tabs
+   at once.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 
@@ -337,7 +437,14 @@ Skip-unreadable policy: a tab whose result has `reason == "sheet_unavailable"` i
 |---|---|---|
 | every tab restored | `Pull` / `Pull All` / `Success`, totals, `details_json` = `{tab: processed}` | 200 `{"status": "success", "details": {...}}` |
 | one or more tabs unreadable | `Failed`, `error_message` = `"Full Pull Pipeline incomplete. Tabs not pulled: ..."`, `details_json` = `{"pulled": ..., "unread": ...}` | raises `SheetsUnavailableError` (500) |
+| every tab pulled, some references unresolved | `Failed`, `error_message` = `"Full Pull Pipeline completed with N unresolved reference(s); those rows did not restore..."`, `details_json` = `{"pulled": ..., "unresolved_refs": [...], ...}` | 200 `{"status": "success", ..., "unresolved_refs": [...]}` |
 | any other error | `Failed` with the message | re-raised (500) |
+
+`unresolved_refs` is checked **before** `credit_conflicts`, and like it the run
+is not raised: the caller needs the list to act on, and a raise would replace
+it with a generic error. The row is red so the gap is visible on the admin
+page, which otherwise shows only a generic toast. Every `execute_pull_all`
+return carries the key, empty when there was nothing to report.
 
 ---
 

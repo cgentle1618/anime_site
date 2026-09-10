@@ -25,6 +25,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 # ==========================================
 
 
+# The hash stored for an account that has no password on this machine.
+#
+# users.hashed_password does NOT travel in the Google Sheet: it is credential
+# material for other people's accounts, and a Backup writes the sheet outside
+# this database's trust boundary. Pull therefore restores the account and
+# stamps this marker, and an admin sets a real password through
+# PUT /api/users/{id} on the arriving machine.
+#
+# "!" is not a bcrypt hash and cannot be produced by get_password_hash (every
+# bcrypt hash starts "$2"), so no input can ever verify against it: checkpw
+# raises on the malformed salt and verify_password returns False. Django uses
+# the same leading "!" convention for the same reason.
+UNUSABLE_PASSWORD_HASH = "!"
+
+
+def is_unusable_password_hash(value: str | None) -> bool:
+    """True when this account cannot be logged into until a password is set."""
+    return not value or value.startswith("!")
+
+
 def get_password_hash(password: str) -> str:
     """
     Hashes a plain-text password using the bcrypt algorithm.

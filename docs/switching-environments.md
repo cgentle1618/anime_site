@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-08 (GCP code removed; stale DATABASE_URL warning added; both machines now on docker-compose postgres:17)
+Last verified: 2026-09-10 (accounts and list rows now travel in the sheet; passwords do not)
 
 ## What this is for
 
@@ -48,7 +48,8 @@ so local development is the only runtime on either machine. Each machine has its
 | `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them. Deliberately different per machine: **company** sets `STEAM_ENABLED=false` and leaves `STEAM_API_KEY` / `STEAM_ID` unset, because the company network inspects TLS to Steam's hosts and would log the key from the Web API's URL; **home** omits the line entirely (the default is `true`) so prices, Metacritic and playtime all fill. Nothing else about the two files should diverge — see [external-apis.md](external-apis.md#turning-steam-off-entirely) |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
 | Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy — **278 MB** on the home machine on 2026-09-08. They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
-| Users, roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
+| Accounts and everybody's list rows | Google Sheets | the `Users` and `User Media List` tabs, since Step 4. **Passwords do not travel** — an account restored here needs a password set at `/users` before it can be logged into |
+| Roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest, user and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
 
@@ -122,6 +123,21 @@ tab; Pull All overwrites every table. So:
    the newest schema, and Pull matches columns by header name.
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.
+
+   > **Passwords do not travel.** Since Step 4 the `Users` tab carries who
+   > exists and what role they hold, and the `User Media List` tab carries
+   > everybody's statuses, ratings and progress - but **not** the password
+   > hash. It is credential material, and the sheet leaves this database's
+   > trust boundary on every Backup. An account Pull created on this machine
+   > cannot be logged into until an admin sets a password on it at `/users`.
+   > Your own admin account is unaffected: Pull matches by `username` and
+   > never overwrites an existing account's password.
+   >
+   > Check the `Pull All` row in the admin log afterwards. A red row saying
+   > *"completed with N unresolved reference(s)"* means those rows did **not**
+   > restore - a role, a username or an entry the sheet named that this
+   > database does not have. See
+   > [data-actions.md](data-actions.md#32-pull-all--execute_pull_alldb-action_type).
 6. If this checkout predates the owner-typed cover folders (`static/covers/`
    still holds loose `<uuid>.jpg` files), run
    `venv/Scripts/python.exe -m scripts.migrate_cover_layout` and then the same
@@ -146,5 +162,7 @@ tab; Pull All overwrites every table. So:
 - [ ] deps installed if `requirements.txt` / `package.json` moved
 - [ ] `alembic upgrade head`
 - [ ] Pull All (only if data changed elsewhere), then Calculate All if needed
+- [ ] admin log checked: the `Pull All` row names no unresolved references
+- [ ] a password set at `/users` for any account Pull restored here
 - [ ] `scripts/migrate_cover_layout.py --apply` if the covers are still flat here
 - [ ] `npm run build`

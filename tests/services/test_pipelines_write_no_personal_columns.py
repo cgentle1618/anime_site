@@ -99,6 +99,24 @@ def test_no_sheet_parser_for_a_media_tab_parses_a_personal_column():
         assert not named, f"{parser.__name__} parses {sorted(named)}"
 
 
+def test_no_media_model_still_declares_a_personal_column():
+    """
+    The other half of the same rule. A parser cannot write a column the model
+    does not have, so the models are what make the guard above unnecessary
+    rather than merely unenforced - step 1 moved all of these to
+    user_media_list, and a column that came back would give Fill and Replace
+    somewhere to write another user's opinion.
+    """
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    offenders = []
+    for key, ref in MEDIA_TABLES.items():
+        cols = {c.name for c in ref.model.__table__.columns}
+        for column in sorted(cols & PERSONAL):
+            offenders.append(f"{key}: model still declares {column!r}")
+    assert not offenders, "\n".join(offenders)
+
+
 def test_the_guard_actually_has_teeth():
     """A canary: if PERSONAL ever comes back empty the two tests above pass
     vacuously and guard nothing."""

@@ -6,10 +6,24 @@ the model, the parser and the restore order are declared exactly once. They
 used to live in three hand-maintained places (Backup's 26 blocks, Pull's
 MODEL_MAP/PARSER_MAP, Pull's order list) that had already drifted.
 
-Order is the RESTORE order and is strict: a parent tab must precede every tab
-that points at it, whether through a real FK (Collection -> Franchise ->
-Series -> entries; Watch Order List -> Section -> Item) or a FK-less
-(media_type, entry_id) pair (relations, plan-next, quotes, memes, notes).
+Order is the RESTORE order and is STRICT. It used to be strict by convention:
+most references were FK-less (media_type, entry_id) pairs, so an out-of-order
+restore produced quiet orphans. Steps 0-2 of the multi-user work replaced
+those with real foreign keys, so the same mistake now raises a
+ForeignKeyViolation at the tab's commit and rolls back every row on that tab -
+for User Media List, every user's entire list.
+
+The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
+
+    Users            -> User Media List      (user_media_list.user_id)
+    Media            -> User Media List      (user_media_list.media_id)
+    Media            -> the nine media tabs  (detail.system_id -> media)
+    Collection -> Franchise -> Series -> Media
+    Watch Order List -> Section -> Item
+    Person / Studio / Publisher / Character / Content Label -> the media tabs
+
+Users is first because nothing points at it and Plan Next, Seasonal and Game
+Copy all carry a NOT NULL user_id.
 """
 
 from dataclasses import dataclass
@@ -98,9 +112,34 @@ def _list_row_public_id(row: Any, db: Session) -> Optional[int]:
     return media.public_id if media else None
 
 
-def _list_row_username(row: Any, db: Session) -> Optional[str]:
+def _row_username(row: Any, db: Session) -> Optional[str]:
+    """
+    Whose row this is, by name.
+
+    Every per-user table drops its raw user_id: the uuid belongs to whichever
+    database last ran a Backup, and users.id is minted per machine by the
+    lifespan. username is UNIQUE and is what identifies a person across
+    databases - the same arrangement the Users tab itself uses.
+    """
+    if getattr(row, "user_id", None) is None:
+        return None
     user = db.get(models.User, row.user_id)
     return user.username if user else None
+
+
+def _user_role_name(row: Any, db: Session) -> Optional[str]:
+    """
+    The NAME of the role a user holds.
+
+    role.system_id is minted per database by ensure_rbac_seed, so the raw
+    role_id would be a dangling reference on the other machine - and
+    users.role_id is NOT NULL with ondelete="RESTRICT", so the violation would
+    roll the whole tab back. Same shape as Media Source's option columns.
+    """
+    if row.role_id is None:
+        return None
+    role = db.get(models.Role, row.role_id)
+    return role.name if role else None
 
 
 MEDIA_TYPE_ONLY: tuple[str, ...] = ("media_type",)
@@ -112,7 +151,25 @@ DISPLAY_NAME_EXTRA: tuple[tuple[str, Callable[[Any, Session], Any]], ...] = (
 
 
 SHEET_TABS: tuple[SheetTab, ...] = (
-    # Vocabulary first; scopes point at options via option_id.
+    # Accounts first. Nothing in the sheet points at users, and every
+    # per-user tab does: user_media_list.user_id is a real FK, and steps 3
+    # and 5 add user_id to plan_next, seasonal, note, meme and quote. The
+    # roles a user cites need no tab of their own - ensure_rbac_seed creates
+    # guest/admin/user on every machine at startup.
+    #
+    # hashed_password is dropped ON PURPOSE and is the one column in the whole
+    # registry that does not round-trip: it is credential material for other
+    # people's accounts, and a Backup writes the sheet outside this database's
+    # trust boundary. Pull stamps UNUSABLE_PASSWORD_HASH on an account it
+    # creates; an admin sets the real password on the arriving machine.
+    SheetTab(
+        "Users",
+        models.User,
+        f.parse_user_from_sheet,
+        drop_columns=("hashed_password", "role_id"),
+        extra_columns=(("role", _user_role_name),),
+    ),
+    # Vocabulary next; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
     SheetTab("System Option Scope", models.SystemOptionScope, f.parse_system_option_scope_from_sheet),
     SheetTab("System Option Usage", models.SystemOptionUsage, f.parse_system_option_usage_from_sheet),
@@ -173,7 +230,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         extra_columns=(
             ("media_type", _list_row_media_type),
             ("public_id", _list_row_public_id),
-            ("username", _list_row_username),
+            ("username", _row_username),
         ),
     ),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.
@@ -184,14 +241,20 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     SheetTab("Media Relation", models.MediaRelation, f.parse_media_relation_from_sheet),
     # The sheet keeps the (scope, target_id) pair a human reads during an
     # environment switch; the table stores three foreign keys. user_id is
-    # dropped because the sheet has no user column until Step 4 - Pull stamps
-    # the restore owner (_restore_owner_id in pull.py).
+    # dropped for `username`, the way every other per-user tab drops it: the
+    # uuid belongs to whichever database wrote the sheet. Pull falls back to
+    # the restore owner (_restore_owner_id) only for a sheet written before
+    # Step 4, which carries no username header at all.
     SheetTab(
         "Plan Next",
         models.PlanNext,
         f.parse_plan_next_from_sheet,
         drop_columns=("user_id", "media_id", "franchise_id", "series_id"),
-        extra_columns=(("scope", _plan_scope), ("target_id", _plan_target_id)),
+        extra_columns=(
+            ("scope", _plan_scope),
+            ("target_id", _plan_target_id),
+            ("username", _row_username),
+        ),
     ),
     SheetTab("Quote", models.Quote, f.parse_quote_from_sheet),
     # After every media tab: a casting reaches its entry by the FK-less
@@ -225,14 +288,16 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         models.MediaContentLabel,
         f.parse_media_content_label_from_sheet,
     ),
-    # user_id is dropped for the same reason the Plan Next tab drops it: the
-    # sheet has no user column until Step 4, and Pull stamps the restore
-    # owner (_restore_owner_id in pull.py).
+    # user_id is dropped for `username` for the same reason the Plan Next tab
+    # drops it. seasonal's primary key is the (user_id, seasonal) pair, so the
+    # user is not decoration here - without it a Pull updates whichever user's
+    # row for that season happens to be first.
     SheetTab(
         "Seasonal",
         models.Seasonal,
         f.parse_seasonal_from_sheet,
         drop_columns=("user_id",),
+        extra_columns=(("username", _row_username),),
     ),
 )
 

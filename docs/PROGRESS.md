@@ -33,6 +33,13 @@ The one check nobody has run is Task 10 Step 7's browser pass: log out and
 confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on
 `/login?next=...`.
 
+Step 4 - Google Sheets for multiple users - shipped 2026-09-10, all eleven
+tasks plus a twelfth the plan did not list (`username` on the Plan Next and
+Seasonal tabs, the debt Step 3 named). The by-hand Backup and Pull All round
+trip was run on the live company database afterwards. `docs/roadmap.md` keeps
+the record and this table is deleted per the convention above. Step 5 (note
+scoping) is not started.
+
 ## Open items
 
 Unclaimed. None block using the app.
@@ -69,4 +76,6 @@ Unclaimed. None block using the app.
 | Pull All | run on home 2026-09-09 after the migration, all 40 tabs, 0 credit conflicts, 0 invented entities. Needed the `Game Copy` fix below first. Post-pull: 2081 `media` / `user_media_list`, 833 `anime`, 88 `game_copy`, 0 orphans |
 | `Game Copy` identity | `game_copy` mints its uuid per database (the Steam import creates the rows), so the sheet's uuid always missed and the INSERT hit `uq_game_copy_row`, killing the whole Pull. Added to `DERIVED_IDENTITY_KEYS` on 2026-09-09 |
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
+| Step 4 sheet | the **company** database ran a Backup and a Pull All by hand on 2026-09-10, after the code landed: the sheet now carries the `Users` and `User Media List` tabs and a `username` column on Plan Next and Seasonal. **The home machine must `git pull` before its next Pull All** - an older checkout has no Users tab and no username resolution, so it would restore the accounts nowhere and file every plan and season rating under `admin`. No migration is involved; the schema is unchanged by this step |
+| Step 4 test db | `anime_site_test_step4`, created 2026-09-10 in the container; droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |
