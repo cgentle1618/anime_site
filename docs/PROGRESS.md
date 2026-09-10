@@ -53,9 +53,9 @@ scoping) is not started.
 | 5 | `quote.author_id` | done a15128a1 |
 | 6 | `meme.author_id` | done a15128a1 |
 | 7 | Personal sections are read only by their author | done 209ec659 |
-| 8 | Writes follow the scope, and one public-profile read | done (enforces Step 2's `self.personal_notes`, not the plan's new `note.write_own`) |
-| 9 | `remark` - author recorded, one-per-owner kept | wip step5-home |
-| 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | todo |
+| 8 | Writes follow the scope, and one public-profile read | done 3c4cea3d (enforces Step 2's `self.personal_notes`, not the plan's new `note.write_own`) |
+| 9 | `remark` - author recorded, one-per-owner kept | done |
+| 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | wip step5-home |
 | 11 | `meme` - four owner FKs and a `num_nonnulls` CHECK | todo |
 | 12 | Record what changed | todo |
 

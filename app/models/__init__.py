@@ -121,6 +121,16 @@ __all__ = [
 # write goes through app.services.domain.remark_field.upsert_remark. Attached
 # here, after all models are imported, so the ten declarations sit together and
 # no model module has to import Note.
+#
+# LIMITATION, deliberate and recorded. `remark` is a personal-scope section
+# (app/utils/note_sections.py), but this property is class-level: a scalar
+# subquery cannot know which viewer is asking, so it cannot filter by
+# note.author_id. The partial unique index ix_note_one_remark_per_owner is
+# therefore still per-OWNER rather than per-owner-per-author, which means a
+# second user's remark on the same owner is refused by the database rather
+# than shown to the first user. Replacing this property with a per-viewer read
+# is part of the deferred authorization redesign; until then, do not relax
+# that index.
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.orm import column_property  # noqa: E402
 

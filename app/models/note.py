@@ -102,6 +102,14 @@ class Note(Base):
         # and so create_all-built schemas (the test DB) enforce it too. Mirrors
         # the index created in revision r1e2m3a4r5k6 - keep the name and the
         # predicate identical.
+        #
+        # Per OWNER, not per owner-per-author, even though `remark` is a
+        # personal-scope section: the read path is a class-level
+        # column_property that cannot know who is asking. A second user's
+        # remark is therefore refused rather than shown to the first user - the
+        # conservative failure. The full reason is in app/models/__init__.py
+        # above _REMARK_OWNERS; do not relax this index before that read path
+        # is replaced.
         Index(
             "ix_note_one_remark_per_owner",
             "owner_type",
