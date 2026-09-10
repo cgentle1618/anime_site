@@ -1,5 +1,6 @@
 """Unit tests for the notes section registry."""
 
+import dataclasses
 
 from app.utils import note_sections as ns
 from app.utils.media_resolver import OWNER_TABLES
@@ -422,3 +423,104 @@ def test_insert_songs_tracks_status_but_not_type():
     assert sec.statuses == ns.MUSIC_STATUSES
     assert sec.kinds == ()
     assert sec.default_kind is None
+
+
+# --- scope -----------------------------------------------------------------
+# catalog: one shared set of rows, admin-authored, read by everyone.
+# personal: one set per user, read only by its author.
+# Sections backed by their own table (quotes, memes) store no note row and so
+# have no scope to declare.
+PERSONAL_KEYS = {
+    "remark",
+    "advantages",
+    "disadvantages",
+    "double_edged",
+    "episode_comments",
+    "questions",
+    "personal_reviews",
+}
+
+CATALOG_KEYS = {
+    "op",
+    "ed",
+    "insert_songs",
+    "ost",
+    "op_ed_changes",
+    "extended_episodes",
+    "adaptation",
+    "resources",
+    "public_reviews",
+    "highlights",
+    "highlight_episodes",
+    "highlight_passages",
+    "highlight_moments",
+    "analysis",
+    "cinematography",
+    "craft",
+    "foreshadowing",
+    "symmetry",
+    "guides",
+    "builds_and_mods",
+}
+
+
+def test_scope_has_no_default():
+    """
+    The guard the whole scheme rests on. With a default, the next section added
+    would inherit it silently - and if that default were `catalog`, one
+    person's private note would be published to every user by omission.
+    """
+    field = {f.name: f for f in dataclasses.fields(ns.NoteSection)}["scope"]
+    assert field.default is dataclasses.MISSING
+    assert field.default_factory is dataclasses.MISSING
+
+
+def test_every_stored_section_declares_a_real_scope():
+    for sec in ns.NOTE_SECTIONS:
+        if sec.shape in ns.STORED_SHAPES:
+            assert sec.scope in (ns.SCOPE_CATALOG, ns.SCOPE_PERSONAL), (
+                f"{sec.key} declares scope {sec.scope!r}"
+            )
+
+
+def test_external_sections_carry_no_scope():
+    # quotes and memes are universal - shared, unfiltered, no per-user copies -
+    # and are stored in their own tables, so a scope on them would mean nothing.
+    external = [s for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_EXTERNAL]
+    assert {s.key for s in external} == {"quotes", "memes"}
+    for sec in external:
+        assert sec.scope is None
+
+
+def test_the_personal_sections_are_exactly_these_seven():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
+        PERSONAL_KEYS
+    )
+    assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
+
+
+def test_the_catalog_sections_are_exactly_these_twenty():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
+        CATALOG_KEYS
+    )
+    assert ns.CATALOG_SECTIONS == CATALOG_KEYS
+
+
+def test_the_two_scopes_partition_every_stored_section():
+    stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
+    assert len(stored) == 27
+    assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
+    assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
+
+
+def test_sections_by_scope_returns_registry_order():
+    keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
+    assert keys == [
+        "remark",
+        "advantages",
+        "disadvantages",
+        "double_edged",
+        "personal_reviews",
+        "episode_comments",
+        "questions",
+    ]

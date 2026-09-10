@@ -10,6 +10,12 @@ and both the API schema layer and the frontend read it from here.
 Adding a section is one entry and no migration. Adding a new *shape* is rare
 and costs one nullable column on `note`.
 
+Each section also declares a `scope`: `catalog` sections hold one shared set of
+rows written by admins and read by everyone, `personal` sections hold one set
+per user and are read only by their author. That distinction lives here rather
+than on the table so that changing it later stays a registry edit plus a data
+reassignment - no schema change - which is the whole reason this module exists.
+
 Sections that look similar across media types are deliberately kept distinct
 (`highlights` vs `highlight_episodes` vs `highlight_passages`, `cinematography`
 vs `craft`): the drift is intentional, not accidental.
@@ -63,6 +69,14 @@ STORED_SHAPES = frozenset(
     }
 )
 
+# --- Scopes ---------------------------------------------------------------
+# Whose rows a section holds. The distinction lives here rather than in the
+# schema because this module's own rule is "adding a section is one entry and
+# no migration", and a catalogue/personal reclassification must obey it: it is
+# a registry edit plus a data reassignment, never an ALTER TABLE.
+SCOPE_CATALOG = "catalog"  # one shared set of rows, admin-authored
+SCOPE_PERSONAL = "personal"  # one set per user
+
 # --- Owner groups ---------------------------------------------------------
 # Both derive from media_resolver rather than restating its lists: a new media
 # type must not silently leave a group here stale.
@@ -114,6 +128,14 @@ class NoteSection:
     shape: str
     label: str
     owners: tuple[str, ...]
+    # catalog: one shared set of rows, written by admins, read unfiltered by
+    # everyone. personal: one set per user, read only by its author.
+    # None only for SHAPE_EXTERNAL sections, which store no `note` row at all.
+    #
+    # No default, deliberately. A default would let the next section added
+    # inherit a scope by omission, and the wrong inheritance publishes one
+    # person's private note to every user. A test asserts the absence.
+    scope: str | None
     # Per-owner label overrides; `label` is the fallback.
     labels: dict[str, str] = field(default_factory=dict)
     # The group whose card this section renders inside. None renders flat.
@@ -175,6 +197,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="備註 Remark",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         singleton=True,
     ),
     NoteSection(
@@ -182,6 +205,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="優點 Advantages",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -189,6 +213,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="缺點 Disadvantages",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -196,6 +221,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="優缺點",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -203,6 +229,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_OR_LINK,
         label="大眾評價 Public Reviews",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         group="reviews",
     ),
     NoteSection(
@@ -210,6 +237,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="我的評價 Personal Reviews",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -218,6 +246,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
         owners=("anime", "tv-show", "cartoon", "game"),
+        scope=SCOPE_PERSONAL,
         # A game is cut into chapters or parts rather than episodes, but the
         # section is the same one: a comment on one segment of the work.
         labels={"game": "各章評論 Part Reviews"},
@@ -230,6 +259,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_NAME_ENTRIES,
         label="攻略 Guides",
         owners=("game",),
+        scope=SCOPE_CATALOG,
     ),
     NoteSection(
         # NOT `resources`: a site-wide `resources` section already exists
@@ -241,6 +271,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_NAME_ENTRIES,
         label="配裝/模組 Builds & Mods",
         owners=("game",),
+        scope=SCOPE_CATALOG,
         # Builds, mods and tools took the same shape once guides became
         # name_entries, so they are one section with a kind rather than three
         # near-identical ones. Guides stays separate: it is filled for nearly
@@ -253,6 +284,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段 Highlights",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 6",
         # The stored data distinguishes a great episode from a great moment or
         # arc, so the section keeps a dropdown even though its siblings do not.
@@ -264,6 +296,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
+        scope=SCOPE_CATALOG,
         labels={"manga": "神回"},
         # TV shows and cartoons draw the same distinction anime does. Manga
         # does not, so it keeps the plain field.
@@ -276,6 +309,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="神片段",
         owners=("novel",),
+        scope=SCOPE_CATALOG,
     ),
     NoteSection(
         key="highlight_moments",
@@ -283,6 +317,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神場景 Highlights",
         owners=("game",),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
     NoteSection(
@@ -290,6 +325,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="解析 Analysis",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         group="analysis_group",
     ),
     NoteSection(
@@ -297,6 +333,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="分鏡/演出/巧思",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
     ),
@@ -305,6 +342,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="巧思",
         owners=("novel",),
+        scope=SCOPE_CATALOG,
         group="analysis_group",
     ),
     NoteSection(
@@ -320,6 +358,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
     ),
@@ -336,6 +375,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
     ),
@@ -350,6 +390,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="OP",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -360,6 +401,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="ED",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -374,6 +416,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_NAME_LINKS,
         label="插入曲 Insert Song",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         # The only tracking dropdown this section needs, and the same one OP,
         # ED and OST offer. There is no type: an insert song is whatever cut
@@ -387,6 +430,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="OST",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -398,6 +442,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="OP/ED 變動",
         owners=("anime", "tv-show", "cartoon"),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=OP_ED_KINDS,
         locator_placeholder="Episode(s), e.g. ep 3",
@@ -408,6 +453,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="加長",
         owners=("anime", "tv-show", "cartoon"),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
@@ -416,6 +462,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="改編 Adaptation",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "novel")
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         desc_required=("anime", "anime-movie", "novel"),
     ),
     NoteSection(
@@ -423,6 +470,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_NAME_LINKS,
         label="Resources",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         standalone=True,
     ),
     NoteSection(
@@ -430,6 +478,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="Questions",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         # The locator here is not an episode: it is whatever prompted the
         # question - an episode, a scene, an interview. Optional, because
         # plenty of questions are about the work as a whole.
@@ -446,6 +495,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # A quote is said in a specific work, so it stays entry-only - see the
         # class docstring in app/models/quote.py.
         owners=ENTRY_OWNERS,
+        # Universal: shared, unfiltered, no per-user copies. Backed by the
+        # `quote` table, so there is no `note` row to scope.
+        scope=None,
         group="quotes_memes",
     ),
     NoteSection(
@@ -454,11 +506,25 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="梗/迷因 Memes",
         # A running gag often spans a franchise, so meme already allows all ten.
         owners=ALL_OWNERS,
+        # Universal, like quotes, and backed by the `meme` table.
+        scope=None,
         group="quotes_memes",
     ),
 )
 
 _BY_KEY = {s.key: s for s in NOTE_SECTIONS}
+
+PERSONAL_SECTIONS: frozenset[str] = frozenset(
+    s.key for s in NOTE_SECTIONS if s.scope == SCOPE_PERSONAL
+)
+CATALOG_SECTIONS: frozenset[str] = frozenset(
+    s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
+)
+
+
+def sections_by_scope(scope: str) -> list[NoteSection]:
+    """Every section of one scope, in display order."""
+    return [s for s in NOTE_SECTIONS if s.scope == scope]
 
 
 def section_by_key(key: str) -> NoteSection | None:

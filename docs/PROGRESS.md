@@ -40,6 +40,25 @@ trip was run on the live company database afterwards. `docs/roadmap.md` keeps
 the record and this table is deleted per the convention above. Step 5 (note
 scoping) is not started.
 
+## Step 5 - notes scoped per section
+
+`docs/superpowers/plans/2026-09-08-step5-notes-scoping.md`. `<who>` = `step5-home`.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | `scope` on `NoteSection` | wip step5-home |
+| 2 | Serve `scope` on `/api/notes/sections` | todo |
+| 3 | `Viewer.user_id` | todo |
+| 4 | `note.author_id` | todo |
+| 5 | `quote.author_id` | todo |
+| 6 | `meme.author_id` | todo |
+| 7 | Personal sections are read only by their author | todo |
+| 8 | Writes follow the scope, and one public-profile read | todo |
+| 9 | `remark` - author recorded, one-per-owner kept | todo |
+| 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | todo |
+| 11 | `meme` - four owner FKs and a `num_nonnulls` CHECK | todo |
+| 12 | Record what changed | todo |
+
 ## Open items
 
 Unclaimed. None block using the app.
@@ -78,4 +97,5 @@ Unclaimed. None block using the app.
 | `.env` gap | none on this machine - `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` and `STEAM_API_KEY` / `STEAM_ID` are all set. Steam verified live 2026-09-07: 80 games owned, 53 with playtime. `.env` travels nowhere, so the other machine and Cloud Run still need the two Steam vars |
 | Step 4 sheet | the **company** database ran a Backup and a Pull All by hand on 2026-09-10, after the code landed: the sheet now carries the `Users` and `User Media List` tabs and a `username` column on Plan Next and Seasonal. **The home machine must `git pull` before its next Pull All** - an older checkout has no Users tab and no username resolution, so it would restore the accounts nowhere and file every plan and season rating under `admin`. No migration is involved; the schema is unchanged by this step |
 | Step 4 test db | `anime_site_test_step4`, created 2026-09-10 in the container; droppable |
+| Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |
