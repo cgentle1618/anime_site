@@ -163,6 +163,25 @@ describe("visibleSections", () => {
     expect(routes).toContain("/statistics");
   });
 
+  it("shows Settings to a member holding self.list and to nobody else", () => {
+    // The one row a signed-in non-admin has of their own, which is why it is
+    // an item-level requirement inside a section a guest may open rather than
+    // a row in the wholly admin-gated Admin section.
+    const holdsSelfList = (p) => p === "self.list";
+
+    const forGuest = visibleSections(NAV_SECTIONS, holdsNothing)
+      .filter((s) => s.key === "insights")
+      .flatMap((s) => sectionItems(s).map((i) => i.to));
+    expect(forGuest).not.toContain("/settings");
+
+    const forMember = visibleSections(NAV_SECTIONS, holdsSelfList)
+      .filter((s) => s.key === "insights")
+      .flatMap((s) => sectionItems(s).map((i) => i.to));
+    expect(forMember).toContain("/settings");
+    // A member is still not an admin.
+    expect(forMember).not.toContain("/watch-orders");
+  });
+
   it("keeps them for an admin, and keeps item identity intact", () => {
     const [insights] = visibleSections(NAV_SECTIONS, holdsEverything).filter(
       (s) => s.key === "insights",

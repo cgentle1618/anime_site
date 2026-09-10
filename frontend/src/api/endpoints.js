@@ -67,6 +67,20 @@ export const endpoints = {
     remove: (id) => `/api/users/${id}`,
   },
 
+  // The caller's own account. No id in any path: these act on whoever the
+  // session says you are.
+  account: {
+    settings: () => "/api/account/settings",
+  },
+
+  profile: {
+    detail: (username) => `/api/profile/${encodeURIComponent(username)}`,
+  },
+
+  community: {
+    forEntry: (mediaId) => `/api/community/${mediaId}`,
+  },
+
   contentLabels: {
     list: () => "/api/content-labels/",
     create: () => "/api/content-labels/",

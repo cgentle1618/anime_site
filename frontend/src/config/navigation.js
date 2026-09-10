@@ -175,6 +175,16 @@ export const NAV_SECTIONS = [
         to: "/watch-orders",
         requires: "admin",
       },
+      // The account's own settings. Not in Admin: that whole section is
+      // requires: "admin", and this is the one page a member who is not an
+      // administrator has of their own.
+      { divider: true, requires: "self.list" },
+      {
+        label: "Settings",
+        icon: "fas fa-sliders-h",
+        to: "/settings",
+        requires: "self.list",
+      },
     ],
   },
   {

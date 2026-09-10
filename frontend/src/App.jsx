@@ -55,6 +55,7 @@ const FutureReleases = lazy(() => import("./pages/public/FutureReleases"));
 const Completions = lazy(() => import("./pages/public/Completions"));
 const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
+const Settings = lazy(() => import("./pages/public/Settings"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
@@ -157,6 +158,13 @@ export default function App() {
                   path="/under-development"
                   element={<UnderDevelopment />}
                 />
+
+                {/* Any signed-in member, not an admin: ProtectedRoute takes
+                    the permission and defaults to "admin", so this block asks
+                    for self.list instead and an admin passes as a superuser. */}
+                <Route element={<ProtectedRoute permission="self.list" />}>
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
 
                 {/* These routes are protected by <ProtectedRoute />. */}
                 <Route element={<ProtectedRoute />}>
