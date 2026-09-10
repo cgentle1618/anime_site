@@ -118,7 +118,7 @@ def test_list_is_registry_ordered(admin_client, db_session, sample_anime, admin_
 # --- Create ---------------------------------------------------------------
 
 
-def test_create_requires_admin(client, sample_anime):
+def test_create_rejects_a_logged_out_visitor(client, sample_anime):
     r = client.post(
         "/api/notes",
         json={
@@ -128,7 +128,10 @@ def test_create_requires_admin(client, sample_anime):
             "content": "配樂與畫面高度契合",
         },
     )
-    assert r.status_code == 401
+    # 403 rather than 401 since the write gate moved onto the section's scope:
+    # a guest holds no self.personal_notes, so this is a permission answer and
+    # not an authentication one.
+    assert r.status_code == 403
 
 
 def test_admin_creates_note(admin_client, sample_anime):
@@ -326,8 +329,10 @@ def test_admin_deletes_one_row(admin_client, anime_note):
     assert r.status_code == 404
 
 
-def test_delete_requires_admin(client, anime_note):
-    assert client.delete(f"/api/notes/{anime_note.system_id}").status_code == 401
+def test_delete_rejects_a_logged_out_visitor(client, anime_note):
+    # A personal note is edited by its author; a guest has no id and so is
+    # never one - 403, as on create.
+    assert client.delete(f"/api/notes/{anime_note.system_id}").status_code == 403
 
 
 # --- Reorder --------------------------------------------------------------

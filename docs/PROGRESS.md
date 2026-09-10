@@ -52,9 +52,9 @@ scoping) is not started.
 | 4 | `note.author_id` | done 735a6fd6 |
 | 5 | `quote.author_id` | done a15128a1 |
 | 6 | `meme.author_id` | done a15128a1 |
-| 7 | Personal sections are read only by their author | done |
-| 8 | Writes follow the scope, and one public-profile read | wip step5-home |
-| 9 | `remark` - author recorded, one-per-owner kept | todo |
+| 7 | Personal sections are read only by their author | done 209ec659 |
+| 8 | Writes follow the scope, and one public-profile read | done (enforces Step 2's `self.personal_notes`, not the plan's new `note.write_own`) |
+| 9 | `remark` - author recorded, one-per-owner kept | wip step5-home |
 | 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | todo |
 | 11 | `meme` - four owner FKs and a `num_nonnulls` CHECK | todo |
 | 12 | Record what changed | todo |
@@ -67,7 +67,7 @@ Unclaimed. None block using the app.
 |---|---|---|
 | **The auth-hardening gate. Step 2 shipped the `user` role, so an admin can now invite a non-admin - and must not, until this lands** | Two defects, both pre-existing and both deliberately out of Step 2's scope: the login cookie is set `secure=False` **unconditionally** (`app/routers/auth.py`), and **nothing fails fast on a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`** (`app/config.py`; `validate_production()` went away with the GCP code). Tolerable for one local user; an authentication bypass once somebody else has a password here. `docs/authentication.md` states the gate | todo |
 | The `acting_user_id` guest-to-admin fallback still stands | A logged-out visitor still reads the lowest-username admin's list, so the public pages still show that account's statuses and ratings. Step 2's plan neither removes it nor lists it in its Definition of done; removing it is a visible behaviour change and needs a decision about what a guest should see. Step 3 narrowed it - `plan_next` and `seasonal` answer 401 now, and `viewer_user_id` has no fallback at all - but `acting_user_id` still falls back for the list columns. `app/services/domain/user_list.py` | todo |
-| `self.personal_notes` is granted but enforced nowhere | Nothing reads it; personal notes are still gated only by the `personal_notes` field group. Note scoping is Step 5 | todo |
+| `self.personal_notes` is granted but enforced nowhere | Closed by Step 5 Task 8: it now gates every personal-scope note write in `app/routers/note.py` | done |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |

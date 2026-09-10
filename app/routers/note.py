@@ -22,16 +22,22 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.schemas.note import sections_out, validate_note_payload
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.field_gate import gated_note_sections
+from app.services.rbac.permissions import (
+    PERM_ADMIN,
+    PERM_SELF_PERSONAL_NOTES,
+    field_group_perm,
+)
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES
 from app.utils.note_sections import (
     NOTE_SECTIONS,
     PERSONAL_SECTIONS,
+    SCOPE_PERSONAL,
     section_by_key,
 )
 
@@ -69,7 +75,10 @@ def _validate_or_422(payload: schemas.NoteBase) -> None:
 
 
 def _reject_second_singleton(
-    db: Session, payload: schemas.NoteBase, exclude_id: Optional[str] = None
+    db: Session,
+    payload: schemas.NoteBase,
+    exclude_id: Optional[str] = None,
+    author_id: Optional[uuid.UUID] = None,
 ) -> None:
     """
     A singleton section holds at most one row per owner.
@@ -84,12 +93,57 @@ def _reject_second_singleton(
         models.Note.owner_id == payload.owner_id,
         models.Note.section == section.key,
     )
+    if section.scope == SCOPE_PERSONAL and author_id is not None:
+        # One remark per owner PER AUTHOR. See Task 9 of the Step 5 plan for
+        # why the database's index is still per-owner.
+        query = query.filter(models.Note.author_id == author_id)
     if exclude_id:
         query = query.filter(models.Note.system_id != exclude_id)
     if query.first():
         raise HTTPException(
             status_code=422,
             detail=f"This owner already has a '{section.key}' note.",
+        )
+
+
+def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
+    """
+    Catalogue sections are admin-only; personal sections need
+    self.personal_notes.
+
+    Scope is read from the registry rather than from a list here, so a section
+    reclassified in note_sections.py changes who may write it with no change to
+    this file - which is the whole reason scope lives there.
+    """
+    section = section_by_key(section_key or "")
+    if section is None:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown note section '{section_key}'."
+        )
+    if section.scope == SCOPE_PERSONAL:
+        if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
+            raise HTTPException(
+                status_code=403, detail="You may not write personal notes."
+            )
+        return
+    if not viewer.has(PERM_ADMIN):
+        raise HTTPException(
+            status_code=403, detail="Catalogue notes are written by admins."
+        )
+
+
+def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
+    """A personal note is edited by its author; a catalogue note by an admin."""
+    section = section_by_key(db_note.section or "")
+    if section is not None and section.scope == SCOPE_PERSONAL:
+        if viewer.is_superuser or db_note.author_id == viewer.user_id:
+            return
+        raise HTTPException(
+            status_code=403, detail="That note belongs to someone else."
+        )
+    if not viewer.has(PERM_ADMIN):
+        raise HTTPException(
+            status_code=403, detail="Catalogue notes are edited by admins."
         )
 
 
@@ -138,6 +192,11 @@ def get_sections(owner_type: str = Query(...)):
 def list_notes(
     owner_type: str = Query(...),
     owner_id: uuid.UUID = Query(...),
+    # Whose personal notes to show instead of the viewer's own. Honoured only
+    # for a user whose list is public, and only for a viewer holding
+    # field_group.personal_notes - which is that group's new job now that
+    # personal sections filter by author on the entry page.
+    author: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
@@ -158,14 +217,32 @@ def list_notes(
     # the read half of the scope declared in app/utils/note_sections.py -
     # catalogue sections fall through untouched, which is what "one shared set
     # of rows, read by everyone" means.
+    # Whose personal rows this read is for. `author` names somebody else, and
+    # is honoured only where both halves agree: their list is public AND the
+    # viewer holds field_group.personal_notes. A user who is unknown, private,
+    # or asked about by a viewer without the group all answer the same 403, so
+    # the reply cannot be read as "this account exists".
+    author_id = viewer.user_id
+    if author is not None:
+        owner = db.query(models.User).filter(models.User.username == author).first()
+        if (
+            owner is None
+            or not owner.list_is_public
+            or not viewer.has(field_group_perm("personal_notes"))
+        ):
+            raise HTTPException(
+                status_code=403, detail="That user's notes are not public."
+            )
+        author_id = owner.id
+
     personal = list(PERSONAL_SECTIONS)
-    if viewer.user_id is None:
+    if author_id is None:
         query = query.filter(models.Note.section.notin_(personal))
     else:
         query = query.filter(
             or_(
                 models.Note.section.notin_(personal),
-                models.Note.author_id == viewer.user_id,
+                models.Note.author_id == author_id,
             )
         )
 
@@ -179,7 +256,7 @@ def list_notes(
         query = query.filter(
             or_(
                 models.Note.section.notin_(withheld),
-                models.Note.author_id == viewer.user_id,
+                models.Note.author_id == author_id,
             )
         )
     return _ordered(query.all())
@@ -194,11 +271,11 @@ def list_notes(
 def create_note(
     payload: schemas.NoteCreate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
     viewer: Viewer = Depends(get_viewer),
 ):
+    _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
-    _reject_second_singleton(db, payload)
+    _reject_second_singleton(db, payload, author_id=viewer.user_id)
 
     data = payload.model_dump(exclude_unset=True)
     if data.get("sort_index") is None:
@@ -224,24 +301,27 @@ def create_note(
 def reorder_notes(
     payload: schemas.NoteReorder,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Rewrite sort_index for one section of one owner, in the order given."""
     _validate_owner_type(payload.owner_type)
-    if section_by_key(payload.section) is None:
+    section = section_by_key(payload.section)
+    if section is None:
         raise HTTPException(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
+    _authorize_write(viewer, payload.section)
 
-    rows = (
-        db.query(models.Note)
-        .filter(
-            models.Note.owner_type == payload.owner_type,
-            models.Note.owner_id == payload.owner_id,
-            models.Note.section == payload.section,
-        )
-        .all()
+    query = db.query(models.Note).filter(
+        models.Note.owner_type == payload.owner_type,
+        models.Note.owner_id == payload.owner_id,
+        models.Note.section == payload.section,
     )
+    if section.scope == SCOPE_PERSONAL:
+        # Reordering somebody else's list is a write to their rows, so a
+        # personal section reorders only the caller's own.
+        query = query.filter(models.Note.author_id == viewer.user_id)
+    rows = query.all()
     by_id = {r.system_id: r for r in rows}
     if set(payload.ordered_ids) != set(by_id):
         raise HTTPException(
@@ -260,9 +340,10 @@ def update_note(
     note_id: str,
     payload: schemas.NoteUpdate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     db_note = _get_or_404(db, note_id)
+    _authorize_edit(viewer, db_note)
     data = payload.model_dump(exclude_unset=True)
 
     # Validate the row as it WILL be, before mutating anything - a partial
@@ -285,7 +366,12 @@ def update_note(
         }
     )
     _validate_or_422(merged)
-    _reject_second_singleton(db, merged, exclude_id=note_id)
+    # After the merge, so a PATCH cannot move a row into a section the caller
+    # may not write.
+    _authorize_write(viewer, merged.section)
+    _reject_second_singleton(
+        db, merged, exclude_id=note_id, author_id=db_note.author_id
+    )
 
     for key, value in data.items():
         setattr(db_note, key, value)
@@ -299,9 +385,10 @@ def update_note(
 def delete_note(
     note_id: str,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
 ):
     db_note = _get_or_404(db, note_id)
+    _authorize_edit(viewer, db_note)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_note, "Note")

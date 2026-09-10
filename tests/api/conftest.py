@@ -199,6 +199,38 @@ def admin_client(db_session, admin_user):
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="function")
+def plain_user(db_session):
+    """A signed-in member on the `user` role: guest reads plus the two self.*."""
+    user = models.User(
+        id=uuid.uuid4(),
+        username="plainuser",
+        hashed_password=get_password_hash("testpass"),
+        role_id=role_id_for(db_session, "user"),
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture(scope="function")
+def user_client(db_session, plain_user):
+    """Authenticated non-admin test client - the `user` role, not `admin`."""
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    token = create_access_token({"sub": plain_user.username, "role": "user"})
+
+    with TestClient(app) as c:
+        c.cookies.set("access_token", f"Bearer {token}")
+        yield c
+
+    app.dependency_overrides.clear()
+
+
 # ---------------------------------------------------------------------------
 # Sample data fixtures
 # ---------------------------------------------------------------------------
