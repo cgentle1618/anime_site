@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import {
   publisherLabel,
@@ -462,6 +463,10 @@ export default function AnimeMovie() {
               </div>
             </div>
           </Slip>
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={movie.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

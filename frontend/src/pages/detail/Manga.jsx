@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
@@ -674,6 +675,10 @@ export default function Manga() {
             onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
             onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
           />
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={manga.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

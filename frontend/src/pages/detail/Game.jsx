@@ -11,6 +11,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
@@ -485,6 +486,10 @@ export default function Game() {
               )
             }
           />
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={game.system_id} />
 
           <Slip title="Progress">
             <GameProgress game={game} />
