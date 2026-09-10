@@ -135,6 +135,11 @@ from app.services.domain.post_processing import (
     manga_post_processing,
     tv_show_post_processing,
 )
+from app.services.domain.rating_points import (
+    points_to_letter,
+    rating_points,
+    rating_rank_case,
+)
 from app.services.domain.remark_field import (
     REMARK_SECTION,
     pop_remark,
@@ -173,6 +178,9 @@ from app.services.domain.watch_order import (
 
 __all__ = [
     "compute_display_name",
+    "rating_points",
+    "points_to_letter",
+    "rating_rank_case",
     "casting_rows",
     "replace_casting",
     "CastingValidationError",
