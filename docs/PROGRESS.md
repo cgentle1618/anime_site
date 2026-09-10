@@ -13,48 +13,26 @@ Last updated: 2026-09-10
 
 ## In flight
 
-Step 0 - the `media` supertable - shipped 2026-09-09 (`159ab302`..`c7ccb5b3`);
-`docs/roadmap.md` keeps the record and its table is deleted per the convention
-above.
+**The authorization system** - `wip authz-home`, brainstorm stage. No plan yet,
+so there is no task table to claim against.
 
-Step 1 - `user_media_list` - shipped 2026-09-09 (`87108271` onwards);
-`docs/roadmap.md` keeps the record and its table is deleted per the convention
-above. Steps 4-5 of the multi-user spec are not started.
+Multi-user Steps 0-5 are finished and their entries are gone from this file;
+`docs/roadmap.md` keeps the record, per the convention above.
 
-Step 2 - accounts, the `user` role, profiles and community aggregates - shipped
-2026-09-10 (`6bb22b29`..`242a6509`); `docs/roadmap.md` keeps the record and its
-table is deleted per the convention above. Steps 4-5 are not started.
+To settle:
 
-Step 3 - per-user `plan_next` and `seasonal` - shipped 2026-09-10
-(`426045a2`, all eleven tasks); the Backup and Pull round trip was run by hand
-afterwards and both tabs restored unchanged. `docs/roadmap.md` keeps the record
-and its table is deleted per the convention above. Steps 4-5 are not started.
-The one check nobody has run is Task 10 Step 7's browser pass: log out and
-confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on
-`/login?next=...`.
+| # | Question | Status |
+|---|---|---|
+| 1 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
+| 2 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo |
+| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
+| 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
 
-Step 4 - Google Sheets for multiple users - shipped 2026-09-10, all eleven
-tasks plus a twelfth the plan did not list (`username` on the Plan Next and
-Seasonal tabs, the debt Step 3 named). The by-hand Backup and Pull All round
-trip was run on the live company database afterwards. `docs/roadmap.md` keeps
-the record and this table is deleted per the convention above.
-
-Step 5 - notes scoped per section - shipped 2026-09-10 on the **home** machine,
-all twelve tasks (`061c0072`..`7bed5b3b`), five migrations `m5a1notescope` ..
-`m5b2memefks`. `docs/roadmap.md` keeps the record and this table is deleted per
-the convention above. **The multi-user programme is finished.** One deviation
-from the plan: Task 8 enforces Step 2's `self.personal_notes` rather than
-minting the plan's proposed `note.write_own`, because the two name one idea.
-
-**Two things Step 5 needs a human for**, neither of which a session can do:
-
-1. **Run `/system` -> Backup on the home machine.** The Note and Meme tabs
-   changed shape (they lost `owner_type` / `owner_id`, gained four owner
-   columns, and Note, Quote and Meme each gained `author_id`), and the sheet
-   still holds the old headers. Pull reads the old pair as a fallback, so an
-   un-backed-up sheet is survivable, but the sheet is the only copy.
-2. **The company machine must `git pull` and `alembic upgrade head` before its
-   next Pull All**, and its database is still at `m3b1seasonal`.
+Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
+- the four gates that already exist, the rules not to break, and the lessons
+from making the system multi-user. The page was audited against the code on
+2026-09-10 and ten stale claims corrected, so it can be trusted as a starting
+point.
 
 ## Open items
 
@@ -84,6 +62,8 @@ the app will refuse to start there.
 
 | Item | Where | Status |
 |---|---|---|
+| The logged-out redirect was never checked in a browser | Step 3 Task 10's last step: log out and confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on `/login?next=...`. The API side is tested; `ProtectedRoute requireAuth` is not. Carried over when the Step 0-5 entries were removed | todo |
+| Community aggregates are not visibility-filtered | `/api/community/{media_id}` filters on `users.list_is_public` but applies neither the media-type gate nor the label anti-join, so a viewer lacking `media_type.game` can still read a game's rating average if they know its `media_id`. Found by the 2026-09-10 doc audit and recorded as an accepted residual in `docs/authorization.md`; the id has to come from a visible response first, which is the same (weak) argument that covers `/static/covers/`. `app/routers/community.py` | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |
@@ -101,8 +81,8 @@ the app will refuse to start there.
 
 | | |
 |---|---|
-| Dev db | **home machine**, now in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m5b2memefks` (head) since Step 5 ran there on 2026-09-10, having reached `m1b1anime`, reached from `pdf1e2r3d4e5` on 2026-09-09 after the `m0c1source` fix below. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
-| Step 3 migrations | the **company** db is at `m3b1seasonal` (head) as of 2026-09-10: `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db went to head on 2026-09-10 (Step 5); the **company** db is the one that now needs `git pull` then `alembic upgrade head` before any Pull. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
+| Dev db | **home machine**, in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m5b2memefks` (head) as of 2026-09-10. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
+| Company db | at `m3b1seasonal` as of 2026-09-10, which is **behind head** - `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db went to head on 2026-09-10 (Step 5); the **company** db is the one that now needs `git pull` then `alembic upgrade head` before any Pull. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
 | Pre-Step-1 dump | `~/anime_site_home_pre_step1_20260909.sql` (3.2 MB, home, taken before the `m0a*`..`m1b1anime` run; that run deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows, by design) |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |

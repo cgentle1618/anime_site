@@ -43,7 +43,7 @@ right and the doc needs the fix.
 | File | Scope |
 |---|---|
 | [authentication.md](authentication.md) | login, JWT cookie, admin seeding, the frontend auth context |
-| [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating |
+| [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating, what a guest sees. Ends with a **Known drift** section naming the three half-finished pieces the authorization redesign has to settle |
 
 ## Frontend
 

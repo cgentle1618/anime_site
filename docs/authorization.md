@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-10 (the guest fallback removed; a guest has no list)
+Last verified: 2026-09-10 (audited against the code after Steps 0-5; see the drift note at the foot)
 
 ## What this is for
 
@@ -27,7 +27,7 @@ Related: [authentication.md](authentication.md) (login, cookie),
 | `role` | one named bundle of permissions | `name` unique (`guest`, `admin` read by name), `label`, `description`, `is_system` (cannot be deleted or renamed), `is_superuser` (holds every permission implicitly), `sort_order` |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
 | `content_label` | one admin-managed reason an entry may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
-| `media_content_label` | one label on one entry | FK-less `(media_type, entry_id)` pair (hyphenated `media_type`, resolved through `MEDIA_TABLES`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_type, entry_id, label_id)` |
+| `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`) since Step 0 - it was an FK-less `(media_type, entry_id)` pair before - plus `label_id` FK → content_label (`CASCADE`) and `position`; unique `(media_id, label_id)`. A label on a deleted entry is now cleaned up by the database rather than left dangling |
 | `users.role_id` | the user's role | FK → role (`RESTRICT`), NOT NULL. The old `users.role` string column was dropped and re-exposed as a read-only `column_property` over `role.name` (bottom of `app/models/__init__.py`) |
 
 Models: `app/models/system.py` (`Role`, `RolePermission`, `User`),
@@ -209,13 +209,17 @@ so an established guest role never receives the new permission and an admin
 grants it deliberately. Same safe direction as content labels — new
 restrictions start restrictive.
 
-## Roles
+## Role guards
 
-| Role | Seeded as | Rules |
-|---|---|---|
-| `guest` | `is_system=True`, granted every `media_type.*` and every `field_group.*` | Has no user rows; every anonymous or unresolvable request becomes this role. Can never hold `admin` → **409** (`app/routers/roles.py::replace_permissions`), because that would make anonymous callers admins. Cannot be deleted or renamed. |
-| `admin` | `is_system=True`, `is_superuser=True` | `Viewer.has()` short-circuits on `is_superuser`, so it holds every permission including ones that do not exist yet (a new content label hides nothing from it). `PUT /permissions` on a superuser role → **409**. Cannot be deleted or renamed. |
-| custom | `is_superuser=False` | Created empty; grants replaced as a whole set (`PUT`, never append). Deleting one with users still holding it → **409**. |
+What each role is *seeded* with is in [Roles](#roles) above; this is what the
+API refuses to let an admin do to one.
+
+| Role | Rules |
+|---|---|
+| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can never hold `admin` → **409** (`app/routers/roles.py::replace_permissions`), because that would make anonymous callers admins. Cannot be deleted or renamed. |
+| `user` | A system role like the other two, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not superuser - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
+| `admin` | `is_superuser=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it). `PUT /permissions` on a superuser role → **409**. Cannot be deleted or renamed. |
+| custom | `is_superuser=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Deleting one with users still holding it → **409**. |
 
 Seed: `app/services/rbac/seed.py::ensure_rbac_seed` is idempotent and runs
 from both the `r1b2a3c4c5o6_add_rbac_core` migration and the app lifespan
@@ -226,7 +230,12 @@ grant an admin removed is not handed back on restart.
 ## Viewer resolution
 
 `app/services/rbac/resolver.py::resolve_viewer(request, db)` → frozen
-`Viewer(username, role_id, role_name, is_superuser, permissions, token_payload)`.
+`Viewer(username, role_id, role_name, is_superuser, permissions, user_id,
+token_payload)`.
+
+`user_id` is the resolved account's id, or `None` for a guest. It is what every
+per-user read and write keys on, and it is the reason a guest now sees no list
+at all - see [What a guest sees](#what-a-guest-sees).
 
 - Reads the `access_token` cookie, decodes the JWT (which carries `sub` only),
   loads the user, takes `user.role_ref` or the guest role.
@@ -264,9 +273,12 @@ Permissions are resolved from the DB on every request rather than carried in
 the JWT so that revoking one takes effect immediately. `permissions_for(db,
 role_id)` memoises per role id in a module-level dict; every write in
 `roles.py` and `content_labels.py` calls `cache.bump()` which clears it.
-**Single-instance caveat:** the cache is process-local. Cloud Run currently
-runs one instance; a second instance would keep stale grants until its own
-restart and would need a short TTL instead.
+**Single-instance caveat:** the cache is process-local, so it is only
+correct while the app runs as one process - which it does today, local
+development being the only runtime. Self-hosting keeps that shape (one
+container behind the tunnel), but any future second worker would serve stale
+grants until its own restart and would need a short TTL instead. The GCP
+deployment this caveat used to name was removed on 2026-09-08.
 
 ## Visibility enforcement (`enforcement.py`)
 
@@ -279,6 +291,7 @@ shrink pages and shift the next page's start.
 |---|---|---|
 | `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer lacks; `[]` for superuser, and every caller short-circuits on `[]` |
 | `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` |
+| `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id`. Added in Step 2 for the profile page, which answers for all nine types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
 | `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs; tier pairs (franchise/series/collection) are always allowed since tiers carry no labels or type permission |
 | `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` | quotes, memes, plan-next | rows are **dropped**, not degraded to `missing=True` (the text itself is the leak; `missing` means "dangling reference, fix it"); rows with no reference are kept |
@@ -302,11 +315,22 @@ sees one error shape.
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` |
+| a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
+| own-list writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` |
+| account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | previously unauthenticated `data_control` / `system` GETs | closed behind `get_current_admin` |
 
 ### Accepted residuals
 
-- Seasonal counts (`/api/seasonal`) still include hidden entries.
+- Seasonal counts (`/api/seasonal`) still include hidden entries. Narrower
+  than it was: since Step 3 the whole route needs an account
+  (`get_current_user_id`), so this leaks a count to signed-in users only, not
+  to the public.
+- Community aggregates (`/api/community/{media_id}`) are filtered by
+  `users.list_is_public` but **not** by media-type or label visibility, so a
+  viewer who lacks `media_type.game` can still read a game's rating average if
+  they already know its `media_id`. The same argument as covers below - the id
+  has to come from a visible response first - and the same weakness.
 - Watch-order *list* summaries expose `media_types` and `item_count` including
   hidden items.
 - `/static/covers/...` files are served without checks (a cover URL is only
@@ -446,7 +470,7 @@ All are behind `get_current_admin`; every write calls `cache.bump()`.
 | Roles | `frontend/src/pages/admin/Roles.jsx` | role list, create/delete, checkbox grid per family from `/api/roles/catalog`; superuser roles show a notice instead of a grid |
 | Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles, reset passwords, delete |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | key/label/description; shows the `label.<key>` permission each becomes |
-| Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the 16 per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
+| Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
 | Field groups | — | **No page exists.** `/roles` grants them; their contents are `FIELD_GROUPS` in code. See [Changing which columns a group hides](#changing-which-columns-a-group-hides--code-only). |
 
 What an admin can change from the browser, and what needs a commit:
@@ -460,8 +484,8 @@ What an admin can change from the browser, and what needs a commit:
 | which field groups exist | | `field_groups.py` |
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
-A field group's `ui_block` is hidden by the SPA itself: the eight detail pages
-read `useAuth().has("field_group.system_info")` to drop the poster-spine id.
+A field group's `ui_block` is hidden by the SPA itself: the detail pages read
+`useAuth().has("field_group.system_info")` to drop the poster-spine id.
 Where the server already blanks the value there is nothing to ask —
 `ScoreBlock.jsx` drops its "Last updated" figure on a null timestamp, so the
 component stays presentational. Either way this is cosmetic; every gate that
@@ -481,7 +505,12 @@ matters is enforced server-side.
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
+| `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
+| `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
+| `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
+| `tests/api/test_profile.py`, `test_community_aggregate.py` | a private list 404s; public figures count public lists only |
 | `frontend/src/components/info/ScoreBlock.test.jsx` | the "Last updated" figure is dropped, not blanked to `—` |
+| `frontend/src/components/tracker/trackerGuard.test.jsx` | the "My tracker" card is withheld from a logged-out visitor |
 
 ## Why it is built this way
 
@@ -496,3 +525,111 @@ matters is enforced server-side.
   the string cannot be renamed out from under it (same rule as Tier 1 options).
 - **Per-request resolution, not JWT claims.** Revocation is immediate; the
   cache pays for it.
+
+## What the redesign inherits
+
+Written 2026-09-10, from the multi-user programme (Steps 0-5) that has just
+finished. These are the constraints and the lessons the next design has to
+carry, not a plan for it.
+
+### Four ways of asking, and a fifth would be a smell
+
+The system already distinguishes these, and every new surface should say which
+one it uses rather than invent another:
+
+| Gate | Question | Answer when it fails |
+|---|---|---|
+| `get_current_admin` | do you hold `admin`? | 401 |
+| `require_permission(name)` | do you hold this one grant? | 401 |
+| `get_current_user_id` | is there an **account** at all? (Step 3) | 401 |
+| `viewer_user_id(viewer)` / `acting_user_id(db, viewer)` | who are you, if anyone? | `None`, never an error |
+
+The third is the one people forget exists. It asks for a person rather than a
+permission, and it is what `/api/plan-next` and `/api/seasonal` use, because
+those tables hold one account's private queues rather than a restricted view
+of a shared catalogue.
+
+### Two families, and one member that no longer fits
+
+- **`field_group.<key>`** answers *may you see this* over the columns, link
+  fields and source buckets of a media type. It is applied by `field_gate` to
+  a response.
+- **`self.<key>`** answers *may you write your own*, and each key names a
+  router dependency.
+
+`field_group.personal_notes` is now in neither shape: since Step 5 filtered
+personal note sections by `author_id`, it gates a **query parameter**
+(`GET /api/notes?author=`) and nothing on any response. It is also still
+labelled "Personal Reviews", the section it used to hide. That mismatch is the
+strongest argument that this is a re-modelling rather than a renaming.
+
+### Rules not to break
+
+- **Permissions live in code, grants in the database.** A permission naming no
+  code is forbidden as an inert grant. Step 5's plan proposed a new
+  `note.write_own` when `self.personal_notes` already meant exactly that -
+  check `catalog(db)` before minting a name.
+- **Fail closed.** `resolve_viewer` never raises; anything unresolvable is the
+  guest role holding nothing.
+- **`cache.bump()` on every grant write.** Permissions resolve per request so
+  revocation is immediate; the cache is process-local.
+- **The SPA mirrors no vocabulary.** `/api/roles/catalog` is served, which is
+  why the role editor rendered the whole `self.*` family without a single
+  frontend change. Keep that property.
+- **One error shape.** 404 for a thing you may not see, 401 for an admin route.
+  Step 5 broke this: the note gates answer **403**, and those five are the
+  only 403s the app raises anywhere (`_authorize_write`, `_authorize_edit` and
+  the `?author=` refusal in `app/routers/note.py`). Every other module carries
+  a comment explaining why it answers 401 or 404 instead. Either the 403s are
+  right and the rest should follow, or they are wrong and should become 401 -
+  the redesign should decide rather than leave two conventions running.
+
+### Lessons from making it multi-user
+
+- **Test with two accounts.** This is the big one. Two defects survived the
+  entire suite because there was only ever one user: `POST /{type}/{id}/complete`
+  wrote to the *lowest-username admin's* list rather than the caller's, and a
+  guest filtering on a personal column cross-joined `user_media_list` and
+  matched every account's rows. Both were found only when a second account
+  existed in a test. Any new per-user surface needs a two-account test, not a
+  one-account one.
+- **"Nobody is asking" is not "asked, and has nothing."** `attach_list_fields`
+  returns early for a `user_id` of `None` rather than filling in the type's
+  default, because a default status is a claim about a person.
+- **A class-level read path cannot know the viewer.** The `remark`
+  `column_property` is the standing example, and it is why one remark per owner
+  is still a site-wide rule. Anything the redesign wants to make per-user needs
+  a read path that takes a viewer.
+- **Per-user data has to cross machines.** A new per-user table needs a
+  `username` column on its sheet tab (Step 4), and Pull's header filter drops
+  any parsed key the sheet's header row did not carry - which bit Step 3 and
+  Step 5 in exactly the same way.
+- **Migrations must not import ORM models** - an open defect class in
+  `docs/PROGRESS.md`, not a style preference.
+
+## Known drift, and what this page does not yet describe
+
+Audited against the code on 2026-09-10, after Steps 0-5. Ten things were stale
+and are corrected above; they are listed here because the pattern matters more
+than any one of them. Every stale line described a rule that a later step had
+narrowed rather than removed - an FK-less pair that became a foreign key, a
+`Viewer` that grew a field, a caveat naming a deployment that no longer exists.
+
+**This page describes the system as built, not as designed.** The spec
+(`docs/superpowers/specs/2026-09-08-multi-user-catalog-design.md`) calls for an
+authorization redesign that this documentation should be *rewritten* for rather
+than amended again, and it has not happened. Three things are half-finished and
+are the reason:
+
+- **`field_group.personal_notes` is only half rebuilt.** It governs
+  `GET /api/notes?author=` and nothing else. Its name still says "Personal
+  Reviews", which is what it gated before Step 5 made personal sections filter
+  by author.
+- **There is no UI for a non-admin account.** A `user`-role account can write
+  its own list and its own personal notes through the API, and the SPA offers
+  no way to do either: the notes editors and the tracker controls are still
+  `isAdmin`-only. The `user` role is therefore usable but not yet *useful*.
+- **One remark per owner, site-wide.** `remark` is personal-scope but its read
+  path is a class-level `column_property` that cannot know who is asking, so
+  the partial unique index stays per-owner and a second user's remark is
+  refused by the database.

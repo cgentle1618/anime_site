@@ -1,6 +1,6 @@
 # Roadmap
 
-Last verified: 2026-09-10 (the guest fallback removed)
+Last verified: 2026-09-10 (the authorization redesign picked up)
 
 ## What this is for
 
@@ -77,23 +77,29 @@ Newest first. Dates are the commit dates; specs and plans that drove a feature l
 
 ## Next
 
-Nothing in progress. Step 5 of the multi-user programme - the last of it -
-shipped on 2026-09-10, and the auth-hardening gate it left behind closed the
-same day.
+**The authorization redesign**, at the brainstorm stage as of 2026-09-10.
+`docs/authorization.md` was audited against the code before starting - ten
+stale claims, every one of them a rule a later step had narrowed rather than
+removed - and now ends with a **Known drift** section naming the three
+half-finished pieces the redesign has to settle: the `personal_notes` field
+group, which governs one query parameter and nothing else; the absence of any
+SPA surface for a non-admin account, which makes the `user` role usable but not
+useful; and one remark per owner, site-wide. Progress is tracked in
+`docs/PROGRESS.md`.
+
+Step 5 of the multi-user programme - the last of it - shipped on 2026-09-10,
+and the auth-hardening gate it left behind closed the same day.
 
 **Another person can now be given an account.** Two auth items stay open by
 choice and neither blocks that: session lifetime is a flat 24 hours with no
 refresh or revocation, and there is no password reset (an admin sets one at
 `/users`).
 
-The guest-fallback removal landed the same day. What is left is the
-**authorization redesign** Step 5 deferred - the notes UI for a non-admin
-account, and the `personal_notes` field group, which is only half rebuilt -
-and **self-hosting**, whose blocking code change (the production signal) is
-now done.
-**Self-hosting remains the intended production step** and none of it is built
-yet (`docs/deployment-selfhost.md`); until it is, local development is the only
-runtime.
+The guest-fallback removal landed the same day, so the only other thing left is
+**self-hosting**, which remains the intended production step and is still not
+built (`docs/deployment-selfhost.md`): its blocking code change, the production
+signal, is done, and what remains is the box, the compose file, the domain and
+tunnel, and backups. Until that lands, local development is the only runtime.
 
 ## Deferred / known debt
 

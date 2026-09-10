@@ -48,10 +48,13 @@ class MediaContentLabel(Base):
     """
     One content label attached to one media entry.
 
-    The entry endpoint is the FK-less (media_type, entry_id) pair that
-    media_credit, media_tag, media_relation and watch_order_item all use: no
-    single foreign key can span the eight media tables, so the pair is resolved
-    through MEDIA_TABLES in app/utils/media_resolver.py.
+    The entry endpoint is `media_id`, a real foreign key up to the `media`
+    supertable, ON DELETE CASCADE - so a deleted entry takes its labels with
+    it. It was an FK-less (media_type, entry_id) pair until Step 0 gave the
+    nine media tables one shared id space; `media_credit`, `media_tag` and
+    `watch_order_item` moved the same way, and only `media_relation` and
+    `character_casting` still carry a pair, because both ends of those are
+    entries.
 
     Deliberately NOT stored in media_tag. That table is keyed to system_option
     and is written by the Fill and backfill pipelines; putting access control
