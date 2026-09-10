@@ -34,9 +34,9 @@ Plan: `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md`.
 | 6 | Rating points helper | done a5ec3338 |
 | 7 | `GET /api/profile/{username}` | done 96a19692 |
 | 8 | `GET /api/community/{media_id}` | done c4cb002a |
-| 9 | Endpoint builders and the settings page | done (this commit) |
-| 10 | The `/user/:username` profile page | wip step2-company |
-| 11 | The community block on detail pages | todo |
+| 9 | Endpoint builders and the settings page | done 9dbc4e30 |
+| 10 | The `/user/:username` profile page | done (this commit) |
+| 11 | The community block on detail pages | wip step2-company |
 | 12 | Record what shipped | todo |
 
 ## Open items
