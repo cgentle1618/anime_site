@@ -22,7 +22,7 @@ Step 1 - `user_media_list` - shipped 2026-09-09 (`87108271` onwards);
 above. Steps 3-5 of the multi-user spec are not started.
 
 Step 2 - accounts, the `user` role, profiles and community aggregates - shipped
-2026-09-10 (`6bb22b29`..`aacc57c4`); `docs/roadmap.md` keeps the record and its
+2026-09-10 (`6bb22b29`..`242a6509`); `docs/roadmap.md` keeps the record and its
 table is deleted per the convention above. Steps 3-5 are not started.
 
 ## Open items
