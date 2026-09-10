@@ -79,8 +79,10 @@ def test_highlight_dropdown_is_resolved_per_owner(client):
 # --- List -----------------------------------------------------------------
 
 
-def test_list_notes_for_owner(client, sample_anime, anime_note):
-    r = client.get(
+def test_list_notes_for_owner(admin_client, sample_anime, anime_note):
+    # admin_client, not client: `advantages` is a personal-scope section, so a
+    # logged-out viewer sees none of it. The note's author is admin_user.
+    r = admin_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -90,7 +92,7 @@ def test_list_notes_for_owner(client, sample_anime, anime_note):
     assert body[0]["content"] == "敘事結構精巧"
 
 
-def test_list_is_registry_ordered(client, db_session, sample_anime, admin_user):
+def test_list_is_registry_ordered(admin_client, db_session, sample_anime, admin_user):
     # questions sorts after advantages in the registry, so insert it first.
     for section, content in (("questions", "為什麼"), ("advantages", "好看")):
         db_session.add(
@@ -105,7 +107,8 @@ def test_list_is_registry_ordered(client, db_session, sample_anime, admin_user):
             )
         )
     db_session.flush()
-    r = client.get(
+    # Both sections are personal-scope, so the reader has to be their author.
+    r = admin_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )

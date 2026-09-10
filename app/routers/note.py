@@ -17,6 +17,7 @@ import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -28,7 +29,11 @@ from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES
-from app.utils.note_sections import NOTE_SECTIONS, section_by_key
+from app.utils.note_sections import (
+    NOTE_SECTIONS,
+    PERSONAL_SECTIONS,
+    section_by_key,
+)
 
 router = APIRouter(prefix="/api/notes", tags=["Note Management"])
 
@@ -147,11 +152,36 @@ def list_notes(
     query = db.query(models.Note).filter(
         models.Note.owner_type == owner_type, models.Note.owner_id == owner_id
     )
+
+    # Personal sections hold one set of rows per user. A viewer sees their own
+    # and nobody else's; a logged-out viewer, having no id, sees none. This is
+    # the read half of the scope declared in app/utils/note_sections.py -
+    # catalogue sections fall through untouched, which is what "one shared set
+    # of rows, read by everyone" means.
+    personal = list(PERSONAL_SECTIONS)
+    if viewer.user_id is None:
+        query = query.filter(models.Note.section.notin_(personal))
+    else:
+        query = query.filter(
+            or_(
+                models.Note.section.notin_(personal),
+                models.Note.author_id == viewer.user_id,
+            )
+        )
+
     # A withheld section is absent rather than blanked: an empty card would
-    # advertise that there is something here to not-see.
+    # advertise that there is something here to not-see. Applied only to rows
+    # the viewer did not write - field_group.personal_notes governs seeing
+    # SOMEBODY ELSE's personal notes, and hiding a viewer's own from them is
+    # not a permission, it is a bug.
     withheld = gated_note_sections(viewer)
     if withheld:
-        query = query.filter(models.Note.section.notin_(withheld))
+        query = query.filter(
+            or_(
+                models.Note.section.notin_(withheld),
+                models.Note.author_id == viewer.user_id,
+            )
+        )
     return _ordered(query.all())
 
 

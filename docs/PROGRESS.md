@@ -50,10 +50,10 @@ scoping) is not started.
 | 2 | Serve `scope` on `/api/notes/sections` | done 85c9c9f1 |
 | 3 | `Viewer.user_id` | done 85c9c9f1 (the field already existed; this adds its test) |
 | 4 | `note.author_id` | done 735a6fd6 |
-| 5 | `quote.author_id` | done |
-| 6 | `meme.author_id` | done |
-| 7 | Personal sections are read only by their author | wip step5-home |
-| 8 | Writes follow the scope, and one public-profile read | todo |
+| 5 | `quote.author_id` | done a15128a1 |
+| 6 | `meme.author_id` | done a15128a1 |
+| 7 | Personal sections are read only by their author | done |
+| 8 | Writes follow the scope, and one public-profile read | wip step5-home |
 | 9 | `remark` - author recorded, one-per-owner kept | todo |
 | 10 | `note` - four owner FKs and a `num_nonnulls` CHECK | todo |
 | 11 | `meme` - four owner FKs and a `num_nonnulls` CHECK | todo |

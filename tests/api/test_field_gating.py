@@ -283,8 +283,15 @@ def test_a_gated_note_section_is_withheld(
     client, db_session, sample_anime, personal_note, public_note
 ):
     params = {"owner_type": "anime", "owner_id": str(sample_anime.system_id)}
-    # The seeded guest holds personal_notes, so it reads both.
-    assert "Zvornik private assessment" in client.get("/api/notes", params=params).text
+    # `personal_reviews` is a personal-scope section, so list_notes filters it
+    # by author before the field group is consulted at all: a viewer who did
+    # not write the row never sees it, group or no group. The group's remaining
+    # job is the public-profile read; what it must NOT do is hide a viewer's
+    # own rows, which tests/api/test_note_scope_reads.py asserts.
+    assert (
+        "Zvornik private assessment"
+        not in client.get("/api/notes", params=params).text
+    )
 
     make_viewer(
         db_session,
