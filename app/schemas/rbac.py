@@ -88,6 +88,9 @@ class ManagedUserResponse(BaseModel):
     username: str
     role_id: Optional[UUID] = None
     role_name: Optional[str] = None
+    # Read-only here. Written only by the account's owner, through
+    # PATCH /api/account/settings.
+    list_is_public: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

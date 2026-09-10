@@ -265,6 +265,13 @@ class User(Base):
         nullable=False,
         index=True,
     )
+    # Private by default, and only its owner can change it (PATCH
+    # /api/account/settings). An admin may see the flag on the Users page but
+    # does not set it: whose list is visible is the account holder's decision,
+    # not the inviter's.
+    list_is_public = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     role_ref = relationship("Role", lazy="joined")
 

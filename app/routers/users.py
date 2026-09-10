@@ -39,6 +39,7 @@ def _to_response(user: models.User) -> schemas.ManagedUserResponse:
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
+        list_is_public=bool(user.list_is_public),
     )
 
 
