@@ -52,6 +52,9 @@ class NoteUpdate(NoteBase):
 
 class NoteResponse(NoteBase):
     system_id: UUID
+    # Read-only. Set from the request's viewer, never from the payload, which
+    # is why it is on the response schema and not on NoteBase.
+    author_id: Optional[UUID] = None
     # Nullable in the database, and a blank Google Sheets cell parses to None
     # on Pull, so one timestamp-less row must not fail the whole list endpoint.
     created_at: Optional[datetime] = None
@@ -65,6 +68,10 @@ class NoteSectionOut(BaseModel):
 
     key: str
     shape: str
+    # "catalog" or "personal"; None for the external sections, which are backed
+    # by their own tables. The frontend does not act on this yet - the profile
+    # UI that will is deferred with the rest of the authorization redesign.
+    scope: Optional[str] = None
     label: str
     # The group card this section renders inside, resolved for the frontend so
     # the page never has to know what a group key means. None renders flat.
@@ -98,6 +105,7 @@ def section_out(section: NoteSection, owner_type: str) -> NoteSectionOut:
     return NoteSectionOut(
         key=section.key,
         shape=section.shape,
+        scope=section.scope,
         label=label_for(section, owner_type),
         group=group.key if group else None,
         group_label=group.label if group else None,

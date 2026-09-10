@@ -474,3 +474,17 @@ def test_section_out_carries_standalone():
     out = section_out(section_by_key("resources"), "anime")
     assert out.standalone is True
     assert out.group is None
+
+
+def test_section_out_carries_the_registry_scope():
+    from app.schemas.note import section_out
+    from app.utils import note_sections as ns
+
+    personal = section_out(ns.section_by_key("personal_reviews"), "anime")
+    assert personal.scope == ns.SCOPE_PERSONAL
+
+    catalog = section_out(ns.section_by_key("public_reviews"), "anime")
+    assert catalog.scope == ns.SCOPE_CATALOG
+
+    external = section_out(ns.section_by_key("quotes"), "anime")
+    assert external.scope is None

@@ -14,8 +14,9 @@ from app import models
 
 
 @pytest.fixture
-def anime_note(db_session, sample_anime):
+def anime_note(db_session, sample_anime, admin_user):
     n = models.Note(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         owner_type="anime",
         owner_id=sample_anime.system_id,
@@ -89,11 +90,12 @@ def test_list_notes_for_owner(client, sample_anime, anime_note):
     assert body[0]["content"] == "敘事結構精巧"
 
 
-def test_list_is_registry_ordered(client, db_session, sample_anime):
+def test_list_is_registry_ordered(client, db_session, sample_anime, admin_user):
     # questions sorts after advantages in the registry, so insert it first.
     for section, content in (("questions", "為什麼"), ("advantages", "好看")):
         db_session.add(
             models.Note(
+                author_id=admin_user.id,
                 system_id=uuid.uuid4(),
                 owner_type="anime",
                 owner_id=sample_anime.system_id,
@@ -209,11 +211,12 @@ def test_create_assigns_next_sort_index(admin_client, sample_anime, anime_note):
     assert r.json()["sort_index"] == 1.0
 
 
-def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample_anime):
+def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample_anime, admin_user):
     # A NULL sort_index sorts first on DESC in PostgreSQL, so the query behind
     # _next_sort_index must exclude NULLs or it collides with the existing 2.0 row.
     db_session.add(
         models.Note(
+            author_id=admin_user.id,
             system_id=uuid.uuid4(),
             owner_type="anime",
             owner_id=sample_anime.system_id,
@@ -224,6 +227,7 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
     )
     db_session.add(
         models.Note(
+            author_id=admin_user.id,
             system_id=uuid.uuid4(),
             owner_type="anime",
             owner_id=sample_anime.system_id,
@@ -273,7 +277,7 @@ def test_update_revalidates_against_registry(admin_client, anime_note):
 
 
 def test_update_to_singleton_conflict_does_not_flush_mutation(
-    admin_client, db_session, sample_anime, anime_note
+    admin_client, db_session, sample_anime, anime_note, admin_user,
 ):
     # sample_anime already has a 'remark' note; patching anime_note's section
     # to 'remark' must be rejected, and - because the check must run before
@@ -281,6 +285,7 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
     # subsequent read, proving nothing was flushed by autoflush.
     db_session.add(
         models.Note(
+            author_id=admin_user.id,
             system_id=uuid.uuid4(),
             owner_type="anime",
             owner_id=sample_anime.system_id,
@@ -325,10 +330,11 @@ def test_delete_requires_admin(client, anime_note):
 # --- Reorder --------------------------------------------------------------
 
 
-def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime):
+def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime, admin_user):
     ids = []
     for i, text in enumerate(("第一", "第二", "第三")):
         n = models.Note(
+            author_id=admin_user.id,
             system_id=uuid.uuid4(),
             owner_type="anime",
             owner_id=sample_anime.system_id,
@@ -452,3 +458,12 @@ def test_patch_that_empties_a_music_row_is_rejected(admin_client, sample_anime):
         json={"status": None, "title": None, "content": None, "links": []},
     )
     assert r.status_code == 422
+
+
+def test_sections_endpoint_reports_scope(client):
+    r = client.get("/api/notes/sections", params={"owner_type": "anime"})
+    assert r.status_code == 200
+    by_key = {s["key"]: s for s in r.json()}
+    assert by_key["remark"]["scope"] == "personal"
+    assert by_key["op"]["scope"] == "catalog"
+    assert by_key["quotes"]["scope"] is None

@@ -46,10 +46,10 @@ scoping) is not started.
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `scope` on `NoteSection` | wip step5-home |
-| 2 | Serve `scope` on `/api/notes/sections` | todo |
-| 3 | `Viewer.user_id` | todo |
-| 4 | `note.author_id` | todo |
+| 1 | `scope` on `NoteSection` | done 061c0072 |
+| 2 | Serve `scope` on `/api/notes/sections` | done |
+| 3 | `Viewer.user_id` | done (the field already existed; this adds its test) |
+| 4 | `note.author_id` | wip step5-home |
 | 5 | `quote.author_id` | todo |
 | 6 | `meme.author_id` | todo |
 | 7 | Personal sections are read only by their author | todo |

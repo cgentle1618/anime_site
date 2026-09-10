@@ -97,3 +97,27 @@ class TestLogout:
         set_cookie = response.headers.get("set-cookie", "")
         assert "access_token=" in set_cookie
         assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
+
+
+def test_resolved_viewer_carries_the_user_id(db_session, admin_client):
+    """
+    Phase C filters personal notes by author_id, so "who is asking" has to
+    answer with an id and not only a username.
+    """
+    from starlette.requests import Request
+
+    from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
+
+    cookie = admin_client.cookies.get("access_token")
+    scope = {
+        "type": "http",
+        "headers": [(b"cookie", f"access_token={cookie}".encode())],
+    }
+    viewer = resolve_viewer(Request(scope), db_session)
+    admin = (
+        db_session.query(models.User)
+        .filter(models.User.username == viewer.username)
+        .one()
+    )
+    assert viewer.user_id == admin.id
+    assert GUEST_FALLBACK.user_id is None
