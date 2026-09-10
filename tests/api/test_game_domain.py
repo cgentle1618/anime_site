@@ -38,13 +38,28 @@ def test_mark_completed_sets_status_and_leaves_depth_alone():
     assert game.completion_level == "Main Story"
 
 
-def test_write_game_copies_inserts_updates_and_deletes(db_session):
+class _Viewer:
+    """
+    A stand-in for the resolved request viewer.
+
+    These tests call the domain function directly rather than through the
+    router, and a copy belongs to whoever bought it - so the owner has to be
+    named. `acting_user_id` used to invent one by falling back to the first
+    admin; it does not any more, and a test that relied on that was asserting
+    the fallback as much as the function.
+    """
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+
+def test_write_game_copies_inserts_updates_and_deletes(db_session, admin_user):
     game = models.Game(game_name_en="Hades")
     db_session.add(game)
     db_session.flush()
 
     write_game_copies(
-        db_session, game, [{"storefront": "Steam", "ownership": "Owned"}]
+        db_session, game, [{"storefront": "Steam", "ownership": "Owned"}], _Viewer(admin_user.id)
     )
     db_session.flush()
     row = db_session.query(models.GameCopy).one()
@@ -54,27 +69,28 @@ def test_write_game_copies_inserts_updates_and_deletes(db_session):
         db_session,
         game,
         [{"system_id": row.system_id, "storefront": "Steam", "ownership": "Wishlist"}],
+        _Viewer(admin_user.id),
     )
     db_session.flush()
     assert db_session.query(models.GameCopy).one().ownership == "Wishlist"
 
-    write_game_copies(db_session, game, [])
+    write_game_copies(db_session, game, [], _Viewer(admin_user.id))
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 0
 
 
-def test_none_means_not_supplied_and_leaves_copies_alone(db_session):
+def test_none_means_not_supplied_and_leaves_copies_alone(db_session, admin_user):
     game = models.Game(game_name_en="Hades")
     db_session.add(game)
     db_session.flush()
-    write_game_copies(db_session, game, [{"storefront": "GOG"}])
+    write_game_copies(db_session, game, [{"storefront": "GOG"}], _Viewer(admin_user.id))
     db_session.flush()
-    write_game_copies(db_session, game, None)
+    write_game_copies(db_session, game, None, _Viewer(admin_user.id))
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 1
 
 
-def test_ownership_is_owned_when_any_copy_is(db_session):
+def test_ownership_is_owned_when_any_copy_is(db_session, admin_user):
     game = models.Game(game_name_en="Multi")
     db_session.add(game)
     db_session.flush()
@@ -85,6 +101,7 @@ def test_ownership_is_owned_when_any_copy_is(db_session):
             {"storefront": "Nintendo eShop", "ownership": "Wishlist"},
             {"storefront": "Steam", "ownership": "Owned"},
         ],
+        _Viewer(admin_user.id),
     )
     db_session.flush()
     db_session.refresh(game)

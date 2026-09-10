@@ -11,7 +11,6 @@ import uuid
 import pytest
 
 from app import models
-from app.services.domain.user_list import acting_user_id
 from app.services.security import get_password_hash
 from tests.api.conftest import role_id_for
 
@@ -29,7 +28,7 @@ def a_game(db, admin_client):
 
 
 def test_a_copy_written_through_the_router_belongs_to_the_acting_user(
-    db, admin_client, a_game
+    db, admin_client, a_game, admin_user,
 ):
     response = admin_client.patch(
         f"/api/game/{a_game}",
@@ -38,10 +37,10 @@ def test_a_copy_written_through_the_router_belongs_to_the_acting_user(
     )
     assert response.status_code == 200, response.text
     copy = db.query(models.GameCopy).filter(models.GameCopy.game_id == a_game).one()
-    assert copy.user_id == acting_user_id(db, None)
+    assert copy.user_id == admin_user.id
 
 
-def test_two_people_can_own_the_same_edition(db, admin_client, a_game):
+def test_two_people_can_own_the_same_edition(db, admin_client, a_game, admin_user):
     """The old uq_game_copy_row was UNIQUE (game_id, storefront, copy_format),
     which is exactly the row two owners both need."""
     other = models.User(
@@ -53,7 +52,7 @@ def test_two_people_can_own_the_same_edition(db, admin_client, a_game):
     db.add(other)
     db.flush()
 
-    for user_id in (acting_user_id(db, None), other.id):
+    for user_id in (admin_user.id, other.id):
         db.add(
             models.GameCopy(
                 system_id=uuid.uuid4(),

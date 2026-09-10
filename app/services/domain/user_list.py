@@ -90,23 +90,59 @@ LIST_FIELDS: dict[str, tuple[str, ...]] = {
 
 def acting_user_id(db: Session, viewer) -> Optional[UUID]:
     """
-    Whose list the request reads and writes.
+    Whose list the request reads and writes. None when nobody is asking.
 
-    Until Step 2 ships real accounts there is exactly one person's data and a
-    logged-out visitor sees it, so an unresolved viewer falls back to the admin
-    user rather than to nothing. Removing that fallback IS Step 2; keeping it
-    here is what makes Step 1 invisible to the SPA and to a guest.
+    There is deliberately **no fallback**. Steps 1 and 2 kept one - an
+    unresolved viewer became the lowest-username admin - so that the list
+    columns stayed visible on the public pages while the data model went
+    multi-user underneath. That made a stranger read one person's statuses,
+    ratings and progress as though they were facts about the work, and picked
+    *which* person by an accident of username sort. A status is a claim about
+    somebody; with nobody asking there is no one to make it about, so the
+    fields come back empty.
+
+    `db` is now unused and kept in the signature on purpose: eight call sites
+    pass it, and the answer to "whose list is this?" is the sort of thing that
+    acquires a query again later.
+
+    Not to be confused with installation_owner_id() below, which answers a
+    different question and does still name somebody.
     """
     if viewer is not None and getattr(viewer, "user_id", None) is not None:
         return viewer.user_id
-    admin = (
+    return None
+
+
+def installation_owner_id(db: Session) -> Optional[UUID]:
+    """
+    Whose rows a restore or a pipeline writes. NOT a visibility rule.
+
+    A Sheets restore and the Calculate pipeline both have to file their rows
+    under an account: the sheet holds one person's collection and carries no
+    owner column, and `user_media_list.user_id` is NOT NULL. That is a
+    data-ownership question, and it survives the removal of the visibility
+    fallback because it was never the same question - it just happened to
+    share an implementation, which is how a stranger came to be shown somebody
+    else's ratings.
+
+    The rule matches what the Step 3 migrations backfilled to: the account
+    named `admin`, or the alphabetically first user when no account carries
+    that name. `pull.py` had its own private copy of exactly this; there is
+    one answer now.
+
+    Nothing on a request path may call this. If a route needs to know who is
+    asking, the answer is acting_user_id() and it is allowed to be None.
+    """
+    owner = (
         db.query(models.User)
         .join(models.Role, models.User.role_id == models.Role.system_id)
         .filter(models.Role.name == "admin")
         .order_by(models.User.username)
         .first()
     )
-    return admin.id if admin is not None else None
+    if owner is None:
+        owner = db.query(models.User).order_by(models.User.username).first()
+    return owner.id if owner is not None else None
 
 
 def list_row(db: Session, user_id: Optional[UUID], media_id: UUID):
@@ -171,7 +207,18 @@ def attach_list_fields(db: Session, media_type: str, entries, user_id) -> None:
     An entry the viewer has no list row for gets the type's default status and
     None for everything else, which is exactly what the detail row used to
     hold for an untouched entry.
+
+    A `user_id` of None means **nobody is asking**, and that is not the same
+    thing as "asked, and has not touched this". The default status is a claim
+    about a person - "Might Watch" says somebody might - so with no person it
+    is not made: every personal field is left unset, and the response schemas
+    render them null. Setting the default here instead would print
+    "Might Watch" against every entry in the library to a logged-out visitor,
+    which reads as a statement rather than an absence.
     """
+    if user_id is None:
+        return
+
     if isinstance(entries, Iterable) and not hasattr(entries, "system_id"):
         items = list(entries)
     else:

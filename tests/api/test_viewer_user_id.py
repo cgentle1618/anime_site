@@ -6,7 +6,7 @@ import pytest
 from fastapi import Request
 
 from app import models
-from app.services.domain.user_list import acting_user_id
+from app.services.domain.user_list import acting_user_id, installation_owner_id
 from app.services.rbac.resolver import resolve_viewer
 from app.services.security import create_access_token, get_password_hash
 from tests.api.conftest import role_id_for
@@ -58,8 +58,19 @@ def test_a_guest_viewer_has_no_user_id(db):
     assert viewer.user_id is None
 
 
-def test_acting_user_id_falls_back_to_the_admin_for_a_guest(db, an_admin):
-    """Until step 2, a guest reads the admin's list - that is what keeps this
-    step invisible on the public pages."""
+def test_acting_user_id_does_not_fall_back_for_a_guest(db, an_admin):
+    """
+    It used to. Steps 1 and 2 resolved a guest to the lowest-username admin so
+    that the personal columns stayed visible on the public pages while the data
+    model went multi-user underneath - which meant a stranger read one
+    account's statuses and ratings as facts about the work, and picked the
+    account by an accident of username sort. Removed on 2026-09-10: a guest has
+    no list and is shown none.
+
+    `installation_owner_id` is what kept the half of the old behaviour that was
+    legitimate - naming an owner for a restore or a pipeline - and it is not on
+    any request path.
+    """
     viewer = resolve_viewer(_request(), db)
-    assert acting_user_id(db, viewer) == an_admin.id
+    assert acting_user_id(db, viewer) is None
+    assert installation_owner_id(db) == an_admin.id

@@ -62,6 +62,12 @@ class MangaUpdate(MangaBase, SourceWriteFields):
 
 
 class MangaResponse(MangaBase, MangaLinkFields):
+    # Redeclared from the base as Optional: a logged-out visitor has no
+    # list, so attach_list_fields sets nothing and this arrives absent.
+    # Only the READ side moves - Create/Update/SheetSync keep the base's
+    # default, because a write that omits a status still means the
+    # default rather than 'nobody'.
+    reading_status: Optional[str] = None
     system_id: UUID
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.

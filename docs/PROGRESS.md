@@ -67,6 +67,16 @@ open by choice and neither blocks inviting somebody: **session lifetime** is a
 flat 24 hours with no refresh or revocation, and there is **no password reset**
 - an admin sets one at `/users`.
 
+**The guest fallback is gone** (2026-09-10). A logged-out visitor has no
+list: statuses, ratings and progress serialise as null, the library table shows
+`-`, and the "My tracker" card does not render. `installation_owner_id` keeps
+the half of the old behaviour that was legitimate - naming an owner for a
+restore or a pipeline - and is not on any request path. Two defects surfaced
+while removing it and are fixed: `POST /{type}/{id}/complete` wrote to the
+lowest-username admin's list rather than the caller's, and a personal-column
+filter from a guest cross-joined `user_media_list` and matched every account's
+rows.
+
 **Both machines need `APP_ENV=development` in `.env`.** Done on home; the
 **company** machine needs it, and needs real `JWT_SECRET_KEY` and
 `ADMIN_PASSWORD` values if it is still on the ones `.env.example` shipped, or
@@ -74,7 +84,6 @@ the app will refuse to start there.
 
 | Item | Where | Status |
 |---|---|---|
-| The `acting_user_id` guest-to-admin fallback still stands | A logged-out visitor still reads the lowest-username admin's list, so the public pages still show that account's statuses and ratings. Step 2's plan neither removes it nor lists it in its Definition of done; removing it is a visible behaviour change and needs a decision about what a guest should see. Step 3 narrowed it - `plan_next` and `seasonal` answer 401 now, and `viewer_user_id` has no fallback at all - but `acting_user_id` still falls back for the list columns. `app/services/domain/user_list.py` | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |

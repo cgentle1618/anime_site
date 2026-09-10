@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-10 (Step 5: note scope enforcement)
+Last verified: 2026-09-10 (the guest fallback removed; a guest has no list)
 
 ## What this is for
 
@@ -342,6 +342,40 @@ one entry or a list:
 - `gated_note_sections(viewer)` lists `note.section` values to withhold. It is
   applied **only to rows the viewer did not author** - hiding somebody's own
   notes from them is not a permission, it is a bug.
+
+## What a guest sees
+
+A logged-out visitor has **no list**, and is shown none. `acting_user_id`
+returns None for an unresolved viewer, `attach_list_fields` sets nothing, and
+the nine `*Response` schemas declare their status field `Optional[str] = None`
+so it serialises as null. The library table renders `-`, and the detail page's
+"My tracker" card does not render at all - the card is one person's by name,
+and there is no "my" without a viewer.
+
+Until 2026-09-10 the fallback resolved a guest to the **lowest-username admin**,
+so a stranger read that account's statuses, ratings and progress as though they
+were facts about the work, and *which* account was an accident of username sort.
+Steps 1 and 2 kept it deliberately, to hold the public pages still while the
+data model went multi-user underneath; Step 3 narrowed it (`plan_next` and
+`seasonal` answer 401, and `viewer_user_id` never had a fallback). This closes
+it.
+
+**A filter over a personal column matches nothing for a guest.** That is not
+cosmetic: `join_list` is a no-op when there is no user, so a reference to
+`user_media_list` in a `WHERE` clause became an implicit **cross join** and
+`?watching_status=Completed` would have matched rows from *every* account.
+`app/routers/_factory.py` short-circuits such a filter to `false()`.
+
+Two rules that are **not** this one and survive unchanged:
+
+- **`installation_owner_id(db)`** (`app/services/domain/user_list.py`) - whose
+  rows a restore or a pipeline writes. The sheet holds one person's collection
+  and carries no owner column, and `user_media_list.user_id` is NOT NULL, so
+  Pull and Calculate have to name somebody. A data-ownership question, never a
+  visibility one; nothing on a request path may call it. `pull.py` had a
+  private copy of the same query, and there is one answer now.
+- **`viewer_user_id`** - the non-raising companion for the two public paths
+  that must show nothing per-user. It never had a fallback.
 
 ## Note scope
 

@@ -48,7 +48,7 @@ from app.services.domain import (
     tv_show_post_processing,
 )
 from app.services.domain.plan_next import derive_size_groups
-from app.services.domain.user_list import acting_user_id, list_row
+from app.services.domain.user_list import installation_owner_id, list_row
 from app.services.integrations.image_manager import (
     cover_image_exists,
     cover_key,
@@ -541,8 +541,11 @@ def run_sync_novel(db: Session) -> dict:
     for entry in db.query(Novel).options(selectinload(Novel.units)).all():
         derive_novel_catalog(entry)
         # The reader's half only exists if they have a list row; Calculate
-        # must not mint one for an entry nobody has touched.
-        row = list_row(db, acting_user_id(db, None), entry.system_id)
+        # must not mint one for an entry nobody has touched. Whose row: the
+        # installation's owner, because Calculate is a pipeline with no viewer
+        # rather than a request - acting_user_id would answer None here and
+        # silently derive nothing.
+        row = list_row(db, installation_owner_id(db), entry.system_id)
         if row is not None:
             derive_novel_list(row, entry)
     db.commit()

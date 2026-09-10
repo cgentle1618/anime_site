@@ -49,7 +49,7 @@ from app.services.domain.credits import (
     replace_credits,
     replace_tags,
 )
-from app.services.domain.user_list import acting_user_id
+from app.services.domain.user_list import installation_owner_id
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
@@ -401,18 +401,16 @@ def _restore_owner_id(db: Session):
     """
     Which account a restored plan_next / seasonal row belongs to.
 
-    The sheet has no user column until Step 4 of the multi-user rollout, and
-    both tables' user_id is NOT NULL, so a restore has to name somebody. It
-    names the same account the Step 3 migrations backfilled to: `admin`, or the
-    alphabetically first user when no account carries that name.
+    Kept as a name local to Pull because that is where the rule is *argued*,
+    but it is one line now: the installation owner, shared with Calculate and
+    the Game Copy restore below. It used to be a second, private copy of the
+    same query, which is how one question came to have two answers.
 
     Restore-time only. No request path calls this, and it is deliberately not a
-    "whose rows does a visitor see" rule - a visitor sees neither table at all.
+    "whose rows does a visitor see" rule - a visitor sees neither table at all,
+    and since the guest fallback was removed a visitor has no list either.
     """
-    owner = db.query(User).filter(User.username == "admin").first()
-    if owner is None:
-        owner = db.query(User).order_by(User.username).first()
-    return owner.id if owner else None
+    return installation_owner_id(db)
 
 
 _NOTE_OWNER_COLUMNS = ("media_id", "collection_id", "franchise_id", "series_id")
@@ -746,7 +744,7 @@ def execute_pull_specific(
         # from whichever database wrote it. Runs before the natural-key match,
         # which now keys on user_id.
         if tab_name == "Game Copy":
-            owner = acting_user_id(db, None)
+            owner = installation_owner_id(db)
             if owner is None:
                 rows_skipped += 1
                 continue

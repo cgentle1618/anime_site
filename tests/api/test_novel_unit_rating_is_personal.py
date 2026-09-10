@@ -11,7 +11,6 @@ import uuid
 import pytest
 
 from app import models
-from app.services.domain.user_list import acting_user_id
 
 
 @pytest.fixture
@@ -45,7 +44,7 @@ def test_the_unit_row_carries_no_rating_column(db, novel_with_arcs):
     assert not hasattr(unit, "my_rating")
 
 
-def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs):
+def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs, admin_user):
     unit = db.query(models.NovelUnit).filter(
         models.NovelUnit.name_en == "Arc One"
     ).one()
@@ -53,7 +52,7 @@ def test_the_rating_lands_in_the_readers_own_row(db, novel_with_arcs):
         models.UserNovelUnitRating.unit_id == unit.system_id
     ).one()
     assert rating.my_rating == "A"
-    assert rating.user_id == acting_user_id(db, None)
+    assert rating.user_id == admin_user.id
 
 
 def test_the_response_still_carries_my_rating_on_each_unit(novel_with_arcs):

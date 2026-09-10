@@ -20,15 +20,19 @@ def test_names_dict_covers_all_five():
     assert game.names_dict["jp"] == "ニーア"
 
 
-def test_playing_status_defaults_to_might_play(db_session):
+def test_playing_status_defaults_to_might_play(db_session, admin_user):
     """The default outlived the column: playing_status moved to the list row
-    in step 1, and a game with no row still reads back as Might Play."""
+    in step 1, and a game with no row still reads back as Might Play.
+
+    Asked as a real account. A user_id of None means nobody is asking, and
+    since 2026-09-10 that yields no status at all rather than the default -
+    "Might Play" is a claim about a person."""
     from app.services.domain.user_list import DEFAULT_STATUS, attach_list_fields
 
     game = models.Game(game_name_en="Default Test")
     db_session.add(game)
     db_session.flush()
-    attach_list_fields(db_session, "game", game, None)
+    attach_list_fields(db_session, "game", game, admin_user.id)
     assert game.playing_status == DEFAULT_STATUS["game"] == "Might Play"
 
 

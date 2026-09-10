@@ -11,7 +11,7 @@ import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from sqlalchemy import Boolean, or_
+from sqlalchemy import Boolean, false, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_taipei_now
@@ -188,6 +188,15 @@ def make_media_router(spec) -> APIRouter:
             if raw is None:
                 continue
             if field in personal:
+                if user_id is None:
+                    # Nobody is asking, so nobody's list can match. Without
+                    # this the reference to UserMediaList below is unjoined -
+                    # join_list is a no-op for a None user - and SQLAlchemy
+                    # turns it into an implicit CROSS JOIN that matches rows
+                    # from EVERY account. A guest filtering by status would
+                    # then read the whole installation's lists at once.
+                    query = query.filter(false())
+                    continue
                 if field == STATUS_FIELD[spec.owner_type]:
                     # An entry with no list row reads as the type's default, so
                     # filtering ON that default must also return the rows that
@@ -376,13 +385,18 @@ def make_media_router(spec) -> APIRouter:
         entry_id: str,
         db: Session = Depends(get_db),
         admin: dict = Depends(get_current_admin),
+        viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
         spec.mark_completed(entry)
         # Finishing something is one person's fact: it lands on the acting
         # user's row, and the shared entry keeps only what mark_completed
         # said about the work itself.
-        user_id = acting_user_id(db, None)
+        #
+        # `viewer`, not None. This passed None until 2026-09-10, which resolved
+        # through the old fallback to the lowest-username admin - so with two
+        # admins, one pressing Complete wrote to the other's list.
+        user_id = acting_user_id(db, viewer)
         if user_id is not None:
             row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
             spec.mark_completed_list(row, entry)
@@ -392,7 +406,9 @@ def make_media_router(spec) -> APIRouter:
         entry.updated_at = get_taipei_now()
         db.commit()
         db.refresh(entry)
-        return _finish(db, entry, None)
+        # `viewer` for the same reason the write above takes it: the response
+        # echoes back the caller's own row, not the first admin's.
+        return _finish(db, entry, viewer)
 
     @router.delete("/{entry_id}", summary=f"Delete {spec.label}")
     def delete(

@@ -17,7 +17,7 @@ import uuid
 import pytest
 
 from app import models
-from app.services.domain.user_list import DEFAULT_STATUS, acting_user_id
+from app.services.domain.user_list import DEFAULT_STATUS
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ CASES = {
 
 
 @pytest.mark.parametrize("base", list(CASES))
-def test_create_writes_personal_fields_to_the_list_row(admin_client, db, base):
+def test_create_writes_personal_fields_to_the_list_row(admin_client, db, base, admin_user):
     model, name_col, media_type, status_key, status, cat_col, cat_val = CASES[base]
     payload = {name_col: "Typed Sentinel", status_key: status,
                "my_rating": "A", cat_col: cat_val}
@@ -81,7 +81,7 @@ def test_create_writes_personal_fields_to_the_list_row(admin_client, db, base):
     )
     assert row.status == status
     assert row.my_rating == "A"
-    assert row.user_id == acting_user_id(db, None)
+    assert row.user_id == admin_user.id
 
 
 @pytest.mark.parametrize("base", list(CASES))

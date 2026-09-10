@@ -29,6 +29,12 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
     # reconcile that saw everyone's rows would delete other people's
     # purchases as soon as this payload omitted them.
     user_id = acting_user_id(db, viewer)
+    if user_id is None:
+        # Nobody to own them. Every caller is an admin-gated request path, so
+        # this is unreachable in practice - but game_copy.user_id is NOT NULL,
+        # and reaching the INSERT would raise an IntegrityError that says
+        # nothing about the cause. novel_unit_writer guards the same way.
+        return
     existing = {
         c.system_id: c
         for c in db.query(GameCopy)

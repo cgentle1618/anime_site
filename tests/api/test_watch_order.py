@@ -142,9 +142,13 @@ class TestGetWatchOrderDetail:
         assert [i["position"] for i in data["items"]] == [1.0, 2.0, 3.0]
 
     def test_items_are_resolved_to_display_data(
-        self, client, sample_list, sample_items, sample_anime
+        self, admin_client, sample_list, sample_items, sample_anime
     ):
-        data = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()
+        # admin_client: `status` comes off the caller's own list row, and a
+        # logged-out visitor has no list to read it from.
+        data = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()
         first = data["items"][0]
         assert first["missing"] is False
         assert first["display_name"] == "Test Anime"
@@ -910,14 +914,14 @@ class TestCandidates:
         assert [c["display_name"] for c in data] == ["Collected Anime"]
 
     def test_candidate_carries_the_fields_a_row_needs(
-        self, client, sample_franchise, sample_anime
+        self, admin_client, sample_franchise, sample_anime
     ):
         """
         The editor appends a picked candidate straight into its local list, so
         the payload must match the resolver's shape - a missing field would
         render the new row blank until a reload.
         """
-        data = client.get(
+        data = admin_client.get(
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
         ).json()
         anime = next(c for c in data if c["media_type"] == "anime")

@@ -294,9 +294,11 @@ def list_row(db_session, admin_user):
     needs an entry to be Completed (or rated, or part-watched) writes them
     here instead of as constructor kwargs.
 
-    `admin_user` and not `acting_user_id(db, None)`: the app lifespan seeds a
-    second admin named "admin" that sorts first and would win that fallback,
-    so a row hung on it reads back as the type's default and the test lies.
+    `admin_user`, because that is the account `admin_client` acts as, and a
+    personal read is answered from the caller's own list. It used to matter
+    for a second reason - the lifespan seeds an admin named "admin" that sorts
+    first and would have won `acting_user_id`'s fallback - and that fallback
+    was removed on 2026-09-10, so a guest now reads no list at all.
 
     A status the type already defaults to needs no row at all - an entry with
     no list row reads back as DEFAULT_STATUS.

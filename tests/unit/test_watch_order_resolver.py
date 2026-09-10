@@ -25,8 +25,11 @@ from app.services.domain.watch_order import (
     release_sort_key,
     resolve_items,
 )
+from app.services.rbac.resolver import Viewer
 
-# One admin, so acting_user_id resolves a guest the way it does in production.
+# One admin, named explicitly by the tests below. acting_user_id used to find
+# it by falling back for a viewer-less call; it does not any more, so a caller
+# that wants somebody's statuses has to say whose.
 FAKE_ADMIN = SimpleNamespace(id=uuid.uuid4())
 
 
@@ -94,6 +97,22 @@ def make_list_row(media_id, media_type="anime", **fields):
         user_id=FAKE_ADMIN.id,
         status=data.get("status", data[status_key]),
         **{k: v for k, v in data.items() if k != "status"},
+    )
+
+
+def _viewer(user_id):
+    """
+    The real Viewer, not a stub: resolve_items passes it to drop_hidden_rows,
+    which reads is_superuser and permissions, so a hand-rolled double has to
+    grow an attribute every time that path changes.
+    """
+    return Viewer(
+        username="fake-admin",
+        role_id=None,
+        role_name="admin",
+        is_superuser=True,
+        permissions=frozenset(),
+        user_id=user_id,
     )
 
 
@@ -200,7 +219,7 @@ class TestResolveItems:
             list_rows=[make_list_row(entry_id, watching_status="Completed")],
         )
 
-        result = resolve_items(db, [make_item("anime", entry_id)])[0]
+        result = resolve_items(db, [make_item("anime", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["missing"] is False
         assert result["display_name"] == "Fate/Zero"
@@ -220,7 +239,7 @@ class TestResolveItems:
             note="skip recap",
         )
 
-        result = resolve_items(db, [item])[0]
+        result = resolve_items(db, [item], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["ep_start"] == 1
         assert result["ep_end"] == 10
@@ -233,7 +252,7 @@ class TestResolveItems:
         db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(entry_id)]})
 
         result = resolve_items(
-            db, [make_item("anime", entry_id, importance=None)]
+            db, [make_item("anime", entry_id, importance=None)], _viewer(FAKE_ADMIN.id)
         )[0]
 
         assert result["importance"] == "Normal"
@@ -243,7 +262,7 @@ class TestResolveItems:
         db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(entry_id)]})
 
         result = resolve_items(
-            db, [make_item("anime", entry_id, importance="Critical")]
+            db, [make_item("anime", entry_id, importance="Critical")], _viewer(FAKE_ADMIN.id)
         )[0]
 
         assert result["importance"] == "Normal"
@@ -255,7 +274,7 @@ class TestResolveItems:
             list_rows=[make_list_row(entry_id, "manga", reading_status="Reading")],
         )
 
-        result = resolve_items(db, [make_item("manga", entry_id)])[0]
+        result = resolve_items(db, [make_item("manga", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["status"] == "Reading"
         assert result["total_episodes"] == 100
@@ -270,7 +289,7 @@ class TestResolveItems:
             ],
         )
 
-        result = resolve_items(db, [make_item("movie", entry_id)])[0]
+        result = resolve_items(db, [make_item("movie", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["total_episodes"] is None
         assert result["status"] == "Completed"
@@ -288,7 +307,7 @@ class TestResolveItems:
         )
         db = FakeSession({MEDIA_TYPE_MODELS["novel"]: [novel]})
 
-        result = resolve_items(db, [make_item("novel", entry_id)])[0]
+        result = resolve_items(db, [make_item("novel", entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
         assert result["total_episodes"] == 120
         assert isinstance(result["total_episodes"], int)
@@ -308,7 +327,7 @@ class TestResolveItems:
             make_item("movie", movie_id),
         ]
 
-        names = [r["display_name"] for r in resolve_items(db, items)]
+        names = [r["display_name"] for r in resolve_items(db, items, _viewer(FAKE_ADMIN.id))]
 
         assert names == ["A", "M", "V"]
 
@@ -319,7 +338,7 @@ class TestResolveItems:
             {MEDIA_TYPE_MODELS["anime"]: [make_anime(i) for i in anime_ids]}
         )
 
-        resolve_items(db, [make_item("anime", i) for i in anime_ids])
+        resolve_items(db, [make_item("anime", i) for i in anime_ids], _viewer(FAKE_ADMIN.id))
 
         assert len(db.queried_models) == 1
 
@@ -332,7 +351,7 @@ class TestResolveItems:
             make_item("anime", entry_id, position=3.0, ep_start=11, ep_end=12),
         ]
 
-        results = resolve_items(db, items)
+        results = resolve_items(db, items, _viewer(FAKE_ADMIN.id))
 
         assert len(db.queried_models) == 1
         assert [r["display_name"] for r in results] == ["A", "A"]
@@ -350,7 +369,7 @@ class TestResolveItems:
         )
         items = [make_item("anime", i) for i in ids]
 
-        assert [r["display_name"] for r in resolve_items(db, items)] == [
+        assert [r["display_name"] for r in resolve_items(db, items, _viewer(FAKE_ADMIN.id))] == [
             "first",
             "second",
             "third",
@@ -365,7 +384,7 @@ class TestEpSpecial:
 
     def _resolve(self, entry, entry_id, media_type="anime"):
         db = FakeSession({MEDIA_TYPE_MODELS[media_type]: [entry]})
-        return resolve_items(db, [make_item(media_type, entry_id)])[0]
+        return resolve_items(db, [make_item(media_type, entry_id)], _viewer(FAKE_ADMIN.id))[0]
 
     def test_value_is_surfaced(self):
         entry_id = uuid.uuid4()
@@ -426,7 +445,7 @@ class TestMissingEntries:
         db = FakeSession({MEDIA_TYPE_MODELS["anime"]: [make_anime(present, "here")]})
         items = [make_item("anime", present), make_item("anime", uuid.uuid4())]
 
-        results = resolve_items(db, items)
+        results = resolve_items(db, items, _viewer(FAKE_ADMIN.id))
 
         assert [r["missing"] for r in results] == [False, True]
         assert results[0]["display_name"] == "here"

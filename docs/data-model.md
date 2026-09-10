@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-10 (Step 5: note scope, note/quote/meme authorship, disjoint owner FKs)
+Last verified: 2026-09-10 (the guest fallback removed from the list reads)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
