@@ -35,6 +35,7 @@ from app.routers import (
     franchise,
     game,
     manga,
+    me_list,
     media_relation,
     meme,
     movie,
@@ -205,6 +206,7 @@ app.include_router(credits.router)
 app.include_router(casting.router)
 app.include_router(roles.router)
 app.include_router(users.router)
+app.include_router(me_list.router)
 app.include_router(content_labels.router)
 
 

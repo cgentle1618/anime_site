@@ -28,9 +28,9 @@ Plan: `docs/superpowers/plans/2026-09-08-step2-accounts-and-profiles.md`.
 |---|---|---|
 | 1 | The `self` permission family | done 6bb22b29 |
 | 2 | The `user` role (`m2a1users`) | done 87cac3ff |
-| 3 | `users.list_is_public` (`m2a2public`) | done (this commit) |
-| 4 | Gate list writes on `self.list` | wip step2-company |
-| 5 | `/api/account/settings` | todo |
+| 3 | `users.list_is_public` (`m2a2public`) | done 09751d40 |
+| 4 | Gate list writes on `self.list` | done (this commit) - the plan assumed Step 1 shipped /api/me; it did not, so the router was created here |
+| 5 | `/api/account/settings` | wip step2-company |
 | 6 | Rating points helper | todo |
 | 7 | `GET /api/profile/{username}` | todo |
 | 8 | `GET /api/community/{media_id}` | todo |
