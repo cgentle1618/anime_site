@@ -1,6 +1,6 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-08 (GCP code removed; Postgres version settled at 17)
+Last verified: 2026-09-10 (OS install, first-setup networking and Windows-first arrival checks written out; still nothing installed)
 
 > ## Status: hardware bought, nothing deployed yet
 >
@@ -9,7 +9,9 @@ Last verified: 2026-09-08 (GCP code removed; Postgres version settled at 17)
 > this file is still ahead: no OS is installed, no production
 > `docker-compose.yml` exists, and none of the code changes under
 > [What has to change in the code](#what-has-to-change-in-the-code) have been
-> made.
+> made. The OS install is now documented step by step under
+> [Bringing up the box](#bringing-up-the-box) — documented, not
+> done.
 >
 > The code side has moved too. On **2026-09-08 the GCP code was removed**,
 > which finished the cover-image work listed under
@@ -68,22 +70,247 @@ The Windows licence is irrelevant — this box runs Linux. The proprietary
 barrel-plug 變壓器 being included is the accessory that actually mattered;
 these are awkward to replace.
 
-### Check these on arrival
+**What to do with it when it arrives** is [Bringing up the box](#bringing-up-the-box)
+below — the inspection comes first, in the Windows it ships with, and the
+Windows licence stops mattering after that.
 
-| Check | How | Why it matters |
+## Bringing up the box
+
+**Nothing here has been done yet.** Everything from unboxing to a machine that
+answers SSH and runs Docker, written for someone who has never installed Linux:
+every screen, every answer, and what to do when an answer is wrong. Budget about
+an hour, most of which is the download.
+
+### The five phases
+
+The work moves between two machines, and most confusion about this procedure is
+really confusion about which one you are sitting at. Do them in order — each
+phase is a heading below, with its steps under it.
+
+| Phase | Where you are | Steps | What happens |
+| --- | --- | --- | --- |
+| **[A. Prepare the stick](#phase-a--prepare-the-usb-stick)** | At the dev machine | 1-2 | Download the ISO, write the USB. Touches nothing on the box, so do it while waiting for it to arrive. |
+| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. |
+| **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Five firmware settings. **After phase B, never before** — see below. |
+| **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
+| **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the remaining hardware readings, the router. The monitor comes off at the start of this phase and does not go back on. |
+
+The two sections before phase A are reading, not doing: which Ubuntu, and what to
+have on the desk. **If the box cannot reach the router with a cable**, the
+options are in phase D, at
+[If no cable can reach the box](#if-no-cable-can-reach-the-box) — the installer's
+network screen is where that is actually decided, and
+[phase B](#phase-b--inspect-the-machine-in-the-bundled-windows) is where you learn which of them will work.
+
+Two things that are easy to get wrong, both of which cost real time:
+
+- **SSH is not a later step.** "Install OpenSSH server" and the GitHub key import
+  are a checkbox on one of the installer's own screens (step 5). By first boot,
+  SSH is already running with your key already installed. Step 6 does not set it
+  up; it is the moment you first *use* it and put the monitor away.
+- **The BIOS changes break Windows on purpose.** Switching SATA mode from RST to
+  AHCI stops the pre-installed Windows booting. That is expected and harmless —
+  Windows is about to be erased — but it means every check in phase B has to be
+  finished first. Do it the other way round and the easiest way to inspect a
+  machine that can still be returned is gone.
+
+### Which Ubuntu, and why Server rather than Desktop
+
+**Ubuntu Server LTS — the current LTS is 26.04**, and if the download page lists
+a point release (`26.04.1`) take that one: it is the same system with several
+months of fixes already folded in, so the first `apt upgrade` is shorter. LTS
+means five years of security updates, to 2031. Check
+[releases.ubuntu.com](https://releases.ubuntu.com/) for what the current LTS
+actually is before downloading — do not take a non-LTS release such as 25.10 or
+26.10, which are supported for nine months and would force a reinstall.
+
+Server, not Desktop, for four reasons:
+
+- The box is headless and always on. A desktop session costs roughly 700 MB to
+  1 GB of RAM permanently, on a machine that is meant to hold several small
+  apps at once.
+- Fewer installed packages means fewer things to patch on a machine that will
+  be reachable from the Internet through the tunnel.
+- Everything that runs here — Docker, Postgres, `cloudflared` — is
+  command-line. There is nothing for a GUI to show.
+- Desktop enables automatic suspend and a different network stack by default;
+  both would have to be undone for a server.
+
+Debian stable is an equally sound choice and the runtime table above allows it.
+**Pick Ubuntu.** It is what the rest of this file assumes, its Docker packaging
+is better tested, and mixing the two in one's head is how commands stop matching
+the documentation.
+
+There is no 32-bit or ARM question here — the i5-8500T is x86-64, so the file to
+download is the **`amd64`** one.
+
+**This erases the bundled Windows 10 Pro.** That is intended. The licence is
+embedded in the board's firmware, so Windows can be reinstalled later without
+buying a key if the machine is ever repurposed or sold. Nothing on the used
+drive is worth keeping.
+
+### What to have ready before starting
+
+| Thing | Notes |
+| --- | --- |
+| A USB stick, 8 GB or larger | **It will be erased completely.** Any old stick will do. |
+| A monitor and the DP-to-HDMI adapter | The adapter came with the machine. The mini has DisplayPort; most monitors have HDMI. |
+| A USB keyboard | The bundled mouse is not needed — the installer is keyboard-only. |
+| An Ethernet cable to the router | The end state, and the easiest install. If the box cannot reach the router yet, a phone hotspot or USB tethering will do for setup — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). A server left on WiFi permanently is a server that drops off at 3am. |
+| A second computer | A dev machine, to write the USB stick and afterwards to SSH in. |
+| The router's admin page | For the DHCP reservation at the end. |
+
+### Phase A — Prepare the USB stick
+
+*At the dev machine. Nothing here touches the box, so it can all be done before
+the box arrives — and should be, so that the day it turns up the only question
+left is whether the hardware is sound, not whether a 3 GB download has finished.*
+
+#### Step 1 — Download the ISO and verify it
+
+On the dev machine, from [releases.ubuntu.com](https://releases.ubuntu.com/),
+download **`ubuntu-26.04-live-server-amd64.iso`** (about 3 GB). If the download
+crawls, use a Taiwan mirror — `free.nchc.org.tw/ubuntu-cd/` is the NCHC one.
+
+The file name matters. `live-server` is right; `desktop` is the wrong image, and
+`netboot` / `mini` are not what this is.
+
+Then check the download is intact. In PowerShell, in the folder holding the ISO:
+
+```powershell
+Get-FileHash .\ubuntu-26.04-live-server-amd64.iso -Algorithm SHA256
+```
+
+Compare the output against the matching line in the `SHA256SUMS` file next to
+the ISO on the download page. They must match character for character. If they
+do not, the download is corrupt — delete it and fetch it again. A corrupt ISO
+produces installer errors that look like hardware faults and will cost far more
+time than this check.
+
+#### Step 2 — Write the ISO to the USB stick
+
+Use [Rufus](https://rufus.ie/) on Windows. It is a single `.exe`, no install.
+
+1. Insert the USB stick. **Confirm nothing on it is wanted.**
+2. Open Rufus. Under **Device**, select the stick — check the size shown, so an
+   external backup drive is never picked by accident.
+3. **Boot selection** → `SELECT` → the downloaded ISO.
+4. **Partition scheme: GPT.** **Target system: UEFI (non CSM).** These are the
+   defaults once the ISO is chosen; leave them.
+5. Leave volume label and file system alone. Click **START**.
+6. If Rufus offers **ISO mode or DD mode**, choose **ISO mode** (recommended).
+7. Wait for READY, then eject.
+
+balenaEtcher is a fine alternative and asks fewer questions. Do not simply copy
+the ISO onto the stick in Explorer — that does not produce a bootable disk.
+
+### Phase B — Inspect the machine, in the bundled Windows
+
+*At the box, in the Windows it shipped with. Nothing is installed or changed
+yet — this phase exists to decide whether the machine is kept at all, while
+returning it is still possible.*
+
+**Do all of this from the bundled Windows 10, before installing anything.** The
+machine ships with a working OS; use it once, for exactly this, then erase it.
+Three reasons the order matters:
+
+- **The return window is the only real remedy.** This is a used machine bought
+  from a Shopee seller under 蝦皮安心退. A fault found this week is a refund; the
+  same fault found next month is a repair at your own cost. Every check below
+  exists to be run while returning it is still an option.
+- **Windows answers most of these more easily than Linux does**, with tools that
+  need no network, no drivers and no install — which matters when the box has
+  not been on a network yet.
+- **Nothing of yours is on it.** Wiping and starting over costs nothing at this
+  point, so it is the right moment to stress it.
+
+| Check | How, in Windows | Why it matters |
 | --- | --- | --- |
-| Is the 16 GB **1×16 GB or 2×8 GB**? | `sudo dmidecode -t memory`, or open the case | One stick leaves the second SO-DIMM slot free, so 32 GB later costs one module instead of two. Two sticks means any upgrade is a full replacement. Worth knowing before RAM prices move. |
-| SSD health and hours | `sudo smartctl -a /dev/nvme0n1` | It is a used drive of unknown age. Power-on hours and any reallocated sectors decide whether it is trusted with the only copy of anything. |
-| Actual idle power | A plug-in power meter | Expect roughly 8-12 W. This is an estimate from the platform, not a measurement — worth checking once, since it runs 24/7. |
-| PSU is the genuine HP unit | Look at the label | Listed as 原廠; third-party bricks on these are a known source of instability. |
+| **Is it the machine that was advertised?** i5-8500T, 16 GB, 512 GB | Right-click the taskbar → **Task Manager** → **Performance**, and **Settings → System → About** | The listing promised specific parts. Confirming them is the entire point of booting Windows first: a mismatch is a return, and only while the window is open. |
+| **Is the 16 GB `1×16 GB` or `2×8 GB`?** | Task Manager → Performance → **Memory**; read **"Slots used: 1 of 2"** | One stick leaves the second SO-DIMM slot free, so 32 GB later costs one module instead of two. Two sticks means any upgrade is a full replacement. Worth knowing before RAM prices move again. |
+| **SSD health and power-on hours** | [CrystalDiskInfo](https://crystalmark.info/) — free, portable, no install needed | It is a used drive of unknown age holding the only copy of the covers. Read **Health Status**, **Power On Hours** and **Total Host Writes**. Anything other than a Good/正常 health status is a return, not a risk to accept. Over ~20,000 hours is a well-used drive — fine, but plan the backup accordingly. |
+| **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. |
+| **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. |
+| **Does the hardware physically work?** | Plug something into each USB port, both DisplayPort outputs, and the headphone jack. Leave it running 30 minutes and listen | Used-machine faults are usually dead ports, a noisy or seized fan, or thermal shutdown under load — none of which a spec sheet shows. A machine that is loud on a desk is a machine that gets unplugged. |
+| **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. |
+| **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. |
 
-### BIOS settings before installing anything
+Most of the software answers come out of one PowerShell window (right-click
+Start → **Windows PowerShell**):
 
-Press **F10** at boot.
+```powershell
+# RAM: one row per stick fitted — one row means a free slot
+Get-CimInstance Win32_PhysicalMemory |
+  Select-Object DeviceLocator, @{n='GB';e={$_.Capacity/1GB}}, Speed, Manufacturer, PartNumber
+
+# CPU
+Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, MaxClockSpeed
+
+# Disks and their health
+Get-PhysicalDisk |
+  Select-Object FriendlyName, MediaType, HealthStatus, @{n='GB';e={[math]::Round($_.Size/1GB)}}
+
+# Network cards and MAC addresses — note the Ethernet one for the DHCP reservation
+Get-NetAdapter | Select-Object Name, InterfaceDescription, MacAddress, Status
+
+# Serial number and BIOS
+Get-CimInstance Win32_BIOS | Select-Object SerialNumber, SMBIOSBIOSVersion, ReleaseDate
+```
+
+Write the answers down somewhere outside this machine — they are wanted again
+when buying RAM, when setting the DHCP reservation, and when the drive
+eventually needs replacing.
+
+**If any of this fails, stop and return the machine.** Nothing in this document
+is urgent enough to justify building a server on a drive that reports Caution or
+a fan that screams. The seller's return window is short.
+
+**Finish all of it before touching the BIOS.** Phase C, next,
+switches SATA mode to AHCI, which stops this Windows installation booting — expected, since it
+is about to be erased, but it also ends your ability to run any of the checks
+above. Windows first, BIOS second.
+
+#### What cannot be answered until Linux is running
+
+| Check | How | Why later |
+| --- | --- | --- |
+| Actual idle power | A plug-in power meter at the wall, once the box is installed, headless and idle | Expect roughly 8-12 W. Windows idles differently from a headless Linux server, so a measurement taken now would not describe the thing that actually runs 24/7. Worth doing once, since it is on all the time. |
+| A SMART baseline to compare against | `sudo smartctl -a /dev/nvme0n1`, in [step 9](#step-9--finish-the-hardware-checks) | Duplicates what CrystalDiskInfo already showed, but it is the reading in the form you will see it in from then on. Keep it. |
+
+#### What the WiFi-card answer decides
+
+If the box cannot reach the router with a cable for its first setup, the card
+named in Device Manager decides which of the alternatives in
+[phase D](#phase-d--install-ubuntu) is worth trying:
+
+- **Intel** (`Wireless-AC 9560`, `AX200`, ...) — driver and firmware ship in the
+  Ubuntu installer. WiFi will appear in the network step and work. This is what
+  these HP boxes usually have.
+- **Realtek** (`RTL8821CE`, `RTL8822BE`, ...) — expect trouble. Several of these
+  need an out-of-tree driver compiled *after* install, which is a chicken-and-egg
+  problem: the network is needed to fix the network. Use USB tethering instead
+  and do not spend an evening on it.
+- **Qualcomm / Atheros** — usually fine.
+
+Once Windows is erased this is much harder to answer, which is why it is the one
+arrival check that has to happen first.
+
+### Phase C — Set the BIOS
+
+*At the box, monitor and keyboard. **Only once phase B is finished** — the first
+setting here stops the pre-installed Windows from booting.*
+
+#### Step 3 — BIOS settings
+
+These are set on the box itself, in its firmware, and they have to be right
+*before* the installer boots — the first one decides whether the installer can
+see the drive at all. Press **F10** at power-on to get in.
 
 1. **SATA mode → AHCI** (from RAID / Intel RST). Without this the Linux
-   installer will not see the drive. This is the single most common stumbling
-   block on these machines.
+   installer will reach the disk step and report that there are no disks — the
+   single most common way this install goes wrong on these HP machines. It also
+   stops the pre-installed Windows booting, which is why every check in
+   [phase B](#phase-b--inspect-the-machine-in-the-bundled-windows) has to be done first.
 2. **After Power Loss → Power On.** The default is to stay off. For an
    always-on server this is the difference between a brief power cut and a trip
    home to press a button.
@@ -91,6 +318,344 @@ Press **F10** at boot.
 4. **Secure Boot** — Ubuntu supports it, so it can stay on. Turn it off only if
    an out-of-tree driver later needs it.
 5. Set a BIOS password if the box will be physically reachable by others.
+
+Save and exit (**F10**), and leave the USB stick plugged in.
+
+### Phase D — Install Ubuntu
+
+*At the box, monitor and keyboard, for the last time. SSH is switched on during
+this phase, inside the installer — not afterwards.*
+
+#### Step 4 — Boot the installer
+
+Power on and press **F9** repeatedly for the one-time boot menu. Choose the entry
+for the USB stick that begins with **`UEFI:`** — there may be two entries for the
+same stick, and the non-UEFI one installs a legacy-boot system that will not
+match the GPT layout chosen in Rufus.
+
+At the GRUB menu, take **Try or Install Ubuntu Server** (the default; it boots on
+its own after a few seconds). Text scrolls for a minute or two. If the installer
+offers an update to itself, **decline it** — the shipped version is fine and
+updating adds a failure mode.
+
+#### If no cable can reach the box
+
+*Read this before step 5 if the box is not next to the router. The installer's
+network screen is where the choice is made, and it cannot be skipped — the
+installer downloads updates.*
+
+**The end state is the cable.** A server that lives in one place, runs unattended
+and holds a long-lived outbound tunnel belongs on Ethernet: WiFi drops are the
+difference between a machine that recovers on its own and a machine that has to
+be walked over to. Everything below is about the *first* setup, when the box may
+not yet be sitting anywhere near the router.
+
+All three options work. They differ in how much can go wrong.
+
+| Option | Good for | Cost |
+| --- | --- | --- |
+| **Phone hotspot (WiFi)** | The simplest if the WiFi card is Intel. The installer's network screen handles it like any other network. | Mobile data, and the SSH caveat below. |
+| **USB tethering from the phone** | The reliable fallback. The installer sees an ordinary *wired* interface, so the WiFi card and its driver are out of the picture entirely. | A USB data cable. Same mobile data. |
+| **Powerline adapters** | If the box will permanently live far from the router. Not a setup trick — an actual fix. | About NT$1,000. |
+
+##### What the installer's WiFi step can and cannot do
+
+At **Network connections**, a `wlp*` interface is listed beside the wired one.
+Select it, pick the SSID, enter the passphrase, and **wait for an IPv4 address to
+appear** before continuing — the installer downloads updates and a half-connected
+network fails later, in a less obvious place.
+
+Three hard limits:
+
+- **WPA2-Personal only.** No WPA-Enterprise, no captive portals, nothing that
+  needs a "click here to accept" page.
+- **Hidden SSIDs** are not listed and are awkward to add.
+- 2.4 GHz vs 5 GHz makes no difference to anything here; prefer 2.4 GHz for range.
+
+The result is written to `/etc/netplan/50-cloud-init.yaml`:
+
+```yaml
+network:
+  version: 2
+  wifis:
+    wlp2s0:
+      dhcp4: true
+      access-points:
+        "YourSSID":
+          password: "your-passphrase"
+```
+
+`sudo netplan apply` reloads it, and `sudo apt install wpasupplicant` is the
+missing piece if WiFi is ever configured from the console after install. **That
+file contains the WiFi password in plain text — `sudo chmod 600` it.**
+
+##### USB tethering from the phone
+
+The phone's USB-C port to any of the box's rear USB-A ports (or its front Type-C
+port), then on the phone: **Settings -> Connections -> Mobile Hotspot and
+Tethering -> USB tethering**. The toggle only becomes available once the cable is
+plugged into a computer.
+
+Linux sees this as a normal wired interface (`usb0`, or an `enx...` name), so it
+needs no driver and no configuration — the installer's network screen shows it
+with an address already. It is the most reliable of the three options.
+
+**The cable must be a data cable.** Charge-only USB cables exist, carry no data
+lines, and fail silently — the phone charges and no interface appears. If USB
+tethering seems to do nothing, suspect the cable before anything else.
+
+##### If the network is a phone, plan for it disappearing
+
+Both phone options share three consequences worth deciding before starting, not
+after:
+
+1. **SSH means joining the same network.** To reach the box from a laptop over
+   the hotspot, that laptop has to be on the hotspot too. Some phones isolate
+   hotspot clients from each other, which blocks this with no error — just a
+   timeout. If it does not work, use the monitor and keyboard for the setup
+   rather than debugging it.
+2. **The network vanishes when the phone leaves.** The box is then on a network
+   that no longer exists, with no way in except a monitor. Expect to redo the
+   network configuration at the console once it reaches its permanent home, and
+   keep the monitor and adapter to hand until the cable is in.
+3. **Mobile data.** Rough budget for the whole bring-up: 200-500 MB for the
+   install and its updates, a few hundred MB more for `apt full-upgrade`, ~150 MB
+   for Docker, and ~150 MB for the `postgres:17` image later. **Call it 1-2 GB.**
+   Not a problem on an unlimited plan; worth knowing on a metered one.
+
+Samsung phones have a **Wi-Fi sharing** toggle in the Mobile Hotspot settings
+that shares the phone's own WiFi connection instead of its mobile data. If the
+phone can reach the home WiFi and the mini PC cannot yet, that turns the phone
+into a bridge and costs no mobile data at all.
+
+#### Step 5 — The installer, screen by screen
+
+Navigation is keyboard-only: arrow keys to move, `Space` to toggle a checkbox,
+`Enter` or `Tab` to reach `Done`. There is no mouse.
+
+| Screen | What to choose | Why |
+| --- | --- | --- |
+| Language | English | Keeps error messages searchable. |
+| Keyboard layout | English (US) | Matches most keyboards sold here. |
+| Type of install | **Ubuntu Server** | Not "Ubuntu Server (minimized)" — minimized strips editors and diagnostic tools that are wanted when something is broken at 1am. |
+| Network | Leave it on DHCP; confirm an IPv4 address appears next to the wired interface. On WiFi or a phone, see [just above](#if-no-cable-can-reach-the-box) | If no address appears, the cable or the port is the problem — fix it here, since the installer downloads updates. The fixed address comes later as a router reservation, not as a static IP set on the box. |
+| Proxy | Blank | |
+| Mirror | Accept the default, or a `tw.archive.ubuntu.com` mirror if offered | Only affects download speed. |
+| Storage: guided | **Use an entire disk**; tick **Set up this disk as an LVM group**; leave **encrypt the LVM group with LUKS** unticked | LVM is free flexibility: it makes it possible to grow the filesystem onto one of the two spare M.2 slots later without a reinstall. **Encryption must stay off** — it demands a passphrase typed on a physical keyboard at every boot, which directly defeats the "After Power Loss → Power On" BIOS setting and makes an unattended reboot impossible. |
+| Storage: summary | Read it once, then confirm the destructive-write warning | This is the point of no return for the existing Windows install. |
+| Profile | Your name; **server name `media`**; a username that is **not** `admin`, `ubuntu` or `root`; a real password | The server name becomes the shell prompt and the hostname on the network. `admin` and `ubuntu` are the two names automated scanners try first. |
+| Ubuntu Pro | **Skip for now** | Free for personal use on up to five machines and can be enabled at any time later with `sudo pro attach`. It is not needed to get running. |
+| **Install OpenSSH server** | **Tick it.** Then choose **Import SSH identity → from GitHub** and enter the GitHub username | This is the most important checkbox in the installer. Without it the machine has no remote access and the rest of the setup happens hunched over a keyboard. Importing the GitHub key means logging in from the dev machine with no password at all. |
+| Allow password authentication over SSH | **No**, if the key import succeeded | Key-only login removes the entire class of password-guessing attacks. Say yes only if no key was imported, and then fix it later. |
+| Featured server snaps | **Select nothing.** Press `Done` | Docker is on this list — do not take it. The snap version is confined in ways that make bind mounts and volumes behave differently from every tutorial and from the compose file this project will use. It gets installed from apt in step 7. |
+
+Then it installs. When the log stops and the button reads **Reboot Now**, take
+it, and **pull the USB stick out** when asked. If the machine boots back into the
+installer, the stick was still in, or the BIOS boot order still prefers it.
+
+First boot ends at a plain text login prompt. That is the finished, correct
+state — there is no graphical desktop coming.
+
+### Phase E — Finish the setup over SSH
+
+*At the dev machine, typing into an SSH session. The monitor, keyboard and
+adapter come off the box at the start of this phase and do not go back on.*
+
+#### Step 6 — Get in over SSH and stop using the monitor
+
+On the box, log in at the console once and read its address:
+
+```bash
+ip -4 addr show
+```
+
+The line beginning `inet` under the wired interface (`enp0s31f6` or similar)
+holds it, in the form `192.168.x.y/24`. Note the address.
+
+Now from the dev machine, in PowerShell or Git Bash:
+
+```bash
+ssh <username>@192.168.x.y
+```
+
+Accept the host-key fingerprint prompt the first time. If the GitHub key import
+worked, this logs straight in with no password. **From here on the monitor,
+keyboard and adapter can be unplugged** — everything else is done over SSH, and
+that is how the machine will be administered from now on.
+
+If the connection is refused, OpenSSH was not ticked in the installer. Fix it at
+the console with `sudo apt install openssh-server`.
+
+#### Step 7 — Base packages and Docker
+
+Update everything first:
+
+```bash
+sudo apt update && sudo apt full-upgrade -y
+```
+
+Then install the tools the arrival checks need, plus Docker. **Use Docker's own
+apt repository**, not the `docker.io` package in the Ubuntu archive: the upstream
+engine is newer, and it is the source that provides `docker-compose-plugin`,
+which is the `docker compose` command this project's compose file will be run
+with.
+
+```bash
+sudo apt install -y smartmontools dmidecode ca-certificates curl
+
+# Docker's signing key and repository
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
+```
+
+Docker's repository can lag a brand-new Ubuntu release by a few weeks. If
+`sudo apt update` reports **404** for the Docker repository, the packages for
+this release are not published yet. Delete
+`/etc/apt/sources.list.d/docker.list`, run `sudo apt update` again, and use
+Ubuntu's own packages instead:
+
+```bash
+sudo apt install -y docker.io docker-compose-v2
+```
+
+They provide the same `docker compose` command. **Note that Ubuntu's package is
+called `docker-compose-v2`, not `docker-compose-plugin`** — that name exists only
+in Docker's repository, and asking apt for it will simply fail.
+
+Either way, finish by letting the normal user run Docker without `sudo`, and make
+sure it starts at boot:
+
+```bash
+sudo usermod -aG docker $USER
+sudo systemctl enable --now docker
+```
+
+The group change only takes effect on a new login: **log out and back in**
+(`exit`, then `ssh` again), then confirm:
+
+```bash
+docker run --rm hello-world
+```
+
+If that prints a welcome message without `sudo`, Docker is correctly installed. A
+`permission denied ... /var/run/docker.sock` error means the re-login did not
+happen.
+
+#### Step 8 — Housekeeping
+
+```bash
+sudo timedatectl set-timezone Asia/Taipei
+sudo apt install -y unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades   # answer Yes
+```
+
+Automatic security updates matter more here than on a laptop, because this
+machine is exposed and rarely logged into.
+
+**Do not enable `ufw` yet.** With a Cloudflare Tunnel nothing inbound is opened
+in the first place, and turning on a firewall before confirming the SSH rule is
+correct is the classic way to lock oneself out of a headless box.
+
+Ubuntu Server does not suspend or sleep on its own, so nothing needs disabling
+there.
+
+#### Step 9 — Finish the hardware checks
+
+Most of [phase B](#phase-b--inspect-the-machine-in-the-bundled-windows) was answered from the
+bundled Windows before it was wiped. Two things are left, and this is the moment
+for both — the machine is finished but still holds nothing, so a bad drive is
+still a return rather than a restore.
+
+**Measure the idle power** at the wall with a plug-in meter, now that it is
+headless, installed and doing nothing. Expect 8-12 W. This is the number that
+matters, because it is the state the box spends its life in.
+
+**Take a SMART baseline** in the form you will read it in from now on.
+`smartmontools` and `dmidecode` were installed in step 7:
+
+```bash
+sudo smartctl -a /dev/nvme0n1 | grep -i "power_on\|percentage used\|health"
+sudo dmidecode -t memory | grep -A2 "Memory Device"    # confirms the 1x16 / 2x8 answer
+```
+
+The memory line should agree with what Task Manager said in Windows. If it does
+not, trust this one — and re-read the disk numbers too, since something was
+misread the first time.
+
+#### Step 10 — Give it a fixed address on the router
+
+Log in to the router and add a **DHCP reservation** binding the box's MAC address
+to a fixed local IP. Find the MAC with:
+
+```bash
+ip link show
+```
+
+It is the `link/ether` value on the wired interface. **Use the Ethernet MAC, not
+the WiFi one** — they differ, so a reservation made during a WiFi setup stops
+applying the moment the cable goes in.
+
+The tunnel does not need this — `cloudflared` dials out. SSH and `psql` from a
+laptop do, and an address that changes after a power cut is an afternoon lost.
+Set the reservation rather than configuring a static IP on the box itself: one
+place to look, and no chance of a clash with the router's own pool.
+
+#### Step 11 — Once the cable is in, if setup used WiFi
+
+Two things to do at that point, neither of which is automatic:
+
+- **Set the DHCP reservation on the Ethernet MAC, not the WiFi one** — they are
+  different addresses, so a reservation made over WiFi stops applying the moment
+  the cable goes in, and the box moves. Do the reservation last (step 10), once
+  the cable is the connection it will keep. Reserving both MACs to one address is
+  the alternative.
+- **Remove the `wifis:` block** from `/etc/netplan/50-cloud-init.yaml` and
+  `sudo netplan apply`. A machine quietly holding two routes onto the network is
+  a machine whose address is hard to explain a year later — and it leaves the
+  WiFi password on disk for no reason.
+
+### When this is done
+
+The box is ready for the next build-order step when all of these are true:
+
+- [ ] `ssh <user>@<fixed-ip>` from the dev machine logs in with no password.
+- [ ] `docker run --rm hello-world` succeeds without `sudo`.
+- [ ] `docker compose version` prints a version (note the space — not
+      `docker-compose`).
+- [ ] `lsb_release -a` shows the expected LTS release.
+- [ ] The arrival checks are done — the Windows ones before wiping, the idle-power and SMART readings after — and their answers written down somewhere off this machine.
+- [ ] The router shows a reservation for the box, on its **Ethernet** MAC.
+- [ ] If setup happened over WiFi: step 11 is done — the `wifis:` block is out
+      of the netplan file and the reservation is on the Ethernet MAC.
+- [ ] The monitor and keyboard are unplugged and it still works.
+
+Nothing from this project is installed yet, and that is correct: the app arrives
+as containers in build-order step 4.
+
+### When something goes wrong
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Installer says there are no disks | SATA mode is RAID / Intel RST | Reboot into F10, set SATA mode to AHCI ([step 3](#step-3--bios-settings)), start over. |
+| The USB stick does not appear in the F9 boot menu | Written in a way that is not bootable, or Secure Boot objects | Rewrite with Rufus in ISO mode, GPT / UEFI. Ubuntu is signed, so Secure Boot is normally not the cause. |
+| It boots the installer again after finishing | The stick was left in, or it is ahead of the SSD in the boot order | Remove the stick; if it persists, fix the boot order in F10. |
+| No IPv4 address during the network step | Cable, port, or the router | Try the other end of the cable and another router port. Do not fall back to WiFi. |
+| `ssh` connection refused | OpenSSH was not ticked | At the console: `sudo apt install openssh-server`. |
+| No wireless interface in the network step | Realtek card, or missing firmware | Do not fight it. USB-tether the phone instead — the installer sees that as a wired interface. |
+| USB tethering does nothing | Charge-only USB cable, or the toggle was flipped before plugging in | Use a known data cable; enable USB tethering *after* the cable is connected. |
+| `ssh` asks for a password | The GitHub key import did not happen | `ssh-copy-id <user>@<ip>` from the dev machine, then disable password auth. |
+| `permission denied ... docker.sock` | The docker group membership is not active in this session | Log out and back in. |
+| `apt` 404 on the Docker repository | Docker has not published for this Ubuntu release yet | Remove `/etc/apt/sources.list.d/docker.list` and use `docker.io` + `docker-compose-v2`. |
+| Locked out entirely | — | Plug the monitor and keyboard back in. Physical access always wins; this is why the box lives at home. |
 
 ## Storage
 
@@ -304,7 +869,7 @@ Nothing here exists in the repo yet — this is the sketch to build from.
 
 | Piece | Intent |
 | --- | --- |
-| OS | Ubuntu Server LTS (or Debian stable), with Docker + Compose on top |
+| OS | Ubuntu Server LTS (or Debian stable), with Docker + Compose on top. Install procedure: [Bringing up the box](#bringing-up-the-box). |
 | App container | The existing `dockerfile`, unchanged. `entrypoint.sh` already runs `alembic upgrade head` and then `uvicorn ... --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*'`, which is exactly right behind a tunnel. |
 | Database | A `postgres` container with a named volume on the SSD, replacing Cloud SQL. **Version settled: `postgres:17`**, matching `docker-compose.yml`, the CI service container and both dev machines since 2026-09-08. |
 | Ingress | A `cloudflared` container in the same Compose project, pointing at the app container's port |
@@ -331,11 +896,12 @@ container name, not `localhost`.
 Nothing below is done yet. Roughly dependency-ordered; the code changes can
 proceed in parallel with the hardware bring-up.
 
-1. **Bring up the box** — the BIOS settings above, install Ubuntu Server LTS,
-   `apt install docker.io docker-compose-plugin`, create a non-root user, set
-   up SSH keys, DHCP reservation on the router.
-2. **Verify the hardware** — the four arrival checks above. Do this before any
-   data lives on it.
+1. **Bring up the box** — BIOS settings, Ubuntu Server LTS, Docker, SSH keys,
+   DHCP reservation. This is now written out screen by screen in
+   [Bringing up the box](#bringing-up-the-box); follow that
+   section rather than this line, and stop at its "When this is done" checklist.
+2. **Verify the hardware** — phase B of that section, in the bundled Windows,
+   before anything is erased and while the machine can still be returned.
 3. **Build the production signal** — there is none in the code at all (see
    below); the secure cookie and the secret-defaults check both hang off it.
    This gates exposing the box publicly, so it comes before the tunnel.
