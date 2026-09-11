@@ -27,6 +27,12 @@ const ANONYMOUS = {
   role: "guest",
   isSuperuser: false,
   permissions: [],
+  // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
+  // this account holds, each already carrying `requires_password` - the
+  // server computes that subset test so the SPA never models it. A guest
+  // holds none.
+  mode: null,
+  modes: [],
   loading: false,
 };
 
@@ -46,6 +52,8 @@ export function AuthProvider({ children }) {
           role: data.role ?? "guest",
           isSuperuser: data.is_superuser ?? false,
           permissions: data.permissions ?? [],
+          mode: data.mode ?? null,
+          modes: data.modes ?? [],
           loading: false,
         });
       } else {

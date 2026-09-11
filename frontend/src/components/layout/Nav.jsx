@@ -9,6 +9,7 @@
 // mobile drawer render the same tree, so there is one place to edit.
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import ModeSwitcher from "./ModeSwitcher";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
@@ -240,6 +241,12 @@ export default function Nav() {
                   Log in
                 </Link>
               )}
+
+              {/* Renders itself only when this account holds more than one
+                  access mode, and reads no permission - every signed-in
+                  account holds one, and gating it would hide it from the
+                  `user` role that most needs to narrow itself. */}
+              <ModeSwitcher />
 
               <button
                 type="button"

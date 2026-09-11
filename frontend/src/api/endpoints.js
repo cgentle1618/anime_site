@@ -32,6 +32,7 @@ export const endpoints = {
     login: () => "/api/auth/login",
     logout: () => "/api/auth/logout",
     me: () => "/api/auth/me",
+    accessMode: () => "/api/auth/access-mode",
   },
 
   // Tier 1 closed enums. Read-only by design - they live in Python.
