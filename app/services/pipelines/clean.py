@@ -16,6 +16,8 @@ before it gates a delete; see Decision 3b in the spec.
 Spec: docs/superpowers/specs/2026-09-11-clean-orphaned-data-design.md
 """
 
+from dataclasses import dataclass, field
+
 from app.services.integrations.sheets import (
     SheetsUnavailableError,
     get_all_raw_rows,
@@ -91,3 +93,98 @@ def read_tab(tab_name: str) -> list[list[str]]:
         )
 
     return rows
+
+
+def _s(value) -> str:
+    """
+    One spelling for both sides of a comparison.
+
+    public_id is an Integer column locally and text in the sheet, so a bare
+    `==` between them is always False - which would make every entry in the
+    database look orphaned at once.
+    """
+    return "" if value is None else str(value).strip()
+
+
+@dataclass(frozen=True)
+class SheetIndex:
+    """Every identity one tab's rows carry, as lookup sets."""
+
+    ids: set[str] = field(default_factory=set)
+    pairs: set[tuple[str, str]] = field(default_factory=set)
+    names: set[str] = field(default_factory=set)
+
+
+def index_tab(rows: list[list[str]]) -> SheetIndex:
+    """
+    Index one tab BY HEADER NAME.
+
+    Never by position: Backup appends the credit and tag link columns after the
+    plain ones, so a column's index moves whenever a media type gains a role.
+    Pull matches by header name for the same reason.
+
+    Tabs that do not carry a given column simply contribute nothing to that
+    set - the tier tabs have no media_type or public_id, and that is not an
+    error.
+    """
+    headers = [_s(h) for h in rows[0]]
+    col = {name: i for i, name in enumerate(headers)}
+
+    def cell(row: list[str], name: str) -> str:
+        i = col.get(name)
+        # A trailing empty cell is simply absent from the row Sheets returns.
+        return _s(row[i]) if i is not None and i < len(row) else ""
+
+    ids: set[str] = set()
+    pairs: set[tuple[str, str]] = set()
+    names: set[str] = set()
+
+    for row in rows[1:]:
+        if not any(_s(c) for c in row):
+            continue
+        if sid := cell(row, "system_id"):
+            ids.add(sid)
+        media_type, public_id = cell(row, "media_type"), cell(row, "public_id")
+        if media_type and public_id:
+            pairs.add((media_type, public_id))
+        if name := cell(row, "display_name"):
+            names.add(name)
+
+    return SheetIndex(ids=ids, pairs=pairs, names=names)
+
+
+def is_orphan_media(row, index: SheetIndex) -> bool:
+    """
+    True only when the sheet knows this media row by NONE of its identities.
+
+    Any single hit spares the row. The arms are not equally strong, and it is
+    worth being honest about which is which:
+
+    - system_id       - exact, but a row re-created on the other machine has a
+                        different one.
+    - (media_type,
+       public_id)     - the load-bearing arm. Backup writes public_id on every
+                        entity tab and Pull restores it UNCHANGED; that is what
+                        keeps the two machines agreeing on the ids that appear
+                        in URLs, and it is why the uniqueness constraint is
+                        DEFERRABLE INITIALLY DEFERRED. user_media_list already
+                        resolves entries across machines by exactly this pair.
+    - display_name    - the weak arm, and NOT independent of a name match:
+                        media.display_name is denormalized from the detail
+                        table's *_name_* columns (see domain/display_name.py).
+                        A rename changes it. It is here to catch a row
+                        re-created locally with a fresh id and a fresh
+                        public_id, not to carry the rule.
+
+    So: two robust arms and one weak one. A rename kills only the weak arm,
+    which is precisely the case a names-only rule got wrong - see Decision 3b.
+    """
+    if _s(row.system_id) in index.ids:
+        return False
+    if (_s(row.media_type), _s(row.public_id)) in index.pairs:
+        return False
+    # An empty local name must not match an empty sheet cell: two rows both
+    # missing a name are not thereby the same row.
+    if (name := _s(row.display_name)) and name in index.names:
+        return False
+    return True
