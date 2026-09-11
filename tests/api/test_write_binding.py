@@ -405,3 +405,72 @@ class TestNoteWrites:
             json={"owner_id": str(sample_manga.system_id)},
         )
         assert response.status_code == 200
+
+
+class TestRelationAndWatchOrderWrites:
+    def test_relating_to_a_hidden_entry_answers_as_a_missing_one(
+        self, catalog_writer, hidden_anime, sample_anime, db_session
+    ):
+        """400 and the same message a nonexistent entry gets. The status is
+        deliberately NOT 404 here: the route already answers 400 for a
+        reference it cannot resolve, and a hidden entry must be that answer."""
+        client = catalog_writer()
+        before = db_session.query(models.MediaRelation).count()
+        response = client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(sample_anime.system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(hidden_anime.system_id),
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        assert db_session.query(models.MediaRelation).count() == before
+
+    def test_a_relation_between_visible_entries_still_writes(
+        self, catalog_writer, sample_anime, anime_with_studio
+    ):
+        """`sequel` is one of ACCEPTED_INPUT_KINDS
+        (`app/utils/relation_kinds.py:58`); `anime_with_studio` is a second
+        unlabelled anime, so both endpoints are visible."""
+        client = catalog_writer()
+        response = client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(sample_anime.system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(anime_with_studio.system_id),
+            },
+        )
+        assert response.status_code == 201
+
+    def test_adding_a_hidden_entry_to_a_watch_order_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_franchise
+    ):
+        """The order is created through the API as admin rather than by
+        constructing the model, so this test does not encode
+        watch_order_list's column shape."""
+        order = admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "franchise_id": str(sample_franchise.system_id),
+                "list_name": "An order",
+            },
+        ).json()
+        client = catalog_writer()
+        response = client.post(
+            f"/api/watch-order/lists/{order['system_id']}/items",
+            json={
+                "media_type": "anime",
+                "entry_id": str(hidden_anime.system_id),
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text

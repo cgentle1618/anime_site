@@ -32,6 +32,7 @@ from app.services.domain.watch_order import (
     list_candidate_entries,
     resolve_items,
 )
+from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -129,13 +130,24 @@ def _validate_owner(franchise_id, collection_id, series_id=None) -> None:
         )
 
 
-def _validate_entry(db: Session, media_type, entry_id) -> None:
-    """Rejects items pointing at an unknown media type or a nonexistent entry."""
+def _validate_entry(db: Session, media_type, entry_id, viewer) -> None:
+    """
+    Rejects items pointing at an unknown media type, a nonexistent entry, or
+    one this viewer cannot see.
+
+    The third case answers exactly as the second, message included, so a
+    hidden entry cannot be told apart from a missing one by which refusal a
+    write gets back.
+    """
     if media_type not in VALID_WATCH_ORDER_MEDIA_TYPES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    if entry_id is None or not entry_exists(db, media_type, entry_id):
+    if (
+        entry_id is None
+        or not entry_exists(db, media_type, entry_id)
+        or not entry_visible(db, viewer, media_type, entry_id)
+    ):
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
         )
@@ -1156,7 +1168,7 @@ def create_watch_order_item(
     """
     db_list = _get_list_or_404(db, system_id)
     _reject_if_generated(db_list)
-    _validate_entry(db, payload.media_type, payload.entry_id)
+    _validate_entry(db, payload.media_type, payload.entry_id, admin)
     _validate_importance(payload.importance)
     _validate_section(db, db_list, payload.section_id)
 
@@ -1198,7 +1210,7 @@ def update_watch_order_item(
     for key, value in update_data.items():
         setattr(db_item, key, value)
 
-    _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     _validate_importance(db_item.importance)
     _validate_section(db, db_item.parent_list, db_item.section_id)
 
@@ -1225,7 +1237,7 @@ def patch_watch_order_item(
 
     apply_column_patch(db_item, payload)
 
-    _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     _validate_importance(db_item.importance)
     _validate_section(db, db_item.parent_list, db_item.section_id)
 
@@ -1244,6 +1256,7 @@ def delete_watch_order_item(
     """Removes one step from a watch order. The media entry is not touched."""
     db_item = _get_item_or_404(db, item_id)
     _reject_if_generated(db_item.parent_list)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     db.delete(db_item)
     db.commit()
     return {"status": "success", "message": "Watch order item deleted successfully."}

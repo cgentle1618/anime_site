@@ -75,13 +75,25 @@ def _validate_kind(value: str) -> None:
         )
 
 
-def _validate_endpoint(db: Session, media_type: str, entry_id) -> None:
-    """Rejects an endpoint pointing at an unknown table or a missing row."""
+def _validate_endpoint(db: Session, media_type: str, entry_id, viewer) -> None:
+    """
+    Rejects an endpoint pointing at an unknown table, a missing row, or a row
+    this viewer cannot see.
+
+    The third case answers exactly as the second, message included. Answering
+    404 here, or a distinct message, would turn this validator into the
+    existence oracle the 404 paths are careful not to be: a caller could learn
+    that an entry exists by watching which refusal it gets.
+    """
     if media_type not in MEDIA_TABLES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    if entry_id is None or not entry_exists(db, media_type, entry_id):
+    if (
+        entry_id is None
+        or not entry_exists(db, media_type, entry_id)
+        or not entry_visible(db, viewer, media_type, entry_id)
+    ):
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
         )
@@ -332,8 +344,8 @@ def create_relation(
     endpoints sorted. Both rewrites exist so one fact is one row.
     """
     _validate_kind(payload.kind)
-    _validate_endpoint(db, payload.from_type, payload.from_id)
-    _validate_endpoint(db, payload.to_type, payload.to_id)
+    _validate_endpoint(db, payload.from_type, payload.from_id, admin)
+    _validate_endpoint(db, payload.to_type, payload.to_id, admin)
 
     from_type, from_id, relation_type, to_type, to_id = normalize_relation(
         payload.from_type,
@@ -386,6 +398,10 @@ def update_relation(
     an error: the row genuinely reads the same both ways.
     """
     row = _get_relation_or_404(db, system_id)
+    # Editing a relation is reaching both of its entries: the endpoints being
+    # re-normalized below are the stored ones, not new ones from the payload.
+    _validate_endpoint(db, row.from_type, row.from_id, admin)
+    _validate_endpoint(db, row.to_type, row.to_id, admin)
 
     if payload.kind is not None or payload.swap:
         kind = payload.kind if payload.kind is not None else row.relation_type
@@ -485,6 +501,11 @@ def reset_scope(
         .all()
     )
     for row in rows:
+        # Reaches both entries of every row being removed, same as a single
+        # delete - a bulk reset must not become a bulk existence oracle.
+        _validate_endpoint(db, row.from_type, row.from_id, admin)
+        _validate_endpoint(db, row.to_type, row.to_id, admin)
+    for row in rows:
         # Does not commit - the single commit below covers the whole reset.
         log_deleted_record(db, row, "Media Relation")
         db.delete(row)
@@ -506,6 +527,8 @@ def delete_relation(
 ):
     """Removes one relation. The two entries themselves are untouched."""
     row = _get_relation_or_404(db, system_id)
+    _validate_endpoint(db, row.from_type, row.from_id, admin)
+    _validate_endpoint(db, row.to_type, row.to_id, admin)
     # Signature is (db, entry, entry_type), and it deliberately does not
     # commit - the delete below commits both together, as watch_order.py:904
     # does.
