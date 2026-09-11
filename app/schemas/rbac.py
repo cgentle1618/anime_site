@@ -127,6 +127,32 @@ class AccessModeCatalogGroup(BaseModel):
     items: List[AccessModeCatalogItem]
 
 
+class UserAccessModeGrant(BaseModel):
+    """One mode an account holds, with the items it does NOT get from it.
+
+    Denials only SUBTRACT (decision 8). There is no "extra" counterpart and
+    there must not be one: a mode is a ceiling, so an account's reach is
+    always a subset of its mode's, which is what makes a mode name on the user
+    list a trustworthy upper bound.
+    """
+
+    mode_id: UUID
+    is_default: bool = False
+    denied_label_keys: List[str] = []
+    denied_field_group_keys: List[str] = []
+
+
+class UserAccessModes(BaseModel):
+    """Replaces an account's whole set - grants, default and denials.
+
+    One payload and one write, matching PUT /roles/{id}/permissions. An empty
+    list is legitimate: an account holding no mode resolves the empty object
+    set, which is fail-closed and a reasonable way to park somebody.
+    """
+
+    modes: List[UserAccessModeGrant] = []
+
+
 class AccessModeSwitch(BaseModel):
     """Body of POST /api/auth/access-mode.
 

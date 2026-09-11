@@ -170,6 +170,8 @@ from app.schemas.rbac import (
     RolePermissions,
     RoleResponse,
     RoleUpdate,
+    UserAccessModeGrant,
+    UserAccessModes,
 )
 from app.schemas.staff import (
     MergeRequest,
@@ -246,6 +248,8 @@ __all__ = [
     "AccessModeCatalogItem",
     "AccessModeCatalogGroup",
     "AccessModeSwitch",
+    "UserAccessModeGrant",
+    "UserAccessModes",
     "ManagedUserCreate",
     "ManagedUserUpdate",
     "ManagedUserResponse",
