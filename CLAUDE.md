@@ -182,9 +182,17 @@ applies; this adds:
 
   A lock directory older than 25 minutes is stale: `rmdir` it and tell the
   coordinator.
-- **Never a directory pathspec.** `git add docs/` swept another session's
-  `docs/PROGRESS.md` lines into an unrelated commit on the first day of this
-  run. Name every file.
+- **Staging is three rules, not one.** Never a directory pathspec; name every
+  file explicitly; and on a file several sessions write to — `docs/PROGRESS.md`
+  above all — `git add -p`, your hunks only. All three were learned the hard
+  way on the first day of this run: `git add docs/` swept another session's
+  PROGRESS.md lines into a `feat(authz)` commit, and then an explicitly-named
+  `git add docs/PROGRESS.md` swept the same session's claim table again.
+  Explicit paths are not enough on a shared file.
+- **Untracked files belong to somebody.** A spec or plan that is not yet
+  committed is the most exposed thing in the tree, because a directory
+  pathspec picks it up and its author loses the commit message. Check `git
+  status --short` for `??` lines that are not yours before you stage anything.
 
 ## Progress tracking
 
