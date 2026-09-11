@@ -26,6 +26,7 @@ from app.services.calculation import (
 from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.pipelines import fill, replace
 from app.services.pipelines.backup import execute_backup
+from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
@@ -199,6 +200,58 @@ def trigger_pull_specific(
             may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Clean (find rows the sheet has forgotten, then delete the ones an admin ticks)
+# ---------------------------------------------------------------------------
+
+
+class CleanItem(BaseModel):
+    tab: str
+    system_id: str
+
+
+class CleanApplyBody(BaseModel):
+    items: list[CleanItem]
+
+
+@router.get("/clean/scan", summary="Find local rows the sheet no longer mentions")
+def clean_scan(db: Session = Depends(get_db)):
+    """
+    Read-only, and logs nothing - like check/duplicates.
+
+    Both Clean routes inherit this router's require_unscoped_mode gate, and for
+    Clean the reason differs from the one decision 14 was written for. That
+    rationale is about writes: a pipeline run from a narrowed session would
+    write a partial sheet over a complete one. Clean's is about objects - this
+    report names every orphan in the database, so it is an unrestricted read of
+    the whole catalogue by construction, and apply deletes by system_id. A
+    narrowed operator must be refused both.
+    """
+    try:
+        return JSONResponse(content=scan_orphans(db))
+    except CleanAborted as exc:
+        # 503, not 500: the request was fine, the sheet is unavailable or
+        # untrustworthy, and retrying later is the right advice.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/clean/apply", summary="Delete the ticked orphans, after a re-scan")
+def clean_apply(body: CleanApplyBody, db: Session = Depends(get_db)):
+    """
+    Delete the ticked rows, minus any the re-scan no longer calls orphaned.
+
+    The re-scan is why this takes an explicit list of ids rather than a
+    dry_run flag: the destructive call names exactly what it intends to remove,
+    and the server independently re-derives whether each one still qualifies.
+    """
+    try:
+        return JSONResponse(
+            content=apply_clean(db, [item.model_dump() for item in body.items])
+        )
+    except CleanAborted as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------
