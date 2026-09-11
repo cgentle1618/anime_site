@@ -5,7 +5,7 @@ franchise scope.
 
 Every route needs an account. A plan queue belongs to one user from Step 3 on,
 so a logged-out caller gets a 401 rather than somebody else's queue; the write
-routes additionally stay admin-only, matching media relations and watch orders.
+routes act on the caller's own rows, so no additional admin gate applies.
 
 Replaces the watch_next / read_next booleans and franchise.watch_next_group.
 Nothing here derives plans automatically: they are curated on the admin forms
@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_current_user_id, get_db
+from app.dependencies import get_current_user_id, get_db
 from app.services.domain.plan_next import validate_plan_target
 from app.services.rbac.enforcement import drop_hidden_rows
 from app.services.rbac.resolver import Viewer, get_viewer
@@ -142,7 +142,6 @@ def list_plan_next(
 def create_plan_next(
     payload: schemas.PlanNextCreate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
     user_id: UUID = Depends(get_current_user_id),
 ):
     if not kind_valid(payload.kind):
@@ -192,7 +191,6 @@ def delete_plan_next_by_target(
     target_id: UUID = Query(...),
     kind: str = Query("next"),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
     user_id: UUID = Depends(get_current_user_id),
 ):
     """Un-plan without knowing the row id, so a toggle needs one call."""
@@ -221,7 +219,6 @@ def delete_plan_next_by_target(
 def delete_plan_next(
     system_id: UUID,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
     user_id: UUID = Depends(get_current_user_id),
 ):
     # One user may not delete another's row by id.
