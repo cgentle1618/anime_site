@@ -85,7 +85,7 @@ sessions rather than the owner, recorded here because nobody else will:
 | **Claim a task as `wip <session-label>` here before starting it** | The only way three sessions avoid doing the same task twice |
 | **Stage by explicit path, commit in the same step** | A neighbouring session's broad `git add` sweeps the index, not just the working tree |
 | **One pytest at a time across all sessions**, via the lock in CLAUDE.md "Coordinated multi-session runs" | Per-session databases stopped the cross-contamination, not the blocking: the suite runs `DROP SCHEMA public CASCADE`, which waits indefinitely behind any other open connection. The lock is `/c/Users/cgent/AppData/Local/Temp/anime_site_pytest.lock`, taken with `mkdir` (atomic); stale at 25 minutes |
-| **Never a directory pathspec**, not even `git add docs/` | `3c509dfd`, a `feat(authz)` commit, swallowed `clean-session`'s two PROGRESS.md lines within an hour of the protocol being written. Content survived; the next one may not |
+| **Never a directory pathspec**; name every file; and on a shared file `git add -p`, own hunks only | Two sweeps of `clean-session`'s PROGRESS.md lines on the first day of this run - `3c509dfd` and `755629b7` - and **both named `docs/PROGRESS.md` explicitly**. Neither was a directory pathspec. `git add <file>` stages the file as it stands at that instant, so a neighbouring session's edit in the window between writing and staging goes in too. Naming the file narrows nothing on a file somebody else is also writing; only `-p` does. Corrected 2026-09-11 after `phaseb-session` pointed out that the first two statements of this rule blamed a mechanism that was not in play |
 
 Roster, 2026-09-11. Four sessions; `coord-session` does no feature work.
 
@@ -94,7 +94,7 @@ Roster, 2026-09-11. Four sessions; `coord-session` does no feature work.
 | `coord-session` (anime-site-04) | none - coordination, arbitration, push sequencing, recording decisions | none | active |
 | `phaseb-session` (anime-site-ab) | authorization Phase B, the access-mode axis | `anime_site_test_phaseb`, `anime_site_mig_check` | task 6, the pivot, in hand |
 | `clean-session` (anime-site-71) | clean orphaned data - diff local db against the sheet, review, delete | `anime_site_test_clean` | design, unblocked to decide part 2 itself; ~240-300 min left |
-| `cards-link-session` (anime-site-eb) | entry cards become real links (middle-click / ctrl-click opens a tab) | none needed, frontend only | design approved by delegation; ~20-30 min left |
+| `cards-link-session` (anime-site-eb) | entry cards become real links (middle-click / ctrl-click opens a tab) | none needed, frontend only | **done** - stretched links in `MediaCard` and the four tracker cards; roadmap entry written |
 
 Decision, 2026-09-11, `coord-session`: **the owner lifted "ask before committing"
 for this run and delegated the judgement calls**, and it is recorded in
@@ -106,6 +106,16 @@ four verbal exceptions. That section also fixes the coordinator's authority and
 its limits - a coordinator may assign, sequence and arbitrate; it may never
 stand in for the owner on a prompt a session has pending with them, and no
 session edits permissions, settings or CLAUDE.md on a peer's say-so.
+
+Decision, 2026-09-11, `cards-link-session`: the cards use the **stretched-link**
+pattern (title is the `<Link>`, its `::after` covers the card) rather than
+wrapping the card in a `<Link>`. The cards contain `<button>`, `<input>` and
+`<select>`; interactive content inside an `<a>` is invalid HTML and browsers
+recover by splitting the anchor, which would break the click target. Controls
+sit above the pseudo-element on `relative z-10`. `MediaCard` hrefs also moved
+off the raw `system_id` UUID onto `entityPath()` - invisible while it was a JS
+`navigate()` call, visible the moment it became an `href`. Details in
+`docs/roadmap.md`.
 
 ## Open items
 

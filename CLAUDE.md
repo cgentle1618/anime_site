@@ -184,11 +184,14 @@ applies; this adds:
   coordinator.
 - **Staging is three rules, not one.** Never a directory pathspec; name every
   file explicitly; and on a file several sessions write to — `docs/PROGRESS.md`
-  above all — `git add -p`, your hunks only. All three were learned the hard
-  way on the first day of this run: `git add docs/` swept another session's
-  PROGRESS.md lines into a `feat(authz)` commit, and then an explicitly-named
-  `git add docs/PROGRESS.md` swept the same session's claim table again.
-  Explicit paths are not enough on a shared file.
+  above all — `git add -p`, your hunks only. The third rule is the one that
+  matters and the one that is easy to get wrong: **both** sweeps on the first
+  day of this run (`3c509dfd`, and then my own `755629b7`) named
+  `docs/PROGRESS.md` explicitly and swept another session's lines anyway,
+  because a neighbouring session edited the same file in the window between
+  writing it and staging it. `git add <file>` stages the file as it is at that
+  instant, not the change you made to it. Naming the file does not narrow
+  anything on a file somebody else is also writing; only `-p` does.
 - **Untracked files belong to somebody.** A spec or plan that is not yet
   committed is the most exposed thing in the tree, because a directory
   pathspec picks it up and its author loses the commit message. Check `git
