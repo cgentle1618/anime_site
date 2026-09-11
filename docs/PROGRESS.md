@@ -32,18 +32,36 @@ Every task is behaviour-neutral for the `admin` account, because it is
 lock anyone out. Task 9 is what makes a missed router an ImportError rather
 than a silent grant; it must run last.
 
+Phase A is being executed on branch **`authz-phase-a`** in the worktree
+`../anime_site_authz` (its own venv and `.env`; both trees share one PostgreSQL
+and one `anime_site_test`, so never run the suites concurrently). Nothing is
+merged to `dev` or pushed.
+
 | # | Phase A task | Status |
 |---|---|---|
-| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | todo |
-| A2 | Seed the `super` role | todo |
-| A3 | The three route dependencies in `resolver.py` | todo |
-| A4 | Swap roles/users/content_labels to `admin.authz` | todo |
-| A5 | Swap system/data_control to `manage.pipelines` | todo |
-| A6 | Swap the 20 catalogue routers to `manage.catalog` | todo |
+| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | done e4c914be |
+| A2 | Seed the `super` role | done 9629f4bb |
+| A3 | The three route dependencies in `resolver.py` | done 56de8395 |
+| A4 | Swap roles/users/content_labels to `admin.authz` | done 17411973 |
+| A5 | Swap system/data_control to `manage.pipelines` | done 9cabfa2c |
+| A6 | Swap the 20 catalogue routers to `manage.catalog` | wip authz-company (633c329f, fix round in flight) |
 | A7 | Drop the three `plan_next.py` admin gates | todo |
 | A8 | `is_admin` means `manage.catalog`; split the SPA route guard | todo |
 | A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | todo |
 | A10 | Documentation | todo |
+
+**A real bug surfaced at A6 and is being fixed**: `get_current_admin` returned a
+`dict`; the new dependencies return a `Viewer`. `users.py:164` calls
+`admin.get("sub")`, so since A4 the "you cannot delete yourself" guard raises
+`AttributeError` instead of firing, and an admin can delete their own account.
+Exactly one of the 75 sites reads the value; the other 74 are unused but still
+annotated `admin: dict`, which is the lie that disguised it.
+`dependencies.py:74` asserts "No call site reads this" — it is false.
+
+**Plan defect, owned**: the plan required the full suite only at A6, A8 and A9,
+so A1-A5 shipped five failures their scoped test runs could not see, through
+five reviews that were clean against their own diffs. Every remaining task runs
+the full suite before committing.
 
 Two items the spec names but does not do: an audit of every **other** write path
 taking a client-supplied entry id (decision 9 applies to all of them; only
