@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.rbac import cache
-from app.services.rbac.permissions import PERM_ADMIN
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
 from app.services.security import get_password_hash
 
@@ -66,7 +66,7 @@ def _can_administer(db: Session, role: models.Role) -> bool:
         db.query(models.RolePermission)
         .filter(
             models.RolePermission.role_id == role.system_id,
-            models.RolePermission.permission == PERM_ADMIN,
+            models.RolePermission.permission == PERM_ADMIN_AUTHZ,
         )
         .first()
         is not None

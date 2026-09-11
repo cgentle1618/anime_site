@@ -3,11 +3,14 @@ routers/me_list.py
 The caller's own list row, for one entry.
 
 Step 1 moved every personal fact onto user_media_list but left the only write
-path inside the per-type entry endpoints, which sit behind
-Depends(get_current_admin). That was correct while the admin was the only
-account. Step 2 creates accounts that are not admins, so `self.list` needs a
-route to name: a permission with no code behind it is the inert grant
-app/services/rbac/permissions.py exists to forbid.
+path inside the per-type entry endpoints, which at the time sat behind the
+single admin gate. That was correct while the admin was the only account.
+Step 2 created accounts that are not admins, so the write moved here, behind
+`self.list` instead: a permission with no code behind it is the inert grant
+app/services/rbac/permissions.py exists to forbid. It gained the
+entry_visible object-level guard in _media_or_404 below (commit 4746b1bc),
+closing a gap where a holder of `self.list` could write a status onto an
+entry it could not see.
 
 Deliberately narrow. It writes ONE row - the caller's, for one media id - and
 it cannot address anyone else's, because it never takes a user id. Catalogue

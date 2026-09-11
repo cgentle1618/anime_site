@@ -11,7 +11,7 @@ import uuid
 import pytest
 
 from app import models
-from app.services.rbac.permissions import PERM_ADMIN, media_type_perm
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, media_type_perm
 
 ROLES = "/api/roles/"
 USERS = "/api/users/"
@@ -306,12 +306,12 @@ def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_a
 
 
 def test_the_guest_role_can_never_be_granted_admin(admin_client):
-    """An anonymous request resolves to the guest role's grants, so admin on
-    guest would make every visitor an administrator with one misclick."""
+    """An anonymous request resolves to the guest role's grants, so admin.authz
+    on guest would make every visitor an administrator with one misclick."""
     guest_id = _role_id(admin_client, "guest")
     response = admin_client.put(
-        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_ADMIN]}
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_ADMIN_AUTHZ]}
     )
     assert response.status_code == 409
     after = admin_client.get(f"{ROLES}{guest_id}").json()
-    assert PERM_ADMIN not in after["permissions"]
+    assert PERM_ADMIN_AUTHZ not in after["permissions"]
