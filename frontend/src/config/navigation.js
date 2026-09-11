@@ -267,6 +267,14 @@ export const NAV_SECTIONS = [
         icon: "fas fa-tags",
         to: "/content-labels",
       },
+      // No `requires` of its own: the section already declares admin.authz
+      // and the link inherits it. Declaring it again would be a second place
+      // to keep in step with App.jsx's route gate.
+      {
+        label: "Access Modes",
+        icon: "fas fa-eye-slash",
+        to: "/access-modes",
+      },
     ],
   },
 ];

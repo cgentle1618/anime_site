@@ -60,6 +60,16 @@ export const endpoints = {
     remove: (id) => `/api/roles/${id}`,
   },
 
+  accessModes: {
+    list: () => "/api/access-modes/",
+    catalog: () => "/api/access-modes/catalog",
+    detail: (id) => `/api/access-modes/${id}`,
+    create: () => "/api/access-modes/",
+    update: (id) => `/api/access-modes/${id}`,
+    grants: (id) => `/api/access-modes/${id}/grants`,
+    remove: (id) => `/api/access-modes/${id}`,
+  },
+
   users: {
     list: () => "/api/users/",
     create: () => "/api/users/",

@@ -130,6 +130,10 @@ describe("NAV_SECTIONS", () => {
     // pipeline one - and this list is the second of the SPA's two independent
     // permission surfaces, so it has to agree with App.jsx rather than with
     // intuition about severity.
+    //
+    // Access Modes sits under admin for the same kind of reason read the
+    // other way: it decides which entries and fields a session can reach, so
+    // it is the authz surface (admin.authz), not a pipeline.
     const pipelines = NAV_SECTIONS.find((s) => s.key === "pipelines");
     expect(sectionItems(pipelines).map((i) => i.to)).toEqual([
       "/system",
@@ -144,8 +148,15 @@ describe("NAV_SECTIONS", () => {
       "/users",
       "/roles",
       "/content-labels",
+      "/access-modes",
     ]);
     expect(sectionRequirement(admin)).toBe("admin.authz");
+    // No item here declares its own requirement: they inherit the section's.
+    // A second declaration would be a second place to keep in step with
+    // App.jsx's route gates, and the two surfaces already disagree elsewhere.
+    expect(
+      sectionItems(admin).every((i) => i.requires === undefined),
+    ).toBe(true);
   });
 
   it("gates Entry and Note on manage.catalog", () => {

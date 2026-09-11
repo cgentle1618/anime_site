@@ -74,6 +74,7 @@ const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
 
+const AccessModes = lazy(() => import("./pages/admin/AccessModes"));
 function RouteFallback() {
   return <div className="p-8 text-sm text-text-faint">Loading…</div>;
 }
@@ -207,6 +208,10 @@ export default function App() {
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/content-labels" element={<ContentLabels />} />
+                  {/* Same gate as its neighbours, and the same one
+                      navigation.js asks for this link - a route gate and its
+                      nav entry must ask the same question. */}
+                  <Route path="/access-modes" element={<AccessModes />} />
                 </Route>
               </Route>
             </Routes>
