@@ -9,10 +9,10 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Query
 
-from app.dependencies import get_current_admin
 from app.registry import MEDIA_REGISTRY
 from app.routers._factory import make_media_router
 from app.services.integrations.igdb import search_igdb_games
+from app.services.rbac.resolver import Viewer, require_manage_catalog
 
 # Declared before the factory routes are merged in: the factory registers
 # GET /{system_id}, which would otherwise swallow this literal path.
@@ -23,7 +23,7 @@ router = APIRouter(tags=["Game"])
 def search_igdb(
     q: str = Query(..., min_length=1, description="Game name to search for"),
     limit: int = Query(10, ge=1, le=50),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ) -> List[Dict[str, Any]]:
     """Searches IGDB games by name so the admin can identify the right entry."""
     return search_igdb_games(q, limit)

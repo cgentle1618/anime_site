@@ -1,12 +1,14 @@
 """
 The `user` role is three ideas, not a subsystem: everything a guest may read,
 plus write-your-own-list, plus write-your-own-personal-notes. Catalogue writes
-stay behind Depends(get_current_admin), so granting this role adds no admin
+stay behind require_manage_catalog, so granting this role adds no admin
 surface at all.
 """
 
 from app.services.rbac.permissions import (
-    PERM_ADMIN,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
 )
@@ -34,4 +36,6 @@ def test_it_adds_exactly_the_two_self_permissions():
 
 
 def test_it_is_not_an_admin():
-    assert PERM_ADMIN not in default_user_permissions()
+    assert PERM_ADMIN_AUTHZ not in default_user_permissions()
+    assert PERM_MANAGE_CATALOG not in default_user_permissions()
+    assert PERM_MANAGE_PIPELINES not in default_user_permissions()

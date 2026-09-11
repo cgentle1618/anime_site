@@ -13,9 +13,9 @@ admin-only and lives in app/services/integrations/catalog.py.
 
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_current_admin
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
+from app.services.rbac.resolver import require_manage_catalog
 from app.utils import constants as c
 from app.utils.credit_roles import (
     OPTION_CATEGORIES,
@@ -109,7 +109,7 @@ def get_constants() -> dict[str, list[str]]:
 
 @router.get("/external-apis", summary="Get External API Field Coverage")
 def get_external_api_coverage(
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require_manage_catalog),
 ) -> dict:
     """
     Which external API writes which field, and whether it fills or replaces it.

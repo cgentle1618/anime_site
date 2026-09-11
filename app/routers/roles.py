@@ -21,12 +21,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.field_groups import FIELD_GROUPS
 from app.services.rbac.permissions import (
     ADMIN_PERMISSION_KEYS,
     ADMIN_PERMISSION_LABELS,
+    FAMILY_ADMIN,
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
     FAMILY_MANAGE,
@@ -34,7 +35,9 @@ from app.services.rbac.permissions import (
     FAMILY_SELF,
     MANAGE_PERMISSION_KEYS,
     MANAGE_PERMISSION_LABELS,
-    PERM_ADMIN,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     SELF_PERMISSION_KEYS,
     SELF_PERMISSION_LABELS,
     admin_perm,
@@ -45,6 +48,7 @@ from app.services.rbac.permissions import (
     media_type_perm,
     self_perm,
 )
+from app.services.rbac.resolver import require_admin_authz
 from app.services.rbac.seed import GUEST_ROLE
 from app.utils.media_resolver import MEDIA_TABLES
 
@@ -53,7 +57,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/roles",
     tags=["Roles"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_admin_authz)],
 )
 
 
@@ -109,19 +113,9 @@ def get_catalog(db: Session = Depends(get_db)):
 
     return [
         schemas.PermissionFamilyOut(
-            family=PERM_ADMIN,
+            family=FAMILY_ADMIN,
             label="Administration",
             permissions=[
-                schemas.PermissionOut(
-                    permission=PERM_ADMIN,
-                    label="Administrator",
-                    description=(
-                        "Full access. A role marked superuser holds every "
-                        "permission without being granted them."
-                    ),
-                )
-            ]
-            + [
                 schemas.PermissionOut(
                     permission=admin_perm(key),
                     label=ADMIN_PERMISSION_LABELS[key][0],
@@ -276,12 +270,22 @@ def replace_permissions(
             detail="A superuser role holds every permission; grants do not apply.",
         )
     _validate(db, payload.permissions)
-    if role.name == GUEST_ROLE and PERM_ADMIN in payload.permissions:
-        # Anonymous requests resolve to the guest role's grants, so this
-        # would make every visitor an administrator.
+    _forbidden_for_guest = {
+        PERM_ADMIN_AUTHZ,
+        PERM_MANAGE_CATALOG,
+        PERM_MANAGE_PIPELINES,
+    }
+    if role.name == GUEST_ROLE and _forbidden_for_guest & set(payload.permissions):
+        # Anonymous requests resolve to the guest role's grants, so any of
+        # these would hand every visitor a capability, not just a wider view -
+        # manage.catalog worst of all, since it would let an anonymous
+        # visitor write the collection.
         raise HTTPException(
             status_code=409,
-            detail="The guest role can never hold the admin permission.",
+            detail=(
+                "The guest role can never hold admin.authz, manage.catalog "
+                "or manage.pipelines."
+            ),
         )
 
     db.query(models.RolePermission).filter(

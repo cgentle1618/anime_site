@@ -18,10 +18,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.rbac import cache
-from app.services.rbac.permissions import PERM_ADMIN
-from app.services.rbac.resolver import role_for_user
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
+from app.services.rbac.resolver import Viewer, require_admin_authz, role_for_user
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/users",
     tags=["User Management"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_admin_authz)],
 )
 
 
@@ -66,7 +66,7 @@ def _can_administer(db: Session, role: models.Role) -> bool:
         db.query(models.RolePermission)
         .filter(
             models.RolePermission.role_id == role.system_id,
-            models.RolePermission.permission == PERM_ADMIN,
+            models.RolePermission.permission == PERM_ADMIN_AUTHZ,
         )
         .first()
         is not None
@@ -118,7 +118,7 @@ def update_user(
     user_id: UUID,
     payload: schemas.ManagedUserUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_admin_authz),
 ):
     user = _get_or_404(db, user_id)
 
@@ -157,11 +157,11 @@ def update_user(
 def delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_admin_authz),
 ):
     user = _get_or_404(db, user_id)
 
-    if admin.get("sub") == user.username:
+    if admin.username == user.username:
         raise HTTPException(status_code=409, detail="You cannot delete yourself.")
     if _can_administer(db, role_for_user(db, user)) and _admin_count(
         db, excluding=user.id

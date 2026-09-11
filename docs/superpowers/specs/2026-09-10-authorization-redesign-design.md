@@ -570,10 +570,20 @@ Five tests in `tests/api/test_visibility.py` under "Writes"; no existing test
 regressed, which is itself the useful signal — nothing in the suite depended on
 being able to write an entry it could not see.
 
-**Phase A — the capability axis** (section 1). Mint the three permissions,
-re-gate the 89 dependencies, seed the `super` role, redefine `is_admin`, drop
-the three `plan_next.py` admin gates. No new tables. Neutral for `admin`, which
-gains every new permission.
+**Phase A — the capability axis. DONE 2026-09-11.** Minted `admin.authz`,
+`manage.catalog` and `manage.pipelines`; seeded the `super` role
+(`is_system`, not `is_superuser`); re-gated roles/users/content_labels and
+system/data_control, then 20 catalogue routers (73 call sites) onto the new
+dependencies; dropped the three `plan_next.py` admin gates; redefined
+`is_admin` to mean `manage.catalog` and split the SPA's route guard
+accordingly; deleted the bare `admin` permission and `get_current_admin`
+last, so a missed router became an `ImportError` rather than a silent grant.
+No new tables. Neutral for `admin`, which held every new permission via
+`is_superuser` throughout. A real bug surfaced and was fixed along the way:
+`get_current_admin` returned a `dict`, the new dependencies return a
+`Viewer`, and `users.py`'s self-delete guard read `admin.get("sub")` — so
+from the roles/users swap until the fix it raised `AttributeError` instead
+of firing.
 
 **Phase B — the access-mode axis, reads only** (sections 2-4). Tables,
 migration, seed, resolution, `hidden_label_ids` and `field_gate`. Every existing

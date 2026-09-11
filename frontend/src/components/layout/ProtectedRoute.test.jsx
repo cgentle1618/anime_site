@@ -39,22 +39,29 @@ describe("ProtectedRoute requireAuth", () => {
     expect(screen.getByText("the plan page")).toBeInTheDocument();
   });
 
-  it("still gates on the permission when requireAuth is absent", () => {
-    mockAuth.mockReturnValue({
-      username: "kana",
-      has: () => false,
-      loading: false,
-    });
-    render(
-      <MemoryRouter initialEntries={["/system"]}>
-        <Routes>
-          <Route element={<ProtectedRoute />}>
-            <Route path="/system" element={<div>the admin page</div>} />
-          </Route>
-          <Route path="/login" element={<div>the login page</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it("gates on the permission prop when requireAuth is absent, both directions", () => {
+    function renderPipelines(has) {
+      mockAuth.mockReturnValue({ username: "kana", has, loading: false });
+      return render(
+        <MemoryRouter initialEntries={["/system"]}>
+          <Routes>
+            <Route element={<ProtectedRoute permission="manage.pipelines" />}>
+              <Route path="/system" element={<div>the pipelines page</div>} />
+            </Route>
+            <Route path="/login" element={<div>the login page</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    }
+
+    // Denied: a viewer who does not hold manage.pipelines is bounced to login,
+    // even though they hold some other, unrelated permission.
+    const { unmount } = renderPipelines((p) => p === "manage.catalog");
     expect(screen.getByText("the login page")).toBeInTheDocument();
+    unmount();
+
+    // Allowed: a viewer who holds manage.pipelines reaches the route.
+    renderPipelines((p) => p === "manage.pipelines");
+    expect(screen.getByText("the pipelines page")).toBeInTheDocument();
   });
 });

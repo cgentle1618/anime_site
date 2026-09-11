@@ -16,10 +16,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain import credits as credits_service
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.credit_roles import credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
 
@@ -78,7 +78,7 @@ def replace_credits(
     entry_id: UUID,
     payload: CreditsAndTags,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces only the roles and fields named in the payload."""
     _resolve_entry(db, media_type, entry_id)

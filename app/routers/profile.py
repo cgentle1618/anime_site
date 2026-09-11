@@ -23,7 +23,7 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.rating_points import rating_rank_case
 from app.services.rbac.enforcement import apply_media_visibility
-from app.services.rbac.permissions import PERM_ADMIN
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, get_viewer
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def get_profile(
         raise HTTPException(status_code=404, detail="Profile not found.")
 
     is_self = bool(viewer.username) and viewer.username == owner.username
-    may_read = is_self or bool(owner.list_is_public) or viewer.has(PERM_ADMIN)
+    may_read = is_self or bool(owner.list_is_public) or viewer.has(PERM_ADMIN_AUTHZ)
     if not may_read:
         # 404, not 403: a private profile and a username nobody has are the
         # same answer, so a stranger cannot enumerate accounts.

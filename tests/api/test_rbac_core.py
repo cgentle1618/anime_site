@@ -14,7 +14,9 @@ import uuid
 from app import models
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
-    PERM_ADMIN,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     field_group_perm,
     media_type_perm,
 )
@@ -83,7 +85,10 @@ def test_guest_is_granted_every_media_type_and_field_group(db_session):
 
 def test_guest_is_not_granted_admin(db_session):
     ensure_rbac_seed(db_session)
-    assert PERM_ADMIN not in _grants(db_session, "guest")
+    grants = _grants(db_session, "guest")
+    assert PERM_ADMIN_AUTHZ not in grants
+    assert PERM_MANAGE_CATALOG not in grants
+    assert PERM_MANAGE_PIPELINES not in grants
 
 
 # ---------------------------------------------------------------------------

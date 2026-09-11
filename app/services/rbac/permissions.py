@@ -12,8 +12,9 @@ so `label.<key>` is derived from the content_label table at request time;
 `static_catalog()` is the half knowable without a database; the label half
 joins it in catalog(), added with the content_label table.
 
-A name is `<family>.<key>`, except `admin`, which is bare: it is not one of
-anything, it is the permission that implies all the others.
+A name is always `<family>.<key>`. The bare `admin` that used to be the
+exception was removed in Phase A of the authorization redesign; it is now
+three named permissions, `admin.authz` and the two `manage.*`.
 """
 
 from typing import TYPE_CHECKING, Iterable
@@ -24,12 +25,10 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 if TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.orm import Session
 
-PERM_ADMIN = "admin"
-
 FAMILY_ADMIN = "admin"
-# What an account may DO, as opposed to which objects it may reach. The bare
-# `admin` above is the old single permission and is removed at the end of
-# Phase A; these three replace it.
+# What an account may DO, as opposed to which objects it may reach. These
+# three permissions (admin.authz and the two manage.* below) replaced the old
+# bare `admin` permission at the end of Phase A.
 FAMILY_MANAGE = "manage"
 
 FAMILY_MEDIA_TYPE = "media_type"
@@ -56,8 +55,11 @@ MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines")
 ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "authz": (
         "Manage Authorization",
-        "Create and edit roles, accounts and content labels - that is, change "
-        "who may do what. Does not itself grant any catalogue write.",
+        "Create and edit roles, accounts and content labels directly - that "
+        "is, change who may do what. Does not itself grant any catalogue "
+        "write. Not the only way to change these, though: manage.pipelines "
+        "can rewrite accounts, content labels and role assignments too, by "
+        "running Pull All over the sheet.",
     ),
 }
 
@@ -145,8 +147,7 @@ def split_perm(permission: str) -> tuple[str, str]:
 def static_catalog() -> frozenset[str]:
     """Every permission knowable without a database."""
     return frozenset(
-        {PERM_ADMIN}
-        | {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+        {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
         | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
         | {media_type_perm(media_type) for media_type in MEDIA_TYPE_KEYS}
         | {field_group_perm(key) for key in FIELD_GROUP_KEYS}

@@ -9,7 +9,9 @@ import pytest
 
 from app import models
 from app.services.rbac.permissions import (
-    PERM_ADMIN,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
     media_type_perm,
@@ -44,7 +46,9 @@ def test_its_grants_are_stored(db, user_role):
     assert PERM_SELF_LIST in held
     assert PERM_SELF_PERSONAL_NOTES in held
     assert media_type_perm("anime") in held
-    assert PERM_ADMIN not in held
+    assert PERM_ADMIN_AUTHZ not in held
+    assert PERM_MANAGE_CATALOG not in held
+    assert PERM_MANAGE_PIPELINES not in held
 
 
 def test_an_admin_can_create_an_account_on_it(admin_client, user_role):

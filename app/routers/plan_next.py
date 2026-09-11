@@ -5,7 +5,7 @@ franchise scope.
 
 Every route needs an account. A plan queue belongs to one user from Step 3 on,
 so a logged-out caller gets a 401 rather than somebody else's queue; the write
-routes additionally stay admin-only, matching media relations and watch orders.
+routes act on the caller's own rows, so no additional admin gate applies.
 
 Replaces the watch_next / read_next booleans and franchise.watch_next_group.
 Nothing here derives plans automatically: they are curated on the admin forms
@@ -20,8 +20,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_current_user_id, get_db
-from app.services.domain.plan_next import validate_plan_target
+from app.dependencies import get_current_user_id, get_db
+from app.services.domain.plan_next import target_visible, validate_plan_target
 from app.services.rbac.enforcement import drop_hidden_rows
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -142,7 +142,7 @@ def list_plan_next(
 def create_plan_next(
     payload: schemas.PlanNextCreate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
     user_id: UUID = Depends(get_current_user_id),
 ):
     if not kind_valid(payload.kind):
@@ -150,8 +150,12 @@ def create_plan_next(
     if payload.scope not in SCOPES:
         raise HTTPException(status_code=400, detail=f"Unknown scope: {payload.scope}")
 
+    # Object-level check: a target that exists but is hidden from this viewer
+    # (a content label they lack) must read back the same as a missing one -
+    # 404, never 403 - so the row can't be used as an existence oracle or a
+    # metadata leak on hidden entries.
     reason = validate_plan_target(
-        db, payload.scope, payload.media_type, payload.target_id, payload.kind
+        db, payload.scope, payload.media_type, payload.target_id, payload.kind, viewer=viewer
     )
     if reason and reason.startswith("No "):
         raise HTTPException(status_code=404, detail=reason)
@@ -192,13 +196,17 @@ def delete_plan_next_by_target(
     target_id: UUID = Query(...),
     kind: str = Query("next"),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
     user_id: UUID = Depends(get_current_user_id),
 ):
     """Un-plan without knowing the row id, so a toggle needs one call."""
     column = OWNER_COLUMN.get(scope)
     if column is None:
         raise HTTPException(status_code=400, detail=f"Unknown scope: {scope}")
+    # Same object-level check as create: a target hidden from this viewer
+    # answers 404 "Not planned", indistinguishable from one truly unplanned.
+    if not target_visible(db, viewer, scope, media_type, target_id):
+        raise HTTPException(status_code=404, detail="Not planned.")
     row = (
         db.query(models.PlanNext)
         .filter(
@@ -221,7 +229,7 @@ def delete_plan_next_by_target(
 def delete_plan_next(
     system_id: UUID,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    viewer: Viewer = Depends(get_viewer),
     user_id: UUID = Depends(get_current_user_id),
 ):
     # One user may not delete another's row by id.
@@ -234,6 +242,10 @@ def delete_plan_next(
         .first()
     )
     if not row:
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    # Same object-level check as create: if the target is (now) hidden from
+    # this viewer, treat the row as not found rather than leak that it exists.
+    if not target_visible(db, viewer, row.scope, row.media_type, row.target_id):
         raise HTTPException(status_code=404, detail="Plan not found.")
     log_deleted_record(db, row, "Plan Next")
     db.delete(row)

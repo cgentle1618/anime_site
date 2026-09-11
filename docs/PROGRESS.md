@@ -25,25 +25,53 @@ hole below, which depends on none of the rest.
 `entry_visible` and 404 with the not-found message, closing the object-level
 hole. Phases B-D are unclaimed and need plans.
 
-**Phase A has a plan**:
+**Phase A is done** (2026-09-11, A1-A11, `e4c914be`..`da4f23b6` on branch
+`authz-phase-a`; full suite 3641 passed / 5 skipped, ruff clean, vitest 923,
+eslint 0 errors; NOT merged to `dev` and NOT pushed):
 **[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
-Every task is behaviour-neutral for the `admin` account, because it is
-`is_superuser` and `has()` short-circuits - so a half-applied Phase A cannot
-lock anyone out. Task 9 is what makes a missed router an ImportError rather
-than a silent grant; it must run last.
+Every task was behaviour-neutral for the `admin` account, because it is
+`is_superuser` and `has()` short-circuits - so a half-applied Phase A could not
+have locked anyone out. Task A9 made a missed router an ImportError rather
+than a silent grant, and ran last as planned. The bare `admin` permission and
+`get_current_admin` are gone; three named permissions (`admin.authz`,
+`manage.catalog`, `manage.pipelines`) and the `super` role replace them, and
+`is_admin` in `/api/auth/me` now means `manage.catalog`. Phases B, C and D are
+still unclaimed and need plans - see [authorization.md](authorization.md#what-the-redesign-inherits)
+before starting one.
+
+Phase A was executed on branch **`authz-phase-a`** in the worktree
+`../anime_site_authz` (its own venv and `.env`; both trees share one PostgreSQL
+and one `anime_site_test`, so never run the suites concurrently). Nothing is
+merged to `dev` or pushed yet.
 
 | # | Phase A task | Status |
 |---|---|---|
-| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | todo |
-| A2 | Seed the `super` role | todo |
-| A3 | The three route dependencies in `resolver.py` | todo |
-| A4 | Swap roles/users/content_labels to `admin.authz` | todo |
-| A5 | Swap system/data_control to `manage.pipelines` | todo |
-| A6 | Swap the 20 catalogue routers to `manage.catalog` | todo |
-| A7 | Drop the three `plan_next.py` admin gates | todo |
-| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | todo |
-| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | todo |
-| A10 | Documentation | todo |
+| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | done e4c914be |
+| A2 | Seed the `super` role | done 9629f4bb |
+| A3 | The three route dependencies in `resolver.py` | done 56de8395 |
+| A4 | Swap roles/users/content_labels to `admin.authz` | done 17411973 |
+| A5 | Swap system/data_control to `manage.pipelines` | done 9cabfa2c |
+| A6 | Swap the 20 catalogue routers to `manage.catalog` | done 633c329f + 555ee689 (fix round) |
+| A7 | Drop the three `plan_next.py` admin gates | done 2afe2158 |
+| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | done c71ad497 |
+| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | done f3b6712c |
+| A10 | Documentation | done 0811b198 |
+| A11 | Whole-branch review fixes: SPA nav re-pointed, plan_next object-level guard, route capabilities | done da4f23b6 |
+
+**A real bug surfaced at A6 and is fixed** (`555ee689`): `get_current_admin`
+returned a `dict`; the new dependencies return a `Viewer`. `users.py:164` called
+`admin.get("sub")`, so from A4 until the fix the "you cannot delete yourself"
+guard raised `AttributeError` instead of firing and an admin could delete their
+own account. It now compares `admin.username`. Exactly one of the 75 sites read
+the value; the other 74 were unused but annotated `admin: dict`, the lie that
+disguised it - all 73 remaining are now annotated `Viewer`.
+`dependencies.py:74` still asserts "No call site reads this"; it was false and
+A9 removes that function.
+
+**Plan defect, owned**: the plan required the full suite only at A6, A8 and A9,
+so A1-A5 shipped five failures their scoped test runs could not see, through
+five reviews that were clean against their own diffs. Every remaining task runs
+the full suite before committing.
 
 Two items the spec names but does not do: an audit of every **other** write path
 taking a client-supplied entry id (decision 9 applies to all of them; only
@@ -106,7 +134,7 @@ otherwise.
 | Item | Where | Status |
 |---|---|---|
 | `Note`, `Meme` and `Quote` tabs carry `author_id` as a raw uuid, so authorship does not round-trip | Each machine's lifespan mints its own `admin`, and the `Users` tab's username match keeps the local id - so the other machine's admin rows restore under this one's. `709f9f00` stopped the `Quote` tab dying on it (FK violation, whole tab rolled back); the durable fix is a `username` column on the three tabs, the way `Plan Next` has one. Invisible with one account; needed before a second person writes a note. `tabs.py:259/268/269` | todo |
-| The logged-out redirect was never checked in a browser | Step 3 Task 10's last step: log out and confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on `/login?next=...`. The API side is tested; `ProtectedRoute requireAuth` is not. Carried over when the Step 0-5 entries were removed | todo |
+| The logged-out redirect was never checked in a browser | Step 3 Task 10's last step: log out and confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on `/login?next=...`. What is missing is only the **browser** check - the API side is tested AND so is the component: `frontend/src/components/layout/ProtectedRoute.test.jsx` holds three `ProtectedRoute requireAuth` tests. This row previously claimed `requireAuth` was untested, which was false (corrected 2026-09-11). Carried over when the Step 0-5 entries were removed | todo |
 | Community aggregates are not visibility-filtered | `/api/community/{media_id}` filters on `users.list_is_public` but applies neither the media-type gate nor the label anti-join, so a viewer lacking `media_type.game` can still read a game's rating average if they know its `media_id`. Found by the 2026-09-10 doc audit and recorded as an accepted residual in `docs/authorization.md`; the id has to come from a visible response first, which is the same (weak) argument that covers `/static/covers/`. `app/routers/community.py` | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |

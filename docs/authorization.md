@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-11 (own-list reads and writes gained the visibility gate; see the drift note at the foot)
+Last verified: 2026-09-11 (Phase A: the capability axis)
 
 ## What this is for
 
@@ -47,16 +47,33 @@ anywhere, but a role added or a grant removed by hand is per-machine. See
 
 ## Permission catalog (code)
 
-`app/services/rbac/permissions.py`. A permission is `<family>.<key>`, except
-the bare `admin`.
+`app/services/rbac/permissions.py`. A permission is `<family>.<key>`.
+
+**Phase A of the authorization redesign (2026-09-11) removed the bare `admin`
+permission and `get_current_admin` with it.** What used to be one permission
+that gated every admin route is now three named ones, so an account can
+administer *who* may do what without also being handed the catalogue, or vice
+versa:
 
 | Name | Meaning | Source of keys |
 |---|---|---|
-| `admin` | may use every admin route (`Depends(get_current_admin)`); implies nothing else by itself, but the admin *role* is superuser | constant `PERM_ADMIN` |
+| `admin.authz` | may **change who may do what** — roles, accounts, content labels | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, options, relations, watch orders, catalogue notes | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `media_type.<key>` | may see any entry of that type; keys are hyphenated (`media_type.tv-show`) | `MEDIA_TYPE_KEYS` in `app/utils/media_resolver.py` |
 | `field_group.<key>` | may see the fields in one `FIELD_GROUPS` entry | `app/services/rbac/field_groups.py` |
 | `label.<key>` | may see entries carrying that content label | `content_label.key`, read at request time |
 | `self.<key>` | may **write** your own rows of that kind — `self.list`, `self.personal_notes` | `SELF_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
+
+Splitting `manage.pipelines` out of `manage.catalog` was nearly free — two
+routers, one dependency each — and buys a real distinction: an account can fix
+a typo on an entry without being able to overwrite the entire database with a
+Pull All. `/api/auth/me`'s `is_admin` flag, which 394 call sites across the SPA
+read as "may this person edit the catalogue", now means `manage.catalog`
+rather than the old bare `admin`; only the genuinely authorization-shaped
+screens (`Roles.jsx`, the users page, `ContentLabels.jsx`) ask for
+`admin.authz` instead. See [Roles](#roles) for the `super` role this made
+possible — every catalogue capability, none of the authorization one.
 
 `self` is the odd family out and deliberately so: every other family answers
 "may you *see* this", and this one answers "may you *write* your own". It is
@@ -72,20 +89,30 @@ hyphenated keys survive.
 
 ### Roles
 
-Three roles are seeded by `app/services/rbac/seed.py`, and the app reads all
-three by name:
+Four roles are seeded by `app/services/rbac/seed.py`, and the app reads three
+of them by name (`guest`, `user`, `admin`; `super` is reached only through its
+grants, the way any custom role is):
 
 | Name | `sort_order` | System | Superuser | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type and every field group except `GUEST_WITHHELD_FIELD_GROUPS` |
 | `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus `self.list` and `self.personal_notes` |
+| `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog` and `manage.pipelines` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a superuser role holds every permission implicitly |
+
+`super` is what Phase A added the three named permissions to make possible: a
+helper account that can write the catalogue and run pipelines without being
+able to touch roles, accounts or content labels. It is `is_system` (cannot be
+deleted or renamed) but **not** `is_superuser` — its grants are real rows,
+inspectable and editable on `/roles` like a custom role's, and `viewer.has()`
+does not short-circuit for it the way it does for `admin`.
 
 `default_user_permissions()` is *derived* from `default_guest_permissions()`
 rather than restated, so a media type or field group added later reaches both
 roles at once. The `user` role is three ideas and not a subsystem: guest reads,
 write-own-list, write-own-personal-notes. Catalogue writes stay behind
-`Depends(get_current_admin)`, so granting this role adds **no admin surface**.
+`require_manage_catalog`, so granting this role adds **no catalogue-write
+surface**.
 
 The same `if not held:` top-up rule applies to `user` as to `guest`: the seed
 grants the defaults only to a role holding nothing at all, so a permission an
@@ -216,8 +243,9 @@ API refuses to let an admin do to one.
 
 | Role | Rules |
 |---|---|
-| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can never hold `admin` → **409** (`app/routers/roles.py::replace_permissions`), because that would make anonymous callers admins. Cannot be deleted or renamed. |
-| `user` | A system role like the other two, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not superuser - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
+| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can never hold `admin.authz`, `manage.catalog` or `manage.pipelines` → **409** (`app/routers/roles.py::replace_permissions`), because that would hand any anonymous caller the ability to administer, write the catalogue, or run a pipeline. Cannot be deleted or renamed. |
+| `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not superuser - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
+| `super` | A system role too. Not superuser - its grants are ordinary rows and editable on `/roles` - but seeded with `manage.catalog` and `manage.pipelines` and deliberately without `admin.authz`. |
 | `admin` | `is_superuser=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it). `PUT /permissions` on a superuser role → **409**. Cannot be deleted or renamed. |
 | custom | `is_superuser=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Deleting one with users still holding it → **409**. |
 
@@ -244,17 +272,23 @@ at all - see [What a guest sees](#what-a-guest-sees).
   lets `/api/auth/me` and the public routes share it.
 - `get_viewer` is the `Depends` form (deduped per request);
   `require_permission(name)` is a dependency factory.
-- `app/dependencies.py::get_current_admin` is now a thin wrapper:
-  `resolve_viewer` then `viewer.has("admin")`, else **401**. Stricter than the
-  old token check: a valid token for a deleted user or a de-admined role is
-  rejected.
+- `app/dependencies.py::get_current_admin` is **gone**, deleted in Phase A of
+  the authorization redesign along with the bare `admin` permission
+  (`PERM_ADMIN`) it checked. `app/services/rbac/resolver.py` binds three named
+  replacements at import time, one per capability: `require_admin_authz`,
+  `require_manage_catalog`, `require_manage_pipelines` — each
+  `require_permission(<name>)`, else **401**. Routers depend on these by name
+  rather than calling `require_permission` inline, so swapping a router's gate
+  is a one-word edit and grepping for a capability finds every route holding
+  it. Same strictness as the dependency it replaced: a valid token for a
+  deleted user or a role that lost the permission is rejected.
 - `app/dependencies.py::get_current_user_id` is the **third** gate, added in
   Step 3, and it asks a different question from the other two: not "does this
   viewer hold a permission" but "is there an account at all". It returns
   `viewer.user_id` or **401**. Every `/api/plan-next` and `/api/seasonal` route
   depends on it, because those tables hold one account's private queues and
-  ratings; the seasonal rating PATCH uses it *instead of*
-  `get_current_admin`, since the rating it writes is the caller's own.
+  ratings; the seasonal rating PATCH uses it *instead of* a capability gate,
+  since the rating it writes is the caller's own.
   `app/services/rbac/resolver.py::viewer_user_id(viewer)` is the non-raising
   companion for the handful of routes that stay public and must simply show
   nothing per-user - the entry `watch_next` / `read_next` flags and the
@@ -318,7 +352,7 @@ sees one error shape.
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and**, since 2026-09-11, `entry_visible` in `_media_or_404`. Until then this row named only the capability gate and the entry was resolved with a bare `db.get`, so an account holding `self.list` could rate an entry it could not see, or a media type it did not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
-| previously unauthenticated `data_control` / `system` GETs | closed behind `get_current_admin` |
+| previously unauthenticated `data_control` / `system` GETs | closed behind `require_manage_pipelines` |
 
 ### Accepted residuals
 
@@ -413,7 +447,7 @@ data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
 
 | Scope | Write | Read |
 |---|---|---|
-| `catalog` | admin only (`admin`) | everyone, unfiltered |
+| `catalog` | `manage.catalog` (was the bare `admin` before Phase A) | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer` - or the profile owner's, through `?author=`, when their `list_is_public` **and** the viewer holds `field_group.personal_notes` |
 
 A logged-out visitor has no `user_id` and therefore sees **no** personal rows
@@ -454,13 +488,13 @@ still deferred. Three consequences stand:
 | `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204 |
 | `GET/PUT /api/content-labels/entry/{media_type}/{entry_id}` | list / replace an entry's label keys; 400 unknown type, 404 entry, 422 unknown label |
 
-All are behind `get_current_admin`; every write calls `cache.bump()`.
+All are behind `require_admin_authz`; every write calls `cache.bump()`.
 
 ### Guards on users (`app/routers/users.py`)
 
 - **Last admin:** changing the role of, or deleting, the last account whose
-  role can administer (superuser or holds `admin`) → **409** "last account
-  that can administer the site".
+  role can administer (superuser or holds `admin.authz`) → **409** "last
+  account that can administer the site".
 - **Self-delete:** deleting your own account → **409**.
 
 ## Admin UI
@@ -499,7 +533,11 @@ matters is enforced server-side.
 | `tests/unit/test_rbac_viewer.py` | `Viewer.has`, superuser, guest |
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
-| `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
+| `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards; guest can never be granted `admin.authz`, `manage.catalog` or `manage.pipelines` |
+| `tests/api/test_admin_compat.py` | characterization test: every route enumerated from the app itself must stay gated by one of the three capabilities, so a route that loses its guard in a refactor fails here |
+| `tests/api/test_capability_dependencies.py` | `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` each answer 401, never 403 |
+| `tests/api/test_catalog_router_gates.py` | a `super` account may edit the catalogue, an ordinary `user` may not - one representative route per router family, pinning that the *right* capability was chosen |
+| `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()` and no module imports `get_current_admin` |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
 | `tests/api/test_field_gating.py` | column and link stripping, DB untouched, `system_info` timestamps null while `system_id` survives |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
@@ -539,7 +577,7 @@ one it uses rather than invent another:
 
 | Gate | Question | Answer when it fails |
 |---|---|---|
-| `get_current_admin` | do you hold `admin`? | 401 |
+| `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` | do you hold this one capability? (Phase A; replaced `get_current_admin` and the bare `admin` permission) | 401 |
 | `require_permission(name)` | do you hold this one grant? | 401 |
 | `get_current_user_id` | is there an **account** at all? (Step 3) | 401 |
 | `viewer_user_id(viewer)` / `acting_user_id(db, viewer)` | who are you, if anyone? | `None`, never an error |

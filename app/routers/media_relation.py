@@ -18,7 +18,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.media_relation import (
     entry_exists,
     find_duplicate,
@@ -28,7 +28,7 @@ from app.services.domain.media_relation import (
 )
 from app.services.domain.watch_order import list_candidate_entries
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.relation_kinds import (
@@ -323,7 +323,7 @@ def get_relation_graph(
 def create_relation(
     payload: schemas.MediaRelationCreate,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Stores one relation, normalizing the direction the admin typed.
@@ -370,7 +370,7 @@ def update_relation(
     system_id: str,
     payload: schemas.MediaRelationUpdate,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Edits the kind, the direction or the remark.
@@ -427,7 +427,7 @@ def reset_scope(
     collection_id: Optional[str] = None,
     series_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Clears a whole canvas: every relation the /graph endpoint would draw for
@@ -502,7 +502,7 @@ def reset_scope(
 def delete_relation(
     system_id: str,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """Removes one relation. The two entries themselves are untouched."""
     row = _get_relation_or_404(db, system_id)

@@ -30,7 +30,7 @@ from app.schemas.note import sections_out, validate_note_payload
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.permissions import (
-    PERM_ADMIN,
+    PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
     field_group_perm,
 )
@@ -155,9 +155,10 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
                 status_code=403, detail="You may not write personal notes."
             )
         return
-    if not viewer.has(PERM_ADMIN):
+    if not viewer.has(PERM_MANAGE_CATALOG):
         raise HTTPException(
-            status_code=403, detail="Catalogue notes are written by admins."
+            status_code=403,
+            detail="Catalogue notes require the manage.catalog permission.",
         )
 
 
@@ -170,9 +171,10 @@ def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
         raise HTTPException(
             status_code=403, detail="That note belongs to someone else."
         )
-    if not viewer.has(PERM_ADMIN):
+    if not viewer.has(PERM_MANAGE_CATALOG):
         raise HTTPException(
-            status_code=403, detail="Catalogue notes are edited by admins."
+            status_code=403,
+            detail="Editing a catalogue note requires the manage.catalog permission.",
         )
 
 

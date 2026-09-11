@@ -19,11 +19,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.credits import find_publisher
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -185,7 +185,7 @@ def get_publisher_entries(
 def create_publisher(
     payload: schemas.PublisherCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a publisher, or returns the existing one under that name.
@@ -237,7 +237,7 @@ def update_publisher(
     system_id: UUID,
     payload: schemas.PublisherUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Fully updates a publisher's metadata and the set of scopes it holds. Since
@@ -272,7 +272,7 @@ def update_publisher(
 def delete_publisher(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a publisher. Its credits cascade away with it - see
@@ -298,7 +298,7 @@ def merge_publisher(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this publisher, then delete the

@@ -20,6 +20,11 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
+from app.services.rbac.permissions import (
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
+)
 
 GUEST_ROLE = "guest"
 
@@ -40,8 +45,10 @@ class Viewer:
     # defaulted field before an undefaulted one, and GUEST_FALLBACK does not
     # pass it.
     user_id: Optional[UUID] = None
-    # The decoded JWT, kept only so get_current_admin can hand back what it
-    # always did. Nothing reads it for authorization.
+    # The decoded JWT. Nothing reads this for authorization, and now that the
+    # old single-admin dependency that used to hand it back is gone, no call
+    # site reads it at all - it is dead weight kept here rather than removed
+    # in this task, since removing it is a separate decision.
     token_payload: Optional[dict[str, Any]] = field(default=None)
 
     def has(self, permission: str) -> bool:
@@ -82,8 +89,9 @@ def role_for_user(db: Session, user: Optional[models.User]) -> Optional[models.R
 
 def resolve_viewer(request: Request, db: Session) -> Viewer:
     """
-    A plain function, not a dependency, so get_current_admin and /api/auth/me
-    can call it directly rather than through FastAPI's injection.
+    A plain function, not a dependency, so /api/auth/me and the capability
+    dependencies below (require_admin_authz and friends) can call it directly
+    rather than through FastAPI's injection.
     """
     try:
         payload = _decode(request)
@@ -122,8 +130,8 @@ def require_permission(permission: str):
     """
     Dependency factory gating a route on one permission.
 
-    401 rather than 403, matching the message and header get_current_admin has
-    always sent, so the SPA's error handling sees one shape.
+    401 rather than 403, matching the one error message and header shape the
+    SPA's error handling has always expected.
     """
 
     def _dependency(viewer: Viewer = Depends(get_viewer)) -> Viewer:
@@ -136,6 +144,15 @@ def require_permission(permission: str):
         return viewer
 
     return _dependency
+
+
+# The three capability gates, bound once at import. Routers depend on these by
+# name rather than calling require_permission inline, so that swapping a
+# router's gate is a one-word edit and so that grepping for a capability finds
+# every route holding it.
+require_admin_authz = require_permission(PERM_ADMIN_AUTHZ)
+require_manage_catalog = require_permission(PERM_MANAGE_CATALOG)
+require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
 
 
 def viewer_user_id(viewer) -> Optional[UUID]:

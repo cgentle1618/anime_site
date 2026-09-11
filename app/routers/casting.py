@@ -23,10 +23,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain import casting as casting_service
 from app.services.rbac.enforcement import entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/casting", tags=["Casting"])
@@ -80,7 +80,7 @@ def replace_casting(
     entry_id: UUID,
     payload: CastIn,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces the whole cast in the order submitted."""
     _resolve_entry(db, media_type, entry_id)

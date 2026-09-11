@@ -203,14 +203,16 @@ export default function Nav() {
                   <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
                     Admin
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleBackup}
-                    disabled={backingUp}
-                    className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
-                  >
-                    {backingUp ? "Backing up…" : "Back up"}
-                  </button>
+                  {has("manage.pipelines") && (
+                    <button
+                      type="button"
+                      onClick={handleBackup}
+                      disabled={backingUp}
+                      className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
+                    >
+                      {backingUp ? "Backing up…" : "Back up"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -357,16 +359,18 @@ export default function Nav() {
                   <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
                     {theme === "dark" ? "Light mode" : "Dark mode"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleBackup();
-                    }}
-                    className={DRAWER_ROW}
-                  >
-                    Back up data
-                  </button>
+                  {has("manage.pipelines") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        handleBackup();
+                      }}
+                      className={DRAWER_ROW}
+                    >
+                      Back up data
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
