@@ -55,7 +55,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 
 export default function CollectionPage() {
   const { publicId } = useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   const [collection, setCollection] = useState(null);
@@ -464,7 +464,7 @@ export default function CollectionPage() {
       {showRemark && (
         <RemarkModal
           value={remarkDraft}
-          isAdmin={isAdmin}
+          canEdit={has("self.personal_notes")}
           onChange={setRemarkDraft}
           onClose={() => {
             saveRemark();

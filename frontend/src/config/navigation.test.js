@@ -282,3 +282,39 @@ describe("visibleSections", () => {
     expect(asked).toContain("manage.pipelines");
   });
 });
+
+describe("the two permission surfaces agree", () => {
+  // The SPA gates in two independent places: App.jsx's <ProtectedRoute> and
+  // this file. Changing what a permission means reaches one and not the
+  // other - Phase A shipped `is_admin` and had to fix the nav two commits
+  // later, and until 2026-09-12 the per-user pages asked `requireAuth` at the
+  // route while asking self.list here, so they were reachable but unlisted.
+  //
+  // This cannot compare the two files directly without importing App.jsx's
+  // route tree, so it pins the nav half and names the route half it must
+  // match. If you change one, this list is where the other is written down.
+  const ROUTE_GATES = {
+    "/plan": "self.list",
+    "/seasonal": "self.list",
+    "/statistics": "self.list",
+    "/settings": "self.list",
+    "/users": "admin.authz",
+    "/roles": "admin.authz",
+    "/content-labels": "admin.authz",
+    "/access-modes": "admin.authz",
+    "/system": "manage.pipelines",
+    "/clean-orphans": "manage.pipelines",
+  };
+
+  it("asks the same permission the route gate asks", () => {
+    for (const [to, expected] of Object.entries(ROUTE_GATES)) {
+      const section = NAV_SECTIONS.find((s) =>
+        sectionItems(s).some((i) => i.to === to),
+      );
+      expect(section, `no nav section owns ${to}`).toBeDefined();
+      const item = sectionItems(section).find((i) => i.to === to);
+      const asked = itemRequirement(item) ?? sectionRequirement(section);
+      expect(asked, `${to} disagrees with its route gate`).toBe(expected);
+    }
+  });
+});

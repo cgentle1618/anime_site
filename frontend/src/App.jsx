@@ -159,8 +159,18 @@ export default function App() {
                 />
 
                 {/* Per-user pages: a plan queue and a season's counters belong
-                    to one account, and their APIs 401 a stranger. */}
-                <Route element={<ProtectedRoute requireAuth />}>
+                    to one account, and their APIs 401 a stranger.
+
+                    `permission="self.list"`, not `requireAuth`. These asked
+                    two different questions until 2026-09-12: the route let in
+                    any signed-in account while navigation.js listed the links
+                    only for self.list holders, so the NAV was the stricter
+                    surface and these pages were reachable but unlisted - the
+                    opposite of the usual mismatch, and harder to notice
+                    because nothing looks broken. The two surfaces have to ask
+                    the same question; self.list is the right one, since every
+                    control on these pages writes the viewer's own rows. */}
+                <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/seasonal" element={<SeasonalOverall />} />
                   <Route
                     path="/seasonal/:seasonal_id"

@@ -14,7 +14,7 @@ function setup(props = {}) {
   const { container } = render(
     <RemarkModal
       value="a long remark worth selecting"
-      isAdmin={false}
+      canEdit={false}
       onChange={onChange}
       onClose={onClose}
       {...props}
@@ -63,8 +63,11 @@ describe("RemarkModal backdrop dismissal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("a drag out of the textarea does not close the admin editor", () => {
-    const { backdrop, panel, onClose } = setup({ isAdmin: true });
+  it("a drag out of the textarea does not close the editor", () => {
+    // canEdit, not isAdmin: a remark is a personal-scope note and belongs to
+    // its author, so the permission is self.personal_notes. It was gated on
+    // the catalogue permission until Phase D.
+    const { backdrop, panel, onClose } = setup({ canEdit: true });
     const textarea = backdrop.querySelector("textarea");
     expect(textarea).not.toBeNull();
     fireEvent.mouseDown(textarea);
