@@ -48,6 +48,7 @@ chosen per session. An account holds one role and one *or more* access modes.
 | 7 | Which mode does a session start in? | **The account's chosen default** (`is_default` on `user_access_mode`). You just typed your password to log in, so landing wide is not a new grant. Rejected: always landing narrowest, which would make the widening prompt routine — and a prompt typed through by reflex has stopped being a control |
 | 8 | Can a per-account adjustment ADD to a mode, or only remove? | **Only remove — a mode is a ceiling.** An account's reach is always a subset of its mode's. So a mode name on the user list is a trustworthy upper bound, and widening a mode later reaches everyone not explicitly narrowed. To let one person reach more, assign a wider mode and deny the specific items (or create a mode, if it is policy you will reuse) |
 | 9 | Does a mode bind writes, or only reads? | **NEW 2026-09-11: writes follow reads, against the ACTIVE mode.** If `GET` answers 404 for you, every write to that id answers 404 too. Rejected: binding writes to the account's *ceiling* (the union of its modes), which would have the server 404 a `GET` and then accept a `PUT` for that same id. The industry precedent is uniform — Postgres RLS applies one `USING` clause to `SELECT` and `UPDATE` alike; AWS session policies and OAuth scopes narrow a session for every operation, not just reads; OWASP ranks the inverse as API1:2023, Broken Object Level Authorization. The same guard also enforces `media_type.*`, because `entry_visible` already checks both and calling it is less work than not |
+| 10 | May a pipeline rewrite authorization data? | **NO — three tabs need `admin.authz`.** Pull All restores `Users` (including each account's role), `Content Label` and `Media Content Label`. Since the sheet is editable by anyone with Google access, a `super` could type `admin` into the Users tab and Pull themselves a promotion — escalation without ever holding `admin.authz`. Decided 2026-09-11: those three tabs are **skipped and reported** when the caller lacks `admin.authz`; every other tab restores as normal, and `super` keeps both Backup and Pull All. Rejected: requiring `admin.authz` for the whole pipeline, which would stop a helper restoring the catalogue after a bad import and remove most of the reason `manage.pipelines` is a separate permission. Note the direction: **Backup** (local → sheet) is not an escalation path and is unrestricted; only **Pull** (sheet → local) writes authorization data into the live database |
 
 ### The shape those decisions imply
 
@@ -588,6 +589,14 @@ of firing.
 **Phase B — the access-mode axis, reads only** (sections 2-4). Tables,
 migration, seed, resolution, `hidden_label_ids` and `field_gate`. Every existing
 account lands on `unrestricted`, so nothing visibly changes.
+
+**Phase A.1 — the pipeline/authorization boundary** (decision 10). Mark
+`Users`, `Content Label` and `Media Content Label` in
+`app/services/pipelines/tabs.py` as requiring `admin.authz`, and have the Pull
+runner skip and report them for a caller without it. Independent of B, C and D
+— it needs only Phase A's permissions, which have shipped — so it can go at any
+time. Small: `tabs.py` is already a per-tab registry and `unresolved_refs` is
+already the skip-and-report channel.
 
 **Phase C — write binding** (decision 9). The write paths call the same guard.
 Phase 0 is a subset of this and a down payment on it.
