@@ -27,6 +27,7 @@ from app.services.rbac.permissions import (
     field_group_perm,
     media_type_perm,
 )
+from app.services.rbac.seed_modes import SAFE_WITHHELD_FIELD_GROUPS
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 GUEST_ROLE = "guest"
@@ -42,7 +43,12 @@ SUPER_ROLE = "super"
 # Field groups a brand-new guest role does NOT receive. A group lands here
 # when its purpose is to withhold something from ordinary viewers, so
 # granting it by default would defeat it.
-GUEST_WITHHELD_FIELD_GROUPS: frozenset[str] = frozenset({"sources_restricted"})
+#
+# Defined in seed_modes.py now, and aliased here so the two cannot drift while
+# both axes carry field groups. The role axis loses them entirely later in
+# Phase B, and this alias goes with the field-group half of
+# default_guest_permissions().
+GUEST_WITHHELD_FIELD_GROUPS = SAFE_WITHHELD_FIELD_GROUPS
 
 
 def default_guest_permissions() -> set[str]:

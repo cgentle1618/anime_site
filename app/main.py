@@ -62,6 +62,7 @@ from app.routers import (
 from app.schema_guard import ensure_schema
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
+from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,11 @@ async def lifespan(app: FastAPI):
         # request resolves against them. Idempotent, so this is safe on every
         # boot against an already-seeded database.
         ensure_rbac_seed(db)
+        # Access modes next, and beside the roles rather than elsewhere: the
+        # two axes are resolved together on every request, so the next reader
+        # should find both seeds in one place. Idempotent for the same reason
+        # ensure_rbac_seed is.
+        ensure_access_mode_seed(db)
         db.commit()
         admin_role = (
             db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()

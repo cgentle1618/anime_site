@@ -4,6 +4,13 @@ Aggregates all SQLAlchemy ORM models. Importing this package registers every
 model on Base.metadata, so string-based relationships resolve correctly.
 """
 from app.database import Base, get_taipei_now
+from app.models.access_mode import (
+    AccessMode,
+    AccessModeFieldGroup,
+    AccessModeLabel,
+    UserAccessMode,
+    UserAccessModeDenial,
+)
 from app.models.anime import Anime
 from app.models.anime_movie import AnimeMovies
 from app.models.base import NameFallbackMixin
@@ -102,6 +109,11 @@ __all__ = [
     "Seasonal",
     "ContentLabel",
     "MediaContentLabel",
+    "AccessMode",
+    "AccessModeLabel",
+    "AccessModeFieldGroup",
+    "UserAccessMode",
+    "UserAccessModeDenial",
     "Role",
     "RolePermission",
     "User",
