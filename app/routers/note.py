@@ -112,10 +112,32 @@ def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
     require_visible_media(db, viewer, owner_id, "Owner not found.")
 
 
+# ---------------------------------------------------------------------------
+# Two answers, and no third one
+# ---------------------------------------------------------------------------
+# 401 means "you may not do this KIND of thing" - a capability failure,
+# matching what require_permission returns and the one error shape the SPA
+# knows. 404 means "this OBJECT is not yours to see", in the same words a
+# genuinely absent row gets, because a 403 confirms a row exists exactly as
+# surely as a 200 does. There is deliberately no 403 left in this router:
+# it used to carry five, and each one was an oracle.
+#
+# If you are about to add a 403 here "for clarity", that is the failure this
+# comment exists to prevent. tests/api/test_note_status_codes.py asserts the
+# absence.
+NOTE_NOT_FOUND = "Note not found."
+
+
+def _capability_refused(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=401, detail=detail, headers={"WWW-Authenticate": "Bearer"}
+    )
+
+
 def _get_or_404(db: Session, note_id: str) -> models.Note:
     db_note = db.query(models.Note).filter(models.Note.system_id == note_id).first()
     if not db_note:
-        raise HTTPException(status_code=404, detail="Note not found.")
+        raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
     return db_note
 
 
@@ -173,14 +195,11 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> None:
         )
     if section.scope == SCOPE_PERSONAL:
         if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
-            raise HTTPException(
-                status_code=403, detail="You may not write personal notes."
-            )
+            raise _capability_refused("You may not write personal notes.")
         return
     if not viewer.has(PERM_MANAGE_CATALOG):
-        raise HTTPException(
-            status_code=403,
-            detail="Catalogue notes require the manage.catalog permission.",
+        raise _capability_refused(
+            "Catalogue notes require the manage.catalog permission."
         )
 
 
@@ -190,13 +209,16 @@ def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
     if section is not None and section.scope == SCOPE_PERSONAL:
         if viewer.is_superuser or db_note.author_id == viewer.user_id:
             return
-        raise HTTPException(
-            status_code=403, detail="That note belongs to someone else."
-        )
+        # 404, not 403. Somebody else's note is an OBJECT this caller may not
+        # reach, and saying "that belongs to someone else" confirms it exists.
+        raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
     if not viewer.has(PERM_MANAGE_CATALOG):
-        raise HTTPException(
-            status_code=403,
-            detail="Editing a catalogue note requires the manage.catalog permission.",
+        # 401, not 404, and this is the one place the design's line list was
+        # wrong: the caller may not edit catalogue notes AT ALL, which is a
+        # capability failure and not a fact about this note. Answering 404
+        # here would claim the note does not exist, which is simply false.
+        raise _capability_refused(
+            "Editing a catalogue note requires the manage.catalog permission."
         )
 
 
@@ -282,9 +304,11 @@ def list_notes(
             # to the access mode in Phase B and field_group_perm is gone.
             or "personal_notes" not in viewer.field_groups
         ):
-            raise HTTPException(
-                status_code=403, detail="That user's notes are not public."
-            )
+            # 404, and deliberately the SAME answer a username that does not
+            # exist gets - `owner is None` falls into this branch too. "That
+            # user's notes are not public" confirmed both that the account
+            # exists and that its list is private.
+            raise HTTPException(status_code=404, detail=NOTE_NOT_FOUND)
         author_id = owner.id
 
     personal = list(PERSONAL_SECTIONS)

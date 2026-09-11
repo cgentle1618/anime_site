@@ -49,7 +49,9 @@ def test_a_plain_user_may_not_write_a_catalogue_note(user_client, sample_anime):
         "/api/notes",
         json=_payload(sample_anime.system_id, "public_reviews", "大眾評價"),
     )
-    assert r.status_code == 403
+    # 401: lacking manage.catalog is a capability failure, not a statement
+    # about this entry. Decision 13.
+    assert r.status_code == 401
 
 
 def test_a_logged_out_visitor_may_not_write_anything(client, sample_anime):
@@ -72,11 +74,13 @@ def test_a_user_may_not_edit_someone_elses_personal_note(
     db.add(note)
     db.commit()
 
+    # 404, not 403. Somebody else's note is an object this caller may not
+    # reach, and a 403 confirms it exists exactly as surely as a 200 does.
     r = user_client.patch(f"/api/notes/{note.system_id}", json={"content": "被改了"})
-    assert r.status_code == 403
+    assert r.status_code == 404
 
     r = user_client.delete(f"/api/notes/{note.system_id}")
-    assert r.status_code == 403
+    assert r.status_code == 404
 
 
 def test_an_admin_still_writes_catalogue_notes(db, admin_client, sample_anime):
@@ -153,4 +157,7 @@ def test_a_private_list_owners_personal_notes_stay_private(
             "author": "dave",
         },
     )
-    assert r.status_code == 403
+    # 404, and deliberately the same answer a username that does not exist
+    # gets: a reader must not be able to tell a private account from one that
+    # was never created.
+    assert r.status_code == 404

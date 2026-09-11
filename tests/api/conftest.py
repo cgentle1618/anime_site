@@ -20,6 +20,7 @@ from app.dependencies import get_db
 from app.main import app
 from app.services.integrations import image_manager
 from app.services.rbac import cache as rbac_cache
+from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
 from app.services.rbac.seed_modes import (
@@ -79,6 +80,11 @@ def test_engine():
     # SELECT. Committed before any content_label row exists, so `unrestricted`
     # starts with no labels; carry_label_in_wide_modes() tops it up.
     ensure_access_mode_seed(seeding)
+    seeding.commit()
+    # And grant them to any account that already exists - the lifespan does
+    # this too, and doing it here first, committed, keeps its copy to a SELECT
+    # so it can never block on a test's open transaction.
+    grant_all_modes_to_existing_accounts(seeding)
     seeding.commit()
     seeding.close()
 
@@ -277,20 +283,37 @@ def all_field_group_keys() -> set:
 
 
 def seed_modes_and_grant(db, user):
-    """Give `user` all four seeded modes, defaulting to `unrestricted`.
+    """Give THIS user all four seeded modes, defaulting to `unrestricted`.
 
     What the migration does for every account that already existed, so a
     fixture client behaves like a real one on the day Phase B lands.
     Returns the default mode's id.
-    """
-    from app.services.rbac.modes import (
-        default_mode_id,
-        grant_all_modes_to_existing_accounts,
-    )
 
-    ensure_access_mode_seed(db)
-    grant_all_modes_to_existing_accounts(db)
-    db.flush()
+    Deliberately NOT grant_all_modes_to_existing_accounts(), which walks every
+    user. That would insert rows for the COMMITTED admin account the lifespan
+    also grants, uncommitted - and the lifespan runs on its own connection
+    inside `with TestClient(app)`, so it would block on uq_user_access_mode
+    with the test waiting on the client and the client waiting on the test.
+    The session-scoped setup in test_engine grants that account once,
+    committed, so the lifespan's own copy stays a SELECT.
+    """
+    from app.services.rbac.modes import default_mode_id
+
+    held = (
+        db.query(models.UserAccessMode)
+        .filter(models.UserAccessMode.user_id == user.id)
+        .first()
+    )
+    if held is None:
+        for m in db.query(models.AccessMode).all():
+            db.add(
+                models.UserAccessMode(
+                    user_id=user.id,
+                    mode_id=m.system_id,
+                    is_default=(m.key == MODE_UNRESTRICTED),
+                )
+            )
+        db.flush()
     rbac_cache.bump()
     return default_mode_id(db, user)
 
