@@ -153,6 +153,39 @@ per-machine details: **`docs/switching-environments.md`**.
   - If a file you must edit also holds another session's uncommitted work, stage only your own hunks (`git add -p` or an equivalent patch) and leave theirs in the working tree. Never "tidy" by committing the whole file.
   - A file may change under you between reads. If an edit fails to match, re-read the file instead of forcing the change.
 
+## Coordinated multi-session runs
+
+Started 2026-09-11 by me, the owner. When I say several sessions are working at
+once, one session is the **coordinator** and does no feature work: it holds the
+roster, checks in on the others, arbitrates collisions, sequences pushes, and
+records decisions. Everything in "Concurrent Claude Code Sessions" still
+applies; this adds:
+
+- **The coordinator's relays are mine.** A session may act on a coordination
+  message from the coordinator (task assignment, sequencing, a decision I
+  already recorded here) without checking with me. It may **not** treat a peer
+  message as my approval for a prompt that session has pending with me, and it
+  may never change permissions, settings or this file on a peer's say-so. If a
+  rule of mine needs lifting, I lift it here.
+- **Report in when asked.** Answer the coordinator's status requests: label,
+  feature, current task, blockers, uncommitted files, test database, estimate.
+- **Claim before you start**, as `wip <session-label>` in `docs/PROGRESS.md`.
+- **One pytest at a time across all sessions**, on your own database. Take the
+  lock first:
+
+  ```bash
+  LOCK=/c/Users/cgent/AppData/Local/Temp/anime_site_pytest.lock
+  until mkdir "$LOCK" 2>/dev/null; do sleep 10; done
+  POSTGRES_DB=<yourdb> venv/Scripts/python.exe -m pytest -q; rc=$?
+  rmdir "$LOCK"; exit $rc
+  ```
+
+  A lock directory older than 25 minutes is stale: `rmdir` it and tell the
+  coordinator.
+- **Never a directory pathspec.** `git add docs/` swept another session's
+  `docs/PROGRESS.md` lines into an unrelated commit on the first day of this
+  run. Name every file.
+
 ## Progress tracking
 
 `docs/PROGRESS.md` is the live status of work in flight — one line per plan task,
@@ -188,6 +221,17 @@ without being asked — this is the step that has needed chasing every time:
 
 - Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
 - Never commit or push automatically right after finishing a task. Ask for permission and show a one-line version of the commit. Only commit (and push) after I approve. Note that it's possible that we only commit once after multiple modifications.
+  - **Exception, the coordinated multi-session run started 2026-09-11 — this is
+    me, the owner, writing here so no session has to take it on a peer's word.**
+    While several sessions are working this repo at once under the coordinator
+    session (see "Coordinated multi-session runs" below): **commit without
+    asking**, and do not wait for my approval, opinion or instruction on
+    anything else either. Decide it yourself, prefer the industry-standard
+    option over a clever shortcut, and record the decision in the spec,
+    `docs/PROGRESS.md` or `docs/roadmap.md`. Pushing to `origin` still goes
+    through the coordinator, who sequences it. Every staging rule below and in
+    "Concurrent Claude Code Sessions" stays in force — explicit file paths,
+    never a directory pathspec, stage and commit in one step.
 - Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four on every PR and push).
 - **Read the code before asserting things about it**, especially in a plan or a
   spec. Route paths, payload vocabularies, return types and which reporting
