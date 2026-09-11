@@ -141,6 +141,7 @@ from app.schemas.quote import (
     QuoteUpdate,
 )
 from app.schemas.rbac import (
+    AccessModeSwitch,
     AccountSettingsResponse,
     AccountSettingsUpdate,
     CommunityAggregate,
@@ -232,6 +233,7 @@ __all__ = [
     "RoleUpdate",
     "RolePermissions",
     "RoleResponse",
+    "AccessModeSwitch",
     "ManagedUserCreate",
     "ManagedUserUpdate",
     "ManagedUserResponse",

@@ -71,6 +71,18 @@ class RoleResponse(RoleBase):
 # Users
 # ---------------------------------------------------------------------------
 
+class AccessModeSwitch(BaseModel):
+    """Body of POST /api/auth/access-mode.
+
+    `password` is optional because narrowing does not need one. Widening
+    without it is a 401 carrying `requires_password`, so the SPA prompts
+    rather than guessing which switches are free.
+    """
+
+    mode_id: UUID
+    password: Optional[str] = None
+
+
 class ManagedUserCreate(BaseModel):
     username: str
     password: str

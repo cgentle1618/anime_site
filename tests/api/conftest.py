@@ -490,7 +490,13 @@ def mode_client(db_session, admin_user, grant_mode):
             {"sub": user.username, "role": user.role, "mode": str(grant.mode_id)}
         )
         c = TestClient(app)
-        c.cookies.set("access_token", f"Bearer {token}")
+        # domain= matters here and nowhere else. This client RECEIVES
+        # Set-Cookie responses - the access-mode switch reissues the cookie -
+        # and TestClient's own cookies land under "testserver.local". A jar
+        # cookie set with no domain does not match, so the two ACCUMULATE and
+        # httpx raises CookieConflict on the next read. The other fixture
+        # clients never get a Set-Cookie back, which is why they can omit it.
+        c.cookies.set("access_token", f"Bearer {token}", domain="testserver.local")
         return c
 
     yield _client

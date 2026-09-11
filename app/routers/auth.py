@@ -5,16 +5,23 @@ Uses JWTs stored in HTTP-Only cookies to protect against XSS attacks.
 """
 
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app import models
+from app import models, schemas
 from app.config import settings
 from app.dependencies import get_db
-from app.services.rbac.modes import ResolvedMode, default_mode_id, held_modes
+from app.services.rbac.modes import (
+    ResolvedMode,
+    default_mode_id,
+    held_modes,
+    resolve_mode,
+    switch_requires_password,
+)
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
@@ -178,6 +185,94 @@ def get_me(request: Request, db: Session = Depends(get_db)):
             ),
         ),
     }
+
+
+@router.post("/access-mode", summary="Switch the active access mode")
+def switch_access_mode(
+    payload: schemas.AccessModeSwitch,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    Change which objects this session may reach, without logging out.
+
+    Narrowing is instant; widening asks for the password again (decision 3),
+    so a browser left logged in at a narrow mode is actually narrow. The test
+    is a set comparison and it is the SAME function /api/auth/me uses to
+    advertise the cost - the endpoint that ENFORCES the rule must not be able
+    to disagree with the payload that ADVERTISES it.
+
+    THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`. Minting a fresh 24-hour
+    token here would make toggling between two modes an unlimited
+    session-extension oracle, and the lifetime is flat with no refresh flow
+    and no revocation, so that would be the whole of it. The cookie's max_age
+    is the REMAINING seconds for the same reason - a switch must not resurrect
+    a token that has already expired.
+    """
+    viewer = resolve_viewer(request, db)
+    user = _user_for(db, viewer)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sign in to change access mode.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    grant = (
+        db.query(models.UserAccessMode)
+        .filter(
+            models.UserAccessMode.user_id == user.id,
+            models.UserAccessMode.mode_id == payload.mode_id,
+        )
+        .first()
+    )
+    # 404, and deliberately the same answer a mode that does not exist gets:
+    # which modes exist is not this caller's business, and it is NOT a
+    # password problem - answering `requires_password` here would invite the
+    # SPA to prompt for something that cannot help.
+    if grant is None:
+        raise HTTPException(status_code=404, detail="Access mode not found.")
+
+    target = resolve_mode(db, user, payload.mode_id)
+    current = ResolvedMode(
+        viewer.mode_id,
+        viewer.mode_key,
+        viewer.visible_label_ids,
+        viewer.field_groups,
+    )
+
+    if switch_requires_password(current, target):
+        if not payload.password or not verify_password(
+            payload.password, user.hashed_password
+        ):
+            # Returned, not raised: HTTPException cannot carry a body field
+            # beside `detail`, and `requires_password` has to reach the SPA so
+            # it prompts rather than guessing which switches are free.
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "detail": "Widening an access mode needs your password.",
+                    "requires_password": True,
+                },
+            )
+
+    claims = viewer.token_payload or {}
+    expires_at = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
+    token = create_access_token(
+        {"sub": user.username, "role": user.role, "mode": str(payload.mode_id)},
+        expires_at=expires_at,
+    )
+    remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token}",
+        httponly=True,
+        max_age=max(remaining, 0),
+        samesite="lax",
+        secure=not settings.is_development,
+    )
+    return {"mode": {"id": str(target.mode_id), "key": target.mode_key}}
 
 
 @router.post("/logout", summary="Logout User and Clear Cookie")

@@ -78,18 +78,30 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-    data: Dict[str, Any], expires_delta: Optional[timedelta] = None
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    expires_at: Optional[datetime] = None,
 ) -> str:
     """
     Generates a signed JWT access token containing the provided data payload.
 
     Includes an 'exp' (expiration) claim. If no specific expires_delta is provided,
     the token defaults to the global ACCESS_TOKEN_EXPIRE_MINUTES configuration.
+
+    `expires_at` is used VERBATIM and takes precedence over both. It exists for
+    one caller and one reason: a request that REISSUES a live session's token -
+    the access-mode switch - must preserve the original deadline. Without it,
+    toggling between two modes would mint a fresh 24-hour token each time and
+    become an unlimited session-extension oracle, which matters here because
+    the lifetime is flat with no refresh flow and no revocation. Anything else
+    that reissues a token in future must pass this too.
     """
     to_encode = data.copy()
 
     # Use timezone-aware UTC to ensure consistency across cloud regions
-    if expires_delta:
+    if expires_at is not None:
+        expire = expires_at
+    elif expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(
