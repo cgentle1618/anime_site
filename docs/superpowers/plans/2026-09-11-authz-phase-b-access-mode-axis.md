@@ -22,6 +22,15 @@ decision 12 (per-viewer `remark`).
 `m5b2memefks`), PostgreSQL 17 in Docker, pytest. Python 3.13 via
 `venv/Scripts/python.exe`.
 
+> **SHIPPED 2026-09-12.** All twelve tasks landed — `1b8f9b72`, `27944bcd`,
+> `e18bac6e`, `f0c54815`, `bf385643`, `3c509dfd`, `a6bcf57e`, `6f7d5dec`, and
+> the docs commit. `docs/roadmap.md` holds the durable record of what changed
+> and why; this plan is spent. Three things it specified were WRONG and were
+> corrected during execution — `safe`'s field groups are derived from the live
+> guest role rather than from a constant, `note.py:199` answers 401 rather
+> than 404, and `grant_all_modes_to_existing_accounts` also runs from the
+> lifespan. The spec records all three.
+
 **Spec:** `docs/superpowers/specs/2026-09-10-authorization-redesign-design.md`
 — sections 2, 3, 4, 6, "Decision 14 in detail", and decisions 5-9 and 12-14.
 Read the spec alongside this plan; the plan argues from it and does not repeat

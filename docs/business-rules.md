@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-11 (entity display names generalised; the rating-points scale)
+Last verified: 2026-09-12 (a remark belongs to its author)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -677,19 +677,47 @@ and everybody sees - keep them in step, or move them onto the endpoint.
 
 ## 11. Remark as a note (`remark_field.py`)
 
-`remark` is no longer a column on the owner tables: it is the singleton `note`
-row with `section = "remark"` for that owner. Reads go through a read-only
-`column_property`; writes:
+`remark` is no longer a column on the owner tables: it is the `note` row with
+`section = "remark"` for that owner **and that author**.
 
+**A remark belongs to its author** (2026-09-12). It is a personal-scope
+section, so two accounts may each hold one on the same entry and each reads
+back their own; a viewer with none reads `null`, never somebody else's.
+
+- `attach_remark(db, owner_type, entries, user_id)` is the read. One query per
+  page, filtered on `note.author_id`, called beside the other `attach_*`
+  helpers on every read path: the nine detail routes and the list route in
+  `routers/_factory.py`, and the collection / franchise / series routers.
+  `remark` is a **plain attribute**, defaulted to `None` on the class, so a
+  path that forgets the call serialises null rather than raising — and shows
+  nothing rather than the wrong thing.
 - `pop_remark(payload)` → `(rest, value, was_present)`. A PATCH that never
   mentions `remark` leaves the note alone; a PUT that sends `null` clears it.
-- `upsert_remark(db, owner_type, owner_id, text)`: empty / whitespace-only
-  text **deletes** the row (no blank sections on the notes page); otherwise
-  update in place (stamping `updated_at`) or insert with `sort_index = 0.0`.
-  Text is stored as typed — only the emptiness test is stripped.
+- `upsert_remark(db, owner_type, owner_id, text, author_id)` finds **this
+  author's** row, not the first one for the owner. Empty / whitespace-only
+  text **deletes** it (no blank sections on the notes page); otherwise update
+  in place (stamping `updated_at`) or insert with `sort_index = 0.0`. Text is
+  stored as typed — only the emptiness test is stripped.
 
-`find_all_remarks` (`remarks.py`) lists every entry of every type that has a
-non-empty remark, for `GET /api/data-control/check/remarks`.
+**Why this took two changes landing together.** The read used to be a
+class-level `column_property` — a scalar subquery, which cannot know who is
+asking. So it served one person's private assessment to everybody, and
+`ix_note_one_remark_per_owner` had to stay per-OWNER to keep that subquery
+single-valued, which meant the database refused a second account's remark
+outright. Relaxing the index alone would have turned that **loud refusal into
+an accepted-then-invisible write** — a data-loss shape, strictly worse than
+doing neither. The index (now per-owner-per-author) and the per-viewer read
+therefore shipped in one commit, and
+`tests/api/test_remark_per_viewer.py` fails for each half independently on
+purpose.
+
+`find_all_remarks(db, author_id)` (`remarks.py`) lists the entries carrying
+**the caller's own** non-empty remark, for
+`GET /api/data-control/check/remarks`. `author_id=None` returns nothing rather
+than everything: the response carries one remark per entry, a shape that only
+means something once an author is fixed, and failing open would publish every
+account's private assessments to a screen that had only ever shown one
+person's. Identical to the old answer on a single-account installation.
 
 ---
 

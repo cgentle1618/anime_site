@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-11 (watch-order items and plan rows address their entry by a real foreign key)
+Last verified: 2026-09-12 (the access-mode axis: /me carries a mode, the pipeline routers need an unscoped one)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1370,9 +1370,28 @@ The per-type Fill / Replace routes are **generated** from `PIPELINES` (`app/serv
 | `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`.                          |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
-| `GET`    | `/check/remarks`                     | Check all comments and remark fields, acting as the Comments/Remarks Review Queue.          |
+| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author since 2026-09-12; the response carries one per entry, a shape that only means something once an author is fixed. |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
+
+### Every route on `/api/data-control` and `/api/system` needs TWO things
+
+`require_manage_pipelines` **and** `require_unscoped_mode`. The second answers
+**401** unless the caller's active access mode carries every `content_label`
+row and every field group.
+
+`manage.pipelines` is unscoped on the object axis — no pipeline filters by
+label, field group or media type — because the sheet holds one version of the
+data and Backup overwrites every tab, so a per-viewer filter would write a
+*partial* sheet over the complete one. This gate is what stops "unscoped" being
+merely a trust assertion: a pipeline may see everything, and may therefore only
+be run from a session that can.
+
+Both gates are at **router** level, not per handler, because most of
+`data_control.py`'s routes are registered in a loop over `PIPELINES` rather
+than declared — a per-handler gate would miss them silently, which is how
+`POST /replace/{key}/{entry_id}` kept answering 200 with a hidden entry's
+`display_name` for a year.
 
 ---
 
@@ -1541,18 +1560,36 @@ Now also returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_superuser": false, "permissions": ["media_type.anime", ...] }
+  "is_superuser": false,
+  "permissions": ["media_type.anime", "field_group.credits", ...],
+  "mode": { "id": "…uuid…", "key": "safe" } }
 ```
 
 This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
 server has already withheld what the viewer may not see.
+
+**`permissions` merges two axes, and only here.** The `admin.*`, `manage.*`,
+`media_type.*` and `self.*` entries are the ROLE's capability set. The
+`field_group.*` entries come from the active ACCESS MODE minus its denials —
+they stopped being role permissions in Phase B. The shape is preserved
+deliberately: the SPA has hundreds of `has("field_group.<key>")` calls that
+predate the split, and keeping this contract is what made Phase B cost the
+frontend nothing. The server never merges the two anywhere else.
+
+**Content labels are NOT published.** They scope whole entries server-side,
+the browser never needs them, and listing them would tell a narrowed session
+exactly what it is being kept from.
+
+`mode` is the active access mode. The list of modes an account *holds*, each
+flagged with whether switching to it needs the password, belongs to the
+switcher and is Phase D.
 
 ### `/api/roles` — admin
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/roles/` | Roles with their grants and user counts. |
-| GET | `/api/roles/catalog` | Every grantable permission, grouped by family (`admin`, `media_type`, `field_group`, `self`, `label`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent since Phase B: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |

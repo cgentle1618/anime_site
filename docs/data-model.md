@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-11 (the note, quote and meme owner columns and `author_id`)
+Last verified: 2026-09-12 (the five access-mode tables; the remark index carries `author_id`)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -27,7 +27,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, access_mode, access_mode_label, access_mode_field_group, user_access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -622,7 +622,7 @@ are not columns on the entry tables.
 
 | Field | Where it comes from | Tables |
 |---|---|---|
-| `remark` | `column_property` scalar subquery over `note` (`section = 'remark'`, matched on `note.media_id` for the nine entry types and on `collection_id` / `franchise_id` / `series_id` for the tiers), attached at the bottom of `app/models/__init__.py`. **Read-only** - assigning raises; writes go through `app.services.domain.remark_field.upsert_remark`. The partial unique index `ix_note_one_remark_per_owner` is what keeps the subquery from returning two rows. | all 9 entries + series, franchise, collection |
+| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. It was a `column_property` scalar subquery until 2026-09-12; that could not know who was asking, so it served one person's remark to everybody. **It is no longer a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for exactly that reason. | all 9 entries + series, franchise, collection |
 | `display_name` | `NameFallbackMixin` property, first non-empty name in language order. | all entries and tiers |
 | `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games |
 | `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games |
@@ -1214,14 +1214,22 @@ returns; see [systems/notes.md](systems/notes.md#scope) and
 
 Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
 notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
-UNIQUE over the four owner columns, **NULLS NOT DISTINCT**, `WHERE section =
-'remark'`. The second is load-bearing: `remark` is read through a scalar
-subquery, so a second remark row would make every read of that owner raise.
-NULLS NOT DISTINCT is required because three of the four columns are always
-NULL, and without it Postgres treats every row as unique and the index enforces
-nothing. It is keyed per owner rather than per owner-per-author even though
-`remark` is personal-scope, so a second user's remark is refused rather than
-shown to the first.
+UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
+DISTINCT**, `WHERE section = 'remark'`.
+
+The second is keyed per owner-per-author since revision `n1a2remarkauthor`
+(2026-09-12), because `remark` is a personal-scope section: two accounts may
+each hold one on the same entry and each reads back their own. It was per
+OWNER before that, and load-bearing for a bad reason - the read was a scalar
+subquery, which a second row would have made raise on every read of that
+owner, so the database refused the second write outright. **Both halves moved
+in one commit**: relaxing this index while the read still ignores the author
+would turn a loud refusal into an accepted-then-invisible write.
+
+NULLS NOT DISTINCT is required because three of the four owner columns are
+always NULL - and `author_id` is NULL on rows written before accounts existed
+- so without it Postgres treats every such row as unique and the index
+enforces nothing.
 
 ### `quote`
 
@@ -1589,16 +1597,20 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
-Three roles are seeded and read by name - `guest`, `user`, `admin`; see
-[authorization.md](authorization.md#roles). An account on the `user` role holds
-guest's reads plus `self.list` and `self.personal_notes`.
+**Four** roles are seeded and read by name - `guest`, `user`, `super`,
+`admin`; see [authorization.md](authorization.md#roles). An account on the
+`user` role holds guest's reads plus `self.list` and `self.personal_notes`;
+`super` adds both `manage.*` and is deliberately **not** `is_superuser`.
 
 ### `content_label`
 
-One admin-managed reason an entry might be restricted (e.g. `nsfw`). Becomes
-the permission `label.<key>`; an entry carrying a label the viewer's role does
-not hold disappears for that viewer. Kept out of `system_option` because the
-Fill pipeline writes that table. Model: `ContentLabel`.
+One admin-managed reason an entry might be restricted (e.g. `nsfw`). An entry
+carrying a label the viewer's active **access mode** does not carry disappears
+for that viewer. It was the permission `label.<key>` on a role until Phase B
+(2026-09-12) moved object scoping onto the mode axis — a role cannot express
+"minus this label", because permission resolution is a union. Kept out of
+`system_option` because the Fill pipeline writes that table. Model:
+`ContentLabel`.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -1628,6 +1640,96 @@ index `ix_media_content_label_entry` (`media_id`).
 ---
 
 ## Logs
+
+### The access-mode tables
+
+The **object axis**, added by revision `n1a1accessmode` (2026-09-12). A role
+answers *what may this account do*; an access mode answers *which objects can
+those operations reach in this session*. Full reasoning:
+[authorization.md](authorization.md).
+
+Models: `app/models/access_mode.py`.
+
+#### `access_mode`
+
+One named ceiling on what a session may reach.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `key` | String | no | | UNIQUE, indexed |
+| `label` | String | no | | |
+| `description` | Text | yes | | |
+| `sort_order` | Integer | no | `0` | **UI only.** Enforcement never ranks modes - with per-account denials they are genuinely not a total order |
+| `is_system` | Boolean | no | `false` | Cannot be deleted |
+| `is_guest_default` | Boolean | no | `false` | What a logged-out visitor resolves to |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+`ix_one_guest_default_access_mode` — a partial UNIQUE index over the constant
+`(true)` WHERE `is_guest_default`, so at most one mode is the anonymous
+policy. A flag rather than the hardcoded key `safe`, because editing the mode
+you sit in yourself must not silently republish it to the internet.
+
+Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
+`is_system`, with `safe` flagged. `safe` is seeded from whatever the **guest
+role actually holds**, not from a constant - see
+[authorization.md](authorization.md#what-a-guest-sees) for the defect that
+distinction prevented.
+
+#### `access_mode_label` / `access_mode_field_group`
+
+What a mode CARRIES - i.e. does not hide.
+
+Two **typed** link tables rather than one generic
+`access_mode_grant(permission text)`, on purpose: neither has a column in
+which `manage.catalog` could be stored, so "a mode scopes objects, it never
+grants powers" is a property of the schema rather than a rule a reviewer has
+to remember.
+
+| Table | Columns | Constraints |
+|---|---|---|
+| `access_mode_label` | `system_id`, `mode_id`, `label_id`, `created_at` | FKs to `access_mode` and `content_label`, both CASCADE; UNIQUE `(mode_id, label_id)` |
+| `access_mode_field_group` | `system_id`, `mode_id`, `field_group_key`, `created_at` | FK CASCADE; UNIQUE `(mode_id, field_group_key)`. `field_group_key` is a plain string validated against `FIELD_GROUP_KEYS` - **not** an FK, because field groups are code and not rows |
+
+#### `user_access_mode`
+
+One mode an account holds.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `user_id` | UUID | no | | FK `users.id` CASCADE |
+| `mode_id` | UUID | no | | FK `access_mode.system_id` CASCADE |
+| `is_default` | Boolean | no | `false` | Where a fresh login lands |
+| `created_at` | DateTime | yes | now | |
+
+UNIQUE `(user_id, mode_id)`, plus `ix_one_default_mode_per_user` — partial
+UNIQUE on `user_id` WHERE `is_default`. `is_default` lives here rather than on
+`users` so an account's landing mode is necessarily one it holds; it cannot
+drift out of the granted set.
+
+#### `user_access_mode_denial`
+
+One item this account does NOT get from that mode.
+
+| Column | Type | Null | Description |
+|---|---|:-:|---|
+| `system_id` | UUID | no | PK |
+| `user_access_mode_id` | UUID | no | FK `user_access_mode.system_id` CASCADE |
+| `label_id` | UUID | yes | FK `content_label.system_id` CASCADE |
+| `field_group_key` | String | yes | |
+
+`ck_denial_names_one_thing` — exactly one of `label_id` / `field_group_key` is
+set, mirroring the constraint already on `note`'s four owner columns. Plus
+UNIQUE `(user_access_mode_id, label_id)` and
+`(user_access_mode_id, field_group_key)`.
+
+**Subtraction only.** There is no grant counterpart and there must not be one:
+a mode is a ceiling, so an account's reach is always a subset of its mode's,
+which is what makes a mode name on the user list a trustworthy upper bound.
+Denials hang off the GRANT row rather than the user, so revoking a mode takes
+that account's adjustments to it away with it.
+
 
 ### `data_control_logs`
 

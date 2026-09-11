@@ -1,11 +1,12 @@
 # Authorization redesign — design (DRAFT, brainstorm in progress)
 
-Status: **approved; Phases 0, A, A.1 and C have shipped.** Brainstormed on
+Status: **approved; Phases 0, A, A.1, B and C have shipped. Only Phase D
+remains.** Brainstormed on
 2026-09-10 (home), stopped at an environment switch, resumed and finished
 2026-09-11 (company). All six sections are written and approved, and the last
 open decision (14, pipelines and the object axis) was settled on 2026-09-11 —
-see "Decision 14 in detail". Phase B is the next plan; `docs/PROGRESS.md`
-carries the live status.
+see "Decision 14 in detail". Phase B shipped on 2026-09-12 and carried decisions 12, 13 and 14 with it.
+Phase D is the next plan; `docs/PROGRESS.md` carries the live status.
 
 Read first: [authorization.md](../../authorization.md#what-the-redesign-inherits)
 — the four gates that already exist, the rules not to break, and the lessons
@@ -704,20 +705,49 @@ No new tables. Neutral for `admin`, which held every new permission via
 from the roles/users swap until the fix it raised `AttributeError` instead
 of firing.
 
-**Phase B — the access-mode axis, reads only** (sections 2-4, plus
-decisions 12, 13 and 14). Tables, migration, seed, resolution,
-`hidden_label_ids` and `field_gate`. Every existing account lands on
-`unrestricted`, so nothing visibly changes. Three things ride along, because
-they cannot be built before modes exist or are cheapest here:
+**Phase B — the access-mode axis. DONE 2026-09-12** (sections 2-4, plus
+decisions 12, 13 and 14). Twelve plan tasks, all green at every commit:
+`1b8f9b72` the five tables and the four seeded modes, `27944bcd` the migration
+plus the two caches and per-request resolution, `e18bac6e` the pivot (both
+gates read the active mode; the `is_superuser` short-circuits removed, the
+`viewer is None` half kept), `f0c54815` `label_perm()` / `field_group_perm()`
+deleted, `bf385643` `/api/auth/me` serving field groups from the mode,
+`3c509dfd` the decision-14 pipeline gate, `a6bcf57e` decision 13's status
+codes, `6f7d5dec` decision 12's per-viewer `remark`. Migrations
+`n1a1accessmode` and `n1a2remarkauthor`.
 
-- **Decision 14's pipeline gate** — the unscoped-active-mode dependency on
-  `data_control.py` and `system.py`. It needs a mode to test against, so it
-  could not have shipped with Phase A.
-- **Decision 12's per-viewer `remark`** — the read fix and the
-  `ix_note_one_remark_per_owner` relaxation in ONE commit, never separately.
-- **Decision 13's status codes** — the five 403s in `note.py` (178, 183 → 401;
-  195, 199, 285 → 404). Independent of modes, small, and the file is already
-  open for decision 12.
+**Three things this spec got wrong, corrected in the implementation and worth
+carrying into Phase D's plan:**
+
+1. **"`safe` is today's guest exactly" was false on the live database.**
+   Section 2 asserted that `GUEST_WITHHELD_FIELD_GROUPS` withheld
+   `sources_restricted` and nothing else, and the post-Phase-A audit counted
+   twelve `field_group.*` grants across three roles. There were **eight**, in
+   three different subsets — guest and user held `{credits, system_info}`,
+   super held those plus `{personal_notes, sources_other}` — because
+   `ensure_rbac_seed` tops up only a role holding *nothing*, so groups added
+   to `FIELD_GROUPS` after a role was first seeded never reached it. Seeding
+   `safe` from the stated default would have published the other-sources list
+   and other people's personal reviews to every logged-out visitor. Both the
+   seeder and the migration now **derive** `safe` from what the guest role
+   actually holds. The spec's own rule ("a task that names an endpoint, a
+   field value or a type should have had that value checked, not recalled")
+   applies to a spec's own counts as much as to a plan's.
+2. **Decision 13's line list mis-assigned line 199.** "Editing a catalogue
+   note requires the `manage.catalog` permission" is a *capability* failure
+   and answers **401**, not the 404 the table gave it. 404 there would claim
+   the note does not exist, which is a different and false statement. The rule
+   in decision 13 was right; one of its five applications was not.
+3. **Section 5's migration step 3 and the grant rule needed a runtime
+   counterpart.** `grant_all_modes_to_existing_accounts` had to run from the
+   lifespan as well as the migration: on a database built by `create_all`
+   rather than Alembic, the seeded admin held no mode and would have logged in
+   to an empty site.
+
+**What Phase B deliberately did NOT do**, all of it Phase D: the mode switcher
+and its subset test, the preserved `exp` on a reissued cookie, the
+`/access-modes` page, the per-account panel, `PUT /api/users/{id}/access-modes`,
+and the rule that a new account gets `safe` only.
 
 **Phase A.1 — the pipeline/authorization boundary. DONE 2026-09-11**
 (`a4b9d554`), decision 10. Marked

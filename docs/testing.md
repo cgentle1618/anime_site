@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-09 (counts recounted; the `media` supertable guards)
+Last verified: 2026-09-12 (the access-mode fixtures, and the lifespan/test-transaction deadlock)
 
 ## What this is for
 
@@ -75,16 +75,30 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    comes from the current models, which is why the drop is needed (stale
    columns from old runs would otherwise linger). The RBAC roles that
    migration A would normally seed are created once here via
-   `ensure_rbac_seed`. `drop_all` runs at session end.
+   `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
+   `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.
+
+   **Anything the lifespan seeds must be seeded here too, committed.** This
+   has caused a hang twice. `with TestClient(app)` runs the lifespan on its
+   OWN connection; if a test transaction has already inserted the same rows
+   uncommitted, the lifespan's INSERT blocks on the unique key - the test
+   waiting on the client, the client waiting on the test, forever. Seeding
+   here first keeps the lifespan's copy to a SELECT. The symptom is a run that
+   produces no output at all rather than a failure, so it reads as "slow"
+   rather than "stuck"; `SELECT ... FROM pg_stat_activity` shows one session
+   `idle in transaction` and one `active` on `Lock: transactionid`.
 2. `db_session` (function scope) opens one connection, begins an outer
    transaction and builds a `sessionmaker(bind=connection,
    join_transaction_mode="create_savepoint")`. Any `commit()` or `rollback()`
    the app performs acts on a SAVEPOINT, so production code paths run
    unchanged while the outer transaction is rolled back at teardown. Nothing a
    test writes survives it.
-3. `_clear_permission_cache` (autouse) bumps the process-global role to
-   permission cache before and after every test, because that cache is not
-   part of the rolled-back transaction.
+3. `_clear_permission_cache` (autouse) bumps the process-global caches before
+   and after every test, because they are not part of the rolled-back
+   transaction. There are **three** of them since Phase B - role permissions,
+   access-mode items, per-account denials - and one `bump()` clears all three.
+   If that ever stops being true, mode state leaks between tests and the
+   failures are random and order-dependent.
 
 The `anyio` marker in `test_pipeline_runner.py` is served by the `anyio`
 plugin that ships with Starlette/httpx; `pytest-asyncio` was removed.
@@ -118,7 +132,13 @@ the two-stage cursor stepper.
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted and a valid `access_token` cookie set |
+| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted, and a valid `access_token` cookie carrying a `mode` claim |
+| `user_client` / `plain_user` | function | The same for an account on the `user` role |
+| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. Use this rather than building one inline; Phase A left that duplicated in five files |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode travels in the token claim exactly as in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
+| `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
+| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
 | `sample_collected_franchise` | function | Anime `Franchise` linked to `sample_collection` |
 | `sample_franchise` | function | Anime `Franchise` "Test Franchise" / "測試系列" |
@@ -126,6 +146,13 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis and build a bespoke mode. Both default to "everything", so a test that only cares about capabilities need not mention them |
+
+**A signed-in test client with no `mode` claim resolves the EMPTY object set**
+and every gated field vanishes from every response. Never mint a token by
+hand; use the fixtures above. This has cost two debugging cycles, each time
+presenting as "my route 401s / my field is missing" with nothing wrong in the
+code under test.
 
 Sample rows are `flush()`ed, not committed, so they are visible to the request
 under test and vanish at teardown. Anything you need for other media types you
@@ -138,6 +165,13 @@ Use the project venv's interpreter, not the system Python.
 ```bash
 # One-time: create the test database inside the postgres:17 container
 docker exec anime_site_postgres_db createdb -U postgres anime_site_test
+
+# Working alongside another session? Give yourself your own database and
+# select it with POSTGRES_DB - tests/conftest.py uses os.environ.setdefault,
+# so the variable wins. Two suites sharing one database produce spurious
+# "relation role does not exist" and unique-constraint failures that look
+# exactly like real breakage.
+docker exec anime_site_postgres_db createdb -U postgres anime_site_test_mine
 
 # Backend, all tiers
 venv/Scripts/python -m pytest
