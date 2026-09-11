@@ -451,7 +451,7 @@ class TestRelationAndWatchOrderWrites:
         assert response.status_code == 201
 
     def test_adding_a_hidden_entry_to_a_watch_order_answers_as_missing(
-        self, admin_client, catalog_writer, hidden_anime, sample_franchise
+        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         """The order is created through the API as admin rather than by
         constructing the model, so this test does not encode
@@ -463,6 +463,7 @@ class TestRelationAndWatchOrderWrites:
                 "list_name": "An order",
             },
         ).json()
+        before = db_session.query(models.WatchOrderItem).count()
         client = catalog_writer()
         response = client.post(
             f"/api/watch-order/lists/{order['system_id']}/items",
@@ -474,3 +475,192 @@ class TestRelationAndWatchOrderWrites:
         assert response.status_code == 400
         assert response.json()["detail"] == "Referenced entry does not exist."
         assert HIDDEN_NAME not in response.text
+        assert db_session.query(models.WatchOrderItem).count() == before
+
+    # ------------------------------------------------------------------
+    # The guards beyond the two POST paths above: update_relation,
+    # reset_scope, delete_relation, and the watch-order item PUT/PATCH/
+    # DELETE. Each is set up by an admin (superuser, so entry_visible
+    # short-circuits True and the hidden-touching row can actually be
+    # created), then exercised by catalog_writer, who cannot see the hidden
+    # entry and must be refused exactly as the create paths are.
+    # ------------------------------------------------------------------
+
+    def test_patching_a_relation_touching_a_hidden_entry_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_anime, db_session
+    ):
+        """The PATCH changes only `remark`, not either endpoint - the guard
+        checks the row's STORED endpoints, not anything in the payload."""
+        created = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(sample_anime.system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(hidden_anime.system_id),
+            },
+        ).json()
+        client = catalog_writer()
+        response = client.patch(
+            f"/api/media-relation/{created['system_id']}",
+            json={"remark": "should not land"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        row = (
+            db_session.query(models.MediaRelation)
+            .filter(models.MediaRelation.system_id == created["system_id"])
+            .first()
+        )
+        assert row.remark != "should not land"
+
+    def test_resetting_a_scope_touching_a_hidden_entry_answers_as_missing(
+        self,
+        admin_client,
+        catalog_writer,
+        hidden_anime,
+        sample_anime,
+        sample_franchise,
+        db_session,
+    ):
+        created = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(sample_anime.system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(hidden_anime.system_id),
+            },
+        ).json()
+        client = catalog_writer()
+        response = client.delete(
+            "/api/media-relation/scope",
+            params={"franchise_id": str(sample_franchise.system_id)},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        assert (
+            db_session.query(models.MediaRelation)
+            .filter(models.MediaRelation.system_id == created["system_id"])
+            .first()
+            is not None
+        )
+
+    def test_deleting_a_relation_touching_a_hidden_entry_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_anime, db_session
+    ):
+        created = admin_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": "anime",
+                "from_id": str(sample_anime.system_id),
+                "kind": "sequel",
+                "to_type": "anime",
+                "to_id": str(hidden_anime.system_id),
+            },
+        ).json()
+        client = catalog_writer()
+        response = client.delete(f"/api/media-relation/{created['system_id']}")
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        assert (
+            db_session.query(models.MediaRelation)
+            .filter(models.MediaRelation.system_id == created["system_id"])
+            .first()
+            is not None
+        )
+
+    def _hidden_watch_order_item(self, admin_client, hidden_anime, sample_franchise):
+        order = admin_client.post(
+            "/api/watch-order/lists",
+            json={
+                "franchise_id": str(sample_franchise.system_id),
+                "list_name": "An order",
+            },
+        ).json()
+        return admin_client.post(
+            f"/api/watch-order/lists/{order['system_id']}/items",
+            json={
+                "media_type": "anime",
+                "entry_id": str(hidden_anime.system_id),
+            },
+        ).json()
+
+    def test_putting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+    ):
+        item = self._hidden_watch_order_item(
+            admin_client, hidden_anime, sample_franchise
+        )
+        client = catalog_writer()
+        response = client.put(
+            f"/api/watch-order/items/{item['system_id']}",
+            json={"importance": "Essential"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        # The route applies the payload to the ORM object before validating it
+        # (pre-existing ordering, unrelated to this guard - the same is true
+        # of _validate_importance below it), so the assignment autoflushes
+        # into the still-open test transaction. Production never sees this:
+        # a real request's session is closed at the end of the request, and
+        # Session.close() rolls back whatever was never committed. Rolling
+        # back here reproduces that same per-request boundary before reading
+        # the row back.
+        db_session.rollback()
+        row = (
+            db_session.query(models.WatchOrderItem)
+            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            .first()
+        )
+        assert row.importance != "Essential"
+
+    def test_patching_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+    ):
+        item = self._hidden_watch_order_item(
+            admin_client, hidden_anime, sample_franchise
+        )
+        client = catalog_writer()
+        response = client.patch(
+            f"/api/watch-order/items/{item['system_id']}",
+            json={"importance": "Essential"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        # See the identical comment in the PUT test above: apply_column_patch
+        # mutates the ORM object before _validate_entry runs, so the pending
+        # change is only discarded here because we roll back the shared test
+        # session the way a real request's session.close() would.
+        db_session.rollback()
+        row = (
+            db_session.query(models.WatchOrderItem)
+            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            .first()
+        )
+        assert row.importance != "Essential"
+
+    def test_deleting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+        self, admin_client, catalog_writer, hidden_anime, sample_franchise, db_session
+    ):
+        item = self._hidden_watch_order_item(
+            admin_client, hidden_anime, sample_franchise
+        )
+        client = catalog_writer()
+        response = client.delete(f"/api/watch-order/items/{item['system_id']}")
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Referenced entry does not exist."
+        assert HIDDEN_NAME not in response.text
+        assert (
+            db_session.query(models.WatchOrderItem)
+            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            .first()
+            is not None
+        )

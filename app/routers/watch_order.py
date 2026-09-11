@@ -138,6 +138,24 @@ def _validate_entry(db: Session, media_type, entry_id, viewer) -> None:
     The third case answers exactly as the second, message included, so a
     hidden entry cannot be told apart from a missing one by which refusal a
     write gets back.
+
+    `media_type` and `entry_id` need not come from the same place (a stored
+    `WatchOrderItem` row, a raw payload) and a caller could hand this a
+    mismatched pair - the safety that guarantees this can never smuggle a
+    wrong-but-permitted `media_type` past `entry_visible` does NOT come from
+    `WatchOrderItem.media_type` being a derived column_property (setting it
+    directly on an identity-mapped instance sticks as a plain override and is
+    not recomputed from `entry_id` before flush - a mismatched pair really can
+    exist in memory). It comes from `entry_exists` just above, which looks
+    the id up in `MEDIA_TYPE_MODELS[media_type]`'s own table
+    (`app/services/domain/watch_order.py:442`): `system_id` is a joined-table
+    PK shared with `media`, so a given id exists in exactly one type's table.
+    A `media_type` that disagrees with an id's real type therefore fails
+    `entry_exists` and 400s here before `entry_visible` is ever reached with
+    the wrong type. If `entry_exists` were ever loosened into a lookup against
+    the shared `media` table instead of the per-type table, this guarantee
+    breaks and a caller could pick whichever media_type's permission gates
+    the visibility check.
     """
     if media_type not in VALID_WATCH_ORDER_MEDIA_TYPES:
         raise HTTPException(
