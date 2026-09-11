@@ -239,7 +239,7 @@ def get_character_by_id(
 def create_character(
     payload: schemas.CharacterCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a character. Always a plain create - never find-or-create.
@@ -268,7 +268,7 @@ def update_character(
     system_id: UUID,
     payload: schemas.CharacterUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates a character's metadata."""
     character = db.get(models.Character, system_id)
@@ -288,7 +288,7 @@ def delete_character(
     system_id: UUID,
     castings: int = Query(..., description="Casting count the admin confirmed"),
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a character. Their castings cascade away with them -
@@ -328,7 +328,7 @@ def merge_character(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every casting from `source_id` onto this character, then delete

@@ -13,13 +13,17 @@ import pytest
 
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
+    ADMIN_PERMISSION_KEYS,
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
     FAMILY_MEDIA_TYPE,
+    MANAGE_PERMISSION_KEYS,
     PERM_ADMIN,
     SELF_PERMISSION_KEYS,
+    admin_perm,
     field_group_perm,
     label_perm,
+    manage_perm,
     media_type_perm,
     self_perm,
     split_perm,
@@ -63,6 +67,8 @@ def test_static_catalog_holds_admin_every_media_type_and_every_field_group():
     catalog = static_catalog()
     expected = (
         {PERM_ADMIN}
+        | {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+        | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
         | {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS}
         | {field_group_perm(key) for key in FIELD_GROUP_KEYS}
         | {self_perm(key) for key in SELF_PERMISSION_KEYS}

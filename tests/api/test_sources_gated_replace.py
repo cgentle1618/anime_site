@@ -14,7 +14,7 @@ import pytest
 
 from app import models
 from app.services.domain.sources import replace_sources
-from app.services.rbac.permissions import PERM_ADMIN, field_group_perm
+from app.services.rbac.permissions import PERM_ADMIN, PERM_MANAGE_CATALOG, field_group_perm
 from app.services.rbac.resolver import Viewer
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.test_visibility import make_viewer
@@ -107,7 +107,7 @@ def test_the_patch_endpoint_honours_the_gate(
         db_session,
         client,
         "gatedadmin",
-        (default_guest_permissions() | {PERM_ADMIN})
+        (default_guest_permissions() | {PERM_ADMIN, PERM_MANAGE_CATALOG})
         - {field_group_perm("sources_restricted")},
     )
 

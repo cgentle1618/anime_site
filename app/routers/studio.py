@@ -168,7 +168,7 @@ def get_studio_entries(
 def create_studio(
     payload: schemas.StudioCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a studio, or returns the existing one under that name.
@@ -206,7 +206,7 @@ def update_studio(
     system_id: UUID,
     payload: schemas.StudioUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Fully updates a studio's metadata. Since every media_credit points at the
@@ -235,7 +235,7 @@ def update_studio(
 def delete_studio(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a studio. Its credits cascade away with it - see the
@@ -256,7 +256,7 @@ def merge_studio(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this studio, then delete the

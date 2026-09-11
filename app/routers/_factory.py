@@ -253,7 +253,7 @@ def make_media_router(spec) -> APIRouter:
     async def create(
         data: spec.create_schema,
         db: Session = Depends(get_db),
-        admin: dict = Depends(require_manage_catalog),
+        admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
@@ -305,7 +305,7 @@ def make_media_router(spec) -> APIRouter:
         entry_id: str,
         data: spec.update_schema,
         db: Session = Depends(get_db),
-        admin: dict = Depends(require_manage_catalog),
+        admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -348,7 +348,7 @@ def make_media_router(spec) -> APIRouter:
         entry_id: str,
         payload: dict = Body(...),
         db: Session = Depends(get_db),
-        admin: dict = Depends(require_manage_catalog),
+        admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -384,7 +384,7 @@ def make_media_router(spec) -> APIRouter:
     def complete(
         entry_id: str,
         db: Session = Depends(get_db),
-        admin: dict = Depends(require_manage_catalog),
+        admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -414,7 +414,7 @@ def make_media_router(spec) -> APIRouter:
     def delete(
         entry_id: str,
         db: Session = Depends(get_db),
-        admin: dict = Depends(require_manage_catalog),
+        admin: Viewer = Depends(require_manage_catalog),
     ):
         entry = _get_or_404(db, entry_id)
         if entry.cover_image_file:

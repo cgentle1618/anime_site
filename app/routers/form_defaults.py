@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.resolver import require_manage_catalog
+from app.services.rbac.resolver import Viewer, require_manage_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ def _serialize(payload: schemas.FormDefaultsPayload) -> str:
 )
 def list_form_defaults(
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Returns every configured media type's form defaults, keyed by media type.
 
@@ -156,7 +156,7 @@ def list_form_defaults(
 def get_form_defaults(
     media_type: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Returns one media type's form defaults.
 
@@ -175,7 +175,7 @@ def save_form_defaults(
     media_type: str,
     payload: schemas.FormDefaultsPayload,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces a media type's form defaults wholesale (upsert)."""
     _validate_media_type(media_type)
@@ -199,7 +199,7 @@ def save_form_defaults(
 def reset_form_defaults(
     media_type: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Deletes a media type's stored defaults, reverting it to the built-ins.
 

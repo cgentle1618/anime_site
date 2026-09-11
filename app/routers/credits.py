@@ -78,7 +78,7 @@ def replace_credits(
     entry_id: UUID,
     payload: CreditsAndTags,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces only the roles and fields named in the payload."""
     _resolve_entry(db, media_type, entry_id)

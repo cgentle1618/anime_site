@@ -80,7 +80,7 @@ def replace_casting(
     entry_id: UUID,
     payload: CastIn,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces the whole cast in the order submitted."""
     _resolve_entry(db, media_type, entry_id)

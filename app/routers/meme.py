@@ -321,7 +321,7 @@ def get_meme(
 def create_meme(
     payload: schemas.MemeCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Meme attached to an entry, series, franchise or collection."""
@@ -365,7 +365,7 @@ def update_meme(
     meme_id: str,
     payload: schemas.MemeUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates a Meme."""
     db_meme = _get_or_404(db, meme_id)
@@ -404,7 +404,7 @@ def patch_meme(
     meme_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Partially updates a Meme (used for inline edits on the Meme page)."""
     db_meme = _get_or_404(db, meme_id)
@@ -444,7 +444,7 @@ def patch_meme(
 def delete_meme(
     meme_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Meme.

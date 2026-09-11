@@ -185,7 +185,7 @@ def get_publisher_entries(
 def create_publisher(
     payload: schemas.PublisherCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a publisher, or returns the existing one under that name.
@@ -237,7 +237,7 @@ def update_publisher(
     system_id: UUID,
     payload: schemas.PublisherUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Fully updates a publisher's metadata and the set of scopes it holds. Since
@@ -272,7 +272,7 @@ def update_publisher(
 def delete_publisher(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a publisher. Its credits cascade away with it - see
@@ -298,7 +298,7 @@ def merge_publisher(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this publisher, then delete the

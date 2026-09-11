@@ -91,7 +91,7 @@ def get_collection_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_collection(
     payload: schemas.CollectionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Collection."""
@@ -135,7 +135,7 @@ def update_collection(
     system_id: str,
     payload: schemas.CollectionUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Collection's metadata."""
@@ -171,7 +171,7 @@ def patch_collection(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Collection (used for quick inline hub edits)."""
@@ -201,7 +201,7 @@ def patch_collection(
 def delete_collection(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Collection.

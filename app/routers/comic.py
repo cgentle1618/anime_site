@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from app.registry import MEDIA_REGISTRY
 from app.routers._factory import make_media_router
 from app.services.integrations.comicvine import search_comicvine_volumes
-from app.services.rbac.resolver import require_manage_catalog
+from app.services.rbac.resolver import Viewer, require_manage_catalog
 from app.utils.comicvine_utils import _pick_cover_url
 
 # Declared before the factory routes are merged in: the factory registers
@@ -23,7 +23,7 @@ router = APIRouter(tags=["Comic"])
 def search_comicvine(
     q: str = Query(..., min_length=1, description="Volume name to search for"),
     limit: int = Query(10, ge=1, le=50),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ) -> List[Dict[str, Any]]:
     """
     Searches Comic Vine volumes by name so the admin can identify the right run.

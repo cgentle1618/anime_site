@@ -40,7 +40,7 @@ def test_the_admin_api_is_closed_to_a_guest(client, path):
 
 def test_the_catalog_lists_every_family(admin_client):
     families = {f["family"] for f in admin_client.get("/api/roles/catalog").json()}
-    assert families == {"admin", "media_type", "field_group", "label", "self"}
+    assert families == {"admin", "manage", "media_type", "field_group", "label", "self"}
 
 
 def test_catalog_serves_the_self_family(admin_client):

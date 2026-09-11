@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.resolver import require_manage_catalog
+from app.services.rbac.resolver import Viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ def resolve_option_alias(db: Session, category: str, source: str, value: str):
 def add_system_option(
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Adds a new dropdown option to the database.
@@ -187,7 +187,7 @@ def update_system_option(
     option_id: UUID,
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Updates an existing dropdown option in the database.

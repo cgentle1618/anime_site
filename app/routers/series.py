@@ -87,7 +87,7 @@ def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_series(
     series_in: schemas.SeriesCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """
@@ -121,7 +121,7 @@ def update_series(
     system_id: str,
     series_in: schemas.SeriesUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Series' metadata and smartly resolves hierarchy changes."""
@@ -156,7 +156,7 @@ def patch_series(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Series."""
@@ -187,7 +187,7 @@ def patch_series(
 def delete_series(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(require_manage_catalog),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Series.
