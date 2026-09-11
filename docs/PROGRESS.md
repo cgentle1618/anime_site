@@ -13,21 +13,19 @@ Last updated: 2026-09-11
 
 ## In flight
 
-**The authorization system** - `wip authz-company`. **The spec is complete and
-awaiting the owner's review** (2026-09-11): nine decisions settled, all six
-sections written and approved, `294bfe7d`.
+**The authorization system** - spec reviewed and approved by the owner
+(2026-09-11): nine decisions settled, all six sections written,
+`294bfe7d`.
 **[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**.
-Nothing is built. Next step is an implementation plan, and the spec ends with
-five separable phases to write plans against - **Phase 0 first**, the object-level
-hole below, which depends on none of the rest.
+It ends with five separable phases. **Phase 0 and Phase A are built and merged
+to `dev`**; B, C and D need plans.
 
 **Phase 0 is done** (2026-09-11): `me_list.py`'s two handlers resolve through
 `entry_visible` and 404 with the not-found message, closing the object-level
 hole. Phases B-D are unclaimed and need plans.
 
-**Phase A is done** (2026-09-11, A1-A11, `e4c914be`..`da4f23b6` on branch
-`authz-phase-a`; full suite 3641 passed / 5 skipped, ruff clean, vitest 923,
-eslint 0 errors; NOT merged to `dev` and NOT pushed):
+**Phase A is done and merged** (2026-09-11, A1-A11, merge commit `3fc65ba3`;
+full suite 3641 passed / 5 skipped, ruff clean, vitest 923, eslint 0 errors):
 **[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
 Every task was behaviour-neutral for the `admin` account, because it is
 `is_superuser` and `has()` short-circuits - so a half-applied Phase A could not
@@ -40,9 +38,12 @@ still unclaimed and need plans - see [authorization.md](authorization.md#what-th
 before starting one.
 
 Phase A was executed on branch **`authz-phase-a`** in the worktree
-`../anime_site_authz` (its own venv and `.env`; both trees share one PostgreSQL
-and one `anime_site_test`, so never run the suites concurrently). Nothing is
-merged to `dev` or pushed yet.
+`../anime_site_authz`, merged to `dev` at `3fc65ba3`. The worktree has its own
+venv and `.env`; both trees share one PostgreSQL and one `anime_site_test`, so
+never run the suites concurrently. Its `.env` pins
+`COMPOSE_PROJECT_NAME=anime_site` - without it, `dev.cmd` there derives a
+second compose project and mounts a brand-new EMPTY database volume, which
+happened on 2026-09-11 (no data was lost; it was a different volume).
 
 | # | Phase A task | Status |
 |---|---|---|
@@ -65,13 +66,14 @@ guard raised `AttributeError` instead of firing and an admin could delete their
 own account. It now compares `admin.username`. Exactly one of the 75 sites read
 the value; the other 74 were unused but annotated `admin: dict`, the lie that
 disguised it - all 73 remaining are now annotated `Viewer`.
-`dependencies.py:74` still asserts "No call site reads this"; it was false and
-A9 removes that function.
+That false comment lived in `dependencies.py` and is gone with the function.
 
-**Plan defect, owned**: the plan required the full suite only at A6, A8 and A9,
-so A1-A5 shipped five failures their scoped test runs could not see, through
-five reviews that were clean against their own diffs. Every remaining task runs
-the full suite before committing.
+**Plan defect, for the next plan**: Phase A's plan required the full suite only
+at A6, A8 and A9, so A1-A5 shipped five failures their scoped runs could not
+see, through five reviews that were clean against their own diffs. Run the full
+suite before every commit - and run it from the CONTROLLING session, not the
+subagent: four subagents stalled waiting for a background completion that never
+reaches them.
 
 Two items the spec names but does not do: an audit of every **other** write path
 taking a client-supplied entry id (decision 9 applies to all of them; only
