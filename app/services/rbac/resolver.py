@@ -20,6 +20,11 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
+from app.services.rbac.permissions import (
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
+)
 
 GUEST_ROLE = "guest"
 
@@ -136,6 +141,15 @@ def require_permission(permission: str):
         return viewer
 
     return _dependency
+
+
+# The three capability gates, bound once at import. Routers depend on these by
+# name rather than calling require_permission inline, so that swapping a
+# router's gate is a one-word edit and so that grepping for a capability finds
+# every route holding it.
+require_admin_authz = require_permission(PERM_ADMIN_AUTHZ)
+require_manage_catalog = require_permission(PERM_MANAGE_CATALOG)
+require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
 
 
 def viewer_user_id(viewer) -> Optional[UUID]:
