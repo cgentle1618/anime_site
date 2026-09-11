@@ -15,7 +15,8 @@ Last updated: 2026-09-11
 
 **The authorization system** - spec approved, `294bfe7d`.
 **[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**,
-ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
+fourteen decisions, six sections, a post-Phase-A audit of sections 2-6, and
+the write-binding audit Phase C implemented.
 
 | Phase | What | Status |
 |---|---|---|
@@ -26,38 +27,31 @@ ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
-Open questions the redesign inherits; #1 is answered and no longer gates
-Phase C:
+Open questions. Decided 2026-09-11 unless marked open; the spec's decision
+table (11-14) carries the reasoning. This list replaced two drifted,
+near-duplicate tables that numbered the same questions differently.
 
 | # | Question | Status |
 |---|---|---|
-| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | done, spec "The write-binding audit (2026-09-11)" - inventory was incomplete, corrected there |
-| 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
-| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
-| 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
-| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All, Pull All all rewrite entries no visibility test guards | todo, blocks Phase B |
-
-Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**.
-`docs/roadmap.md` holds the record of what Phases 0, A and A.1 actually did.
-
-Multi-user Steps 0-5 are finished and their entries are gone from this file;
-`docs/roadmap.md` keeps the record, per the convention above.
-
-To settle:
-
-| # | Question | Status |
-|---|---|---|
-| 1 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
-| 2 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo |
-| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
-| 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
-| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All, Pull All all rewrite entries no visibility test guards | todo, blocks Phase B |
+| 1 | Audit every **other** write path taking a client-supplied entry id | done - spec "The write-binding audit (2026-09-11)". The inventory was INCOMPLETE: it missed `POST /api/data-control/replace/{key}/{entry_id}`, which the final review caught. Corrected in the audit |
+| 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | closed, stale - spec decision 11. It gates the `personal_reviews` section on every row the viewer did not author, and the label matches. Step 5 made this true; the row outlived it |
+| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | decided, spec decision 12 - **into Phase B**, read fix and index relaxation in ONE commit. Relaxing `ix_note_one_remark_per_owner` alone turns a loud refusal into an invisible write |
+| 4 | Note writes answer 403; every other gate answers 401 or 404 | decided, spec decision 13 - 401 for capability, 404 for object, 403 gone. Five sites, all in `note.py` (178, 183 -> 401; 195, 199, 285 -> 404). **Not yet implemented** |
+| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **OPEN, blocks Phase B** - spec decision 14 holds the three answers. A: trusted operator, unscoped, never paired with a restricted mode, plus close the Replace-one oracle. B: scope the runner per entry. C: leave undeclared. Decision 10 already went halfway down A |
+| 6 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo - **Phase D**, not its own item. 78 files reference `isAdmin`, which has meant `manage.catalog` since Phase A. Minimal slice: `libraryColumns.jsx:112,181` and `RemarkModal.jsx` move to a `self.list` check; catalogue editing stays on `manage.catalog`. Remember the SPA has two independent permission surfaces |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
-- the four gates that already exist, the rules not to break, and the lessons
-from making the system multi-user. The page was audited against the code on
-2026-09-10 and ten stale claims corrected, so it can be trusted as a starting
-point.
+- the gates that already exist, the rules not to break, and the lessons from
+making the system multi-user. The page was audited against the code on
+2026-09-10 and again on 2026-09-11 when Phase C landed; its residuals list is
+current.
+
+`docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
+Multi-user Steps 0-5 are finished and their entries are gone from this file.
+
+**Next session picks up at Phase B**, which needs a plan and cannot be planned
+until question 5 is answered. Nothing is pushed: as of 2026-09-11 local `dev`
+is 11 commits ahead of `origin/dev`, nine of them Phase C.
 
 ## Open items
 

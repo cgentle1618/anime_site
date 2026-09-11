@@ -1,6 +1,7 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-11 (Phase C: write binding, plus the final review's fixes)
+Last verified: 2026-09-11 (Phase C: write binding, the final review's fixes,
+and spec decisions 11-14)
 
 ## What this is for
 
@@ -684,13 +685,26 @@ strongest argument that this is a re-modelling rather than a renaming.
 - **The SPA mirrors no vocabulary.** `/api/roles/catalog` is served, which is
   why the role editor rendered the whole `self.*` family without a single
   frontend change. Keep that property.
-- **One error shape.** 404 for a thing you may not see, 401 for an admin route.
-  Step 5 broke this: the note gates answer **403**, and those five are the
+- **One error shape, and the redesign has now picked it** (spec decision 13,
+  2026-09-11). **401 means you may not do this kind of thing** - a capability
+  failure, which is what `require_permission` already answers and the one shape
+  the SPA redirects on. **404 means this object is not yours to see** - the
+  object axis, answered in the same words a genuinely absent row gets. **403
+  disappears.**
+
+  Step 5 had broken this: the note gates answer 403, and those five are the
   only 403s the app raises anywhere (`_authorize_write`, `_authorize_edit` and
-  the `?author=` refusal in `app/routers/note.py`). Every other module carries
-  a comment explaining why it answers 401 or 404 instead. Either the 403s are
-  right and the rest should follow, or they are wrong and should become 401 -
-  the redesign should decide rather than leave two conventions running.
+  the `?author=` refusal in `app/routers/note.py`). Under the decision, lines
+  178 and 183 - lacking `self.personal_notes` or the catalogue write - become
+  401; lines 195, 199 and 285 - somebody else's note, and "that user's notes
+  are not public" - become 404, because a 403 confirms the row exists exactly
+  as surely as a 200 does. That is the argument Phase C spent nine commits on,
+  and the `?author=` refusal keeps the property it was built for: unknown,
+  private and not-permitted stay one answer.
+
+  **Not yet implemented** - the decision is recorded, the five sites are not
+  changed. Until they are, this page describes two conventions because the code
+  still runs two.
 
 ### Lessons from making it multi-user
 
