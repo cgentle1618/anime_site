@@ -181,16 +181,30 @@ tab (that is where the names and the natural key live) and **deleted** on
 `media_credit`, `media_tag`, `media_source`, `media_content_label`, `meme`,
 `note`, `quote` and every user's `user_media_list` row.
 
-### Decision 5 — every candidate carries its blast radius
+### Decision 5 — every candidate carries its blast radius, split by what the database actually does
 
 Because Decision 4 means one tick removes far more than one row, each candidate
-in the report carries counts of what the cascade would take, computed before
-anything is deleted: credits, sources, content labels, notes/memes/quotes, and
-**list rows per user**.
+carries counts of the collateral, computed before anything is deleted. The
+counts are split in two, because the database treats the two groups
+differently:
 
-Ticking a box must never remove something the operator was not shown. The list-
-row count is called out separately because it is the one class of collateral
-that belongs to somebody other than the operator.
+| Group | Rows | On delete |
+|---|---|---|
+| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `user_media_list` | `CASCADE` |
+| `detached` | `quote` | `SET NULL` |
+
+**A quote survives its entry.** `quote.media_id` is nullable by design —
+"a quote may belong to no entry, either because it was written that way or
+because its entry was later deleted" (`app/models/quote.py`). Reporting a quote
+as "will be deleted" would be false, and the review screen is the one place
+where that precision is the entire point. This was wrong in the first draft of
+this spec, which listed quotes with the cascaded rows; the model was read and
+the design corrected.
+
+Ticking a box must never remove — or silently alter — something the operator
+was not shown. The `list_rows` count is named apart in the UI because it is the
+only collateral that is not the operator's own: it is another user's status,
+rating and progress.
 
 ### Decision 6 — two refusals, both of which would otherwise empty the database
 

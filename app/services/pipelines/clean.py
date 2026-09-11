@@ -188,3 +188,51 @@ def is_orphan_media(row, index: SheetIndex) -> bool:
     if (name := _s(row.display_name)) and name in index.names:
         return False
     return True
+
+
+# What points at a media row, split by what the DATABASE does to it when that
+# row is deleted. Both halves are read off the models, not assumed: every entry
+# here is a real ForeignKey("media.system_id", ...) with the ondelete shown.
+#
+# The split matters to the operator, not just to us. Reporting a quote as
+# "will be deleted" would be false - it survives, detached - and the review
+# screen is the one place where being precise about this is the whole point.
+_CASCADED = (
+    ("credits", "MediaCredit"),
+    ("tags", "MediaTag"),
+    ("sources", "MediaSource"),
+    ("content_labels", "MediaContentLabel"),
+    ("notes", "Note"),
+    ("memes", "Meme"),
+    # Somebody else's status, rating and progress. Counted with the rest but
+    # named apart in the UI: it is the only collateral that is not the
+    # operator's own.
+    ("list_rows", "UserMediaList"),
+)
+
+# ON DELETE SET NULL, not CASCADE. quote.media_id is explicitly nullable
+# because "a quote may belong to no entry, either because it was written that
+# way or because its entry was later deleted" (app/models/quote.py).
+_DETACHED = (("quotes", "Quote"),)
+
+
+def blast_radius(db, media_row) -> dict[str, dict[str, int]]:
+    """
+    What deleting this media row costs, split into rows the database will
+    DELETE and rows it will merely DETACH.
+
+    Computed before anything is deleted, because ticking a box must never
+    remove something the operator was not shown. Decision 5.
+    """
+    from app import models
+
+    media_id = media_row.system_id
+
+    def count(model_name: str) -> int:
+        model = getattr(models, model_name)
+        return db.query(model).filter(model.media_id == media_id).count()
+
+    return {
+        "deleted": {key: count(name) for key, name in _CASCADED},
+        "detached": {key: count(name) for key, name in _DETACHED},
+    }
