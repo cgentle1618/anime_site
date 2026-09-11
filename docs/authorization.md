@@ -1,7 +1,7 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-12 (Phase B: the access-mode axis, plus decisions 12,
-13 and 14)
+Last verified: 2026-09-12 (Phase D: the access-mode admin surface, the
+per-account panel and the session switcher)
 
 ## What this is for
 
@@ -708,6 +708,95 @@ something that does not exist. The admin table shows the label's `key`.
 
 All are behind `require_admin_authz`; every write calls `cache.bump()`.
 
+### Editing modes: `/api/access-modes` (Phase D)
+
+| Method & path | Notes |
+|---|---|
+| `GET /api/access-modes/`, `GET /{id}` | modes with their items and holder counts |
+| `GET /api/access-modes/catalog` | two labelled groups, Content Labels and Field Groups, each item carrying `mode_count` |
+| `POST /`, `PATCH /{id}`, `PUT /{id}/grants`, `DELETE /{id}` | 409 duplicate key; 422 unknown item; `PUT` replaces both sets wholesale |
+
+All under `admin.authz`; every write calls `cache.bump()`.
+
+**Three rules the router enforces that the page alone could not:**
+
+- **The guest default MOVES rather than raising.**
+  `ix_one_guest_default_access_mode` permits one flagged mode, and letting the
+  index enforce it would surface as a 500 for the caller to interpret. The
+  `PATCH` clears every other flag in the same transaction. Clearing the *last*
+  flag is allowed and needs no guard, because the resolver falls back to the
+  empty set - a guest then sees nothing rather than everything.
+- **A mode an account still holds cannot be deleted** (409). The FK would
+  cascade the grants away and silently narrow those accounts, possibly to
+  nothing if it was their only mode.
+- **`is_system` is never settable through the API.** It marks the four modes
+  the seeder maintains.
+
+**The label carried by no mode.** `/catalog` lists **every** content label
+with a `mode_count`, and a count of zero is the case the page exists to
+surface - such a label hides its entries from everyone, the owner included,
+and there is nowhere else to learn that. The page shows it in red, computed
+from the DRAFT so the warning appears the moment you untick the last mode
+carrying it, while it can still be reconsidered. The server behaviour is
+unchanged and deliberately so: **do not** auto-grant a new label to
+`unrestricted`. That mode's label set is a row set precisely so that widening
+it is an auditable act, and an auto-grant would make the one mode that has to
+be trustworthy the one that changes behind your back.
+
+### Assigning modes: `PUT /api/users/{id}/access-modes` (Phase D)
+
+Replaces an account's whole set - grants, login default and denials - in one
+payload, matching `PUT /roles/{id}/permissions`.
+
+**Decision 8 is enforced twice, and neither half would be enough alone.** The
+server refuses a denial naming something the mode does not carry (422): a mode
+is a ceiling, so such a denial subtracts nothing and storing it would be a
+no-op that reads like a setting. The panel renders a held mode's items as
+**the mode's own list with tick-to-deny**, which makes the control
+structurally incapable of asking for one. A UI that cannot express the invalid
+thing paired with a server that would accept it is one refactor away from a
+silent no-op; a server rule with no matching affordance is an error people hit
+and work around.
+
+Two defaults answers 422 rather than the 500 `ix_one_default_mode_per_user`
+would give. An empty list is allowed - an account holding no mode resolves the
+empty object set, fail-closed, and a legitimate way to park somebody. The
+users table calls that state out in red, because it is correct and looks
+exactly like a broken site.
+
+**A new account holds `safe` and only `safe`** (decision 4, in `users.py`'s
+create handler). An invitee starts narrow and is widened deliberately rather
+than starting wide and being narrowed if somebody remembers. It is granted at
+creation rather than left empty because a mode-less account reaches nothing,
+which is correct and indistinguishable from a broken invitation.
+
+### Switching mid-session: `POST /api/auth/access-mode` (Phase D)
+
+Narrowing is instant; widening asks for the password again (decision 3), so a
+browser left logged in at a narrow mode is actually narrow. The test is a set
+comparison - modes are deliberately unordered, so "narrower" can only mean
+"its effective set is a subset of mine" - and it runs against **effective**
+sets, after denials.
+
+`/api/auth/me` advertises the cost per mode as `requires_password`, and the
+endpoint enforces it with the **same function**, because the endpoint that
+enforces a rule must not be able to disagree with the payload that advertises
+it. The SPA never models the rule.
+
+**THE REISSUED COOKIE KEEPS THE ORIGINAL `exp`.** Minting a fresh 24-hour
+token on each switch would make toggling between two modes an unlimited
+session-extension oracle, and the lifetime here is flat with no refresh flow
+and no revocation - so the entire session policy would be defeated by a
+control whose purpose is to make sessions safer. It is invisible to manual
+testing and to every form of checking except decoding both tokens and
+comparing. `create_access_token` takes an explicit `expires_at` for this, and
+the cookie's `max_age` is the REMAINING seconds so a switch cannot resurrect
+an already-expired token.
+
+A mode the account does not hold answers **404**, identically to one that does
+not exist, and deliberately **not** flagged `requires_password`: it is not a
+password problem, and saying so would invite a prompt that cannot help.
+
 ### The pipeline routers need an unscoped MODE as well (decision 14)
 
 `data_control.py` and `system.py` carry **two** router-level dependencies:
@@ -933,22 +1022,17 @@ partly shipped: Phase 0 (the object-level hole on `/me/list`), Phase A (the
 capability axis), Phase A.1 (Pull may not restore the authorization tabs),
 Phase B (the access-mode axis) and Phase C (write binding) are all in.
 
-**What is NOT built, and is Phase D:**
+**Phase D shipped the surfaces** (2026-09-12): `/access-modes`, the
+per-account panel on the users page, `PUT /api/users/{id}/access-modes`,
+`POST /api/auth/access-mode`, and the rule that a new account gets `safe`
+only. Modes are editable without `psql`, and a session can change its own.
 
-- **No mode switcher.** `POST /api/auth/access-mode`, the subset test that
-  decides whether widening needs the password, and the rule that a reissued
-  cookie keeps the original `exp` (without which toggling modes would be an
-  unlimited session-extension oracle) are all unwritten. A session sits in
-  whatever mode it logged in with.
-- **No admin UI for modes.** `/access-modes`, the per-account panel on the
-  users page and `PUT /api/users/{id}/access-modes` do not exist, so modes,
-  their items and per-account denials can only be changed in the database.
-  This is why the migration grants every existing account all four modes: it
-  had to be behaviour-neutral without a page to fix it on.
-- **New accounts do not yet get `safe` only.** That rule is runtime code in
-  `users.py`'s create handler and belongs with the panel that shows what an
-  account holds. Today a new account holds no mode at all and therefore
-  resolves the empty object set until someone grants one.
+**What is still NOT built:**
+
+- **The switcher control itself is not in the site chrome yet.** The endpoint
+  and everything behind it are done and tested; the UI control is blocked on
+  another session holding `Nav.jsx`. Until it lands, a session sits in
+  whatever mode it logged in with unless something calls the endpoint.
 - **There is still no UI for a non-admin account.** A `user`-role account can
   write its own list and its own personal notes through the API, and the SPA
   offers no way to do either — the notes editors and tracker controls are

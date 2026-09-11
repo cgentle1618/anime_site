@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-12 (the two Clean routes)
+Last verified: 2026-09-12 (the two Clean routes; Phase D: the access-mode admin surface and the session switcher)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1596,9 +1596,86 @@ frontend nothing. The server never merges the two anywhere else.
 the browser never needs them, and listing them would tell a narrowed session
 exactly what it is being kept from.
 
-`mode` is the active access mode. The list of modes an account *holds*, each
-flagged with whether switching to it needs the password, belongs to the
-switcher and is Phase D.
+`mode` is the active access mode. `modes` lists every mode this account
+**holds**, each with `{id, key, label, is_active, requires_password}`.
+
+`requires_password` is the subset test computed **server-side**: narrowing is
+free, adding even one content label or field group asks for the password
+again. It is computed here rather than in the browser because two
+implementations of one rule drift, and the one in the SPA would be the one
+nobody tested - the switch endpoint enforces the rule with the *same*
+function that fills this field. A guest holds no modes and gets `[]`.
+
+Both sides are **effective** sets, after per-account denials: an account
+holding `borderline` minus `nsfw` reaches no more than `normal` does, so
+switching between them is free even though the mode is nominally wider.
+
+### `POST /api/auth/access-mode`
+
+Change the active access mode without logging out.
+
+```json
+{ "mode_id": "...uuid...", "password": "...only when widening..." }
+```
+
+| Answer | When |
+|---|---|
+| **200** + a reissued cookie | narrowing, or widening with the right password |
+| **401** `{detail, requires_password: true}` | widening with no password, so the SPA prompts rather than guessing |
+| **401** | widening with the wrong password |
+| **404** | a mode this account does not hold, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
+| **401** | a guest: no account, nothing to switch between |
+
+**The reissued cookie keeps the ORIGINAL `exp`, and its `max_age` is the
+REMAINING seconds.** Minting a fresh 24-hour token on each switch would make
+toggling between two modes an unlimited session-extension oracle, and the
+lifetime is flat with no refresh flow and no revocation - so that would be the
+whole session policy defeated by a control whose purpose is to make sessions
+safer. The `max_age` floor stops a switch resurrecting an already-expired
+token, which is the same oracle in miniature.
+
+### `/api/access-modes` — admin (`admin.authz`)
+
+The object axis. A role answers *what may this account do*; an access mode
+answers *which objects can it reach in this session*. Shaped on `/api/roles`
+route for route.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/access-modes/` | Modes with their items and holder counts. |
+| GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
+| GET | `/api/access-modes/{id}` | |
+| POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
+| PATCH | `/api/access-modes/{id}` | Label, description, sort order, and `is_guest_default`. Setting the flag **moves** it: the write clears every other mode's flag in the same transaction rather than letting `ix_one_guest_default_access_mode` raise and surface as a 500. Clearing the last flag is allowed - the resolver falls back to the empty set, which hides everything from a guest rather than publishing it. |
+| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. |
+| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
+
+Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
+router is exactly what it caches.
+
+### `PUT /api/users/{id}/access-modes` — admin (`admin.authz`)
+
+Replaces an account's whole set - grants, login default and per-account
+denials - in one payload.
+
+```json
+{ "modes": [ { "mode_id": "...", "is_default": true,
+               "denied_label_keys": [], "denied_field_group_keys": [] } ] }
+```
+
+**A denial naming something the mode does not carry is 422.** A mode is a
+ceiling, so such a denial subtracts nothing and storing it would be a no-op
+that reads like a setting. Two defaults is 422 as well, rather than the 500
+`ix_one_default_mode_per_user` would give. An **empty list is allowed**: an
+account holding no mode resolves the empty object set, which is fail-closed
+and a legitimate way to park somebody.
+
+`ManagedUserResponse` carries `access_modes`, so the admin page reads one
+source and this endpoint returns the same shape.
+
+**A new account holds `safe` and only `safe`** (`POST /api/users/`). An
+invitee starts narrow and is widened deliberately, rather than starting wide
+and being narrowed if somebody remembers.
 
 ### `/api/roles` — admin
 

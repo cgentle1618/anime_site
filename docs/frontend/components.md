@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-08 (cover URLs are local-disk only)
+Last verified: 2026-09-12 (the access-mode admin pages)
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -228,6 +228,37 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   Mod / Tool); the latter is labelled 配裝/模組 Builds & Mods and is
   deliberately **not** keyed `resources`, which already exists site-wide.
   `NotesTemplate`'s `SHAPES` map now holds seven registry-driven shapes.
+
+## The access-mode admin pages (`pages/admin/`)
+
+`AccessModes.jsx` and the panel inside `Users.jsx` edit the **object axis** -
+which entries and fields a session can reach. Both are shaped on their role
+equivalents so the pair read the same way, and both carry one control whose
+shape is a guarantee rather than a style choice.
+
+| Control | Shape | Why it cannot be a checkbox / free field |
+|---|---|---|
+| Guest default (`AccessModes.jsx`) | a **radio across modes** | At most one mode is the anonymous policy. A radio is the only control that cannot express otherwise; the server validates too, but the UI never asks for the invalid thing. |
+| Per-account denials (`Users.jsx`) | **the mode's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its mode's - so showing the ceiling and letting you remove from it is structurally incapable of naming something outside it. |
+| Login default (`Users.jsx`) | a radio among the modes that account **holds** | It cannot drift out of the granted set, which is the same guarantee the partial unique index gives in the database. |
+
+**`homelessLabelKeys` is exported for its tests**, and is the one piece of
+logic on either page that can be wrong in a way nobody would notice. A content
+label carried by no mode hides its entries from everyone, the owner included;
+the warning computes from the **draft**, so it appears the moment the last
+mode carrying a label is unticked - while it can still be reconsidered -
+rather than after a save and a reload, by which point it is a record rather
+than a warning.
+
+An account holding **no** mode is called out in red on the users table. It
+reaches nothing, which is fail-closed and correct and looks exactly like a
+broken site.
+
+Both pages sit behind `admin.authz` on **both** SPA permission surfaces -
+`App.jsx`'s route gate and `navigation.js` - and the nav link inherits the
+admin section's `requires` rather than declaring its own.
+`navigation.test.js` asserts that inheritance, because a second declaration
+is a second place to keep in step.
 
 ## `lib/` utilities
 
