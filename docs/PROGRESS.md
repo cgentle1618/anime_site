@@ -23,7 +23,27 @@ hole below, which depends on none of the rest.
 
 **Phase 0 is done** (2026-09-11): `me_list.py`'s two handlers resolve through
 `entry_visible` and 404 with the not-found message, closing the object-level
-hole. Phases A-D are unclaimed and need plans.
+hole. Phases B-D are unclaimed and need plans.
+
+**Phase A has a plan**:
+**[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
+Every task is behaviour-neutral for the `admin` account, because it is
+`is_superuser` and `has()` short-circuits - so a half-applied Phase A cannot
+lock anyone out. Task 9 is what makes a missed router an ImportError rather
+than a silent grant; it must run last.
+
+| # | Phase A task | Status |
+|---|---|---|
+| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | todo |
+| A2 | Seed the `super` role | todo |
+| A3 | The three route dependencies in `resolver.py` | todo |
+| A4 | Swap roles/users/content_labels to `admin.authz` | todo |
+| A5 | Swap system/data_control to `manage.pipelines` | todo |
+| A6 | Swap the 20 catalogue routers to `manage.catalog` | todo |
+| A7 | Drop the three `plan_next.py` admin gates | todo |
+| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | todo |
+| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | todo |
+| A10 | Documentation | todo |
 
 Two items the spec names but does not do: an audit of every **other** write path
 taking a client-supplied entry id (decision 9 applies to all of them; only
