@@ -287,6 +287,14 @@ without being asked — this is the step that has needed chasing every time:
   "this will delete 3 quotes" review screen would have been lying. Read the
   actual definition — the column, the constraint, the enum — not the pattern
   the neighbours establish.
+- **When you correct a factual claim in a doc, grep the claim, not the file.**
+  A claim worth stating once is usually stated twice — in a preamble and again
+  in a table, hundreds of lines apart — and fixing the copy you were looking at
+  leaves the other one asserting the old thing with equal confidence.
+  `data-actions.md` said the data-control router was gated by
+  `get_current_admin` in two places; the second was found by accident, while
+  editing that table for an unrelated reason. Same failure as the uniform-shape
+  one above: a second copy of something that reads as settled.
 - **The SPA has two independent permission surfaces.** `App.jsx`'s
   `<ProtectedRoute permission=...>` blocks and `frontend/src/config/navigation.js`,
   which calls `has(...)` directly. Changing what a permission means reaches the
