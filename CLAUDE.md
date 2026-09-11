@@ -238,7 +238,14 @@ without being asked — this is the step that has needed chasing every time:
 2. `docs/PROGRESS.md` — delete the finished plan's task table and its prose.
    Leave only what is still open.
 3. The spec and plan under `docs/superpowers/` — mark the phase done with its
-   sha, so a reader of either knows it has shipped.
+   sha, so a reader of either knows it has shipped. **Marking a spec shipped is
+   also the moment to record what the spec got wrong**, not just that it
+   landed: a spec that is only ever amended forward teaches nothing about its
+   own reasoning, and its confident-sounding paragraphs are what the next
+   design pass will lean on. Phase D's spec said it had to come last because
+   "until this ships, modes can only be changed in the database" — the ordering
+   was right and the reason was incomplete; what actually made it safe to defer
+   was that Phase B landed behaviour-neutral.
 
 ## Rule
 
