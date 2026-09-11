@@ -262,6 +262,18 @@ without being asked — this is the step that has needed chasing every time:
   wrong; every one of those has produced a defect here. A task that names an
   endpoint, a field value or a type should have had that value checked, not
   recalled.
+- **Suspect any shape that reads as uniform.** The exception is what a summary
+  drops, and the uniformity is exactly what made the thing summarisable in the
+  first place — so the docstring, the spec, and your memory of reading it last
+  week all agree, and all three are wrong together. Three instances in one day
+  of the 2026-09-11 run, each a defect if it had shipped: nine media types
+  where one is `tv_name_en` and not `tv_show_name_en`; three identity arms
+  where one (`media.display_name`) is derived from another and so is not
+  independent; eight `ON DELETE CASCADE` relationships where one
+  (`quote.media_id`) is `SET NULL`, so a quote survives its entry and a
+  "this will delete 3 quotes" review screen would have been lying. Read the
+  actual definition — the column, the constraint, the enum — not the pattern
+  the neighbours establish.
 - **The SPA has two independent permission surfaces.** `App.jsx`'s
   `<ProtectedRoute permission=...>` blocks and `frontend/src/config/navigation.js`,
   which calls `has(...)` directly. Changing what a permission means reaches the
