@@ -19,10 +19,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
 
@@ -265,7 +265,7 @@ def get_quote(
 def create_quote(
     payload: schemas.QuoteCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Quote attached to a media entry."""
@@ -296,7 +296,7 @@ def update_quote(
     quote_id: str,
     payload: schemas.QuoteUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates a Quote."""
     db_quote = _get_or_404(db, quote_id)
@@ -319,7 +319,7 @@ def patch_quote(
     quote_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Partially updates a Quote (used for inline edits on the Quote page)."""
     db_quote = _get_or_404(db, quote_id)
@@ -340,7 +340,7 @@ def patch_quote(
 def delete_quote(
     quote_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Quote.

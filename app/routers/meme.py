@@ -30,10 +30,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.rbac.enforcement import drop_hidden_rows
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES, entry_ref_for, resolve_entries
 
@@ -321,7 +321,7 @@ def get_meme(
 def create_meme(
     payload: schemas.MemeCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Meme attached to an entry, series, franchise or collection."""
@@ -365,7 +365,7 @@ def update_meme(
     meme_id: str,
     payload: schemas.MemeUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates a Meme."""
     db_meme = _get_or_404(db, meme_id)
@@ -404,7 +404,7 @@ def patch_meme(
     meme_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Partially updates a Meme (used for inline edits on the Meme page)."""
     db_meme = _get_or_404(db, meme_id)
@@ -444,7 +444,7 @@ def patch_meme(
 def delete_meme(
     meme_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Meme.

@@ -15,7 +15,7 @@ from sqlalchemy import Boolean, false, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.models.media import Media
 from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
@@ -48,7 +48,7 @@ from app.services.domain.user_list import (
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import apply_entry_visibility, entry_visible
 from app.services.rbac.field_gate import gate
-from app.services.rbac.resolver import Viewer, get_viewer, viewer_user_id
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog, viewer_user_id
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import media_entity_ref_filter
 
@@ -253,7 +253,7 @@ def make_media_router(spec) -> APIRouter:
     async def create(
         data: spec.create_schema,
         db: Session = Depends(get_db),
-        admin: dict = Depends(get_current_admin),
+        admin: dict = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         payload, remark, has_remark = pop_remark(data.model_dump())
@@ -305,7 +305,7 @@ def make_media_router(spec) -> APIRouter:
         entry_id: str,
         data: spec.update_schema,
         db: Session = Depends(get_db),
-        admin: dict = Depends(get_current_admin),
+        admin: dict = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -348,7 +348,7 @@ def make_media_router(spec) -> APIRouter:
         entry_id: str,
         payload: dict = Body(...),
         db: Session = Depends(get_db),
-        admin: dict = Depends(get_current_admin),
+        admin: dict = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -384,7 +384,7 @@ def make_media_router(spec) -> APIRouter:
     def complete(
         entry_id: str,
         db: Session = Depends(get_db),
-        admin: dict = Depends(get_current_admin),
+        admin: dict = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
         entry = _get_or_404(db, entry_id)
@@ -414,7 +414,7 @@ def make_media_router(spec) -> APIRouter:
     def delete(
         entry_id: str,
         db: Session = Depends(get_db),
-        admin: dict = Depends(get_current_admin),
+        admin: dict = Depends(require_manage_catalog),
     ):
         entry = _get_or_404(db, entry_id)
         if entry.cover_image_file:

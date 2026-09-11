@@ -14,7 +14,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
+from app.services.rbac.resolver import require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -136,7 +137,7 @@ def resolve_option_alias(db: Session, category: str, source: str, value: str):
 def add_system_option(
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Adds a new dropdown option to the database.
@@ -186,7 +187,7 @@ def update_system_option(
     option_id: UUID,
     payload: schemas.SystemOptionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Updates an existing dropdown option in the database.
@@ -262,7 +263,7 @@ def update_system_option(
     return db_option
 
 
-@router.delete("/{option_id}", dependencies=[Depends(get_current_admin)])
+@router.delete("/{option_id}", dependencies=[Depends(require_manage_catalog)])
 def delete_option(option_id: UUID, db: Session = Depends(get_db)):
     """Deletes an option and logs it to the deleted_record table."""
     db_opt = (

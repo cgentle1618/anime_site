@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -91,7 +91,7 @@ def get_collection_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_collection(
     payload: schemas.CollectionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Collection."""
@@ -135,7 +135,7 @@ def update_collection(
     system_id: str,
     payload: schemas.CollectionUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Collection's metadata."""
@@ -171,7 +171,7 @@ def patch_collection(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Collection (used for quick inline hub edits)."""
@@ -201,7 +201,7 @@ def patch_collection(
 def delete_collection(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Collection.

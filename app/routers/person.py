@@ -21,10 +21,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.credits import find_person
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
@@ -336,7 +336,7 @@ def get_person_by_id(
 def create_person(
     payload: schemas.PersonCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Creates a person, or returns the existing one under that name with the
@@ -403,7 +403,7 @@ def update_person(
     system_id: UUID,
     payload: schemas.PersonUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates a person's metadata and the set of roles they hold."""
     person = db.get(models.Person, system_id)
@@ -438,7 +438,7 @@ def delete_person(
     system_id: UUID,
     credits: int = Query(..., description="Credit count the admin confirmed"),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a person. Their media_credit rows cascade away with
@@ -485,7 +485,7 @@ def merge_person(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit and role from `source_id` onto this person, then delete

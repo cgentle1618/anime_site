@@ -16,12 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.credits import find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -168,7 +168,7 @@ def get_studio_entries(
 def create_studio(
     payload: schemas.StudioCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Creates a studio, or returns the existing one under that name.
@@ -206,7 +206,7 @@ def update_studio(
     system_id: UUID,
     payload: schemas.StudioUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Fully updates a studio's metadata. Since every media_credit points at the
@@ -235,7 +235,7 @@ def update_studio(
 def delete_studio(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a studio. Its credits cascade away with it - see the
@@ -256,7 +256,7 @@ def merge_studio(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this studio, then delete the

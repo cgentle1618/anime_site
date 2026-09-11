@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import pop_remark, upsert_remark
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -90,7 +90,7 @@ def get_franchise_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_franchise(
     payload: schemas.FranchiseCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
@@ -134,7 +134,7 @@ def update_franchise(
     system_id: str,
     payload: schemas.FranchiseUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Franchise's metadata."""
@@ -168,7 +168,7 @@ def patch_franchise(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
     viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Franchise (useful for quick inline rating edits)."""
@@ -198,7 +198,7 @@ def patch_franchise(
 def delete_franchise(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Franchise.

@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain.watch_order import (
     ITEM_IMPORTANCE,
@@ -32,7 +32,7 @@ from app.services.domain.watch_order import (
     list_candidate_entries,
     resolve_items,
 )
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -632,7 +632,7 @@ def get_watch_order_candidates(
 def create_watch_order_list(
     payload: schemas.WatchOrderListCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Creates a new watch order owned by one franchise or one collection."""
     _validate_owner(payload.franchise_id, payload.collection_id, payload.series_id)
@@ -761,7 +761,7 @@ def create_release_list(
     series_id: Optional[str] = None,
     anime_only: bool = False,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Gives one owner a built-in order whose steps are generated on read.
@@ -828,7 +828,7 @@ def create_release_list(
 @router.post("/lists/release/backfill", summary="Backfill Built-in Orders")
 def backfill_release_lists(
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Gives every franchise, series and collection its built-in orders, skipping
@@ -967,7 +967,7 @@ def update_watch_order_list(
     system_id: str,
     payload: schemas.WatchOrderListUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates a watch order's metadata."""
     db_list = _get_list_or_404(db, system_id)
@@ -994,7 +994,7 @@ def patch_watch_order_list(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Partially updates a watch order (used for quick inline edits)."""
     db_list = _get_list_or_404(db, system_id)
@@ -1014,7 +1014,7 @@ def patch_watch_order_list(
 def delete_watch_order_list(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a watch order. Its items go with it via ON DELETE
@@ -1070,7 +1070,7 @@ def _steps_to_copy(db: Session, source: models.WatchOrderList) -> List[dict]:
 def duplicate_watch_order_list(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Copies a watch order and its steps into a new, editable list.
@@ -1143,7 +1143,7 @@ def create_watch_order_item(
     system_id: str,
     payload: schemas.WatchOrderItemCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Adds a step to a watch order. Appends unless `position` is given, which
@@ -1188,7 +1188,7 @@ def update_watch_order_item(
     item_id: str,
     payload: schemas.WatchOrderItemUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates one step of a watch order."""
     db_item = _get_item_or_404(db, item_id)
@@ -1217,7 +1217,7 @@ def patch_watch_order_item(
     item_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Partially updates a step (episode range, importance, note)."""
     db_item = _get_item_or_404(db, item_id)
@@ -1239,7 +1239,7 @@ def patch_watch_order_item(
 def delete_watch_order_item(
     item_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Removes one step from a watch order. The media entry is not touched."""
     db_item = _get_item_or_404(db, item_id)
@@ -1258,7 +1258,7 @@ def reorder_watch_order_items(
     system_id: str,
     payload: schemas.WatchOrderReorder,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Renumbers positions to 1..N in the order the item ids are given, and
@@ -1355,7 +1355,7 @@ def create_watch_order_section(
     system_id: str,
     payload: schemas.WatchOrderSectionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Adds a part to a watch order. Appends unless `position` is given.
@@ -1393,7 +1393,7 @@ def update_watch_order_section(
     section_id: str,
     payload: schemas.WatchOrderSectionUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Fully updates one part of a watch order."""
     db_section = _get_section_or_404(db, section_id)
@@ -1417,7 +1417,7 @@ def patch_watch_order_section(
     section_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """Partially updates a part (name, position, remark)."""
     db_section = _get_section_or_404(db, section_id)
@@ -1435,7 +1435,7 @@ def patch_watch_order_section(
 def delete_watch_order_section(
     section_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Removes one part. Its steps are NOT removed - `section_id` is SET NULL, so
@@ -1461,7 +1461,7 @@ def reorder_watch_order_sections(
     system_id: str,
     payload: schemas.WatchOrderSectionReorder,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_manage_catalog),
 ):
     """
     Renumbers section positions to 1..N in the order the ids are given.
