@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
@@ -29,6 +29,7 @@ from app.services.pipelines.backup import execute_backup
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
+from app.services.rbac.resolver import require_manage_pipelines
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class DownloadCoversBody(BaseModel):
 router = APIRouter(
     prefix="/api/data-control",
     tags=["Data Control Pipelines"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_manage_pipelines)],
 )
 
 

@@ -13,14 +13,15 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
+from app.services.rbac.resolver import require_manage_pipelines
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/system",
     tags=["System Administration"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_manage_pipelines)],
 )
 
 # ==========================================
