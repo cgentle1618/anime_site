@@ -117,6 +117,20 @@ def _validate_media_type(media_type: Optional[str]) -> None:
         )
 
 
+def _require_visible_entry(db: Session, viewer, media_type, entry_id) -> None:
+    """
+    A quote names an entry, so writing one reaches that entry.
+
+    Nothing here if the quote names no entry: entry_id is nullable and a
+    free-standing quote is legitimate. The 404 message matches _get_or_404's,
+    so a hidden entry and an absent quote are one answer.
+    """
+    if not media_type or not entry_id:
+        return
+    if not entry_visible(db, viewer, media_type, entry_id):
+        raise HTTPException(status_code=404, detail="Quote not found.")
+
+
 # ==========================================
 # PUBLIC READ OPERATIONS (Unprotected)
 # ==========================================
@@ -270,6 +284,7 @@ def create_quote(
 ):
     """Creates a new Quote attached to a media entry."""
     _validate_media_type(payload.media_type)
+    _require_visible_entry(db, admin, payload.media_type, payload.entry_id)
     try:
         data = payload.model_dump(exclude_unset=True)
         # The author is who is asking, not who the payload says they are.
@@ -300,7 +315,16 @@ def update_quote(
 ):
     """Fully updates a Quote."""
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.media_type, db_quote.entry_id)
     _validate_media_type(payload.media_type)
+    update_data = payload.model_dump(exclude_unset=True)
+    if "media_type" in update_data or "entry_id" in update_data:
+        _require_visible_entry(
+            db,
+            admin,
+            update_data.get("media_type", db_quote.media_type),
+            update_data.get("entry_id", db_quote.entry_id),
+        )
     try:
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(db_quote, key, value)
@@ -323,7 +347,15 @@ def patch_quote(
 ):
     """Partially updates a Quote (used for inline edits on the Quote page)."""
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.media_type, db_quote.entry_id)
     _validate_media_type(payload.get("media_type"))
+    if "media_type" in payload or "entry_id" in payload:
+        _require_visible_entry(
+            db,
+            admin,
+            payload.get("media_type", db_quote.media_type),
+            payload.get("entry_id", db_quote.entry_id),
+        )
     try:
         apply_column_patch(db_quote, payload)
         db_quote.updated_at = get_taipei_now()
@@ -348,6 +380,7 @@ def delete_quote(
     hand-managed local files, so removing one is the admin's call.
     """
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.media_type, db_quote.entry_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_quote, "Quote")

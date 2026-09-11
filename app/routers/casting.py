@@ -45,14 +45,24 @@ class CastIn(BaseModel):
     cast: List[CastRowIn] = []
 
 
-def _resolve_entry(db: Session, media_type: str, entry_id: UUID):
-    """Validate media_type first, so an unknown type is a 400 not a KeyError."""
+def _resolve_entry(db: Session, media_type: str, entry_id: UUID, viewer):
+    """
+    Validate media_type first, so an unknown type is a 400 not a KeyError.
+
+    `viewer` is required and the visibility test is not optional: the GET above
+    has asked since the content-label work and the PUT below never did, so a
+    holder of manage.catalog lacking the label could rewrite an entry it cannot
+    read. Writes follow reads (decision 9), and the 404 message is the one a
+    genuinely missing entry gets.
+    """
     if media_type not in MEDIA_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown media type: {media_type}")
 
     model = MEDIA_TABLES[media_type].model
     entry = db.get(model, entry_id)
     if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found.")
+    if not entry_visible(db, viewer, media_type, entry_id):
         raise HTTPException(status_code=404, detail="Entry not found.")
     return entry
 
@@ -65,11 +75,7 @@ def get_casting(
     viewer: Viewer = Depends(get_viewer),
 ):
     """The entry's cast, ordered by position."""
-    _resolve_entry(db, media_type, entry_id)
-    # A cast names the people on an entry, and a 200 here confirms it
-    # exists, so a hidden entry has to answer exactly as an absent one does.
-    if not entry_visible(db, viewer, media_type, entry_id):
-        raise HTTPException(status_code=404, detail="Entry not found.")
+    _resolve_entry(db, media_type, entry_id, viewer)
 
     return {"cast": casting_service.casting_rows(db, media_type, entry_id)}
 
@@ -83,7 +89,7 @@ def replace_casting(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces the whole cast in the order submitted."""
-    _resolve_entry(db, media_type, entry_id)
+    _resolve_entry(db, media_type, entry_id, admin)
 
     rows = [row.model_dump(exclude_none=True) for row in payload.cast]
     try:

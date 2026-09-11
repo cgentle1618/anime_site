@@ -11,6 +11,8 @@ The account under test holds manage.catalog and NOT label.nsfw. Before Phase A
 that account could not exist, which is why this gap was unreachable until now.
 """
 
+import uuid
+
 from app import models
 from app.services.rbac.permissions import label_perm
 from tests.api.conftest import HIDDEN_NAME
@@ -116,3 +118,110 @@ class TestFactoryWrites:
             json={"anime_name_en": HIDDEN_NAME},
         )
         assert response.status_code == 200
+
+
+class TestCastingAndCredits:
+    def test_replacing_a_cast_is_indistinguishable_from_missing(
+        self, catalog_writer, hidden_anime
+    ):
+        client = catalog_writer()
+        response = client.put(
+            f"/api/casting/anime/{hidden_anime.system_id}",
+            json={"cast": []},
+        )
+        assert response.status_code == 404
+        assert HIDDEN_NAME not in response.text
+
+    def test_replacing_credits_is_indistinguishable_from_missing(
+        self, catalog_writer, hidden_anime
+    ):
+        client = catalog_writer()
+        response = client.put(
+            f"/api/credits/anime/{hidden_anime.system_id}",
+            json={"credits": {}, "tags": {}},
+        )
+        assert response.status_code == 404
+        assert HIDDEN_NAME not in response.text
+
+    def test_credits_still_write_on_a_visible_entry(
+        self, catalog_writer, sample_anime
+    ):
+        client = catalog_writer()
+        response = client.put(
+            f"/api/credits/anime/{sample_anime.system_id}",
+            json={"credits": {}, "tags": {}},
+        )
+        assert response.status_code == 200
+
+
+class TestQuoteAndMeme:
+    def test_creating_a_quote_on_a_hidden_entry_is_refused(
+        self, catalog_writer, hidden_anime, db_session
+    ):
+        client = catalog_writer()
+        before = db_session.query(models.Quote).count()
+        response = client.post(
+            "/api/quote/",
+            json={
+                "media_type": "anime",
+                "entry_id": str(hidden_anime.system_id),
+                "text": "A line from a show I cannot see.",
+            },
+        )
+        assert response.status_code == 404
+        assert db_session.query(models.Quote).count() == before
+
+    def test_patching_a_quote_onto_a_hidden_entry_is_refused(
+        self, catalog_writer, hidden_anime, sample_anime, db_session, admin_user
+    ):
+        """The move case: the check runs against the INCOMING entry, not the
+        stored one."""
+        quote = models.Quote(
+            system_id=uuid.uuid4(),
+            media_type="anime",
+            entry_id=sample_anime.system_id,
+            text="A line from a show I can see.",
+            author_id=admin_user.id,
+        )
+        db_session.add(quote)
+        db_session.flush()
+        client = catalog_writer()
+        response = client.patch(
+            f"/api/quote/{quote.system_id}",
+            json={"entry_id": str(hidden_anime.system_id)},
+        )
+        assert response.status_code == 404
+        db_session.refresh(quote)
+        assert quote.entry_id == sample_anime.system_id
+
+    def test_creating_a_meme_on_a_hidden_entry_is_refused(
+        self, catalog_writer, hidden_anime, db_session
+    ):
+        client = catalog_writer()
+        before = db_session.query(models.Meme).count()
+        response = client.post(
+            "/api/meme/",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(hidden_anime.system_id),
+                "text": "A meme about a show I cannot see",
+            },
+        )
+        assert response.status_code == 404
+        assert db_session.query(models.Meme).count() == before
+
+    def test_a_meme_on_a_grouping_tier_still_writes(
+        self, catalog_writer, sample_franchise
+    ):
+        """A tier carries no labels, so entry_visible has no opinion and the
+        write must not be refused by accident."""
+        client = catalog_writer()
+        response = client.post(
+            "/api/meme/",
+            json={
+                "owner_type": "franchise",
+                "owner_id": str(sample_franchise.system_id),
+                "text": "A meme about a franchise",
+            },
+        )
+        assert response.status_code in (200, 201)

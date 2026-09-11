@@ -31,14 +31,24 @@ class CreditsAndTags(BaseModel):
     tags: Dict[str, List[str]] = {}
 
 
-def _resolve_entry(db: Session, media_type: str, entry_id: UUID):
-    """Validate media_type first, so an unknown type is a 400 not a KeyError."""
+def _resolve_entry(db: Session, media_type: str, entry_id: UUID, viewer):
+    """
+    Validate media_type first, so an unknown type is a 400 not a KeyError.
+
+    `viewer` is required and the visibility test is not optional: the GET above
+    has asked since the content-label work and the PUT below never did, so a
+    holder of manage.catalog lacking the label could rewrite an entry it cannot
+    read. Writes follow reads (decision 9), and the 404 message is the one a
+    genuinely missing entry gets.
+    """
     if media_type not in MEDIA_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown media type: {media_type}")
 
     model = MEDIA_TABLES[media_type].model
     entry = db.get(model, entry_id)
     if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found.")
+    if not entry_visible(db, viewer, media_type, entry_id):
         raise HTTPException(status_code=404, detail="Entry not found.")
     return entry
 
@@ -51,11 +61,7 @@ def get_credits(
     viewer: Viewer = Depends(get_viewer),
 ):
     """Returns only the roles and fields that actually have rows."""
-    _resolve_entry(db, media_type, entry_id)
-    # Credits name the people on an entry, and a 200 here confirms it exists,
-    # so a hidden entry has to answer exactly as an absent one does.
-    if not entry_visible(db, viewer, media_type, entry_id):
-        raise HTTPException(status_code=404, detail="Entry not found.")
+    _resolve_entry(db, media_type, entry_id, viewer)
 
     credits_out: Dict[str, List[str]] = {}
     for role_spec in credit_roles_for(media_type):
@@ -81,7 +87,7 @@ def replace_credits(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """Replaces only the roles and fields named in the payload."""
-    _resolve_entry(db, media_type, entry_id)
+    _resolve_entry(db, media_type, entry_id, admin)
 
     allowed_roles = {r.key for r in credit_roles_for(media_type)}
     allowed_fields = {f.key for f in tag_fields_for(media_type)}

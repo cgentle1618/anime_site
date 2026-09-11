@@ -32,10 +32,15 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.rbac.enforcement import drop_hidden_rows
+from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
-from app.utils.media_resolver import OWNER_TABLES, entry_ref_for, resolve_entries
+from app.utils.media_resolver import (
+    MEDIA_TABLES,
+    OWNER_TABLES,
+    entry_ref_for,
+    resolve_entries,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +195,17 @@ def _quote_conflict(db: Session, quote_id, exclude_meme_id: Optional[str] = None
         )
 
 
+def _require_visible_owner(db: Session, viewer, owner_type, owner_id) -> None:
+    """
+    An owner may be a grouping tier, which carries no labels - entry_visible
+    only has an opinion about the media types, so a tier is left alone.
+    """
+    if not owner_type or not owner_id or owner_type not in MEDIA_TABLES:
+        return
+    if not entry_visible(db, viewer, owner_type, owner_id):
+        raise HTTPException(status_code=404, detail="Meme not found.")
+
+
 _INTEGRITY_DETAIL = "That quote is already linked to a meme, or does not exist."
 
 
@@ -326,6 +342,7 @@ def create_meme(
 ):
     """Creates a new Meme attached to an entry, series, franchise or collection."""
     _validate_owner_type(payload.owner_type)
+    _require_visible_owner(db, admin, payload.owner_type, payload.owner_id)
     _quote_conflict(db, payload.quote_id)
     try:
         data = payload.model_dump(exclude_unset=True)
@@ -369,10 +386,18 @@ def update_meme(
 ):
     """Fully updates a Meme."""
     db_meme = _get_or_404(db, meme_id)
+    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
     _validate_owner_type(payload.owner_type)
     _quote_conflict(db, payload.quote_id, exclude_meme_id=meme_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "owner_type" in data or "owner_id" in data:
+        _require_visible_owner(
+            db,
+            admin,
+            data.get("owner_type", db_meme.owner_type),
+            data.get("owner_id", db_meme.owner_id),
+        )
     try:
-        data = payload.model_dump(exclude_unset=True)
         if "owner_type" in data or "owner_id" in data:
             _apply_owner(
                 db_meme,
@@ -408,10 +433,18 @@ def patch_meme(
 ):
     """Partially updates a Meme (used for inline edits on the Meme page)."""
     db_meme = _get_or_404(db, meme_id)
+    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
     # A patch may not reassign authorship: `payload` is a raw dict here, so
     # nothing else would stop it.
     payload.pop("author_id", None)
     _validate_owner_type(payload.get("owner_type"))
+    if "owner_type" in payload or "owner_id" in payload:
+        _require_visible_owner(
+            db,
+            admin,
+            payload.get("owner_type", db_meme.owner_type),
+            payload.get("owner_id", db_meme.owner_id),
+        )
     if "quote_id" in payload:
         _quote_conflict(db, payload["quote_id"], exclude_meme_id=meme_id)
     try:
@@ -454,6 +487,7 @@ def delete_meme(
     images are hand-managed local files.
     """
     db_meme = _get_or_404(db, meme_id)
+    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_meme, "Meme")

@@ -23,7 +23,7 @@ ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
 | A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
 | B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis | todo, needs a plan |
-| C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | wip phase-c (1/5 done), planned: [2026-09-11-authz-phase-c-write-binding.md](superpowers/plans/2026-09-11-authz-phase-c-write-binding.md) |
+| C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | wip phase-c (2/5 done), planned: [2026-09-11-authz-phase-c-write-binding.md](superpowers/plans/2026-09-11-authz-phase-c-write-binding.md) |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
 Open questions the redesign inherits; #1 is answered and no longer gates
