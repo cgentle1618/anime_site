@@ -25,17 +25,22 @@ hole below, which depends on none of the rest.
 `entry_visible` and 404 with the not-found message, closing the object-level
 hole. Phases B-D are unclaimed and need plans.
 
-**Phase A has a plan**:
+**Phase A is done** (2026-09-11, `f3b6712c` for A9 and this commit for A10):
 **[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
-Every task is behaviour-neutral for the `admin` account, because it is
-`is_superuser` and `has()` short-circuits - so a half-applied Phase A cannot
-lock anyone out. Task 9 is what makes a missed router an ImportError rather
-than a silent grant; it must run last.
+Every task was behaviour-neutral for the `admin` account, because it is
+`is_superuser` and `has()` short-circuits - so a half-applied Phase A could not
+have locked anyone out. Task A9 made a missed router an ImportError rather
+than a silent grant, and ran last as planned. The bare `admin` permission and
+`get_current_admin` are gone; three named permissions (`admin.authz`,
+`manage.catalog`, `manage.pipelines`) and the `super` role replace them, and
+`is_admin` in `/api/auth/me` now means `manage.catalog`. Phases B, C and D are
+still unclaimed and need plans - see [authorization.md](authorization.md#what-the-redesign-inherits)
+before starting one.
 
-Phase A is being executed on branch **`authz-phase-a`** in the worktree
+Phase A was executed on branch **`authz-phase-a`** in the worktree
 `../anime_site_authz` (its own venv and `.env`; both trees share one PostgreSQL
 and one `anime_site_test`, so never run the suites concurrently). Nothing is
-merged to `dev` or pushed.
+merged to `dev` or pushed yet.
 
 | # | Phase A task | Status |
 |---|---|---|
@@ -45,10 +50,10 @@ merged to `dev` or pushed.
 | A4 | Swap roles/users/content_labels to `admin.authz` | done 17411973 |
 | A5 | Swap system/data_control to `manage.pipelines` | done 9cabfa2c |
 | A6 | Swap the 20 catalogue routers to `manage.catalog` | done 633c329f + 555ee689 (fix round) |
-| A7 | Drop the three `plan_next.py` admin gates | wip authz-company |
-| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | todo |
-| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | todo |
-| A10 | Documentation | todo |
+| A7 | Drop the three `plan_next.py` admin gates | done 2afe2158 |
+| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | done c71ad497 |
+| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | done f3b6712c |
+| A10 | Documentation | done (this commit) |
 
 **A real bug surfaced at A6 and is fixed** (`555ee689`): `get_current_admin`
 returned a `dict`; the new dependencies return a `Viewer`. `users.py:164` called

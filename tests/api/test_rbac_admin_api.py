@@ -11,7 +11,12 @@ import uuid
 import pytest
 
 from app import models
-from app.services.rbac.permissions import PERM_ADMIN_AUTHZ, media_type_perm
+from app.services.rbac.permissions import (
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
+    media_type_perm,
+)
 
 ROLES = "/api/roles/"
 USERS = "/api/users/"
@@ -315,3 +320,35 @@ def test_the_guest_role_can_never_be_granted_admin(admin_client):
     assert response.status_code == 409
     after = admin_client.get(f"{ROLES}{guest_id}").json()
     assert PERM_ADMIN_AUTHZ not in after["permissions"]
+
+
+def test_the_guest_role_can_never_be_granted_manage_catalog(admin_client):
+    """manage.catalog on guest would let any anonymous visitor write the
+    collection - the same widened guard as admin.authz, added when the bare
+    `admin` permission split into three named ones in Phase A."""
+    guest_id = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_MANAGE_CATALOG]}
+    )
+    assert response.status_code == 409
+    body = response.json()
+    assert "guest" in body["detail"].lower()
+    assert PERM_MANAGE_CATALOG in body["detail"]
+    after = admin_client.get(f"{ROLES}{guest_id}").json()
+    assert PERM_MANAGE_CATALOG not in after["permissions"]
+
+
+def test_the_guest_role_can_never_be_granted_manage_pipelines(admin_client):
+    """manage.pipelines on guest would let any anonymous visitor run Backup,
+    Pull, Fill, Replace or Calculate - the worst possible grant for an
+    unauthenticated caller, since Pull All overwrites every table."""
+    guest_id = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_MANAGE_PIPELINES]}
+    )
+    assert response.status_code == 409
+    body = response.json()
+    assert "guest" in body["detail"].lower()
+    assert PERM_MANAGE_PIPELINES in body["detail"]
+    after = admin_client.get(f"{ROLES}{guest_id}").json()
+    assert PERM_MANAGE_PIPELINES not in after["permissions"]
