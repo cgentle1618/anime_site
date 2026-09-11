@@ -12,7 +12,7 @@ import uuid
 import pytest
 
 from app import models
-from app.services.rbac.permissions import label_perm, media_type_perm
+from app.services.rbac.permissions import media_type_perm
 from app.services.rbac.seed import default_guest_permissions
 from app.services.security import get_password_hash
 from tests.api.test_visibility import make_viewer
@@ -137,14 +137,14 @@ def test_a_labelled_entry_is_absent_for_a_reader_lacking_the_label(
     )
     db.flush()
 
-    make_viewer(db, client, "untrusted", default_guest_permissions())
+    make_viewer(db, client, "untrusted", default_guest_permissions(), label_keys=())
     types = {
         e["media_type"] for e in client.get("/api/profile/kana").json()["entries"]
     }
     assert types == {"manga"}
 
     make_viewer(
-        db, client, "trusted", default_guest_permissions() | {label_perm("nsfw")}
+        db, client, "trusted", default_guest_permissions(), label_keys=("nsfw",)
     )
     types = {
         e["media_type"] for e in client.get("/api/profile/kana").json()["entries"]

@@ -173,9 +173,12 @@ def test_an_anonymous_visitor_cannot_read_the_plan_queue_at_all(client, hidden_p
 def test_a_plan_row_for_a_hidden_entry_is_dropped(
     client, db_session, hidden_anime, hidden_plan
 ):
-    # A logged-in viewer whose role lacks the label: their OWN plan row on the
-    # hidden entry must not come back.
-    make_viewer(db_session, client, "untrusted", default_guest_permissions())
+    # A logged-in viewer whose MODE lacks the label: their OWN plan row on
+    # the hidden entry must not come back. (It was the role that lacked it
+    # until Phase B moved object scoping to the access mode.)
+    make_viewer(
+        db_session, client, "untrusted", default_guest_permissions(), label_keys=()
+    )
     viewer = db_session.query(models.User).filter_by(username="untrusted").one()
     db_session.add(
         models.PlanNext(

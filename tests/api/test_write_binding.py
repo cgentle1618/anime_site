@@ -7,14 +7,17 @@ rule across all of them: if GET answers 404 for this viewer, the write answers
 404 too, with the same message - a 403 would confirm the entry exists just as
 surely as a 200 would.
 
-The account under test holds manage.catalog and NOT label.nsfw. Before Phase A
-that account could not exist, which is why this gap was unreachable until now.
+The account under test holds manage.catalog and sits in an access mode that
+carries NO content labels. Before Phase A that account could not exist, which
+is why this gap was unreachable until now; before Phase B the same thing was
+said by withholding `label.nsfw` from its role, which the role axis can no
+longer express - object scoping moved to the access mode.
 """
 
 import uuid
 
 from app import models
-from app.services.rbac.permissions import PERM_MANAGE_CATALOG, label_perm, media_type_perm
+from app.services.rbac.permissions import PERM_MANAGE_CATALOG, media_type_perm
 from app.services.rbac.seed import default_user_permissions
 from tests.api.conftest import HIDDEN_NAME, make_viewer
 
@@ -104,7 +107,7 @@ class TestFactoryWrites:
     def test_holding_the_label_restores_the_write(
         self, catalog_writer, hidden_anime
     ):
-        client = catalog_writer(username="trustedcat", extra={label_perm("nsfw")})
+        client = catalog_writer(username="trustedcat", label_keys=("nsfw",))
         response = client.put(
             f"/api/anime/{hidden_anime.system_id}",
             json={"anime_name_en": "Renamed By Someone Who May"},
@@ -112,8 +115,14 @@ class TestFactoryWrites:
         assert response.status_code == 200
 
     def test_admin_is_unaffected(self, admin_client, hidden_anime):
-        """is_superuser short-circuits entry_visible, so the owner's account
-        sees no change on the day this lands."""
+        """The owner's account sees no change on the day this lands.
+
+        NOT because is_superuser short-circuits entry_visible - it no longer
+        does, and Phase B removed that short-circuit deliberately. It is
+        because admin_client sits in `unrestricted`, which carries every
+        label. Narrow the same account's mode and it is narrowed like anybody
+        else; tests/api/test_access_modes.py asserts exactly that.
+        """
         response = admin_client.put(
             f"/api/anime/{hidden_anime.system_id}",
             json={"anime_name_en": HIDDEN_NAME},
@@ -371,8 +380,11 @@ class TestNoteWrites:
     permission at all - the same shape as the defect Phase 0 closed."""
 
     def _note_writer(self, db_session, client, username="notewriter"):
+        # label_keys=() - a mode carrying no labels, so this account cannot
+        # see the labelled entry. The role axis used to say this by omitting
+        # label.nsfw; it cannot any more.
         return make_viewer(
-            db_session, client, username, default_user_permissions()
+            db_session, client, username, default_user_permissions(), label_keys=()
         )
 
     def test_writing_a_personal_note_on_a_hidden_entry_is_refused(

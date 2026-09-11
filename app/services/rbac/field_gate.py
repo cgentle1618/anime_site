@@ -15,8 +15,8 @@ different ways:
                 silent, permanent data loss. So the response is built from a
                 COPY.
 
-Both paths return the input untouched when the viewer holds everything, which
-is the overwhelmingly common case and costs one set lookup.
+Both paths return the input untouched when the viewer's mode holds
+everything, which is the overwhelmingly common case and costs one set lookup.
 """
 
 from typing import Any, Optional
@@ -26,17 +26,27 @@ from app.services.rbac.field_groups import (
     columns_for,
     link_fields_for,
 )
-from app.services.rbac.permissions import field_group_perm
 from app.services.rbac.resolver import Viewer
 
 
 def _withheld(viewer: Optional[Viewer]):
-    if viewer is None or viewer.is_superuser:
+    """
+    The groups the viewer's ACTIVE MODE does not carry.
+
+    A None viewer withholds nothing: internal callers pass None to mean "not a
+    request", and blanking their fields would corrupt a pipeline's view of the
+    row rather than protect anybody.
+
+    The is_superuser short-circuit is gone. Field groups left the role axis in
+    Phase B, so holding every capability no longer reaches them - which is
+    what lets the owner's own account sit in a narrow mode and actually be
+    narrowed.
+    """
+    if viewer is None:
         return ()
+    held = viewer.field_groups
     return tuple(
-        group
-        for group in FIELD_GROUPS.values()
-        if not viewer.has(field_group_perm(group.key))
+        group for group in FIELD_GROUPS.values() if group.key not in held
     )
 
 

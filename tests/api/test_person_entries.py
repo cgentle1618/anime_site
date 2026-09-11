@@ -12,7 +12,6 @@ import pytest
 
 from app import models
 from app.services.domain import credits as credits_service
-from app.services.rbac.permissions import label_perm
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.conftest import make_viewer, nsfw_label  # noqa: F401
 
@@ -90,12 +89,18 @@ def seiyuu_with_hidden_casting(db_session, sample_franchise, nsfw_label, charact
 
 @pytest.fixture
 def restricted_client(db_session, client, nsfw_label):
-    """A viewer holding the default guest permissions but not the nsfw label."""
+    """A viewer holding the default guest permissions, in a mode carrying no
+    content labels.
+
+    "Not the nsfw label" was a role grant until Phase B; object scoping now
+    lives on the access mode, so it is said with label_keys instead.
+    """
     return make_viewer(
         db_session,
         client,
         "norestricted",
-        default_guest_permissions() - {label_perm(nsfw_label.key)},
+        default_guest_permissions(),
+        label_keys=(),
     )
 
 

@@ -8,7 +8,7 @@ whole body catches those; checking `[e["system_id"] for e in body]` does not.
 """
 
 from app import models
-from app.services.rbac.permissions import PERM_SELF_LIST, label_perm
+from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.conftest import HIDDEN_NAME, make_viewer
 
@@ -52,14 +52,17 @@ def test_a_viewer_holding_the_label_sees_the_entry(
         db_session,
         client,
         "trusted",
-        default_guest_permissions() | {label_perm("nsfw")},
+        default_guest_permissions(),
+        label_keys=("nsfw",),
     )
     assert HIDDEN_NAME in client.get("/api/anime/").text
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
 
 
 def test_a_viewer_lacking_the_label_does_not(client, db_session, hidden_anime):
-    make_viewer(db_session, client, "untrusted", default_guest_permissions())
+    make_viewer(
+        db_session, client, "untrusted", default_guest_permissions(), label_keys=()
+    )
     assert HIDDEN_NAME not in client.get("/api/anime/").text
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
@@ -113,13 +116,21 @@ def test_franchise_expansion_cannot_surface_a_hidden_entry(client, hidden_anime)
 # confirm the entry exists just as surely as a 200 would.
 
 
-def _list_viewer(db_session, client, username="listwriter", extra=frozenset()):
-    """A viewer holding the list permission but NOT the nsfw label."""
+def _list_viewer(
+    db_session, client, username="listwriter", extra=frozenset(), label_keys=()
+):
+    """A viewer holding the list permission, in a mode carrying no labels.
+
+    label_keys=() is the default: "NOT the nsfw label" used to be said by
+    leaving a role grant off, and object scoping moved to the access mode in
+    Phase B.
+    """
     return make_viewer(
         db_session,
         client,
         username,
         default_guest_permissions() | {PERM_SELF_LIST} | set(extra),
+        label_keys=label_keys,
     )
 
 
@@ -187,7 +198,7 @@ def test_a_viewer_holding_the_label_may_write_the_hidden_entry(
 ):
     """Holding the label restores the write, not just the read."""
     _list_viewer(db_session, client, username="trustedwriter",
-                 extra={label_perm("nsfw")})
+                 label_keys=("nsfw",))
     response = client.put(
         f"/api/me/list/{hidden_anime.system_id}",
         json={"watching_status": "Completed"},

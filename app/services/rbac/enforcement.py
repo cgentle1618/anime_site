@@ -5,7 +5,9 @@ Two gates, always applied together by apply_entry_visibility so no caller can
 wire one and forget the other:
 
   media type  the viewer holds media_type.<key>, or the whole type disappears
-  labels      the entry carries no label whose label.<key> the viewer lacks
+              - the ROLE axis, so is_superuser still reaches it through has()
+  labels      the entry carries no label the viewer's ACTIVE MODE lacks
+              - the OBJECT axis, which is_superuser cannot reach at all
 
 require_visible_media is the write-side front door to the same two gates: it
 resolves an entry id to its own media type before asking, because a
@@ -24,27 +26,31 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Query, Session
 
 from app import models
-from app.services.rbac.permissions import label_perm, media_type_perm
+from app.services.rbac.permissions import media_type_perm
 from app.services.rbac.resolver import Viewer
 from app.utils.media_resolver import MEDIA_TABLES
 
 
 def hidden_label_ids(db: Session, viewer: Viewer) -> list[UUID]:
     """
-    content_label rows whose permission the viewer lacks.
+    content_label rows the viewer's ACTIVE MODE does not carry.
 
     An empty list is the overwhelmingly common case - no labels defined, or a
-    viewer who holds them all - and every caller short-circuits on it, so the
-    feature costs one cheap query when unused and nothing at all for an admin.
+    mode carrying them all - and every caller short-circuits on it, so the
+    feature costs one cheap query when unused and nothing at all for a session
+    in a wide mode. Every consumer is untouched by the Phase B change, because
+    the list it receives still means exactly "labels to hide".
+
+    NO is_superuser SHORT-CIRCUIT, and that is the point of the whole phase:
+    holding every capability says nothing about which objects this SESSION
+    reaches, so an admin sitting in a narrow mode is narrowed like anybody
+    else.
     """
-    if viewer.is_superuser:
-        return []
+    visible = viewer.visible_label_ids
     return [
         system_id
-        for system_id, key in db.query(
-            models.ContentLabel.system_id, models.ContentLabel.key
-        ).all()
-        if not viewer.has(label_perm(key))
+        for (system_id,) in db.query(models.ContentLabel.system_id).all()
+        if system_id not in visible
     ]
 
 
@@ -66,7 +72,10 @@ def apply_entry_visibility(
     query: Query, model, media_type: str, db: Session, viewer: Optional[Viewer]
 ) -> Query:
     """Narrow a media-entry query to what `viewer` may see."""
-    if viewer is None or viewer.is_superuser:
+    # `viewer is None` means "not a request" - internal callers pass it
+    # deliberately - and must stay. The is_superuser half is gone: object
+    # scoping left the role axis in Phase B.
+    if viewer is None:
         return query
     if not viewer.has(media_type_perm(media_type)):
         return query.filter(sa.false())
@@ -89,7 +98,7 @@ def apply_media_visibility(query: Query, db: Session, viewer: Optional[Viewer]):
 
     The query must already select from or join `models.Media`.
     """
-    if viewer is None or viewer.is_superuser:
+    if viewer is None:
         return query
 
     allowed = [
@@ -122,7 +131,7 @@ def entry_visible(
     their own existing not-found message, so a hidden entry is indistinguishable
     from a missing one.
     """
-    if viewer is None or viewer.is_superuser:
+    if viewer is None:
         return True
     if not viewer.has(media_type_perm(media_type)):
         return False
@@ -208,7 +217,7 @@ def filter_visible_pairs(
     asking per row would be an N+1 on every one of them.
     """
     pairs = {(media_type, entry_id) for media_type, entry_id in pairs}
-    if viewer is None or viewer.is_superuser or not pairs:
+    if viewer is None or not pairs:
         return pairs
 
     # A pair naming a grouping tier is not a media entry: tiers carry no
@@ -253,7 +262,7 @@ def drop_hidden_rows(
     A row with no reference at all (a general quote) belongs to no entry and is
     always kept.
     """
-    if viewer is None or viewer.is_superuser:
+    if viewer is None:
         return list(rows)
 
     pairs = {

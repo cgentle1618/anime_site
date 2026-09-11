@@ -18,6 +18,22 @@ from app.services.rbac.seed_modes import (
 )
 
 
+def _reset_modes(db):
+    """Clear the access-mode tables so a seed runs from scratch.
+
+    The modes are seeded once per session in test_engine, committed, so that
+    the lifespan's own copy stays a SELECT and cannot block on an open test
+    transaction. ensure_access_mode_seed is therefore a no-op top-up by the
+    time a test calls it - which is correct, and means a test about what the
+    SEED decides has to clear the slate first.
+    """
+    db.query(models.AccessModeLabel).delete(synchronize_session=False)
+    db.query(models.AccessModeFieldGroup).delete(synchronize_session=False)
+    db.query(models.UserAccessMode).delete(synchronize_session=False)
+    db.query(models.AccessMode).delete(synchronize_session=False)
+    db.flush()
+
+
 def _mode(db, key):
     return db.query(models.AccessMode).filter(models.AccessMode.key == key).one()
 
@@ -126,6 +142,7 @@ def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
     other-sources list and other people's personal reviews to every logged-out
     visitor on the day Phase B landed.
     """
+    _reset_modes(db_session)
     guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
     db_session.query(models.RolePermission).filter(
         models.RolePermission.role_id == guest.system_id,
@@ -154,6 +171,7 @@ def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
 def test_safe_falls_back_to_the_default_when_guest_holds_nothing(db_session):
     """A guest role with no field groups at all means ensure_rbac_seed has not
     run, not that an admin withheld everything."""
+    _reset_modes(db_session)
     guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
     db_session.query(models.RolePermission).filter(
         models.RolePermission.role_id == guest.system_id,

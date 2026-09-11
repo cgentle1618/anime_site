@@ -32,7 +32,6 @@ from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
-    field_group_perm,
 )
 from app.services.rbac.resolver import Viewer, get_viewer
 from app.utils.data_control_utils import log_deleted_record
@@ -279,7 +278,9 @@ def list_notes(
         if (
             owner is None
             or not owner.list_is_public
-            or not viewer.has(field_group_perm("personal_notes"))
+            # The object axis now, not a role permission: field groups moved
+            # to the access mode in Phase B and field_group_perm is gone.
+            or "personal_notes" not in viewer.field_groups
         ):
             raise HTTPException(
                 status_code=403, detail="That user's notes are not public."

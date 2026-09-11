@@ -18,8 +18,8 @@ import uuid
 import pytest
 
 from app import models
-from app.services.rbac.permissions import field_group_perm
 from app.services.rbac.seed import default_guest_permissions
+from tests.api.conftest import all_field_group_keys
 from tests.api.test_visibility import make_viewer
 
 
@@ -74,7 +74,8 @@ def no_sources_client(client, db_session):
         db_session,
         client,
         "nosources",
-        default_guest_permissions() - {field_group_perm("sources_other")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"sources_other"},
     )
 
 
@@ -206,7 +207,8 @@ def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
         db_session,
         client,
         "nocredits",
-        default_guest_permissions() - {field_group_perm("credits")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"credits"},
     )
     assert "Zvornik Studio" not in client.get("/api/anime/").text
 
@@ -238,7 +240,8 @@ def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
         db_session,
         client,
         "nocredits2",
-        default_guest_permissions() - {field_group_perm("credits")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"credits"},
     )
     body = client.get(f"/api/anime/{sample_anime.system_id}").json()
     assert body["credit_refs"] == {}
@@ -295,7 +298,8 @@ def test_a_gated_note_section_is_withheld(
         db_session,
         client,
         "nopersonal",
-        default_guest_permissions() - {field_group_perm("personal_notes")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"personal_notes"},
     )
     body = client.get("/api/notes", params=params).text
     assert "Zvornik private assessment" not in body
@@ -319,7 +323,8 @@ def no_system_info_client(client, db_session):
         db_session,
         client,
         "nosysteminfo",
-        default_guest_permissions() - {field_group_perm("system_info")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"system_info"},
     )
 
 
@@ -419,7 +424,8 @@ def test_a_viewer_without_restricted_sources_does_not_see_them(
         db_session,
         client,
         "norestricted",
-        default_guest_permissions() - {field_group_perm("sources_restricted")},
+        default_guest_permissions(),
+        field_groups=all_field_group_keys() - {"sources_restricted"},
     )
     guest = no_restricted_client.get(f"/api/anime/{sample_anime.system_id}")
     if guest.status_code == 200:
