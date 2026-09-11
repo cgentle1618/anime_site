@@ -14,8 +14,9 @@ that account could not exist, which is why this gap was unreachable until now.
 import uuid
 
 from app import models
-from app.services.rbac.permissions import label_perm
-from tests.api.conftest import HIDDEN_NAME
+from app.services.rbac.permissions import PERM_MANAGE_CATALOG, label_perm, media_type_perm
+from app.services.rbac.seed import default_user_permissions
+from tests.api.conftest import HIDDEN_NAME, make_viewer
 
 
 class TestFactoryWrites:
@@ -189,6 +190,38 @@ class TestQuoteAndMeme:
         response = client.patch(
             f"/api/quote/{quote.system_id}",
             json={"entry_id": str(hidden_anime.system_id)},
+        )
+        assert response.status_code == 404
+        db_session.refresh(quote)
+        assert quote.entry_id == sample_anime.system_id
+
+    def test_patching_only_entry_id_gates_on_the_new_entrys_own_type(
+        self, db_session, client, sample_anime, sample_manga, admin_user
+    ):
+        """`Quote.media_type` is derived from `entry_id`, so a payload naming
+        only `entry_id` must be gated on the INCOMING entry's own type - not
+        the stored row's media_type, and not any media_type the payload
+        happens to carry. A writer holding every media_type.* permission
+        EXCEPT manga must be refused when moving a quote, by entry_id alone,
+        from a visible anime onto a manga entry."""
+        writer = make_viewer(
+            db_session,
+            client,
+            "animeonlywriter",
+            (default_user_permissions() - {media_type_perm("manga")})
+            | {PERM_MANAGE_CATALOG},
+        )
+        quote = models.Quote(
+            system_id=uuid.uuid4(),
+            entry_id=sample_anime.system_id,
+            text="A line from a show I can see.",
+            author_id=admin_user.id,
+        )
+        db_session.add(quote)
+        db_session.flush()
+        response = writer.patch(
+            f"/api/quote/{quote.system_id}",
+            json={"entry_id": str(sample_manga.system_id)},
         )
         assert response.status_code == 404
         db_session.refresh(quote)
