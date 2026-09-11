@@ -25,7 +25,7 @@ the write-binding audit Phase C implemented.
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
 | B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | **done** - all 12 plan tasks. `1b8f9b72` tables+seed, `27944bcd` migration+caches+resolution, `e18bac6e` the pivot, `f0c54815` helpers deleted, `bf385643` /me, `3c509dfd` pipeline gate, `a6bcf57e` note status codes, `6f7d5dec` per-viewer remark. Two migrations: `n1a1accessmode`, `n1a2remarkauthor` |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
-| D | Admin UI: the access-mode page, the per-account panel, the mode switcher, plus new-account-gets-`safe` and question 6's `isAdmin` slice | **10 of 11 done.** `ac4c7baf` /me modes, `6fa9d13f` the switch endpoint (with the preserved `exp`), `c91931bb` the access-modes router, `b5f0612a` per-account assignment + new-account-gets-`safe`, `2753bf68` the admin page, `384bbdd4` the per-account panel, `acb747a` docs, `61f19d1` question 6. **Task 9 outstanding**: the switcher CONTROL - see below |
+| D | Admin UI: the access-mode page, the per-account panel, the mode switcher, plus new-account-gets-`safe` and question 6's `isAdmin` slice | **done, all 11.** `ac4c7baf` /me modes, `6fa9d13f` the switch endpoint (with the preserved `exp`), `c91931bb` the access-modes router, `b5f0612a` per-account assignment + new-account-gets-`safe`, `2753bf68` the admin page, `384bbdd4` the per-account panel, `acb747a` docs, `61f19d1` question 6, `3ec6a0f` the switcher |
 
 Open questions. Decided 2026-09-11 unless marked open; the spec's decision
 table (11-14) carries the reasoning. This list replaced two drifted,
@@ -49,41 +49,21 @@ current.
 `docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
 Multi-user Steps 0-5 are finished and their entries are gone from this file.
 
-**Phases B and D are finished bar one item.** `docs/roadmap.md` holds the
-record of what each did and why; their plans
-([Phase B](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md),
-[Phase D](superpowers/plans/2026-09-12-authz-phase-d-surfaces.md)) are spent.
+**The authorization redesign is FINISHED.** Phases 0, A, A.1, B, C and D
+are all in. `docs/roadmap.md` holds the record of what each did and why;
+their plans under `superpowers/plans/` are spent and can be deleted whenever
+somebody is tidying.
 
-**THE ONE OUTSTANDING ITEM: the mode switcher CONTROL** (Phase D task 9).
-Everything behind it is done and tested - `POST /api/auth/access-mode`,
-narrowing and widening, the server-computed `requires_password` flag, and the
-preserved `exp` with a test that decodes both tokens. What is missing is
-`ModeSwitcher.jsx` and a mount in `Nav.jsx`. So a session can already change
-its access mode; nothing in the SPA offers it.
+The mode switcher (Phase D task 9) landed last, in `3ec6a0f`, after the
+`Nav.jsx` lock cleared. The contract it satisfies now lives in
+[authorization.md](authorization.md#switching-mid-session-post-apiauthaccess-mode)
+rather than here, because it is a description of built behaviour rather than
+a handover.
 
-It was blocked throughout Phase D by another session holding `Nav.jsx`, and
-the plan's rule was to **stop rather than relocate it**: a switcher living
-outside the site chrome because of a scheduling accident is a design decision
-made by a merge conflict, and it would outlive the reason.
-
-Whoever picks it up inherits written facts rather than inferences:
-
-- Render it **only when `/api/auth/me` returns more than one held mode**. A
-  control with one option is noise.
-- **No permission gate.** Every signed-in account holds at least one mode, and
-  gating this would hide it from the `user` role - the account that most needs
-  to narrow itself. It reads neither of the SPA's two permission surfaces.
-- Drive the password prompt from the server's `requires_password` flag on each
-  mode in `/api/auth/me`. **Never recompute the subset test in the browser**:
-  two implementations of one rule drift, and the browser's would be the one
-  nobody tested.
-- On success, refetch `/api/auth/me` and invalidate the entry queries - what
-  the viewer may see has just changed.
-
-**Also unfinished, and unrelated**: `community.py` still has no viewer
-dependency of any kind. Recorded as an accepted residual in
-[authorization.md](authorization.md#accepted-residuals); it arms itself the
-moment a second account makes a list public.
+**Still unfinished, and unrelated to the redesign**: `community.py` has no
+viewer dependency of any kind. Recorded as an accepted residual in
+[authorization.md](authorization.md#accepted-residuals); its blast radius is
+zero today and it arms itself the moment a second account makes a list public.
 
 ## Concurrent sessions (2026-09-11)
 

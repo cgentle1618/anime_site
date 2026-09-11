@@ -19,7 +19,8 @@ assignment already lives. **No migration** — the schema is complete.
 React + Vite, Tailwind v4 semantic tokens, TanStack Query, vitest.
 Python via `venv/Scripts/python.exe`.
 
-> **SHIPPED 2026-09-12, 10 of 11 tasks.** `ac4c7baf`, `6fa9d13f`, `c91931bb`,
+> **SHIPPED 2026-09-12, all 11 tasks** (task 9 last, in `3ec6a0f`, once the
+> `Nav.jsx` lock cleared). `ac4c7baf`, `6fa9d13f`, `c91931bb`,
 > `b5f0612a`, `2753bf68`, `384bbdd4`, `acb747a`, `61f19d1`, and the record-it
 > commit. **Task 9, the switcher control, is outstanding** - blocked by another
 > session holding `Nav.jsx`, and deliberately not relocated. The endpoint and

@@ -1,9 +1,7 @@
 # Authorization redesign — design (DRAFT, brainstorm in progress)
 
-Status: **approved; every phase has shipped bar one task.** Phases 0, A, A.1,
-B, C and D are in. The only outstanding item is Phase D task 9, the mode
-switcher CONTROL in the site chrome - the endpoint and everything behind it
-are done and tested. Brainstormed on
+Status: **DONE.** Every phase has shipped: 0, A, A.1, B, C and D. The last
+task, the mode switcher control, landed 2026-09-12 in `3ec6a0f`. Brainstormed on
 2026-09-10 (home), stopped at an environment switch, resumed and finished
 2026-09-11 (company). All six sections are written and approved, and the last
 open decision (14, pipelines and the object axis) was settled on 2026-09-11 —
@@ -784,12 +782,12 @@ new-account-gets-`safe`; `2753bf68` the admin page; `384bbdd4` the per-account
 panel; `acb747a` docs; `61f19d1` carried-in question 6 and the two-surface
 mismatch. No migration - Phase B's schema was complete.
 
-**Task 9, the switcher CONTROL, is outstanding** and is the only unbuilt part
-of this whole design. It was blocked by another session holding `Nav.jsx`, and
-the plan's rule was to stop rather than relocate it. `docs/PROGRESS.md` holds
-the handover: render only when more than one mode is held, no permission gate,
-drive the prompt from the server's flag rather than recomputing the subset
-test.
+**Task 9, the switcher control, landed last** (`3ec6a0f`) once the `Nav.jsx`
+lock cleared. It was blocked for most of the phase, and the plan's rule was to
+stop rather than relocate it - a switcher living outside the site chrome
+because of a scheduling accident would have been a design decision made by a
+merge conflict. Holding that line cost one component late and saved a
+permanent wrong answer. Its contract is in `docs/authorization.md`.
 
 **One thing this section got wrong**, worth keeping for the next plan written
 from a spec: it said "until this ships, modes ... can only be changed in the

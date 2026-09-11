@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-12 (Phase D: the access-mode admin surface, the
+Last verified: 2026-09-12 (Phase D complete: the admin surface, the
 per-account panel and the session switcher)
 
 ## What this is for
@@ -797,6 +797,23 @@ A mode the account does not hold answers **404**, identically to one that does
 not exist, and deliberately **not** flagged `requires_password`: it is not a
 password problem, and saying so would invite a prompt that cannot help.
 
+**The control** is `frontend/src/components/layout/ModeSwitcher.jsx`, mounted
+in the site chrome. Four rules it does not get to decide, kept here because
+each is easy to get wrong from the browser and none is visible from the
+component alone:
+
+- **It reads no permission**, and it is the one control in the SPA for which
+  that is right. Every signed-in account holds at least one mode, so gating it
+  would hide it from the `user` role - the account that most needs to narrow
+  itself.
+- **It renders only above ONE held mode.** A control with one option is noise.
+- **`requires_password` comes from the server**, per mode, on
+  `/api/auth/me`. Never recompute the subset test in the browser: two
+  implementations of one rule drift, and the browser's is the one nobody
+  tested.
+- **On success it refetches `/api/auth/me` and invalidates the entry
+  queries**, because what the viewer may see has just changed.
+
 ### The pipeline routers need an unscoped MODE as well (decision 14)
 
 `data_control.py` and `system.py` carry **two** router-level dependencies:
@@ -1029,10 +1046,6 @@ only. Modes are editable without `psql`, and a session can change its own.
 
 **What is still NOT built:**
 
-- **The switcher control itself is not in the site chrome yet.** The endpoint
-  and everything behind it are done and tested; the UI control is blocked on
-  another session holding `Nav.jsx`. Until it lands, a session sits in
-  whatever mode it logged in with unless something calls the endpoint.
 - **There is still no UI for a non-admin account.** A `user`-role account can
   write its own list and its own personal notes through the API, and the SPA
   offers no way to do either — the notes editors and tracker controls are
