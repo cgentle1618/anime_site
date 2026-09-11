@@ -23,7 +23,7 @@ the write-binding audit Phase C implemented.
 | 0 | Object-level guard on `/api/me/list/{media_id}` | done 4746b1bc |
 | A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
-| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | todo, needs a plan |
+| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | todo, planned - [2026-09-11-authz-phase-b-access-mode-axis.md](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md), 12 tasks |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
@@ -49,8 +49,11 @@ current.
 `docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
 Multi-user Steps 0-5 are finished and their entries are gone from this file.
 
-**Next session picks up at Phase B.** Question 5 is answered, so it can now be
-planned; decisions 12, 13 and 14 ride in it. Nothing is pushed: as of
+**Next session picks up at Phase B**, task 1 of its plan. Question 5 is
+answered and the plan is written; decisions 12, 13 and 14 ride in it. Task 6 is
+the pivot and the only one that leaves the tree half-migrated if abandoned - do
+not start it near the end of a session. The plan asks for a per-session test
+database, `anime_site_test_phaseb`; it does not exist yet. Nothing is pushed: as of
 2026-09-11 local `dev` is 11 commits ahead of `origin/dev`, nine of them
 Phase C.
 
