@@ -23,7 +23,9 @@ die on the other; this adds a reviewed diff-and-delete action. No migration.
 | Spec | done 6a098731 |
 | Implementation plan | done 71cd73f3 |
 | T1 read_tab + the two refusals | done 17afb33e |
-| T2 identity index + candidate rule | wip clean-session |
+| T2 identity index + candidate rule | done d8646700 |
+| T3 blast radius (deleted vs detached) | done 4720b29b |
+| T4 scan_orphans | wip clean-session |
 | `clean/scan` + `clean/apply` routes + tests | todo |
 | `CleanOrphans.jsx` + endpoints + vitest | todo |
 | Docs (data-actions, api, roadmap) | todo |
@@ -39,7 +41,7 @@ the write-binding audit Phase C implemented.
 | 0 | Object-level guard on `/api/me/list/{media_id}` | done 4746b1bc |
 | A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
-| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | **wip phaseb-session** - [plan](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md), 12 tasks. Tasks 1-5 done (`1b8f9b72`, `27944bcd`): tables, seed, migration, caches, per-request resolution. Task 6 (the pivot: both gates read the mode) in hand |
+| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | **done** - all 12 plan tasks. `1b8f9b72` tables+seed, `27944bcd` migration+caches+resolution, `e18bac6e` the pivot, `f0c54815` helpers deleted, `bf385643` /me, `3c509dfd` pipeline gate, `a6bcf57e` note status codes, `6f7d5dec` per-viewer remark. Two migrations: `n1a1accessmode`, `n1a2remarkauthor` |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
@@ -51,9 +53,9 @@ near-duplicate tables that numbered the same questions differently.
 |---|---|---|
 | 1 | Audit every **other** write path taking a client-supplied entry id | done - spec "The write-binding audit (2026-09-11)". The inventory was INCOMPLETE: it missed `POST /api/data-control/replace/{key}/{entry_id}`, which the final review caught. Corrected in the audit |
 | 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | closed, stale - spec decision 11. It gates the `personal_reviews` section on every row the viewer did not author, and the label matches. Step 5 made this true; the row outlived it |
-| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | decided, spec decision 12 - **into Phase B**, read fix and index relaxation in ONE commit. Relaxing `ix_note_one_remark_per_owner` alone turns a loud refusal into an invisible write |
-| 4 | Note writes answer 403; every other gate answers 401 or 404 | decided, spec decision 13 - 401 for capability, 404 for object, 403 gone. Five sites, all in `note.py` (178, 183 -> 401; 195, 199, 285 -> 404). **Into Phase B** - `note.py` is already open there for decision 12 |
-| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **decided 2026-09-11, no longer blocks Phase B** - spec decision 14 and its detail section. Unscoped on the object axis, and the `data_control.py` / `system.py` routes require the session's **active mode to be unscoped** (every `content_label` row, every `FIELD_GROUP_KEYS` entry, computed rather than a named mode). B was rejected because a per-viewer Backup would write a partial sheet over the complete one - data loss, not a leak. The Replace-one oracle closes for free. **Into Phase B**, which is where a mode first exists to test |
+| 3 | One remark per owner, site-wide | **done `6f7d5dec`** - decision 12. `remark` is read per viewer by `attach_remark` (filtered on `author_id`) and `ix_note_one_remark_per_owner` carries `author_id`. Both halves in one commit, as required |
+| 4 | Note writes answer 403; every other gate answers 401 or 404 | **done `a6bcf57e`** - decision 13. All five 403s gone, and a test asserts no sixth can return. ONE CORRECTION TO THE SPEC: line 199 (editing a catalogue note without `manage.catalog`) is a CAPABILITY failure and answers **401**, not the 404 the spec's line list assigned - 404 would claim the note does not exist, which is false |
+| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **done `3c509dfd`** - spec decision 14 and its detail section. Unscoped on the object axis, and the `data_control.py` / `system.py` routes require the session's **active mode to be unscoped** (every `content_label` row, every `FIELD_GROUP_KEYS` entry, computed rather than a named mode). B was rejected because a per-viewer Backup would write a partial sheet over the complete one - data loss, not a leak. The Replace-one oracle closes for free. **Into Phase B**, which is where a mode first exists to test |
 | 6 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo - **Phase D**, not its own item. 78 files reference `isAdmin`, which has meant `manage.catalog` since Phase A. Minimal slice: `libraryColumns.jsx:112,181` and `RemarkModal.jsx` move to a `self.list` check; catalogue editing stays on `manage.catalog`. Remember the SPA has two independent permission surfaces |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
@@ -65,13 +67,26 @@ current.
 `docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
 Multi-user Steps 0-5 are finished and their entries are gone from this file.
 
-**Next session picks up at Phase B**, task 1 of its plan. Question 5 is
-answered and the plan is written; decisions 12, 13 and 14 ride in it. Task 6 is
-the pivot and the only one that leaves the tree half-migrated if abandoned - do
-not start it near the end of a session. The plan asks for a per-session test
-database, `anime_site_test_phaseb`; it does not exist yet. Nothing is pushed: as of
-2026-09-11 local `dev` is 11 commits ahead of `origin/dev`, nine of them
-Phase C.
+**Phase B is finished.** `docs/roadmap.md` holds the record of what it did
+and why; its plan
+([2026-09-11-authz-phase-b-access-mode-axis.md](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md))
+is spent and can be deleted whenever somebody is tidying.
+
+**Next session picks up at Phase D**, which needs a plan: the `/access-modes`
+admin page, the per-account panel on the users page, `PUT /api/users/{id}/access-modes`,
+the session mode switcher (`POST /api/auth/access-mode` - and its reissued
+cookie MUST keep the original `exp`, or toggling modes is an unlimited
+session-extension oracle), and the rule that a new account gets `safe` only.
+Question 6 below is Phase D's, not its own item.
+
+Three things Phase D inherits, all recorded in
+[authorization.md](authorization.md#known-drift-and-what-this-page-does-not-yet-describe):
+a content label created after the Phase B migration reaches no mode and so
+hides its entries from everyone until granted by hand; `community.py` has **no
+viewer dependency of any kind**; and the SPA's two permission surfaces
+disagree - the route gate asks `requireAuth` while `navigation.js` asks
+`has("self.list")`, making the nav the stricter one, so a page can be
+reachable but unlisted.
 
 ## Concurrent sessions (2026-09-11)
 
