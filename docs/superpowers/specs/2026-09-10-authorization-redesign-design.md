@@ -1,9 +1,11 @@
 # Authorization redesign — design (DRAFT, brainstorm in progress)
 
-Status: **complete, awaiting review**. Brainstormed on 2026-09-10 (home),
-stopped at an environment switch, resumed and finished 2026-09-11 (company).
-All six sections are written and approved. Next step is an implementation plan;
-nothing here has been built.
+Status: **approved; Phases 0, A, A.1 and C have shipped.** Brainstormed on
+2026-09-10 (home), stopped at an environment switch, resumed and finished
+2026-09-11 (company). All six sections are written and approved, and the last
+open decision (14, pipelines and the object axis) was settled on 2026-09-11 —
+see "Decision 14 in detail". Phase B is the next plan; `docs/PROGRESS.md`
+carries the live status.
 
 Read first: [authorization.md](../../authorization.md#what-the-redesign-inherits)
 — the four gates that already exist, the rules not to break, and the lessons
@@ -52,7 +54,7 @@ chosen per session. An account holds one role and one *or more* access modes.
 | 11 | Does `field_group.personal_notes` gate anything real? | **YES — the question was stale, and is closed 2026-09-11.** It was recorded as gating "a query parameter and nothing on any response". It gates a response: the group declares `note_sections=("personal_reviews",)` (`field_groups.py:134-140`) and `gated_note_sections` (`field_gate.py:118-131`) withholds that section from every row the viewer did not author. The label "Personal Reviews" names the section it actually gates, so that half of the complaint is answered too. Step 5 made this true and nobody struck the row. The one live remnant is whether the group should also cover `remark`, which is decision 12's business |
 | 12 | How does `remark` become per-viewer? | **In Phase B, and in ONE commit.** `remark` is a class-level `column_property` (`app/models/__init__.py:113-133`), and a scalar subquery cannot know who is asking, so it cannot filter on `note.author_id`. Two changes must land together: serve `remark` from a per-request read filtered by author, and relax `ix_note_one_remark_per_owner` (`m5b1notefks`) from per-owner to per-owner-per-author. Doing only the second is worse than doing neither — today a second account's remark is refused loudly by the database, and after a half-fix it would be accepted and then invisible, which is a data-loss shape rather than a limitation. Folded into Phase B rather than run as its own task because a per-viewer read is exactly what Phase B is already building |
 | 13 | 401, 403 or 404? | **Two answers, and 403 disappears.** `401` means *you may not do this kind of thing* — a capability failure, matching what `require_permission` already returns and the one error shape the SPA knows. `404` means *this object is not yours to see* — the object axis, and the same not-found message a genuinely absent row gets. All five 403s live in `note.py`: lines 178 and 183 (lacking `self.personal_notes` or the catalogue write) become 401; lines 195, 199 and 285 (somebody else's note, and "that user's notes are not public") become 404, because a 403 confirms the row exists exactly as surely as a 200 does — the argument Phase C spent nine commits on. Decided 2026-09-11; not yet implemented |
-| 14 | What does the object axis mean for `manage.pipelines`? | **OPEN — and it blocks Phase B.** A pipeline rewrites entries with no visibility test: Pull All overwrites every table, Replace All streams every entry's `display_name`, and Replace-one (`data_control.py:105-112`) answers 404 for a missing entry but 200 with its title for a hidden one. Phase B makes content labels the basis of what an account may reach, so either pipelines are scoped by that axis or they sit outside it. Three answers on the table: **A, trusted operator** — declare the permission unscoped with a blast radius equal to `admin.authz`, forbid granting it alongside a restricted mode, and separately close the Replace-one oracle; **B, scope the runner** — thread a viewer through it and filter per entry, making every pipeline result partial and dependent on who ran it; **C, leave it undeclared**, which is the status quo that let the route go unnoticed. Decision 10 already went halfway down A's road. Not yet decided |
+| 14 | What does the object axis mean for `manage.pipelines`? | **DECIDED 2026-09-11: unscoped, and only runnable from an unscoped session.** A pipeline rewrites entries with no visibility test: Pull All overwrites every table, Replace All streams every entry's `display_name`, and Replace-one (`data_control.py:105-112`) answers 404 for a missing entry but 200 with its title for a hidden one. The permission is therefore declared **unscoped on the object axis** — a pipeline sees and rewrites everything, and its blast radius equals `admin.authz`. What stops that being merely a trust assertion is a session-level rule: **the pipeline routes require the active mode to be unscoped**, meaning it carries every `content_label` row and every `FIELD_GROUP_KEYS` entry. Computed, never a named mode, so adding a label later cannot silently widen the set that qualifies. Rejected: **B, scope the runner** — the sheet holds exactly one version of the data and Backup overwrites every tab, so a per-viewer filter would have a Backup run from a narrowed session write a *partial* sheet over the complete one and a Pull All restore a partial database, turning an information leak into silent data loss. Rejected: **C, leave it undeclared**, the status quo that let the Replace-one route go unnoticed. Rejected: the original A's grant-time rule ("never paired with a restricted mode"), which is awkward against an account that holds several modes and switches per session, and which a later grant could violate without any request being made. See "Decision 14 in detail" below |
 
 ### The shape those decisions imply
 
@@ -553,6 +555,26 @@ modes and an `unrestricted` default, and zero `field_group.*` / `label.*` rows
 in `role_permission`. The frozen-snapshot migration runs clean **from an empty
 database**, guarding the defect class section 5 avoids.
 
+**9 - Pipelines and the object axis** (decision 14). An account holding
+`manage.pipelines` is refused Backup, Pull All, Fill, Replace All and
+Replace-one while its active mode lacks any label or any field group, and
+accepted while the mode carries both sets in full. The refusal is a
+**capability answer (401), not 404** — the route's existence is not a secret,
+and the caller is being told to widen, which is a thing they can act on.
+Two edges that are the whole point of "computed, never a named mode": adding a
+new `content_label` row makes a previously-qualifying mode stop qualifying, and
+a *custom* mode carrying every label and field group qualifies even though it
+is not `unrestricted`. Plus the oracle regression: Replace-one on a hidden
+entry is unreachable, because reaching the route at all means nothing is
+hidden.
+
+**10 - Remark and status codes** (decisions 12 and 13). Two accounts each hold
+a remark on the same owner — the relaxed index accepts the second write, and
+each viewer reads back their own, which is the pair of assertions that has to
+fail if either half of decision 12 lands alone. And `note.py` answers 401 where
+it answered 403 for a capability failure, 404 where it answered 403 for
+somebody else's note.
+
 ### Expected breakage is signal
 
 28 test files touch `is_admin`, `field_group` or `is_superuser` (counted
@@ -562,6 +584,98 @@ silenced — a test that asserted the old model is exactly what should fail here
 
 On the frontend the redefinition keeps most of the 394 `isAdmin` sites correct,
 but the Roles and Users page tests need the new endpoints mocked.
+
+## Decision 14 in detail — pipelines and the object axis (DECIDED 2026-09-11)
+
+Section 2's post-audit correction 5 parked this as the thing that had to be
+answered before Phase B seeded its schema. This is the answer.
+
+### The rule
+
+`manage.pipelines` is **unscoped on the object axis**. Neither the runner nor
+any pipeline route filters by content label, field group or `media_type.*`; a
+Backup writes every row and a Pull All restores every row, whoever ran it.
+
+That is a deliberate grant of reach, so it is paired with a restriction on
+*when* it may be exercised:
+
+> Every route on `data_control.py` and `system.py` additionally requires the
+> session's **active mode to be unscoped** — to carry every row in
+> `content_label` and every key in `FIELD_GROUP_KEYS`.
+
+The test is **computed, never a named mode**. Comparing against the key
+`unrestricted` would silently widen the qualifying set the day someone edits
+that mode, and would break the moment an admin creates their own equivalent;
+comparing against the two full sets cannot. A mode that happens to hold
+everything qualifies; `unrestricted` after somebody unticks `hentai_image` does
+not.
+
+Both routers already carry `Depends(require_manage_pipelines)` at router level
+(`data_control.py:45`, `system.py:24`), so this is one more dependency in one
+more place, not a sweep.
+
+### It does not contradict decision 2
+
+Decision 2 says a mode "never changes which *kinds* of operation an account may
+perform". At a glance this rule does exactly that — sit in `safe` and Backup is
+refused. The reconciliation is not a special case, and it matters enough to
+write down, because a reader who takes it as one will be tempted to "fix" it
+later:
+
+A pipeline's object set is **every entry**, declared and not negotiable. The
+mode still only decides which objects the operation reaches; it is the
+*operation* that refuses to run against a subset, because a partial Backup or a
+partial Pull is not a smaller version of the job, it is a corrupt one. So the
+test is the same subset comparison decision 3 uses for switching — `required ⊆
+effective` — with `required` fixed at everything. The permission is untouched;
+`viewer.has(PERM_MANAGE_PIPELINES)` answers the same in `safe` as in
+`unrestricted`.
+
+Every other operation in the system has a per-object set and so narrows
+gracefully. Pipelines are the one kind that cannot, which is why they are the
+one kind that refuses.
+
+### What it buys
+
+- **Decision 4 survives.** The admin account may still sit in `safe`. Running a
+  pipeline from there means widening first, which decision 3 already prices at
+  a password. The narrow session stays genuinely narrow, and the widening
+  prompt is not routine — it fires when you reach for a wholesale rewrite,
+  which is exactly when a prompt is worth reading.
+- **The Replace-one oracle closes with no separate fix.** The write-binding
+  audit's item 5 (`POST /api/data-control/replace/{key}/{entry_id}`) leaks an
+  entry's existence and `display_name` to a caller who cannot see it. For a
+  caller in an unscoped session there is no such entry, so the oracle has no
+  domain. The audit recorded this route as belonging to decision 14 rather than
+  to Phase C; it does, and it is paid for here.
+- **Coherence inside the subsystem.** The audit's objection to gating
+  Replace-one alone was that `Replace All` next to it would stay ungated. Under
+  this rule both are gated the same way, at the same place, by the same test.
+
+### What it does not cover, stated plainly
+
+The rule constrains the *session*, not the *data*. An operator in an unscoped
+session can still rewrite anything — that is the point of calling the
+permission unscoped. Decision 10 already removed the one path that was an
+escalation rather than merely broad reach: Pull All skips the `Users`,
+`Content Label` and `Media Content Label` tabs for a caller without
+`admin.authz` (shipped, `a4b9d554`). So a `super` can restore the catalogue in
+full and still cannot Pull themselves a promotion or re-label an entry out of
+somebody's reach.
+
+The residual that remains, and belongs in `docs/authorization.md` as a named
+one: a `super` holding `manage.pipelines` can read every entry's title through
+a Replace All stream while sitting in a session that qualifies — which is not a
+leak, because qualifying *means* the mode already reaches every label.
+
+### The internal write hook is untouched
+
+`run_replace_single` is also the registry's `write_hook` behind entry
+create/update (`registry.py:209` and seven siblings, via
+`replace.py::execute_replace_single_*`). That call path is in-process and
+carries no HTTP dependency, and Phase C already made every route that reaches
+it resolve the entry through `entry_visible` first. Only the HTTP route gains
+the gate.
 
 ## Implementation shape
 
@@ -590,9 +704,20 @@ No new tables. Neutral for `admin`, which held every new permission via
 from the roles/users swap until the fix it raised `AttributeError` instead
 of firing.
 
-**Phase B — the access-mode axis, reads only** (sections 2-4). Tables,
-migration, seed, resolution, `hidden_label_ids` and `field_gate`. Every existing
-account lands on `unrestricted`, so nothing visibly changes.
+**Phase B — the access-mode axis, reads only** (sections 2-4, plus
+decisions 12, 13 and 14). Tables, migration, seed, resolution,
+`hidden_label_ids` and `field_gate`. Every existing account lands on
+`unrestricted`, so nothing visibly changes. Three things ride along, because
+they cannot be built before modes exist or are cheapest here:
+
+- **Decision 14's pipeline gate** — the unscoped-active-mode dependency on
+  `data_control.py` and `system.py`. It needs a mode to test against, so it
+  could not have shipped with Phase A.
+- **Decision 12's per-viewer `remark`** — the read fix and the
+  `ix_note_one_remark_per_owner` relaxation in ONE commit, never separately.
+- **Decision 13's status codes** — the five 403s in `note.py` (178, 183 → 401;
+  195, 199, 285 → 404). Independent of modes, small, and the file is already
+  open for decision 12.
 
 **Phase A.1 — the pipeline/authorization boundary. DONE 2026-09-11**
 (`a4b9d554`), decision 10. Marked
@@ -674,7 +799,11 @@ keyed on role id alone; the login token is still
    In Phase B, content labels become the **entire basis of the access-mode
    axis**, so a pipeline run can silently re-label every entry and move what
    each mode can reach — without holding `admin.authz`. This needs an answer
-   before Phase B's schema is seeded, not after.
+   before Phase B's schema is seeded, not after. **Answered 2026-09-11** by
+   decision 14 and its detail section: the permission is unscoped, the routes
+   require an unscoped active mode, and decision 10 (shipped, `a4b9d554`)
+   already stops a Pull restoring the three authorization tabs without
+   `admin.authz`.
 
 ## The write-binding audit (2026-09-11) — decision 9's scope
 
@@ -773,6 +902,12 @@ question section 2's post-audit correction 5 already parks: `manage.pipelines`
 can rewrite content labels and role assignments wholesale through Pull All, so
 what the object axis means for a pipeline needs answering before Phase B seeds
 its schema. This route belongs to that question, not to Phase C.
+
+**Resolved 2026-09-11 by decision 14.** Both this route and `Replace All` are
+gated together, by requiring an unscoped active mode on every pipeline route.
+The oracle closes because a qualifying caller has no hidden entries — no
+special-case handling of this handler is needed, and the incoherence the
+paragraph above objected to does not arise.
 
 **What this makes Phase C.** Not "add a guard to a few handlers": 30-odd routes
 across eight files, plus one default argument whose fix (`_get_or_404` passing

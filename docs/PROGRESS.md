@@ -23,7 +23,7 @@ the write-binding audit Phase C implemented.
 | 0 | Object-level guard on `/api/me/list/{media_id}` | done 4746b1bc |
 | A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
-| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis | todo, needs a plan |
+| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | todo, needs a plan |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
@@ -36,8 +36,8 @@ near-duplicate tables that numbered the same questions differently.
 | 1 | Audit every **other** write path taking a client-supplied entry id | done - spec "The write-binding audit (2026-09-11)". The inventory was INCOMPLETE: it missed `POST /api/data-control/replace/{key}/{entry_id}`, which the final review caught. Corrected in the audit |
 | 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | closed, stale - spec decision 11. It gates the `personal_reviews` section on every row the viewer did not author, and the label matches. Step 5 made this true; the row outlived it |
 | 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | decided, spec decision 12 - **into Phase B**, read fix and index relaxation in ONE commit. Relaxing `ix_note_one_remark_per_owner` alone turns a loud refusal into an invisible write |
-| 4 | Note writes answer 403; every other gate answers 401 or 404 | decided, spec decision 13 - 401 for capability, 404 for object, 403 gone. Five sites, all in `note.py` (178, 183 -> 401; 195, 199, 285 -> 404). **Not yet implemented** |
-| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **OPEN, blocks Phase B** - spec decision 14 holds the three answers. A: trusted operator, unscoped, never paired with a restricted mode, plus close the Replace-one oracle. B: scope the runner per entry. C: leave undeclared. Decision 10 already went halfway down A |
+| 4 | Note writes answer 403; every other gate answers 401 or 404 | decided, spec decision 13 - 401 for capability, 404 for object, 403 gone. Five sites, all in `note.py` (178, 183 -> 401; 195, 199, 285 -> 404). **Into Phase B** - `note.py` is already open there for decision 12 |
+| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **decided 2026-09-11, no longer blocks Phase B** - spec decision 14 and its detail section. Unscoped on the object axis, and the `data_control.py` / `system.py` routes require the session's **active mode to be unscoped** (every `content_label` row, every `FIELD_GROUP_KEYS` entry, computed rather than a named mode). B was rejected because a per-viewer Backup would write a partial sheet over the complete one - data loss, not a leak. The Replace-one oracle closes for free. **Into Phase B**, which is where a mode first exists to test |
 | 6 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo - **Phase D**, not its own item. 78 files reference `isAdmin`, which has meant `manage.catalog` since Phase A. Minimal slice: `libraryColumns.jsx:112,181` and `RemarkModal.jsx` move to a `self.list` check; catalogue editing stays on `manage.catalog`. Remember the SPA has two independent permission surfaces |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
@@ -49,9 +49,10 @@ current.
 `docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
 Multi-user Steps 0-5 are finished and their entries are gone from this file.
 
-**Next session picks up at Phase B**, which needs a plan and cannot be planned
-until question 5 is answered. Nothing is pushed: as of 2026-09-11 local `dev`
-is 11 commits ahead of `origin/dev`, nine of them Phase C.
+**Next session picks up at Phase B.** Question 5 is answered, so it can now be
+planned; decisions 12, 13 and 14 ride in it. Nothing is pushed: as of
+2026-09-11 local `dev` is 11 commits ahead of `origin/dev`, nine of them
+Phase C.
 
 ## Open items
 
