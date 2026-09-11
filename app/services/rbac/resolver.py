@@ -50,11 +50,29 @@ class Viewer:
     # site reads it at all - it is dead weight kept here rather than removed
     # in this task, since removing it is a separate decision.
     token_payload: Optional[dict[str, Any]] = field(default=None)
+    # ------------------------------------------------------------------
+    # The ACTIVE access mode, resolved per request.
+    # ------------------------------------------------------------------
+    # `permissions` above still means the ROLE's capability set, and has() is
+    # unchanged. The two axes are disjoint by construction: the role axis
+    # holds admin.*, manage.*, media_type.* and self.*; these four fields hold
+    # content labels and field groups. Neither can express the other, which is
+    # what lets an admin account sit in a narrow mode.
+    mode_id: Optional[UUID] = None
+    mode_key: Optional[str] = None
+    # The labels this session may SEE. enforcement.hidden_label_ids derives
+    # the complement; do not invert this.
+    visible_label_ids: frozenset[UUID] = frozenset()
+    field_groups: frozenset[str] = frozenset()
 
     def has(self, permission: str) -> bool:
         return self.is_superuser or permission in self.permissions
 
 
+# The object-set fields take their defaults, which are empty - already the
+# fail-closed answer. A viewer we could not resolve sees nothing labelled and
+# no gated field, which is stricter than the guest default mode and correct:
+# we do not know who this is.
 GUEST_FALLBACK = Viewer(
     username=None,
     role_id=None,
@@ -71,6 +89,23 @@ def _decode(request: Request) -> Optional[dict[str, Any]]:
     try:
         return jwt.decode(token.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
+        return None
+
+
+def _mode_claim(payload: Optional[dict[str, Any]]) -> Optional[UUID]:
+    """
+    The `mode` claim as a uuid, or None.
+
+    A missing, empty or malformed claim is None, which resolve_mode turns into
+    the empty set for a signed-in caller. Fail closed: a claim we cannot parse
+    must not be treated as "no restriction".
+    """
+    raw = (payload or {}).get("mode")
+    if not raw:
+        return None
+    try:
+        return UUID(str(raw))
+    except (ValueError, AttributeError, TypeError):
         return None
 
 
@@ -107,6 +142,14 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
         if role is None:
             return GUEST_FALLBACK
 
+        # Imported here rather than at module scope: modes.py needs Viewer and
+        # get_viewer from this module at def time (require_unscoped_mode binds
+        # Depends(get_viewer) as a default), so the dependency has to run one
+        # way only, and this is the direction that can be deferred.
+        from app.services.rbac.modes import resolve_mode
+
+        mode = resolve_mode(db, user, _mode_claim(payload))
+
         return Viewer(
             username=user.username if user else None,
             user_id=user.id if user else None,
@@ -115,6 +158,10 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
             is_superuser=bool(role.is_superuser),
             permissions=cache.permissions_for(db, role.system_id),
             token_payload=payload,
+            mode_id=mode.mode_id,
+            mode_key=mode.mode_key,
+            visible_label_ids=mode.label_ids,
+            field_groups=mode.field_groups,
         )
     except Exception:
         # A viewer we cannot resolve sees what an anonymous stranger sees.

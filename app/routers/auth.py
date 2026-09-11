@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies import get_db
+from app.services.rbac.modes import default_mode_id
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
@@ -53,7 +54,20 @@ def login_for_access_token(
         )
 
     # 3. Create the JWT token payload
-    token_data = {"sub": user.username, "role": user.role}
+    #
+    # `mode` names a CHOICE, not a grant: whether this account may still use
+    # the mode is re-resolved from the database on every request, the same way
+    # the decorative `role` claim above is. It carries the mode's uuid rather
+    # than its key so that renaming a mode does not invalidate live sessions.
+    #
+    # An account with no default mode mints an empty claim, which resolves to
+    # the empty object set - the correct answer for an account nobody has
+    # granted a mode, not a case to special-case around.
+    token_data = {
+        "sub": user.username,
+        "role": user.role,
+        "mode": str(default_mode_id(db, user) or ""),
+    }
     access_token = create_access_token(data=token_data)
 
     # 4. Set the cookie

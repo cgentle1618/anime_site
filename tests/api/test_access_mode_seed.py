@@ -113,3 +113,56 @@ def test_does_not_hand_back_an_item_an_admin_removed(db_session):
     ensure_access_mode_seed(db_session)
 
     assert "credits" not in _field_groups(db_session, safe)
+
+
+def test_safe_is_derived_from_the_guest_role_not_from_the_default(db_session):
+    """The regression test for a real defect.
+
+    The design assumed guest withheld `sources_restricted` and nothing else.
+    On the live installation guest held only `credits` and `system_info` -
+    `sources_other` and `personal_notes` were added to FIELD_GROUPS after the
+    roles were first seeded, and ensure_rbac_seed tops up only a role holding
+    NOTHING. Seeding `safe` from the default set would have published the
+    other-sources list and other people's personal reviews to every logged-out
+    visitor on the day Phase B landed.
+    """
+    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
+    db_session.query(models.RolePermission).filter(
+        models.RolePermission.role_id == guest.system_id,
+        models.RolePermission.permission.like("field_group.%"),
+    ).delete(synchronize_session=False)
+    for key in ("credits", "system_info"):
+        db_session.add(
+            models.RolePermission(
+                role_id=guest.system_id, permission=f"field_group.{key}"
+            )
+        )
+    db_session.flush()
+
+    ensure_access_mode_seed(db_session)
+
+    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == {
+        "credits",
+        "system_info",
+    }
+    # The wider modes are unaffected: they are policy, not a mirror of guest.
+    assert _field_groups(db_session, _mode(db_session, MODE_NORMAL)) == set(
+        FIELD_GROUP_KEYS
+    )
+
+
+def test_safe_falls_back_to_the_default_when_guest_holds_nothing(db_session):
+    """A guest role with no field groups at all means ensure_rbac_seed has not
+    run, not that an admin withheld everything."""
+    guest = db_session.query(models.Role).filter(models.Role.name == "guest").one()
+    db_session.query(models.RolePermission).filter(
+        models.RolePermission.role_id == guest.system_id,
+        models.RolePermission.permission.like("field_group.%"),
+    ).delete(synchronize_session=False)
+    db_session.flush()
+
+    ensure_access_mode_seed(db_session)
+
+    assert _field_groups(db_session, _mode(db_session, MODE_SAFE)) == (
+        set(FIELD_GROUP_KEYS) - {"sources_restricted"}
+    )

@@ -23,11 +23,52 @@ MODE_BORDERLINE = "borderline"
 MODE_NORMAL = "normal"
 MODE_SAFE = "safe"
 
-# Field groups the `safe` mode does NOT carry. A group lands here when its
-# whole purpose is to withhold something from ordinary viewers, so granting it
-# by default would defeat it. Moved from seed.py, where it was
-# GUEST_WITHHELD_FIELD_GROUPS: the role axis no longer carries field groups.
+# Field groups the `safe` mode does NOT carry on a FRESH install. A group
+# lands here when its whole purpose is to withhold something from ordinary
+# viewers, so granting it by default would defeat it. Moved from seed.py,
+# where it was GUEST_WITHHELD_FIELD_GROUPS: the role axis no longer carries
+# field groups.
+#
+# This is the FALLBACK, not the rule. On an existing installation `safe` is
+# derived from what the guest role actually holds - see
+# guest_field_groups() - because the two are not the same thing and assuming
+# they were would have silently widened the public site. See the note there.
 SAFE_WITHHELD_FIELD_GROUPS: frozenset[str] = frozenset({"sources_restricted"})
+
+FIELD_GROUP_PREFIX = "field_group."
+
+
+def guest_field_groups(db: Session) -> frozenset[str] | None:
+    """
+    The field groups the guest ROLE holds right now, or None if it holds none.
+
+    `safe` is meant to be "today's guest exactly", and the only way to make
+    that true is to read it rather than assume it. Assuming it cost a real
+    defect: the design said guest withheld `sources_restricted` and nothing
+    else, but on this installation guest held only `credits` and
+    `system_info`. `sources_other` and `personal_notes` were added to
+    FIELD_GROUPS after the roles were first seeded, and ensure_rbac_seed tops
+    up only a role holding NOTHING - deliberately, so an admin's removal
+    survives a restart - so those two groups never reached guest or user.
+    Seeding `safe` from the default set would therefore have published the
+    other-sources list and other people's personal reviews to every logged-out
+    visitor on the day Phase B landed.
+
+    None means the guest role holds no field groups at all, which on a fresh
+    database means ensure_rbac_seed has not run yet rather than that an admin
+    withheld everything. The caller falls back to the seeded default.
+    """
+    guest = db.query(models.Role).filter(models.Role.name == "guest").first()
+    if guest is None:
+        return None
+    held = frozenset(
+        row.permission[len(FIELD_GROUP_PREFIX) :]
+        for row in db.query(models.RolePermission.permission).filter(
+            models.RolePermission.role_id == guest.system_id,
+            models.RolePermission.permission.like(f"{FIELD_GROUP_PREFIX}%"),
+        )
+    )
+    return held or None
 
 def seeded_modes() -> tuple[dict, ...]:
     """
@@ -110,8 +151,13 @@ def ensure_access_mode_seed(db: Session) -> None:
     rule, and the reason the access-mode admin page exists.
     """
     label_ids = [row.system_id for row in db.query(models.ContentLabel.system_id)]
+    # `safe` means "today's guest exactly", and that is read from the guest
+    # role rather than assumed. See guest_field_groups().
+    safe_groups = guest_field_groups(db)
 
     for spec in seeded_modes():
+        if spec["key"] == MODE_SAFE and safe_groups is not None:
+            spec = {**spec, "field_groups": tuple(sorted(safe_groups))}
         mode = (
             db.query(models.AccessMode)
             .filter(models.AccessMode.key == spec["key"])
