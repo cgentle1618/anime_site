@@ -13,7 +13,7 @@ import pytest
 
 from app import models
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.permissions import label_perm
+from app.services.rbac.permissions import PERM_SELF_LIST, label_perm
 from app.services.rbac.seed import default_guest_permissions
 from app.services.security import create_access_token, get_password_hash
 
@@ -168,3 +168,101 @@ def test_franchise_expansion_cannot_surface_a_hidden_entry(client, hidden_anime)
     response = client.get("/api/search/", params={"q": "Test Franchise"})
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
+
+
+# ---------------------------------------------------------------------------
+# Writes
+# ---------------------------------------------------------------------------
+#
+# The gate above is a READ gate, and that was the whole of it: me_list.py's two
+# handlers resolved their entry with a bare db.get(models.Media, media_id) and
+# never asked entry_visible. So an account holding self.list could set a status,
+# rating and progress on an entry it cannot see - and could learn the entry
+# exists - by knowing the uuid. OWASP API1:2023, Broken Object Level
+# Authorization.
+#
+# The rule these pin: writes follow reads. If GET answers 404 for a viewer,
+# every write to that id answers 404 too, with the same message - a 403 would
+# confirm the entry exists just as surely as a 200 would.
+
+
+def _list_viewer(db_session, client, username="listwriter", extra=frozenset()):
+    """A viewer holding the list permission but NOT the nsfw label."""
+    return make_viewer(
+        db_session,
+        client,
+        username,
+        default_guest_permissions() | {PERM_SELF_LIST} | set(extra),
+    )
+
+
+def test_writing_a_list_row_for_a_hidden_entry_is_indistinguishable_from_missing(
+    client, db_session, hidden_anime
+):
+    _list_viewer(db_session, client)
+    response = client.put(
+        f"/api/me/list/{hidden_anime.system_id}",
+        json={"watching_status": "Completed"},
+    )
+    assert response.status_code == 404
+    assert HIDDEN_NAME not in response.text
+
+
+def test_reading_a_list_row_for_a_hidden_entry_is_indistinguishable_from_missing(
+    client, db_session, hidden_anime
+):
+    """Returns only the caller's own row, but still confirms the id exists."""
+    _list_viewer(db_session, client)
+    response = client.get(f"/api/me/list/{hidden_anime.system_id}")
+    assert response.status_code == 404
+    assert HIDDEN_NAME not in response.text
+
+
+def test_a_hidden_entry_write_leaves_no_list_row_behind(
+    client, db_session, hidden_anime
+):
+    """
+    The 404 must precede the upsert, not follow it.
+
+    Counted before and after rather than asserted to be zero: the hidden_anime
+    fixture gives the entry a Completed row on the ACTING user's list, so the
+    table is not empty here to begin with. What must not change is that no row
+    appears for the caller.
+    """
+    _list_viewer(db_session, client)
+    rows = (
+        db_session.query(models.UserMediaList)
+        .filter(models.UserMediaList.media_id == hidden_anime.system_id)
+    )
+    before = rows.count()
+    client.put(
+        f"/api/me/list/{hidden_anime.system_id}",
+        json={"watching_status": "Completed"},
+    )
+    assert rows.count() == before
+
+
+def test_the_write_gate_does_not_block_an_entry_the_viewer_may_see(
+    client, db_session, sample_anime
+):
+    """The control: an unlabelled entry still writes, so the guard is a gate
+    and not a blanket refusal."""
+    _list_viewer(db_session, client)
+    response = client.put(
+        f"/api/me/list/{sample_anime.system_id}",
+        json={"watching_status": "Completed"},
+    )
+    assert response.status_code == 200
+
+
+def test_a_viewer_holding_the_label_may_write_the_hidden_entry(
+    client, db_session, hidden_anime
+):
+    """Holding the label restores the write, not just the read."""
+    _list_viewer(db_session, client, username="trustedwriter",
+                 extra={label_perm("nsfw")})
+    response = client.put(
+        f"/api/me/list/{hidden_anime.system_id}",
+        json={"watching_status": "Completed"},
+    )
+    assert response.status_code == 200

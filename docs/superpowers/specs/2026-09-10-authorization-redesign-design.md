@@ -87,7 +87,7 @@ Found while designing, both exploitable independent of any of this. They are
 listed here so the implementation plan carries them as tasks rather than
 discovering them again.
 
-**1. `PUT /me/list/{media_id}` performs no object-level check.** `me_list.py`'s
+**1. `PUT /me/list/{media_id}` performs no object-level check. FIXED 2026-09-11 (Phase 0).** `me_list.py`'s
 `_media_or_404` (line 56) resolves the entry with a bare
 `db.get(models.Media, media_id)` and never calls `entry_visible`. Any account
 holding `self.list` can therefore set a status, rating and progress on an entry
@@ -564,9 +564,11 @@ This is too large for one plan. The phases below are separable, and every one
 of them is behaviour-neutral for the owner's account on the day it lands, which
 is the property that makes the sequence safe to stop halfway.
 
-**Phase 0 — the object-level hole.** Guard `me_list.py`'s two handlers with
-`entry_visible`. Depends on nothing here, fixes something exploitable today, and
-can ship on its own this week.
+**Phase 0 — the object-level hole. DONE 2026-09-11.** `me_list.py`'s two
+handlers now resolve through `entry_visible` and 404 with the not-found message.
+Five tests in `tests/api/test_visibility.py` under "Writes"; no existing test
+regressed, which is itself the useful signal — nothing in the suite depended on
+being able to write an entry it could not see.
 
 **Phase A — the capability axis** (section 1). Mint the three permissions,
 re-gate the 89 dependencies, seed the `super` role, redefine `is_admin`, drop

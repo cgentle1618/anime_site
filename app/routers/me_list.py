@@ -37,6 +37,7 @@ from app.services.domain.user_list import (
     ensure_list_row,
     list_row,
 )
+from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.resolver import Viewer, require_permission
 
@@ -53,9 +54,31 @@ router = APIRouter(
 )
 
 
-def _media_or_404(db: Session, media_id: UUID) -> models.Media:
+def _media_or_404(
+    db: Session, viewer: Viewer, media_id: UUID
+) -> models.Media:
+    """
+    The entry, if this viewer may reach it at all.
+
+    The visibility test is NOT decoration on a write path. Until it was added,
+    both handlers resolved the entry with a bare db.get and never asked, so an
+    account holding `self.list` could set a status, rating and progress on an
+    entry it cannot see - and confirm that entry exists - by knowing the uuid.
+    The read side has been gated since the content-label work; the write side
+    never was.
+
+    The rule is that writes follow reads: if GET answers 404 for a viewer,
+    every operation on that id answers 404 too. entry_visible tests the
+    media-type permission as well as the labels, so this closes both halves -
+    an account without `media_type.game` cannot rate a game either.
+
+    Same message and same status as the missing-row branch, deliberately:
+    a 403 here would confirm the entry exists exactly as surely as a 200.
+    """
     media = db.get(models.Media, media_id)
     if media is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if not entry_visible(db, viewer, media.media_type, media.system_id):
         raise HTTPException(status_code=404, detail="Entry not found")
     return media
 
@@ -104,7 +127,7 @@ def read_my_list_row(
     viewer: Viewer = Depends(require_permission(PERM_SELF_LIST)),
 ):
     """The caller's row for one entry. Never creates one."""
-    media = _media_or_404(db, media_id)
+    media = _media_or_404(db, viewer, media_id)
     user_id = _caller_id(viewer)
     row = list_row(db, user_id, media_id)
     payload = _serialize(row, media.media_type)
@@ -125,7 +148,7 @@ def write_my_list_row(
     reasoning split_list_payload gives for leaving unknown keys in the
     catalogue half.
     """
-    media = _media_or_404(db, media_id)
+    media = _media_or_404(db, viewer, media_id)
     user_id = _caller_id(viewer)
 
     owned = set(LIST_FIELDS[media.media_type])

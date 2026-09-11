@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-10 (audited against the code after Steps 0-5; see the drift note at the foot)
+Last verified: 2026-09-11 (own-list reads and writes gained the visibility gate; see the drift note at the foot)
 
 ## What this is for
 
@@ -316,7 +316,7 @@ sees one error shape.
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
-| own-list writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` |
+| own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and**, since 2026-09-11, `entry_visible` in `_media_or_404`. Until then this row named only the capability gate and the entry was resolved with a bare `db.get`, so an account holding `self.list` could rate an entry it could not see, or a media type it did not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | previously unauthenticated `data_control` / `system` GETs | closed behind `get_current_admin` |
 

@@ -13,12 +13,22 @@ Last updated: 2026-09-11
 
 ## In flight
 
-**The authorization system** - `wip authz-company`, brainstorm stage. No plan
-yet, so there is no task table to claim against. **Nine decisions settled;
-sections 1-4 of six written and approved** (2026-09-11):
-**[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**
-(draft, not implementable). Resume at **section 5** - the access-mode admin page,
-the per-account panel, and the migration - then section 6, testing.
+**The authorization system** - `wip authz-company`. **The spec is complete and
+awaiting the owner's review** (2026-09-11): nine decisions settled, all six
+sections written and approved, `294bfe7d`.
+**[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**.
+Nothing is built. Next step is an implementation plan, and the spec ends with
+five separable phases to write plans against - **Phase 0 first**, the object-level
+hole below, which depends on none of the rest.
+
+**Phase 0 is done** (2026-09-11): `me_list.py`'s two handlers resolve through
+`entry_visible` and 404 with the not-found message, closing the object-level
+hole. Phases A-D are unclaimed and need plans.
+
+Two items the spec names but does not do: an audit of every **other** write path
+taking a client-supplied entry id (decision 9 applies to all of them; only
+`me_list.py` was read and fixed), and a judgement call on the four tiers'
+field-group assignments, which only the owner can make.
 
 Two reversals from the 2026-09-10 draft, both recorded in the spec: `admin` is a
 superset rather than a break-glass account, and a mode binds **writes** as well
