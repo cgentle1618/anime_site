@@ -26,12 +26,12 @@ ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | todo, needs a plan |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
-Open questions the redesign inherits; #1 gates Phase C and should be
-answered before B is planned:
+Open questions the redesign inherits; #1 is answered and no longer gates
+Phase C:
 
 | # | Question | Status |
 |---|---|---|
-| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | todo |
+| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | done, spec "The write-binding audit (2026-09-11)" |
 | 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
 | 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
 | 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |

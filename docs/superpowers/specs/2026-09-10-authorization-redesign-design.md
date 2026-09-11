@@ -661,6 +661,82 @@ keyed on role id alone; the login token is still
    each mode can reach — without holding `admin.authz`. This needs an answer
    before Phase B's schema is seeded, not after.
 
+## The write-binding audit (2026-09-11) — decision 9's scope
+
+Section 2's enforcement note asked for "an audit of every other route taking a
+client-supplied entry id", and `docs/PROGRESS.md` carried it as open question 1
+gating Phase C. This is the answer, read off the code rather than recalled.
+Every line below names the route and the line the claim came from.
+
+**The shape of the gap.** Reads are guarded and writes are not, almost
+everywhere, and the two sit in the same file: `casting.py` GETs through
+`entry_visible` at line 71 and PUTs through `_resolve_entry` at line 48, which
+only asks whether the row exists. Phase A made this reachable rather than
+theoretical — the capability axis is now independent of the object axis, so an
+account can hold `manage.catalog` while lacking `media_type.game` or carrying a
+hidden label. Before Phase A, every catalogue writer was `is_superuser` and
+`entry_visible` short-circuited to True for them.
+
+**1. The largest surface is a default argument.** `_factory.py`'s `_get_or_404`
+(line 65) takes `viewer=None` and calls `entry_visible` at line 79 — and
+`enforcement.py:120` returns True for a `None` viewer. The detail GET passes
+`viewer` (line 246); all four write routes do not: PUT (311), PATCH (354),
+`POST /{entry_id}/complete` (390) and DELETE (419). That is 4 routes × 9 media
+types, gated only by `manage.catalog`. `/complete` is the sharpest of the four:
+it resolves the entry with no visibility test and then writes a
+`user_media_list` row for the caller — the same write Phase 0 just closed on
+`PUT /me/list/{media_id}`, reachable by a second door.
+
+**2. Six routers repeat it verbatim**, each guarding its read and not its write:
+
+| Router | Guarded read | Unguarded writes |
+|---|---|---|
+| `casting.py` | GET, line 71 | PUT `/{media_type}/{entry_id}` (77) |
+| `credits.py` | GET, line 57 | PUT `/{media_type}/{entry_id}` (75) |
+| `media_relation.py` | GET, line 191 | POST (317), PATCH (364), DELETE `/scope` (424), DELETE `/{system_id}` (501) |
+| `quote.py` | GET, line 252 | POST (264), PUT (294), PATCH (317), DELETE (339) |
+| `meme.py` | (same `owner_type`/`owner_id` shape) | POST (320), PUT (363), PATCH (402), DELETE (443) |
+| `note.py` | GET, line 237 | POST (298), PATCH `/reorder` (332), PATCH (369), DELETE (425) |
+
+`note.py`'s POST is the one reachable without `manage.catalog`: a personal-scope
+note is written under `self.personal_notes`, with `owner_type` and `owner_id`
+straight from the payload and no visibility test — the same class of defect as
+Phase 0's, one permission over. Its PATCH is worth separate care because it may
+*move* a note to a new owner (line 410), so the check has to run against the
+incoming owner, not the stored one.
+
+**3. `watch_order.py` has no visibility handling at all** — `entry_visible`,
+`filter_visible_pairs` and `drop_hidden_rows` appear nowhere in the file, so
+this is a read gap as well as a write gap. Items name `(media_type, entry_id)`
+and are written at POST `/lists/{id}/items` (1137), PUT (1182), PATCH (1211) and
+DELETE (1238), with `_validate_entry` (132) asking only whether the row exists.
+Lists and sections own grouping tiers, which carry no labels, so they are clean
+on the label axis; their *items* are not.
+
+**4. Two validators are existence oracles.** `media_relation._validate_endpoint`
+(78) and `watch_order._validate_entry` (132) answer 400 "Referenced entry does
+not exist" for a missing entry and 201 for a hidden one. Whatever Phase C does
+must make those two answers identical, exactly as the 404 paths are
+indistinguishable today — otherwise closing the write and leaving the validator
+keeps the oracle.
+
+**Clean, checked, not to be touched:** `seasonal.py`'s PATCH (79) takes no entry
+id and is keyed on `user_id`; `me_list.py` and `plan_next.py` are Phase 0 and
+`a4b9d554`; `announcements.py`, `options.py`, `system.py`, `users.py`,
+`roles.py`, `account.py` and `form_defaults.py` take no entry id at all.
+
+**Accepted, not a Phase C task:** `content_labels.py`'s PUT
+`/entry/{media_type}/{entry_id}` (167) writes labels onto an entry it never
+tests for visibility, but it is gated by `admin.authz` — the permission that
+defines the label axis — and a holder can grant itself any label anyway.
+`franchise.py` stores `cover_entry_id` unvalidated (99); the consequence is a
+cover image, and it is recorded here rather than fixed.
+
+**What this makes Phase C.** Not "add a guard to a few handlers": 30-odd routes
+across eight files, plus one default argument whose fix (`_get_or_404` passing
+`viewer` from the four write routes) closes 36 of them in one edit. The tests
+are section 6's matrix row 3, which today has no coverage at all.
+
 ## Open questions carried in
 
 From `docs/PROGRESS.md`, unchanged — the redesign is expected to settle these:
