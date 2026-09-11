@@ -18,6 +18,7 @@ from app import database, models
 from app.config import settings
 from app.database import engine
 from app.routers import (
+    access_modes,
     account,
     anime,
     anime_movie,
@@ -230,6 +231,7 @@ app.include_router(studio.router)
 app.include_router(credits.router)
 app.include_router(casting.router)
 app.include_router(roles.router)
+app.include_router(access_modes.router)
 app.include_router(users.router)
 app.include_router(account.router)
 app.include_router(profile.router)

@@ -71,6 +71,62 @@ class RoleResponse(RoleBase):
 # Users
 # ---------------------------------------------------------------------------
 
+class AccessModeItems(BaseModel):
+    """What a mode carries. Replaced wholesale, like a role's permissions."""
+
+    label_keys: List[str] = []
+    field_group_keys: List[str] = []
+
+
+class AccessModeCreate(AccessModeItems):
+    key: str
+    label: str
+    description: Optional[str] = None
+    sort_order: int = 0
+
+
+class AccessModeUpdate(BaseModel):
+    """Label, description, order and the guest-default flag.
+
+    `key` is absent deliberately: the seeded modes are read by key in
+    seed_modes.py, and renaming one would silently detach the seeder from the
+    row it maintains.
+    """
+
+    label: Optional[str] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_guest_default: Optional[bool] = None
+
+
+class AccessModeResponse(BaseModel):
+    system_id: UUID
+    key: str
+    label: str
+    description: Optional[str] = None
+    sort_order: int
+    is_system: bool
+    is_guest_default: bool
+    label_keys: List[str]
+    field_group_keys: List[str]
+    user_count: int
+
+
+class AccessModeCatalogItem(BaseModel):
+    key: str
+    label: str
+    description: Optional[str] = None
+    # How many modes carry this item. Zero on a content label means its
+    # entries are hidden from everybody, which is what the page warns about.
+    mode_count: int
+
+
+class AccessModeCatalogGroup(BaseModel):
+    group: str
+    label: str
+    items: List[AccessModeCatalogItem]
+
+
 class AccessModeSwitch(BaseModel):
     """Body of POST /api/auth/access-mode.
 
