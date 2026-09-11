@@ -715,12 +715,8 @@ def execute_pull_specific(
                 continue
             clean_header_dict["user_id"] = owner
 
-        # note.author_id is NOT NULL, and it travels as a raw uuid: Step 4 gave
-        # the sheet a Users tab, so the same account holds the same id on both
-        # machines. A blank cell - an older sheet, written before the column
-        # existed - or one naming a user this database does not have falls back
-        # to the admin rather than skipping the row: a note whose author is
-        # uncertain is still the note, and the sheet is its only copy.
+        # Note and Meme alone carry the pre-m5b1notefks (owner_type, owner_id)
+        # pair their parsers rename to _legacy_*; Quote never had one.
         if tab_name in ("Note", "Meme"):
             unresolved = _resolve_owner_columns(db, tab_name, clean_header_dict)
             if unresolved is not None:
@@ -728,6 +724,20 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
 
+        # author_id is NOT NULL on all three of note, meme and quote, and it
+        # travels as a raw uuid. A user the sheet INSERTS here keeps that uuid
+        # (Users is not in DERIVED_IDENTITY_MINTED_PK), so most authors do
+        # resolve - but the `admin` account does not: app/main.py mints one on
+        # every machine, so the two never shared an id, and the username match
+        # in DERIVED_IDENTITY_KEYS keeps the local one and discards the
+        # sheet's. Every row the other machine's admin wrote therefore arrives
+        # naming a user that does not exist here. That, a blank cell - an older
+        # sheet, written before the column existed - or any other unknown id
+        # falls back to the admin rather than skipping the row: a line whose
+        # author is uncertain is still the line, and the sheet is its only
+        # copy. Without this the FK raises at the tab's commit and rolls back
+        # every row on it, which is how Pull All lost the whole Quote tab.
+        if tab_name in ("Note", "Meme", "Quote"):
             author = clean_header_dict.get("author_id")
             known = (
                 db.query(User).filter(User.id == author).first()

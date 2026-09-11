@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-10 (Step 5: the reshaped Note and Meme tabs)
+Last verified: 2026-09-11 (the author_id fallback now covers Quote)
 
 ## What this is for
 
@@ -344,10 +344,24 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        into the right column against `media` and the three tier tables. A row
        whose owner resolves to nothing is **skipped and reported** in
        `unresolved_refs` rather than written, because the CHECK would reject it.
-     - **`author_id` travels as a raw uuid.** Ids agree across machines because
-       Step 4 gave the sheet a `Users` tab. A blank cell, or one naming a user
-       this database does not have, falls back to the **admin** — the column is
-       `NOT NULL`, and a note whose author is uncertain is still the note.
+     - **`author_id` travels as a raw uuid, and for `admin` that uuid is not
+       portable.** An account the sheet *inserts* here keeps the uuid it
+       carries (`Users` is deliberately absent from `DERIVED_IDENTITY_MINTED_PK`),
+       so most authors resolve. `admin` is the exception: `app/main.py`'s
+       lifespan mints one on every machine, so the two were never the same row,
+       and the `username` match keeps the local id and discards the sheet's —
+       permanently, since it re-matches the same way on every Pull. Every row
+       the other machine's admin wrote therefore names a user this database
+       does not have. That, a blank cell, or any other unknown id falls back to
+       the **admin** — the column is `NOT NULL`, and a line whose author is
+       uncertain is still the line. The fallback covers `Note`, `Meme` **and
+       `Quote`**; it covered only the first two until 2026-09-11, and the
+       missing case failed the `Quote` tab's commit with a `ForeignKeyViolation`
+       that rolled back every quote in it. So authorship does not round-trip
+       for the admin's own rows: a cross-machine restore re-files them under
+       the local admin. Harmless while one person writes them; these three tabs
+       need a `username` column, the way `Plan Next` has one, before a second
+       author matters.
      - **Back up after the change, and do not Pull an older sheet over a newer
        database.** The dropped headers have nowhere to land once the sheet is
        rewritten.

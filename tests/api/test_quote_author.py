@@ -57,3 +57,69 @@ def test_every_existing_quote_has_an_author(db):
         text("SELECT COUNT(*) FROM quote WHERE author_id IS NULL")
     ).scalar_one()
     assert orphans == 0
+
+
+# --- Restore -------------------------------------------------------------
+#
+# The Quote tab carries author_id as a raw uuid, and the Users tab matches on
+# `username`, not on id: the same person holds a DIFFERENT uuid in each
+# database (NATURAL_KEYS["Users"] in pull.py). So every author uuid arriving
+# from the other machine's sheet names a user this database does not have, and
+# quote.author_id is NOT NULL with a real FK - the insert raises
+# ForeignKeyViolation and rolls back the whole tab, losing every quote.
+#
+# Note and Meme carry the identical column and already handle this: an unknown
+# author falls back to _restore_owner_id. Quote follows the same rule - a quote
+# whose author is uncertain is still the quote, and the sheet is its only copy.
+
+
+QUOTE_HEADERS = [
+    "system_id", "media_id", "author_id", "text", "translation", "language",
+    "speaker", "original_source", "episode", "link", "image_file", "tags",
+    "is_general", "is_favorite", "needs_review", "sort_index", "remark",
+    "created_at", "updated_at",
+]
+
+
+def _quote_row(author_id, text_="名台詞"):
+    return [
+        "", "", str(author_id), text_, "", "", "", "", "", "", "", "",
+        "false", "false", "false", "", "", "", "",
+    ]
+
+
+@pytest.fixture
+def sheets(monkeypatch):
+    from app.services.pipelines import pull
+
+    def _install(tabs):
+        monkeypatch.setattr(pull, "get_all_raw_rows", lambda tab: tabs[tab])
+
+    return _install
+
+
+def test_a_quote_whose_author_is_unknown_here_restores_to_the_admin(
+    db, sheets, admin_user
+):
+    from app.services.pipelines import pull
+
+    foreign = uuid.uuid4()  # the other database's uuid for the same person
+    sheets({"Quote": [QUOTE_HEADERS, _quote_row(foreign)]})
+
+    result = pull.execute_pull_specific(db, "Quote", log_action=False)
+
+    assert result["status"] == "success"
+    quote = db.query(models.Quote).filter_by(text="名台詞").one()
+    assert quote.author_id == admin_user.id
+
+
+def test_a_quote_whose_author_is_known_here_keeps_it(db, sheets, admin_user):
+    from app.services.pipelines import pull
+
+    sheets({"Quote": [QUOTE_HEADERS, _quote_row(admin_user.id, "既知の作者")]})
+
+    result = pull.execute_pull_specific(db, "Quote", log_action=False)
+
+    assert result["status"] == "success"
+    quote = db.query(models.Quote).filter_by(text="既知の作者").one()
+    assert quote.author_id == admin_user.id
