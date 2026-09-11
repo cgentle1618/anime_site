@@ -25,7 +25,9 @@ hole below, which depends on none of the rest.
 `entry_visible` and 404 with the not-found message, closing the object-level
 hole. Phases B-D are unclaimed and need plans.
 
-**Phase A is done** (2026-09-11, `f3b6712c` for A9 and this commit for A10):
+**Phase A is done** (2026-09-11, A1-A11, `e4c914be`..`da4f23b6` on branch
+`authz-phase-a`; full suite 3641 passed / 5 skipped, ruff clean, vitest 923,
+eslint 0 errors; NOT merged to `dev` and NOT pushed):
 **[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
 Every task was behaviour-neutral for the `admin` account, because it is
 `is_superuser` and `has()` short-circuits - so a half-applied Phase A could not
@@ -53,7 +55,8 @@ merged to `dev` or pushed yet.
 | A7 | Drop the three `plan_next.py` admin gates | done 2afe2158 |
 | A8 | `is_admin` means `manage.catalog`; split the SPA route guard | done c71ad497 |
 | A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | done f3b6712c |
-| A10 | Documentation | done (this commit) |
+| A10 | Documentation | done 0811b198 |
+| A11 | Whole-branch review fixes: SPA nav re-pointed, plan_next object-level guard, route capabilities | done da4f23b6 |
 
 **A real bug surfaced at A6 and is fixed** (`555ee689`): `get_current_admin`
 returned a `dict`; the new dependencies return a `Viewer`. `users.py:164` called
