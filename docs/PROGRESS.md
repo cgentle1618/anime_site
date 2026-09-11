@@ -25,7 +25,8 @@ die on the other; this adds a reviewed diff-and-delete action. No migration.
 | T1 read_tab + the two refusals | done 17afb33e |
 | T2 identity index + candidate rule | done d8646700 |
 | T3 blast radius (deleted vs detached) | done 4720b29b |
-| T4 scan_orphans | wip clean-session |
+| T4 scan_orphans | done 5497d214 |
+| T5 apply_clean | wip clean-session |
 | `clean/scan` + `clean/apply` routes + tests | todo |
 | `CleanOrphans.jsx` + endpoints + vitest | todo |
 | Docs (data-actions, api, roadmap) | todo |
