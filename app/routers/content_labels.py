@@ -19,9 +19,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.permissions import label_perm
+from app.services.rbac.resolver import require_admin_authz
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/content-labels",
     tags=["Content Labels"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_admin_authz)],
 )
 
 

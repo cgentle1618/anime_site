@@ -18,10 +18,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.permissions import PERM_ADMIN
-from app.services.rbac.resolver import role_for_user
+from app.services.rbac.resolver import require_admin_authz, role_for_user
 from app.services.security import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/users",
     tags=["User Management"],
-    dependencies=[Depends(get_current_admin)],
+    dependencies=[Depends(require_admin_authz)],
 )
 
 
@@ -118,7 +118,7 @@ def update_user(
     user_id: UUID,
     payload: schemas.ManagedUserUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_admin_authz),
 ):
     user = _get_or_404(db, user_id)
 
@@ -157,7 +157,7 @@ def update_user(
 def delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_admin_authz),
 ):
     user = _get_or_404(db, user_id)
 
