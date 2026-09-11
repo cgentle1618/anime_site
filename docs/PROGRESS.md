@@ -7,7 +7,7 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ---
 
@@ -60,13 +60,14 @@ lowest-username admin's list rather than the caller's, and a personal-column
 filter from a guest cross-joined `user_media_list` and matched every account's
 rows.
 
-**Both machines need `APP_ENV=development` in `.env`.** Done on home; the
-**company** machine needs it, and needs real `JWT_SECRET_KEY` and
-`ADMIN_PASSWORD` values if it is still on the ones `.env.example` shipped, or
-the app will refuse to start there.
+**Both machines need `APP_ENV=development` in `.env`.** Done on both, and both
+hold real `JWT_SECRET_KEY` and `ADMIN_PASSWORD` values - company verified
+2026-09-11 by starting the app, which `validate_secrets()` would refuse
+otherwise.
 
 | Item | Where | Status |
 |---|---|---|
+| `Note`, `Meme` and `Quote` tabs carry `author_id` as a raw uuid, so authorship does not round-trip | Each machine's lifespan mints its own `admin`, and the `Users` tab's username match keeps the local id - so the other machine's admin rows restore under this one's. `709f9f00` stopped the `Quote` tab dying on it (FK violation, whole tab rolled back); the durable fix is a `username` column on the three tabs, the way `Plan Next` has one. Invisible with one account; needed before a second person writes a note. `tabs.py:259/268/269` | todo |
 | The logged-out redirect was never checked in a browser | Step 3 Task 10's last step: log out and confirm `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` land on `/login?next=...`. The API side is tested; `ProtectedRoute requireAuth` is not. Carried over when the Step 0-5 entries were removed | todo |
 | Community aggregates are not visibility-filtered | `/api/community/{media_id}` filters on `users.list_is_public` but applies neither the media-type gate nor the label anti-join, so a viewer lacking `media_type.game` can still read a game's rating average if they know its `media_id`. Found by the 2026-09-10 doc audit and recorded as an accepted residual in `docs/authorization.md`; the id has to come from a visible response first, which is the same (weak) argument that covers `/static/covers/`. `app/routers/community.py` | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
@@ -87,7 +88,7 @@ the app will refuse to start there.
 | | |
 |---|---|
 | Dev db | **home machine**, in the `anime_site_postgres_db` container (`postgres:17`) on `127.0.0.1:5432`, at `m5b2memefks` (head) as of 2026-09-10. Migrated off native PostgreSQL 17.6 on 2026-09-08 by dump and restore; all 43 non-empty tables verified row-for-row. The native 17 and 18 Windows services are stopped and set to Manual |
-| Company db | at `m3b1seasonal` as of 2026-09-10, which is **behind head** - `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db went to head on 2026-09-10 (Step 5); the **company** db is the one that now needs `git pull` then `alembic upgrade head` before any Pull. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
+| Company db | at **`m5b2memefks` (head)** as of 2026-09-11, after a `git pull`, `alembic upgrade head` and Pull All; `APP_ENV=development` is set and the app starts, so the hardening item above is satisfied here. The Pull All failed on the `Quote` tab and was completed after `709f9f00` (11/11 restored). Previously at `m3b1seasonal` - `m3a1plannext`, `m3a2plandrop` and `m3b1seasonal` ran over 84 plan rows (64 entry, 20 franchise, 0 series, none dangling) and 96 seasonal rows, and the downgrade/upgrade round trip was exercised with no loss. A Backup and Pull round trip on the post-migration data succeeded. The home db went to head on 2026-09-10 (Step 5). Both are now at head. Pre-Step-3 dump: `~/anime_site_pre_step3_20260910.sql` (company) |
 | Pre-Step-1 dump | `~/anime_site_home_pre_step1_20260909.sql` (3.2 MB, home, taken before the `m0a*`..`m1b1anime` run; that run deleted 2 orphaned `media_credit` and 10 orphaned `media_tag` rows, by design) |
 | Pre-Docker dump | `~/anime_site_home_pre_docker_20260908.sql` (3.2 MB, taken from native 17.6 before the container migration) |
 | Pre-migration dump | `~/anime_site_pre_games_20260906_134907.sql` (company) |
