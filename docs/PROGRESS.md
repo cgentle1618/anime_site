@@ -43,7 +43,7 @@ the write-binding audit Phase C implemented.
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
 | B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | **done** - all 12 plan tasks. `1b8f9b72` tables+seed, `27944bcd` migration+caches+resolution, `e18bac6e` the pivot, `f0c54815` helpers deleted, `bf385643` /me, `3c509dfd` pipeline gate, `a6bcf57e` note status codes, `6f7d5dec` per-viewer remark. Two migrations: `n1a1accessmode`, `n1a2remarkauthor` |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
-| D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
+| D | Admin UI: the access-mode page, the per-account panel, the mode switcher, plus new-account-gets-`safe` and question 6's `isAdmin` slice | **wip phaseb-session** - plan being written. Design is already approved: spec sections 3 and 5. Same session as Phase B deliberately - it holds the model the UI sits on |
 
 Open questions. Decided 2026-09-11 unless marked open; the spec's decision
 table (11-14) carries the reasoning. This list replaced two drifted,
