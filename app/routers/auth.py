@@ -122,7 +122,34 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         "username": viewer.username,
         "role": viewer.role_name,
         "is_superuser": viewer.is_superuser,
-        "permissions": sorted(viewer.permissions),
+        # TWO AXES, ONE LIST, deliberately. The role half answers "what may
+        # this account DO"; the field_group.* half answers "which fields of a
+        # reachable entry may this SESSION see" and comes from the active
+        # access mode minus its denials. They are merged here, and ONLY here,
+        # because the SPA has hundreds of has("field_group.<key>") calls that
+        # predate the split - preserving this shape is what makes Phase B cost
+        # the frontend nothing. The server never merges the two anywhere else.
+        #
+        # The literal prefix is deliberate too: field_group_perm() was deleted
+        # in Phase B precisely so a stale call site becomes an ImportError,
+        # and re-introducing a helper for one call site would invite back the
+        # thing the deletion was meant to prevent.
+        "permissions": sorted(
+            set(viewer.permissions)
+            | {f"field_group.{key}" for key in viewer.field_groups}
+        ),
+        # Content labels are NOT published. They scope whole entries
+        # server-side, the browser never needs them, and listing them would
+        # tell a narrowed session exactly what it is being kept from.
+        #
+        # The list of modes this account HOLDS, each flagged with whether
+        # switching to it needs the password, belongs to the switcher - which
+        # is Phase D. There is no switcher yet, so there is nothing here to
+        # feed it.
+        "mode": {
+            "id": str(viewer.mode_id) if viewer.mode_id else None,
+            "key": viewer.mode_key,
+        },
     }
 
 
