@@ -44,8 +44,14 @@ def test_the_admin_api_is_closed_to_a_guest(client, path):
 # ---------------------------------------------------------------------------
 
 def test_the_catalog_lists_every_family(admin_client):
+    """Four families, and NOT field_group or label.
+
+    Those two are the access-mode axis since Phase B. Offering them in the
+    role editor would let an admin grant something no mode could ever take
+    away, because permission resolution is a union.
+    """
     families = {f["family"] for f in admin_client.get("/api/roles/catalog").json()}
-    assert families == {"admin", "manage", "media_type", "field_group", "label", "self"}
+    assert families == {"admin", "manage", "media_type", "self"}
 
 
 def test_catalog_serves_the_self_family(admin_client):
@@ -78,13 +84,22 @@ def test_a_self_permission_can_be_granted_to_a_role(admin_client):
     assert "self.list" in r.json()["permissions"]
 
 
-def test_a_new_label_appears_in_the_catalog(admin_client):
+def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
+    """It used to, and must not any more.
+
+    A content label scopes which ENTRIES a session reaches, which is the
+    access mode's axis. The role editor serving it would be offering a grant
+    that cannot be narrowed.
+    """
     admin_client.post(
         LABELS, json={"key": "spoiler", "label": "Spoiler", "sort_order": 0}
     )
     catalog = admin_client.get("/api/roles/catalog").json()
-    label_family = next(f for f in catalog if f["family"] == "label")
-    assert "label.spoiler" in {p["permission"] for p in label_family["permissions"]}
+    assert not any(f["family"] == "label" for f in catalog)
+    every_permission = {
+        p["permission"] for f in catalog for p in f["permissions"]
+    }
+    assert not any(p.startswith("label.") for p in every_permission)
 
 
 # ---------------------------------------------------------------------------

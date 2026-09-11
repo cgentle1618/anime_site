@@ -12,15 +12,13 @@ from ordinary viewers and so are never granted to a fresh guest role.
 import uuid
 
 from app import models
-from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
-    field_group_perm,
     media_type_perm,
 )
-from app.services.rbac.seed import GUEST_WITHHELD_FIELD_GROUPS, ensure_rbac_seed
+from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
@@ -66,21 +64,18 @@ def test_admin_is_a_superuser_and_needs_no_grants(db_session):
     assert admin.is_superuser is True
 
 
-def test_guest_is_granted_every_media_type_and_field_group(db_session):
-    """Day one must be behavior-identical: guest sees what it saw before,
-    except the field groups that exist specifically to withhold something
-    from ordinary viewers (e.g. sources_restricted) - those must never be
-    handed to a fresh guest role by default.
+def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
+    """Day one must be behaviour-identical: guest sees what it saw before.
+
+    Field groups left the role axis in Phase B, so a seeded guest holds none
+    of them - what a logged-out visitor may see of a reachable entry is the
+    `safe` access mode's business now.
     """
     ensure_rbac_seed(db_session)
     grants = _grants(db_session, "guest")
     for media_type in MEDIA_TYPE_KEYS:
         assert media_type_perm(media_type) in grants
-    for key in FIELD_GROUP_KEYS:
-        if key in GUEST_WITHHELD_FIELD_GROUPS:
-            assert field_group_perm(key) not in grants
-        else:
-            assert field_group_perm(key) in grants
+    assert not any(p.startswith("field_group.") for p in grants)
 
 
 def test_guest_is_not_granted_admin(db_session):

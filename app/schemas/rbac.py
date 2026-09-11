@@ -207,7 +207,11 @@ class ContentLabelUpdate(BaseModel):
 
 class ContentLabelResponse(ContentLabelBase):
     system_id: UUID
-    permission: str
+    # No `permission` field. A label stopped being a permission in Phase B -
+    # it is carried by an access mode now, not granted to a role - and
+    # publishing `label.<key>` would have named something that no longer
+    # exists. `key` is the identifier that still means something, and it is on
+    # ContentLabelBase.
 
     model_config = ConfigDict(from_attributes=True)
 

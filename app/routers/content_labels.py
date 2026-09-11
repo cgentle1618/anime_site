@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.rbac import cache
-from app.services.rbac.permissions import label_perm
 from app.services.rbac.resolver import require_admin_authz
 from app.utils.media_resolver import MEDIA_TABLES
 
@@ -41,7 +40,6 @@ def _to_response(row: models.ContentLabel) -> schemas.ContentLabelResponse:
         label=row.label,
         description=row.description,
         sort_order=row.sort_order,
-        permission=label_perm(row.key),
     )
 
 

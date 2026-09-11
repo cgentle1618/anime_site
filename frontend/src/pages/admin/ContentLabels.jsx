@@ -135,7 +135,7 @@ export default function ContentLabels() {
           <thead className="bg-surface-2 text-xs uppercase text-text-faint">
             <tr>
               <th className="text-left px-4 py-2">Label</th>
-              <th className="text-left px-4 py-2">Permission</th>
+              <th className="text-left px-4 py-2">Key</th>
               <th className="text-left px-4 py-2">Description</th>
               <th className="text-right px-4 py-2">Actions</th>
             </tr>
@@ -145,8 +145,12 @@ export default function ContentLabels() {
               <tr key={row.system_id} className="border-t border-border">
                 <td className="px-4 py-2 font-medium">{row.label}</td>
                 <td className="px-4 py-2">
+                  {/* The label's key, not a permission string. A label
+                      stopped being a permission when object scoping moved to
+                      the access-mode axis; the key is what a mode references
+                      and what the Sheets tabs carry. */}
                   <code className="text-[11px] bg-surface-2 rounded px-1.5 py-0.5">
-                    {row.permission}
+                    {row.key}
                   </code>
                 </td>
                 <td className="px-4 py-2 text-text-muted">{row.description}</td>

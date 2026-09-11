@@ -7,27 +7,27 @@ that lived only in a migration body would leave every API test role-less.
 Idempotent for the same reason: the lifespan runs against a database that may
 already hold these rows, and it must not duplicate or overwrite them.
 
-Guest is granted every media type and every field group on purpose, except
-the field groups listed in GUEST_WITHHELD_FIELD_GROUPS (groups whose whole
-point is to withhold something from ordinary viewers - granting them by
-default would defeat them). Otherwise the authorization system ships
-behaving exactly like its absence; an admin narrows it further by REMOVING
-grants, so no other page changes on the day it lands.
+Guest is granted every media type on purpose, so the authorization system
+ships behaving exactly like its absence; an admin narrows it further by
+REMOVING grants, so no other page changes on the day it lands.
+
+Field groups are NOT here any more. They left the role axis in Phase B for
+the access-mode axis - see app/services/rbac/seed_modes.py, whose `safe` mode
+is what a logged-out visitor now resolves to, and which is DERIVED from this
+role's own field-group grants at migration time precisely so that nothing a
+visitor sees changed on the day it landed.
 """
 
 from sqlalchemy.orm import Session
 
 from app import models
-from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
-    field_group_perm,
     media_type_perm,
 )
-from app.services.rbac.seed_modes import SAFE_WITHHELD_FIELD_GROUPS
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 GUEST_ROLE = "guest"
@@ -40,28 +40,16 @@ USER_ROLE = "user"
 # permission minted in code reaches it only when someone grants it.
 SUPER_ROLE = "super"
 
-# Field groups a brand-new guest role does NOT receive. A group lands here
-# when its purpose is to withhold something from ordinary viewers, so
-# granting it by default would defeat it.
-#
-# Defined in seed_modes.py now, and aliased here so the two cannot drift while
-# both axes carry field groups. The role axis loses them entirely later in
-# Phase B, and this alias goes with the field-group half of
-# default_guest_permissions().
-GUEST_WITHHELD_FIELD_GROUPS = SAFE_WITHHELD_FIELD_GROUPS
-
-
 def default_guest_permissions() -> set[str]:
-    """Everything a viewer could see before this system existed, minus the
-    field groups in GUEST_WITHHELD_FIELD_GROUPS - those exist specifically to
-    keep something from ordinary viewers, so a fresh guest must not start out
-    holding them.
+    """Every media type. That is the whole of the guest role now.
+
+    Field groups used to be here too. They left the role axis in Phase B -
+    they scope which FIELDS of a reachable entry a session sees, which is the
+    access mode's job (app/services/rbac/seed_modes.py, the `safe` mode). A
+    union can only add, so a field group granted here could never be taken
+    away by a mode, and the narrow tiers would have been unbuildable.
     """
-    return {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS} | {
-        field_group_perm(key)
-        for key in FIELD_GROUP_KEYS
-        if key not in GUEST_WITHHELD_FIELD_GROUPS
-    }
+    return {media_type_perm(mt) for mt in MEDIA_TYPE_KEYS}
 
 
 def default_user_permissions() -> set[str]:

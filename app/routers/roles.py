@@ -23,13 +23,10 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.rbac import cache
-from app.services.rbac.field_groups import FIELD_GROUPS
 from app.services.rbac.permissions import (
     ADMIN_PERMISSION_KEYS,
     ADMIN_PERMISSION_LABELS,
     FAMILY_ADMIN,
-    FAMILY_FIELD_GROUP,
-    FAMILY_LABEL,
     FAMILY_MANAGE,
     FAMILY_MEDIA_TYPE,
     FAMILY_SELF,
@@ -42,8 +39,6 @@ from app.services.rbac.permissions import (
     SELF_PERMISSION_LABELS,
     admin_perm,
     catalog,
-    field_group_perm,
-    label_perm,
     manage_perm,
     media_type_perm,
     self_perm,
@@ -108,9 +103,13 @@ def list_roles(db: Session = Depends(get_db)):
     summary="Every Grantable Permission",
 )
 def get_catalog(db: Session = Depends(get_db)):
-    """The whole vocabulary, grouped for the role editor."""
-    labels = db.query(models.ContentLabel).order_by(models.ContentLabel.sort_order).all()
+    """The whole vocabulary, grouped for the role editor.
 
+    Content labels and field groups are deliberately NOT here. They are the
+    access-mode axis (app/services/rbac/modes.py) and are granted per mode on
+    /access-modes, not per role - a role cannot express "minus this label",
+    because permission resolution is a union.
+    """
     return [
         schemas.PermissionFamilyOut(
             family=FAMILY_ADMIN,
@@ -149,18 +148,6 @@ def get_catalog(db: Session = Depends(get_db)):
             ],
         ),
         schemas.PermissionFamilyOut(
-            family=FAMILY_FIELD_GROUP,
-            label="Field Groups",
-            permissions=[
-                schemas.PermissionOut(
-                    permission=field_group_perm(group.key),
-                    label=group.label,
-                    description=group.description,
-                )
-                for group in FIELD_GROUPS.values()
-            ],
-        ),
-        schemas.PermissionFamilyOut(
             family=FAMILY_SELF,
             label="Own Rows",
             permissions=[
@@ -170,19 +157,6 @@ def get_catalog(db: Session = Depends(get_db)):
                     description=SELF_PERMISSION_LABELS[key][1],
                 )
                 for key in SELF_PERMISSION_KEYS
-            ],
-        ),
-        schemas.PermissionFamilyOut(
-            family=FAMILY_LABEL,
-            label="Content Labels",
-            permissions=[
-                schemas.PermissionOut(
-                    permission=label_perm(row.key),
-                    label=row.label,
-                    description=row.description
-                    or f"See entries marked {row.label}.",
-                )
-                for row in labels
             ],
         ),
     ]
