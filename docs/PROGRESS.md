@@ -26,7 +26,10 @@ die on the other; this adds a reviewed diff-and-delete action. No migration.
 | T2 identity index + candidate rule | done d8646700 |
 | T3 blast radius (deleted vs detached) | done 4720b29b |
 | T4 scan_orphans | done 5497d214 |
-| T5 apply_clean | wip clean-session |
+| T5 apply_clean | done 52788b84 |
+| T6 clean/scan + clean/apply routes | done 6eaaa53f |
+| T7 CleanOrphans.jsx + endpoints | wip clean-session |
+| T8 docs (data-actions, api, roadmap) | todo |
 | `clean/scan` + `clean/apply` routes + tests | todo |
 | `CleanOrphans.jsx` + endpoints + vitest | todo |
 | Docs (data-actions, api, roadmap) | todo |
