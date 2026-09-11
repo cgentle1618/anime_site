@@ -7,83 +7,10 @@ a quote, a watch-order step, a relation graph node. A substring check on the
 whole body catches those; checking `[e["system_id"] for e in body]` does not.
 """
 
-import uuid
-
-import pytest
-
 from app import models
-from app.services.rbac import cache as rbac_cache
 from app.services.rbac.permissions import PERM_SELF_LIST, label_perm
 from app.services.rbac.seed import default_guest_permissions
-from app.services.security import create_access_token, get_password_hash
-
-HIDDEN_NAME = "Zvornik Hidden Sentinel"
-
-
-def make_viewer(db_session, client, username, permissions):
-    """Log `client` in as a new user holding exactly `permissions`."""
-    role = models.Role(
-        system_id=uuid.uuid4(),
-        name=f"role-{username}",
-        label=username,
-        is_system=False,
-        is_superuser=False,
-    )
-    db_session.add(role)
-    db_session.flush()
-    for permission in permissions:
-        db_session.add(
-            models.RolePermission(role_id=role.system_id, permission=permission)
-        )
-    db_session.add(
-        models.User(
-            id=uuid.uuid4(),
-            username=username,
-            hashed_password=get_password_hash("x"),
-            role_id=role.system_id,
-        )
-    )
-    db_session.flush()
-    rbac_cache.bump()
-
-    token = create_access_token({"sub": username, "role": role.name})
-    client.cookies.set("access_token", f"Bearer {token}")
-    return client
-
-
-@pytest.fixture
-def nsfw_label(db_session):
-    label = models.ContentLabel(
-        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
-    )
-    db_session.add(label)
-    db_session.flush()
-    return label
-
-
-@pytest.fixture
-def hidden_anime(db_session, sample_franchise, nsfw_label, list_row):
-    entry = models.Anime(
-        system_id=uuid.uuid4(),
-        franchise_id=sample_franchise.system_id,
-        anime_name_en=HIDDEN_NAME,
-        airing_type="TV",
-        airing_status="Finished Airing",
-    )
-    db_session.add(entry)
-    db_session.flush()
-    # Completed lives on the acting user's list row since step 1.
-    list_row(entry, status="Completed")
-    db_session.add(
-        models.MediaContentLabel(
-            system_id=uuid.uuid4(),
-            media_id=entry.system_id,
-            label_id=nsfw_label.system_id,
-        )
-    )
-    db_session.flush()
-    return entry
-
+from tests.api.conftest import HIDDEN_NAME, make_viewer
 
 # ---------------------------------------------------------------------------
 # Entry-level

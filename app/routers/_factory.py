@@ -62,7 +62,15 @@ def make_media_router(spec) -> APIRouter:
     router = APIRouter(prefix=f"/api/{spec.route}", tags=spec.tags)
     not_found = f"{spec.label} entry not found."
 
-    def _get_or_404(db: Session, entry_id: str, viewer=None):
+    def _get_or_404(db: Session, entry_id: str, viewer):
+        # `viewer` is REQUIRED, with no default. It used to default to None,
+        # and enforcement.entry_visible returns True for a None viewer - so the
+        # four write routes below, which all omitted it, resolved every entry
+        # as visible and never called the gate at all. A required argument
+        # makes the next write route that forgets a TypeError instead of a
+        # silent grant, the same way Phase A deleted the old bare-admin
+        # dependency so a missed router became an ImportError.
+        #
         # The SPA addresses entries by public_id (/anime/47/...); internal
         # callers still hold UUIDs. One parser decides which this is, and a
         # reference that is neither is a 404, never a 500 - a hand-mangled URL
@@ -308,7 +316,7 @@ def make_media_router(spec) -> APIRouter:
         admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
-        entry = _get_or_404(db, entry_id)
+        entry = _get_or_404(db, entry_id, viewer)
         payload, remark, has_remark = pop_remark(data.model_dump(exclude_unset=True))
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
@@ -351,7 +359,7 @@ def make_media_router(spec) -> APIRouter:
         admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
-        entry = _get_or_404(db, entry_id)
+        entry = _get_or_404(db, entry_id, viewer)
         payload, remark, has_remark = pop_remark(payload)
         payload, plan_flags = pop_plan_flag(spec.owner_type, payload)
         nested = _pop_nested(payload)
@@ -387,7 +395,7 @@ def make_media_router(spec) -> APIRouter:
         admin: Viewer = Depends(require_manage_catalog),
         viewer: Viewer = Depends(get_viewer),
     ):
-        entry = _get_or_404(db, entry_id)
+        entry = _get_or_404(db, entry_id, viewer)
         spec.mark_completed(entry)
         # Finishing something is one person's fact: it lands on the acting
         # user's row, and the shared entry keeps only what mark_completed
@@ -416,7 +424,7 @@ def make_media_router(spec) -> APIRouter:
         db: Session = Depends(get_db),
         admin: Viewer = Depends(require_manage_catalog),
     ):
-        entry = _get_or_404(db, entry_id)
+        entry = _get_or_404(db, entry_id, admin)
         if entry.cover_image_file:
             # The resolved row's own UUID, never entry_id: that is the raw URL
             # segment and may be a public_id, which would build a storage key

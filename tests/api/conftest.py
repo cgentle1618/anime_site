@@ -20,7 +20,8 @@ from app.dependencies import get_db
 from app.main import app
 from app.services.integrations import image_manager
 from app.services.rbac import cache as rbac_cache
-from app.services.rbac.seed import ensure_rbac_seed
+from app.services.rbac.permissions import PERM_MANAGE_CATALOG
+from app.services.rbac.seed import default_user_permissions, ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
 
 
@@ -229,6 +230,96 @@ def user_client(db_session, plain_user):
         yield c
 
     app.dependency_overrides.clear()
+
+
+HIDDEN_NAME = "Zvornik Hidden Sentinel"
+
+
+def make_viewer(db_session, client, username, permissions):
+    """Log `client` in as a new user holding exactly `permissions`."""
+    role = models.Role(
+        system_id=uuid.uuid4(),
+        name=f"role-{username}",
+        label=username,
+        is_system=False,
+        is_superuser=False,
+    )
+    db_session.add(role)
+    db_session.flush()
+    for permission in permissions:
+        db_session.add(
+            models.RolePermission(role_id=role.system_id, permission=permission)
+        )
+    db_session.add(
+        models.User(
+            id=uuid.uuid4(),
+            username=username,
+            hashed_password=get_password_hash("x"),
+            role_id=role.system_id,
+        )
+    )
+    db_session.flush()
+    rbac_cache.bump()
+
+    token = create_access_token({"sub": username, "role": role.name})
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
+
+
+@pytest.fixture
+def nsfw_label(db_session):
+    label = models.ContentLabel(
+        system_id=uuid.uuid4(), key="nsfw", label="NSFW", sort_order=0
+    )
+    db_session.add(label)
+    db_session.flush()
+    return label
+
+
+@pytest.fixture
+def hidden_anime(db_session, sample_franchise, nsfw_label, list_row):
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en=HIDDEN_NAME,
+        airing_type="TV",
+        airing_status="Finished Airing",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    list_row(entry, status="Completed")
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(),
+            media_id=entry.system_id,
+            label_id=nsfw_label.system_id,
+        )
+    )
+    db_session.flush()
+    return entry
+
+
+@pytest.fixture
+def catalog_writer(db_session, client):
+    """
+    A catalogue editor who cannot see the labelled entry.
+
+    This account is the whole point of Phase C. Before Phase A it could not
+    exist: every catalogue writer was is_superuser, and entry_visible
+    short-circuits to True for those. Phase A made the capability axis
+    independent of the object axis, so `manage.catalog` now says nothing about
+    which entries you may reach.
+    """
+
+    def _make(username="catwriter", extra=frozenset()):
+        return make_viewer(
+            db_session,
+            client,
+            username,
+            default_user_permissions() | {PERM_MANAGE_CATALOG} | set(extra),
+        )
+
+    return _make
 
 
 # ---------------------------------------------------------------------------

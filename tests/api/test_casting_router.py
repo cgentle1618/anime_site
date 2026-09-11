@@ -3,7 +3,7 @@ The casting router.
 
 Fixtures `anime` and `character` live in tests/api/conftest.py, shared with
 test_character_router.py. `hidden_anime`/`nsfw_label` are imported from
-test_visibility.py, matching the pattern the rest of tests/api/ already
+conftest.py, matching the pattern the rest of tests/api/ already
 uses for that fixture.
 """
 
@@ -12,7 +12,7 @@ import uuid
 import pytest
 
 from app import models
-from tests.api.test_visibility import hidden_anime, nsfw_label  # noqa: F401
+from tests.api.conftest import hidden_anime, nsfw_label  # noqa: F401
 
 
 @pytest.fixture

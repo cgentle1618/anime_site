@@ -14,7 +14,7 @@ from app import models
 from app.services.domain import credits as credits_service
 from app.services.rbac.permissions import label_perm
 from app.services.rbac.seed import default_guest_permissions
-from tests.api.test_visibility import make_viewer, nsfw_label  # noqa: F401
+from tests.api.conftest import make_viewer, nsfw_label  # noqa: F401
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ import pytest
 from app import models
 from app.services.rbac.permissions import label_perm
 from app.services.rbac.seed import default_guest_permissions
-from tests.api.test_visibility import (  # noqa: F401
+from tests.api.conftest import (  # noqa: F401
     HIDDEN_NAME,
     hidden_anime,
     make_viewer,
