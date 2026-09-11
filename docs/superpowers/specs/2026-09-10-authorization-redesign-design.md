@@ -1,12 +1,15 @@
 # Authorization redesign — design (DRAFT, brainstorm in progress)
 
-Status: **approved; Phases 0, A, A.1, B and C have shipped. Only Phase D
-remains.** Brainstormed on
+Status: **approved; every phase has shipped bar one task.** Phases 0, A, A.1,
+B, C and D are in. The only outstanding item is Phase D task 9, the mode
+switcher CONTROL in the site chrome - the endpoint and everything behind it
+are done and tested. Brainstormed on
 2026-09-10 (home), stopped at an environment switch, resumed and finished
 2026-09-11 (company). All six sections are written and approved, and the last
 open decision (14, pipelines and the object axis) was settled on 2026-09-11 —
-see "Decision 14 in detail". Phase B shipped on 2026-09-12 and carried decisions 12, 13 and 14 with it.
-Phase D is the next plan; `docs/PROGRESS.md` carries the live status.
+see "Decision 14 in detail". Phase B shipped on 2026-09-12 carrying decisions 12, 13 and 14; Phase D
+shipped the same day, 10 of its 11 tasks. `docs/PROGRESS.md` carries the live
+status and the handover note for the one remaining task.
 
 Read first: [authorization.md](../../authorization.md#what-the-redesign-inherits)
 — the four gates that already exist, the rules not to break, and the lessons
@@ -772,10 +775,28 @@ values rather than authoritative — both now resolve the type from the
 incoming id. `docs/roadmap.md` has the full record, including what was
 deliberately left open.
 
-**Phase D — the surfaces** (section 5). The access-mode page, the per-account
-panel, the switch endpoint, the SPA switcher. Until this ships, modes exist and
-are enforced but can only be changed in the database — which is why it is last
-rather than first.
+**Phase D — the surfaces. DONE 2026-09-12** (sections 3 and 5), 10 of 11
+tasks: `ac4c7baf` /me publishes held modes with a server-computed
+`requires_password`; `6fa9d13f` the switch endpoint, with the reissued cookie
+keeping the original `exp` and its max_age the REMAINING seconds; `c91931bb`
+the `/access-modes` router; `b5f0612a` per-account assignment and
+new-account-gets-`safe`; `2753bf68` the admin page; `384bbdd4` the per-account
+panel; `acb747a` docs; `61f19d1` carried-in question 6 and the two-surface
+mismatch. No migration - Phase B's schema was complete.
+
+**Task 9, the switcher CONTROL, is outstanding** and is the only unbuilt part
+of this whole design. It was blocked by another session holding `Nav.jsx`, and
+the plan's rule was to stop rather than relocate it. `docs/PROGRESS.md` holds
+the handover: render only when more than one mode is held, no permission gate,
+drive the prompt from the server's flag rather than recomputing the subset
+test.
+
+**One thing this section got wrong**, worth keeping for the next plan written
+from a spec: it said "until this ships, modes ... can only be changed in the
+database - which is why it is last rather than first". That ordering was right
+but the reason was incomplete. What actually made Phase D safe to do last is
+that Phase B was behaviour-neutral on the day it landed; had it not been, the
+absence of a UI would have been urgent rather than merely inconvenient.
 
 Testing (section 6) is not a phase; each phase carries the slice of the matrix
 it makes true, written first.

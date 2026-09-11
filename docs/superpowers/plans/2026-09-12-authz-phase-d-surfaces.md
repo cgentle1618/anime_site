@@ -19,6 +19,14 @@ assignment already lives. **No migration** — the schema is complete.
 React + Vite, Tailwind v4 semantic tokens, TanStack Query, vitest.
 Python via `venv/Scripts/python.exe`.
 
+> **SHIPPED 2026-09-12, 10 of 11 tasks.** `ac4c7baf`, `6fa9d13f`, `c91931bb`,
+> `b5f0612a`, `2753bf68`, `384bbdd4`, `acb747a`, `61f19d1`, and the record-it
+> commit. **Task 9, the switcher control, is outstanding** - blocked by another
+> session holding `Nav.jsx`, and deliberately not relocated. The endpoint and
+> everything behind it are done and tested; see docs/PROGRESS.md for the
+> handover. `docs/roadmap.md` holds the durable record; this plan is otherwise
+> spent.
+
 **Spec:** `docs/superpowers/specs/2026-09-10-authorization-redesign-design.md`
 — **sections 3 and 5**, both approved 2026-09-11 in the same brainstorming
 pass that produced the sections Phase B built, plus decisions 3, 4, 7 and 8.

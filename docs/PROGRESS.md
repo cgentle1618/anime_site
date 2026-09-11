@@ -25,7 +25,7 @@ the write-binding audit Phase C implemented.
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
 | B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis, plus decisions 12, 13 and 14 | **done** - all 12 plan tasks. `1b8f9b72` tables+seed, `27944bcd` migration+caches+resolution, `e18bac6e` the pivot, `f0c54815` helpers deleted, `bf385643` /me, `3c509dfd` pipeline gate, `a6bcf57e` note status codes, `6f7d5dec` per-viewer remark. Two migrations: `n1a1accessmode`, `n1a2remarkauthor` |
 | C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
-| D | Admin UI: the access-mode page, the per-account panel, the mode switcher, plus new-account-gets-`safe` and question 6's `isAdmin` slice | **wip phaseb-session** - plan being written. Design is already approved: spec sections 3 and 5. Same session as Phase B deliberately - it holds the model the UI sits on |
+| D | Admin UI: the access-mode page, the per-account panel, the mode switcher, plus new-account-gets-`safe` and question 6's `isAdmin` slice | **10 of 11 done.** `ac4c7baf` /me modes, `6fa9d13f` the switch endpoint (with the preserved `exp`), `c91931bb` the access-modes router, `b5f0612a` per-account assignment + new-account-gets-`safe`, `2753bf68` the admin page, `384bbdd4` the per-account panel, `acb747a` docs, `61f19d1` question 6. **Task 9 outstanding**: the switcher CONTROL - see below |
 
 Open questions. Decided 2026-09-11 unless marked open; the spec's decision
 table (11-14) carries the reasoning. This list replaced two drifted,
@@ -38,7 +38,7 @@ near-duplicate tables that numbered the same questions differently.
 | 3 | One remark per owner, site-wide | **done `6f7d5dec`** - decision 12. `remark` is read per viewer by `attach_remark` (filtered on `author_id`) and `ix_note_one_remark_per_owner` carries `author_id`. Both halves in one commit, as required |
 | 4 | Note writes answer 403; every other gate answers 401 or 404 | **done `a6bcf57e`** - decision 13. All five 403s gone, and a test asserts no sixth can return. ONE CORRECTION TO THE SPEC: line 199 (editing a catalogue note without `manage.catalog`) is a CAPABILITY failure and answers **401**, not the 404 the spec's line list assigned - 404 would claim the note does not exist, which is false |
 | 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **done `3c509dfd`** - spec decision 14 and its detail section. Unscoped on the object axis, and the `data_control.py` / `system.py` routes require the session's **active mode to be unscoped** (every `content_label` row, every `FIELD_GROUP_KEYS` entry, computed rather than a named mode). B was rejected because a per-viewer Backup would write a partial sheet over the complete one - data loss, not a leak. The Replace-one oracle closes for free. **Into Phase B**, which is where a mode first exists to test |
-| 6 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo - **Phase D**, not its own item. 78 files reference `isAdmin`, which has meant `manage.catalog` since Phase A. Minimal slice: `libraryColumns.jsx:112,181` and `RemarkModal.jsx` move to a `self.list` check; catalogue editing stays on `manage.catalog`. Remember the SPA has two independent permission surfaces |
+| 6 | No SPA surface for a non-admin | **done `61f19d1`**. The tracker controls read `self.list` and RemarkModal reads `self.personal_notes` - a different permission, because a remark belongs to its author. The two SPA surfaces also disagreed (`requireAuth` at the route vs `has("self.list")` in the nav, making the NAV stricter, so pages were reachable but unlisted); both ask `self.list` now and `navigation.test.js` pins the pairing for ten routes |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
 - the gates that already exist, the rules not to break, and the lessons from
@@ -49,26 +49,41 @@ current.
 `docs/roadmap.md` holds the record of what Phases 0, A, A.1 and C actually did.
 Multi-user Steps 0-5 are finished and their entries are gone from this file.
 
-**Phase B is finished.** `docs/roadmap.md` holds the record of what it did
-and why; its plan
-([2026-09-11-authz-phase-b-access-mode-axis.md](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md))
-is spent and can be deleted whenever somebody is tidying.
+**Phases B and D are finished bar one item.** `docs/roadmap.md` holds the
+record of what each did and why; their plans
+([Phase B](superpowers/plans/2026-09-11-authz-phase-b-access-mode-axis.md),
+[Phase D](superpowers/plans/2026-09-12-authz-phase-d-surfaces.md)) are spent.
 
-**Next session picks up at Phase D**, which needs a plan: the `/access-modes`
-admin page, the per-account panel on the users page, `PUT /api/users/{id}/access-modes`,
-the session mode switcher (`POST /api/auth/access-mode` - and its reissued
-cookie MUST keep the original `exp`, or toggling modes is an unlimited
-session-extension oracle), and the rule that a new account gets `safe` only.
-Question 6 below is Phase D's, not its own item.
+**THE ONE OUTSTANDING ITEM: the mode switcher CONTROL** (Phase D task 9).
+Everything behind it is done and tested - `POST /api/auth/access-mode`,
+narrowing and widening, the server-computed `requires_password` flag, and the
+preserved `exp` with a test that decodes both tokens. What is missing is
+`ModeSwitcher.jsx` and a mount in `Nav.jsx`. So a session can already change
+its access mode; nothing in the SPA offers it.
 
-Three things Phase D inherits, all recorded in
-[authorization.md](authorization.md#known-drift-and-what-this-page-does-not-yet-describe):
-a content label created after the Phase B migration reaches no mode and so
-hides its entries from everyone until granted by hand; `community.py` has **no
-viewer dependency of any kind**; and the SPA's two permission surfaces
-disagree - the route gate asks `requireAuth` while `navigation.js` asks
-`has("self.list")`, making the nav the stricter one, so a page can be
-reachable but unlisted.
+It was blocked throughout Phase D by another session holding `Nav.jsx`, and
+the plan's rule was to **stop rather than relocate it**: a switcher living
+outside the site chrome because of a scheduling accident is a design decision
+made by a merge conflict, and it would outlive the reason.
+
+Whoever picks it up inherits written facts rather than inferences:
+
+- Render it **only when `/api/auth/me` returns more than one held mode**. A
+  control with one option is noise.
+- **No permission gate.** Every signed-in account holds at least one mode, and
+  gating this would hide it from the `user` role - the account that most needs
+  to narrow itself. It reads neither of the SPA's two permission surfaces.
+- Drive the password prompt from the server's `requires_password` flag on each
+  mode in `/api/auth/me`. **Never recompute the subset test in the browser**:
+  two implementations of one rule drift, and the browser's would be the one
+  nobody tested.
+- On success, refetch `/api/auth/me` and invalidate the entry queries - what
+  the viewer may see has just changed.
+
+**Also unfinished, and unrelated**: `community.py` still has no viewer
+dependency of any kind. Recorded as an accepted residual in
+[authorization.md](authorization.md#accepted-residuals); it arms itself the
+moment a second account makes a list public.
 
 ## Concurrent sessions (2026-09-11)
 
