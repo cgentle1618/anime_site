@@ -203,7 +203,13 @@ applies; this adds:
   commits those paths and leaves the rest of the index alone. Never a bare
   `git commit` or `-a` on this repo while other sessions are live.
 - **The index is shared state, like the working tree.** `git status` before you
-  commit, and read what is *staged*, not just what you changed.
+  commit, and read what is *staged*, not just what you changed — **including
+  the index you inherited.** Rule 4 was written between two sweeps of the same
+  session's roadmap entry and did not prevent the second, because the exposure
+  was created before the rule existed and nobody went back to look at what was
+  already sitting there. A new rule protects new work; it does nothing about a
+  blob staged an hour ago by someone whose commit was denied. If your own
+  commit is refused, `git reset` rather than leaving the index loaded.
 - **Untracked files belong to somebody.** A spec or plan that is not yet
   committed is the most exposed thing in the tree, because a directory
   pathspec picks it up and its author loses the commit message. Check `git
