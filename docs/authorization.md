@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-11 (Phase C: write binding)
+Last verified: 2026-09-11 (Phase C: write binding, plus the final review's fixes)
 
 ## What this is for
 
@@ -357,10 +357,10 @@ sees one error shape.
 
 ### Write binding (Phase C, 2026-09-11)
 
-**A write answers exactly what a read would.** Every route that takes a
-client-supplied entry id — the per-type entry routes, `casting`, `credits`,
-`quote`, `meme`, `note`, `media_relation`, `watch_order` — resolves it through
-`entry_visible` before writing, and a hidden or nonexistent entry gets the
+**A write answers exactly what a read would.** Eight routers — the per-type
+entry routes, `casting`, `credits`, `quote`, `meme`, `note`, `media_relation`,
+`watch_order` — resolve a client-supplied entry id through `entry_visible`
+before writing, and a hidden or nonexistent entry gets the
 same answer a `GET` of it would: the per-type routes and `casting`/`credits`
 their existing 404, `media_relation`/`watch_order` their existing
 `400 "Referenced entry does not exist."`, `note` its existing
@@ -377,7 +377,23 @@ types). Making the argument required turns a future write route that forgets
 it into a `TypeError` rather than a silent grant — the same fail-loudly move
 Phase A made by deleting `get_current_admin`.
 
-**Two accepted residuals, deliberately not closed here:**
+That is eight routers, not *every* route in the app: the audit's inventory was
+found incomplete by the final review of the branch, and
+`POST /api/data-control/replace/{key}/{entry_id}` is the route it missed. See
+the residuals below, and do not read the list of eight as a proof of
+completeness.
+
+Three routers — `quote`, `note`, `meme` — take a `(type, id)` pair from the
+client but write against the id alone, and all three shipped the same defect:
+the type in the payload is not evidence of anything, so gating on it checks
+the wrong `media_type.<key>` permission while the label half (keyed on
+`media_id`) still bites — a silent bypass of the type axis only. They now share
+`enforcement.require_visible_media(db, viewer, entry_id, detail)`, which
+resolves the type from the media row and raises the caller's own 404. The
+helper exists because forgetting this is a security bug and the lesson did not
+travel by comment; the shortest form is now the safe one.
+
+**Accepted residuals, deliberately not closed here:**
 
 - `content_labels.py`'s `PUT /api/content-labels/entry/{media_type}/{entry_id}`
   still writes labels with no visibility test. It is gated by `admin.authz`,
@@ -386,6 +402,23 @@ Phase A made by deleting `get_current_admin`.
   permission check doesn't already cover.
 - `franchise.py` stores `cover_entry_id` unvalidated. The consequence of a
   mismatched or hidden id is a cover image, not a data leak.
+- `POST /api/data-control/replace/{key}/{entry_id}` (`data_control.py`, nine
+  media types) takes a client-supplied entry id, is gated by
+  `require_manage_pipelines` alone and never asks `entry_visible`:
+  `services/pipelines/runner.py` answers 404 "<label> entry not found" for a
+  missing entry and 200 "Successfully updated <display_name>." for a hidden
+  one — a write, an existence oracle and a title leak. It is left alone on
+  purpose: gating it while `Replace All` in the same router stays ungated
+  would enforce the object axis incoherently inside one subsystem, and what
+  the object axis means for a pipeline is the parked policy question (a
+  `manage.pipelines` holder can already rewrite labels and role assignments
+  through Pull All) that must be answered before Phase B.
+- `note.py`'s owner guard waves through an `owner_id` naming no media row,
+  because a grouping tier is a legitimate owner and is not a `media` row
+  either. A *nonexistent* id therefore reaches the insert and fails on the
+  `media_id` foreign key, surfacing as a 500, while a hidden id answers 404 —
+  so on that one path hidden and missing are still distinguishable, by the
+  status code rather than by the body.
 
 Plan: `docs/superpowers/plans/2026-09-11-authz-phase-c-write-binding.md`,
 spec section "The write-binding audit (2026-09-11)" in

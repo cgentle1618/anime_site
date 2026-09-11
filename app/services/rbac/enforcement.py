@@ -7,8 +7,12 @@ wire one and forget the other:
   media type  the viewer holds media_type.<key>, or the whole type disappears
   labels      the entry carries no label whose label.<key> the viewer lacks
 
-Both are expressed in SQL. Filtering in Python after .limit()/.offset() would
-silently shrink pages - a list of 500 would return 498 and the next page would
+require_visible_media is the write-side front door to the same two gates: it
+resolves an entry id to its own media type before asking, because a
+caller-supplied type is not evidence of anything.
+
+Both gates are expressed in SQL. Filtering in Python after .limit()/.offset()
+would silently shrink pages - a list of 500 would return 498 and the next page would
 start in the wrong place - so the anti-join has to run in the database.
 """
 
@@ -16,6 +20,7 @@ from typing import Iterable, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
+from fastapi import HTTPException
 from sqlalchemy.orm import Query, Session
 
 from app import models
@@ -133,6 +138,61 @@ def entry_visible(
         .first()
         is None
     )
+
+
+def require_visible_media(
+    db: Session,
+    viewer: Optional[Viewer],
+    entry_id,
+    detail: str,
+    *,
+    require_media_row: bool = False,
+) -> Optional[str]:
+    """
+    Gate a write on the entry an id names, resolving the TYPE from the media
+    row rather than trusting the caller. Returns the resolved media type, or
+    None when the id names no media row at all.
+
+    This exists because forgetting it is a security bug, and the lesson has
+    not travelled by comment: three routers - quote, note and meme - take a
+    (type, id) pair from the client and write against the id alone, and all
+    three shipped the same defect. `Quote.media_type` and `Note.owner_type`
+    are both derived from the id, and meme's `_owner_columns` writes any media
+    type to the same `media_id` column; so a caller-supplied type paired with
+    a client-supplied id gates the write under the WRONG media_type.<key>
+    permission. The label half of entry_visible still bites (it is keyed on
+    media_id), so the failure is silent and only the type axis is bypassed:
+    a viewer holding media_type.movie and not media_type.anime could post
+    {"owner_type": "movie", "owner_id": <an anime id>} and write onto an entry
+    it cannot read. Resolving the type here makes the safe form the short one.
+
+    An id naming no media row is NOT refused by default: a grouping tier
+    (collection / franchise / series) is a legitimate owner for a meme or a
+    note and carries no labels, so entry_visible has no opinion about it. That
+    also waves through an id naming nothing at all, which then fails on the
+    media_id foreign key - see the residuals list in docs/authorization.md.
+    A caller whose id must be a media entry (quote) passes
+    require_media_row=True and gets the same refusal for both.
+
+    Raises HTTPException(404, detail) so that hidden answers exactly as
+    missing, in the words the calling router already uses for missing.
+    """
+    if entry_id is None:
+        if require_media_row:
+            raise HTTPException(status_code=404, detail=detail)
+        return None
+    media_type = (
+        db.query(models.Media.media_type)
+        .filter(models.Media.system_id == entry_id)
+        .scalar()
+    )
+    if media_type is None:
+        if require_media_row:
+            raise HTTPException(status_code=404, detail=detail)
+        return None
+    if not entry_visible(db, viewer, media_type, entry_id):
+        raise HTTPException(status_code=404, detail=detail)
+    return media_type
 
 
 def filter_visible_pairs(

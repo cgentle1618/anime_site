@@ -260,6 +260,106 @@ class TestQuoteAndMeme:
         assert response.status_code in (200, 201)
 
 
+    def _typeblind_writer(self, db_session, client, username):
+        """
+        A catalogue writer holding every media_type.* permission EXCEPT manga.
+
+        The `catalog_writer` fixture cannot catch this class of defect: it
+        holds every media_type.*, so only the label axis was ever exercised
+        and a gate keyed on the WRONG media type still answered True.
+        """
+        return make_viewer(
+            db_session,
+            client,
+            username,
+            (default_user_permissions() - {media_type_perm("manga")})
+            | {PERM_MANAGE_CATALOG},
+        )
+
+    def _meme_on(self, db_session, entry, admin_user):
+        meme = models.Meme(
+            system_id=uuid.uuid4(),
+            media_id=entry.system_id,
+            text="A meme about a show I can see",
+            author_id=admin_user.id,
+        )
+        db_session.add(meme)
+        db_session.flush()
+        return meme
+
+    def test_creating_a_meme_with_a_claimed_owner_type_is_gated_on_the_real_one(
+        self, db_session, client, sample_manga
+    ):
+        """The hole meme.py shipped: `_owner_columns` writes every media type
+        to the same `media_id` column, so the owner_type in the payload is not
+        evidence of anything. A writer without media_type.manga claiming
+        "anime" while naming a manga id must be refused."""
+        writer = self._typeblind_writer(db_session, client, "memeliar")
+        before = db_session.query(models.Meme).count()
+        response = writer.post(
+            "/api/meme/",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_manga.system_id),
+                "text": "A meme about a book I cannot see",
+            },
+        )
+        assert response.status_code == 404
+        assert db_session.query(models.Meme).count() == before
+
+    def test_putting_a_meme_onto_an_unreachable_owner_is_refused(
+        self, db_session, client, sample_anime, sample_manga, admin_user
+    ):
+        writer = self._typeblind_writer(db_session, client, "memeputliar")
+        meme = self._meme_on(db_session, sample_anime, admin_user)
+        response = writer.put(
+            f"/api/meme/{meme.system_id}",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_manga.system_id),
+                "text": "Moved",
+            },
+        )
+        assert response.status_code == 404
+        db_session.refresh(meme)
+        assert meme.media_id == sample_anime.system_id
+
+    def test_patching_owner_id_alone_gates_on_the_new_owners_own_type(
+        self, db_session, client, sample_anime, sample_manga, admin_user
+    ):
+        """The stale-type case: a PATCH naming only owner_id would otherwise
+        pair the NEW id with the STORED owner_type."""
+        writer = self._typeblind_writer(db_session, client, "memepatchliar")
+        meme = self._meme_on(db_session, sample_anime, admin_user)
+        response = writer.patch(
+            f"/api/meme/{meme.system_id}",
+            json={"owner_id": str(sample_manga.system_id)},
+        )
+        assert response.status_code == 404
+        db_session.refresh(meme)
+        assert meme.media_id == sample_anime.system_id
+
+    def test_patching_a_meme_onto_a_reachable_owner_still_writes(
+        self, db_session, client, sample_anime, sample_manga, admin_user
+    ):
+        """The control: the same single-field PATCH is not blanket-refused for
+        a writer who does hold media_type.manga."""
+        writer = make_viewer(
+            db_session,
+            client,
+            "memepatchok",
+            default_user_permissions() | {PERM_MANAGE_CATALOG},
+        )
+        meme = self._meme_on(db_session, sample_anime, admin_user)
+        response = writer.patch(
+            f"/api/meme/{meme.system_id}",
+            json={"owner_id": str(sample_manga.system_id)},
+        )
+        assert response.status_code == 200
+        db_session.refresh(meme)
+        assert meme.media_id == sample_manga.system_id
+
+
 # A SCOPE_PERSONAL, SHAPE_TEXT, ALL_OWNERS section that is not a singleton -
 # checked in app/utils/note_sections.py:204. "remark" is also personal but is
 # singleton=True, which would add a second failure mode to every test here.

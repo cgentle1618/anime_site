@@ -748,6 +748,28 @@ defines the label axis — and a holder can grant itself any label anyway.
 `franchise.py` stores `cover_entry_id` unvalidated (99); the consequence is a
 cover image, and it is recorded here rather than fixed.
 
+**5. One route this audit missed, found by the final whole-branch review.**
+POST `/api/data-control/replace/{key}/{entry_id}` (`data_control.py:105-112`,
+registered for nine media types) takes a client-supplied entry id, is gated by
+`require_manage_pipelines` alone and never calls `entry_visible`. Its runner
+(`services/pipelines/runner.py:284-297`) answers 404 "<label> entry not found"
+for a missing entry and 200 "Successfully updated <display_name>." for a hidden
+one — a write, an existence oracle and a title leak in one answer. The audit
+above missed it because it was walked router by router over the files that
+carry entry CRUD, and `data_control.py` registers its routes in a loop over
+`PIPELINES` rather than declaring handlers, so no `entry_id` path parameter
+reads as one at a glance. It was caught by the final review of the branch, not
+by this audit: the route inventory above is therefore *not* a proof of
+completeness, and should not be cited as one.
+
+It is recorded rather than guarded, deliberately. Gating the per-entry Replace
+while `Replace All` in the same router stays ungated would enforce the object
+axis incoherently inside one subsystem, and the coherent answer is the policy
+question section 2's post-audit correction 5 already parks: `manage.pipelines`
+can rewrite content labels and role assignments wholesale through Pull All, so
+what the object axis means for a pipeline needs answering before Phase B seeds
+its schema. This route belongs to that question, not to Phase C.
+
 **What this makes Phase C.** Not "add a guard to a few handlers": 30-odd routes
 across eight files, plus one default argument whose fix (`_get_or_404` passing
 `viewer` from the four write routes) closes 36 of them in one edit. The tests

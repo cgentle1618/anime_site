@@ -32,11 +32,10 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
+from app.services.rbac.enforcement import drop_hidden_rows, require_visible_media
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import (
-    MEDIA_TABLES,
     OWNER_TABLES,
     entry_ref_for,
     resolve_entries,
@@ -195,15 +194,25 @@ def _quote_conflict(db: Session, quote_id, exclude_meme_id: Optional[str] = None
         )
 
 
-def _require_visible_owner(db: Session, viewer, owner_type, owner_id) -> None:
+def _require_visible_owner(db: Session, viewer, owner_id) -> None:
     """
-    An owner may be a grouping tier, which carries no labels - entry_visible
-    only has an opinion about the media types, so a tier is left alone.
+    The write half of the visibility check `get_meme` already does.
+
+    There is deliberately no `owner_type` parameter. `_owner_columns` above
+    writes EVERY media type to the same `media_id` column, so the type the
+    caller sent is not evidence of anything: gating on it let a viewer holding
+    media_type.movie and not media_type.anime post
+    {"owner_type": "movie", "owner_id": <an anime id>} and attach a meme to an
+    entry it cannot read - only the type axis was bypassed, because the label
+    half of the check is keyed on media_id. A PATCH naming only `owner_id`
+    had the same shape with the STORED type. `require_visible_media` resolves
+    the type from the id itself, which closes both.
+
+    An owner may be a grouping tier, which carries no labels and is not a
+    Media row at all, so a tier is never refused here. 404 and "Meme not
+    found.", so a hidden owner answers exactly as a missing meme.
     """
-    if not owner_type or not owner_id or owner_type not in MEDIA_TABLES:
-        return
-    if not entry_visible(db, viewer, owner_type, owner_id):
-        raise HTTPException(status_code=404, detail="Meme not found.")
+    require_visible_media(db, viewer, owner_id, "Meme not found.")
 
 
 _INTEGRITY_DETAIL = "That quote is already linked to a meme, or does not exist."
@@ -342,7 +351,7 @@ def create_meme(
 ):
     """Creates a new Meme attached to an entry, series, franchise or collection."""
     _validate_owner_type(payload.owner_type)
-    _require_visible_owner(db, admin, payload.owner_type, payload.owner_id)
+    _require_visible_owner(db, admin, payload.owner_id)
     _quote_conflict(db, payload.quote_id)
     try:
         data = payload.model_dump(exclude_unset=True)
@@ -386,17 +395,15 @@ def update_meme(
 ):
     """Fully updates a Meme."""
     db_meme = _get_or_404(db, meme_id)
-    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
+    _require_visible_owner(db, admin, db_meme.owner_id)
     _validate_owner_type(payload.owner_type)
     _quote_conflict(db, payload.quote_id, exclude_meme_id=meme_id)
     data = payload.model_dump(exclude_unset=True)
-    if "owner_type" in data or "owner_id" in data:
-        _require_visible_owner(
-            db,
-            admin,
-            data.get("owner_type", db_meme.owner_type),
-            data.get("owner_id", db_meme.owner_id),
-        )
+    if "owner_id" in data:
+        # The INCOMING owner, resolved from the id alone - see
+        # _require_visible_owner. A payload naming only owner_type moves the
+        # stored id between columns and is covered by the check above.
+        _require_visible_owner(db, admin, data["owner_id"])
     try:
         if "owner_type" in data or "owner_id" in data:
             _apply_owner(
@@ -433,18 +440,16 @@ def patch_meme(
 ):
     """Partially updates a Meme (used for inline edits on the Meme page)."""
     db_meme = _get_or_404(db, meme_id)
-    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
+    _require_visible_owner(db, admin, db_meme.owner_id)
     # A patch may not reassign authorship: `payload` is a raw dict here, so
     # nothing else would stop it.
     payload.pop("author_id", None)
     _validate_owner_type(payload.get("owner_type"))
-    if "owner_type" in payload or "owner_id" in payload:
-        _require_visible_owner(
-            db,
-            admin,
-            payload.get("owner_type", db_meme.owner_type),
-            payload.get("owner_id", db_meme.owner_id),
-        )
+    if "owner_id" in payload:
+        # The INCOMING owner, resolved from the id alone - see
+        # _require_visible_owner. A payload naming only owner_type moves the
+        # stored id between columns and is covered by the check above.
+        _require_visible_owner(db, admin, payload["owner_id"])
     if "quote_id" in payload:
         _quote_conflict(db, payload["quote_id"], exclude_meme_id=meme_id)
     try:
@@ -487,7 +492,7 @@ def delete_meme(
     images are hand-managed local files.
     """
     db_meme = _get_or_404(db, meme_id)
-    _require_visible_owner(db, admin, db_meme.owner_type, db_meme.owner_id)
+    _require_visible_owner(db, admin, db_meme.owner_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_meme, "Meme")

@@ -21,7 +21,11 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
+from app.services.rbac.enforcement import (
+    drop_hidden_rows,
+    entry_visible,
+    require_visible_media,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
@@ -119,29 +123,25 @@ def _validate_media_type(media_type: Optional[str]) -> None:
 
 def _require_visible_entry(db: Session, viewer, entry_id) -> None:
     """
-    A quote names an entry via `entry_id` alone. `Quote.media_type` is a
-    read-only `column_property` derived from it (app/models/__init__.py:
-    236-238), and a payload's `media_type` is decorative - the media row for
-    `entry_id` is the only place the type actually lives. So the type used
-    for the visibility check is always looked up fresh from `entry_id`, never
-    taken from the payload or from the stored row's `media_type`: pairing a
-    stale type with a moved entry_id would gate the move under the wrong
-    type's permission.
+    A quote names an entry via `entry_id` alone, so writing one reaches that
+    entry. The type is resolved from the id by
+    `enforcement.require_visible_media`, never taken from the payload or from
+    the stored row: `Quote.media_type` is a read-only `column_property` derived
+    from `entry_id` (app/models/__init__.py:236-238), so pairing a stale or
+    caller-supplied type with a moved entry_id would gate the move under the
+    wrong media_type.<key> permission.
 
     Nothing here if the quote names no entry: entry_id is nullable and a
-    free-standing quote is legitimate. When entry_id names no Media row, the
-    entry does not exist - same 404 as a hidden one, so absent and hidden
-    stay one answer, matching _get_or_404's message.
+    free-standing quote is legitimate. When entry_id names no Media row the
+    entry does not exist, and `require_media_row=True` answers that with the
+    same 404 a hidden one gets - absent and hidden stay one answer, in
+    _get_or_404's words.
     """
     if not entry_id:
         return
-    media_type = (
-        db.query(models.Media.media_type)
-        .filter(models.Media.system_id == entry_id)
-        .scalar()
+    require_visible_media(
+        db, viewer, entry_id, "Quote not found.", require_media_row=True
     )
-    if not media_type or not entry_visible(db, viewer, media_type, entry_id):
-        raise HTTPException(status_code=404, detail="Quote not found.")
 
 
 # ==========================================

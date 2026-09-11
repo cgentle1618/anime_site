@@ -23,7 +23,7 @@ ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
 | A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
 | A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
 | B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis | todo, needs a plan |
-| C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52 |
+| C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | done 31837f52, final-review fixes applied |
 | D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
 Open questions the redesign inherits; #1 is answered and no longer gates
@@ -31,10 +31,11 @@ Phase C:
 
 | # | Question | Status |
 |---|---|---|
-| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | done, spec "The write-binding audit (2026-09-11)" |
+| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | done, spec "The write-binding audit (2026-09-11)" - inventory was incomplete, corrected there |
 | 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
 | 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
 | 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
+| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All, Pull All all rewrite entries no visibility test guards | todo, blocks Phase B |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**.
 `docs/roadmap.md` holds the record of what Phases 0, A and A.1 actually did.
@@ -50,6 +51,7 @@ To settle:
 | 2 | No SPA surface for a non-admin: notes editors and tracker controls are `isAdmin`-only, so the `user` role is usable but not useful | todo |
 | 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
 | 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
+| 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All, Pull All all rewrite entries no visibility test guards | todo, blocks Phase B |
 
 Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
 - the four gates that already exist, the rules not to break, and the lessons

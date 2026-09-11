@@ -27,7 +27,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.schemas.note import sections_out, validate_note_payload
-from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.enforcement import entry_visible, require_visible_media
 from app.services.rbac.field_gate import gated_note_sections
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
@@ -90,39 +90,27 @@ def _owner_columns(owner_type: str, owner_id) -> dict:
     return {"media_id": owner_id}
 
 
-def _require_visible_owner(db: Session, viewer: Viewer, owner_type, owner_id) -> None:
+def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
     """
     The write half of the check the read at line 237 already does.
 
-    `owner_type` is NOT trusted for the media case: Note.owner_type
+    There is deliberately no `owner_type` parameter. `Note.owner_type`
     (app/models/note.py:140-150) is a read-only property that, for a media
-    owner, reads through Note.media -> Media.media_type. update_note's
+    owner, reads through Note.media -> Media.media_type, and update_note's
     `merged` object fills each field independently from the payload or the
-    stored row (note.py's update_note), so a PATCH naming only `owner_id`
-    would otherwise pair a NEW id with the OLD, stale `owner_type` - gating
-    entry_visible under the wrong media_type permission. Resolving the type
-    from the id here, the same move Task 2 made for Quote.media_type, closes
-    that regardless of which field(s) a caller supplied.
+    stored row - so a PATCH naming only `owner_id` would pair a NEW id with
+    the OLD, stale type. `require_visible_media` resolves the type from the id
+    itself, which closes that regardless of which field(s) a caller supplied
+    and regardless of what type the caller claimed.
 
     An owner may instead be a grouping tier, which carries no labels and is
-    not a Media row at all - entry_visible only has an opinion about the
-    media types, so a tier (or a nonexistent id, which the caller's own
-    validation is responsible for) is never refused here. 404 and "Owner not
-    found.", exactly as the read answers - a 403 here is note.py's answer for
-    writing SOMEBODY ELSE's note, and reusing it would confirm this entry
-    exists.
+    not a Media row at all - so a tier (or a nonexistent id, which the
+    caller's own validation and the media_id FK are responsible for) is never
+    refused here. 404 and "Owner not found.", exactly as the read answers - a
+    403 here is note.py's answer for writing SOMEBODY ELSE's note, and reusing
+    it would confirm this entry exists.
     """
-    if owner_id is None:
-        return
-    resolved_type = (
-        db.query(models.Media.media_type)
-        .filter(models.Media.system_id == owner_id)
-        .scalar()
-    )
-    if resolved_type is None:
-        return
-    if not entry_visible(db, viewer, resolved_type, owner_id):
-        raise HTTPException(status_code=404, detail="Owner not found.")
+    require_visible_media(db, viewer, owner_id, "Owner not found.")
 
 
 def _get_or_404(db: Session, note_id: str) -> models.Note:
@@ -338,7 +326,7 @@ def create_note(
 ):
     _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
-    _require_visible_owner(db, viewer, payload.owner_type, payload.owner_id)
+    _require_visible_owner(db, viewer, payload.owner_id)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
 
     data = payload.model_dump(exclude_unset=True)
@@ -379,7 +367,7 @@ def reorder_notes(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
     _authorize_write(viewer, payload.section)
-    _require_visible_owner(db, viewer, payload.owner_type, payload.owner_id)
+    _require_visible_owner(db, viewer, payload.owner_id)
 
     query = db.query(models.Note).filter(
         *_owner_filters(payload.owner_type, payload.owner_id),
@@ -437,7 +425,7 @@ def update_note(
     # After the merge, so a PATCH cannot move a row into a section the caller
     # may not write.
     _authorize_write(viewer, merged.section)
-    _require_visible_owner(db, viewer, merged.owner_type, merged.owner_id)
+    _require_visible_owner(db, viewer, merged.owner_id)
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )
@@ -468,7 +456,7 @@ def delete_note(
 ):
     db_note = _get_or_404(db, note_id)
     _authorize_edit(viewer, db_note)
-    _require_visible_owner(db, viewer, db_note.owner_type, db_note.owner_id)
+    _require_visible_owner(db, viewer, db_note.owner_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_note, "Note")

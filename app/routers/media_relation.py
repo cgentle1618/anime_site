@@ -75,7 +75,9 @@ def _validate_kind(value: str) -> None:
         )
 
 
-def _validate_endpoint(db: Session, media_type: str, entry_id, viewer) -> None:
+def _validate_endpoint(
+    db: Session, media_type: str, entry_id, viewer, visible=None
+) -> None:
     """
     Rejects an endpoint pointing at an unknown table, a missing row, or a row
     this viewer cannot see.
@@ -84,16 +86,23 @@ def _validate_endpoint(db: Session, media_type: str, entry_id, viewer) -> None:
     404 here, or a distinct message, would turn this validator into the
     existence oracle the 404 paths are careful not to be: a caller could learn
     that an entry exists by watching which refusal it gets.
+
+    `visible` is the precomputed result of enforcement.filter_visible_pairs
+    for a bulk caller (reset_scope), which would otherwise re-run
+    hidden_label_ids twice per row. It answers identically to entry_visible
+    for a pair whose media_type is in MEDIA_TABLES - which is guaranteed by
+    the check above it - so passing it changes nothing but the query count.
     """
     if media_type not in MEDIA_TABLES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    if (
-        entry_id is None
-        or not entry_exists(db, media_type, entry_id)
-        or not entry_visible(db, viewer, media_type, entry_id)
-    ):
+    reachable = (
+        entry_visible(db, viewer, media_type, entry_id)
+        if visible is None
+        else (media_type, entry_id) in visible
+    )
+    if entry_id is None or not entry_exists(db, media_type, entry_id) or not reachable:
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
         )
@@ -500,11 +509,26 @@ def reset_scope(
         )
         .all()
     )
+    # One visibility query for the whole scope, not two per row: each
+    # _validate_endpoint call would otherwise re-run hidden_label_ids.
+    visible = filter_visible_pairs(
+        db,
+        admin,
+        [(row.from_type, row.from_id) for row in rows]
+        + [(row.to_type, row.to_id) for row in rows],
+    )
     for row in rows:
         # Reaches both entries of every row being removed, same as a single
         # delete - a bulk reset must not become a bulk existence oracle.
-        _validate_endpoint(db, row.from_type, row.from_id, admin)
-        _validate_endpoint(db, row.to_type, row.to_id, admin)
+        #
+        # Behaviour change shipped with Phase C: ONE unreachable endpoint now
+        # fails the WHOLE reset rather than skipping that row. That is
+        # deliberate and fail-closed - a partial reset would tell the caller,
+        # by what survived, exactly which entries it may not see - but it is
+        # not what this route did before, and a dangling endpoint (both are
+        # FK-less by design) fails it for an admin too.
+        _validate_endpoint(db, row.from_type, row.from_id, admin, visible)
+        _validate_endpoint(db, row.to_type, row.to_id, admin, visible)
     for row in rows:
         # Does not commit - the single commit below covers the whole reset.
         log_deleted_record(db, row, "Media Relation")
