@@ -34,13 +34,66 @@ router = APIRouter(
 )
 
 
-def _to_response(user: models.User) -> schemas.ManagedUserResponse:
+def _held_access_modes(db: Session, user: models.User) -> list:
+    """This account's modes, with the items it is denied from each.
+
+    Rendered by the per-account panel as the MODE's own list with
+    tick-to-deny, which is what makes decision 8 visible: denials only
+    subtract, so a control that shows the ceiling and lets you remove from it
+    cannot express something outside it.
+    """
+    label_names = {
+        system_id: key
+        for system_id, key in db.query(
+            models.ContentLabel.system_id, models.ContentLabel.key
+        )
+    }
+    out = []
+    rows = (
+        db.query(models.UserAccessMode, models.AccessMode)
+        .join(
+            models.AccessMode,
+            models.AccessMode.system_id == models.UserAccessMode.mode_id,
+        )
+        .filter(models.UserAccessMode.user_id == user.id)
+        .order_by(models.AccessMode.sort_order, models.AccessMode.key)
+        .all()
+    )
+    for grant, mode in rows:
+        denied_labels, denied_groups = [], []
+        for label_id, group_key in db.query(
+            models.UserAccessModeDenial.label_id,
+            models.UserAccessModeDenial.field_group_key,
+        ).filter(
+            models.UserAccessModeDenial.user_access_mode_id == grant.system_id
+        ):
+            if label_id is not None and label_id in label_names:
+                denied_labels.append(label_names[label_id])
+            if group_key is not None:
+                denied_groups.append(group_key)
+        out.append(
+            schemas.HeldAccessMode(
+                mode_id=mode.system_id,
+                key=mode.key,
+                label=mode.label,
+                is_default=bool(grant.is_default),
+                denied_label_keys=sorted(denied_labels),
+                denied_field_group_keys=sorted(denied_groups),
+            )
+        )
+    return out
+
+
+def _to_response(
+    user: models.User, db: Session = None
+) -> schemas.ManagedUserResponse:
     return schemas.ManagedUserResponse(
         id=user.id,
         username=user.username,
         role_id=user.role_id,
         role_name=user.role_ref.name if user.role_ref else None,
         list_is_public=bool(user.list_is_public),
+        access_modes=_held_access_modes(db, user) if db is not None else [],
     )
 
 
@@ -87,7 +140,7 @@ def _admin_count(db: Session, excluding: UUID = None) -> int:
 @router.get("/", response_model=List[schemas.ManagedUserResponse], summary="List Users")
 def list_users(db: Session = Depends(get_db)):
     users = db.query(models.User).order_by(models.User.username).all()
-    return [_to_response(user) for user in users]
+    return [_to_response(user, db) for user in users]
 
 
 @router.post(
@@ -111,7 +164,7 @@ def create_user(payload: schemas.ManagedUserCreate, db: Session = Depends(get_db
     _grant_starting_mode(db, user)
     db.commit()
     db.refresh(user)
-    return _to_response(user)
+    return _to_response(user, db)
 
 
 def _grant_starting_mode(db: Session, user: models.User) -> None:
@@ -256,7 +309,7 @@ def replace_access_modes(
     # _DENIAL_CACHE is keyed on the grant row's id, and those ids just changed.
     cache.bump()
     db.refresh(user)
-    return _to_response(user)
+    return _to_response(user, db)
 
 
 @router.patch(
@@ -298,7 +351,7 @@ def update_user(
     db.commit()
     db.refresh(user)
     cache.bump()
-    return _to_response(user)
+    return _to_response(user, db)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

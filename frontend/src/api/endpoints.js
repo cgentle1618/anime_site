@@ -75,6 +75,7 @@ export const endpoints = {
     create: () => "/api/users/",
     update: (id) => `/api/users/${id}`,
     remove: (id) => `/api/users/${id}`,
+    accessModes: (id) => `/api/users/${id}/access-modes`,
   },
 
   // The caller's own account. No id in any path: these act on whoever the

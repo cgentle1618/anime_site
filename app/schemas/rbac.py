@@ -177,6 +177,17 @@ class ManagedUserUpdate(BaseModel):
     role_id: Optional[UUID] = None
 
 
+class HeldAccessMode(BaseModel):
+    """One mode an account holds, as the per-account panel needs to render it."""
+
+    mode_id: UUID
+    key: str
+    label: str
+    is_default: bool
+    denied_label_keys: List[str] = []
+    denied_field_group_keys: List[str] = []
+
+
 class ManagedUserResponse(BaseModel):
     id: UUID
     username: str
@@ -185,6 +196,11 @@ class ManagedUserResponse(BaseModel):
     # Read-only here. Written only by the account's owner, through
     # PATCH /api/account/settings.
     list_is_public: bool = False
+    # The OBJECT axis for this account. Carried on the user response rather
+    # than behind a second endpoint because the panel that edits it lives on
+    # the users page, and PUT .../access-modes returns this same shape - so
+    # the page never has to reconcile two sources.
+    access_modes: List[HeldAccessMode] = []
 
     model_config = ConfigDict(from_attributes=True)
 
