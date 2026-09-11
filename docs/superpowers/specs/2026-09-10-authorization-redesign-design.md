@@ -600,6 +600,57 @@ rather than first.
 Testing (section 6) is not a phase; each phase carries the slice of the matrix
 it makes true, written first.
 
+## Post-Phase-A audit of sections 2-6 (2026-09-11)
+
+Checked against the code Phase A left behind, so the Phase B plan argues from
+verified ground rather than from what was true on 2026-09-10.
+
+**Still accurate, verified:** `hidden_label_ids` is at `enforcement.py:27`;
+`field_gate._withheld` exists; `GUEST_WITHHELD_FIELD_GROUPS` is still exactly
+`{"sources_restricted"}`; `label_perm()` and `field_group_perm()` both still
+exist for Phase B to delete; `cache.py` is still `dict[UUID, frozenset[str]]`
+keyed on role id alone; the login token is still
+`{"sub": username, "role": ...}` with the role claim decorative.
+
+**Five corrections:**
+
+1. **Section 4's `is_admin` redefinition is DONE**, not proposed. Phase A
+   shipped it (`c71ad497`): `/api/auth/me` returns
+   `viewer.has(PERM_MANAGE_CATALOG)`, and the SPA route block is split 12
+   (`manage.catalog`) + 3 (`admin.authz`). The SPA *nav* needed the same split
+   and did not get it until `da4f23b6` — `navigation.js` calls `has("admin")`
+   directly and so was untouched by redefining `is_admin`. Phase B must
+   remember that the nav is a second, independent surface.
+
+2. **Section 5's migration step 3 is DONE.** Minting the three permissions and
+   seeding `super` happened in Phase A with **no Alembic revision at all** —
+   `ensure_rbac_seed` runs from the lifespan and is idempotent. Phase B's
+   migration therefore covers only: create the five tables, seed the modes,
+   grant every existing account all four, and remove the `field_group.*` /
+   `label.*` rows. There are now **four** seeded roles, not three.
+
+3. **Section 2's label-side migration claim still holds, and the field-group
+   side grew.** Still zero `label.*` grants on zero labelled entries (2 labels
+   defined, unused). But `field_group.*` grants now number **12 across three
+   roles** — guest, user and super — because `default_super_permissions()`
+   derives from the user set. Phase B moves all twelve.
+
+4. **Section 6 needs `super_user` / `super_client` fixtures, and there is now
+   duplication to clean up.** `tests/api/conftest.py` has `admin_user`,
+   `admin_client`, `plain_user`, `user_client` — no super pair. Phase A's tests
+   therefore built a super account inline in **five** separate files
+   (`test_authz_router_gates`, `test_capability_dependencies`,
+   `test_catalog_router_gates`, `test_me_is_admin`, `test_pipeline_router_gates`).
+   Phase B should extract the shared fixture and re-point those five.
+
+5. **The parked policy question now bites harder.** `manage.pipelines` allows
+   Pull All, which restores the Users and Content Label tabs and can rewrite
+   role assignments and labels from the sheet. In Phase A that was an oddity.
+   In Phase B, content labels become the **entire basis of the access-mode
+   axis**, so a pipeline run can silently re-label every entry and move what
+   each mode can reach — without holding `admin.authz`. This needs an answer
+   before Phase B's schema is seeded, not after.
+
 ## Open questions carried in
 
 From `docs/PROGRESS.md`, unchanged — the redesign is expected to settle these:
