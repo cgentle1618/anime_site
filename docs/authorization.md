@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-11 (Phase A: the capability axis)
+Last verified: 2026-09-11 (Phase C: write binding)
 
 ## What this is for
 
@@ -354,6 +354,42 @@ sees one error shape.
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | previously unauthenticated `data_control` / `system` GETs | closed behind `require_manage_pipelines` |
 | Pull's three authorization tabs (`Users`, `Content Label`, `Media Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
+
+### Write binding (Phase C, 2026-09-11)
+
+**A write answers exactly what a read would.** Every route that takes a
+client-supplied entry id — the per-type entry routes, `casting`, `credits`,
+`quote`, `meme`, `note`, `media_relation`, `watch_order` — resolves it through
+`entry_visible` before writing, and a hidden or nonexistent entry gets the
+same answer a `GET` of it would: the per-type routes and `casting`/`credits`
+their existing 404, `media_relation`/`watch_order` their existing
+`400 "Referenced entry does not exist."`, `note` its existing
+`404 "Owner not found."`. `entry_visible` (`enforcement.py`) is the single
+place this is decided; nothing else re-implements the check. No route gained
+a new status code or a new message — a 403 would itself confirm the entry
+exists, which is the property being protected.
+
+The structural change was `_factory.py::_get_or_404`'s `viewer` parameter
+losing its default: `entry_visible` returns `True` for a `None` viewer, so the
+default was the defect, silently closing the check on every call site that
+omitted it (36 routes, the four per-type write routes across all nine media
+types). Making the argument required turns a future write route that forgets
+it into a `TypeError` rather than a silent grant — the same fail-loudly move
+Phase A made by deleting `get_current_admin`.
+
+**Two accepted residuals, deliberately not closed here:**
+
+- `content_labels.py`'s `PUT /api/content-labels/entry/{media_type}/{entry_id}`
+  still writes labels with no visibility test. It is gated by `admin.authz`,
+  the permission that *defines* the label axis, and a holder of it can grant
+  itself any label anyway, so a visibility check would guard nothing a
+  permission check doesn't already cover.
+- `franchise.py` stores `cover_entry_id` unvalidated. The consequence of a
+  mismatched or hidden id is a cover image, not a data leak.
+
+Plan: `docs/superpowers/plans/2026-09-11-authz-phase-c-write-binding.md`,
+spec section "The write-binding audit (2026-09-11)" in
+`docs/superpowers/specs/2026-09-10-authorization-redesign-design.md`.
 
 ### Accepted residuals
 

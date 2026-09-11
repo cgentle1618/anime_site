@@ -1,5 +1,9 @@
 # Authorization Phase C — write binding Implementation Plan
 
+> **Shipped 2026-09-11 (`31837f52`).** See `docs/roadmap.md` for the record of
+> what landed, the two derived-type defects found on the way, and what was
+> deliberately left open.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Every write that takes a client-supplied entry id resolves it through

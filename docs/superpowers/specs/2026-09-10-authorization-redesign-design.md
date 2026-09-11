@@ -599,8 +599,19 @@ runner skip and report them for a caller without it. Independent of B, C and D
 time. Small: `tabs.py` is already a per-tab registry and `unresolved_refs` is
 already the skip-and-report channel.
 
-**Phase C — write binding** (decision 9). The write paths call the same guard.
-Phase 0 is a subset of this and a down payment on it.
+**Phase C — write binding. DONE 2026-09-11** (`31837f52`), decision 9. The
+write paths call the same guard. Phase 0 is a subset of this and a down
+payment on it. `_factory.py::_get_or_404`'s `viewer` parameter lost its
+default (that default was the defect — `entry_visible` returns `True` for a
+`None` viewer), closing 36 call sites in one edit; `casting`, `credits`,
+`quote`, `meme`, `note`, `media_relation` and `watch_order` writes now resolve
+through `entry_visible` too, each keeping the answer shape its own route
+already used for missing. Two derived-type defects found on the way and
+fixed: `quote.py` and `note.py` both paired a client-supplied id with a
+*stored* `media_type`/`owner_type`, which are `column_property`/derived
+values rather than authoritative — both now resolve the type from the
+incoming id. `docs/roadmap.md` has the full record, including what was
+deliberately left open.
 
 **Phase D — the surfaces** (section 5). The access-mode page, the per-account
 panel, the switch endpoint, the SPA switcher. Until this ships, modes exist and
