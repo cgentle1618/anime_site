@@ -64,6 +64,7 @@ const Delete = lazy(() => import("./pages/admin/Delete"));
 const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
+const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
@@ -198,6 +199,7 @@ export default function App() {
                   <Route path="/system" element={<Admin />} />
                   <Route path="/data-history" element={<DataHistory />} />
                   <Route path="/review-queue" element={<ReviewQueue />} />
+                  <Route path="/clean-orphans" element={<CleanOrphans />} />
                 </Route>
 
                 {/* Changing who may do what. Admin only. */}

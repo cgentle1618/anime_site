@@ -119,15 +119,23 @@ describe("NAV_SECTIONS", () => {
   });
 
   it("splits the pipeline pages from the accounts/authz pages", () => {
-    // Control Center, Data History and Review Queue call only
+    // Control Center, Data History, Review Queue and Clean Orphans call only
     // /api/system/* and /api/data-control/*  (manage.pipelines); Users,
     // Roles and Content Labels are the accounts/authz surface
     // (admin.authz) — not the same capability, so not the same tab.
+    //
+    // Clean Orphans sits here rather than under admin because it is gated by
+    // manage.pipelines like the rest of /api/data-control. It deletes, which
+    // reads as an admin power, but the capability that authorises it is the
+    // pipeline one - and this list is the second of the SPA's two independent
+    // permission surfaces, so it has to agree with App.jsx rather than with
+    // intuition about severity.
     const pipelines = NAV_SECTIONS.find((s) => s.key === "pipelines");
     expect(sectionItems(pipelines).map((i) => i.to)).toEqual([
       "/system",
       "/data-history",
       "/review-queue",
+      "/clean-orphans",
     ]);
     expect(sectionRequirement(pipelines)).toBe("manage.pipelines");
 

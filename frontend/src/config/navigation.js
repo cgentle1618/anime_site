@@ -249,6 +249,7 @@ export const NAV_SECTIONS = [
       { label: "Control Center", icon: "fas fa-cog", to: "/system" },
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
+      { label: "Clean Orphans", icon: "fas fa-broom", to: "/clean-orphans" },
     ],
   },
   {

@@ -1912,6 +1912,12 @@ export default function Admin() {
             Review Queue
           </Link>
           <Link
+            to="/clean-orphans"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
+          >
+            Clean Orphans
+          </Link>
+          <Link
             to="/add"
             className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
