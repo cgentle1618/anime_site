@@ -129,6 +129,7 @@ plus open items and the scratch test databases currently in use.
 - **Claim before you start.** Set a task to `wip <who>` before working on it, and
   to `done <sha>` in the same commit as the work. `<who>` is a session or agent
   label so two concurrent sessions never claim the same task.
+- **Constantly update the doc.** Keep the status of each task updated.
 - Read it first when picking up work, and when a session starts and the working
   tree looks unfamiliar — it says what someone else already has in hand.
 - When a plan is fully done, its table can be deleted; the roadmap keeps the
@@ -138,5 +139,4 @@ plus open items and the scratch test databases currently in use.
 
 - Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
 - Never commit or push automatically right after finishing a task. Ask for permission and show a one-line version of the commit. Only commit (and push) after I approve. Note that it's possible that we only commit once after multiple modifications.
-- If we're implementing or modifying based on `docs/roadmap.md`, pause and ask for permission to proceed whenever you finish a step or a set of steps. Update the roadmap's progress in its own section. Do not modify the plan itself. Provide a git commit message for the changes.
 - Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four on every PR and push).
