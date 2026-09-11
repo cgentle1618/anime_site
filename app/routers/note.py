@@ -94,14 +94,34 @@ def _require_visible_owner(db: Session, viewer: Viewer, owner_type, owner_id) ->
     """
     The write half of the check the read at line 237 already does.
 
-    An owner may be a grouping tier, which carries no labels; entry_visible
-    only has an opinion about the media types. 404 and "Owner not found.",
-    exactly as the read answers - a 403 here is note.py's answer for writing
-    SOMEBODY ELSE's note, and reusing it would confirm this entry exists.
+    `owner_type` is NOT trusted for the media case: Note.owner_type
+    (app/models/note.py:140-150) is a read-only property that, for a media
+    owner, reads through Note.media -> Media.media_type. update_note's
+    `merged` object fills each field independently from the payload or the
+    stored row (note.py's update_note), so a PATCH naming only `owner_id`
+    would otherwise pair a NEW id with the OLD, stale `owner_type` - gating
+    entry_visible under the wrong media_type permission. Resolving the type
+    from the id here, the same move Task 2 made for Quote.media_type, closes
+    that regardless of which field(s) a caller supplied.
+
+    An owner may instead be a grouping tier, which carries no labels and is
+    not a Media row at all - entry_visible only has an opinion about the
+    media types, so a tier (or a nonexistent id, which the caller's own
+    validation is responsible for) is never refused here. 404 and "Owner not
+    found.", exactly as the read answers - a 403 here is note.py's answer for
+    writing SOMEBODY ELSE's note, and reusing it would confirm this entry
+    exists.
     """
-    if owner_type not in MEDIA_TABLES or owner_id is None:
+    if owner_id is None:
         return
-    if not entry_visible(db, viewer, owner_type, owner_id):
+    resolved_type = (
+        db.query(models.Media.media_type)
+        .filter(models.Media.system_id == owner_id)
+        .scalar()
+    )
+    if resolved_type is None:
+        return
+    if not entry_visible(db, viewer, resolved_type, owner_id):
         raise HTTPException(status_code=404, detail="Owner not found.")
 
 

@@ -348,3 +348,60 @@ class TestNoteWrites:
             },
         )
         assert response.status_code == 404
+
+    def test_patching_owner_id_alone_gates_on_the_new_entrys_own_type(
+        self, db_session, client, sample_anime, sample_manga
+    ):
+        """
+        Regression for the fix-round-1 finding: Note.owner_type is a
+        read-only property read through Note.media, so `merged` (built by
+        filling each field independently from the payload or the stored row)
+        would otherwise pair a NEW owner_id with the OLD, stale owner_type
+        when a PATCH names only owner_id. The writer holds every media_type
+        permission EXCEPT manga, so a wrong-type gate (checking "anime",
+        the stored type) would wrongly allow this, while the fixed gate
+        (checking "manga", the type the id actually resolves to) refuses it.
+        """
+        permissions = default_user_permissions() - {media_type_perm("manga")}
+        writer = make_viewer(
+            db_session, client, "singlefieldwriter", permissions
+        )
+        created = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought.",
+            },
+        ).json()
+        response = writer.patch(
+            f"/api/notes/{created['system_id']}",
+            json={"owner_id": str(sample_manga.system_id)},
+        )
+        assert response.status_code == 404
+        moved = db_session.query(models.Note).filter(
+            models.Note.system_id == created["system_id"]
+        ).first()
+        assert moved.media_id == sample_anime.system_id
+
+    def test_patching_owner_id_alone_onto_a_visible_entry_still_writes(
+        self, db_session, client, sample_anime, sample_manga
+    ):
+        """Control for the test above: a single-field owner_id PATCH is not
+        blanket-refused, only refused when the resolved type is hidden."""
+        writer = self._note_writer(db_session, client, username="okwriter")
+        created = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought.",
+            },
+        ).json()
+        response = writer.patch(
+            f"/api/notes/{created['system_id']}",
+            json={"owner_id": str(sample_manga.system_id)},
+        )
+        assert response.status_code == 200
