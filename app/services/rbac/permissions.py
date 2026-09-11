@@ -26,6 +26,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 PERM_ADMIN = "admin"
 
+FAMILY_ADMIN = "admin"
+# What an account may DO, as opposed to which objects it may reach. The bare
+# `admin` above is the old single permission and is removed at the end of
+# Phase A; these three replace it.
+FAMILY_MANAGE = "manage"
+
 FAMILY_MEDIA_TYPE = "media_type"
 FAMILY_FIELD_GROUP = "field_group"
 FAMILY_LABEL = "label"
@@ -36,11 +42,53 @@ FAMILY_LABEL = "label"
 FAMILY_SELF = "self"
 
 PERMISSION_FAMILIES: tuple[str, ...] = (
+    FAMILY_ADMIN,
+    FAMILY_MANAGE,
     FAMILY_MEDIA_TYPE,
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
     FAMILY_SELF,
 )
+
+ADMIN_PERMISSION_KEYS: tuple[str, ...] = ("authz",)
+MANAGE_PERMISSION_KEYS: tuple[str, ...] = ("catalog", "pipelines")
+
+ADMIN_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
+    "authz": (
+        "Manage Authorization",
+        "Create and edit roles, accounts and content labels - that is, change "
+        "who may do what. Does not itself grant any catalogue write.",
+    ),
+}
+
+MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
+    "catalog": (
+        "Manage Catalogue",
+        "Add, change and delete entries, groups, people, studios, publishers, "
+        "characters, credits, options, relations, watch orders and catalogue "
+        "notes.",
+    ),
+    "pipelines": (
+        "Run Pipelines",
+        "Backup, Pull, Fill, Replace and Calculate. Separate from the "
+        "catalogue because a single Pull All overwrites every table.",
+    ),
+}
+
+
+def admin_perm(key: str) -> str:
+    """Permission to change who may do what."""
+    return f"{FAMILY_ADMIN}.{key}"
+
+
+def manage_perm(key: str) -> str:
+    """Permission to perform one class of catalogue-side operation."""
+    return f"{FAMILY_MANAGE}.{key}"
+
+
+PERM_ADMIN_AUTHZ = admin_perm("authz")
+PERM_MANAGE_CATALOG = manage_perm("catalog")
+PERM_MANAGE_PIPELINES = manage_perm("pipelines")
 
 # Declared here rather than derived from a table: like every other permission
 # these name code (a router dependency), so a row with no code behind it would
@@ -98,6 +146,8 @@ def static_catalog() -> frozenset[str]:
     """Every permission knowable without a database."""
     return frozenset(
         {PERM_ADMIN}
+        | {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+        | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
         | {media_type_perm(media_type) for media_type in MEDIA_TYPE_KEYS}
         | {field_group_perm(key) for key in FIELD_GROUP_KEYS}
         | {self_perm(key) for key in SELF_PERMISSION_KEYS}

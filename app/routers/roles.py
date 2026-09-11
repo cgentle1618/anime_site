@@ -25,16 +25,23 @@ from app.dependencies import get_current_admin, get_db
 from app.services.rbac import cache
 from app.services.rbac.field_groups import FIELD_GROUPS
 from app.services.rbac.permissions import (
+    ADMIN_PERMISSION_KEYS,
+    ADMIN_PERMISSION_LABELS,
     FAMILY_FIELD_GROUP,
     FAMILY_LABEL,
+    FAMILY_MANAGE,
     FAMILY_MEDIA_TYPE,
     FAMILY_SELF,
+    MANAGE_PERMISSION_KEYS,
+    MANAGE_PERMISSION_LABELS,
     PERM_ADMIN,
     SELF_PERMISSION_KEYS,
     SELF_PERMISSION_LABELS,
+    admin_perm,
     catalog,
     field_group_perm,
     label_perm,
+    manage_perm,
     media_type_perm,
     self_perm,
 )
@@ -113,6 +120,26 @@ def get_catalog(db: Session = Depends(get_db)):
                         "permission without being granted them."
                     ),
                 )
+            ]
+            + [
+                schemas.PermissionOut(
+                    permission=admin_perm(key),
+                    label=ADMIN_PERMISSION_LABELS[key][0],
+                    description=ADMIN_PERMISSION_LABELS[key][1],
+                )
+                for key in ADMIN_PERMISSION_KEYS
+            ],
+        ),
+        schemas.PermissionFamilyOut(
+            family=FAMILY_MANAGE,
+            label="Management",
+            permissions=[
+                schemas.PermissionOut(
+                    permission=manage_perm(key),
+                    label=MANAGE_PERMISSION_LABELS[key][0],
+                    description=MANAGE_PERMISSION_LABELS[key][1],
+                )
+                for key in MANAGE_PERMISSION_KEYS
             ],
         ),
         schemas.PermissionFamilyOut(
