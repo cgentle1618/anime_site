@@ -192,6 +192,18 @@ applies; this adds:
   writing it and staging it. `git add <file>` stages the file as it is at that
   instant, not the change you made to it. Naming the file does not narrow
   anything on a file somebody else is also writing; only `-p` does.
+- **`git commit` with no pathspec commits the whole index — including what
+  another session staged.** This is the fourth rule and the one that defeats
+  the other three: careful per-hunk staging protects nothing if the next
+  session's bare `git commit` sweeps the index it left behind. It is how
+  `80e3a77f` swallowed `cards-link-session`'s hunks minutes after that session
+  had staged them correctly, and it happens most easily when a session's own
+  commit is **denied** — the denial leaves their blob sitting in the index for
+  whoever commits next. So: **always `git commit -- <exact paths>`**, which
+  commits those paths and leaves the rest of the index alone. Never a bare
+  `git commit` or `-a` on this repo while other sessions are live.
+- **The index is shared state, like the working tree.** `git status` before you
+  commit, and read what is *staged*, not just what you changed.
 - **Untracked files belong to somebody.** A spec or plan that is not yet
   committed is the most exposed thing in the tree, because a directory
   pathspec picks it up and its author loses the commit message. Check `git
