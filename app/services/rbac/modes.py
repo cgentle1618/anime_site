@@ -126,6 +126,84 @@ def resolve_mode(
     )
 
 
+def switch_requires_password(current: ResolvedMode, target: ResolvedMode) -> bool:
+    """
+    Whether moving from `current` to `target` needs the password again.
+
+    A SET COMPARISON, not an ordering (spec decision 3). Narrowing is free;
+    adding even one label or one field group asks for the password. Modes are
+    deliberately unordered - with per-account denials they are genuinely not a
+    total order - so "is the target narrower" can only mean "is its effective
+    set a subset of mine".
+
+    Both sides are EFFECTIVE sets, after denials. An account holding
+    `borderline` minus `nsfw` reaches no more than `normal` does, so switching
+    between them is free even though the mode is nominally wider.
+
+    Computed here and published by /api/auth/me so the SPA never models this
+    rule. Two implementations of one rule is how they drift, and the one in
+    the browser would be the one nobody tested.
+    """
+    return not (
+        target.label_ids <= current.label_ids
+        and target.field_groups <= current.field_groups
+    )
+
+
+def held_modes(
+    db: Session, user: Optional[models.User], active: ResolvedMode
+) -> list[dict]:
+    """
+    Every mode this account holds, each with the cost of switching to it.
+
+    A guest holds none - they have no account, so there is nothing to switch
+    between; wanting more means logging in.
+    """
+    if user is None:
+        return []
+
+    rows = (
+        db.query(models.UserAccessMode, models.AccessMode)
+        .join(
+            models.AccessMode,
+            models.AccessMode.system_id == models.UserAccessMode.mode_id,
+        )
+        .filter(models.UserAccessMode.user_id == user.id)
+        .order_by(models.AccessMode.sort_order, models.AccessMode.key)
+        .all()
+    )
+
+    out = []
+    for grant, mode in rows:
+        sets = cache.mode_sets(db, mode.system_id)
+        denials = cache.denials_for(db, grant.system_id)
+        effective = ResolvedMode(
+            mode.system_id,
+            mode.key,
+            sets.label_ids - denials.label_ids,
+            sets.field_groups - denials.field_groups,
+        )
+        is_active = mode.system_id == active.mode_id
+        out.append(
+            {
+                "id": str(mode.system_id),
+                "key": mode.key,
+                "label": mode.label,
+                "is_active": is_active,
+                # Switching to where you already are is a no-op, never a
+                # widening - and the subset test would say so anyway, but
+                # saying it explicitly keeps a denial edge from making the
+                # active row ask for a password.
+                "requires_password": (
+                    False
+                    if is_active
+                    else switch_requires_password(active, effective)
+                ),
+            }
+        )
+    return out
+
+
 def default_mode_id(db: Session, user: models.User) -> Optional[UUID]:
     """
     The mode a fresh login lands in: the account's is_default grant.

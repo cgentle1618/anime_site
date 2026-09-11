@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies import get_db
-from app.services.rbac.modes import default_mode_id
+from app.services.rbac.modes import ResolvedMode, default_mode_id, held_modes
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
@@ -93,6 +93,19 @@ def login_for_access_token(
     return {"message": "Successfully logged in", "role": user.role}
 
 
+def _user_for(db: Session, viewer):
+    """The account row behind a resolved viewer, or None for a guest.
+
+    /me resolves a Viewer rather than a User, and held_modes needs the row.
+    One lookup on a route the SPA calls once per mount.
+    """
+    if not viewer.username:
+        return None
+    return (
+        db.query(models.User).filter(models.User.username == viewer.username).first()
+    )
+
+
 @router.get("/me", summary="Get Current Auth Status")
 def get_me(request: Request, db: Session = Depends(get_db)):
     """
@@ -150,6 +163,20 @@ def get_me(request: Request, db: Session = Depends(get_db)):
             "id": str(viewer.mode_id) if viewer.mode_id else None,
             "key": viewer.mode_key,
         },
+        # What the switcher needs: which modes are available, and what each
+        # would COST. `requires_password` is the subset test from decision 3,
+        # computed server-side precisely so the SPA never has to model it.
+        # A guest gets an empty list - no account, nothing to switch between.
+        "modes": held_modes(
+            db,
+            _user_for(db, viewer),
+            ResolvedMode(
+                viewer.mode_id,
+                viewer.mode_key,
+                viewer.visible_label_ids,
+                viewer.field_groups,
+            ),
+        ),
     }
 
 
