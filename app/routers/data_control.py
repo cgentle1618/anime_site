@@ -29,6 +29,7 @@ from app.services.pipelines.backup import execute_backup
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
+from app.services.rbac.modes import require_unscoped_mode
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_manage_pipelines
 
@@ -42,7 +43,20 @@ class DownloadCoversBody(BaseModel):
 router = APIRouter(
     prefix="/api/data-control",
     tags=["Data Control Pipelines"],
-    dependencies=[Depends(require_manage_pipelines)],
+    # Two gates, and the second is not redundant. require_manage_pipelines
+    # answers "may this account run pipelines at all"; require_unscoped_mode
+    # answers "may it run one from THIS session" - a pipeline rewrites every
+    # entry, so running it from a narrowed session would write a partial sheet
+    # over the complete one. Decision 14.
+    #
+    # ROUTER level, not per handler, and for the same reason the capability
+    # gate is: most of this router's routes are registered in a loop over
+    # PIPELINES rather than declared, so a per-handler gate would miss them
+    # silently - which is exactly how the Replace-one oracle survived a year.
+    dependencies=[
+        Depends(require_manage_pipelines),
+        Depends(require_unscoped_mode),
+    ],
 )
 
 

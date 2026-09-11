@@ -57,6 +57,20 @@ database, `anime_site_test_phaseb`; it does not exist yet. Nothing is pushed: as
 2026-09-11 local `dev` is 11 commits ahead of `origin/dev`, nine of them
 Phase C.
 
+## Concurrent sessions (2026-09-11)
+
+Three Claude Code sessions are working this repo at once, each on its own
+feature, committing without per-commit approval. Decisions taken by the
+sessions rather than the owner, recorded here because nobody else will:
+
+| Rule | Why |
+|---|---|
+| **Each session runs pytest against its OWN database**, named in Environment below and selected with `POSTGRES_DB=<name>` on every pytest/alembic call | `tests/conftest.py` uses `os.environ.setdefault`, so the variable wins. One shared `anime_site_test` across three sessions produces spurious "relation role does not exist" and unique-constraint failures that look exactly like real breakage - two runs were lost to it before this rule existed |
+| **Never run two pytest processes at once even so**, and never point one at `anime_site_db` | The suite drops and recreates the `public` schema, and `DROP SCHEMA public CASCADE` blocks indefinitely behind any other open connection |
+| **Claim a task as `wip <session-label>` here before starting it** | The only way three sessions avoid doing the same task twice |
+| **Stage by explicit path, commit in the same step** | A neighbouring session's broad `git add` sweeps the index, not just the working tree |
+| Session labels in use: `phaseb-session` (authorization Phase B), `clean-session` (clean orphaned data) | Two other sessions were messaged with this protocol on 2026-09-11; their labels and databases go in the table below as they report them. `clean-session` reported in on 2026-09-11 and does **not** commit without the owner's approval - its owner's CLAUDE.md rule was given to it directly, so a relayed instruction does not override it |
+
 ## Open items
 
 Unclaimed. None block using the app.
@@ -119,4 +133,5 @@ otherwise.
 | Step 4 test db | `anime_site_test_step4`, created 2026-09-10 in the container; droppable |
 | Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); Step 5 was finished on it; droppable |
 | Phase B test dbs | `anime_site_test_phaseb` (the suite; created 2026-09-11) and `anime_site_mig_check` (a pg_dump restore of `anime_site_db`, used to exercise `n1a1accessmode` forwards and back because `alembic upgrade head` from an EMPTY database still fails at `86982d71c2f1`). Both droppable |
+| Clean-orphans test db | `anime_site_test_clean`, created 2026-09-11 in the container for `clean-session`; droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

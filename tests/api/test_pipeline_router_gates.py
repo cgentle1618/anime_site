@@ -68,27 +68,11 @@ def test_the_admin_account_still_reaches_the_pipelines(admin_client, path):
     assert admin_client.get(path).status_code in (200, 404, 405)
 
 
-@pytest.fixture
-def super_client(db, client):
-    """An account holding the seeded `super` role, which has both manage.*."""
-    from app.services.rbac.seed import SUPER_ROLE, ensure_rbac_seed
-
-    ensure_rbac_seed(db)
-    db.flush()
-    role = db.query(models.Role).filter(models.Role.name == SUPER_ROLE).one()
-    db.add(
-        models.User(
-            id=uuid.uuid4(),
-            username="superpipes",
-            hashed_password=get_password_hash("x"),
-            role_id=role.system_id,
-        )
-    )
-    db.flush()
-    rbac_cache.bump()
-    token = create_access_token({"sub": "superpipes", "role": SUPER_ROLE})
-    client.cookies.set("access_token", f"Bearer {token}")
-    return client
+# super_client comes from conftest now. The local copy this file used to
+# carry minted a token with no `mode` claim, which since Phase B resolves the
+# EMPTY object set - so a `super` could not pass the pipelines' unscoped-mode
+# gate and this test failed for a reason that had nothing to do with its
+# subject. The shared fixture grants the four modes, as the migration does.
 
 
 @pytest.mark.parametrize("path", ["/api/system/logs", "/api/data-control/check/duplicates"])

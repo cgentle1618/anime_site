@@ -6,14 +6,8 @@ to grant itself anything, edit a role, create an account, or change a content
 label - the labels being what the access-mode axis will scope in Phase B.
 """
 
-import uuid
 
 import pytest
-
-from app import models
-from app.services.rbac import cache as rbac_cache
-from app.services.rbac.seed import SUPER_ROLE, ensure_rbac_seed
-from app.services.security import create_access_token, get_password_hash
 
 
 @pytest.fixture
@@ -21,25 +15,8 @@ def db(db_session):
     return db_session
 
 
-@pytest.fixture
-def super_client(db, client):
-    """Logged in as an account holding the `super` role."""
-    ensure_rbac_seed(db)
-    db.flush()
-    role = db.query(models.Role).filter(models.Role.name == SUPER_ROLE).one()
-    db.add(
-        models.User(
-            id=uuid.uuid4(),
-            username="supergate",
-            hashed_password=get_password_hash("x"),
-            role_id=role.system_id,
-        )
-    )
-    db.flush()
-    rbac_cache.bump()
-    token = create_access_token({"sub": "supergate", "role": SUPER_ROLE})
-    client.cookies.set("access_token", f"Bearer {token}")
-    return client
+# super_client comes from conftest now - Phase A built this account inline in
+# several files and the audit asked for one copy.
 
 
 @pytest.mark.parametrize(

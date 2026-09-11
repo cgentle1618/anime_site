@@ -61,6 +61,7 @@ from app.routers import (
 )
 from app.schema_guard import ensure_schema
 from app.services.integrations.image_manager import COVER_DIR, COVER_OWNERS
+from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.seed import ADMIN_ROLE, ensure_rbac_seed
 from app.services.rbac.seed_modes import ensure_access_mode_seed
 from app.services.security import get_password_hash
@@ -108,6 +109,14 @@ async def lifespan(app: FastAPI):
         # should find both seeds in one place. Idempotent for the same reason
         # ensure_rbac_seed is.
         ensure_access_mode_seed(db)
+        # And make sure every existing account HOLDS a mode. A signed-in
+        # caller with no mode resolves the empty object set - fail-closed,
+        # and correct - so on a database built by create_all rather than by
+        # Alembic (schema_guard's fresh-install path) the seeded admin would
+        # otherwise log in and see nothing. Idempotent and all-or-nothing per
+        # account: anyone already holding a mode is left alone, so this does
+        # not fight the future rule that a NEW account gets `safe` only.
+        grant_all_modes_to_existing_accounts(db)
         db.commit()
         admin_role = (
             db.query(models.Role).filter(models.Role.name == ADMIN_ROLE).first()
