@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
     field_group_perm,
@@ -32,6 +34,10 @@ ADMIN_ROLE = "admin"
 # A signed-in member. Not an administrator and not a second kind of admin:
 # guest reads plus the two self.* writes, and nothing else.
 USER_ROLE = "user"
+# Everything except the ability to change who may do what. NOT is_superuser:
+# the point of the role is that its grant set is finite and inspectable, so a
+# permission minted in code reaches it only when someone grants it.
+SUPER_ROLE = "super"
 
 # Field groups a brand-new guest role does NOT receive. A group lands here
 # when its purpose is to withhold something from ordinary viewers, so
@@ -63,6 +69,21 @@ def default_user_permissions() -> set[str]:
     function ever grows a fourth idea, that is a design change, not a tidy-up.
     """
     return default_guest_permissions() | {PERM_SELF_LIST, PERM_SELF_PERSONAL_NOTES}
+
+
+def default_super_permissions() -> set[str]:
+    """
+    A super account: everything a signed-in member has, plus both management
+    permissions. Derived from default_user_permissions() rather than restated,
+    so a media type or field group added later reaches this role too.
+
+    admin.authz is deliberately absent. That is the whole distinction between
+    this role and the admin account.
+    """
+    return default_user_permissions() | {
+        PERM_MANAGE_CATALOG,
+        PERM_MANAGE_PIPELINES,
+    }
 
 
 def _ensure_role(db: Session, name: str, **fields) -> models.Role:
@@ -106,6 +127,18 @@ def ensure_rbac_seed(db: Session) -> None:
         is_superuser=False,
         sort_order=50,
     )
+    super_role = _ensure_role(
+        db,
+        SUPER_ROLE,
+        label="Super",
+        description=(
+            "Manages the catalogue and runs the pipelines. Cannot change "
+            "roles, accounts or content labels."
+        ),
+        is_system=True,
+        is_superuser=False,
+        sort_order=75,
+    )
 
     # Only add what is missing. An admin who deliberately removed a grant from
     # guest must not have it handed back on the next restart, so this tops up
@@ -134,6 +167,21 @@ def ensure_rbac_seed(db: Session) -> None:
         for permission in sorted(default_user_permissions()):
             db.add(
                 models.RolePermission(role_id=user.system_id, permission=permission)
+            )
+
+    # Same rule again: top up only a role holding nothing at all.
+    super_held = {
+        row.permission
+        for row in db.query(models.RolePermission).filter(
+            models.RolePermission.role_id == super_role.system_id
+        )
+    }
+    if not super_held:
+        for permission in sorted(default_super_permissions()):
+            db.add(
+                models.RolePermission(
+                    role_id=super_role.system_id, permission=permission
+                )
             )
 
     db.flush()
