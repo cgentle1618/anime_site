@@ -746,17 +746,32 @@ def test_the_admin_account_still_reaches_them(admin_client, path):
     assert admin_client.get(path).status_code == 200
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [ ] **Step 2: Run it and expect it to PASS — this task is a pure refactor**
 
 ```bash
 venv/Scripts/python.exe -m pytest tests/api/test_authz_router_gates.py -q
 ```
 
-Expected: the three `test_super_is_refused_*` cases FAIL with 200 — `super`
-currently passes, because `get_current_admin` asks for `admin`, which nobody
-holds, so these routes are reachable only by the superuser admin... verify the
-actual failure message before proceeding. If they already return 401, the gate
-is right for the wrong reason and the test still belongs.
+Expected: **6 passed, before any change is made.** This is correct and is not a
+reason to stop.
+
+No failing test is possible for this task, and it is worth understanding why
+rather than trying to manufacture one. Before the swap the gate asks for
+`admin`; a `super` account is not `is_superuser` and holds no `admin` grant, so
+it is refused. After the swap the gate asks for `admin.authz`, which `super` is
+also not granted, so it is refused identically. The owner's `admin` account
+passes both ways through `is_superuser`. The observable behaviour of these
+three routers is unchanged by design — that is the whole point of Phase A being
+safe to apply in pieces.
+
+The tests above are therefore **characterisation tests**: they pin the
+behaviour so that Phase B, which does change who reaches these routers, cannot
+alter it silently. What actually protects this task is the full suite staying
+green plus Task 9's ImportError sweep, which is what catches a router nobody
+re-gated.
+
+Do not skip the step. A subagent that sees green here should record "passes
+before and after, as the plan predicts" and continue.
 
 - [ ] **Step 3: Swap the three routers**
 
@@ -894,11 +909,46 @@ def test_manage_catalog_alone_does_not_open_the_pipelines(
 @pytest.mark.parametrize("path", ["/api/system/", "/api/data-control/"])
 def test_the_admin_account_still_reaches_the_pipelines(admin_client, path):
     assert admin_client.get(path).status_code in (200, 404, 405)
+
+
+@pytest.fixture
+def super_client(db, client):
+    """An account holding the seeded `super` role, which has both manage.*."""
+    from app.services.rbac.seed import SUPER_ROLE, ensure_rbac_seed
+
+    ensure_rbac_seed(db)
+    db.flush()
+    role = db.query(models.Role).filter(models.Role.name == SUPER_ROLE).one()
+    db.add(
+        models.User(
+            id=uuid.uuid4(),
+            username="superpipes",
+            hashed_password=get_password_hash("x"),
+            role_id=role.system_id,
+        )
+    )
+    db.flush()
+    rbac_cache.bump()
+    token = create_access_token({"sub": "superpipes", "role": SUPER_ROLE})
+    client.cookies.set("access_token", f"Bearer {token}")
+    return client
+
+
+@pytest.mark.parametrize("path", ["/api/system/", "/api/data-control/"])
+def test_super_may_run_the_pipelines(super_client, path):
+    """
+    The failing case that drives this task.
+
+    Before the swap these routers ask for the bare `admin`, which `super` does
+    not hold and is not superuser for - so this is a 401. After the swap they
+    ask for manage.pipelines, which the seeded super role does hold.
+    """
+    assert super_client.get(path).status_code in (200, 404, 405)
 ```
 
-The `in (200, 404, 405)` on the last assertion is deliberate: the prefix may
-expose no bare `GET /`, and the point being tested is that the **gate** does
-not answer 401, not that a particular route exists.
+The `in (200, 404, 405)` assertions are deliberate: a prefix may expose no bare
+`GET /`, and what is being tested is that the **gate** does not answer 401, not
+that a particular route exists.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -906,8 +956,14 @@ not answer 401, not that a particular route exists.
 venv/Scripts/python.exe -m pytest tests/api/test_pipeline_router_gates.py -q
 ```
 
-Verify the failure before proceeding, and correct the two prefixes in the
-parametrize lists if they do not match the routers' real prefixes:
+Expected: the two `test_super_may_run_the_pipelines` cases FAIL with 401. The
+other four pass already — the `catalog_only` refusal is a characterisation test
+(that account is refused both before and after, since it holds neither `admin`
+nor `manage.pipelines`), and it earns its place by pinning the split once
+`super` can reach these routes.
+
+If the failures are not 401, correct the two prefixes in the parametrize lists
+against the routers' real ones before continuing:
 
 ```bash
 grep -n "prefix=" app/routers/system.py app/routers/data_control.py
