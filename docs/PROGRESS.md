@@ -13,13 +13,21 @@ Last updated: 2026-09-11
 
 ## In flight
 
-**The authorization system** - `wip authz-home`, brainstorm stage, paused at an
-environment switch on 2026-09-10 and resuming on **company**. No plan yet, so
-there is no task table to claim against. Five decisions are settled and section
-1 of six is written but unapproved:
+**The authorization system** - `wip authz-company`, brainstorm stage. No plan
+yet, so there is no task table to claim against. **Nine decisions settled;
+sections 1-4 of six written and approved** (2026-09-11):
 **[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**
-(draft, not implementable). Resume by answering the two questions at the head of
-its section 1, then continue at section 2.
+(draft, not implementable). Resume at **section 5** - the access-mode admin page,
+the per-account panel, and the migration - then section 6, testing.
+
+Two reversals from the 2026-09-10 draft, both recorded in the spec: `admin` is a
+superset rather than a break-glass account, and a mode binds **writes** as well
+as reads, which renamed the concept from *view mode* to *access mode*.
+
+The spec's "Defects this redesign must fix" section holds one hole that is
+exploitable **today**: `PUT /me/list/{media_id}` performs no object-level check,
+so any account holding `self.list` can rate an entry it cannot see. It does not
+need the redesign to land and could be fixed on its own.
 
 Multi-user Steps 0-5 are finished and their entries are gone from this file;
 `docs/roadmap.md` keeps the record, per the convention above.
