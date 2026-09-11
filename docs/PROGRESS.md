@@ -92,9 +92,23 @@ Roster, 2026-09-11. Four sessions; `coord-session` does no feature work.
 | Label | Feature | Test db | Status at last check-in |
 |---|---|---|---|
 | `coord-session` (anime-site-04) | none - coordination, arbitration, push sequencing, recording decisions | none | active |
-| `phaseb-session` (anime-site-ab) | authorization Phase B, the access-mode axis | `anime_site_test_phaseb`, `anime_site_mig_check` | task 6, the pivot, in hand |
-| `clean-session` (anime-site-71) | clean orphaned data - diff local db against the sheet, review, delete | `anime_site_test_clean` | design, unblocked to decide part 2 itself; ~240-300 min left |
+| `phaseb-session` (anime-site-ab) | authorization Phase B, the access-mode axis | `anime_site_test_phaseb`, `anime_site_mig_check` | 10 of 12 landed, pivot done in `e18bac6e`, no blockers. Tasks 11 (per-viewer remark, one commit) and 12 (docs) left, ~60-75 min. **The only session that can still commit** |
+| `clean-session` (anime-site-71) | clean orphaned data - diff local db against the sheet, review, delete | `anime_site_test_clean` | spec + 8-task plan written, task 1 code-complete. **Commit denied**; ~200-260 min left |
 | `cards-link-session` (anime-site-eb) | entry cards become real links (middle-click / ctrl-click opens a tab) | none needed, frontend only | **done** - stretched links in `MediaCard` and the four tracker cards; roadmap entry written |
+
+**The run's one blocker, 2026-09-11: `git commit` is denied by the permission
+classifier in two of the three feature sessions** (`clean-session`, reason
+"Instruction Poisoning"; `cards-link-session`, reason "Auto-Mode Bypass").
+Neither is a CLAUDE.md rule - that one is lifted - and neither session will let
+another commit on its behalf, correctly: a peer committing work your own
+permissions refused routes around the owner's decision. It needs the owner to
+add a Bash `git commit` permission rule in those sessions. Until then their
+work accumulates in the working tree, `phaseb-session` is the only session that
+can record anything, and both blocked sessions keep a replay list so the
+catch-up is mechanical. Second-order cost: `clean.py` and `test_clean_scan.py`
+are untracked in a shared tree, so **each backend session's full-suite run
+collects the other's tests** - a red may not be yours, and a green is partly
+theirs.
 
 Decision, 2026-09-11, `coord-session`: **the owner lifted "ask before committing"
 for this run and delegated the judgement calls**, and it is recorded in
