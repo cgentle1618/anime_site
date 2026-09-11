@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-12 (the access-mode fixtures, and the lifespan/test-transaction deadlock)
+Last verified: 2026-09-12 (vacuous gates, and fixtures that look like decoration)
 
 ## What this is for
 
@@ -250,6 +250,42 @@ gets its own files following the comic precedent: `test_comic_model.py`,
 `test_comic_autofill.py` plus the `sample_comic` fixture in `tests/api/`. On the
 frontend, `lib/autofill.test.js` pins one expected patch per media type and
 `hooks/useFormDefaults.test.js` checks the defaults shape; extend both.
+
+## Gates that compute over a set, and fixtures that look like decoration
+
+**A fixture that exists to make a negative test bite is load-bearing and looks
+like decoration.**
+
+`tests/api/test_clean_routes.py` asserts that a narrowed session is refused
+`/api/data-control/clean/scan`. It takes an `nsfw_label` fixture that appears
+nowhere in the body of the test. Remove it as "unused" and the test still
+passes — but it now passes because the gate has nothing to refuse, not because
+the gate works.
+
+The mechanism: `is_unscoped` compares the session's mode against **all**
+content labels and **all** field groups. With no labels in the database, the
+comparison is `set() <= anything`, which is vacuously true, so `normal` carries
+everything there is to carry and legitimately **is** unscoped. The label is
+what makes a narrowed mode narrow.
+
+Generalised: **any gate that computes over a set is vacuously satisfied when
+the set is empty, and an empty set is exactly what a fresh test database gives
+you.** The dangerous version of this bug is not a loud failure — it is
+`assert response.status_code == 401` against a gate that happens to refuse
+everything for an unrelated reason, going green on day one and staying green
+through the change that breaks it.
+
+Two rules follow:
+
+1. Populate whatever set the gate computes over, and say in the docstring that
+   the fixture is doing that job.
+2. Assert the **mirror** case with the *same* fixture — an unscoped session
+   reaching the handler while the label exists — so a green proves the mode did
+   the refusing rather than something incidental about the route.
+
+This is the same family as "when a loud refusal is being softened, put the
+regression test on the read, not on the write": in both, the assertion runs,
+ends green, and measures nothing.
 
 ## The theme token guard
 

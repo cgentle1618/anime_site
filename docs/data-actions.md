@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-11 (Pull gates the three authorization tabs)
+Last verified: 2026-09-12 (Clean added: the reviewed diff-and-delete action)
 
 ## What this is for
 
@@ -16,11 +16,12 @@ Code map:
 | `app/services/pipelines/fill.py`, `replace.py` | named entry points (`execute_fill_anime`, `execute_replace_single_movie`, ...) bound to a spec |
 | `app/services/pipelines/tabs.py` | `SHEET_TABS` — the one registry of sheet tabs, in restore order |
 | `app/services/pipelines/backup.py` | `execute_backup` |
+| `app/services/pipelines/clean.py` | `scan_orphans`, `apply_clean` — the diff against the sheet, and the reviewed delete |
 | `app/services/pipelines/pull.py` | `execute_pull_specific`, `execute_pull_all` |
 | `app/services/calculation.py` | `run_calculate_all` and the cover-image bulk actions |
 | `app/utils/data_control_utils.py` | `log_data_control` (the audit row) and `log_deleted_record` |
 
-All routes are admin-only: the router is declared with `dependencies=[Depends(get_current_admin)]`.
+All routes need **two** gates, both declared on the router: `Depends(require_manage_pipelines)` (may this account run pipelines at all) and `Depends(require_unscoped_mode)` (may it run one from THIS session). Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
 
 ---
 
@@ -626,7 +627,150 @@ All in `calculation.py`; storage helpers come from `app/services/integrations/im
 
 ---
 
-## 8. Check duplicates / remarks
+## 8. Clean (delete rows the sheet has forgotten)
+
+`scan_orphans(db)` and `apply_clean(db, items)` in
+`app/services/pipelines/clean.py`. Routes: `GET /api/data-control/clean/scan`
+and `POST /api/data-control/clean/apply`.
+
+### 8.1 The problem it exists for
+
+**Pull only ever inserts and updates.** `execute_pull_specific` upserts each
+sheet row and nothing in `pull.py` deletes, so a local row the sheet no longer
+mentions survives every Pull All, forever. That is the normal consequence of
+the two-machine workflow: delete an entry on **home**, Backup, then
+`git pull` + Pull All on **company**, and the entry is still there and no
+future Pull will remove it. Deletions do not propagate. Clean is what makes
+them propagate, under review.
+
+### 8.2 Scope — thirteen tabs
+
+`Collection`, `Franchise`, `Series`, `Media`, and the nine detail tabs
+(`Anime`, `Anime Movie`, `Movies`, `TV Shows`, `Cartoons`, `Manga`, `Novel`,
+`Comic`, `Game`).
+
+Everything else in `SHEET_TABS` is deliberately out of scope. The vocabulary
+and entity tabs (`System Options`, `Person`, `Studio`, `Publisher`,
+`Character`) are excluded because deleting one of those rows does not remove a
+row the operator reviewed — it silently rewrites every entry citing it through
+`ON DELETE CASCADE` on `media_credit` and `media_tag`. An unused option is
+clutter; an orphaned entry is divergence, and only the second is a correctness
+problem. The authorization tabs are excluded because the sheet is an ordinary
+Google Sheet anyone with access can edit, and a delete path into `Users` would
+let a sheet edit remove an account. The per-user tabs are excluded because
+those rows belong to somebody.
+
+### 8.3 The two refusals
+
+Both abort the **entire run**, not the current tab:
+
+| Condition | Why |
+|---|---|
+| `SheetsUnavailableError` on any in-scope tab | A partial read is indistinguishable from "everything the unread tabs cover is orphaned". |
+| An in-scope tab with fewer than 2 rows | An empty tab means "delete this entire table". `bulk_overwrite_sheet` already refuses to *write* one, so reading one back means the sheet is wrong, not the database. |
+
+Pull's policy for both is to continue and report. That is right for an upsert
+and catastrophic for a delete, and it is the single most important difference
+between the two pipelines.
+
+### 8.4 What makes a row a candidate
+
+A row is a candidate only when the sheet knows it by **none** of its
+identities. Any single hit spares it.
+
+| Group | Identities, all must miss |
+|---|---|
+| Entries (found on `Media`) | `system_id`; `(media_type, public_id)`; `display_name` |
+| Tiers | `system_id`; `public_id`; `<prefix>_name_en`; `<prefix>_name_cn` |
+
+The arms are **not** equally strong and the code says so. `(media_type,
+public_id)` is load-bearing: Backup writes `public_id` on every entity tab and
+Pull restores it unchanged, which is what keeps the two machines agreeing on
+the ids in URLs. `display_name` is weak and *not* independent — it is
+denormalized from the detail tables' `*_name_*` columns — so a rename kills
+exactly that one arm.
+
+**This rule was originally copied from `pull.py`'s id-less matching and that
+would have destroyed data.** An entry renamed on the other machine misses on
+`system_id` and on both names, so a names-only rule reads it as orphaned and
+cascades away its credits, sources, notes and every user's list rows. In
+`pull.py` the same failed match is harmless — the row simply inserts. **Upsert
+forgives a bad match; delete does not.** Whenever an identity rule moves from a
+read or upsert path to one that deletes, re-derive it from what actually
+round-trips between the two databases.
+
+### 8.5 Entries are found on `Media`, deleted on `Media`
+
+Backup writes both the `media` row and its detail row, so an entry deleted
+elsewhere vanishes from both; scanning `Media` alone is sufficient and better,
+because `Media` carries the portable pair while the nine detail tabs carry nine
+irregular name prefixes (`tv_name_en`, not `tv_show_name_en`).
+
+Deletion targets `media.system_id` because the FK runs
+`detail.system_id → media.system_id ON DELETE CASCADE`. Deleting the detail row
+alone would leave an orphaned `media` row — a fresh orphan made by the orphan
+cleaner.
+
+A detail row with **no** `media` parent is reported as an **anomaly**, never as
+a candidate: the FK should make it impossible, and Clean is not the right tool
+for a corruption it did not cause.
+
+### 8.6 Blast radius — deleted vs detached
+
+Each candidate carries counts of its collateral, computed before anything is
+deleted, split by what the database actually does:
+
+| Group | Rows | On delete |
+|---|---|---|
+| `deleted` | `media_credit`, `media_tag`, `media_source`, `media_content_label`, `note`, `meme`, `user_media_list` | `CASCADE` |
+| `detached` | `quote` | `SET NULL` |
+
+**A quote survives its entry.** `quote.media_id` is nullable by design — "a
+quote may belong to no entry, either because it was written that way or because
+its entry was later deleted". Reporting it as deleted would be false, and the
+review screen is the one place where that precision is the entire point.
+
+A tier candidate carries a `children` count instead: `collection_id`,
+`franchise_id` and `series_id` are all `SET NULL`, so children survive their
+deleted parent orphaned-but-alive.
+
+### 8.7 Apply re-scans
+
+`apply_clean` re-runs the scan and deletes an id only if it is **still** a
+candidate; the rest come back in `skipped` with a reason. This is not redundant
+with the scan the operator looked at: a stale review page produces a perfectly
+successful delete of rows that stopped being orphans in the meantime. The
+question is never "did the delete run" but "is what got deleted still the set
+that was reviewed". Re-scanning makes the deleted set a subset of the reviewed
+set by construction, and makes a Sheets outage a no-op rather than a
+catastrophe.
+
+Tiers delete child-first (`Media`, `Series`, `Franchise`, `Collection`).
+
+### 8.8 Logging
+
+One `deleted_record` row per deleted entry via `log_deleted_record`, staged in
+the same transaction as the delete so they land or roll back together; then one
+`data_control_logs` row — `Clean` / `Clean Orphans` / `Manual` — with
+`rows_deleted` and a per-tab `details_json`. `scan` writes nothing; it is
+read-only, like `check/duplicates`.
+
+### 8.9 The review screen
+
+`frontend/src/pages/admin/CleanOrphans.jsx`, reachable from Data Control and
+from the nav. Nothing is selected on load. Select-all skips rows created since
+the last **successful** Backup — those are marked and must be ticked by hand,
+because a row made ten minutes ago is indistinguishable from an orphan here.
+With no successful Backup ever, every row counts as new and select-all selects
+nothing.
+
+There is deliberately **no freshness gate**: in the workflow that creates the
+garbage the sheet is *ahead* of the database, so "back up first" would rewrite
+the garbage into the sheet and destroy the evidence.
+
+---
+
+## 9. Check duplicates / remarks
 
 | Route | Function | Returns |
 |---|---|---|
@@ -637,7 +781,7 @@ Neither writes a log row.
 
 ---
 
-## 9. The audit log (`DataControlLog`)
+## 10. The audit log (`DataControlLog`)
 
 `log_data_control(db, action_main, action_specific, action_type, status, rows_added=0, rows_updated=0, rows_deleted=0, error_message=None, details_json=None)` inserts one row into `data_control_logs` and commits on its own; a failure to log is itself only logged, never raised.
 
@@ -671,7 +815,7 @@ Who logs:
 
 ---
 
-## 10. SSE event shapes
+## 11. SSE event shapes
 
 Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every event is one line `data: {json}\n\n` built by `_sse(**payload)` in `runner.py`.
 
@@ -686,9 +830,9 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ---
 
-## 11. Route table — `/api/data-control`
+## 12. Route table — `/api/data-control`
 
-All routes require admin (`get_current_admin`). `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require `manage.pipelines` **and** an unscoped access mode (`require_unscoped_mode`), both declared on the router. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|
@@ -701,6 +845,8 @@ All routes require admin (`get_current_admin`). `{key}` is a pipeline key: the h
 | POST | `/pull` | — | JSON `{"status": "success", "details": {tab: processed}}`; 500 when any tab was unreadable or failed | Pull All |
 | POST | `/pull/manga`, `/pull/novel`, `/pull/comic`, `/pull/cartoon` | — | JSON `{"status", "processed", "rows_added", "rows_updated"}` | shortcut to the `Manga`, `Novel`, `Comic`, `Cartoons` tabs (registered from `MEDIA_TYPE_FOR_TAB` for those four media types only) |
 | POST | `/pull/{tab_name}` | path = exact tab name from section 2, URL-encoded (`/pull/Anime`, `/pull/Anime%20Movie`, `/pull/TV%20Shows`) | same as above; 400 `Unknown tab: ...` for anything else | Pull one tab |
+| GET | `/clean/scan` | — | JSON `{tabs, totals, last_backup_at, anomalies}`; **503** when the sheet is unreadable or a tab is empty | find rows the sheet no longer mentions; read-only, logs nothing |
+| POST | `/clean/apply` | body `{"items": [{"tab", "system_id"}]}` | JSON `{deleted, per_tab, skipped}`; **503** as above, and nothing is deleted | re-scan, then delete only the named ids that are still orphans |
 | POST | `/calculate/all` | — | JSON `{"status", "message"}`; 500 on failure | Calculate All |
 | GET | `/calculate/check-cover-image` | query `entry_type` (optional, an Anime `airing_type`) | JSON, see section 7 | cover check |
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |

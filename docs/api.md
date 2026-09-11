@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-12 (the access-mode axis: /me carries a mode, the pipeline routers need an unscoped one)
+Last verified: 2026-09-12 (the two Clean routes)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1307,6 +1307,22 @@ A row whose JSON fails to parse is logged and treated as unconfigured, never a 5
 All endpoints in this router require admin authentication.
 
 The per-type Fill / Replace routes are **generated** from `PIPELINES` (`app/services/pipelines/specs.py`) by `_register_media_routes` in `app/routers/data_control.py`, so a new media type gets its routes by adding a spec, not a handler. Each spec yields `POST /fill/{key}` and `POST /replace/{key}/{entry_id}` always, and `POST /replace/{key}` (bulk) only when the spec has a `replace_select` — every type except comic.
+
+### Clean — find and delete rows the sheet has forgotten
+
+Pull only inserts and updates, so an entry deleted on one machine survives every
+Pull All on the other. Clean is the reviewed diff-and-delete that fixes that.
+Full behaviour: [data-actions.md](data-actions.md) section 8.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/clean/scan` | Every local row the sheet no longer mentions, grouped by tab, each with its blast radius, timestamps and `public_id`. Read-only; writes no log row. Returns `last_backup_at` so the caller can tell a genuine orphan from a row created since the last Backup. **503** if any in-scope tab is unreadable or has no data rows — a partial read is indistinguishable from "everything is orphaned". |
+| `POST` | `/clean/apply` | Body `{"items": [{"tab", "system_id"}, ...]}`. Re-runs the scan and deletes only the named ids that are **still** candidates; the rest come back in `skipped` with a reason. Returns `{deleted, per_tab, skipped}`. **503** as above, in which case nothing is deleted. |
+
+Both inherit the router's two gates, and the mode gate matters here for a reason
+adjacent to decision 14's: the scan report names every orphan in the database,
+so it is an unrestricted read of the whole catalogue by construction, and apply
+deletes by `system_id`. A narrowed session is refused both with 401.
 
 ### Fill
 

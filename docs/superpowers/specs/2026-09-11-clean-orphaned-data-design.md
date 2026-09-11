@@ -1,8 +1,11 @@
 # Clean orphaned data — design
 
-Last verified: 2026-09-11
-Status: design approved (part 1 by the owner; part 2 decided by `clean-session`
-under the coordinated multi-session delegation, see Decision 0)
+Last verified: 2026-09-12
+Status: **SHIPPED 2026-09-12.** Eight tasks, 17afb33e..c360ecfa, plus the docs commit.
+Design approved part 1 by the owner; part 2 decided by `clean-session` under the
+coordinated multi-session delegation, see Decision 0. Decisions 3 and 5 were
+corrected during implementation by reading the code; both corrections are
+recorded in place rather than silently absorbed.
 
 ## The problem
 

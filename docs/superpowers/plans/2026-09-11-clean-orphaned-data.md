@@ -10,6 +10,14 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-11-clean-orphaned-data-design.md`
 
+**Status: SHIPPED 2026-09-12.** All eight tasks done.
+T1 `17afb33e` · T2 `d8646700` · T3 `4720b29b` · T4 `5497d214` · T5 `52788b84` · T6 `6eaaa53f` · T7 `c360ecfa` · T8 is the docs commit.
+
+The plan's three "read it, don't trust it" warnings all fired, and two more
+like them turned up (`details_json` is TEXT, `quote.media_id` is SET NULL).
+Tasks 2 and 3 diverge from what is written below because the code said so;
+the spec records both corrections.
+
 ## Global Constraints
 
 - **Session label `clean-session`.** Claim each task as `wip clean-session` in `docs/PROGRESS.md` before starting it; set it to `done <sha>` in the same commit as the work.
