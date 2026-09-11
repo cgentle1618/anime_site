@@ -24,6 +24,21 @@ to `dev`**; B, C and D need plans.
 `entry_visible` and 404 with the not-found message, closing the object-level
 hole. Phases B-D are unclaimed and need plans.
 
+**Phase A.1 is done** (2026-09-11, `a4b9d554`): a pipeline may not rewrite
+authorization data. `Users`, `Content Label` and `Media Content Label` are
+marked `requires_authz` in `tabs.py` (`AUTHZ_TABS`); Pull skips and reports
+them for a caller without `admin.authz`, so a `manage.pipelines` holder can no
+longer promote themselves by typing `admin` into the sheet's Users tab. Every
+other tab restores as normal, and Backup is not gated - it cannot write this
+database. Decision 10 in the spec.
+
+Two things that change how to work on this pipeline: the flag defaults to
+**closed**, so four existing suites pass `may_restore_authz=True` explicitly -
+if you add a caller for one of those three tabs, you must ask for the
+permission. And a policy skip goes in `skipped_tabs`, NOT `unresolved_refs`:
+that list turns the audit row red, and a skip that happens on every run would
+make red meaningless. `created_entities` already follows the same rule.
+
 **Phase A is done and merged** (2026-09-11, A1-A11, merge commit `3fc65ba3`;
 full suite 3641 passed / 5 skipped, ruff clean, vitest 923, eslint 0 errors):
 **[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
