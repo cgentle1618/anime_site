@@ -46,6 +46,43 @@ venv/Scripts/ruff.exe check .                    # backend lint
 cd frontend && npm run test:run && npm run lint  # frontend tests + ESLint
 ```
 
+**The backend suite takes ~5.5 minutes**, and that dominates the cost of any
+backend change. Three rules follow:
+
+- **Run it before every commit, not at checkpoints.** A scoped run
+  (`-k something`) cannot see a test three directories away that your change
+  invalidated. Five such failures once accumulated across five task reviews
+  that were each clean against their own diff.
+- **Never run two pytest processes at once.** Both trees and both suites share
+  one PostgreSQL and one `anime_site_test`, so a concurrent run produces
+  spurious "relation role does not exist" and unique-constraint failures that
+  look like real breakage.
+- **When estimating work, quote minutes and include the suite runs.** Any
+  backend change has a ~12 minute floor because it needs at least two. Sizing
+  the diff ("small — about 15 lines") is not sizing the task.
+
+## Git Worktrees
+
+A worktree (`git worktree add ../anime_site_<topic> -b <branch>`) is a good way
+to isolate a phase of work, but it inherits none of the per-machine setup and
+one of the gaps destroys nothing yet looks exactly like data loss:
+
+- **Pin the compose project.** `dev.ps1` runs
+  `docker-compose --project-directory $root`, and compose derives the project
+  name from that directory, then **prefixes the volume name with it**. A
+  worktree therefore mounts `<worktree>_postgres_anime_data` — a brand-new
+  EMPTY database on the same port — and the app cheerfully creates the schema
+  and seeds a fresh admin. The real data is untouched in
+  `anime_site_postgres_anime_data`. Put `COMPOSE_PROJECT_NAME=anime_site` in the
+  worktree's `.env` before running anything there.
+- `.env` and `credentials.json` must be copied in; `venv/` must be rebuilt
+  (`venv/Scripts/python.exe -m venv <worktree>/venv` — there is no system
+  `python` on PATH) and **both** requirements files installed: `pytest` and
+  `ruff` live in `requirements-dev.txt`, not `requirements.txt`. `node_modules`
+  needs its own `npm install`.
+- Both trees share one PostgreSQL and one `anime_site_test`. Drive one at a
+  time.
+
 ## Frontend Ports and Rebuilds
 
 - **:5173** — the Vite dev server; source edits show up immediately.
@@ -135,8 +172,30 @@ plus open items and the scratch test databases currently in use.
 - When a plan is fully done, its table can be deleted; the roadmap keeps the
   record.
 
+**Finishing a plan is three edits, not one.** Do all three in the same commit,
+without being asked — this is the step that has needed chasing every time:
+
+1. `docs/roadmap.md` — add a **Done** entry, newest first, in the style of the
+   entries already there: what changed, *why* it was done that way, what was
+   deliberately not done, and any defect found on the way. This is the durable
+   record; everything else about the plan is then disposable.
+2. `docs/PROGRESS.md` — delete the finished plan's task table and its prose.
+   Leave only what is still open.
+3. The spec and plan under `docs/superpowers/` — mark the phase done with its
+   sha, so a reader of either knows it has shipped.
+
 ## Rule
 
 - Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
 - Never commit or push automatically right after finishing a task. Ask for permission and show a one-line version of the commit. Only commit (and push) after I approve. Note that it's possible that we only commit once after multiple modifications.
 - Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four on every PR and push).
+- **Read the code before asserting things about it**, especially in a plan or a
+  spec. Route paths, payload vocabularies, return types and which reporting
+  channel a helper feeds are all things that read as obvious and are frequently
+  wrong; every one of those has produced a defect here. A task that names an
+  endpoint, a field value or a type should have had that value checked, not
+  recalled.
+- **The SPA has two independent permission surfaces.** `App.jsx`'s
+  `<ProtectedRoute permission=...>` blocks and `frontend/src/config/navigation.js`,
+  which calls `has(...)` directly. Changing what a permission means reaches the
+  first and not the second.

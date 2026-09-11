@@ -13,96 +13,31 @@ Last updated: 2026-09-11
 
 ## In flight
 
-**The authorization system** - spec reviewed and approved by the owner
-(2026-09-11): nine decisions settled, all six sections written,
-`294bfe7d`.
-**[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**.
-It ends with five separable phases. **Phase 0 and Phase A are built and merged
-to `dev`**; B, C and D need plans.
+**The authorization system** - spec approved, `294bfe7d`.
+**[2026-09-10-authorization-redesign-design.md](superpowers/specs/2026-09-10-authorization-redesign-design.md)**,
+ten decisions, six sections, plus a post-Phase-A audit of sections 2-6.
 
-**Phase 0 is done** (2026-09-11): `me_list.py`'s two handlers resolve through
-`entry_visible` and 404 with the not-found message, closing the object-level
-hole. Phases B-D are unclaimed and need plans.
-
-**Phase A.1 is done** (2026-09-11, `a4b9d554`): a pipeline may not rewrite
-authorization data. `Users`, `Content Label` and `Media Content Label` are
-marked `requires_authz` in `tabs.py` (`AUTHZ_TABS`); Pull skips and reports
-them for a caller without `admin.authz`, so a `manage.pipelines` holder can no
-longer promote themselves by typing `admin` into the sheet's Users tab. Every
-other tab restores as normal, and Backup is not gated - it cannot write this
-database. Decision 10 in the spec.
-
-Two things that change how to work on this pipeline: the flag defaults to
-**closed**, so four existing suites pass `may_restore_authz=True` explicitly -
-if you add a caller for one of those three tabs, you must ask for the
-permission. And a policy skip goes in `skipped_tabs`, NOT `unresolved_refs`:
-that list turns the audit row red, and a skip that happens on every run would
-make red meaningless. `created_entities` already follows the same rule.
-
-**Phase A is done and merged** (2026-09-11, A1-A11, merge commit `3fc65ba3`;
-full suite 3641 passed / 5 skipped, ruff clean, vitest 923, eslint 0 errors):
-**[2026-09-11-authz-phase-a-capability-axis.md](superpowers/plans/2026-09-11-authz-phase-a-capability-axis.md)**.
-Every task was behaviour-neutral for the `admin` account, because it is
-`is_superuser` and `has()` short-circuits - so a half-applied Phase A could not
-have locked anyone out. Task A9 made a missed router an ImportError rather
-than a silent grant, and ran last as planned. The bare `admin` permission and
-`get_current_admin` are gone; three named permissions (`admin.authz`,
-`manage.catalog`, `manage.pipelines`) and the `super` role replace them, and
-`is_admin` in `/api/auth/me` now means `manage.catalog`. Phases B, C and D are
-still unclaimed and need plans - see [authorization.md](authorization.md#what-the-redesign-inherits)
-before starting one.
-
-Phase A was executed on branch **`authz-phase-a`** in the worktree
-`../anime_site_authz`, merged to `dev` at `3fc65ba3`. The worktree has its own
-venv and `.env`; both trees share one PostgreSQL and one `anime_site_test`, so
-never run the suites concurrently. Its `.env` pins
-`COMPOSE_PROJECT_NAME=anime_site` - without it, `dev.cmd` there derives a
-second compose project and mounts a brand-new EMPTY database volume, which
-happened on 2026-09-11 (no data was lost; it was a different volume).
-
-| # | Phase A task | Status |
+| Phase | What | Status |
 |---|---|---|
-| A1 | Mint `admin.authz`, `manage.catalog`, `manage.pipelines` | done e4c914be |
-| A2 | Seed the `super` role | done 9629f4bb |
-| A3 | The three route dependencies in `resolver.py` | done 56de8395 |
-| A4 | Swap roles/users/content_labels to `admin.authz` | done 17411973 |
-| A5 | Swap system/data_control to `manage.pipelines` | done 9cabfa2c |
-| A6 | Swap the 20 catalogue routers to `manage.catalog` | done 633c329f + 555ee689 (fix round) |
-| A7 | Drop the three `plan_next.py` admin gates | done 2afe2158 |
-| A8 | `is_admin` means `manage.catalog`; split the SPA route guard | done c71ad497 |
-| A9 | Delete `get_current_admin` and `PERM_ADMIN` (last) | done f3b6712c |
-| A10 | Documentation | done 0811b198 |
-| A11 | Whole-branch review fixes: SPA nav re-pointed, plan_next object-level guard, route capabilities | done da4f23b6 |
+| 0 | Object-level guard on `/api/me/list/{media_id}` | done 4746b1bc |
+| A | The capability axis: `admin.authz`, `manage.catalog`, `manage.pipelines`, the `super` role | done, merged 3fc65ba3 |
+| A.1 | Pull may not restore the three authorization tabs without `admin.authz` | done a4b9d554 |
+| B | The access-mode axis (spec section 2) - five tables, labels and field groups leave the role axis | todo, needs a plan |
+| C | Write binding (decision 9) - writes follow reads on every client-supplied entry id | todo, needs a plan |
+| D | Admin UI: the access-mode page, the per-account panel, the mode switcher | todo, needs a plan |
 
-**A real bug surfaced at A6 and is fixed** (`555ee689`): `get_current_admin`
-returned a `dict`; the new dependencies return a `Viewer`. `users.py:164` called
-`admin.get("sub")`, so from A4 until the fix the "you cannot delete yourself"
-guard raised `AttributeError` instead of firing and an admin could delete their
-own account. It now compares `admin.username`. Exactly one of the 75 sites read
-the value; the other 74 were unused but annotated `admin: dict`, the lie that
-disguised it - all 73 remaining are now annotated `Viewer`.
-That false comment lived in `dependencies.py` and is gone with the function.
+Open questions the redesign inherits; #1 gates Phase C and should be
+answered before B is planned:
 
-**Plan defect, for the next plan**: Phase A's plan required the full suite only
-at A6, A8 and A9, so A1-A5 shipped five failures their scoped runs could not
-see, through five reviews that were clean against their own diffs. Run the full
-suite before every commit - and run it from the CONTROLLING session, not the
-subagent: four subagents stalled waiting for a background completion that never
-reaches them.
+| # | Question | Status |
+|---|---|---|
+| 1 | Audit every **other** write path taking a client-supplied entry id; only `me_list.py` and `plan_next.py` were done | todo |
+| 2 | `field_group.personal_notes` gates a query parameter and nothing on any response, and is still labelled "Personal Reviews" | todo |
+| 3 | One remark per owner, site-wide - the `remark` column_property cannot know who is asking | todo |
+| 4 | Note writes answer 403; every other gate answers 401 or 404. Two conventions are running | todo |
 
-Two items the spec names but does not do: an audit of every **other** write path
-taking a client-supplied entry id (decision 9 applies to all of them; only
-`me_list.py` was read and fixed), and a judgement call on the four tiers'
-field-group assignments, which only the owner can make.
-
-Two reversals from the 2026-09-10 draft, both recorded in the spec: `admin` is a
-superset rather than a break-glass account, and a mode binds **writes** as well
-as reads, which renamed the concept from *view mode* to *access mode*.
-
-The spec's "Defects this redesign must fix" section holds one hole that is
-exploitable **today**: `PUT /me/list/{media_id}` performs no object-level check,
-so any account holding `self.list` can rate an entry it cannot see. It does not
-need the redesign to land and could be fixed on its own.
+Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**.
+`docs/roadmap.md` holds the record of what Phases 0, A and A.1 actually did.
 
 Multi-user Steps 0-5 are finished and their entries are gone from this file;
 `docs/roadmap.md` keeps the record, per the convention above.

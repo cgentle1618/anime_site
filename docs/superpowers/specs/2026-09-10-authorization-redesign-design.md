@@ -590,7 +590,8 @@ of firing.
 migration, seed, resolution, `hidden_label_ids` and `field_gate`. Every existing
 account lands on `unrestricted`, so nothing visibly changes.
 
-**Phase A.1 — the pipeline/authorization boundary** (decision 10). Mark
+**Phase A.1 — the pipeline/authorization boundary. DONE 2026-09-11**
+(`a4b9d554`), decision 10. Marked
 `Users`, `Content Label` and `Media Content Label` in
 `app/services/pipelines/tabs.py` as requiring `admin.authz`, and have the Pull
 runner skip and report them for a caller without it. Independent of B, C and D

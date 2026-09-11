@@ -2,6 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **SHIPPED 2026-09-11.** All eleven tasks done and merged to `dev` at
+> `3fc65ba3`; the whole-branch review's fixes are `da4f23b6`. Kept for the
+> record only — `docs/roadmap.md` holds the summary of what it actually did.
+
 **Goal:** Replace the single `admin` permission with three named ones —
 `admin.authz`, `manage.catalog`, `manage.pipelines` — and seed a `super` role
 that holds the two `manage.*` but not `admin.authz`.
