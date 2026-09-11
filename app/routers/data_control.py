@@ -241,5 +241,12 @@ def check_duplicates(db: Session = Depends(get_db)):
 
 
 @router.get("/check/remarks")
-def check_remarks(db: Session = Depends(get_db)):
-    return JSONResponse(content=find_all_remarks(db))
+def check_remarks(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # The CALLER's own remarks. A remark is a personal-scope note and belongs
+    # to its author (decision 12), and this screen shows one per entry - a
+    # shape that only means something once an author is fixed. Identical to
+    # the old answer on a single-account installation.
+    return JSONResponse(content=find_all_remarks(db, viewer.user_id))

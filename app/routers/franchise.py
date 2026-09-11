@@ -16,7 +16,7 @@ from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import pop_remark, upsert_remark
+from app.services.domain import attach_remark, pop_remark, upsert_remark
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -40,6 +40,7 @@ def get_all_franchises(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves all high-level Franchises from the database.
@@ -73,11 +74,16 @@ def get_all_franchises(
     response_model=schemas.FranchiseResponse,
     summary="Get Franchise by ID",
 )
-def get_franchise_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_franchise_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single franchise by its public_id or its UUID."""
     db_franchise = find_entity(db, models.Franchise, system_id)
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
     return db_franchise
 
 
@@ -117,6 +123,8 @@ def create_franchise(
             )
             db.commit()
             db.refresh(new_franchise)
+
+        attach_remark(db, "franchise", new_franchise, viewer.user_id)
 
         return new_franchise
     except Exception as e:
@@ -158,6 +166,8 @@ def update_franchise(
     db.commit()
     db.refresh(db_franchise)
 
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
+
     return db_franchise
 
 
@@ -190,6 +200,8 @@ def patch_franchise(
     db_franchise.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_franchise)
+
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
 
     return db_franchise
 

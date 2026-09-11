@@ -167,32 +167,40 @@ class Note(Base):
             "series_id",
             "section",
         ),
-        # `remark` is a singleton per owner, and that rule is load-bearing: the
-        # read side is a scalar subquery (see the `remark` column_property in
-        # app/models/__init__.py), so a second remark row for one owner makes
-        # EVERY read of that entity raise "more than one row returned by a
-        # subquery used as an expression" rather than degrade. Declared here as
-        # well as in the database so autogenerate does not propose dropping it
-        # and so create_all-built schemas (the test DB) enforce it too. Mirrors
-        # the index created in revision r1e2m3a4r5k6 - keep the name and the
-        # predicate identical.
+        # `remark` is a singleton per owner PER AUTHOR. It is a personal-scope
+        # section, so two accounts may each hold one on the same entry and
+        # each reads back their own.
         #
-        # Per OWNER, not per owner-per-author, even though `remark` is a
-        # personal-scope section: the read path is a class-level
-        # column_property that cannot know who is asking. A second user's
-        # remark is therefore refused rather than shown to the first user - the
-        # conservative failure. The full reason is in app/models/__init__.py
-        # above _REMARK_MEDIA_OWNERS; do not relax this index before that read path
-        # is replaced.
+        # It was per-OWNER until decision 12, because the read side was a
+        # class-level column_property - a scalar subquery, which cannot know
+        # who is asking and raises "more than one row returned by a subquery
+        # used as an expression" the moment a second row exists. That made the
+        # narrow index load-bearing, and a second account's remark was refused
+        # outright. The read path is app.services.domain.remark_field
+        # .attach_remark now, filtered by author, so the index can carry
+        # author_id too.
+        #
+        # BOTH HALVES MOVE TOGETHER OR NEITHER DOES. Relaxing this index while
+        # the read still ignores the author turns a loud database refusal into
+        # an accepted-then-invisible write, which is a data-loss shape rather
+        # than a limitation.
+        #
+        # Declared here as well as in the database so autogenerate does not
+        # propose dropping it and so create_all-built schemas (the test DB)
+        # enforce it too. Mirrors revision n1a2remarkauthor - keep the name and
+        # the predicate identical.
+        #
         # NULLS NOT DISTINCT is required because three of the four owner
-        # columns are always NULL and Postgres would otherwise treat every row
-        # as unique.
+        # columns are always NULL, and author_id is NULL on rows written before
+        # accounts existed; Postgres would otherwise treat every such row as
+        # unique.
         Index(
             "ix_note_one_remark_per_owner",
             "media_id",
             "collection_id",
             "franchise_id",
             "series_id",
+            "author_id",
             unique=True,
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("section = 'remark'"),

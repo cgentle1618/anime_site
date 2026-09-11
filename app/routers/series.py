@@ -16,7 +16,12 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
+from app.services.domain import (
+    attach_remark,
+    pop_remark,
+    resolve_series_parent_hierarchy,
+    upsert_remark,
+)
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
@@ -38,6 +43,7 @@ def get_all_series(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves Series from the database.
@@ -68,11 +74,16 @@ def get_all_series(
     response_model=schemas.SeriesResponse,
     summary="Get Series by ID",
 )
-def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_series_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single series by its public_id or its UUID."""
     db_series = find_entity(db, models.Series, system_id)
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
+    attach_remark(db, "series", db_series, viewer.user_id)
     return db_series
 
 
@@ -111,6 +122,8 @@ def create_series(
         db.commit()
         db.refresh(new_series)
 
+    attach_remark(db, "series", new_series, viewer.user_id)
+
     return new_series
 
 
@@ -146,6 +159,8 @@ def update_series(
     db.commit()
     db.refresh(db_series)
 
+    attach_remark(db, "series", db_series, viewer.user_id)
+
     return db_series
 
 
@@ -179,6 +194,8 @@ def patch_series(
 
     db.commit()
     db.refresh(db_series)
+
+    attach_remark(db, "series", db_series, viewer.user_id)
 
     return db_series
 

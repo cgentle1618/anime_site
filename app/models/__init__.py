@@ -124,31 +124,37 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # `remark`, read side
 # ---------------------------------------------------------------------------
-# `remark` used to be a Text column on each of these ten tables. It is now the
-# singleton `remark` row in `note`, and this maps it back onto every owner so
-# the response schemas, the ten detail pages, Delete.jsx's previews and
-# find_all_remarks keep reading a plain attribute.
+# `remark` used to be a Text column on each of these ten tables, then the
+# singleton `remark` row in `note` mapped back on with a scalar-subquery
+# column_property. That property is GONE as of decision 12.
 #
-# Read-only by construction: assigning to it raises, which is deliberate. Every
-# write goes through app.services.domain.remark_field.upsert_remark. Attached
-# here, after all models are imported, so the ten declarations sit together and
-# no model module has to import Note.
+# It could not be made per-viewer. `remark` is a personal-scope section, so a
+# row belongs to its author, and a class-level scalar subquery cannot know who
+# is asking - it served one person's private assessment to everybody, and it
+# forced ix_note_one_remark_per_owner to stay per-owner so the subquery could
+# never return two rows, which in turn made the database refuse a second
+# account's remark outright.
 #
-# LIMITATION, deliberate and recorded. `remark` is a personal-scope section
-# (app/utils/note_sections.py), but this property is class-level: a scalar
-# subquery cannot know which viewer is asking, so it cannot filter by
-# note.author_id. The partial unique index ix_note_one_remark_per_owner is
-# therefore still per-OWNER rather than per-owner-per-author, which means a
-# second user's remark on the same owner is refused by the database rather
-# than shown to the first user. Replacing this property with a per-viewer read
-# is part of the deferred authorization redesign; until then, do not relax
-# that index.
+# The read is now per request:
+#     app.services.domain.remark_field.attach_remark(db, owner_type, entries,
+#                                                    user_id)
+# called beside the other attach_* helpers on every read path - the nine
+# detail routes and the list route in routers/_factory.py, and the three tier
+# routers. One query per page, filtered by author.
+#
+# `remark` is therefore a PLAIN attribute, not a mapped one. It is defaulted
+# to None on the class below so that every response schema can read it even on
+# a path that forgot to attach it: a missing remark must serialise as null,
+# never raise, and never show somebody else's. A path that forgets the call
+# shows nothing rather than the wrong thing - the fail-safe direction.
+#
+# One consequence worth knowing: `Model.remark` is no longer a SQL expression,
+# so it cannot appear in a filter or an order_by. find_all_remarks queries
+# `note` directly for exactly that reason.
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.orm import column_property  # noqa: E402
 
-# The media branch needs no per-type key: note.media_id already pins the type
-# through `media`, which is what the four owner FKs bought.
-_REMARK_MEDIA_OWNERS = (
+for _model in (
     Anime,
     AnimeMovies,
     Movies,
@@ -158,28 +164,11 @@ _REMARK_MEDIA_OWNERS = (
     Novel,
     Comic,
     Game,
-)
-_REMARK_TIER_OWNERS = (
-    (Series, Note.series_id),
-    (Franchise, Note.franchise_id),
-    (Collection, Note.collection_id),
-)
-
-for _model in _REMARK_MEDIA_OWNERS:
-    _model.remark = column_property(
-        select(Note.content)
-        .where(Note.media_id == _model.system_id, Note.section == "remark")
-        .correlate_except(Note)
-        .scalar_subquery()
-    )
-
-for _model, _column in _REMARK_TIER_OWNERS:
-    _model.remark = column_property(
-        select(Note.content)
-        .where(_column == _model.system_id, Note.section == "remark")
-        .correlate_except(Note)
-        .scalar_subquery()
-    )
+    Series,
+    Franchise,
+    Collection,
+):
+    _model.remark = None
 
 
 # ---------------------------------------------------------------------------

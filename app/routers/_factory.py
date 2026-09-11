@@ -21,6 +21,7 @@ from app.models.user_media_list import UserMediaList
 from app.routers._patching import apply_column_patch
 from app.services.domain import (
     apply_list_completion_timestamp,
+    attach_remark,
     pop_remark,
     upsert_remark,
 )
@@ -139,6 +140,10 @@ def make_media_router(spec) -> APIRouter:
         attach_plan_flag(db, spec.owner_type, entry, user_id=viewer_user_id(viewer))
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
+        # `remark` is a personal-scope note, so it is read per viewer rather
+        # than mapped on the class - see app/models/__init__.py. A path that
+        # forgets this call shows no remark, never somebody else's.
+        attach_remark(db, spec.owner_type, entry, viewer_user_id(viewer))
         return entry
 
     def _pop_nested(payload: dict) -> dict:
@@ -243,6 +248,8 @@ def make_media_router(spec) -> APIRouter:
         # One IN query for the whole page, not one per entry.
         attach_list_fields(db, spec.owner_type, entries, user_id)
         attach_unit_ratings(db, spec.owner_type, entries, user_id)
+        # One query for the page, filtered to this viewer's own remarks.
+        attach_remark(db, spec.owner_type, entries, plan_user_id)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)
 
     @router.get("/{entry_id}", response_model=spec.response_schema, summary=f"Get {spec.label} by ID")

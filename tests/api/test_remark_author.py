@@ -1,17 +1,19 @@
 """
-`remark` is personal-scope, and it is also the one section read through a
-class-level column_property (app/models/__init__.py) that cannot know who is
-asking. Until that read path is replaced, one remark per OWNER is enforced by
-the database, so a second user's remark is refused rather than shown to the
-first user.
+`remark` is personal-scope, and since decision 12 it is read per viewer:
+app.services.domain.remark_field.attach_remark filters by author, and
+ix_note_one_remark_per_owner carries author_id.
 
-These tests pin that boundary so it is a decision, not a surprise.
+This file used to pin the OPPOSITE boundary - one remark per owner
+site-wide, with a second account's write refused by the database - because
+the read was a class-level column_property that could not know who was
+asking. That refusal was the conservative failure while it lasted; it is not
+the behaviour any more, and the test that asserted it now asserts what
+replaced it. tests/api/test_remark_per_viewer.py carries the rest.
 """
 
 import uuid
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from app import models
 from app.services.domain import upsert_remark
@@ -34,14 +36,21 @@ def test_upsert_remark_records_its_author(db, sample_anime, admin_user):
     assert row.author_id == admin_user.id
 
 
-def test_a_second_users_remark_on_the_same_owner_is_refused(
+def test_a_second_users_remark_on_the_same_owner_is_accepted(
     db, sample_anime, admin_user
 ):
     """
-    The documented boundary. One remark per owner, site-wide, until the
-    deferred authorization work replaces the `remark` column_property with a
-    per-viewer read. A refused write is the conservative failure; showing one
-    user's private remark to another is not.
+    The boundary moved, and this is the regression test for the move.
+
+    A second account's remark on the same entry is ACCEPTED now, and each
+    author reads back their own. Before decision 12 the second insert raised
+    IntegrityError against a per-owner unique index, because the read path was
+    a scalar subquery that would otherwise have raised "more than one row
+    returned by a subquery used as an expression" on every read of the entity.
+
+    If this ever starts raising again, the index has been narrowed without the
+    read being narrowed with it - which is the half-fix that turns a loud
+    refusal into an accepted-then-invisible write.
     """
     role_id = db.query(models.Role.system_id).first()[0]
     erin = models.User(
@@ -62,9 +71,16 @@ def test_a_second_users_remark_on_the_same_owner_is_refused(
             author_id=erin.id,
         )
     )
-    with pytest.raises(IntegrityError):
-        db.commit()
-    db.rollback()
+    db.commit()
+
+    rows = {
+        row.author_id: row.content
+        for row in db.query(models.Note).filter(
+            models.Note.media_id == sample_anime.system_id,
+            models.Note.section == "remark",
+        )
+    }
+    assert rows == {admin_user.id: "admin 的備註", erin.id: "erin 的備註"}
 
 
 def test_remark_is_declared_personal_in_the_registry(db):

@@ -142,6 +142,7 @@ from app.services.domain.rating_points import (
 )
 from app.services.domain.remark_field import (
     REMARK_SECTION,
+    attach_remark,
     pop_remark,
     upsert_remark,
 )
@@ -227,6 +228,7 @@ __all__ = [
     "apply_list_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",
+    "attach_remark",
     "pop_remark",
     "upsert_remark",
     "find_duplicate_franchises",

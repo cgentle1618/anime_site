@@ -65,9 +65,12 @@ def upsert_remark(
     one, so a cleared remark leaves no empty section on the notes page. The
     text itself is stored as typed - only the emptiness test is stripped.
 
-    `remark` is a personal-scope section, so the row records its author. It is
-    NOT yet filtered by author on read - see the note in app/models/__init__.py
-    about the `remark` column_property, and Task 9 of the Step 5 plan.
+    `remark` is a personal-scope section, so a row belongs to its author and
+    this looks up THIS author's row - not the first one for the owner. That
+    author filter is half of decision 12 and must not be removed without the
+    other half: ix_note_one_remark_per_owner is per-owner-per-author now, so
+    without it a second account's write would silently overwrite the first
+    account's remark instead of creating its own.
     """
     owner_columns = _owner_columns(owner_type, owner_id)
     row = (
@@ -75,6 +78,7 @@ def upsert_remark(
         .filter(
             *[getattr(Note, name) == value for name, value in owner_columns.items()],
             Note.section == REMARK_SECTION,
+            Note.author_id == author_id,
         )
         .first()
     )
@@ -99,3 +103,54 @@ def upsert_remark(
             author_id=author_id,
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Read side
+# ---------------------------------------------------------------------------
+
+
+def attach_remark(db: Session, owner_type: str, entries, user_id) -> None:
+    """
+    Set `remark` on one entry or a page of them, filtered to this viewer.
+
+    `remark` is a personal-scope section, so it belongs to its author. It used
+    to be a class-level column_property on the ten owner models, and a scalar
+    subquery cannot know who is asking - so one person's private assessment
+    was served to everybody, and the database refused a second account's
+    remark outright to keep that subquery single-valued. Decision 12 replaced
+    both halves at once.
+
+    ONE query for the whole page, never one per entry - the rule
+    attach_list_fields and attach_link_fields already follow.
+
+    Every entry is blanked FIRST and then filled from the query. An entry the
+    query does not match must read None, not keep whatever a previous request
+    left on a cached instance - and `remark` is a plain attribute now, not a
+    mapped column, so nothing else would clear it.
+
+    A viewer with no remark, and a guest (user_id None), get None. Never
+    somebody else's.
+    """
+    rows = entries if isinstance(entries, list) else [entries]
+    if not rows:
+        return
+    for entry in rows:
+        entry.remark = None
+    if user_id is None:
+        return
+
+    column = _TIER_COLUMNS.get(owner_type, "media_id")
+    ids = [entry.system_id for entry in rows]
+    owner_column = getattr(Note, column)
+    found = {
+        owner_id: content
+        for owner_id, content in db.query(owner_column, Note.content).filter(
+            owner_column.in_(ids),
+            Note.section == REMARK_SECTION,
+            Note.author_id == user_id,
+        )
+    }
+    for entry in rows:
+        if entry.system_id in found:
+            entry.remark = found[entry.system_id]
