@@ -20,9 +20,10 @@ die on the other; this adds a reviewed diff-and-delete action. No migration.
 
 | Task | Status |
 |---|---|
-| Spec | wip clean-session |
-| Implementation plan | todo |
-| `clean.py` scan + tests | todo |
+| Spec | done 6a098731 |
+| Implementation plan | done 71cd73f3 |
+| T1 read_tab + the two refusals | done 17afb33e |
+| T2 identity index + candidate rule | wip clean-session |
 | `clean/scan` + `clean/apply` routes + tests | todo |
 | `CleanOrphans.jsx` + endpoints + vitest | todo |
 | Docs (data-actions, api, roadmap) | todo |
