@@ -705,13 +705,18 @@ Phase 0's, one permission over. Its PATCH is worth separate care because it may
 *move* a note to a new owner (line 410), so the check has to run against the
 incoming owner, not the stored one.
 
-**3. `watch_order.py` has no visibility handling at all** — `entry_visible`,
-`filter_visible_pairs` and `drop_hidden_rows` appear nowhere in the file, so
-this is a read gap as well as a write gap. Items name `(media_type, entry_id)`
-and are written at POST `/lists/{id}/items` (1137), PUT (1182), PATCH (1211) and
-DELETE (1238), with `_validate_entry` (132) asking only whether the row exists.
-Lists and sections own grouping tiers, which carry no labels, so they are clean
-on the label axis; their *items* are not.
+**3. `watch_order.py`'s writes are unguarded; its reads are not.** No
+visibility call appears anywhere in the router, which reads as a total gap and
+is not one — the read filtering lives a layer down, in
+`services/domain/watch_order.py`: `resolve_items` (199) drops hidden steps via
+`drop_hidden_rows` and `list_candidate_entries` (260) applies
+`apply_entry_visibility` to the picker. (This corrects the first form of this
+audit, which claimed the file had no visibility handling at all; it was read
+off the router alone.) The writes genuinely have none. Items name
+`(media_type, entry_id)` and are written at POST `/lists/{id}/items` (1137),
+PUT (1182), PATCH (1211) and DELETE (1238), with `_validate_entry` (132) asking
+only whether the row exists. Lists and sections own grouping tiers, which carry
+no labels, so they are clean on the label axis; their *items* are not.
 
 **4. Two validators are existence oracles.** `media_relation._validate_endpoint`
 (78) and `watch_order._validate_entry` (132) answer 400 "Referenced entry does
