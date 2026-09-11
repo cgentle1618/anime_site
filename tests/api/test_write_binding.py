@@ -258,3 +258,93 @@ class TestQuoteAndMeme:
             },
         )
         assert response.status_code in (200, 201)
+
+
+# A SCOPE_PERSONAL, SHAPE_TEXT, ALL_OWNERS section that is not a singleton -
+# checked in app/utils/note_sections.py:204. "remark" is also personal but is
+# singleton=True, which would add a second failure mode to every test here.
+PERSONAL_SECTION = "advantages"
+
+
+class TestNoteWrites:
+    """note.py's POST is reachable with self.personal_notes and no catalogue
+    permission at all - the same shape as the defect Phase 0 closed."""
+
+    def _note_writer(self, db_session, client, username="notewriter"):
+        return make_viewer(
+            db_session, client, username, default_user_permissions()
+        )
+
+    def test_writing_a_personal_note_on_a_hidden_entry_is_refused(
+        self, db_session, client, hidden_anime
+    ):
+        writer = self._note_writer(db_session, client)
+        before = db_session.query(models.Note).count()
+        response = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(hidden_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought about a show I cannot see.",
+            },
+        )
+        assert response.status_code == 404
+        assert HIDDEN_NAME not in response.text
+        assert db_session.query(models.Note).count() == before
+
+    def test_the_refusal_is_404_and_never_403(
+        self, db_session, client, hidden_anime
+    ):
+        """403 is note.py's OWNERSHIP answer and must not be reused here: it
+        would confirm the entry exists."""
+        writer = self._note_writer(db_session, client)
+        response = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(hidden_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought.",
+            },
+        )
+        assert response.status_code != 403
+
+    def test_a_note_on_a_visible_entry_still_writes(
+        self, db_session, client, sample_anime
+    ):
+        writer = self._note_writer(db_session, client, username="goodnotewriter")
+        response = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought about a show I can see.",
+            },
+        )
+        assert response.status_code == 201
+
+    def test_patching_a_note_onto_a_hidden_entry_is_refused(
+        self, db_session, client, sample_anime, hidden_anime
+    ):
+        """PATCH may move a note to a new owner (note.py:410), so the check has
+        to run against the INCOMING owner, not the stored one."""
+        writer = self._note_writer(db_session, client, username="movingwriter")
+        created = writer.post(
+            "/api/notes",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(sample_anime.system_id),
+                "section": PERSONAL_SECTION,
+                "content": "A thought.",
+            },
+        ).json()
+        response = writer.patch(
+            f"/api/notes/{created['system_id']}",
+            json={
+                "owner_type": "anime",
+                "owner_id": str(hidden_anime.system_id),
+            },
+        )
+        assert response.status_code == 404

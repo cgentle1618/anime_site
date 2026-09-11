@@ -90,6 +90,21 @@ def _owner_columns(owner_type: str, owner_id) -> dict:
     return {"media_id": owner_id}
 
 
+def _require_visible_owner(db: Session, viewer: Viewer, owner_type, owner_id) -> None:
+    """
+    The write half of the check the read at line 237 already does.
+
+    An owner may be a grouping tier, which carries no labels; entry_visible
+    only has an opinion about the media types. 404 and "Owner not found.",
+    exactly as the read answers - a 403 here is note.py's answer for writing
+    SOMEBODY ELSE's note, and reusing it would confirm this entry exists.
+    """
+    if owner_type not in MEDIA_TABLES or owner_id is None:
+        return
+    if not entry_visible(db, viewer, owner_type, owner_id):
+        raise HTTPException(status_code=404, detail="Owner not found.")
+
+
 def _get_or_404(db: Session, note_id: str) -> models.Note:
     db_note = db.query(models.Note).filter(models.Note.system_id == note_id).first()
     if not db_note:
@@ -303,6 +318,7 @@ def create_note(
 ):
     _authorize_write(viewer, payload.section)
     _validate_or_422(payload)
+    _require_visible_owner(db, viewer, payload.owner_type, payload.owner_id)
     _reject_second_singleton(db, payload, author_id=viewer.user_id)
 
     data = payload.model_dump(exclude_unset=True)
@@ -343,6 +359,7 @@ def reorder_notes(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
     _authorize_write(viewer, payload.section)
+    _require_visible_owner(db, viewer, payload.owner_type, payload.owner_id)
 
     query = db.query(models.Note).filter(
         *_owner_filters(payload.owner_type, payload.owner_id),
@@ -400,6 +417,7 @@ def update_note(
     # After the merge, so a PATCH cannot move a row into a section the caller
     # may not write.
     _authorize_write(viewer, merged.section)
+    _require_visible_owner(db, viewer, merged.owner_type, merged.owner_id)
     _reject_second_singleton(
         db, merged, exclude_id=note_id, author_id=db_note.author_id
     )
@@ -430,6 +448,7 @@ def delete_note(
 ):
     db_note = _get_or_404(db, note_id)
     _authorize_edit(viewer, db_note)
+    _require_visible_owner(db, viewer, db_note.owner_type, db_note.owner_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_note, "Note")
