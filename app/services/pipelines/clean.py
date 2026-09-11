@@ -453,3 +453,125 @@ def scan_orphans(db) -> dict:
         "last_backup_at": _last_backup_at(db),
         "anomalies": anomalies,
     }
+
+
+# Child-first. collection_id, franchise_id and series_id are all ON DELETE SET
+# NULL, so a child that was NOT ticked survives its deleted parent as an
+# orphaned-but-alive row. Deleting entries first means a tier the operator also
+# ticked is not blocked by rows that were going anyway.
+_DELETE_ORDER: tuple[str, ...] = ("Media", "Series", "Franchise", "Collection")
+
+
+def _load_row(db, tab: str, system_id: str):
+    """The live row a candidate names, and the entry_type label to log it under."""
+    from app import models
+    from app.utils.media_resolver import MEDIA_TABLES
+
+    if tab == "Media":
+        media = (
+            db.query(models.Media)
+            .filter(models.Media.system_id == system_id)
+            .first()
+        )
+        if media is None:
+            return None, None, None
+        ref = MEDIA_TABLES.get(media.media_type)
+        detail = (
+            db.query(ref.model)
+            .filter(ref.model.system_id == media.system_id)
+            .first()
+            if ref
+            else None
+        )
+        # log_deleted_record reads <prefix>_name_* off the DETAIL row, not off
+        # media, and keys its branches on the label ("Anime", "TV Show", ...).
+        return media, detail, (ref.label if ref else None)
+
+    model = {name: getattr(models, attr) for name, attr, _p in _TIER_TABS}.get(tab)
+    if model is None:
+        return None, None, None
+    row = db.query(model).filter(model.system_id == system_id).first()
+    return row, row, tab
+
+
+def apply_clean(db, items: list[dict]) -> dict:
+    """
+    Delete the named rows - but only those the server itself still judges
+    orphaned.
+
+    The re-scan is the whole safety property, and it is not redundant with the
+    scan the operator looked at. A stale review page produces a perfectly
+    successful delete of rows that are no longer orphaned; the question is
+    never "did the delete run" but "is what got deleted still the set that was
+    reviewed". Re-scanning makes the deleted set a subset of the reviewed set
+    by construction.
+
+    It also means a Sheets outage is a no-op rather than a catastrophe, because
+    scan_orphans raises rather than returning an empty answer.
+    """
+    import json
+
+    from app.utils.data_control_utils import log_data_control, log_deleted_record
+
+    report = scan_orphans(db)
+    candidates = {
+        (tab, candidate["system_id"])
+        for tab, rows in report["tabs"].items()
+        for candidate in rows
+    }
+
+    per_tab: dict[str, int] = {}
+    skipped: list[dict] = []
+    deleted = 0
+
+    for tab in _DELETE_ORDER:
+        for item in [i for i in items if i.get("tab") == tab]:
+            system_id = str(item.get("system_id"))
+
+            if (tab, system_id) not in candidates:
+                skipped.append(
+                    {
+                        "tab": tab,
+                        "system_id": system_id,
+                        "reason": (
+                            "not an orphan at apply time - the sheet still "
+                            "knows this row, so nothing was deleted"
+                        ),
+                    }
+                )
+                continue
+
+            row, loggable, entry_type = _load_row(db, tab, system_id)
+            if row is None:
+                skipped.append(
+                    {
+                        "tab": tab,
+                        "system_id": system_id,
+                        "reason": "already gone",
+                    }
+                )
+                continue
+
+            # Staged, not committed: log_deleted_record deliberately does not
+            # commit, so the audit row and the deletion land or roll back
+            # together.
+            if entry_type:
+                log_deleted_record(db, loggable, entry_type)
+            db.delete(row)
+            deleted += 1
+            per_tab[tab] = per_tab.get(tab, 0) + 1
+
+    db.commit()
+
+    # After the commit, because log_data_control commits on its own.
+    log_data_control(
+        db,
+        action_main="Clean",
+        action_specific="Clean Orphans",
+        action_type="Manual",
+        status="Success",
+        rows_deleted=deleted,
+        details_json=json.dumps(per_tab),
+    )
+
+    return {"deleted": deleted, "per_tab": per_tab, "skipped": skipped}
