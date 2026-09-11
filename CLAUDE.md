@@ -262,6 +262,19 @@ without being asked — this is the step that has needed chasing every time:
   wrong; every one of those has produced a defect here. A task that names an
   endpoint, a field value or a type should have had that value checked, not
   recalled.
+- **Asserting that a gate ALLOWS is safe on an empty set; asserting that it
+  REFUSES is not.** A gate computing over a set — all content labels, held
+  modes, granted field groups — is vacuously satisfied when the set is empty,
+  and an empty set is exactly what a fresh test database gives you. So a
+  refusal test can pass because the gate had nothing to refuse: green on day
+  one, green through the change that breaks it, green forever. Every refusal
+  test needs its set made non-empty, and needs to say so — **a fixture that
+  exists to make a negative test bite is load-bearing and looks like
+  decoration** (`nsfw_label` appears nowhere in those test bodies; it only
+  makes refusal possible). Assert the mirror case with the same fixture, so a
+  green proves the gate did the refusing and not something incidental. Found
+  twice on 2026-09-12, once loudly (a 503 where a 401 was expected, which is
+  the good outcome) and once by audit. See `docs/testing.md`.
 - **Suspect any shape that reads as uniform.** The exception is what a summary
   drops, and the uniformity is exactly what made the thing summarisable in the
   first place — so the docstring, the spec, and your memory of reading it last
