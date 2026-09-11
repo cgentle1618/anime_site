@@ -17,6 +17,7 @@ from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
 from app.services.rbac.resolver import require_manage_catalog
 from app.utils import constants as c
+from app.utils.character_roles import CHARACTER_ROLES
 from app.utils.credit_roles import (
     OPTION_CATEGORIES,
     PERSON_ROLES,
@@ -26,9 +27,10 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
 
-# What a character is to the work, from MAL's own two-way split. Nullable on
-# character_casting: an admin entering a cast by hand need not classify.
-CHARACTER_ROLES: tuple[str, ...] = ("Main", "Supporting")
+# CHARACTER_ROLES is imported above, not defined here. It moved to
+# app/utils/character_roles.py so that services/domain/casting.py could stop
+# importing this router - that import closed a real cycle. The /api/constants
+# payload below still publishes it, so nothing outward changed.
 
 
 def _values(enum_cls) -> list[str]:
