@@ -1,6 +1,6 @@
 # Watch Orders
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-11 (Step 0: `media_id`; the public_id column)
 
 ## What this is for
 
@@ -15,6 +15,7 @@ Three tables, defined in `app/models/watch_order.py`. Migrations: `alembic/versi
 | Column | Type | Null | Notes |
 | --- | --- | --- | --- |
 | `system_id` | UUID | PK | indexed |
+| `public_id` | Integer | no | Per-table sequence `watch_order_list_public_id_seq`; the short id in `/watch-order/<public_id>/<slug>`. `uq_watch_order_list_public_id` is **DEFERRABLE INITIALLY DEFERRED** so a Pull may permute ids across rows inside one transaction — see [../data-actions.md](../data-actions.md) |
 | `franchise_id` | UUID | yes | FK `franchise.system_id`, ON DELETE CASCADE, indexed |
 | `collection_id` | UUID | yes | FK `collection.system_id`, ON DELETE CASCADE, indexed |
 | `series_id` | UUID | yes | FK `series.system_id`, ON DELETE CASCADE, indexed |
@@ -47,21 +48,22 @@ Constraint `ck_watch_order_list_single_owner`: exactly one of `franchise_id`, `c
 | `system_id` | UUID | PK | indexed |
 | `list_id` | UUID | no | FK `watch_order_list.system_id`, ON DELETE CASCADE, indexed |
 | `position` | Float | yes | reading order; float so a step can be slotted between two others |
-| `media_type` | String | yes | one of the eight slugs in `MEDIA_TYPE_MODELS` |
-| `entry_id` | UUID | yes | **no FK** — points at whichever table `media_type` names; indexed |
+| `media_id` | UUID | yes | FK `media.system_id`, ON DELETE **CASCADE**, indexed. Nullable: a step may be written before its entry is chosen, and the migration left pre-existing orphans unattached rather than deleting them |
 | `section_id` | UUID | yes | FK `watch_order_section.system_id`, ON DELETE **SET NULL**, indexed |
 | `ep_start` / `ep_end` | Integer | yes | both null = the whole entry |
 | `importance` | String | yes | default `"Normal"`; one of `ITEM_IMPORTANCE` |
 | `note` | Text | yes | per-step commentary |
 | `created_at` / `updated_at` | DateTime | yes | |
 
-The same entry may appear in several items of one list (a split run). A deleted entry leaves a dangling item that the reader flags as `missing: true` rather than dropping (`resolve_items` in `app/services/domain/watch_order.py`; proved by `test_dangling_entry_is_flagged_not_dropped`).
+`media_type` and `entry_id` are **not stored**. Multi-user Step 0 replaced the FK-less pair with `media_id`, and the pair survives as `entry_id`, a **synonym** for it, and `media_type`, a read-only `column_property` off the `media` row (`app/models/__init__.py`) — so the API wire format, the editor, the guide and the Google Sheets tab are all unchanged, and a step can no longer claim a `media_type` that disagrees with the entry it points at. The FK is CASCADE, unlike `quote`'s SET NULL, and for the opposite reason: a step is almost pure pointer — `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry — so a step left pointing at nothing is a blank row in a curated list.
+
+The same entry may appear in several items of one list (a split run). A **dangling** step can no longer exist: deleting an entry now removes its steps in the database. `resolve_items` still flags `missing: true` for a step whose `media_id` is null or whose type is unknown, so the admin can see and remove it; a *hidden* entry's step is dropped instead, since `missing` means "broken reference, go fix it" and a hidden entry is neither broken nor the viewer's business.
 
 ### Constants (`app/services/domain/watch_order.py`, `app/routers/watch_order.py`)
 
 | Name | Value | Where |
 | --- | --- | --- |
-| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic | domain |
+| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, novel, comic, game | domain |
 | `ITEM_IMPORTANCE` | `("Essential", "Recommended", "Normal", "Optional")`; `DEFAULT_IMPORTANCE = "Normal"` | domain; mirrored in `WatchOrderEditor.jsx` |
 | `BUILT_IN_KINDS` | `release` → "Release Order", all types; `release-anime` → "Release Order (Anime)", anime only | router |
 | `MIN_ENTRIES_FOR_RELEASE` | `2` — an owner with fewer entries in scope gets no built-in order | router |
@@ -77,7 +79,7 @@ The same entry may appear in several items of one list (a split run). A deleted 
 | A part's steps must be contiguous. Reorder rejects (400) an order that would split a part, checked on the prospective order before any row is written. | `first_section_break`; reorder endpoint; `TestPartsStayContiguous` |
 | A new unfiled step appends after the highest position (`_next_position`). A step added with a `section_id` lands at the end of *that part's run* — midpoint between the part's last step and the next item — so the part stays unbroken. First step of an empty part appends to the list. | `_append_position`; `TestAddingAStepToAPart` |
 | A step may only reference a section of its own list (400 otherwise). | `_validate_section` |
-| `media_type` must be a known slug and `entry_id` must exist in that table (400). | `_validate_entry`, `entry_exists` |
+| `media_type` must be a known slug and `entry_id` must exist in that table (400) — checked in the router before the write, so a bad pair is a 400 rather than a foreign-key error. | `_validate_entry`, `entry_exists` |
 | `importance` must be one of the four rungs (400). The Sheets parser instead coerces junk to "Normal" (`normalize_importance`). | `_validate_importance` |
 | Exactly one owner (400 mirrors the DB check). | `_validate_owner` |
 | Setting `is_default` or `is_most_recommended` on a list clears that flag on the owner's other lists. The two flags are independent. | `_enforce_single_winners`; `TestMostRecommended` |

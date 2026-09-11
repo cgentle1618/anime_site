@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-11 (Steps 0 and 5: real owner foreign keys and `author_id`)
 
 ## What this is for
 
@@ -9,8 +9,8 @@ one-liners that belong to an entry *or* to a whole series, franchise or
 collection. They used to live as a `quotes_memes` list inside each entry's
 `notes` JSONB, which could not be filtered, searched or listed across the
 library. They are now two small tables with their own routers, a shared
-grouped-feed page component, and admin pickers that resolve the FK-less
-owner references. This doc covers the tables, the owner-type vocabulary, the
+grouped-feed page component, and admin pickers that resolve the owner
+references. This doc covers the tables, the owner-type vocabulary, the
 endpoints, how visibility (RBAC) applies, the public pages, the admin tabs,
 image storage and the Google Sheets tabs.
 
@@ -25,8 +25,8 @@ declaration order is also the Google Sheets column order
 | Column | Type | Notes |
 |---|---|---|
 | `system_id` | UUID PK | |
-| `media_type` | text, indexed | one of the eight entry keys below; FK-less |
-| `entry_id` | UUID, indexed | FK-less pointer into the table `media_type` names |
+| `media_id` | UUID, indexed | FK → `media.system_id`, **`ON DELETE SET NULL`**. The entry this line is said in; null on a general quote or on one whose entry was deleted |
+| `author_id` | UUID, indexed, **NOT NULL** | FK → `users.id`, `ON DELETE CASCADE`. Who added the line. Quotes are universal — shared, unfiltered, no per-user copies — so this is provenance and nothing else; no read consults it |
 | `text` | text | the line itself |
 | `translation` | text | |
 | `language` | text | free text (`JP / CN / EN` placeholder) |
@@ -48,8 +48,9 @@ declaration order is also the Google Sheets column order
 | Column | Type | Notes |
 |---|---|---|
 | `system_id` | UUID PK | |
-| `owner_type` | text, indexed | one of the **eleven** owner keys below; FK-less |
-| `owner_id` | UUID, indexed | FK-less pointer into the owner table |
+| `media_id` | UUID, indexed | FK → `media.system_id`, `ON DELETE CASCADE`. Set when the owner is one of the nine media types |
+| `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, `ON DELETE CASCADE`. Set when the owner is a grouping tier. `ck_meme_one_owner` CHECKs that exactly one of the four is set |
+| `author_id` | UUID, indexed, **NOT NULL** | FK → `users.id`, `ON DELETE CASCADE`. Provenance only, as on `quote` |
 | `text` | text | one text and/or one image — never a list |
 | `image_file` | text | file name under `static/quotes/` (shared folder) |
 | `quote_id` | UUID FK → `quote.system_id`, `ON DELETE SET NULL`, **unique** | set when the meme's text *is* a quote |
@@ -59,10 +60,36 @@ declaration order is also the Google Sheets column order
 | `remark` | text | |
 | `created_at` / `updated_at` | datetime | |
 
-Why the references are FK-less: no single foreign key can span eight (or
-eleven) tables. A deleted owner leaves a dangling row, which the resolver
-reports as `missing: true` at read time instead of silently dropping it.
-`quote_id` *is* a real FK because it points at exactly one table; its
+**The owner references used to be FK-less pairs, and are not any more.** No
+single foreign key could span nine media tables, so both rows stored
+`(media_type, entry_id)` / `(owner_type, owner_id)` and a deleted owner left a
+dangling row the resolver reported as `missing: true`. Multi-user Step 0 gave
+every entry a row in the `media` supertable and Step 5 did the same for the
+tiers, so each reference is now a real foreign key and the database cleans up:
+
+- **`quote.media_id` is `SET NULL`, not `CASCADE`**, and that is the point:
+  a quote carries its own text, translation, speaker and episode, so deleting
+  an entry must never destroy hand-written content. The quote survives,
+  unattached. That is not the same as a deliberately general quote — `is_general`
+  is its own flag.
+- **`meme`'s four owner columns are `CASCADE`**, so a deleted owner takes its
+  memes with it and `missing: true` never appears on one.
+- A **dangling** reference can no longer exist on either table: an id that
+  points at nothing is not representable. What a deleted entry leaves behind is
+  an *unattached* quote — `media_id` NULL — which `entry_ref_for` reports as
+  `missing: true` exactly as it reports a general quote, since neither names an
+  entry. So the flag survives, but it now means "no entry", not "broken
+  pointer".
+
+The API still speaks the old pair, and nothing in the SPA or the sheet changed:
+`quote.entry_id` is a **synonym** for `media_id` (readable, writable,
+filterable) and `quote.media_type` is a read-only `column_property` off the
+`media` row (`app/models/__init__.py`), so the two can no longer disagree — the
+old pair could store `media_type="manga"` beside an anime's `entry_id` and
+nothing would object. `meme.owner_type` / `owner_id` are the same idea as
+read-only properties over its four columns, exactly as `note`'s are.
+
+`quote_id` was always a real FK because it points at exactly one table; its
 `unique=True` is what guarantees a quote belongs to at most one meme.
 
 ## Owner types
@@ -71,9 +98,9 @@ Defined in `app/utils/media_resolver.py` and mirrored in the frontend pickers.
 
 | Registry | Keys | Used by |
 |---|---|---|
-| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic` | `quote.media_type` |
+| `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` | `quote.media_type` (derived from `media_id`) |
 | `TIER_TABLES` | `series`, `franchise`, `collection` (`is_tier=True`) | — |
-| `OWNER_TABLES` = both | all eleven | `meme.owner_type` |
+| `OWNER_TABLES` = both | all twelve | `meme.owner_type` (derived from its four owner columns) |
 
 The stored key doubles as the frontend `MEDIA_CONFIG` key (hyphenated
 spelling), so no translation table exists. Series has no hub page, so a
@@ -169,8 +196,8 @@ row offers inline edit (PATCH), favourite toggle (PATCH) and delete, all via
 | Component | Role |
 |---|---|
 | `ComboBox` | generic search-or-type control. Contract: `items: [{id,label}]`, `selectedId`, `inputText`, **`onSelect(id, label)`** when an existing item is picked, `onType(text)`, `onClear()`, `allowNew`, `required`. |
-| `QuoteEntryPicker` | media-type `<select>` (`MEDIA_TYPE_OPTIONS`, eight keys) + a `ComboBox` over that type's list from `useMediaList`; calls `onChange(mediaType, id)`. Loads only the chosen type so admin pages don't fetch every library up front. |
-| `MemeOwnerPicker` | same shape but `OWNER_TYPE_OPTIONS` (eleven keys, `tier` flag) and exports `isTierOwner()`. |
+| `QuoteEntryPicker` | media-type `<select>` (`MEDIA_TYPE_OPTIONS`, nine keys) + a `ComboBox` over that type's list from `useMediaList`; calls `onChange(mediaType, id)`. Loads only the chosen type so admin pages don't fetch every library up front. |
+| `MemeOwnerPicker` | same shape but `OWNER_TYPE_OPTIONS` (twelve keys, `tier` flag) and exports `isTierOwner()`. |
 | `QuoteForm` | field editor; exports `emptyQuote()` and `toQuotePayload()`. |
 | `MemeForm` | field editor; exports `emptyMeme()` / `toMemePayload()`. Given `ownerType`/`ownerId` it lists that entry's quotes (`endpoints.quotes.byEntry`) in a `ComboBox` for `quote_id`, and offers "create a quote from this text" which POSTs a quote for the same entry and links it. Hidden for tier owners. |
 
@@ -189,9 +216,15 @@ never touches the file.
 `app/services/pipelines/tabs.py` registers `SheetTab("Quote", …)` then
 `SheetTab("Meme", …)` — memes name quotes, so they are imported after them.
 Parsers are `parse_quote_from_sheet` / `parse_meme_from_sheet`. On Pull
-(`pipelines/pull.py`) an id-less row is matched on `(media_type, entry_id,
-text)` for quotes and `(owner_type, owner_id, text)` for memes, so
-re-importing the same sheet updates rather than duplicates. Blank timestamp
+(`pipelines/pull.py`) an id-less row is matched on `(media_id, text)` for
+quotes and on the owner column plus `text` for memes — neither has a name of
+its own to match on — so re-importing the same sheet updates rather than
+duplicates. The **tab headers are unchanged**: the sheet still carries the
+`(media_type, entry_id)` and `(owner_type, owner_id)` pair a human reads during
+an environment switch, and the parser translates it onto the columns (a Meme
+row's pre-Step-5 pair is renamed to `_legacy_*` on the way in). `author_id` is
+NOT NULL, so a row restored from a sheet that predates it falls back to the
+restore owner rather than failing. Blank timestamp
 cells parse to `None`, which is why `created_at`/`updated_at` are optional in
 the response schemas.
 

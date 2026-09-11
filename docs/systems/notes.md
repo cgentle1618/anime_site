@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-06
+Last verified: 2026-09-11 (Step 5: owner foreign keys, `author_id`, and per-section scope)
 
 ## What this is for
 
@@ -13,8 +13,9 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
-| `owner_type` | String, indexed | Hyphenated owner key: `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`, `series`, `franchise`, `collection`. Values come from `OWNER_TABLES` in `app/utils/media_resolver.py` (`MEDIA_TABLES` + `TIER_TABLES`). |
-| `owner_id` | UUID, indexed | **No foreign key** — it points at whichever of the twelve owner tables `owner_type` names, and one FK cannot span them (same reasoning as `meme.owner_id`). Deleting an owner leaves orphan rows that `media_resolver` flags as missing. |
+| `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the nine media types. |
+| `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
+| `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
 | `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type, music cut). |
@@ -26,12 +27,15 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
 
-Indexes (declared in `__table_args__`, so `create_all` test databases enforce them too):
+**`owner_type` and `owner_id` are no longer stored.** Multi-user Step 5 replaced the FK-less pair with the four owner columns above, because the pair could not cascade: deleting an entry used to leave orphan rows that `media_resolver` flagged as missing, and every owner now cascades in the database instead. Both survive as **read-only Python properties** derived from whichever column is set, so the API wire format, the SPA and the Google Sheets tab are unchanged — and, being properties rather than columns, they stay out of the sheet row. The API still takes `?owner_type=&owner_id=` and translates them onto the columns (`_owner_filters`, `_owner_columns` in `app/routers/note.py`). `meme` has the identical shape; `quote` is entry-only and so takes one `media_id` alone.
 
-| Index | Definition | Why |
+Constraint and indexes (declared in `__table_args__`, so `create_all` test databases enforce them too):
+
+| Name | Definition | Why |
 | --- | --- | --- |
-| `ix_note_owner_section` | `(owner_type, owner_id, section)` | The only read path the notes page uses. |
-| `ix_note_one_remark_per_owner` | unique `(owner_type, owner_id)` **WHERE `section = 'remark'`** | Load-bearing: the `remark` read side is a scalar subquery, so a second remark row would make *every read of that owner* raise "more than one row returned by a subquery". Created by `alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`; name and predicate must stay identical. |
+| `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
+| `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses. |
+| `ix_note_one_remark_per_owner` | unique `(media_id, collection_id, franchise_id, series_id)` **NULLS NOT DISTINCT**, **WHERE `section = 'remark'`** | Load-bearing: the `remark` read side is a scalar subquery, so a second remark row would make *every read of that owner* raise "more than one row returned by a subquery". `NULLS NOT DISTINCT` is required — three of the four owner columns are always NULL, and Postgres would otherwise treat every row as unique and silently disable the index. Created by `alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py`; name and predicate must stay identical. It is keyed per **owner**, not per owner-per-author, even though `remark` is a personal-scope section — see [Scope](#scope). |
 
 Column declaration order is also the Google Sheets column order, because `format_model_for_sheet` in `app/utils/formatter.py` walks `__table__.columns`.
 
@@ -100,7 +104,30 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 
 Per-owner overrides (`labels`, `kinds_by_owner`, `locator_placeholders`, `desc_required`) are resolved for one owner by `section_out()` in `app/schemas/note.py` before they reach the frontend, so the page only ever sees a flat `NoteSectionOut`.
 
-Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`.
+Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for(owner_type)`, `label_for`, `kinds_for`, `locator_for`, `group_by_key`, `sections_by_scope`, plus the two derived key sets `PERSONAL_SECTIONS` and `CATALOG_SECTIONS`.
+
+### Scope
+
+Every section declares a **`scope`**, and the field has **no default** — a section that forgets it fails a test rather than inheriting one, because the wrong inheritance publishes one person's private notes or buries a shared one. Two values plus a null:
+
+| Scope | Sections | Meaning |
+| --- | --- | --- |
+| `catalog` | 20 | One shared set of rows, read by everyone unfiltered |
+| `personal` | 7 — `remark`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions` | One set per user; a viewer sees their own rows and nobody else's |
+| `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
+
+The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
+
+Who may write, and whose rows a read returns, follow from it — the router reads `section.scope` rather than carrying its own list:
+
+| Scope | Write (`_authorize_write` / `_authorize_edit`) | Read |
+| --- | --- | --- |
+| `catalog` | admin only | everyone, unfiltered |
+| `personal` | any signed-in account holding `self.personal_notes`, own rows only (a superuser may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
+
+A profile owner's personal rows can be read through `GET /api/notes?author=<username>`, but only when their `list_is_public` **and** the viewer holds `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same 403, so the reply cannot be read as "this account exists". The full rules live in [../authorization.md](../authorization.md#note-scope).
+
+**`remark` is the one place the split is not fully honoured.** It is personal-scope, but its read path is the class-level `column_property` scalar subquery on all twelve owner models (`app/models/__init__.py`), which cannot know who is asking — and `ix_note_one_remark_per_owner` is what keeps that subquery returning one row. So the index stays per owner, and a second user's remark is **refused** rather than shown to the first: first writer wins. Deliberate, pinned by a test, and left for the authorization redesign, which is touching those read paths anyway.
 
 ## Rules
 
@@ -110,7 +137,7 @@ Design rules baked into the registry:
 | --- | --- |
 | **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`, `insert_songs`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry` and `adaptation` reach series (and franchise for the last three) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
-| **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme.owner_id` already accepts all eleven. | `NOTE_SECTIONS["memes"]`. |
+| **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the same four owner columns `note` does, so every one of the twelve owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
 | **A game's bookmark section is `builds_and_mods`, never `resources`.** The site-wide `resources` section (name_links, all owners, standalone) already existed and games inherit it for plain bookmarks; reusing the key would have shadowed it, and a second card also labelled "Resources" would be unreadable — hence a distinct key *and* a distinct label. Builds, mods and tools are one section with a `kind` rather than three near-identical ones, because they took the same shape once `guides` became `name_entries`; `guides` stays separate because it is filled for nearly every game and these are not. | `NOTE_SECTIONS["builds_and_mods"]` and its comment. |
 | **`episode_comments` was widened, not duplicated.** A game is cut into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so game gets a `labels` override (各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. | `NOTE_SECTIONS["episode_comments"]`. |
@@ -141,7 +168,8 @@ Singleton uniqueness is **not** here — it needs a query, so `_reject_second_si
 `GET /api/notes` applies the RBAC layer:
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. Grouping tiers carry no labels, so they skip this check.
-- `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). Today the only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`).
+- **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer (or the profile owner named by `?author=`); a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
+- `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). The only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`), and since Step 5 it withholds **only rows the viewer did not write** — hiding someone's own notes from them is not a permission, it is a bug.
 - `GET /api/notes/sections` is *not* filtered: withheld sections still appear in the registry, they just never have rows.
 
 ## API
@@ -151,11 +179,13 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/notes/sections` | public | `?owner_type=` | `List[NoteSectionOut]` — registry resolved for that owner, display order | 400 unknown owner_type |
-| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
-| POST | `/api/notes` | admin | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton |
-| PATCH | `/api/notes/reorder` | admin | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` not exactly the section's rows |
-| PATCH | `/api/notes/{note_id}` | admin | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |
-| DELETE | `/api/notes/{note_id}` | admin | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
+| GET | `/api/notes` | public (viewer-aware) | `?owner_type=&owner_id=`, optional `?author=<username>` | `List[NoteResponse]`, sorted by registry position then `sort_index` (`_ordered`) | 400 unknown owner_type; 404 owner not visible |
+| POST | `/api/notes` | by scope | body `NoteCreate` (`owner_type`, `owner_id`, `section`, `locator`, `kind`, `status`, `title`, `content`, `links`, `sort_index`) | 201 `NoteResponse`; `sort_index` defaults to last-in-section + 1 | 422 validation / second singleton |
+| PATCH | `/api/notes/reorder` | by scope | body `NoteReorder` `{owner_type, owner_id, section, ordered_ids}` | `{"status":"success","reordered":n}`; rewrites `sort_index` as 0,1,2… | 400 unknown owner_type / unknown section / `ordered_ids` not exactly the section's rows |
+| PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |
+| DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
+
+"By scope" means the section decides: a **catalogue** section is admin-only, a **personal** one needs a signed-in account holding `self.personal_notes` and reaches only that account's own rows (403 "That note belongs to someone else." otherwise). A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **403** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
 `/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). No frontend calls it yet; it is intentional surface kept for a future reorder UI and covered by tests — do not delete as unused.
 

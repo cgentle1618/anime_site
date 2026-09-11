@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-10 (Step 3: plan-next and seasonal are per user and authenticated)
+Last verified: 2026-09-11 (watch-order items and plan rows address their entry by a real foreign key)
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -424,12 +424,15 @@ endpoint gets it and `item_count` for every row in one grouped query.
 `WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
 `WatchOrderCandidate`.
 
-**Item resolution.** `watch_order_item` stores only `(media_type, entry_id)` —
-no foreign key spans eight tables — so the detail endpoint enriches each item
+**Item resolution.** `watch_order_item` stores only a `media_id` foreign key
+— `media_type` and `entry_id` are derived from it (see
+[data-model.md](data-model.md#the-six-tables-that-moved-to-media_id)) — so the
+detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
 per media type present, never one per item. An item whose entry no longer
-exists comes back with `missing: true` rather than being dropped.
+exists can no longer occur — the FK cascades — but a step written without an
+entry still comes back with `missing: true` rather than being dropped.
 
 ---
 
@@ -549,8 +552,9 @@ business-rules.md.
 }
 ```
 
-A deleted target resolves as `missing: true` rather than the row vanishing,
-since the target carries no foreign key. `expectation` is read off whichever
+A deleted target takes its plan rows with it: since Step 3 the owner is one of
+three real foreign keys, all `ON DELETE CASCADE`, so `missing: true` is
+unreachable for a stored row. `expectation` is read off whichever
 of `franchise_expectation` / `series_expectation` / `expectation` the target
 actually has, so the Plan page can sort every scope by the same field.
 

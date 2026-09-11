@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-10 (the seasonal counters are per user)
+Last verified: 2026-09-11 (entity display names generalised; the rating-points scale)
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -14,7 +14,7 @@ older `business-rules.md` disagrees with this file, this file is current.
 
 Type keys used throughout are the hyphenated media-type slugs from
 `app/utils/media_resolver.py`: `anime`, `anime-movie`, `movie`, `tv-show`,
-`cartoon`, `manga`, `novel`, `comic`.
+`cartoon`, `manga`, `novel`, `comic`, `game`.
 
 ---
 
@@ -605,32 +605,73 @@ and de-duplicates on the normalised key, keeping the **first** spelling seen.
 
 ---
 
-## 10a. Studio display names (`models/staff.py`, `lib/naming.js`)
+## 10a. Entity display names (`models/staff.py`, `models/character.py`, `lib/naming.js`)
 
 Every media model resolves its display name through a fallback chain that is
-**hard-coded per type**. A studio does not: which name it shows is DATA.
+**hard-coded per type**. The four Tier 3 entities do not: which name they show
+is DATA. `studio` was the first, on 2026-09-04, and `person`, `publisher` and
+`character` were each deliberately shaped after it, so one rule covers all four.
 
-`studio.display_name_field` holds `en` / `cn` / `jp` / `alt` and names the
-winning column. `Studio.display_name` returns that column's value when it is
-set and non-blank; otherwise it falls back through **EN → CN → JP → Alt**,
-returning `""` only if all four are empty, which `ck_studio_has_a_name`
-prevents. So `display_name_field` is a preference, not a guarantee: pointing
-it at an empty column silently falls back rather than blanking the studio.
+`display_name_field` holds `en` / `cn` / `jp` / `alt` and names the winning
+column. `display_name` returns that column's value when it is set and
+non-blank; otherwise it falls back through **EN → CN → JP → Alt**, returning
+`""` only if all four are empty, which the table's `ck_*_has_a_name` CHECK
+prevents. So `display_name_field` is a preference, not a guarantee: pointing it
+at an empty column silently falls back rather than blanking the row.
 
-The rule exists twice, because the pickers and the studio pages resolve names
-in the browser without a round trip: `displayStudioName()` and
-`STUDIO_NAME_FIELDS` in `frontend/src/lib/naming.js` mirror it exactly.
-**Change both or neither.** `StudioResponse` also carries the server-resolved
-`display_name`, which is what list and detail pages actually render; the
-helper is for rows that arrive without it.
+The rule exists twice, because the pickers and the entity pages resolve names
+in the browser without a round trip: one `displayEntityName()` in
+`frontend/src/lib/naming.js`, exported as `displayStudioName()` and
+`displayPersonName()`, and `STUDIO_NAME_FIELDS` beside it, mirror it exactly.
+**Change both or neither.** Every entity response also carries the
+server-resolved `display_name`, which is what list and detail pages actually
+render; the helper is for rows that arrive without one - a name still being
+typed in a form has no `display_name` yet.
 
 Two consequences worth knowing:
 
-- `GET /api/studio/` sorts on the resolved `display_name`, case-insensitively,
-  so the list order changes when an admin changes a display choice.
+- `GET /api/studio/`, `/api/person/` and `/api/publisher/` sort on the
+  resolved `display_name`, case-insensitively **in Python**, so the list order
+  changes when an admin changes a display choice.
 - The duplicate check and credit resolution do NOT use `display_name`. They
-  compare **every** name a studio has (`get_all_names()`, section 10), so two
-  studios cannot hide a collision behind different display choices.
+  compare **every** name a row has (`get_all_names()`, section 10), so two
+  studios cannot hide a collision behind different display choices. For
+  `person` and `publisher` an ambiguous name **raises** rather than picking a
+  winner, since `resolve_person` is find-or-create and a wrong match would
+  silently attach one person's credits to another.
+
+---
+
+## 10b. Rating grades as points (`app/services/domain/rating_points.py`)
+
+`my_rating` is one of `MY_RATINGS` - `S`, `A+`, `A`, `B`, `C`, `D`, `E`, `F` -
+stored as a **String** on every table that has it. Two things need it as a
+number: ordering a profile's list best-first, and averaging the public lists'
+opinion of one work. Neither can touch the column directly: `ORDER BY
+my_rating DESC` sorts alphabetically, putting `A+` above `A` and `S` last, and
+`my_rating::numeric` raises `invalid input syntax for type numeric: "A+"` on
+the first row.
+
+One module owns the mapping, so the list page and the statistics page cannot
+disagree:
+
+| Helper | Does |
+|---|---|
+| `RATING_POINTS` | `{"S": 8, "A+": 7, ... "F": 1}` - the index of `MY_RATINGS` reversed, so **`S` outranks `A+`** |
+| `rating_points(letter)` | points for one grade; `None` for missing, blank or unknown |
+| `points_to_letter(points)` | the declared letter nearest to a number |
+| `rating_rank_case(column)` | a SQL `CASE` for `ORDER BY` and `AVG`; unknown and NULL become NULL, so `NULLS LAST` sinks unrated rows and `AVG` skips them |
+
+**The scale is ordinal, not interval** - the gap between S and A+ is not
+claimed to equal the gap between E and F. That is why an average is rendered as
+the nearest letter rather than as a bare figure, and always alongside its
+sample size: a community aggregate showing "B" is honest about the vocabulary,
+where "3.7" would invent a precision the data does not have. `/api/constants` serves
+`my_rating` from `MY_RATINGS`, but the browser does **not** read it for this:
+`RATING_ORDER` is still hard-coded in `components/info/RatingDistributionBlock.jsx`
+and `pages/statistics/StatsFranchiseSummary.jsx`. Two more copies of one order,
+and a ranking that disagrees between pages is the kind of bug nobody reports
+and everybody sees - keep them in step, or move them onto the endpoint.
 
 ---
 

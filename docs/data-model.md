@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-10 (the guest fallback removed from the list reads)
+Last verified: 2026-09-11 (the note, quote and meme owner columns and `author_id`)
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1081,9 +1081,11 @@ person/studio pair until 2026-09-06, when `publisher_id` widened it to three.
 Constraints: `ck_media_credit_one_target` CHECK `num_nonnulls(person_id,
 studio_id, publisher_id) = 1` - exactly one target, so a row naming both a
 studio and a publisher has no single meaning and is rejected;
-`uq_media_credit_row` UNIQUE (`media_type`, `entry_id`, `role`, `person_id`,
-`studio_id`, `publisher_id`) NULLS NOT DISTINCT; index `ix_media_credit_entry`
-(`media_type`, `entry_id`). Migration `p1u2b3l4i5s6` drops and recreates both
+`uq_media_credit_row` UNIQUE (`media_id`, `role`, `person_id`, `studio_id`,
+`publisher_id`) NULLS NOT DISTINCT - NULLS NOT DISTINCT is load-bearing,
+because two of the three target columns are NULL on every row and Postgres
+would otherwise let the same person hold the same role on the same entry
+twice; index `ix_media_credit_entry` (`media_id`). Migration `p1u2b3l4i5s6` drops and recreates both
 the CHECK and the unique constraint to take the third column in.
 
 ### `media_tag`
@@ -1100,15 +1102,15 @@ rather than category because one category can back several fields.
 | `position` | Integer | no | `0` | |
 | `created_at` | DateTime | yes | now | |
 
-Constraints: `uq_media_tag_row` UNIQUE (`media_type`, `entry_id`, `field`,
-`option_id`); index `ix_media_tag_entry`.
+Constraints: `uq_media_tag_row` UNIQUE (`media_id`, `field`, `option_id`);
+index `ix_media_tag_entry` (`media_id`).
 
 ### `media_source`
 
 Where one entry can be watched, read, or looked up. Shaped like
-`media_credit`: no single foreign key can span the eight media tables, so the
-`(media_type, entry_id)` pair is resolved at read time (see
-[Cross-table references](#cross-table-references-without-foreign-keys)).
+`media_credit`: one row per named thing attached to an entry, through a real
+`media_id` foreign key since Step 0 (see
+[The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id)).
 Model: `MediaSource` (`app/models/media_source.py`).
 
 | Column | Type | Null | Default | Description |
@@ -1125,18 +1127,18 @@ Model: `MediaSource` (`app/models/media_source.py`).
 | `created_at` | DateTime | yes | now | |
 
 Constraints: `ck_media_source_one_target` CHECK `num_nonnulls(option_id, name)
-= 1`; `uq_media_source_row` UNIQUE (`media_type`, `entry_id`, `kind`, `bucket`,
-`option_id`, `name`) NULLS NOT DISTINCT — two free-form rows with the same
-name on one entry collide instead of both being stored, since `option_id` is
-NULL on both and the default NULL-is-distinct rule would let them through;
-index `ix_media_source_entry` (`media_type`, `entry_id`).
+= 1`; `uq_media_source_row` UNIQUE (`media_id`, `kind`, `bucket`, `option_id`,
+`name`) NULLS NOT DISTINCT — two free-form rows with the same name on one entry
+collide instead of both being stored, since `option_id` is NULL on both and the
+default NULL-is-distinct rule would let them through; index
+`ix_media_source_entry` (`media_id`).
 
 **Read/write.** `services.domain.sources.attach_sources` sets `entry.sources`
 (a list of `SourceRef`, `app/schemas/sources.py`) on every list and detail
 response; `replace_sources` rewrites an entry's whole set on
 POST/PUT/PATCH via `MediaTypeSpec.nested_collections`, the same seam
-`write_novel_units` uses; `delete_sources_for` removes every row for an entry
-being deleted, since nothing cascades into an FK-less table. Bucket filtering
+`write_novel_units` uses. An entry's rows are removed by the `media_id`
+cascade — the hand-written `delete_sources_for` went with it. Bucket filtering
 by RBAC happens inside `attach_sources` itself, not in `field_gate.gate()`,
 because it is partial — a viewer can hold `other` and not `restricted` — see
 [authorization.md](authorization.md).
@@ -1183,8 +1185,9 @@ its section's *shape* in `app/utils/note_sections.py`
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `owner_type` | String | yes | | One of OWNER_TYPE_KEYS (9 entries + series, franchise, collection), indexed |
-| `owner_id` | UUID | yes | | FK-less, indexed |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the nine media types |
+| `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
+| `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds` |
@@ -1196,11 +1199,29 @@ its section's *shape* in `app/utils/note_sections.py`
 | `sort_index` | Float | yes | | Ordering within (owner, section) |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Indexes: `ix_note_owner_section` (`owner_type`, `owner_id`, `section`) - the
+`ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
+franchise_id, series_id) = 1`, so exactly one owner is set. **`owner_type` and
+`owner_id` are no longer stored**: Step 5 replaced the FK-less pair with these
+four columns so every owner cascades, and both survive as read-only Python
+properties derived from whichever column is set - which is why the API, the SPA
+and the Note sheet tab did not change. The API's `owner_type` / `owner_id`
+parameters are translated onto the columns in `app/routers/note.py`.
+
+Each section also declares a **scope** - `catalog` (shared) or `personal` (one
+set per user) - which decides who may write a row and whose rows a read
+returns; see [systems/notes.md](systems/notes.md#scope) and
+[authorization.md](authorization.md#note-scope).
+
+Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
 notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
-UNIQUE (`owner_type`, `owner_id`) `WHERE section = 'remark'`. The second is
-load-bearing: `remark` is read through a scalar subquery, so a second remark
-row would make every read of that owner raise.
+UNIQUE over the four owner columns, **NULLS NOT DISTINCT**, `WHERE section =
+'remark'`. The second is load-bearing: `remark` is read through a scalar
+subquery, so a second remark row would make every read of that owner raise.
+NULLS NOT DISTINCT is required because three of the four columns are always
+NULL, and without it Postgres treats every row as unique and the index enforces
+nothing. It is keyed per owner rather than per owner-per-author even though
+`remark` is personal-scope, so a second user's remark is refused rather than
+shown to the first.
 
 ### `quote`
 
@@ -1211,6 +1232,7 @@ a specific work). Model: `Quote`.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `media_id` | UUID | yes | | FK `media.system_id` ON DELETE SET NULL - see [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id) |
+| `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `text` | Text | yes | | |
 | `translation` | Text | yes | | |
 | `language` | String | yes | | |
@@ -1227,6 +1249,13 @@ a specific work). Model: `Quote`.
 | `remark` | Text | yes | | Real column |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
+`media_type` and `entry_id` are not stored: `entry_id` is a **synonym** for
+`media_id` (readable, writable, filterable) and `media_type` a read-only
+`column_property` off the `media` row, both attached at the bottom of
+`app/models/__init__.py` - the same treatment `watch_order_item` gets. So the
+pair cannot disagree with the entry it points at, which the old FK-less
+version could.
+
 ### `meme`
 
 One meme - one text and/or one image, never a list - on any owner (a running
@@ -1235,8 +1264,9 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `owner_type` | String | yes | | OWNER_TYPE_KEYS, indexed |
-| `owner_id` | UUID | yes | | FK-less, indexed |
+| `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is a media entry |
+| `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier. `ck_meme_one_owner` CHECKs that exactly one of the four is set |
+| `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed - provenance only; memes are universal and no read consults it |
 | `text` | Text | yes | | |
 | `image_file` | String | yes | | Bare filename under `static/quotes/`, local only |
 | `quote_id` | UUID | yes | | FK `quote.system_id` ON DELETE SET NULL, **UNIQUE** (a quote belongs to at most one meme; many NULLs allowed), indexed |
@@ -1246,6 +1276,10 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
+
+`owner_type` and `owner_id` are derived read-only properties over the four
+owner columns, exactly as on [`note`](#note); the API and the Meme sheet tab
+still speak the pair.
 
 ---
 
@@ -1588,8 +1622,8 @@ One content label on one media entry. Deliberately **not** stored in
 | `position` | Integer | no | `0` (server default) | |
 | `created_at` | DateTime | yes | now | |
 
-Constraints: `uq_media_content_label_row` UNIQUE (`media_type`, `entry_id`,
-`label_id`); index `ix_media_content_label_entry`.
+Constraints: `uq_media_content_label_row` UNIQUE (`media_id`, `label_id`);
+index `ix_media_content_label_entry` (`media_id`).
 
 ---
 
