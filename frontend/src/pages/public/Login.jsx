@@ -35,9 +35,13 @@ export default function Login() {
         await refetchAuth();
         const params = new URLSearchParams(location.search);
         const next = params.get("next");
-        navigate(next && next.startsWith("/") ? next : "/system", {
-          replace: true,
-        });
+        // Must start with "/" (an absolute URL would be an open redirect) and
+        // must not point back at /login - that lands a signed-in visitor on
+        // this form again with their real destination buried a level deeper.
+        // The negative lookahead keeps a genuine page like /loginary usable.
+        const usable =
+          next && next.startsWith("/") && !/^\/login(?![\w-])/.test(next);
+        navigate(usable ? next : "/system", { replace: true });
       } else {
         const data = await res.json();
         setError(data.detail || "Authentication failed.");

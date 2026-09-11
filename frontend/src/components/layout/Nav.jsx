@@ -178,7 +178,16 @@ export default function Nav() {
     navigate(location.pathname + location.search, { replace: true });
   }
 
-  const loginHref = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
+  // On /login itself the next ProtectedRoute already put in the query string
+  // IS the destination. Rebuilding the link around the current location there
+  // would nest the login page inside its own next, and Login has no
+  // already-signed-in bounce - so a visitor who was sent here from a protected
+  // page and clicked this button instead of filling in the form would sign in
+  // and land straight back on this form.
+  const loginHref =
+    location.pathname === "/login"
+      ? `/login${location.search}`
+      : `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
 
   return (
     <nav className="sticky top-0 z-50">
