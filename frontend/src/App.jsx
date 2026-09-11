@@ -175,8 +175,10 @@ export default function App() {
                   <Route path="/settings" element={<Settings />} />
                 </Route>
 
-                {/* These routes are protected by <ProtectedRoute />. */}
-                <Route element={<ProtectedRoute />}>
+                {/* Catalogue and pipeline work. manage.catalog is what the
+                    SPA's isAdmin has meant since Phase A, so a super account
+                    reaches all of these. */}
+                <Route element={<ProtectedRoute permission="manage.catalog" />}>
                   <Route path="/system" element={<Admin />} />
                   <Route path="/data-history" element={<DataHistory />} />
                   <Route path="/review-queue" element={<ReviewQueue />} />
@@ -189,6 +191,10 @@ export default function App() {
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                </Route>
+
+                {/* Changing who may do what. Admin only. */}
+                <Route element={<ProtectedRoute permission="admin.authz" />}>
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/content-labels" element={<ContentLabels />} />

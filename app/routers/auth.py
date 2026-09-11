@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.config import settings
 from app.dependencies import get_db
-from app.services.rbac.permissions import PERM_ADMIN
+from app.services.rbac.permissions import PERM_MANAGE_CATALOG
 from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
 from app.services.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -99,7 +99,12 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         viewer = GUEST_FALLBACK
 
     return {
-        "is_admin": viewer.has(PERM_ADMIN),
+        # Means "may edit the catalogue", not "is an administrator". The SPA's
+        # 394 isAdmin call sites gate edit buttons, notes editors and tracker
+        # controls, which is exactly manage.catalog - so a super account
+        # correctly gains them. The three authorization pages ask for
+        # admin.authz instead; see App.jsx.
+        "is_admin": viewer.has(PERM_MANAGE_CATALOG),
         "username": viewer.username,
         "role": viewer.role_name,
         "is_superuser": viewer.is_superuser,
