@@ -97,17 +97,40 @@ def target_exists(db: Session, scope: str, media_type: str, target_id: UUID) -> 
     )
 
 
+def target_visible(db: Session, viewer, scope: str, media_type: str, target_id: UUID) -> bool:
+    """
+    Whether this viewer may see the planned target.
+
+    Only entry scope can carry a content label - franchise and series are
+    groups, not labelled media - so group-scope targets are always visible
+    here and the row's own existence is the only gate.
+    """
+    if scope != "entry":
+        return True
+    from app.services.rbac.enforcement import entry_visible
+
+    return entry_visible(db, viewer, media_type, target_id)
+
+
 def validate_plan_target(
-    db: Session, scope: str, media_type: str, target_id: UUID, kind: str = "next"
+    db: Session, scope: str, media_type: str, target_id: UUID, kind: str = "next", *, viewer=None
 ):
     """
     Returns None when the triple is plannable, else a human-readable reason.
+
+    A target that exists but is hidden from this viewer (a content label they
+    lack) reads back the same "No {scope} with id {target_id}." a genuinely
+    missing target does - the caller turns that into a 404, never a 403, so a
+    hidden entry is indistinguishable from a missing one. viewer is optional
+    so existing internal callers (Pull) that have no viewer keep working.
 
     Kept here rather than in the router so Pull can reuse it later.
     """
     if not scope_allowed(kind, media_type, scope):
         return f"{media_type} cannot be planned at {scope} scope."
     if not target_exists(db, scope, media_type, target_id):
+        return f"No {scope} with id {target_id}."
+    if not target_visible(db, viewer, scope, media_type, target_id):
         return f"No {scope} with id {target_id}."
     return None
 

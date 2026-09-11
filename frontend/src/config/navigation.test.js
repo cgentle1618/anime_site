@@ -103,37 +103,48 @@ describe("NAV_SECTIONS", () => {
     expect(activeSectionKey("/external-apis")).toBe("note");
   });
 
-  it("reads Relations and Watch Orders as Insights, admin-gated", () => {
-    // They belong with the other ways of looking at the collection, but stay
-    // admin-only inside a tab everyone can open.
+  it("reads Relations and Watch Orders as Insights, gated on manage.catalog", () => {
+    // They belong with the other ways of looking at the collection, but both
+    // write through catalogue endpoints, so they stay gated inside a tab
+    // everyone can open.
     expect(ownersOf("/relations")).toEqual(["insights"]);
     expect(ownersOf("/watch-orders")).toEqual(["insights"]);
 
     const insights = NAV_SECTIONS.find((s) => s.key === "insights");
     const gated = sectionItems(insights)
-      .filter((i) => !i.divider && itemRequirement(i) === "admin")
+      .filter((i) => !i.divider && itemRequirement(i) === "manage.catalog")
       .map((i) => i.to);
     expect(gated).toEqual(["/relations", "/watch-orders"]);
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
-  it("leaves the Admin tab holding only the system-wide pages", () => {
-    const admin = NAV_SECTIONS.find((s) => s.key === "admin");
-    expect(sectionItems(admin).map((i) => i.to)).toEqual([
+  it("splits the pipeline pages from the accounts/authz pages", () => {
+    // Control Center, Data History and Review Queue call only
+    // /api/system/* and /api/data-control/*  (manage.pipelines); Users,
+    // Roles and Content Labels are the accounts/authz surface
+    // (admin.authz) — not the same capability, so not the same tab.
+    const pipelines = NAV_SECTIONS.find((s) => s.key === "pipelines");
+    expect(sectionItems(pipelines).map((i) => i.to)).toEqual([
       "/system",
       "/data-history",
       "/review-queue",
-      undefined, // divider
+    ]);
+    expect(sectionRequirement(pipelines)).toBe("manage.pipelines");
+
+    const admin = NAV_SECTIONS.find((s) => s.key === "admin");
+    expect(sectionItems(admin).map((i) => i.to)).toEqual([
       "/users",
       "/roles",
       "/content-labels",
     ]);
+    expect(sectionRequirement(admin)).toBe("admin.authz");
   });
 
-  it("gates Entry, Note and Admin on the admin permission", () => {
-    const gated = NAV_SECTIONS.filter((s) => sectionRequirement(s) !== null);
-    expect(gated.map((s) => s.key)).toEqual(["entry", "note", "admin"]);
-    expect(gated.every((s) => sectionRequirement(s) === "admin")).toBe(true);
+  it("gates Entry and Note on manage.catalog", () => {
+    const entry = NAV_SECTIONS.find((s) => s.key === "entry");
+    const note = NAV_SECTIONS.find((s) => s.key === "note");
+    expect(sectionRequirement(entry)).toBe("manage.catalog");
+    expect(sectionRequirement(note)).toBe("manage.catalog");
   });
 });
 
@@ -236,7 +247,7 @@ describe("visibleSections", () => {
 
   it("still understands the older adminOnly spelling", () => {
     const legacy = [{ key: "legacy", label: "Legacy", adminOnly: true }];
-    expect(sectionRequirement(legacy[0])).toBe("admin");
+    expect(sectionRequirement(legacy[0])).toBe("admin.authz");
     expect(visibleSections(legacy, holdsNothing)).toEqual([]);
     expect(visibleSections(legacy, holdsEverything)).toEqual(legacy);
   });
@@ -247,6 +258,8 @@ describe("visibleSections", () => {
       asked.push(p);
       return true;
     });
-    expect(asked).toContain("admin");
+    expect(asked).toContain("admin.authz");
+    expect(asked).toContain("manage.catalog");
+    expect(asked).toContain("manage.pipelines");
   });
 });

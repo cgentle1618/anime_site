@@ -9,10 +9,15 @@ import Nav from "./Nav";
 // Nav pulls the session from context and fires search requests on typing;
 // neither is what these tests are about.
 // Nav now asks has(permission) rather than reading isAdmin directly, so the
-// mock answers from the same flag the tests already toggle.
+// mock answers from the same flag the tests already toggle: isAdmin true
+// holds every admin capability (admin.authz, manage.catalog,
+// manage.pipelines) the way an is_superuser account would, isAdmin false
+// holds none of them — except self.list, which these tests don't exercise
+// but a signed-out visitor genuinely lacks and a signed-in one holds.
 const auth = {
   isAdmin: false,
-  has: (permission) => (permission === "admin" ? auth.isAdmin : true),
+  has: (permission) =>
+    permission === "self.list" ? true : auth.isAdmin,
   refetchAuth: vi.fn(),
 };
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));

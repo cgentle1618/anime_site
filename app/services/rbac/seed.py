@@ -1,5 +1,5 @@
 """
-The three roles the app reads by name.
+The four roles the app reads by name.
 
 Called from the lifespan AND from migration A, because tests/api/conftest.py
 resets the schema with Base.metadata.create_all and never runs Alembic - a seed
@@ -96,7 +96,7 @@ def _ensure_role(db: Session, name: str, **fields) -> models.Role:
 
 
 def ensure_rbac_seed(db: Session) -> None:
-    """Create the guest, admin and user roles and top up their grants."""
+    """Create the guest, admin, user and super roles and top up their grants."""
     guest = _ensure_role(
         db,
         GUEST_ROLE,
@@ -132,8 +132,11 @@ def ensure_rbac_seed(db: Session) -> None:
         SUPER_ROLE,
         label="Super",
         description=(
-            "Manages the catalogue and runs the pipelines. Cannot change "
-            "roles, accounts or content labels."
+            "Manages the catalogue and runs the pipelines. Cannot itself "
+            "change roles, accounts or content labels - but running a "
+            "pipeline (Pull All) can rewrite all three from the sheet, "
+            "since it restores the Users and Content Label tabs and role "
+            "assignments along with everything else."
         ),
         is_system=True,
         is_superuser=False,

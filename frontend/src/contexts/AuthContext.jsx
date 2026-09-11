@@ -4,8 +4,9 @@
 // permission set, not just the admin flag, because a viewer can now hold some
 // permissions and not others.
 //
-// `isAdmin` keeps its old meaning and shape: every existing consumer reads it
-// to enable or hide a control, and none of them should have to change.
+// `isAdmin` keeps its old shape (a boolean every existing consumer reads to
+// enable or hide a control) but not its old meaning: it now reports whether
+// the viewer holds manage.catalog, not the deleted bare admin permission.
 //
 // Hiding here is cosmetic. The server already withholds what a viewer may not
 // see, so this only stops the UI drawing empty frames around nothing.

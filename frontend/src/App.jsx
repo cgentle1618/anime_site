@@ -168,20 +168,18 @@ export default function App() {
                   <Route path="/plan" element={<Plan />} />
                 </Route>
 
-                {/* Any signed-in member, not an admin: ProtectedRoute takes
-                    the permission and defaults to "admin", so this block asks
-                    for self.list instead and an admin passes as a superuser. */}
+                {/* Any signed-in member, not an admin: ProtectedRoute's
+                    default permission ("admin") no longer exists, so this
+                    block asks for self.list explicitly - an admin still
+                    passes because is_superuser short-circuits every check. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/settings" element={<Settings />} />
                 </Route>
 
-                {/* Catalogue and pipeline work. manage.catalog is what the
-                    SPA's isAdmin has meant since Phase A, so a super account
-                    reaches all of these. */}
+                {/* Catalogue work. manage.catalog is what the SPA's isAdmin
+                    has meant since Phase A, so a super account reaches all of
+                    these. */}
                 <Route element={<ProtectedRoute permission="manage.catalog" />}>
-                  <Route path="/system" element={<Admin />} />
-                  <Route path="/data-history" element={<DataHistory />} />
-                  <Route path="/review-queue" element={<ReviewQueue />} />
                   <Route path="/add" element={<Add />} />
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
@@ -191,6 +189,15 @@ export default function App() {
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                </Route>
+
+                {/* Pipeline work: these pages call only /api/system/* and
+                    /api/data-control/*, which require manage.pipelines, not
+                    manage.catalog. */}
+                <Route element={<ProtectedRoute permission="manage.pipelines" />}>
+                  <Route path="/system" element={<Admin />} />
+                  <Route path="/data-history" element={<DataHistory />} />
+                  <Route path="/review-queue" element={<ReviewQueue />} />
                 </Route>
 
                 {/* Changing who may do what. Admin only. */}

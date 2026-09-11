@@ -1,7 +1,12 @@
 // Frontend: layout component file for ProtectedRoute.
 //
-// Guards a route on one permission. It defaults to "admin", so every existing
-// <Route element={<ProtectedRoute />}> keeps behaving exactly as it did.
+// Guards a route on one permission. It defaults to "admin", a permission no
+// role holds any more (Phase A split it into admin.authz, manage.catalog and
+// manage.pipelines) - a bare <Route element={<ProtectedRoute />}> now denies
+// everyone but a superuser (is_superuser short-circuits every check), not
+// "everyone who used to pass". Every call site below passes requireAuth or an
+// explicit permission, so nothing currently relies on the default; a new bare
+// use should pick the permission it actually needs rather than lean on this.
 //
 // `requireAuth` asks the weaker question instead - "is anyone logged in?" -
 // mirroring the server's get_current_user_id. The per-user pages (Plan,
