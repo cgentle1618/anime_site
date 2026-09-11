@@ -1,5 +1,5 @@
 // Frontend: tracker component file for DashboardCard.
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
@@ -19,7 +19,6 @@ export default function DashboardCard({
   isAdmin,
   onEpChange,
 }) {
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const isTV = anime._ui_type === "TV Show";
@@ -105,8 +104,9 @@ export default function DashboardCard({
 
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
-      onClick={() => navigatePath && navigate(navigatePath)}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full relative isolate${
+        navigatePath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
@@ -139,7 +139,17 @@ export default function DashboardCard({
             className="font-display font-bold text-text text-base line-clamp-2 leading-tight mb-1"
             title={title}
           >
-            {title}
+            {navigatePath ? (
+              // The stretched link: the anchor is the title and its ::after
+              // covers the card, so a middle click or ctrl-click anywhere on
+              // the card opens the entry, while the tracker controls below
+              // stay outside the anchor and above the overlay.
+              <Link to={navigatePath} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                {title}
+              </Link>
+            ) : (
+              title
+            )}
           </h3>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
             {subTitle}
@@ -154,8 +164,7 @@ export default function DashboardCard({
                 href={bahaRow.url}
                 target="_blank"
                 rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-block"
+                className="relative z-10 inline-block"
                 title="Watch on Bahamut"
               >
                 <img
@@ -183,10 +192,7 @@ export default function DashboardCard({
         </div>
       </div>
 
-      <div
-        className="p-3 border-t border-border mt-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative z-10 p-3 border-t border-border mt-auto">
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Progress</span>
           <span className="text-text">
@@ -213,7 +219,6 @@ export default function DashboardCard({
                 onChange={(e) =>
                   handleEpChange(parseInt(e.target.value, 10) || 0)
                 }
-                onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-10 text-center">

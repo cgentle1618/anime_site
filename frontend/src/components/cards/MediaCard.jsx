@@ -4,11 +4,12 @@
 // media type, the rating stamp top-right, then the title in the display face
 // and one mono line of metadata. Flat, no hover zoom - the border darkens.
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
+import { entityPath } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import { effectiveProgressDisplay } from "../../lib/novelUnits";
 import {
@@ -101,7 +102,6 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
               href={bahaRow.url}
               target="_blank"
               rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
               className="absolute bottom-1 left-1 bg-surface/95 px-1.5 py-0.5 z-10 border border-border flex items-center justify-center"
               title="Watch on Bahamut"
             >
@@ -367,10 +367,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     return (
       <div className="flex items-center gap-1.5">
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleVol();
-          }}
+          onClick={onToggleVol}
           className="font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint hover:text-brand border border-border-strong px-1 py-0.5 transition-colors shrink-0"
           title="Toggle Ch/Vol"
         >
@@ -532,7 +529,6 @@ export default function MediaCard({
   const { isAdmin: authAdmin } = useAuth();
   const showAdmin = isAdminProp !== undefined ? isAdminProp : authAdmin;
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [showVol, setShowVol] = useState(false);
   const [showAiringPrompt, setShowAiringPrompt] = useState(false);
   const statusMutation = useStatusToggle(type);
@@ -541,13 +537,18 @@ export default function MediaCard({
   const { statusField, navPath, statusType } = config;
 
   const title = getDisplayName(data, type);
+  // Prefer the pretty /anime/47/slug form every other Link on the site uses.
+  // Rows that predate public_id, or a payload that omits it, still resolve:
+  // the backend's entry-ref parser takes a UUID too.
+  const cardPath =
+    entityPath(type, data) ||
+    (navPath && data.system_id ? `${navPath}/${data.system_id}` : "");
   const imageUrl = getCoverUrl(data.cover_image_file);
   const currentStatus = data[statusField] || FALLBACK_STATUS[statusType];
   const btnConfig = getCardStatusConfig(type, currentStatus);
   const needsExtra = !FUTURE_WATCHING_OPTIONS.includes(currentStatus);
 
-  async function handleStatusToggle(e) {
-    e.stopPropagation();
+  async function handleStatusToggle() {
     try {
       const updated = await statusMutation.mutateAsync({
         id: data.system_id,
@@ -561,7 +562,6 @@ export default function MediaCard({
   }
 
   async function handleStatusChange(e) {
-    e.stopPropagation();
     const newStatus = e.target.value;
     try {
       const updated = await statusMutation.mutateAsync({
@@ -595,8 +595,7 @@ export default function MediaCard({
     }
   }
 
-  function handleBoltAction(e) {
-    e.stopPropagation();
+  function handleBoltAction() {
     if (!BOLT_PROMPTS_WATCHING.has(type)) {
       applyBoltAction(null);
       return;
@@ -630,8 +629,9 @@ export default function MediaCard({
 
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative group"
-      onClick={() => navPath && navigate(`${navPath}/${data.system_id}`)}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full relative group${
+        cardPath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex">
         <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
@@ -661,24 +661,36 @@ export default function MediaCard({
         </div>
       </div>
 
-      <div className="p-3 flex flex-col flex-1 relative z-20 bg-surface border-t border-border">
+      <div className="p-3 flex flex-col flex-1 bg-surface border-t border-border">
         <h3
           className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight mb-1.5"
           title={title}
         >
-          {title}
+          {cardPath ? (
+            // The stretched link: the anchor is the title, and its ::after
+            // covers the whole card. That is what makes a middle click, a
+            // ctrl-click and "open in new tab" work anywhere on the card,
+            // while keeping every control below out of the anchor.
+            <Link
+              to={cardPath}
+              className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {title}
+            </Link>
+          ) : (
+            title
+          )}
         </h3>
 
         {variant === "future" ? (
           <>
             <FutureMeta type={type} data={data} />
-            <div className="mt-auto flex items-center gap-1 border-t border-border pt-2.5">
+            <div className="relative z-10 mt-auto flex items-center gap-1 border-t border-border pt-2.5">
               {showAdmin && (
                 <>
                   <select
                     value={currentStatus}
                     onChange={handleStatusChange}
-                    onClick={(e) => e.stopPropagation()}
                     className="font-mono text-[10px] border border-border-strong px-1 py-0.5 bg-surface text-text-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand w-full"
                     title="Watching status"
                   >
@@ -708,7 +720,7 @@ export default function MediaCard({
           <>
             <LibraryMeta type={type} data={data} />
             <div
-              className={`mt-auto flex items-center border-t border-border pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
+              className={`relative z-10 mt-auto flex items-center border-t border-border pt-2.5 ${HAS_PROGRESS.has(type) ? "justify-between" : "justify-end"}`}
             >
               {HAS_PROGRESS.has(type) && (
                 <ProgressDisplay
