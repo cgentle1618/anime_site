@@ -1,8 +1,9 @@
 # Authorization redesign — design (DRAFT, brainstorm in progress)
 
-Status: **draft**. Brainstormed on 2026-09-10 (home), stopped at an environment
-switch, resumed 2026-09-11 (company). **Sections 1-4 are approved.** Sections 5
-and 6 are unwritten. This file is not yet a spec to implement.
+Status: **complete, awaiting review**. Brainstormed on 2026-09-10 (home),
+stopped at an environment switch, resumed and finished 2026-09-11 (company).
+All six sections are written and approved. Next step is an implementation plan;
+nothing here has been built.
 
 Read first: [authorization.md](../../authorization.md#what-the-redesign-inherits)
 — the four gates that already exist, the rules not to break, and the lessons
@@ -390,18 +391,202 @@ Both cleared by the existing `bump()`, which every grant-changing write already
 calls, so the new mode and denial writes simply call it too. The single-process
 assumption in that module's docstring is unchanged.
 
-## Still to design (sections 5-6)
+## Section 5 — admin UI and migration (APPROVED 2026-09-11)
 
-5. **Admin UI and migration.** Two surfaces, not one: the access-mode page
-   (create a mode, set its labels and field groups, flag the guest default) and
-   the per-account panel (grant modes, pick the login default, tick denials
-   against each granted mode). How today's single `admin` account gains the new
-   grant set without locking the owner out; seeding. Decision 1's reversal makes
-   this materially easier — the existing `admin` account keeps every power it
-   has and simply gains named permissions, so there is no moment where the owner
-   is locked out of their own catalogue.
-6. **Testing.** Two accounts minimum, per the multi-user lesson. Must include
-   the write-side cases decision 9 introduces, which have no coverage today.
+### The access-mode page
+
+New `/access-modes` (`AccessModes.jsx`) and `app/routers/access_modes.py`, both
+shaped on `Roles.jsx` / `roles.py` — list on the left, the selected mode's
+grants as checkboxes on the right, a create form, delete refused when
+`is_system`. Routes mirror roles: `GET /`, `GET /catalog`, `POST /`,
+`PATCH /{id}`, `PUT /{id}/grants`, `DELETE /{id}`, all under `admin.authz`.
+
+Two differences from the roles page:
+
+- Checkboxes come in **two labelled groups** (Content Labels, Field Groups) fed
+  by `/catalog`, the way `roles.py` already serves its permission families.
+- **Guest default is a radio across modes, not a checkbox on one.** The partial
+  unique index permits at most one, and a radio is the control that cannot
+  express otherwise. The server still validates; the UI simply cannot ask for
+  the invalid thing.
+
+### The per-account panel
+
+Extends **`Users.jsx`** rather than adding a page — it is per-account, and that
+is where role assignment already lives. For the selected account: which modes
+they hold, a radio for the login default among those held, and under each held
+mode its items rendered as **the mode's own list with tick-to-deny**.
+
+That rendering is the point. Decision 8 says denials only subtract; showing the
+mode's items and letting you untick them makes the UI structurally incapable of
+expressing something outside the ceiling. The rule becomes visible rather than a
+server error discovered by hitting it.
+
+One endpoint, `PUT /api/users/{id}/access-modes`, replaces the whole set —
+grants, default and denials — in a single payload. Matches
+`PUT /roles/{id}/permissions`'s replace-the-set precedent: one write, one
+`bump()`, no partial states.
+
+### The migration
+
+Ordered so the owner is never locked out, in one revision:
+
+1. Create the five tables.
+2. Seed the four modes and their label/field-group rows; flag `safe` as guest
+   default.
+3. Mint `admin.authz`, `manage.catalog`, `manage.pipelines`; grant all three to
+   the `admin` role, the two `manage.*` to a newly seeded `super` role.
+4. Grant **every existing account all four modes, defaulting to
+   `unrestricted`** — so nothing changes visibly on the day it lands. For the
+   owner's `admin` account that is the faithful mapping of today's
+   `is_superuser`, which sees everything.
+5. *Only then* delete the `field_group.*` and `label.*` rows from
+   `role_permission`.
+
+Steps 3 and 5 must not be reordered: the new grants have to exist before the old
+ones are removed, or there is a window in which the admin role holds neither.
+Alembic runs on container start before uvicorn serves, so a half-applied state is
+never exposed to a request — but the ordering still matters for a failed
+migration someone has to resume by hand.
+
+New accounts get `safe` only (decision 4). That is runtime code in `users.py`'s
+create handler, not migration.
+
+**Downgrade loses denials.** Dropping the tables cannot reconstruct per-account
+adjustments. The revision docstring says so rather than leaving it to be
+discovered.
+
+### The seed is a frozen snapshot, not an ORM import
+
+The migration seeds through Core SQL with its column list written out
+literally:
+
+```python
+mode_table = sa.table("access_mode", sa.column("key"), sa.column("label"), ...)
+op.bulk_insert(mode_table, [...])
+```
+
+A separate runtime `ensure_access_mode_seed` — importing `app.models`,
+idempotent, called from the lifespan — covers the `create_all` path, because
+`tests/api/conftest.py` builds the schema directly and never runs Alembic. That
+is the same reason `seed.py` is called from two places today.
+
+What is deliberately **not** copied from `seed.py` is its ORM import inside the
+migration. A migration that queries `app.models` emits `SELECT` over every
+column the model declares *today*, so the day a later revision adds a column,
+this migration starts asking for a column that does not exist yet when run from
+an empty database, and a recipe that worked for a year breaks untouched. That is
+not hypothetical here: `docs/PROGRESS.md` records `alembic upgrade head` from an
+empty database already failing at `86982d71c2f1` for exactly this reason, and a
+second instance blocked the home machine on 2026-09-07.
+
+The cost is one duplicated column list. These are brand-new tables with no
+history to preserve, so this is the cheapest possible moment to establish the
+durable pattern — and it chips at that open item rather than adding a third
+instance to it.
+
+## Section 6 — testing (APPROVED 2026-09-11)
+
+### Fixtures
+
+`tests/api/conftest.py` already carries the two-account shape the multi-user
+work left behind: `admin_user` / `admin_client`, `plain_user` / `user_client`,
+and an autouse `_clear_permission_cache`. Add `super_user` / `super_client`, a
+`mode(key)` and `grant_mode(user, mode, denials=...)` pair, and
+`labelled_entry(label_key)`.
+
+**`_clear_permission_cache` must also clear `_MODE_CACHE` and
+`_DENIAL_CACHE`.** If it does not, mode state leaks between tests and the
+failures are random and order-dependent — the likeliest source of a day lost to
+mystery flakes.
+
+### The matrix
+
+**1 - Capability.** `super` can PUT an entry but is refused `POST /roles`;
+`admin` does both; `user` does neither. An account holding `manage.catalog` but
+not `manage.pipelines` is refused Backup and Pull All, so section 1's split is
+asserted rather than assumed. Plus a regression for the `plan_next.py` fix: a
+plain user can write their own plan rows.
+
+**2 - Read scoping.** An `nsfw`-labelled entry 404s on detail in `safe` and
+returns 200 in `borderline`; it is absent from list, search, profile and
+community aggregates. `sources_restricted` is missing from the response body in
+`safe` and present in `normal`.
+
+**3 - Write scoping.** Entirely new; no coverage exists today.
+`PUT /me/list/{id}` on a labelled entry 404s in `safe`; on a Game it 404s for an
+account without `media_type.game` — the regression test for the live defect.
+Each asserts **404 with the standard not-found message, never 403**:
+indistinguishability is the property being protected, and a 403 leaks the
+entry's existence as surely as a 200 would.
+
+**4 - Denials.** An account holding `unrestricted` minus `hentai_image` sees
+`nsfw` entries and 404s on the `hentai_image` one. Revoking the mode grant
+cascades its denials away. The server refuses a payload naming an item the mode
+does not carry, so decision 8 is enforced and not merely rendered.
+
+**5 - Switching.** Narrowing: 200, no password. Widening bare: 401 with
+`requires_password`. Widening with a wrong password: 401. With the right one:
+200. Switching to an ungranted mode: refused. And **decode both tokens and
+assert `exp` is identical** — nothing else catches the session-extension oracle,
+and it is invisible to manual testing.
+
+**6 - Fail-closed resolution.** Delete the grant row while the cookie is live:
+the next request resolves the **empty set, not the account's default mode**,
+asserted by a previously-visible labelled entry now 404ing. No mode flagged
+guest-default: a guest sees nothing labelled. Two flagged: the partial unique
+index raises.
+
+**7 - Axis independence.** An `is_superuser` account sitting in `safe` does
+**not** see a labelled entry. This is the test that proves the redesign did what
+it set out to do; it would have failed in the old model, where `is_superuser`
+short-circuited everything.
+
+**8 - Seeding and migration.** A `create_all` database holds all four modes
+after the lifespan seed. The migration leaves every existing account with four
+modes and an `unrestricted` default, and zero `field_group.*` / `label.*` rows
+in `role_permission`. The frozen-snapshot migration runs clean **from an empty
+database**, guarding the defect class section 5 avoids.
+
+### Expected breakage is signal
+
+28 test files touch `is_admin`, `field_group` or `is_superuser` (counted
+2026-09-11). Redefining `is_admin` and moving field groups off the role axis
+will break some of them. Each break should be re-pointed at the new model, never
+silenced — a test that asserted the old model is exactly what should fail here.
+
+On the frontend the redefinition keeps most of the 394 `isAdmin` sites correct,
+but the Roles and Users page tests need the new endpoints mocked.
+
+## Implementation shape
+
+This is too large for one plan. The phases below are separable, and every one
+of them is behaviour-neutral for the owner's account on the day it lands, which
+is the property that makes the sequence safe to stop halfway.
+
+**Phase 0 — the object-level hole.** Guard `me_list.py`'s two handlers with
+`entry_visible`. Depends on nothing here, fixes something exploitable today, and
+can ship on its own this week.
+
+**Phase A — the capability axis** (section 1). Mint the three permissions,
+re-gate the 89 dependencies, seed the `super` role, redefine `is_admin`, drop
+the three `plan_next.py` admin gates. No new tables. Neutral for `admin`, which
+gains every new permission.
+
+**Phase B — the access-mode axis, reads only** (sections 2-4). Tables,
+migration, seed, resolution, `hidden_label_ids` and `field_gate`. Every existing
+account lands on `unrestricted`, so nothing visibly changes.
+
+**Phase C — write binding** (decision 9). The write paths call the same guard.
+Phase 0 is a subset of this and a down payment on it.
+
+**Phase D — the surfaces** (section 5). The access-mode page, the per-account
+panel, the switch endpoint, the SPA switcher. Until this ships, modes exist and
+are enforced but can only be changed in the database — which is why it is last
+rather than first.
+
+Testing (section 6) is not a phase; each phase carries the slice of the matrix
+it makes true, written first.
 
 ## Open questions carried in
 
