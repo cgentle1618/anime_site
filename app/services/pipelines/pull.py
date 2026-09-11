@@ -55,13 +55,14 @@ from app.services.integrations.sheets import (
     get_all_raw_rows,
 )
 from app.services.pipelines.tabs import (
-    MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
-)
-from app.services.pipelines.tabs import (
+    AUTHZ_TABS,
     TAB_BY_NAME,
     TAB_MODELS,
     TAB_NAMES,
     TAB_PARSERS,
+)
+from app.services.pipelines.tabs import (
+    MEDIA_TYPE_FOR_TAB as _MEDIA_TYPE_FOR_TAB,
 )
 from app.services.security import UNUSABLE_PASSWORD_HASH
 from app.utils.credit_roles import (
@@ -539,17 +540,59 @@ def _foreign_uuid_map(db: Session, parent_tab: str) -> dict[str, object]:
 
 
 def execute_pull_specific(
-    db: Session, tab_name: str, action_type: str = "Manual", log_action: bool = True
+    db: Session,
+    tab_name: str,
+    action_type: str = "Manual",
+    log_action: bool = True,
+    may_restore_authz: bool = False,
 ) -> dict:
     """
     Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
     Tracks exact rows added vs updated for logging.
+
+    `may_restore_authz` says whether the caller holds `admin.authz`. Three tabs
+    carry authorization rather than catalogue data - Users, Content Label and
+    Media Content Label (AUTHZ_TABS) - and Pull writes the sheet INTO this
+    database. Since the sheet is editable by anyone with Google access, a
+    caller without that permission must not be able to restore them: otherwise
+    typing `admin` into the Users tab's role column and running Pull is a
+    promotion. Those tabs are skipped and reported rather than refused, so the
+    rest of the restore still lands.
+
+    It defaults to False - least access, not most, the same direction
+    role_for_user takes when a role row has vanished. A caller that should be
+    able to restore them says so explicitly; the permissive case is therefore
+    visible at every call site instead of inherited by accident.
     """
     MODEL_MAP = TAB_MODELS
     PARSER_MAP = TAB_PARSERS
 
     if tab_name not in MODEL_MAP:
         return {"status": "error", "message": f"Unknown tab: {tab_name}"}
+
+    if tab_name in AUTHZ_TABS and not may_restore_authz:
+        message = (
+            f"{tab_name}: skipped - restoring it needs admin.authz, because "
+            "the sheet decides accounts, roles and content labels."
+        )
+        logger.warning(message)
+        return {
+            "status": "skipped",
+            "message": message,
+            "processed": 0,
+            "rows_added": 0,
+            "rows_updated": 0,
+            "rows_skipped": 0,
+            "credit_conflicts": [],
+            "created_entities": [],
+            # Deliberately NOT unresolved_refs. That list means "a row that
+            # should have restored and did not", and it turns the audit row
+            # red. This skip is policy working as intended, and for an account
+            # without admin.authz it would happen on EVERY run - a permanently
+            # red status is noise that teaches people to ignore red.
+            "unresolved_refs": [],
+            "skipped_tabs": [message],
+        }
 
     logger.info(f"Starting Pull Pipeline for '{tab_name}'...")
 
@@ -1555,10 +1598,17 @@ def execute_pull_specific(
     }
 
 
-def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
+def execute_pull_all(
+    db: Session, action_type: str = "Manual", may_restore_authz: bool = False
+) -> dict:
     """
     Pulls ALL tabs from Google Sheets into the database.
     WARNING: The execution order is STRICT to satisfy Foreign Key constraints.
+
+    `may_restore_authz` is passed straight through to every tab; see
+    execute_pull_specific. A caller without it restores the whole catalogue and
+    has the three authorization tabs skipped, each named in unresolved_refs so
+    the audit row is red and the gap is visible rather than silent.
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
 
@@ -1579,10 +1629,19 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
     # still succeeds (the other rows landed), and the audit row is red so the
     # gap is visible.
     unresolved_refs: list[str] = []
+    # Tabs a policy gate declined to restore - see AUTHZ_TABS. Reported, but
+    # kept out of unresolved_refs so an expected skip does not read as failure.
+    skipped_tabs: list[str] = []
 
     try:
         for tab in tabs_in_order:
-            res = execute_pull_specific(db, tab, action_type="Manual", log_action=True)
+            res = execute_pull_specific(
+                db,
+                tab,
+                action_type="Manual",
+                log_action=True,
+                may_restore_authz=may_restore_authz,
+            )
 
             if res.get("status") == "error":
                 # A Sheets outage on one tab says nothing about the next one,
@@ -1602,6 +1661,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             credit_conflicts.extend(res.get("credit_conflicts", []))
             created_entities.extend(res.get("created_entities", []))
             unresolved_refs.extend(res.get("unresolved_refs", []))
+            skipped_tabs.extend(res.get("skipped_tabs", []))
 
     except Exception as e:
         logger.error(f"Full Pull Pipeline crashed: {e}")
@@ -1665,6 +1725,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             "credit_conflicts": credit_conflicts,
             "created_entities": created_entities,
             "unresolved_refs": unresolved_refs,
+            "skipped_tabs": skipped_tabs,
         }
 
     if credit_conflicts:
@@ -1703,6 +1764,14 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             "unresolved_refs": unresolved_refs,
         }
 
+    if skipped_tabs:
+        # Same rule as created_entities below: a policy skip is the gate
+        # working, not a failure, so the row stays green and the detail rides
+        # in details_json. Without admin.authz this happens on every run.
+        logger.warning(
+            f"Full Pull Pipeline skipped {len(skipped_tabs)} tab(s) the "
+            "caller may not restore: " + "; ".join(skipped_tabs)
+        )
     if created_entities:
         # Deliberately still a Success: inventing a studio the sheet named is
         # correct behaviour, and colouring the row red would train the reader
@@ -1712,7 +1781,7 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
             f"entit(ies) from names that matched nothing: "
             + "; ".join(created_entities)
         )
-    else:
+    elif not skipped_tabs:
         logger.info("Full Pull Pipeline completed successfully.")
     log_data_control(
         db,
@@ -1723,7 +1792,11 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         rows_added=total_added,
         rows_updated=total_updated,
         details_json=json.dumps(
-            {"pulled": results, "created_entities": created_entities}
+            {
+                "pulled": results,
+                "created_entities": created_entities,
+                "skipped_tabs": skipped_tabs,
+            }
         ),
     )
     return {
@@ -1732,4 +1805,5 @@ def execute_pull_all(db: Session, action_type: str = "Manual") -> dict:
         "credit_conflicts": [],
         "created_entities": created_entities,
         "unresolved_refs": [],
+        "skipped_tabs": skipped_tabs,
     }

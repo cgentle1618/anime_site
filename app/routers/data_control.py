@@ -29,7 +29,8 @@ from app.services.pipelines.backup import execute_backup
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
-from app.services.rbac.resolver import require_manage_pipelines
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
+from app.services.rbac.resolver import Viewer, require_manage_pipelines
 
 logger = logging.getLogger(__name__)
 
@@ -129,14 +130,37 @@ def trigger_backup_all(db: Session = Depends(get_db)):
 
 
 @router.post("/pull", summary="Restore every tab from Google Sheets")
-def trigger_pull_all(db: Session = Depends(get_db)):
-    return JSONResponse(content=execute_pull_all(db, action_type="Manual"))
+def trigger_pull_all(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # The router-level gate already established manage.pipelines; this reads
+    # the same viewer to decide whether the three authorization tabs restore
+    # too. See AUTHZ_TABS in tabs.py for why they are separate.
+    return JSONResponse(
+        content=execute_pull_all(
+            db,
+            action_type="Manual",
+            may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+        )
+    )
 
 
 def _register_pull_route(key: str, tab_name: str) -> None:
     @router.post(f"/pull/{key}", summary=f"Restore the {tab_name} tab", name=f"pull_{key}")
-    def trigger_pull(db: Session = Depends(get_db)):
-        return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+    def trigger_pull(
+        db: Session = Depends(get_db),
+        viewer: Viewer = Depends(require_manage_pipelines),
+    ):
+        return _json(
+            execute_pull_specific(
+                db,
+                tab_name,
+                action_type="Manual",
+                log_action=True,
+                may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+            )
+        )
 
 
 # Per-type shortcuts the admin page links to; every other tab goes through
@@ -147,8 +171,20 @@ for _tab, _media in MEDIA_TYPE_FOR_TAB.items():
 
 
 @router.post("/pull/{tab_name}", summary="Restore one sheet tab by name")
-def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
-    return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+def trigger_pull_specific(
+    tab_name: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    return _json(
+        execute_pull_specific(
+            db,
+            tab_name,
+            action_type="Manual",
+            log_action=True,
+            may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -51,6 +51,16 @@ class SheetTab:
     # (category, value) - resolved by db - travel in its place.
     drop_columns: tuple[str, ...] = ()
     extra_columns: tuple[tuple[str, Callable[[Any, Session], Any]], ...] = ()
+    # True for a tab that carries AUTHORIZATION, not catalogue data: who holds
+    # which role, which content labels exist, and which entries carry them.
+    # Pull writes the sheet INTO this database, and the sheet is an ordinary
+    # Google Sheet that anyone with access can edit - so without a gate, an
+    # account holding manage.pipelines but not admin.authz could type `admin`
+    # into the Users tab's role column, run Pull All, and be promoted. These
+    # tabs therefore need admin.authz; Pull skips and reports them for anyone
+    # else. Backup is deliberately NOT gated: it writes local -> sheet and
+    # cannot change this database. Decision 10 in the authorization spec.
+    requires_authz: bool = False
 
 
 def _resolved_option(row: Any, db: Session) -> Optional["models.SystemOption"]:
@@ -168,6 +178,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_user_from_sheet,
         drop_columns=("hashed_password", "role_id"),
         extra_columns=(("role", _user_role_name),),
+        requires_authz=True,
     ),
     # Vocabulary next; scopes point at options via option_id.
     SheetTab("System Options", models.SystemOption, f.parse_system_option_from_sheet),
@@ -178,7 +189,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # whose absence fails OPEN: with no tab, a Pull restored every entry
     # unlabelled and therefore visible. Deliberately NOT system_option - see
     # models/content_label.py.
-    SheetTab("Content Label", models.ContentLabel, f.parse_content_label_from_sheet),
+    SheetTab(
+        "Content Label",
+        models.ContentLabel,
+        f.parse_content_label_from_sheet,
+        requires_authz=True,
+    ),
     # People and studios before every media tab: credits resolve against them.
     SheetTab("Person", models.Person, f.parse_person_from_sheet),
     SheetTab("Person Role", models.PersonRole, f.parse_person_role_from_sheet),
@@ -287,6 +303,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         "Media Content Label",
         models.MediaContentLabel,
         f.parse_media_content_label_from_sheet,
+        requires_authz=True,
     ),
     # user_id is dropped for `username` for the same reason the Plan Next tab
     # drops it. seasonal's primary key is the (user_id, seasonal) pair, so the
@@ -302,6 +319,11 @@ SHEET_TABS: tuple[SheetTab, ...] = (
 )
 
 TAB_BY_NAME: dict[str, SheetTab] = {tab.name: tab for tab in SHEET_TABS}
+# The tabs a Pull may not restore without admin.authz. Derived, so marking
+# a tab above is the only edit a fourth one needs.
+AUTHZ_TABS: frozenset[str] = frozenset(
+    tab.name for tab in SHEET_TABS if tab.requires_authz
+)
 TAB_NAMES: list[str] = [tab.name for tab in SHEET_TABS]
 TAB_MODELS: dict[str, type] = {tab.name: tab.model for tab in SHEET_TABS}
 TAB_PARSERS: dict[str, Callable] = {tab.name: tab.parser for tab in SHEET_TABS}

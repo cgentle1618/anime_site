@@ -93,7 +93,9 @@ def test_a_label_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
         }
     )
 
-    result = pull.execute_pull_specific(db_session, "Content Label", log_action=False)
+    result = pull.execute_pull_specific(
+        db_session, "Content Label", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     rows = db_session.query(models.ContentLabel).filter_by(key="nsfw").all()
@@ -113,7 +115,9 @@ def test_a_label_this_database_has_never_seen_inserts(db_session, sheets):
         }
     )
 
-    result = pull.execute_pull_specific(db_session, "Content Label", log_action=False)
+    result = pull.execute_pull_specific(
+        db_session, "Content Label", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     assert db_session.query(models.ContentLabel).filter_by(key="gore").count() == 1
@@ -156,7 +160,7 @@ def test_a_labelling_translates_the_foreign_label_uuid(db_session, sheets):
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"
@@ -210,7 +214,7 @@ def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"
@@ -251,7 +255,7 @@ def test_a_labelling_whose_label_is_unknown_is_skipped_not_fatal(db_session, she
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"

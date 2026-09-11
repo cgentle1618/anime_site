@@ -30,7 +30,13 @@ def test_pull_all_logs_the_unresolved_references(db, monkeypatch):
 
     monkeypatch.setattr(pull, "get_all_raw_rows", fake_rows)
 
-    result = pull.execute_pull_all(db, action_type="Manual")
+    # may_restore_authz=True: this suite is about the unresolved-reference
+    # machinery, which it exercises through the Users tab - a tab Pull now
+    # skips without admin.authz. The gate itself is covered by
+    # tests/api/test_pull_authz_tabs.py.
+    result = pull.execute_pull_all(
+        db, action_type="Manual", may_restore_authz=True
+    )
 
     assert any("wizard" in ref for ref in result["unresolved_refs"])
 
@@ -49,6 +55,12 @@ def test_pull_all_logs_the_unresolved_references(db, monkeypatch):
 def test_a_clean_pull_all_reports_an_empty_list(db, monkeypatch):
     monkeypatch.setattr(pull, "get_all_raw_rows", lambda tab: [])
 
-    result = pull.execute_pull_all(db, action_type="Manual")
+    # may_restore_authz=True: this suite is about the unresolved-reference
+    # machinery, which it exercises through the Users tab - a tab Pull now
+    # skips without admin.authz. The gate itself is covered by
+    # tests/api/test_pull_authz_tabs.py.
+    result = pull.execute_pull_all(
+        db, action_type="Manual", may_restore_authz=True
+    )
 
     assert result["unresolved_refs"] == []

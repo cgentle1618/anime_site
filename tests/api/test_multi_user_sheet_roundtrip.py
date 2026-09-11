@@ -116,7 +116,7 @@ def test_backup_then_pull_all_reproduces_two_users_lists(
     _wipe_what_the_sheet_owns(db)
     assert db.query(models.UserMediaList).count() == 0
 
-    result = pull.execute_pull_all(db, action_type="Manual")
+    result = pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
     assert result["status"] == "success"
     assert result["unresolved_refs"] == []
 
@@ -150,7 +150,7 @@ def test_the_restored_accounts_cannot_be_logged_into(
     backup.execute_backup(db, action_type="Manual")
     _wipe_what_the_sheet_owns(db)
 
-    pull.execute_pull_all(db, action_type="Manual")
+    pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
 
     kana = db.query(models.User).filter_by(username="kana").one()
     assert is_unusable_password_hash(kana.hashed_password)
@@ -166,7 +166,7 @@ def test_a_pull_never_changes_an_existing_accounts_password(
     kept = db.query(models.User).filter_by(username="cg1618").one().hashed_password
 
     backup.execute_backup(db, action_type="Manual")
-    pull.execute_pull_all(db, action_type="Manual")
+    pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
 
     stored = db.query(models.User).filter_by(username="cg1618").one()
     assert stored.hashed_password == kept
@@ -176,10 +176,10 @@ def test_a_second_pull_all_changes_nothing(db, workbook, two_users_with_lists):
     """Idempotence. A Pull All that duplicated rows would double every list on
     the second run, and uq_user_media would abort the tab."""
     backup.execute_backup(db, action_type="Manual")
-    pull.execute_pull_all(db, action_type="Manual")
+    pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
     once = _snapshot(db)
 
-    pull.execute_pull_all(db, action_type="Manual")
+    pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
 
     assert _snapshot(db) == once
     assert db.query(models.UserMediaList).count() == 4
@@ -214,7 +214,7 @@ def test_plans_and_seasons_come_back_to_the_user_who_owns_them(
     db.execute(text("DELETE FROM seasonal"))
     db.commit()
 
-    result = pull.execute_pull_all(db, action_type="Manual")
+    result = pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
     assert result["unresolved_refs"] == []
 
     plans = {

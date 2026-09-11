@@ -353,6 +353,7 @@ sees one error shape.
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and**, since 2026-09-11, `entry_visible` in `_media_or_404`. Until then this row named only the capability gate and the entry was resolved with a bare `db.get`, so an account holding `self.list` could rate an entry it could not see, or a media type it did not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | account settings (`/api/account/settings`) | `routers/account.py` - the `list_is_public` toggle, writable only by its owner |
 | previously unauthenticated `data_control` / `system` GETs | closed behind `require_manage_pipelines` |
+| Pull's three authorization tabs (`Users`, `Content Label`, `Media Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
 ### Accepted residuals
 

@@ -102,7 +102,9 @@ def sheets(monkeypatch):
 def test_a_new_user_arrives_with_an_unusable_password(db, sheets):
     sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "kana", "TRUE", "user"]]})
 
-    result = pull.execute_pull_specific(db, "Users", log_action=False)
+    result = pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     kana = db.query(models.User).filter_by(username="kana").one()
@@ -131,7 +133,9 @@ def test_a_foreign_uuid_updates_the_local_account_by_username(db, sheets):
 
     sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "cg1618", "TRUE", "admin"]]})
 
-    result = pull.execute_pull_specific(db, "Users", log_action=False)
+    result = pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     rows = db.query(models.User).filter_by(username="cg1618").all()
@@ -156,7 +160,9 @@ def test_a_pull_never_overwrites_an_existing_password(db, sheets):
     db.flush()
 
     sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "cg1618", "TRUE", "admin"]]})
-    pull.execute_pull_specific(db, "Users", log_action=False)
+    pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
 
     stored = db.query(models.User).filter_by(username="cg1618").one()
     assert stored.hashed_password == kept
@@ -167,7 +173,9 @@ def test_an_unknown_role_name_skips_the_row(db, sheets):
     the whole tab, so one bad row must not cost every other account."""
     sheets({"Users": [USER_HEADERS, [str(uuid.uuid4()), "ghost", "FALSE", "wizard"]]})
 
-    result = pull.execute_pull_specific(db, "Users", log_action=False)
+    result = pull.execute_pull_specific(
+        db, "Users", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     assert db.query(models.User).filter_by(username="ghost").first() is None

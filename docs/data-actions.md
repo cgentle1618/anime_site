@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-11 (the author_id fallback now covers Quote)
+Last verified: 2026-09-11 (Pull gates the three authorization tabs)
 
 ## What this is for
 
@@ -365,6 +365,21 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
      - **Back up after the change, and do not Pull an older sheet over a newer
        database.** The dropped headers have nowhere to land once the sheet is
        rewritten.
+   - **Three tabs need `admin.authz` and are otherwise skipped.** `Users`
+     (which carries each account's role name), `Content Label` and
+     `Media Content Label` decide *authorization*, not catalogue content — and
+     Pull writes the sheet **into** this database. The sheet is an ordinary
+     Google Sheet, editable by anyone with access, so without a gate an account
+     holding `manage.pipelines` but not `admin.authz` could type `admin` into
+     the Users tab's role column, run Pull All, and be promoted. Those three
+     are marked `requires_authz=True` in `tabs.py` (`AUTHZ_TABS`) and return
+     `status: "skipped"` for a caller without the permission; every other tab
+     restores as normal and the skip is reported in `unresolved_refs`, so the
+     audit row is red rather than the gap silent. **Backup is deliberately not
+     gated** — it writes local → sheet and cannot change this database. The flag
+     defaults to **closed**, so a programmatic caller has to ask for the
+     permission rather than inherit it. Added 2026-09-11; decision 10 in the
+     authorization spec.
    - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
 
      | Tab | Matched on | Sheet PK |
