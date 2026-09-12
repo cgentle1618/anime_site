@@ -83,6 +83,10 @@ for _owner in COVER_OWNERS:
 # controls off localhost - a deliberate hold to revisit with self-hosting.
 os.makedirs("static/quotes", exist_ok=True)
 
+# Uploaded library images and their thumbnails, content-addressed by
+# checksum - see app/services/integrations/image_library.py.
+os.makedirs("static/library/thumbs", exist_ok=True)
+
 ensure_schema(engine)
 
 

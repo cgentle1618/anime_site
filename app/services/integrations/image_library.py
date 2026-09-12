@@ -3,21 +3,19 @@ image_library.py
 The uploaded-image library: bytes in, stored file out.
 
 Layout: every library image lives at `library/<checksum>.jpg` under
-`static/covers/`, with a thumbnail beside it at
-`library/thumbs/<checksum>.jpg`. Storage is CONTENT-ADDRESSED, which buys two
-things the per-row layout in image_manager.py cannot give:
+`static/`, with a thumbnail beside it at `library/thumbs/<checksum>.jpg`.
+Storage is CONTENT-ADDRESSED, which buys two things the per-row layout in
+image_manager.py cannot give:
 
   * dedup - the same bytes uploaded twice are one file and one row;
   * a safe replace - a replaced image is a NEW url, so no browser serves the
     old bytes from cache. Under `<owner>/<id>.jpg` the url never changes and a
     replaced cover goes stale in every open tab.
 
-It sits under static/covers/ rather than a sibling directory on purpose:
-`getCoverUrl` in the SPA prefixes `/static/covers/`, so `library/<sum>.jpg`
-resolves with no frontend change and the dual-write of phase 1 works. The
-`library/` folder is invisible to `list_all_cover_images()`, which walks
-COVER_OWNERS only - so the orphan sweep can never mistake a library file for a
-stray and delete it.
+The `library/` tree is a sibling of `covers/`, not part of it, so it is
+invisible to `list_all_cover_images()`, which walks COVER_OWNERS folders under
+`static/covers/` only - the orphan sweep can never mistake a library file for
+a stray cover and delete it.
 """
 
 import hashlib
@@ -29,10 +27,9 @@ from dataclasses import dataclass
 from PIL import Image as PILImage
 from PIL import UnidentifiedImageError
 
-from app.services.integrations.image_manager import COVER_DIR
-
 logger = logging.getLogger(__name__)
 
+STATIC_DIR = "static"
 LIBRARY_SUBDIR = "library"
 THUMB_SUBDIR = "library/thumbs"
 
@@ -130,7 +127,7 @@ def normalize_image(raw: bytes) -> NormalizedImage:
 
 
 def _local_path(key: str) -> str:
-    return os.path.join(COVER_DIR, *key.split("/"))
+    return os.path.join(STATIC_DIR, *key.split("/"))
 
 
 def store(normalized: NormalizedImage) -> tuple[str, str]:

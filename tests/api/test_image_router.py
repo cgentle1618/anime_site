@@ -24,8 +24,8 @@ from tests.api.conftest import (  # noqa: F401
 
 @pytest.fixture(autouse=True)
 def _library_in_tmp(tmp_path, monkeypatch):
-    """Never write into the developer's real static/covers during a test."""
-    monkeypatch.setattr(image_library, "COVER_DIR", str(tmp_path))
+    """Never write into the developer's real static/library during a test."""
+    monkeypatch.setattr(image_library, "STATIC_DIR", str(tmp_path))
 
 
 def _png(width=50, height=40, color=(200, 30, 30)):

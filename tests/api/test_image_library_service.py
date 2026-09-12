@@ -2,7 +2,7 @@
 The image library service: validation, normalization, dedup, storage.
 
 These tests never touch the database or the HTTP layer. They write real files,
-so every test that stores anything points COVER_DIR at a tmp_path.
+so every test that stores anything points STATIC_DIR at a tmp_path.
 """
 
 import io
@@ -129,7 +129,7 @@ def test_exif_is_stripped_by_the_re_encode():
 
 
 def test_store_writes_both_files_and_returns_their_keys(tmp_path, monkeypatch):
-    monkeypatch.setattr(image_library, "COVER_DIR", str(tmp_path))
+    monkeypatch.setattr(image_library, "STATIC_DIR", str(tmp_path))
     result = image_library.normalize_image(_png_bytes())
 
     storage_key, thumb_key = image_library.store(result)
@@ -141,7 +141,7 @@ def test_store_writes_both_files_and_returns_their_keys(tmp_path, monkeypatch):
 
 
 def test_store_is_idempotent(tmp_path, monkeypatch):
-    monkeypatch.setattr(image_library, "COVER_DIR", str(tmp_path))
+    monkeypatch.setattr(image_library, "STATIC_DIR", str(tmp_path))
     result = image_library.normalize_image(_png_bytes())
 
     first = image_library.store(result)
@@ -155,13 +155,13 @@ def test_file_exists_reports_a_missing_file(tmp_path, monkeypatch):
     # "Missing" is a NORMAL state here, not corruption: uploaded images never
     # travel through Backup or Pull, so after a machine switch every uploaded
     # image is a reference with no bytes. The manager page names it.
-    monkeypatch.setattr(image_library, "COVER_DIR", str(tmp_path))
+    monkeypatch.setattr(image_library, "STATIC_DIR", str(tmp_path))
 
     assert image_library.file_exists("library/deadbeef.jpg") is False
 
 
 def test_delete_file_removes_both_and_tolerates_absence(tmp_path, monkeypatch):
-    monkeypatch.setattr(image_library, "COVER_DIR", str(tmp_path))
+    monkeypatch.setattr(image_library, "STATIC_DIR", str(tmp_path))
     result = image_library.normalize_image(_png_bytes())
     storage_key, thumb_key = image_library.store(result)
 
