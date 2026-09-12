@@ -119,6 +119,35 @@ tab; Pull All overwrites every table. So:
    `cd frontend && npm install`.
 4. `alembic upgrade head` — always, before any Pull. The sheet's columns follow
    the newest schema, and Pull matches columns by header name.
+
+   > ### One-time, on any machine last used before the squash
+   >
+   > The revision chain was squashed onto a single baseline (`4832c83905a3`),
+   > and the 145 revisions that preceded it moved to
+   > `alembic/versions_archive/`. A database still pointing at one of those —
+   > anything stamped `q3s4sysinfo` or earlier — makes **every** alembic
+   > command fail before it starts, including `stamp`:
+   >
+   > ```
+   > [ALEMBIC FATAL CRASH] Can't locate revision identified by 'q3s4sysinfo'
+   > ```
+   >
+   > `alembic stamp` cannot fix it, because stamping resolves the *current*
+   > revision first in order to work out the path. Set the row directly, then
+   > upgrade as normal:
+   >
+   > ```bash
+   > docker exec anime_site_postgres_db psql -U postgres -d anime_site_db    >   -c "UPDATE alembic_version SET version_num = '4832c83905a3'"
+   > alembic upgrade head
+   > ```
+   >
+   > The upgrade then applies `b1n2amealign`, which renames 31 constraints and
+   > indexes, adds five indexes and eleven column defaults, and swaps the
+   > `access_mode.key` uniqueness onto a unique index. **It changes no rows** —
+   > verified on the home machine by comparing every table's count before and
+   > after — but take a dump first anyway: `docker exec
+   > anime_site_postgres_db pg_dump -U postgres --no-owner anime_site_db >
+   > backups/pre-baseline.sql`. `backups/` is gitignored.
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.
 
