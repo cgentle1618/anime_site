@@ -116,6 +116,23 @@ one of the gaps destroys nothing yet looks exactly like data loss:
 
 **After any frontend change, run `cd frontend && npm run build`** so the change works on both ports. Do this before claiming a frontend change is done. If a change appears missing on one port only, suspect a stale build first. `frontend_dist/` is gitignored.
 
+**Build and notify me BEFORE the slow suite, then keep going.** I review changes
+in the running app on :8000 while the backend suite runs, so a build that waits
+until the end wastes the whole ~5.5 minute window. The order is: write the code
+→ fast checks (`npm run build`, `npm run test:run`, `npm run lint`, `ruff`,
+~40s) → send me a push notification saying it is viewable → start `pytest` →
+carry on with tests, docs and the commit proposal. The notification is a signal,
+not a question: **do not pause for my reply.** The fast checks come first
+because notifying before anything is verified hands me a page that may not even
+compile; 40 seconds buys that.
+
+**If that order does not suit the task, say so and ask.** It is the default,
+not a law. A change with no frontend half, a spike whose output is an answer
+rather than a page, or work where the backend decides whether the UI is even
+right — tell me that building and notifying early would waste the notification,
+and ask whether to do it anyway, rather than following the sequence into
+something useless.
+
 ## Required Environment Variables
 
 See `.env.example` (authoritative) and `docs/setup-local.md`. Three things to know:
