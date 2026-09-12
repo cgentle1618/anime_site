@@ -100,7 +100,7 @@ const DRAWER_ROW =
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, username } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -213,31 +213,43 @@ export default function Nav() {
             <NavSearch />
 
             <div className="flex items-center gap-2 shrink-0">
-              {isAdmin ? (
-                <>
-                  <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
-                    Admin
-                  </span>
-                  {has("manage.pipelines") && (
-                    <button
-                      type="button"
-                      onClick={handleBackup}
-                      disabled={backingUp}
-                      className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
-                    >
-                      {backingUp ? "Backing up…" : "Back up"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    title="Log out"
-                    aria-label="Log out"
-                    className={`${INK_ICON_BTN} hover:text-danger`}
-                  >
-                    <i className="fas fa-sign-out-alt text-sm"></i>
-                  </button>
-                </>
+              {/* The role CHIP is a capability and stays gated; the name
+                  beside it is an identity and is not. Three states, one
+                  strip: a guest reads "Guest", any signed-in account reads
+                  its username and gets a way out. */}
+              {isAdmin && (
+                <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
+                  Admin
+                </span>
+              )}
+              {/* A username is a VALUE, so it keeps the body face and its own
+                  casing - the mono uppercase treatment belongs to labels. */}
+              <span
+                className="hidden sm:inline-flex items-center text-xs text-ink-text/80 max-w-[10rem] truncate"
+                title={username ? `Signed in as ${username}` : "Not signed in"}
+              >
+                {username ?? "Guest"}
+              </span>
+              {isAdmin && has("manage.pipelines") && (
+                <button
+                  type="button"
+                  onClick={handleBackup}
+                  disabled={backingUp}
+                  className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
+                >
+                  {backingUp ? "Backing up…" : "Back up"}
+                </button>
+              )}
+              {username ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Log out"
+                  aria-label="Log out"
+                  className={`${INK_ICON_BTN} hover:text-danger`}
+                >
+                  <i className="fas fa-sign-out-alt text-sm"></i>
+                </button>
               ) : (
                 <Link
                   to={loginHref}
@@ -375,34 +387,48 @@ export default function Nav() {
             ))}
 
             <div className="border-t border-border pt-3">
-              {isAdmin ? (
-                <>
-                  <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </button>
-                  {has("manage.pipelines") && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        handleBackup();
-                      }}
-                      className={DRAWER_ROW}
-                    >
-                      Back up data
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleLogout();
-                    }}
-                    className="flex w-full items-center px-2.5 py-2 text-sm text-danger hover:bg-danger/10 transition"
-                  >
-                    Log out
-                  </button>
-                </>
+              {/* The same three states as the desktop strip, and the theme
+                  toggle sits outside them: reading the site in the dark is
+                  not an administrative act. */}
+              <div className="flex items-center gap-2 px-2.5 pb-2">
+                <span className="text-sm text-text-muted truncate">
+                  {username ?? "Guest"}
+                </span>
+                {isAdmin && (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5">
+                    Admin
+                  </span>
+                )}
+              </div>
+
+              <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </button>
+
+              {isAdmin && has("manage.pipelines") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleBackup();
+                  }}
+                  className={DRAWER_ROW}
+                >
+                  Back up data
+                </button>
+              )}
+
+              {username ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex w-full items-center px-2.5 py-2 text-sm text-danger hover:bg-danger/10 transition"
+                >
+                  Log out
+                </button>
               ) : (
                 <Link
                   to={loginHref}

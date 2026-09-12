@@ -16,6 +16,7 @@ import Nav from "./Nav";
 // but a signed-out visitor genuinely lacks and a signed-in one holds.
 const auth = {
   isAdmin: false,
+  username: null,
   has: (permission) =>
     permission === "self.list" ? true : auth.isAdmin,
   refetchAuth: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock("../../hooks/useToast", () => ({
 
 beforeEach(() => {
   auth.isAdmin = false;
+  auth.username = null;
   hardNavigate.mockClear();
   vi.stubGlobal(
     "fetch",
@@ -185,6 +187,7 @@ describe("Nav - logging out", () => {
   // load of the same page is what evicts them.
   it("reloads the page it is on rather than routing to it", async () => {
     auth.isAdmin = true;
+    auth.username = "cg1618";
     const user = userEvent.setup();
     renderNav("/statistics?tab=anime");
 
@@ -195,5 +198,37 @@ describe("Nav - logging out", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(hardNavigate).toHaveBeenCalledWith("/statistics?tab=anime");
+  });
+});
+
+describe("Nav - who the strip says you are", () => {
+  // The strip used to render nothing at all unless isAdmin, so a signed-in
+  // account that is not an admin saw no name and no way out. All three states
+  // are asserted together: the guest case alone would pass for a strip that
+  // renders "Guest" unconditionally.
+  it("names a logged-out visitor as a guest, with nothing to log out of", () => {
+    renderNav("/");
+    expect(screen.getByText("Guest")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /log out/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /log in/i })).toBeTruthy();
+  });
+
+  it("names a signed-in account and offers it a way out, admin or not", () => {
+    auth.username = "bob";
+    renderNav("/");
+    expect(screen.getByText("bob")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
+    // The role chip is a capability, not an identity - it stays gated. The
+    // selector matters: the Admin nav TAB carries the same word.
+    expect(screen.queryByText("Admin", { selector: "span" })).toBeNull();
+  });
+
+  it("keeps the Admin chip beside the name for an admin", () => {
+    auth.isAdmin = true;
+    auth.username = "cg1618";
+    renderNav("/");
+    expect(screen.getByText("cg1618")).toBeTruthy();
+    expect(screen.getByText("Admin", { selector: "span" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
   });
 });

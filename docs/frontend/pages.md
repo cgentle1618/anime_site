@@ -95,11 +95,18 @@ identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
 click-outside closes, Escape returns focus to the trigger, ArrowUp/Down cycle
 links inside `[data-nav-panel]`, any route change closes the panel and the
 mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
-`aria-pressed`), and for admins an "Admin" badge, **Back up** (POST
-`/api/data-control/backup`, toasts "Backup completed successfully" /
-"Backup failed") and **Log out** (POST `/api/auth/logout`, then a full load of
-the page it is on, so nothing cached for the outgoing account survives);
-guests get **Log in** → `/login?next=<current path>`.
+`aria-pressed`), a session indicator, and a theme toggle. The indicator always renders: the
+account's `username` when signed in, **Guest** when not. It is a value, so it
+keeps the body face and its own casing - the mono uppercase treatment belongs
+to labels. The **Admin** chip beside it is a capability and stays gated on
+`isAdmin`, as does **Back up** (POST `/api/data-control/backup`, toasts
+"Backup completed successfully" / "Backup failed", also behind
+`has("manage.pipelines")`). **Log out** (POST `/api/auth/logout`, then a full
+load of the page it is on, so nothing cached for the outgoing account
+survives) follows the indicator rather than the chip: it renders for any
+signed-in account, because a strip naming you with no way out is a dead end.
+Guests get **Log in** → `/login?next=<current path>`. The mobile drawer
+repeats all of it, indicator first.
 
 **`components/layout/NavSearch.jsx`** is the universal search box. It
 debounces 250 ms, discards stale responses by request id, and calls
