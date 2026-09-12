@@ -31,6 +31,7 @@ from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.field_groups import FIELD_GROUP_KEYS, FIELD_GROUPS
 from app.services.rbac.resolver import require_admin_authz
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 
 router = APIRouter(
     prefix="/api/access-modes",
@@ -67,7 +68,21 @@ def _field_group_keys(db: Session, mode_id: UUID) -> List[str]:
     )
 
 
+def _is_unrestricted(mode: models.AccessMode) -> bool:
+    return mode.key == MODE_UNRESTRICTED
+
+
 def _to_response(db: Session, mode: models.AccessMode) -> schemas.AccessModeResponse:
+    # `unrestricted` REPORTS what it resolves to, not what its rows say. The
+    # two are the same in practice - the seed and create_label both write the
+    # rows - but only the derivation is guaranteed, and a page drawing the
+    # rows would show an admin an unticked box that does nothing.
+    if _is_unrestricted(mode):
+        label_keys = sorted(key for (key,) in db.query(models.ContentLabel.key))
+        field_group_keys = sorted(FIELD_GROUP_KEYS)
+    else:
+        label_keys = _label_keys(db, mode.system_id)
+        field_group_keys = _field_group_keys(db, mode.system_id)
     return schemas.AccessModeResponse(
         system_id=mode.system_id,
         key=mode.key,
@@ -76,8 +91,8 @@ def _to_response(db: Session, mode: models.AccessMode) -> schemas.AccessModeResp
         sort_order=mode.sort_order,
         is_system=mode.is_system,
         is_guest_default=mode.is_guest_default,
-        label_keys=_label_keys(db, mode.system_id),
-        field_group_keys=_field_group_keys(db, mode.system_id),
+        label_keys=label_keys,
+        field_group_keys=field_group_keys,
         user_count=db.query(models.UserAccessMode)
         .filter(models.UserAccessMode.mode_id == mode.system_id)
         .count(),
@@ -270,6 +285,18 @@ def replace_grants(
     mode_id: UUID, payload: schemas.AccessModeItems, db: Session = Depends(get_db)
 ):
     mode = _get_or_404(db, mode_id)
+    if _is_unrestricted(mode):
+        # Enforced here and not only in the SPA, which draws these boxes
+        # disabled. 409 rather than accepting and ignoring: an admin who sends
+        # a narrower set has to be told it was not applied, or the page and
+        # the database disagree silently about who can see what.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The Unrestricted mode carries every label and every field "
+                "group by definition; its grants cannot be edited."
+            ),
+        )
     _validate_items(db, payload)
     _replace_items(db, mode, payload)
     db.commit()

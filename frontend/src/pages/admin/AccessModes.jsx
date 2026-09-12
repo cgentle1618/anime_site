@@ -11,9 +11,12 @@
 //      UI simply cannot ask for the invalid thing.
 //
 //   2. A content label carried by NO mode is called out in red. Such a label
-//      hides its entries from everyone - the owner included - which is the
-//      correct fail-closed behaviour and completely invisible anywhere else.
-//      This page is the only place it can be seen or fixed.
+//      hides its entries from everyone - the owner included - and looks like
+//      the entry was deleted, since a hidden entry deliberately 404s. It
+//      should now be unreachable: `unrestricted` carries every label that
+//      exists, derived rather than stored, and its boxes are therefore drawn
+//      disabled with no Save. The warning stays as the last check on that
+//      invariant, because nothing else on the page would show it breaking.
 //
 // Items are saved as a whole set, like a role's permissions: unticking a box
 // means "not this", which an append-only save could not express.
@@ -28,12 +31,19 @@ const GROUP_ICONS = {
   field_group: "fa-table-columns",
 };
 
+// Mirrors app/services/rbac/seed_modes.py. The widest mode's sets are derived
+// server-side, so this page shows them and does not offer to edit them.
+const MODE_UNRESTRICTED = "unrestricted";
+
 /**
  * Content labels that no access mode carries.
  *
- * Such a label hides its entries from EVERYONE - the owner included - which
- * is the correct fail-closed behaviour after Phase B and completely invisible
- * anywhere else in the app. This page is the only place it can be seen.
+ * Such a label hides its entries from EVERYONE - the owner included - and is
+ * invisible anywhere else in the app: the entries simply 404, which reads as
+ * a deletion rather than as a policy. `unrestricted` now carries every label
+ * by derivation, so this should never fire; it stays because the cost is a
+ * set comparison and the failure it catches is silent data loss in
+ * appearance if not in fact.
  *
  * The selected mode is counted from the DRAFT rather than from the saved row,
  * so the warning appears the moment you untick the last mode carrying a label
@@ -92,6 +102,12 @@ export default function AccessModes() {
     () => modes.find((m) => m.system_id === selectedId) ?? null,
     [modes, selectedId],
   );
+
+  // The one mode whose sets are DERIVED rather than stored: it carries every
+  // label that exists and every field group the code declares, so a tick box
+  // on it could only ever lie. The server answers 409 to PUT /grants for it;
+  // this is the first of the two stops, not the only one.
+  const locked = selected?.key === MODE_UNRESTRICTED;
 
   useEffect(() => {
     setDraftLabels(new Set(selected?.label_keys ?? []));
@@ -299,13 +315,15 @@ export default function AccessModes() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={save}
-                    disabled={saving}
-                    className="px-3 py-1.5 rounded-lg bg-brand text-on-brand text-sm disabled:opacity-50"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
+                  {!locked && (
+                    <button
+                      onClick={save}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-lg bg-brand text-on-brand text-sm disabled:opacity-50"
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                  )}
                   {!selected.is_system && (
                     <button
                       onClick={() => removeMode(selected)}
@@ -316,6 +334,15 @@ export default function AccessModes() {
                   )}
                 </div>
               </div>
+
+              {locked && (
+                <p className="mb-4 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted">
+                  <i className="fas fa-lock mr-2 text-text-faint"></i>
+                  This mode carries every label and every field group by
+                  definition, including any added later, so its grants are not
+                  editable. Narrow a different mode instead.
+                </p>
+              )}
 
               {catalog.map((group) => (
                 <div key={group.group} className="mb-6">
@@ -334,7 +361,9 @@ export default function AccessModes() {
                       return (
                         <label
                           key={item.key}
-                          className={`flex items-start gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer ${
+                          className={`flex items-start gap-2 border rounded-lg px-3 py-2 text-sm ${
+                            locked ? "cursor-default" : "cursor-pointer"
+                          } ${
                             homeless
                               ? "border-danger bg-danger-soft"
                               : "border-border hover:bg-surface-2"
@@ -344,6 +373,7 @@ export default function AccessModes() {
                             type="checkbox"
                             className="mt-1"
                             checked={draft.has(item.key)}
+                            disabled={locked}
                             onChange={() => toggle(group.group, item.key)}
                           />
                           <span>

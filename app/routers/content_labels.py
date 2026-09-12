@@ -2,10 +2,12 @@
 routers/content_labels.py
 The content-label vocabulary, and which entries carry which labels.
 
-Creating a label grants it to nobody, so a newly created label immediately
-hides every entry it is put on from every non-superuser. That is the safe
-direction: a label exists to restrict, so it restricts until an admin decides
-who may see through it.
+Creating a label grants it to `unrestricted` and to no other mode, so a new
+label immediately hides every entry it is put on from everyone EXCEPT a
+session sitting in the widest mode. That is the safe direction in the only
+place it can be: a label exists to restrict, so it restricts until an admin
+decides who else may see through it - but "everybody, the owner included" is
+not a safe default, it is an entry that has silently vanished.
 
 Entry assignment replaces the whole set, structurally identical to
 credits.py::replace_credits, because that is how the Add/Modify forms submit.
@@ -22,6 +24,7 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.resolver import require_admin_authz
+from app.services.rbac.seed_modes import MODE_UNRESTRICTED
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,30 @@ def _get_or_404(db: Session, label_id: UUID) -> models.ContentLabel:
     if row is None:
         raise HTTPException(status_code=404, detail="Content label not found.")
     return row
+
+
+def _grant_to_unrestricted(db: Session, label: models.ContentLabel) -> None:
+    """Give a new label to `unrestricted`, and to no other mode.
+
+    Belt to cache.mode_sets's braces. That function DERIVES the unrestricted
+    set, so resolution is already correct without this row; what this keeps
+    correct is the table, which is what /access-modes and anything else
+    reading the rows will see. Every other mode is left alone deliberately:
+    a label exists to restrict, so it restricts everywhere except the mode
+    whose meaning is "no restrictions".
+    """
+    mode = (
+        db.query(models.AccessMode)
+        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
+        .first()
+    )
+    if mode is None:
+        # A database seeded before the modes existed, or mid-migration. The
+        # derivation covers it either way.
+        return
+    db.add(
+        models.AccessModeLabel(mode_id=mode.system_id, label_id=label.system_id)
+    )
 
 
 def _resolve_entry(db: Session, media_type: str, entry_id: UUID):
@@ -97,6 +124,8 @@ def create_label(payload: schemas.ContentLabelCreate, db: Session = Depends(get_
         sort_order=payload.sort_order,
     )
     db.add(row)
+    db.flush()
+    _grant_to_unrestricted(db, row)
     db.commit()
     db.refresh(row)
     # The catalog just grew, so any cached "unknown permission" answer is stale.

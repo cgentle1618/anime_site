@@ -49,6 +49,39 @@ def bump() -> None:
     _DENIAL_CACHE.clear()
 
 
+def every_label_id(db: Session) -> frozenset[UUID]:
+    """Every content label that exists. The label half of `unrestricted`."""
+    return frozenset(
+        system_id for (system_id,) in db.query(models.ContentLabel.system_id)
+    )
+
+
+def every_field_group() -> frozenset[str]:
+    """Every field group the code declares. The field half of `unrestricted`.
+
+    Imported at call time, not at module scope: field_groups is the head of a
+    latent import cycle that seed_modes.py documents, and importing it here
+    would make this module trip it.
+    """
+    from app.services.rbac.field_groups import FIELD_GROUP_KEYS
+
+    return frozenset(FIELD_GROUP_KEYS)
+
+
+def _is_unrestricted(db: Session, mode_id: UUID) -> bool:
+    """Whether this mode is the one whose sets are derived.
+
+    Keyed on `key`, which is immutable through the API - access_modes.py
+    updates label, description and sort_order and deliberately never `key`.
+    `is_system` would be the wrong test: it marks all four seeded modes, of
+    which only this one means "everything".
+    """
+    from app.services.rbac.seed_modes import MODE_UNRESTRICTED
+
+    mode = db.get(models.AccessMode, mode_id)
+    return mode is not None and mode.key == MODE_UNRESTRICTED
+
+
 def permissions_for(db: Session, role_id: UUID) -> frozenset[str]:
     cached = _CACHE.get(role_id)
     if cached is not None:
@@ -70,12 +103,36 @@ def mode_sets(db: Session, mode_id: UUID) -> "ModeSets":
     Shared by everyone holding the mode, so this is the hot one. Imported
     lazily because modes.py imports this module for exactly these two
     functions.
+
+    `unrestricted` is DERIVED here rather than read: it carries every label
+    that exists and every field group the code declares, whatever rows the
+    table happens to hold. Its meaning is "the widest mode", and a stored set
+    cannot express that - a label minted after the seed reached it no more
+    than it reached `safe`, so the first entry tagged with a new label
+    vanished from every session in the installation, the owner's included. It
+    read as a deletion, because a hidden entry is deliberately
+    indistinguishable from a missing one.
+
+    Derived rather than kept in step by a write path, because the write paths
+    are not the only way rows arrive: a Pull All, a migration, or a hand-edit
+    would each have to remember. This is the one place all three resolution
+    paths in modes.py pass through, so the invariant cannot drift. The rows
+    are still WRITTEN for the mode (seed and label creation both add them) -
+    they are what the admin page has always read - but nothing depends on them
+    being complete.
     """
     cached = _MODE_CACHE.get(mode_id)
     if cached is not None:
         return cached
 
     from app.services.rbac.modes import ModeSets
+
+    if _is_unrestricted(db, mode_id):
+        sets = ModeSets(
+            label_ids=every_label_id(db), field_groups=every_field_group()
+        )
+        _MODE_CACHE[mode_id] = sets
+        return sets
 
     labels = frozenset(
         row.label_id

@@ -1655,8 +1655,10 @@ policy. A flag rather than the hardcoded key `safe`, because editing the mode
 you sit in yourself must not silently republish it to the internet.
 
 Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
-`is_system`, with `safe` flagged. `safe` is seeded from whatever the **guest
-role actually holds**, not from a constant - see
+`is_system`, with `safe` flagged. `unrestricted`'s rows are written but not
+read: its sets are derived from every `content_label` and every field group at
+resolution time, so a label minted later cannot narrow it. `safe` is seeded
+from whatever the **guest role actually holds**, not from a constant - see
 [authorization.md](authorization.md#what-a-guest-sees) for the defect that
 distinction prevented.
 

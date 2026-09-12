@@ -1598,7 +1598,7 @@ route for route.
 | GET | `/api/access-modes/{id}` | |
 | POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
 | PATCH | `/api/access-modes/{id}` | Label, description, sort order, and `is_guest_default`. Setting the flag **moves** it: the write clears every other mode's flag in the same transaction rather than letting `ix_one_guest_default_access_mode` raise and surface as a 500. Clearing the last flag is allowed - the resolver falls back to the empty set, which hides everything from a guest rather than publishing it. |
-| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. |
+| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
 | DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
 
 Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
@@ -1662,7 +1662,7 @@ Vocabulary CRUD, plus per-entry assignment:
 | Method | Path | Body / notes |
 |---|---|---|
 | GET | `/api/content-labels/` | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`, `permission` = `label.<key>`). |
-| POST | `/api/content-labels/` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. |
+| POST | `/api/content-labels/` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
 | PATCH | `/api/content-labels/{id}` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; the permission string is derived from it. |
 | DELETE | `/api/content-labels/{id}` | **204**. Cascades the entry assignments and the role grants for `label.<key>`. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | The label keys this entry carries. |

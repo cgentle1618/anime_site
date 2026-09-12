@@ -81,11 +81,15 @@ def test_an_unscoped_session_reaches_the_handler(mode_client, nsfw_label):
     assert response.status_code != 401
 
 
-def test_a_custom_mode_holding_everything_also_qualifies(
-    db_session, admin_user, nsfw_label, mode_client
-):
-    """Computed, never a comparison against the key `unrestricted`. An admin's
-    own equivalent mode must work, or the rule is really "be unrestricted"."""
+@pytest.fixture
+def everything_mode(db_session, nsfw_label):
+    """A CUSTOM mode carrying every label and field group - a row set.
+
+    The vehicle for the three tests below, and it has to be a custom mode
+    rather than `unrestricted`: that one's sets are derived rather than read
+    (app/services/rbac/cache.py::mode_sets), so nothing can narrow it and it
+    cannot show the narrowing these tests are about.
+    """
     from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 
     custom = models.AccessMode(key="everything", label="Everything")
@@ -104,7 +108,14 @@ def test_a_custom_mode_holding_everything_also_qualifies(
         )
     db_session.flush()
     cache.bump()
+    return custom
 
+
+def test_a_custom_mode_holding_everything_also_qualifies(
+    db_session, admin_user, everything_mode, mode_client
+):
+    """Computed, never a comparison against the key `unrestricted`. An admin's
+    own equivalent mode must work, or the rule is really "be unrestricted"."""
     assert (
         mode_client("everything").post("/api/data-control/backup").status_code
         != 401
@@ -112,15 +123,15 @@ def test_a_custom_mode_holding_everything_also_qualifies(
 
 
 def test_adding_a_label_narrows_a_previously_qualifying_mode(
-    db_session, nsfw_label, mode_client
+    db_session, everything_mode, mode_client
 ):
     """The edge the computed test exists for.
 
-    A mode that carried every label yesterday does not carry the one minted
-    today, and stops qualifying until somebody grants it - the fail-closed
-    direction.
+    A row-set mode that carried every label yesterday does not carry the one
+    minted today, and stops qualifying until somebody grants it - the
+    fail-closed direction.
     """
-    c = mode_client(MODE_UNRESTRICTED)
+    c = mode_client("everything")
     assert c.post("/api/data-control/backup").status_code != 401
 
     db_session.add(models.ContentLabel(key="gore", label="Gore"))
@@ -130,24 +141,39 @@ def test_adding_a_label_narrows_a_previously_qualifying_mode(
     assert c.post("/api/data-control/backup").status_code == 401
 
 
-def test_a_missing_field_group_also_narrows(db_session, mode_client):
+def test_a_missing_field_group_also_narrows(db_session, everything_mode, mode_client):
     """Both halves of the test bite, not just the label half."""
-    c = mode_client(MODE_UNRESTRICTED)
+    c = mode_client("everything")
     assert c.post("/api/data-control/backup").status_code != 401
 
-    mode = (
-        db_session.query(models.AccessMode)
-        .filter(models.AccessMode.key == MODE_UNRESTRICTED)
-        .one()
-    )
     db_session.query(models.AccessModeFieldGroup).filter(
-        models.AccessModeFieldGroup.mode_id == mode.system_id,
+        models.AccessModeFieldGroup.mode_id == everything_mode.system_id,
         models.AccessModeFieldGroup.field_group_key == "credits",
     ).delete(synchronize_session=False)
     db_session.flush()
     cache.bump()
 
     assert c.post("/api/data-control/backup").status_code == 401
+
+
+def test_a_label_minted_today_does_not_narrow_unrestricted(
+    db_session, nsfw_label, mode_client
+):
+    """The mirror of the two above, and the reason they needed a custom mode.
+
+    `unrestricted` is DERIVED, so a new label widens it in the same instant it
+    exists. Before that, minting a label silently locked every pipeline in the
+    installation out of Backup and Pull All with a 401 - on top of hiding the
+    entries it was put on from every session, including the owner's.
+    """
+    c = mode_client(MODE_UNRESTRICTED)
+    assert c.post("/api/data-control/backup").status_code != 401
+
+    db_session.add(models.ContentLabel(key="gore", label="Gore"))
+    db_session.flush()
+    cache.bump()
+
+    assert c.post("/api/data-control/backup").status_code != 401
 
 
 def test_replace_one_on_a_hidden_entry_is_unreachable(

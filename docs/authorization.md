@@ -85,18 +85,29 @@ groups and nothing else; there is no column on `access_mode_label` or
 |---|---|---|---|---|
 | `sort_order` | 0 | 10 | 20 | 30 |
 | `is_guest_default` | — | — | — | **yes** |
-| every content label that exists when the seed runs | yes | yes | — | — |
+| every content label that exists | **always, derived** | at seed time | — | — |
 | `field_group.sources_other` | yes | yes | yes | derived from guest |
 | `field_group.personal_notes` | yes | yes | yes | derived from guest |
 | `field_group.system_info` | yes | yes | yes | derived from guest |
 | `field_group.credits` | yes | yes | yes | derived from guest |
 | `field_group.sources_restricted` | yes | yes | yes | **—** |
 
-- **`unrestricted` and `borderline` are seeded identically.** Both carry every
-  label and every field group; only the label, description and `sort_order`
-  differ. The distinction their descriptions draw is one an admin makes by
-  editing `borderline`'s label set — modes are deliberately unordered for
-  enforcement, so nothing in the code treats one as narrower than the other.
+- **`unrestricted` is DERIVED; every other mode is a row set.** Its sets are
+  not read from `access_mode_label` and `access_mode_field_group` at all —
+  `cache.mode_sets()` returns every `content_label` row and every
+  `FIELD_GROUP_KEYS` entry for it, whatever the tables hold. That is the only
+  shape in which "the widest mode" survives a label being minted tomorrow.
+  `PUT /access-modes/{id}/grants` answers **409** for it and the SPA draws its
+  boxes disabled with no Save; the rows are still written (by the seed, and by
+  label creation) so the page and anything else reading the tables sees the
+  same thing, but nothing depends on them being complete.
+- **`borderline` is seeded identically to `unrestricted` and then diverges.**
+  At seed time it carries every label and every field group; only the label,
+  description and `sort_order` differ. The distinction their descriptions draw
+  is one an admin makes by editing `borderline`'s label set — modes are
+  deliberately unordered for enforcement, so nothing in the code treats one as
+  narrower than the other. A label minted later reaches `borderline` only if
+  an admin grants it there.
 - **"derived from guest"** is the rule, not the fallback: `safe` means "today's
   guest exactly", so `ensure_access_mode_seed` reads the field groups the guest
   *role* actually holds (`guest_field_groups()`) and seeds those. Only when
@@ -646,12 +657,11 @@ helper exists because the shortest form has to be the safe one.
 - `/static/covers/...` files are served without checks (a cover URL is only
   learned from a visible response, but it is not itself gated).
 - Franchise/series hubs may render empty rather than 404 when all children are hidden.
-- A newly created content label reaches **no access mode**, so it hides its
-  entries from everyone — the owner included — until somebody carries it on a
-  mode at `/access-modes`. That is the fail-closed direction and therefore
-  correct. Do not "fix" it by making a mode's label set implicit: the seeded
-  `unrestricted` mode is a row set precisely so that editing it is an
-  auditable act.
+- A newly created content label reaches **`unrestricted` and no other mode**,
+  so it hides its entries from every narrower session until somebody carries
+  it at `/access-modes`. Fail-closed everywhere it can be: "hidden from
+  everyone, the owner included" is not a safe default, because a hidden entry
+  404s and therefore looks deleted rather than restricted.
 
 ### The two-spellings trap
 
@@ -878,11 +888,15 @@ with a `mode_count`, and a count of zero is the case the page exists to
 surface - such a label hides its entries from everyone, the owner included,
 and there is nowhere else to learn that. The page shows it in red, computed
 from the DRAFT so the warning appears the moment you untick the last mode
-carrying it, while it can still be reconsidered. The server behaviour is
-unchanged and deliberately so: **do not** auto-grant a new label to
-`unrestricted`. That mode's label set is a row set precisely so that widening
-it is an auditable act, and an auto-grant would make the one mode that has to
-be trustworthy the one that changes behind your back.
+carrying it, while it can still be reconsidered. With `unrestricted` derived
+the warning should never fire; it stays as the last check on that invariant,
+since a set comparison is cheap and nothing else on the page would show the
+invariant breaking.
+
+`unrestricted` is listed like any other mode and is the one row whose boxes
+are drawn **disabled, with no Save**. `PUT /grants` refuses it with a 409 —
+both halves, because a UI-only lock is a suggestion. An admin who wants a
+narrower ceiling narrows `borderline`, or makes a mode of their own.
 
 ### Assigning modes: `PUT /api/users/{id}/access-modes`
 
