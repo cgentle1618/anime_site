@@ -37,6 +37,7 @@ from app.routers import (
     form_defaults,
     franchise,
     game,
+    images,
     manga,
     me_list,
     media_relation,
@@ -220,6 +221,7 @@ app.include_router(seasonal.router)
 app.include_router(search.router)
 
 app.include_router(announcements.router)
+app.include_router(images.router)
 app.include_router(form_defaults.router)
 
 app.include_router(data_control.router)
