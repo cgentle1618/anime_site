@@ -7,14 +7,18 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ---
 
 ## In flight
 
-Nothing. The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the
-AniList columns in #148; `docs/roadmap.md` holds the record for both.
+| Task | Status |
+|---|---|
+| Game completion axes take an `Inapplicable` state (`feat/game-inapplicable`, migration `g1c2f3flags4`) | wip anime-site-54 |
+
+The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the AniList columns
+in #148; `docs/roadmap.md` holds the record for both.
 
 The home machine is current: `anime_site_db` is at `al1n2ilist` and a Backup
 ran against it on 2026-09-12 at 23:07, so the sheet no longer names the

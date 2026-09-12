@@ -316,10 +316,12 @@ export const defaultGame = () => ({
   base_game_id: null,
   playing_status: "Might Play",
   completion_level: "",
-  // Tristate: "" is unset, "true"/"false" are the two answers.
+  // GAME_COMPLETION_FLAGS: "" is unset, and the three answers are stored as
+  // themselves ("Yes" / "No" / "Inapplicable").
   all_endings: "",
   all_achievements: "",
   all_collected: "",
+  // Still a tristate: "" is unset, "true"/"false" are the two answers.
   steam_progress_sync: "",
   achievements_earned: "",
   achievements_total: "",

@@ -212,16 +212,26 @@ GAME_TYPES: tuple[str, ...] = ("Base Game", "DLC", "Expansion", "Bundle")
 
 # How deep a finish went. Deliberately a ladder of content depth only: whether
 # every ending was seen, every achievement earned and every collectible found
-# (games.all_endings / all_achievements / all_collected) and how many
-# achievements were earned (games.achievements_*) are separate axes, because
-# they move independently of this one. Speedrun and glitch categories are out
-# of scope.
+# (games.all_endings / all_achievements / all_collected, which carry
+# GAME_COMPLETION_FLAGS below) and how many achievements were earned
+# (games.achievements_*) are separate axes, because they move independently of
+# this one. Speedrun and glitch categories are out of scope.
 COMPLETION_LEVELS: tuple[str, ...] = (
     "Main Story",
     "Main + Extras",
     "Post-game",
     "Completionist",
 )
+
+# The three completion axes - games.all_endings / all_achievements /
+# all_collected. NULL is the fourth state and stays out of the vocabulary: it
+# means "not recorded yet", which is what an unanswered question looks like.
+# "Inapplicable" is the answer itself - the game ships no endings, publishes no
+# achievements, hides no collectibles - and is why these are not booleans.
+#
+# games.steam_progress_sync is NOT one of these. It reads as a boolean lock on
+# Steam writes (autofill.py tests it with `is False`) and keeps its own shape.
+GAME_COMPLETION_FLAGS: tuple[str, ...] = ("Yes", "No", "Inapplicable")
 
 # A lifecycle ladder, ordered from "does not exist yet" to "over". "Released"
 # is out and static; "Ongoing" is out and still receiving content or running
