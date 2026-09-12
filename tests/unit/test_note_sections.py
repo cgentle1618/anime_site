@@ -41,8 +41,8 @@ def test_only_remark_is_singleton():
 def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
     assert with_kinds == [
-        "builds_and_mods",
         "highlights",
+        "mods_and_tools",
         "op",
         "ed",
         "ost",
@@ -188,6 +188,9 @@ def test_op_ed_kinds_exclude_retired_values():
 def test_retired_sections_are_gone():
     assert ns.section_by_key("special_changes") is None
     assert ns.section_by_key("special_episodes") is None
+    # Replaced by the 攻略 group; their rows were migrated, not dropped.
+    assert ns.section_by_key("guides") is None
+    assert ns.section_by_key("builds_and_mods") is None
 
 
 def test_anime_sections_in_registry_order():
@@ -438,6 +441,12 @@ PERSONAL_KEYS = {
     "episode_comments",
     "questions",
     "personal_reviews",
+    # The 待辦 buckets. Four sections rather than one with a kind, because
+    # sort_index orders rows within one (owner, section) pair.
+    "todo_now",
+    "todo_next",
+    "todo_later",
+    "todo_maybe",
 }
 
 CATALOG_KEYS = {
@@ -459,8 +468,30 @@ CATALOG_KEYS = {
     "craft",
     "foreshadowing",
     "symmetry",
-    "guides",
-    "builds_and_mods",
+    # 攻略 Guides
+    "beginner",
+    "controls",
+    "trivia",
+    "side_quests",
+    "builds_and_styles",
+    "stats_and_points",
+    "skills",
+    "collectibles",
+    "items",
+    "weapons_and_gear",
+    "characters_guide",
+    "enemies",
+    "endings",
+    "mods_and_tools",
+    "guide_resources",
+    # 劇情 Story
+    "main_plot",
+    "side_plot",
+    "character_arcs",
+    "lore",
+    "timeline",
+    "mysteries",
+    "story_other",
 }
 
 
@@ -492,14 +523,14 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_seven():
+def test_the_personal_sections_are_exactly_these_eleven():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
     assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
 
 
-def test_the_catalog_sections_are_exactly_these_twenty():
+def test_the_catalog_sections_are_exactly_these_forty():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
         CATALOG_KEYS
     )
@@ -508,7 +539,7 @@ def test_the_catalog_sections_are_exactly_these_twenty():
 
 def test_the_two_scopes_partition_every_stored_section():
     stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
-    assert len(stored) == 27
+    assert len(stored) == 51
     assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
     assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
 
@@ -522,5 +553,10 @@ def test_sections_by_scope_returns_registry_order():
         "double_edged",
         "personal_reviews",
         "episode_comments",
+        # The 待辦 run sits after `symmetry` and before the music group.
+        "todo_now",
+        "todo_next",
+        "todo_later",
+        "todo_maybe",
         "questions",
     ]
