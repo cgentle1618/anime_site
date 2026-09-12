@@ -58,8 +58,8 @@ toggled inside a hub does not update the library cache until it goes stale.
 ## Contexts
 
 - **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
-  `username`, `role`, `isSuperuser`, `permissions`, `loading`, `has(permission)`
-  (superuser short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
+  `username`, `role`, `isRoot`, `permissions`, `loading`, `has(permission)`
+  (root short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
   gate on `has("admin")`; page controls gate on `isAdmin`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
@@ -227,11 +227,14 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
-  dropdown built from `section.kinds` when the registry declares any. Its two
-  owners are the game-only `guides` (no kinds) and `builds_and_mods` (Build /
-  Mod / Tool); the latter is labelled 配裝/模組 Builds & Mods and is
-  deliberately **not** keyed `resources`, which already exists site-wide.
-  `NotesTemplate`'s `SHAPES` map now holds seven registry-driven shapes.
+  dropdown built from `section.kinds` when the registry declares any. Its
+  owners are the eleven game-only sections of the 攻略 group that each hold one
+  named thing — `side_quests`, `builds_and_styles`, `skills`, `collectibles`,
+  `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`,
+  `mods_and_tools` (kinds Mod / Tool, the only one of the eleven with a
+  dropdown) and `guide_resources`. `guide_resources` is deliberately **not**
+  keyed `resources`, which already exists site-wide.
+  `NotesTemplate`'s `SHAPES` map covers all eight stored shapes.
 
 ## The access-mode admin pages (`pages/admin/`)
 

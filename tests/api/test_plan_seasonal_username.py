@@ -12,7 +12,7 @@ The fallback stays for a sheet written before Step 4, which carries no
 `username` header at all - a restore from it must still work, and everything
 in it did belong to one account. WHICH account changed on 2026-09-12: it is
 the installation owner, which is a flag on the user row and falls back to the
-first NON-superuser account, not to `admin`. An administrative account holds
+first NON-root account, not to `admin`. An administrative account holds
 no library, so inheriting a legacy sheet's rows is the one thing it must not
 do.
 
@@ -119,7 +119,7 @@ def test_a_seasonal_sheet_with_no_username_column_still_restores(
 
     THAT IS `kana`, NOT `admin`, since 2026-09-12: nobody holds the flag in
     this fixture, and the first fallback is the alphabetically-first
-    NON-superuser account. An administrative account does not inherit a
+    NON-root account. An administrative account does not inherit a
     legacy sheet's rows just because it sorts first - which is the whole
     point of the change, and the reason a restore is where it shows up.
     """

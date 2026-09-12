@@ -21,7 +21,7 @@ Code map:
 | `app/services/calculation.py` | `run_calculate_all` and the cover-image bulk actions |
 | `app/utils/data_control_utils.py` | `log_data_control` (the audit row) and `log_deleted_record` |
 
-All routes need **two** gates, both declared on the router: `Depends(require_manage_pipelines)` (may this account run pipelines at all) and `Depends(require_unscoped_mode)` (may it run one from THIS session). Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
+All routes need **one** gate, declared on the router: `Depends(require_manage_pipelines)` — may this account run pipelines. The session's access mode is not consulted, so `admin` and `super` run pipelines from whatever mode they are in. Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
 
 ---
 
@@ -176,7 +176,7 @@ and lands in `unresolved_refs`.
 
 **`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
 reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
-`users.is_installation_owner`, else the alphabetically-first non-superuser
+`users.is_installation_owner`, else the alphabetically-first non-root
 account, else the first account — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
@@ -725,7 +725,7 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ## 12. Route table — `/api/data-control`
 
-All routes require `manage.pipelines` **and** an unscoped access mode (`require_unscoped_mode`), both declared on the router. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require `manage.pipelines`, declared on the router; the access mode is not consulted. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|

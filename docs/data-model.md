@@ -1557,7 +1557,7 @@ A named bundle of permissions. Permissions themselves are Python constants
 | `label` | String | no | | |
 | `description` | Text | yes | | |
 | `is_system` | Boolean | no | `False` (server default) | `guest` / `admin`: cannot be renamed or deleted through the API |
-| `is_superuser` | Boolean | no | `False` (server default) | Implies every permission, including labels and field groups created later |
+| `is_root` | Boolean | no | `False` (server default) | Implies every permission, including labels and field groups created later |
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, roles have timestamps. |
 
@@ -1595,7 +1595,7 @@ No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 **Four** roles are seeded and read by name - `guest`, `user`, `super`,
 `admin`; see [authorization.md](authorization.md#roles). An account on the
 `user` role holds guest's reads plus `self.list` and `self.personal_notes`;
-`super` adds both `manage.*` and is deliberately **not** `is_superuser`.
+`super` adds both `manage.*` and is deliberately **not** `is_root`.
 
 ### `content_label`
 

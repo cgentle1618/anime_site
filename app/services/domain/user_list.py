@@ -134,7 +134,7 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
 
     The two fallbacks are for a database where nobody holds the flag - a fresh
     install, or a restore from a sheet backed up before the column existed:
-    the alphabetically-first NON-superuser account, then the
+    the alphabetically-first NON-root account, then the
     alphabetically-first account of any kind. Never None while any account
     exists, because `user_media_list.user_id` is NOT NULL and a restore has to
     file its rows somewhere. The second fallback can therefore still name an
@@ -153,7 +153,7 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
         owner = (
             db.query(models.User)
             .join(models.Role, models.User.role_id == models.Role.system_id)
-            .filter(~models.Role.is_superuser)
+            .filter(~models.Role.is_root)
             .order_by(models.User.username)
             .first()
         )

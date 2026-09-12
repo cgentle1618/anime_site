@@ -31,7 +31,7 @@ def catalog_only_client(db, client):
         name="catalog-only",
         label="Catalogue only",
         is_system=False,
-        is_superuser=False,
+        is_root=False,
     )
     db.add(role)
     db.flush()
@@ -81,7 +81,7 @@ def test_super_may_run_the_pipelines(super_client, path):
     The failing case that drives this task.
 
     Before the swap these routers ask for the bare `admin`, which `super` does
-    not hold and is not superuser for - so this is a 401. After the swap they
+    not hold and is not root role for - so this is a 401. After the swap they
     ask for manage.pipelines, which the seeded super role does hold.
     """
     assert super_client.get(path).status_code in (200, 404, 405)

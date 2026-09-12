@@ -101,7 +101,7 @@ beforeEach(() => {
           Promise.resolve(
             String(url).startsWith("/api/search/")
               ? RESULTS
-              : { is_admin: false, username: null, role: "guest", is_superuser: false, permissions: [] },
+              : { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] },
           ),
       }),
     ),

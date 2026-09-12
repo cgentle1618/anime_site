@@ -183,7 +183,7 @@ export default function App() {
                 {/* Any signed-in member, not an admin: ProtectedRoute's
                     default permission ("admin") no longer exists, so this
                     block asks for self.list explicitly - an admin still
-                    passes because is_superuser short-circuits every check. */}
+                    passes because is_root short-circuits every check. */}
                 <Route element={<ProtectedRoute permission="self.list" />}>
                   <Route path="/settings" element={<Settings />} />
                 </Route>

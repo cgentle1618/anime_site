@@ -197,6 +197,12 @@ See `.env.example` (authoritative) and `docs/setup-local.md`. Three things to kn
 - "Reality" refers to franchises of type `TV` or `Movie`.
 - "Group" refers to the grouping tiers collectively: collection, franchise, series.
 - The Google Sheets tab for anime movies is named **"Anime Movie"** (singular); every tab name lives in `app/services/pipelines/tabs.py`.
+- **"Superuser" means the `super` ROLE.** The everything-short-circuit in
+  `Viewer.has()` is `role.is_root`, and it is held by **`admin`**, not by
+  `super`. `super` is an ordinary role that holds `manage.catalog` and
+  `manage.pipelines` by explicit grant. The flag was called `is_superuser`
+  until it was renamed for exactly this reason: it named the wrong role.
+  Say "the root flag" for the column and "the super role" for the role.
 - Media-type keys: the registry uses underscores (`anime_movie`, `tv_show`) for router files; the data layer uses hyphens (`anime-movie`, `tv-show`, see `app/utils/media_resolver.py`). Use `spec.owner_type` when in doubt.
 
 ## Two Development Environments (company / home)
@@ -238,6 +244,24 @@ one-line when it was described is exactly the one that grows.
 
   If you have already started editing on `dev`, `git checkout -b` carries the
   uncommitted changes onto the new branch — do that rather than trying to undo.
+- **Check who else is in this directory BEFORE you run that.** `HEAD` belongs
+  to the working tree, not to you, so that `checkout -b` moves the branch under
+  every other session here, mid-edit, and tells none of them. **A clean `git
+  status` does not mean you are alone** — that is exactly what I checked on
+  2026-09-12 before taking the checkout out from under `anime-site-54`, whose
+  next commit then landed on my branch. They were mid-task with their work
+  committed; there was nothing in the tree to see.
+
+  What actually answers the question:
+
+  ```bash
+  git reflog -8          # HEAD moves you did not make = someone else is here
+  git worktree list      # who has already moved out
+  ```
+
+  Unfamiliar entries in either mean **take a worktree instead** (below). So do
+  uncommitted files you do not recognise. A worktree costs a setup; getting
+  this wrong costs someone else their commit, and they find out afterwards.
 - **The database does not follow the branch.** Files switch instantly;
   `alembic_version` does not. Leaving a branch whose migrations you have run
   leaves the local database *ahead* of the code you switched to, and the app
@@ -245,6 +269,16 @@ one-line when it was described is exactly the one that grows.
   reads like it. `alembic downgrade` to the head the arriving branch expects
   before switching away, or `upgrade` after switching in. This is the real
   cost of moving between branches here; the files are free.
+
+  **In a shared directory this is not your problem alone.** Every tree on this
+  machine points at one PostgreSQL, so an `alembic upgrade` leaves the database
+  ahead of *every other session's* code, not just your own next checkout. On
+  2026-09-12 an `upgrade head` run to verify a column rename broke entry
+  loading for whoever was on `feat/anilist-api` — a live app failing on a
+  column its models still declare, with nothing on screen to say a neighbouring
+  branch caused it. **Downgrade before you leave a branch whose migration you
+  ran**, and if you are the one seeing `column <x> does not exist`, suspect an
+  unmerged migration on somebody else's branch before you suspect the data.
 - **Name it `<type>/<short-topic>`**, with the same prefixes the commits use:
   `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. `feat/role-locks`,
   `fix/guest-pipeline-409`, `docs/git-workflow`. The branch and its commits
@@ -307,6 +341,38 @@ directory, mid-edit, with no warning to any of them. So the second and every
 later session runs `.\worktree.ps1 -Topic <topic>`, which sets up a tree that
 is actually safe to work in — `COMPOSE_PROJECT_NAME` above all, whose absence
 looks exactly like data loss.
+
+**`worktree.ps1` hard-codes `git worktree add -b <branch>`, so it fails when
+that branch already exists.** Then do it by hand: `git worktree add <path>
+<existing-branch>`, plus the setup the script would have done — copy `.env` and
+`credentials.json`, set `COMPOSE_PROJECT_NAME=anime_site` and a per-tree
+`POSTGRES_DB`, build the venv from the root one, `npm install`, create the
+database, `alembic upgrade head`.
+
+**A docs-only change does not need any of that.** `git worktree add
+../anime_site_<topic> -b <type>/<topic> origin/dev`, edit, commit, push,
+`git worktree remove`. No venv, no `npm install`, no database — there is
+nothing to run. Do that rather than taking the main checkout's `HEAD` for a
+one-file edit, which is the expensive way to do the cheapest kind of change.
+
+**If you moved `HEAD` under another session and their commit landed on your
+branch**, this is the recovery, and it is the one that was actually performed
+on 2026-09-12 rather than a sketch of one:
+
+1. Get their commit onto their branch **through a temporary worktree** —
+   `git worktree add`, `git cherry-pick`, remove. **Do not `git checkout`**:
+   that drags whatever is uncommitted in the shared tree onto another branch,
+   under whoever owns it.
+2. `git reset --mixed HEAD~1` to take the commit back off the branch it landed
+   on. Mixed, not hard: it leaves every working-tree file untouched, which is
+   what makes it safe when the files are not yours. Check `git status` first —
+   if anything is *staged*, it belongs to someone and a reset unstages it.
+3. Prove the base with `git reflog` rather than assuming it. Three entries —
+   `branch: Created from HEAD`, the stray `commit:`, the `reset:` — say the
+   branch has never pointed anywhere else.
+4. **Tell the other session**, with the reflog. They cannot see any of this
+   from their side, and their next `git log` will be missing a commit they
+   know they wrote.
 
 **Everything below is the record of what happened when that was not the
 rule**, on 2026-09-11, when several sessions shared one directory and one

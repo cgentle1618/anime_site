@@ -104,36 +104,41 @@ def test_apply_is_503_when_the_sheet_cannot_be_read(
     )
 
 
-def test_a_narrowed_session_is_refused_the_scan(mode_client, nsfw_label):
-    """Decision 9. A narrowed operator must not read out a report naming every
-    entry in the catalogue, nor delete rows their mode conceals.
+def test_a_narrowed_session_reaches_the_scan(
+    mode_client, nsfw_label, db_session, fake_sheet  # noqa: F811
+):
+    """Clean is gated on `manage.pipelines` alone; the access mode is not
+    consulted. This REVERSES decision 9, and it is the one route on the
+    router where the removed mode gate did something real: the report names
+    every orphan row in the database, including entries `normal` conceals.
 
-    nsfw_label is load-bearing, not decoration. is_unscoped compares the mode
-    against ALL content labels, so with no labels in the database `normal`
-    withholds nothing and legitimately qualifies as unscoped. The label is what
-    makes it narrowed and gives the gate something to refuse.
+    Accepted deliberately - the caller holds manage.pipelines, so it is
+    `admin` or `super`, and a mode is a view ceiling they chose themselves.
+    If it ever needs closing, filter the REPORT; do not gate the router on a
+    mode the other four pipelines never read.
+
+    nsfw_label is load-bearing, not decoration. With no labels in the
+    database `normal` withholds nothing, so it would be vacuously unscoped
+    and this test would have passed against the old gate too.
     """
+    fake_sheet(media_rows=[])
+
     narrowed = mode_client("normal")
 
-    assert narrowed.get("/api/data-control/clean/scan").status_code == 401
+    assert narrowed.get("/api/data-control/clean/scan").status_code == 200
 
 
-def test_a_narrowed_session_is_refused_the_apply(mode_client, nsfw_label):
+def test_a_narrowed_session_reaches_the_apply(mode_client, nsfw_label):
     narrowed = mode_client("normal")
 
     res = narrowed.post("/api/data-control/clean/apply", json={"items": []})
 
-    assert res.status_code == 401
+    assert res.status_code != 401
 
 
-def test_an_unscoped_session_passes_the_mode_gate(
-    mode_client, nsfw_label, db_session, fake_sheet  # noqa: F811
-):
-    """The mirror of the two refusals: with the SAME label present, an
-    unrestricted session reaches the handler - so the gate is the mode and not
-    something incidental about the route."""
-    fake_sheet(media_rows=[])
-
-    res = mode_client("unrestricted").get("/api/data-control/clean/scan")
-
-    assert res.status_code == 200
+def test_an_account_without_the_permission_is_still_refused(user_client):
+    """The refusal that must still bite. The role gate is the only gate now,
+    so this is the test that proves there is one at all - and it is asserted
+    with the same nsfw_label-free setup, because the ROLE axis does not
+    compute over a set and cannot be vacuously satisfied."""
+    assert user_client.get("/api/data-control/clean/scan").status_code == 401

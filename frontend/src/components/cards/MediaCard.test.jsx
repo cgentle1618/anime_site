@@ -24,7 +24,7 @@ function mockAuthFetch() {
             is_admin: false,
             username: null,
             role: "guest",
-            is_superuser: false,
+            is_root: false,
             permissions: [],
           }),
       }),

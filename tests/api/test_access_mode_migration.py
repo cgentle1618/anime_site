@@ -13,7 +13,7 @@ from app.services.rbac.seed_modes import MODE_UNRESTRICTED, ensure_access_mode_s
 
 def test_every_account_holds_all_four_modes(db_session, admin_user, plain_user):
     """Behaviour-neutral on the day it lands: `unrestricted` is the faithful
-    mapping of today's is_superuser, which sees everything."""
+    mapping of today's is_root, which sees everything."""
     ensure_access_mode_seed(db_session)
     grant_all_modes_to_existing_accounts(db_session)
 

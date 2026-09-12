@@ -113,6 +113,20 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
         label="解析 Analysis and Cinematography",
         icon="fa-clapperboard",
     ),
+    # The key `guides` is free only because the SECTION `guides` was retired
+    # when this group replaced it. Group keys and section keys are separate
+    # dicts, so the two could coexist - `analysis_group` above is keyed that way
+    # to avoid making a reader work that out. Here the collision was removed
+    # instead, which is why this key does not need the same suffix.
+    NoteGroup(key="guides", label="攻略 Guides", icon="fa-map"),
+    # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
+    # them apart is why `story_other` exists - a stray observation lands there
+    # rather than drifting into Analysis.
+    NoteGroup(key="story", label="劇情 Story", icon="fa-book-open"),
+    # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
+    # (playtime and achievements) on the same page, and two cards with one name
+    # is the `resources` / `builds_and_mods` collision again.
+    NoteGroup(key="todo", label="待辦 Todo", icon="fa-list-check"),
     NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
     NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
 )
@@ -255,30 +269,6 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="reviews",
     ),
     NoteSection(
-        key="guides",
-        shape=SHAPE_NAME_ENTRIES,
-        label="攻略 Guides",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-    ),
-    NoteSection(
-        # NOT `resources`: a site-wide `resources` section already exists
-        # (name_links, ALL_OWNERS, standalone), which games already inherit for
-        # plain bookmarks. Reusing the key would silently shadow it, and a
-        # second card also labelled "Resources" would be unreadable - hence a
-        # distinct key AND a distinct label.
-        key="builds_and_mods",
-        shape=SHAPE_NAME_ENTRIES,
-        label="配裝/模組 Builds & Mods",
-        owners=("game",),
-        scope=SCOPE_CATALOG,
-        # Builds, mods and tools took the same shape once guides became
-        # name_entries, so they are one section with a kind rather than three
-        # near-identical ones. Guides stays separate: it is filled for nearly
-        # every game, these are not.
-        kinds=("Build", "Mod", "Tool"),
-    ),
-    NoteSection(
         key="highlights",
         locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
@@ -378,6 +368,257 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
+    ),
+    # --- 攻略 Guides ------------------------------------------------------
+    # Fifteen sections rather than one section with a kind, because each is a
+    # list somebody actually keeps separately: which build to run is not the
+    # same question as where the collectibles are. All game-only - 屬性&配點
+    # means nothing for a novel - and all catalogue: a guide is shared.
+    #
+    # `name_entries` where a row is one NAMED thing and what is known about it
+    # (a quest, a build, a boss, an ending); `text_links` where it is advice
+    # with sources and no name. Neither shape renders a locator, so "which
+    # area" is written as an entry line.
+    NoteSection(
+        key="beginner",
+        shape=SHAPE_TEXT_LINKS,
+        label="新手 Beginner",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="controls",
+        shape=SHAPE_TEXT_LINKS,
+        label="操作 Controls",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="trivia",
+        shape=SHAPE_TEXT_LINKS,
+        label="小知識 Trivia",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="side_quests",
+        shape=SHAPE_NAME_ENTRIES,
+        label="支線任務列表 Side Quests",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="builds_and_styles",
+        shape=SHAPE_NAME_ENTRIES,
+        label="配裝&流派 Builds & Styles",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="stats_and_points",
+        shape=SHAPE_TEXT_LINKS,
+        label="屬性&配點 Stats & Points",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="skills",
+        shape=SHAPE_NAME_ENTRIES,
+        label="技能 Skills",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="collectibles",
+        shape=SHAPE_NAME_ENTRIES,
+        label="收集物 Collectibles",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="items",
+        shape=SHAPE_NAME_ENTRIES,
+        label="道具 Items",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="weapons_and_gear",
+        shape=SHAPE_NAME_ENTRIES,
+        label="武器&裝備 Weapons & Gear",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        # NOT `characters`: a `character` table and a /character/:id page
+        # already exist, and a bare `characters` note section would read as
+        # related to them.
+        key="characters_guide",
+        shape=SHAPE_NAME_ENTRIES,
+        label="角色 Characters",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="enemies",
+        shape=SHAPE_NAME_ENTRIES,
+        label="敵人 Enemies",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="endings",
+        shape=SHAPE_NAME_ENTRIES,
+        label="結局 Endings",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
+        # guide, so it is not folded into one of the sections above; Mod and
+        # Tool stay one section with a kind because they are the same shape.
+        key="mods_and_tools",
+        shape=SHAPE_NAME_ENTRIES,
+        label="模組&工具 Mods & Tools",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+        kinds=("Mod", "Tool"),
+    ),
+    NoteSection(
+        # The old `guides` section: a pointer to somebody else's walkthrough,
+        # which is all it ever held now that the fourteen above cover the
+        # content itself.
+        key="guide_resources",
+        shape=SHAPE_NAME_ENTRIES,
+        label="攻略資源 Guide Resources",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    # --- 劇情 Story -------------------------------------------------------
+    # What happens, as opposed to what it means - 解析 Analysis, two cards up,
+    # holds the second. This card is a wall of spoilers and the site has no
+    # spoiler gate; the collapsible card is all today's UI offers.
+    NoteSection(
+        key="main_plot",
+        shape=SHAPE_EPISODE_TEXT,
+        label="主線劇情 Main Plot",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        # Deliberately NOT locator_required, unlike episode_comments and
+        # highlight_moments: a beat remembered without its chapter number is
+        # still a beat, whereas a per-chapter comment about nothing in
+        # particular is not a per-chapter comment.
+        locator_placeholder="Chapter / Part, e.g. Ch 3",
+    ),
+    NoteSection(
+        key="side_plot",
+        shape=SHAPE_EPISODE_TEXT,
+        label="支線劇情 Side Stories",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        locator_placeholder="Chapter / Part, e.g. Ch 3",
+    ),
+    NoteSection(
+        key="character_arcs",
+        shape=SHAPE_TEXT_LINKS,
+        label="角色劇情 Character Arcs",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        key="lore",
+        shape=SHAPE_TEXT_LINKS,
+        label="世界觀&設定 Lore",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        # Plain text: one ordered list of dated events. Every row wanting a
+        # link would mean this should have been text_links.
+        key="timeline",
+        shape=SHAPE_TEXT,
+        label="時間線 Timeline",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        key="mysteries",
+        shape=SHAPE_TEXT_LINKS,
+        label="未解之謎 Mysteries",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        # The overflow that keeps a stray story observation out of Analysis.
+        key="story_other",
+        shape=SHAPE_TEXT_LINKS,
+        label="其他 Other",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    # --- 待辦 Todo --------------------------------------------------------
+    # Four sections rather than one section with a kind, because ordering is
+    # PER SECTION: sort_index orders rows within one (owner, section) pair and
+    # PATCH /api/notes/reorder renumbers the whole section, so a kind-tagged
+    # single section could not order items within a bucket. Moving an item
+    # between buckets is therefore a PATCH of `section`, which the API already
+    # accepts - no UI does it, and none does reorder either.
+    #
+    # Personal, not catalogue: a backlog is one person's. text_links so an item
+    # can carry the guide link that prompted it.
+    NoteSection(
+        key="todo_now",
+        shape=SHAPE_TEXT_LINKS,
+        label="現在進行 Doing now",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_next",
+        shape=SHAPE_TEXT_LINKS,
+        label="接下來 To do next",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_later",
+        shape=SHAPE_TEXT_LINKS,
+        label="未來 To do in the future",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_maybe",
+        shape=SHAPE_TEXT_LINKS,
+        label="可能 Might do",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
     ),
     # --- 音樂 Music -------------------------------------------------------
     # The five sections below form the music group, and the page renders that
