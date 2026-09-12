@@ -141,6 +141,16 @@ SERVICES: dict[str, Service] = {
         rate_limit="4 / second and 120 / minute; 1 s between entries",
         docs_anchor="tenrai-myanimelist",
     ),
+    "anilist": Service(
+        key="anilist",
+        label="AniList",
+        module="app.services.integrations.anilist",
+        base_url="https://graphql.anilist.co",
+        auth="None - public GraphQL read API",
+        rate_limit="30 / minute observed (90 documented); read from "
+        "X-RateLimit-Limit, 50 entries per request",
+        docs_anchor="anilist",
+    ),
     "tmdb": Service(
         key="tmdb",
         label="TMDB",
@@ -231,12 +241,42 @@ _TENRAI_LINKS = (
     ),
 )
 
+# Identical on all four AniList-covered types: same three columns, same
+# rules, only the queried MediaType differs.
+_ANILIST_WRITES = (
+    Write(
+        "anilist_rating",
+        "column",
+        "overwrite",
+        "AniList averageScore, an integer 0-100; a null never blanks a value",
+    ),
+    Write(
+        "anilist_rank",
+        "column",
+        "overwrite",
+        "the all-time RATED ranking; null for entries AniList has not ranked",
+    ),
+    Write(
+        "anilist_popularity_rank",
+        "column",
+        "overwrite",
+        "the all-time POPULAR ranking; null for entries AniList has not ranked",
+    ),
+    Write(
+        "AniList",
+        "source",
+        "if-absent",
+        "a reference media_source row, from AniList's own siteUrl - MAL does "
+        "not publish an AniList link",
+    ),
+)
+
 EXTERNAL_APIS: tuple[Coverage, ...] = (
     Coverage(
         key="anime",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1",
+        combination="merged",
+        requests_per_entry="1 Tenrai + a 1/50 share of an AniList batch",
         sources=(
             SourceBlock(
                 source="tenrai",
@@ -267,13 +307,14 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("cover_image_file", "image", "if-empty"),
                 ),
             ),
+            SourceBlock(source="anilist", writes=_ANILIST_WRITES),
         ),
     ),
     Coverage(
         key="anime-movie",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1",
+        combination="merged",
+        requests_per_entry="1 Tenrai + a 1/50 share of an AniList batch",
         note="Same Tenrai anime record as Anime, read for fewer columns.",
         sources=(
             SourceBlock(
@@ -294,6 +335,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     ),
                 ),
             ),
+            SourceBlock(source="anilist", writes=_ANILIST_WRITES),
         ),
     ),
     Coverage(
@@ -435,8 +477,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
     Coverage(
         key="manga",
         keyed_by="mal_id",
-        combination="single",
-        requests_per_entry="1",
+        combination="merged",
+        requests_per_entry="1 Tenrai + a 1/50 share of an AniList batch",
         sources=(
             SourceBlock(
                 source="tenrai",
@@ -468,13 +510,17 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("cover_image_file", "image", "if-empty"),
                 ),
             ),
+            SourceBlock(source="anilist", writes=_ANILIST_WRITES),
         ),
     ),
     Coverage(
         key="novel",
         keyed_by="mal_id",
         combination="either-or",
-        requests_per_entry="1 via Tenrai; 1 to 3 via Open Library",
+        requests_per_entry=(
+            "1 Tenrai + a 1/50 share of an AniList batch via the mal_link "
+            "branch; 1 to 3 via Open Library"
+        ),
         note=(
             "A mal_link routes to Tenrai, which returns strictly more. Open "
             "Library covers only the novels MAL does not have, and its stored "
@@ -482,7 +528,8 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
             "which is why it writes so little. Bulk Replace only selects "
             "MAL-linked rows, so an Open-Library-only novel is never re-fetched; "
             "every Open Library write is fill-only, so there is nothing for "
-            "Replace to redo."
+            "Replace to redo. AniList accompanies the Tenrai branch only - a "
+            "novel filled via Open Library never queries AniList."
         ),
         sources=(
             SourceBlock(
@@ -513,6 +560,7 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                     Write("cover_image_file", "image", "if-empty"),
                 ),
             ),
+            SourceBlock(source="anilist", writes=_ANILIST_WRITES),
             SourceBlock(
                 source="openlibrary",
                 writes=(
