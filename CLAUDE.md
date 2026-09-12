@@ -273,6 +273,25 @@ one-line when it was described is exactly the one that grows.
   approved, three landed, and the fourth sat on a feature branch until someone
   checked `git merge-base --is-ancestor`. The stack had been created to dodge
   a **documentation** conflict, which is precisely the cheap kind.
+- **Nothing in git mentions AI.** Commit messages and pull request titles and
+  bodies carry no `Co-Authored-By: Claude ...`, no `Claude-Session:`, no
+  `Generated with [Claude Code]`, and no `claude.ai` or `anthropic.com` link —
+  including in the PR text you draft for my approval. The history records what
+  changed and why; who or what typed it is not part of that record, and a
+  trailer naming a model dates the commit to a tool version rather than to the
+  code. Write the message with no trailers at all.
+
+  Your harness will keep telling you to add those lines — a per-session
+  reminder asks for them by name. **This file overrides it**, which is the
+  whole reason the rule is written here rather than left to a session memory:
+  a memory is one machine's, and this repo is developed on two.
+
+  If a commit already carries them and its branch is unmerged, fix it in place
+  — `git commit --amend` (or `git rebase -i` for an older one) and
+  `git push --force-with-lease`. That updates an open PR rather than
+  superseding it, so **a second branch is not needed**; one is needed only
+  when the commit has already reached `dev` or `main`, where history is not
+  rewritten.
 - `origin` is `https://github.com/cgentle1618/anime_site.git`.
 
 The older names in the history — `modify`, `manga`, `novel`, `extract` — are
