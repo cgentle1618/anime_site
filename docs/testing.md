@@ -302,11 +302,16 @@ to `ALLOWED_FILES` or `ALLOWED_CLASSES` only for a deliberate exception.
 
 ## What CI runs
 
-`.github/workflows/deploy.yml` runs on every push to `main` and every pull
-request. The `test` job:
+`.github/workflows/ci.yml` (workflow name `Tests`) runs on **every pull
+request, and on pushes to `main`**. Nothing else triggers it: a push to a
+feature branch or to `dev` runs no CI at all, which is why every branch reaches
+`dev` by pull request (`CLAUDE.md`, "Git Branches"). There is one job, `test`:
 
-1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test`,
-   user/password `postgres`, and exports the same three variables to the job.
+1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test` and
+   user/password `postgres`. Six variables reach the job env: those three,
+   plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
+   `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup
+   secret check refuses to boot and every API test fails.
 2. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
 3. `ruff check .`
 4. `pytest -q -p no:cacheprovider` (unit + API).
@@ -315,9 +320,11 @@ request. The `test` job:
 7. `npm run test:run`
 8. `npm run build`
 
-`build-and-deploy` needs `test` to pass and only runs on a push to `main`; it
-builds the Docker image, pushes it to Artifact Registry and deploys to Cloud
-Run. A red test therefore blocks deployment.
+**The workflow deploys nothing**, and there is no second job. A red run is
+therefore always a real test failure and never a failed release. There is no
+deployment at all — [deployment-gcp.md](deployment-gcp.md) records the one
+that existed, and [deployment-selfhost.md](deployment-selfhost.md) is the plan
+for the one that does not yet.
 
 ## Known gaps
 

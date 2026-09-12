@@ -243,7 +243,9 @@ cd frontend; npm run lint            # eslint src
 cd frontend; npm run format:check    # prettier
 ```
 
-CI runs `ruff check .` and `npm run lint`; both must pass before deploy.
+CI runs `ruff check .` and `npm run lint` on every pull request; both must
+pass before a branch can be merged. Nothing is deployed — see
+[testing.md](testing.md#what-ci-runs).
 
 ## 9. Tests
 
