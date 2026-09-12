@@ -13,7 +13,19 @@ Last updated: 2026-09-12
 
 ## In flight
 
-Nothing. The authorization redesign - phases 0, A, A.1, B, C and D - is
+### Image upload — `feat/image-upload`, worktree `../anime_site_image_upload`, db `anime_site_image_upload`
+
+Spec: [2026-09-12-image-upload-design.md](superpowers/specs/2026-09-12-image-upload-design.md) ·
+Plan: [2026-09-12-image-upload.md](superpowers/plans/2026-09-12-image-upload.md)
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Library service, models, migration | todo |
+| 2 | Upload router, gates, download-pipeline guard | todo |
+| 3 | Backfill and dual-write | todo |
+| 4 | Manager page and inline picker | todo |
+
+Otherwise nothing. The authorization redesign - phases 0, A, A.1, B, C and D - is
 finished and its table is gone; `docs/roadmap.md` holds what each phase did
 and why, and the gates themselves are described in
 [authorization.md](authorization.md#rules-not-to-break).
