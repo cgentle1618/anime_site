@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-12 (Clean added; Backup's blank-tab defect fixed)
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -21,7 +21,7 @@ Code map:
 | `app/services/calculation.py` | `run_calculate_all` and the cover-image bulk actions |
 | `app/utils/data_control_utils.py` | `log_data_control` (the audit row) and `log_deleted_record` |
 
-All routes need **two** gates, both declared on the router: `Depends(require_manage_pipelines)` (may this account run pipelines at all) and `Depends(require_unscoped_mode)` (may it run one from THIS session). Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
+All routes need **one** gate, declared on the router: `Depends(require_manage_pipelines)` — may this account run pipelines. The session's access mode is not consulted, so `admin` and `super` run pipelines from whatever mode they are in. Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
 
 ---
 
@@ -723,7 +723,7 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ## 12. Route table — `/api/data-control`
 
-All routes require `manage.pipelines` **and** an unscoped access mode (`require_unscoped_mode`), both declared on the router. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require `manage.pipelines`, declared on the router; the access mode is not consulted. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|

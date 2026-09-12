@@ -19,13 +19,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models
-from app.dependencies import get_db
 from app.services.rbac import cache
-from app.services.rbac.resolver import Viewer, get_viewer
 from app.services.rbac.seed_modes import (
     MODE_SAFE,
     MODE_UNRESTRICTED,
@@ -271,59 +268,3 @@ def grant_all_modes_to_existing_accounts(db: Session) -> None:
     db.flush()
 
 
-def is_unscoped(db: Session, viewer: Viewer) -> bool:
-    """
-    Whether this session's mode reaches EVERYTHING.
-
-    Computed against the two full sets, never a comparison against the key
-    `unrestricted`: editing that mode must not silently widen the set of
-    sessions that qualify, and an admin's own equivalent custom mode must
-    qualify. A label minted today narrows every mode that does not carry it,
-    which is the fail-closed direction.
-    """
-    from app.services.rbac.field_groups import FIELD_GROUP_KEYS
-
-    all_labels = {
-        system_id for (system_id,) in db.query(models.ContentLabel.system_id)
-    }
-    return all_labels <= set(viewer.visible_label_ids) and set(
-        FIELD_GROUP_KEYS
-    ) <= set(viewer.field_groups)
-
-
-def require_unscoped_mode(
-    viewer: Viewer = Depends(get_viewer), db: Session = Depends(get_db)
-) -> Viewer:
-    """
-    Gate a pipeline on the session's mode as well as on its permissions.
-
-    Decision 14. A pipeline's object set is EVERY entry: the sheet holds one
-    version of the data and Backup overwrites every tab, so a per-viewer
-    filter would write a PARTIAL sheet over the complete one and a Pull All
-    would restore a partial database - silent data loss rather than the
-    information leak it was meant to close. The permission is therefore
-    declared unscoped, and this dependency is what stops that being merely a
-    trust assertion.
-
-    This does NOT contradict "a mode never changes which KINDS of operation an
-    account may perform". The mode still only decides which objects an
-    operation reaches; it is the OPERATION that refuses to run against a
-    subset, because a partial Backup is not a smaller version of the job, it
-    is a corrupt one. The test is the same subset comparison a mode switch
-    uses, with `required` fixed at everything. viewer.has(manage.pipelines)
-    answers the same in `safe` as in `unrestricted`.
-
-    401, not 404: the route's existence is not a secret, and the caller is
-    being told to widen - which is a thing they can act on. 404 is the object
-    axis, where indistinguishability is the property being protected.
-    """
-    if not is_unscoped(db, viewer):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=(
-                "Running a pipeline requires an unscoped access mode. Switch "
-                "to a mode that carries every content label and field group."
-            ),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return viewer

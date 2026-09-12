@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
+from app.services.rbac.modes import resolve_mode
 from app.services.rbac.permissions import (
     FAMILY_SELF,
     PERM_ADMIN_AUTHZ,
@@ -166,12 +167,6 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
         role = role_for_user(db, user)
         if role is None:
             return GUEST_FALLBACK
-
-        # Imported here rather than at module scope: modes.py needs Viewer and
-        # get_viewer from this module at def time (require_unscoped_mode binds
-        # Depends(get_viewer) as a default), so the dependency has to run one
-        # way only, and this is the direction that can be deferred.
-        from app.services.rbac.modes import resolve_mode
 
         mode = resolve_mode(db, user, _mode_claim(payload))
 
