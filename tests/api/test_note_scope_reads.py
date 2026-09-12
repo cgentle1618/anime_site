@@ -116,3 +116,68 @@ def test_the_personal_notes_field_group_never_hides_a_viewers_own_rows(
     )
     bodies = [n["content"] for n in r.json() if n["section"] == "personal_reviews"]
     assert bodies == ["我的評價"]
+
+
+@pytest.fixture
+def game(db, sample_franchise):
+    g = models.Game(
+        game_name_en="Elden Ring", franchise_id=sample_franchise.system_id
+    )
+    db.add(g)
+    db.commit()
+    return g
+
+
+def test_a_todo_bucket_reaches_only_its_author(
+    db, admin_client, game, two_authors, admin_user
+):
+    """
+    todo_* is personal scope. The alice and bob rows are what makes this bite:
+    an author filter over a table holding one user's rows passes whether or not
+    the filter is applied.
+    """
+    alice, bob = two_authors
+    db.add_all(
+        [
+            _note(game.system_id, "todo_now", "admin 的待辦", admin_user.id),
+            _note(game.system_id, "todo_now", "alice 的待辦", alice.id),
+            _note(game.system_id, "todo_now", "bob 的待辦", bob.id),
+        ]
+    )
+    db.commit()
+
+    r = admin_client.get(
+        "/api/notes",
+        params={"owner_type": "game", "owner_id": str(game.system_id)},
+    )
+    assert r.status_code == 200
+    bodies = [n["content"] for n in r.json() if n["section"] == "todo_now"]
+    assert bodies == ["admin 的待辦"]
+
+
+def test_a_guides_section_is_the_same_for_everyone(
+    db, admin_client, client, game, two_authors, admin_user
+):
+    """
+    The mirror of the test above, with the same fixture: it proves the filter
+    there did the filtering, rather than something incidental.
+    """
+    alice, _bob = two_authors
+    db.add_all(
+        [
+            _note(game.system_id, "beginner", "先打史東薇爾", admin_user.id),
+            _note(game.system_id, "beginner", "別急著點等級", alice.id),
+        ]
+    )
+    db.commit()
+
+    params = {"owner_type": "game", "owner_id": str(game.system_id)}
+    signed_in = admin_client.get("/api/notes", params=params)
+    logged_out = client.get("/api/notes", params=params)
+
+    assert signed_in.status_code == logged_out.status_code == 200
+    for response in (signed_in, logged_out):
+        bodies = sorted(
+            n["content"] for n in response.json() if n["section"] == "beginner"
+        )
+        assert bodies == ["先打史東薇爾", "別急著點等級"]

@@ -467,10 +467,25 @@ export default function NovelAddTab({
           <input
             className={inputCls}
             type="number"
-            step="0.01"
             value={nvf.anilist_rating}
             onChange={(e) => unv("anilist_rating", e.target.value)}
             placeholder="85"
+          />
+        </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={nvf.anilist_rank}
+            onChange={(e) => unv("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={nvf.anilist_popularity_rank}
+            onChange={(e) => unv("anilist_popularity_rank", e.target.value)}
           />
         </Field>
       </div>

@@ -1270,10 +1270,11 @@ Full behaviour: [data-actions.md](data-actions.md) section 8.
 | `GET` | `/clean/scan` | Every local row the sheet no longer mentions, grouped by tab, each with its blast radius, timestamps and `public_id`. Read-only; writes no log row. Returns `last_backup_at` so the caller can tell a genuine orphan from a row created since the last Backup. **503** if any in-scope tab is unreadable or has no data rows — a partial read is indistinguishable from "everything is orphaned". |
 | `POST` | `/clean/apply` | Body `{"items": [{"tab", "system_id"}, ...]}`. Re-runs the scan and deletes only the named ids that are **still** candidates; the rest come back in `skipped` with a reason. Returns `{deleted, per_tab, skipped}`. **503** as above, in which case nothing is deleted. |
 
-Both inherit the router's two gates, and the mode gate matters here for a reason
-adjacent to decision 14's: the scan report names every orphan in the database,
-so it is an unrestricted read of the whole catalogue by construction, and apply
-deletes by `system_id`. A narrowed session is refused both with 401.
+Both inherit the router's single gate, `manage.pipelines`. Clean is the one
+route on the router where the access mode used to matter for a real reason: the
+scan report names every orphan in the database, including entries a narrow mode
+conceals, and apply deletes by `system_id`. Both are reachable from any mode —
+see [authorization.md](authorization.md) for why that is accepted.
 
 ### Fill
 
@@ -1341,18 +1342,16 @@ deletes by `system_id`. A narrowed session is refused both with 401.
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 
-### Every route on `/api/data-control` and `/api/system` needs TWO things
+### Every route on `/api/data-control` and `/api/system` needs ONE thing
 
-`require_manage_pipelines` **and** `require_unscoped_mode`. The second answers
-**401** unless the caller's active access mode carries every `content_label`
-row and every field group.
+`require_manage_pipelines`. The caller's access mode is not consulted — 401
+only when the role lacks the permission.
 
-`manage.pipelines` is unscoped on the object axis — no pipeline filters by
-label, field group or media type — because the sheet holds one version of the
-data and Backup overwrites every tab, so a per-viewer filter would write a
-*partial* sheet over the complete one. This gate is what stops "unscoped" being
-merely a trust assertion: a pipeline may see everything, and may therefore only
-be run from a session that can.
+`manage.pipelines` is unscoped on the object axis: no pipeline filters by
+label, field group or media type, so a pipeline reads the whole database and
+writes the same complete sheet whatever mode the caller sits in. A second gate
+requiring an unscoped mode existed, and refused requests without changing a
+byte of output.
 
 Both gates are at **router** level, not per handler, because most of
 `data_control.py`'s routes are registered in a loop over `PIPELINES` rather
@@ -1527,7 +1526,7 @@ Now also returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_superuser": false,
+  "is_root": false,
   "permissions": ["media_type.anime", "field_group.sources_other", ...],
   "mode": { "id": "…uuid…", "key": "safe" } }
 ```
@@ -1637,7 +1636,7 @@ and being narrowed if somebody remembers.
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a superuser role. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a root role. |
 | DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
 
 Also 409: giving the `guest` role the `admin` permission (anonymous requests
@@ -1669,7 +1668,7 @@ Vocabulary CRUD, plus per-entry assignment:
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing entry, 422 on an unknown label. |
 
 A newly created label is granted to nobody, so applying it hides the entry from
-everyone except superusers until a role is given `label.<key>`. That is the
+everyone except root roles until a role is given `label.<key>`. That is the
 safe direction.
 
 ### What gating touches

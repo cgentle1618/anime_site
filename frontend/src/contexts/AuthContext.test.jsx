@@ -39,7 +39,7 @@ describe("useAuth().has", () => {
       is_admin: false,
       username: "friend",
       role: "friend",
-      is_superuser: false,
+      is_root: false,
       permissions: ["media_type.anime"],
     });
 
@@ -56,13 +56,13 @@ describe("useAuth().has", () => {
     expect(screen.getByTestId("role")).toHaveTextContent("friend");
   });
 
-  it("gives a superuser every permission, including ones nobody granted", async () => {
+  it("gives a root role every permission, including ones nobody granted", async () => {
     // The reason a new content label never hides content from an admin.
     mockMe({
       is_admin: true,
       username: "admin",
       role: "admin",
-      is_superuser: true,
+      is_root: true,
       permissions: [],
     });
 
@@ -78,7 +78,7 @@ describe("useAuth().has", () => {
     expect(screen.getByTestId("manga")).toHaveTextContent("true");
   });
 
-  it("does not hand a superuser the self family", async () => {
+  it("does not hand a root role the self family", async () => {
     // The one exception to the short-circuit above, and it mirrors
     // Viewer.has on the server: self.* is ownership, not privilege. An admin
     // account administers the site and keeps no library on it, so the nav
@@ -88,7 +88,7 @@ describe("useAuth().has", () => {
       is_admin: true,
       username: "admin",
       role: "admin",
-      is_superuser: true,
+      is_root: true,
       permissions: [],
     });
 
@@ -102,19 +102,19 @@ describe("useAuth().has", () => {
       expect(screen.getByTestId("selflist")).toHaveTextContent("false"),
     );
     // The mirror on the same viewer: everything else still short-circuits,
-    // so a false above is the carve-out and not a broken superuser flag.
+    // so a false above is the carve-out and not a broken root flag.
     expect(screen.getByTestId("invented")).toHaveTextContent("true");
   });
 
-  it("gives a superuser the self family when it is granted explicitly", async () => {
+  it("gives a root role the self family when it is granted explicitly", async () => {
     // Nothing about the carve-out stops a grant. It removes the IMPLICIT
     // hold, so an account that really is granted self.list keeps its library
-    // whatever its role's superuser flag says.
+    // whatever its role's root flag says.
     mockMe({
       is_admin: true,
       username: "admin",
       role: "admin",
-      is_superuser: true,
+      is_root: true,
       permissions: ["self.list"],
     });
 
@@ -150,7 +150,7 @@ describe("useAuth().has", () => {
       is_admin: true,
       username: "admin",
       role: "admin",
-      is_superuser: true,
+      is_root: true,
       permissions: [],
     });
 

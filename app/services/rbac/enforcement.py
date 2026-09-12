@@ -5,9 +5,9 @@ Two gates, always applied together by apply_entry_visibility so no caller can
 wire one and forget the other:
 
   media type  the viewer holds media_type.<key>, or the whole type disappears
-              - the ROLE axis, so is_superuser still reaches it through has()
+              - the ROLE axis, so is_root still reaches it through has()
   labels      the entry carries no label the viewer's ACTIVE MODE lacks
-              - the OBJECT axis, which is_superuser cannot reach at all
+              - the OBJECT axis, which is_root cannot reach at all
 
 require_visible_media is the write-side front door to the same two gates: it
 resolves an entry id to its own media type before asking, because a
@@ -41,7 +41,7 @@ def hidden_label_ids(db: Session, viewer: Viewer) -> list[UUID]:
     in a wide mode. Every consumer is untouched by the Phase B change, because
     the list it receives still means exactly "labels to hide".
 
-    NO is_superuser SHORT-CIRCUIT, and that is the point of the whole phase:
+    NO is_root SHORT-CIRCUIT, and that is the point of the whole phase:
     holding every capability says nothing about which objects this SESSION
     reaches, so an admin sitting in a narrow mode is narrowed like anybody
     else.
@@ -73,7 +73,7 @@ def apply_entry_visibility(
 ) -> Query:
     """Narrow a media-entry query to what `viewer` may see."""
     # `viewer is None` means "not a request" - internal callers pass it
-    # deliberately - and must stay. The is_superuser half is gone: object
+    # deliberately - and must stay. The is_root half is gone: object
     # scoping left the role axis in Phase B.
     if viewer is None:
         return query

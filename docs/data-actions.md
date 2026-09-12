@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-12 (Clean added; Backup's blank-tab defect fixed)
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -21,7 +21,7 @@ Code map:
 | `app/services/calculation.py` | `run_calculate_all` and the cover-image bulk actions |
 | `app/utils/data_control_utils.py` | `log_data_control` (the audit row) and `log_deleted_record` |
 
-All routes need **two** gates, both declared on the router: `Depends(require_manage_pipelines)` (may this account run pipelines at all) and `Depends(require_unscoped_mode)` (may it run one from THIS session). Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
+All routes need **one** gate, declared on the router: `Depends(require_manage_pipelines)` — may this account run pipelines. The session's access mode is not consulted, so `admin` and `super` run pipelines from whatever mode they are in. Router level rather than per handler, because most of these routes are registered in a loop over `PIPELINES` and a per-handler gate would miss them silently.
 
 ---
 
@@ -176,7 +176,7 @@ and lands in `unresolved_refs`.
 
 **`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
 reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
-`users.is_installation_owner`, else the alphabetically-first non-superuser
+`users.is_installation_owner`, else the alphabetically-first non-root
 account, else the first account — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
@@ -393,7 +393,7 @@ return carries the key, empty when there was nothing to report.
 
 Steps:
 
-1. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine / IGDB id out of the pasted link) and commit.
+1. If the spec has `pre_run`, run it first — anime, anime-movie, manga and novel use it to bulk-prime the AniList cache (`prime_anilist_cache`, see [external-apis.md](external-apis.md#anilist)) before any entry is selected, so it fires even on a Fill of one or two entries. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine / IGDB id out of the pasted link) and commit.
 2. Queue = entries where `spec.fill_eligible(db, entry)` is true. Empty queue → one progress message `"No entries need filling."`.
 3. Per queued entry: check the client is still connected; if `spec.budget` exists and returns `False`, stop and remember how many were left; emit progress with the entry's `display_name`; run `spec.fill` in a worker thread (`run_in_threadpool`, so the event loop and other requests stay alive during the synchronous `requests` calls) and commit. One failing entry is rolled back and logged; the run continues. Then `asyncio.sleep(spec.fill_sleep)` if set.
 4. If `spec.post_process` exists, emit `"Running post-processing..."` and run it on **every** entry of the type (not just the queue), then commit.
@@ -404,13 +404,13 @@ Per type (verbatim from `specs.py`):
 
 | Key | Eligible when | Autofill | Sleep | Post-process (every entry) | After steps (in order) | Budget |
 |---|---|---|---|---|---|---|
-| `anime` | `mal_id` set and `has_missing_values_anime` | `autofill_anime_from_mal(e, force_replace_ratings=True)` | `MAL_PAUSE` = 1 s | `anime_post_processing` | `"Deriving episode counts..."` → `derive_ep_previous_all_anime`; `"Syncing seasonal data..."` → `run_sync_anime` | — |
-| `anime-movie` | `mal_id` set and `has_missing_values_anime_movie` | `autofill_anime_movie_from_mal(e, force_replace_ratings=True)` | 1 s | `anime_movie_post_processing` | `"Syncing system options..."` → `run_sync_anime_movie` | — |
+| `anime` | `mal_id` set and `has_missing_values_anime` | `autofill_anime_from_mal(e, force_replace_ratings=True)`, then `autofill_from_anilist(e, ANIME, db)` | `MAL_PAUSE` = 1 s | `anime_post_processing` | `"Deriving episode counts..."` → `derive_ep_previous_all_anime`; `"Syncing seasonal data..."` → `run_sync_anime` | — |
+| `anime-movie` | `mal_id` set and `has_missing_values_anime_movie` | `autofill_anime_movie_from_mal(e, force_replace_ratings=True)`, then `autofill_from_anilist(e, ANIME, db)` | 1 s | `anime_movie_post_processing` | `"Syncing system options..."` → `run_sync_anime_movie` | — |
 | `movie` | `has_missing_values_movie` | `autofill_movie_from_imdb(e, db)` | 0 | — | — | — |
 | `tv-show` | `has_missing_values_tv_show` | `autofill_tv_show_from_imdb(e, db)` | 0 | `tv_show_post_processing` | `"Syncing system options..."` → `run_sync_tv_show` | — |
 | `cartoon` | `airing_type in {"Movie", "TV"}` and `has_missing_values_cartoon` | `autofill_cartoon_from_imdb(e, db)` | 0 | `cartoon_post_processing` | `"Syncing system options..."` → `run_sync_cartoon` | — |
-| `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
-| `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
+| `manga` | `mal_id` set and `has_missing_values_manga` | `autofill_manga_from_mal(e, force_replace_ratings=True)`, then `autofill_from_anilist(e, MANGA, db)` | 1 s | `manga_post_processing` | `"Syncing system options..."` → `run_sync_manga` | — |
+| `novel` | Two branches: `mal_link` set and `has_missing_values_novel`; **or** `mal_link` unset, `openlibrary_id` set, and `has_missing_values_novel_openlibrary(db, e)` | `autofill_novel_from_mal(e, force_replace_ratings=True)` then `autofill_from_anilist(e, MANGA, db)` when `mal_link` is set, else `autofill_novel_from_openlibrary(e, db)` alone | 1 s | — | `"Syncing system options..."` → `run_sync_novel` | — |
 | `comic` | `comicvine_id` set and `has_missing_values_comic(db, e)` | `autofill_comic_from_comicvine(e, db)` | `COMICVINE_PAUSE` = 1 s | — | `"Syncing system options..."` → `run_sync_comic` | `comicvine_rate_limiter.has_capacity` |
 | `game` | `igdb_id` set and `has_missing_values_game(e)`, **or** `has_missing_values_game_steam(e)` | `autofill_game_from_igdb(e, db)` then `autofill_game_from_steam(e, db)` | `STEAM_PAUSE` = 0.5 s | — | `"Syncing system options..."` → `run_sync_game` | `steam_store_rate_limiter.has_capacity` |
 | `studio` | `mal_id` set and `has_missing_values_studio` | `autofill_studio_from_mal(e)` | `MAL_PAUSE` = 1 s | — | — | — |
@@ -418,6 +418,8 @@ Per type (verbatim from `specs.py`):
 `extract_id` per type: `apply_extract_mal_id_anime` (anime, anime-movie), `apply_extract_imdb_id` (movie, tv-show, cartoon), `apply_extract_mal_id_manga_novel` (manga), `apply_extract_novel_ids` (novel — runs both `apply_extract_mal_id_manga_novel` and `apply_extract_openlibrary_id`, unconditionally, since one entry can carry both a MAL link and an Open Library link at once), `apply_extract_comicvine_id` (comic), `apply_extract_game_ids` (game — runs both `apply_extract_igdb_id`, from `igdb_link`, and `apply_extract_steam_appid`, from `steam_link`, unconditionally, since a game can carry an IGDB link, a Steam link, or both; a `www.igdb.com` **slug** URL or a `steamcommunity.com` hub link carries no id and leaves any existing one untouched, mirroring `extract_comicvine_id`'s rejection of issue URLs). `apply_extract_mal_id_studio` (studio — a producer URL is `myanimelist.net/anime/producer/<id>/<slug>`, which needs its own pattern; see [external-apis.md](external-apis.md#tenrai-myanimelist)).
 
 **Novel's two Fill sources.** `mal_link` wins when both ids are present — Tenrai returns strictly more (`serialization_status`, `end_date`, volume/chapter totals, ratings) than Open Library ever will. Open Library only ever fills a novel that has no `mal_link`, and it writes only `release_date`, `cover_image_file` and the `author` credit (see [external-apis.md](external-apis.md#open-library)). Bulk Replace for `novel` is untouched by this and still covers only MAL-linked entries — see the Replace row below.
+
+**AniList is a second source on anime, anime movie, manga and novel**, run after Tenrai (or, for novel, only on the Tenrai branch) inside the same fill/replace step, keyed on the `mal_id` the entry already carries — no separate eligibility check or id extraction is needed. It writes `anilist_rating`, `anilist_rank` and `anilist_popularity_rank`, and upserts an AniList `reference` row into `media_source` when the record carries a link. Manga and novel's own Tenrai autofills (`autofill_manga_from_mal`, `autofill_novel_from_mal`) still take no database session and still write no `media_source` rows of their own — `manga.author_plot`, `manga.publisher_tw` and the like stay as they were; only the AniList row is new for these two types. See [external-apis.md](external-apis.md#anilist).
 
 **Game had a spec before it had a source.** `PIPELINES["game"]` shipped with
 the games backend as a spec that fetched nothing — registration demands one,
@@ -723,7 +725,7 @@ Fill, bulk Replace, Fill All and Replace All stream `text/event-stream`; every e
 
 ## 12. Route table — `/api/data-control`
 
-All routes require `manage.pipelines` **and** an unscoped access mode (`require_unscoped_mode`), both declared on the router. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
+All routes require `manage.pipelines`, declared on the router; the access mode is not consulted. `{key}` is a pipeline key: the hyphenated media types `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, plus `studio` (Fill only). Literal routes are declared before parameterised ones so `/fill/all` and `/pull` are never captured by a sibling.
 
 | Method | Path | Params / body | Response | Does |
 |---|---|---|---|---|

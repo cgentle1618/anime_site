@@ -1,6 +1,6 @@
 # Watch Orders
 
-Last verified: 2026-09-11
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -108,7 +108,7 @@ The same entry may appear in several items of one list (a split run). A **dangli
 
 ### Viewer visibility
 
-Reads apply RBAC (`app/services/rbac/enforcement.py`): the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for non-superusers — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
+Reads apply RBAC (`app/services/rbac/enforcement.py`): the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for non-root roles — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (admin-only anyway).
 
 ## API
 

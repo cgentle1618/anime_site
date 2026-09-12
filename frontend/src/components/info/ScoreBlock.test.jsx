@@ -32,4 +32,25 @@ describe("ScoreBlock", () => {
     expect(screen.queryByText("Last updated")).not.toBeInTheDocument();
     expect(screen.queryByText(/2026/)).not.toBeInTheDocument();
   });
+
+  it("renders both AniList ranks with a # prefix", () => {
+    render(
+      <ScoreBlock
+        malScore="8.1"
+        malRank={3}
+        anilistScore={90}
+        anilistRank={5}
+        anilistPopularityRank={11}
+      />,
+    );
+    expect(screen.getByText("#5")).toBeInTheDocument();
+    expect(screen.getByText("#11")).toBeInTheDocument();
+  });
+
+  it("shows an em dash for a title AniList has not ranked", () => {
+    render(<ScoreBlock malScore="8.1" malRank={3} anilistScore={82} />);
+    // score present, both ranks absent - the common case for an obscure entry
+    expect(screen.getByText("82")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+  });
 });

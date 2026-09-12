@@ -12,7 +12,7 @@ import Index from "./Index";
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
-    return { is_admin: false, username: null, role: "guest", is_superuser: false, permissions: [] };
+    return { is_admin: false, username: null, role: "guest", is_root: false, permissions: [] };
   }
   if (url.startsWith("/api/anime/"))
     return [{ system_id: "a1", anime_name_en: "Frieren", franchise_id: "f1", watching_status: "Active Watching" }];

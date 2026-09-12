@@ -39,7 +39,7 @@ ADMIN_ROLE = "admin"
 # A signed-in member. Not an administrator and not a second kind of admin:
 # guest reads plus the two self.* writes, and nothing else.
 USER_ROLE = "user"
-# Everything except the ability to change who may do what. NOT is_superuser:
+# Everything except the ability to change who may do what. NOT is_root:
 # the point of the role is that its grant set is finite and inspectable, so a
 # permission minted in code reaches it only when someone grants it.
 SUPER_ROLE = SUPER_ROLE_NAME
@@ -101,7 +101,7 @@ def ensure_rbac_seed(db: Session) -> None:
         label="Guest",
         description="Anyone who is not logged in.",
         is_system=True,
-        is_superuser=False,
+        is_root=False,
         sort_order=0,
     )
     _ensure_role(
@@ -110,7 +110,7 @@ def ensure_rbac_seed(db: Session) -> None:
         label="Admin",
         description="Full access. Holds every permission implicitly.",
         is_system=True,
-        is_superuser=True,
+        is_root=True,
         sort_order=100,
     )
     user = _ensure_role(
@@ -122,7 +122,7 @@ def ensure_rbac_seed(db: Session) -> None:
             "own list and their own personal notes."
         ),
         is_system=True,
-        is_superuser=False,
+        is_root=False,
         sort_order=50,
     )
     super_role = _ensure_role(
@@ -137,7 +137,7 @@ def ensure_rbac_seed(db: Session) -> None:
             "assignments along with everything else."
         ),
         is_system=True,
-        is_superuser=False,
+        is_root=False,
         sort_order=75,
     )
 
@@ -202,10 +202,10 @@ def _enforce_locks(db: Session) -> None:
     OFF grant - a guest role still holding manage.catalog from before this
     rule existed is exactly the row that must not survive a restart.
 
-    Superuser roles are skipped: they hold everything through the resolver's
+    Root roles are skipped: they hold everything through the resolver's
     short-circuit and store no rows at all.
     """
-    roles = db.query(models.Role).filter(models.Role.is_superuser.is_(False)).all()
+    roles = db.query(models.Role).filter(models.Role.is_root.is_(False)).all()
     for role in roles:
         locked_on, locked_off = locked_permissions(role.name, False)
         held = {

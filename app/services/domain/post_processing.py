@@ -19,6 +19,7 @@ from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
+    autofill_from_anilist,
     autofill_game_from_steam,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -44,6 +45,7 @@ from app.services.domain.derivation import (
     derive_season_1_cartoon,
     derive_season_1_tv_show,
 )
+from app.services.integrations.anilist import ANIME, MANGA
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,7 @@ def apply_single_replace_anime(
     autofill_anime_from_mal(
         anime, force_replace_ratings=force_replace_ratings, db=db
     )
+    autofill_from_anilist(anime, ANIME, db)
     anime_post_processing(anime, db)
 
     if not bulk:
@@ -80,6 +83,7 @@ def apply_single_replace_anime_movie(
     autofill_anime_movie_from_mal(
         anime_movie, force_replace_ratings=force_replace_ratings, db=db
     )
+    autofill_from_anilist(anime_movie, ANIME, db)
     anime_movie_post_processing(anime_movie, db)
 
 
@@ -125,6 +129,7 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
     """
     apply_extract_mal_id_manga_novel(manga)
     autofill_manga_from_mal(manga, force_replace_ratings=True)
+    autofill_from_anilist(manga, MANGA, db)
     manga_post_processing(manga, db)
 
 
@@ -140,6 +145,7 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     """
     apply_extract_novel_ids(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
+    autofill_from_anilist(novel, MANGA, db)
 
 
 def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> None:

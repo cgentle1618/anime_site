@@ -35,7 +35,9 @@ class MangaBase(BaseModel):
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
-    anilist_rating: Optional[str] = None
+    anilist_rating: Optional[int] = None
+    anilist_rank: Optional[int] = None
+    anilist_popularity_rank: Optional[int] = None
 
     release_date: Optional[str] = None
     end_date: Optional[str] = None

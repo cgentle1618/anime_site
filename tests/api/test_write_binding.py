@@ -117,7 +117,7 @@ class TestFactoryWrites:
     def test_admin_is_unaffected(self, admin_client, hidden_anime):
         """The owner's account sees no change on the day this lands.
 
-        NOT because is_superuser short-circuits entry_visible - it no longer
+        NOT because is_root short-circuits entry_visible - it no longer
         does, and Phase B removed that short-circuit deliberately. It is
         because admin_client sits in `unrestricted`, which carries every
         label. Narrow the same account's mode and it is narrowed like anybody
@@ -592,7 +592,7 @@ class TestRelationAndWatchOrderWrites:
     # ------------------------------------------------------------------
     # The guards beyond the two POST paths above: update_relation,
     # reset_scope, delete_relation, and the watch-order item PUT/PATCH/
-    # DELETE. Each is set up by an admin (superuser, so entry_visible
+    # DELETE. Each is set up by an admin (root role, so entry_visible
     # short-circuits True and the hidden-touching row can actually be
     # created), then exercised by catalog_writer, who cannot see the hidden
     # entry and must be refused exactly as the create paths are.

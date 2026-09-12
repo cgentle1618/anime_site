@@ -136,7 +136,7 @@ def test_a_labelled_entry_is_hidden_from_a_restricted_viewer(
     ).text
 
 
-def test_a_superuser_sees_the_labelled_entry(
+def test_a_root_role_sees_the_labelled_entry(
     admin_client, person_with_labelled_credit
 ):
     body = admin_client.get(

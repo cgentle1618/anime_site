@@ -363,14 +363,29 @@ export default function MangaAddTab({
             placeholder="100"
           />
         </Field>
-        <Field label="AniList Rating" hint="e.g. 85">
+        <Field label="AniList Rating">
           <input
             className={inputCls}
             type="number"
-            step="0.01"
             value={mgf.anilist_rating}
             onChange={(e) => umg("anilist_rating", e.target.value)}
             placeholder="85"
+          />
+        </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={mgf.anilist_rank}
+            onChange={(e) => umg("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={mgf.anilist_popularity_rank}
+            onChange={(e) => umg("anilist_popularity_rank", e.target.value)}
           />
         </Field>
       </div>

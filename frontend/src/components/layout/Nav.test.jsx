@@ -11,12 +11,15 @@ import Nav from "./Nav";
 // Nav now asks has(permission) rather than reading isAdmin directly, so the
 // mock answers from the same flag the tests already toggle: isAdmin true
 // holds every admin capability (admin.authz, manage.catalog,
-// manage.pipelines) the way an is_superuser account would, isAdmin false
+// manage.pipelines) the way an is_root account would, isAdmin false
 // holds none of them — except self.list, which these tests don't exercise
 // but a signed-out visitor genuinely lacks and a signed-in one holds.
 const auth = {
   isAdmin: false,
   username: null,
+  // The chip names the ROLE. isAdmin is has(manage.catalog), which `super`
+  // holds too, so a chip driven by isAdmin alone cannot tell them apart.
+  role: "guest",
   has: (permission) =>
     permission === "self.list" ? true : auth.isAdmin,
   refetchAuth: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock("../../hooks/useToast", () => ({
 beforeEach(() => {
   auth.isAdmin = false;
   auth.username = null;
+  auth.role = "guest";
   hardNavigate.mockClear();
   vi.stubGlobal(
     "fetch",
@@ -41,6 +45,28 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe("the role chip names the role", () => {
+  it("reads SUPER for a super account, not ADMIN", async () => {
+    auth.isAdmin = true; // super holds manage.catalog, so this is true for it
+    auth.username = "cg1618";
+    auth.role = "super";
+    renderNav("/");
+    // By title, not by text: "Admin" is also a nav LINK, so a bare text
+    // query matches the thing this test is not about.
+    const chips = await screen.findAllByTitle("Your role");
+    expect(chips[0]).toHaveTextContent(/^super$/i);
+  });
+
+  it("still reads ADMIN for the admin account", async () => {
+    auth.isAdmin = true;
+    auth.username = "admin";
+    auth.role = "admin";
+    renderNav("/");
+    const chips = await screen.findAllByTitle("Your role");
+    expect(chips[0]).toHaveTextContent(/^admin$/i);
+  });
 });
 
 function renderNav(route = "/") {
@@ -223,12 +249,15 @@ describe("Nav - who the strip says you are", () => {
     expect(screen.queryByText("Admin", { selector: "span" })).toBeNull();
   });
 
-  it("keeps the Admin chip beside the name for an admin", () => {
+  it("keeps the role chip beside the name for a privileged account", () => {
+    // cg1618 holds `super`, and this assertion used to read "Admin" - the
+    // chip was a fixed word, so the test pinned the wrong role as correct.
     auth.isAdmin = true;
     auth.username = "cg1618";
+    auth.role = "super";
     renderNav("/");
     expect(screen.getByText("cg1618")).toBeTruthy();
-    expect(screen.getByText("Admin", { selector: "span" })).toBeTruthy();
+    expect(screen.getAllByTitle("Your role")[0]).toHaveTextContent(/^super$/i);
     expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
   });
 });

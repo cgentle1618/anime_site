@@ -603,10 +603,13 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 fetches `/api/notes/sections?owner_type=` and `/api/notes?owner_type=&owner_id=`
 (cancellable), renders a "Notes" card for ungrouped sections plus one card per
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
-`MemeSection`. `SHAPES` now maps seven registry-driven shapes — `name_entries`
-(`NameEntriesSection`) joined it for the game-only `guides` and
-`builds_and_mods` sections. `hideSections` is the only place the frontend names
-a section key; see systems/notes.md.
+`MemeSection`. `SHAPES` maps all eight stored shapes to components,
+`name_entries` → `NameEntriesSection` among them, so a new registry section
+needs no frontend change as long as it reuses an existing shape — the 26
+game-only sections of the 攻略, 劇情 and 待辦 groups all did. Group cards render
+in registry first-appearance order, so a group's position is decided by where
+its first section sits in `NOTE_SECTIONS`. `hideSections` is the only place the
+frontend names a section key; see systems/notes.md.
 
 ### WatchOrderPage — `/watch-order/:system_id`
 

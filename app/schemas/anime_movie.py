@@ -26,7 +26,9 @@ class AnimeMovieBase(BaseModel):
 
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
-    anilist_rating: Optional[str] = None
+    anilist_rating: Optional[int] = None
+    anilist_rank: Optional[int] = None
+    anilist_popularity_rank: Optional[int] = None
 
     length_min: Optional[int] = None
     release_date_jp: Optional[str] = None

@@ -352,7 +352,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Manga() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has, isSuperuser } = useAuth();
+  const { isAdmin, has, isRoot } = useAuth();
   const { showToast } = useToast();
 
   const [manga, setManga] = useState(null);
@@ -552,10 +552,10 @@ export default function Manga() {
               </span>
               {/* Cosmetic only: the id is this page's own URL, so hiding it
                   tidies the spine rather than concealing the value. Gated on
-                  is_superuser rather than a permission - `super` is
-                  deliberately NOT a superuser, and this is the one thing in
+                  is_root rather than a permission - `super` is
+                  deliberately NOT a root role, and this is the one thing in
                   the app only the owner's own account sees. */}
-              {isSuperuser && (
+              {isRoot && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -652,6 +652,8 @@ export default function Manga() {
               malScore={manga.mal_rating}
               malRank={manga.mal_rank}
               anilistScore={manga.anilist_rating}
+              anilistRank={manga.anilist_rank}
+              anilistPopularityRank={manga.anilist_popularity_rank}
             />
           </header>
 

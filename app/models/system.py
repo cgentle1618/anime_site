@@ -205,7 +205,7 @@ class Role(Base):
     media type or a field group, so a stored name with no code behind it would
     be inert. Only the grants that bind a permission to a role are data.
 
-    `is_superuser` is not a shortcut. Without it the admin role would need an
+    `is_root` is not a shortcut. Without it the admin role would need an
     explicit grant for every content label and field group, and creating one
     would hide content from the admin until someone remembered to re-grant it.
     """
@@ -227,7 +227,7 @@ class Role(Base):
     # guest and admin: the app reads them by name, so they cannot be renamed
     # or deleted through the API.
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
-    is_superuser = Column(
+    is_root = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
