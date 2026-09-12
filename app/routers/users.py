@@ -114,7 +114,7 @@ def _role_or_422(db: Session, role_id: UUID) -> models.Role:
 def _can_administer(db: Session, role: models.Role) -> bool:
     if role is None:
         return False
-    if role.is_superuser:
+    if role.is_root:
         return True
     # No role can be GRANTED admin.authz any more - it is locked off for every
     # one of them (permissions.locked_permissions), so in practice the branch

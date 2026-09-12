@@ -86,7 +86,7 @@ def _viewer_in(db_session, mode_row):
         username="someone",
         role_id=None,
         role_name="admin",
-        is_superuser=True,
+        is_root=True,
         permissions=frozenset(),
         mode_id=mode_row.system_id,
         mode_key=mode_row.key,

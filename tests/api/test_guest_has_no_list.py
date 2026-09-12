@@ -154,7 +154,7 @@ def test_the_flag_beats_every_fallback(db, admin_user, plain_user):
     assert installation_owner_id(db) == admin_user.id
 
 
-def test_without_the_flag_a_non_superuser_wins(db, admin_user, plain_user):
+def test_without_the_flag_a_non_root_wins(db, admin_user, plain_user):
     """
     The first fallback, and the one that matters on a real installation: an
     administrative account does not own the collection just because it sorts

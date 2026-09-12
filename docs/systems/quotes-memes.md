@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-09-11
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -155,7 +155,7 @@ enough — the row itself is the leak. Every list, grouped and detail read calls
 `drop_hidden_rows(db, viewer, rows, type_attr, id_attr)` from
 `app/services/rbac/enforcement.py`:
 
-- Superusers (and a `None` viewer) get everything.
+- Root roles (and a `None` viewer) get everything.
 - Otherwise the distinct `(type, id)` pairs are checked with
   `filter_visible_pairs` and rows whose pair is hidden are **dropped**, not
   degraded to `missing: true` (the UI reads `missing` as "dangling reference,

@@ -103,14 +103,14 @@ def make_list_row(media_id, media_type="anime", **fields):
 def _viewer(user_id):
     """
     The real Viewer, not a stub: resolve_items passes it to drop_hidden_rows,
-    which reads is_superuser and permissions, so a hand-rolled double has to
+    which reads is_root and permissions, so a hand-rolled double has to
     grow an attribute every time that path changes.
     """
     return Viewer(
         username="fake-admin",
         role_id=None,
         role_name="admin",
-        is_superuser=True,
+        is_root=True,
         permissions=frozenset(),
         user_id=user_id,
     )

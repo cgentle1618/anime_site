@@ -196,7 +196,7 @@ export default function Roles() {
                 )}
               </div>
               <div className="text-[11px] text-text-faint">
-                {role.is_superuser
+                {role.is_root
                   ? "all permissions"
                   : `${role.permissions.length} permission(s)`}
                 {role.user_count > 0 && ` · ${role.user_count} user(s)`}
@@ -259,7 +259,7 @@ export default function Roles() {
             <p className="text-text-faint text-sm">Pick a role.</p>
           ) : (
             <>
-              {selected.is_superuser && (
+              {selected.is_root && (
                 <div className="border border-warning/40 bg-warning/15 rounded-lg p-4 text-sm text-warning mb-4">
                   <strong>{selected.label}</strong> holds every permission
                   implicitly, including ones that do not exist yet - which is

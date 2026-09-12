@@ -45,7 +45,7 @@ def _role(admin_client, name):
 # ---------------------------------------------------------------------------
 
 def test_no_role_may_be_granted_authz():
-    """The permission to change who may do what is the superuser
+    """The permission to change who may do what is the root role
     short-circuit and nothing else; handing it out through the very page it
     governs is how an installation loses control of itself."""
     for name in (GUEST_ROLE, USER_ROLE, SUPER_ROLE, "friend"):
@@ -89,7 +89,7 @@ def test_catalogue_is_a_choice_for_user_and_custom_roles_but_pipelines_is_not(na
         assert permission not in on and permission not in off
 
 
-def test_a_superuser_holds_everything_except_its_own_rows():
+def test_a_root_role_holds_everything_except_its_own_rows():
     """Viewer.has() deliberately does not short-circuit the self family, so an
     administrative account keeps no list and no personal notes. Drawing those
     two boxes ticked would state the opposite of what the resolver does."""

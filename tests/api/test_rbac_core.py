@@ -58,10 +58,10 @@ def test_seed_is_idempotent(db_session):
     assert db_session.query(models.Role).filter(models.Role.name == "guest").count() == 1
 
 
-def test_admin_is_a_superuser_and_needs_no_grants(db_session):
+def test_admin_is_a_root_role_and_needs_no_grants(db_session):
     ensure_rbac_seed(db_session)
     admin = _role(db_session, "admin")
-    assert admin.is_superuser is True
+    assert admin.is_root is True
 
 
 def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
@@ -95,15 +95,15 @@ def test_me_reports_the_guest_role_for_an_anonymous_caller(client):
     assert body["is_admin"] is False
     assert body["username"] is None
     assert body["role"] == "guest"
-    assert body["is_superuser"] is False
+    assert body["is_root"] is False
     assert media_type_perm("anime") in body["permissions"]
 
 
-def test_me_reports_superuser_for_an_admin(admin_client):
+def test_me_reports_root_for_an_admin(admin_client):
     body = admin_client.get("/api/auth/me").json()
     assert body["is_admin"] is True
     assert body["username"] == "aaa_testadmin"
-    assert body["is_superuser"] is True
+    assert body["is_root"] is True
 
 
 def test_me_survives_a_garbage_cookie(client):

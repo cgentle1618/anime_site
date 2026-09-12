@@ -38,7 +38,7 @@ def test_a_labelled_entry_detail_is_indistinguishable_from_missing(
 
 
 def test_admin_still_sees_a_labelled_entry(admin_client, hidden_anime):
-    """is_superuser must not need a label.* grant to see labelled content."""
+    """is_root must not need a label.* grant to see labelled content."""
     assert HIDDEN_NAME in admin_client.get("/api/anime/").text
     assert (
         admin_client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200

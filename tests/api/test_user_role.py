@@ -31,9 +31,9 @@ def user_role(db):
     return role
 
 
-def test_the_role_is_a_system_role_and_not_a_superuser(user_role):
+def test_the_role_is_a_system_role_and_not_a_root_role(user_role):
     assert user_role.is_system is True
-    assert user_role.is_superuser is False
+    assert user_role.is_root is False
 
 
 def test_its_grants_are_stored(db, user_role):

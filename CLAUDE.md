@@ -197,6 +197,12 @@ See `.env.example` (authoritative) and `docs/setup-local.md`. Three things to kn
 - "Reality" refers to franchises of type `TV` or `Movie`.
 - "Group" refers to the grouping tiers collectively: collection, franchise, series.
 - The Google Sheets tab for anime movies is named **"Anime Movie"** (singular); every tab name lives in `app/services/pipelines/tabs.py`.
+- **"Superuser" means the `super` ROLE.** The everything-short-circuit in
+  `Viewer.has()` is `role.is_root`, and it is held by **`admin`**, not by
+  `super`. `super` is an ordinary role that holds `manage.catalog` and
+  `manage.pipelines` by explicit grant. The flag was called `is_superuser`
+  until it was renamed for exactly this reason: it named the wrong role.
+  Say "the root flag" for the column and "the super role" for the role.
 - Media-type keys: the registry uses underscores (`anime_movie`, `tv_show`) for router files; the data layer uses hyphens (`anime-movie`, `tv-show`, see `app/utils/media_resolver.py`). Use `spec.owner_type` when in doubt.
 
 ## Two Development Environments (company / home)

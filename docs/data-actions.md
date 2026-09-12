@@ -176,7 +176,7 @@ and lands in `unresolved_refs`.
 
 **`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
 reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
-`users.is_installation_owner`, else the alphabetically-first non-superuser
+`users.is_installation_owner`, else the alphabetically-first non-root
 account, else the first account — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names

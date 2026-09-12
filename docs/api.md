@@ -1527,7 +1527,7 @@ Now also returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_superuser": false,
+  "is_root": false,
   "permissions": ["media_type.anime", "field_group.sources_other", ...],
   "mode": { "id": "…uuid…", "key": "safe" } }
 ```
@@ -1637,7 +1637,7 @@ and being narrowed if somebody remembers.
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a superuser role. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a root role. |
 | DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
 
 Also 409: giving the `guest` role the `admin` permission (anonymous requests
@@ -1669,7 +1669,7 @@ Vocabulary CRUD, plus per-entry assignment:
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing entry, 422 on an unknown label. |
 
 A newly created label is granted to nobody, so applying it hides the entry from
-everyone except superusers until a role is given `label.<key>`. That is the
+everyone except root roles until a role is given `label.<key>`. That is the
 safe direction.
 
 ### What gating touches

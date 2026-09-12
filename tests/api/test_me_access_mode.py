@@ -34,7 +34,7 @@ def test_neither_credits_nor_system_info_is_a_field_group_any_more(mode_client):
     `credits` is ungated - studio and director are what an entry IS.
     `system_info` was two timestamps nothing displays plus a decorative id,
     so the whole group went rather than moving axis; the id that survives on
-    a detail page spine is drawn on `is_superuser`, which /me already carries
+    a detail page spine is drawn on `is_root`, which /me already carries
     as its own field.
     """
     for key in (MODE_NORMAL, MODE_SAFE):
@@ -52,17 +52,17 @@ def test_narrowing_the_mode_does_not_take_away_what_the_account_may_do(
     """Two axes. Sitting in `safe` must not drop the catalogue grant.
 
     Asserted through is_admin rather than through the permissions list: the
-    `admin` role is is_superuser, so it holds every capability IMPLICITLY -
+    `admin` role is is_root, so it holds every capability IMPLICITLY -
     has() short-circuits - and its explicit grant set has always been empty.
     The list therefore shows only the field_group.* half for this account,
     which is correct and easy to misread as a regression.
     """
     body = mode_client(MODE_SAFE).get("/api/auth/me").json()
     assert body["is_admin"] is True
-    assert body["is_superuser"] is True
+    assert body["is_root"] is True
 
 
-def test_a_non_superuser_keeps_its_capability_grants_in_a_narrow_mode(
+def test_a_non_root_keeps_its_capability_grants_in_a_narrow_mode(
     db_session, super_user, mode_client
 ):
     """The same property on an account whose grants are explicit, so the

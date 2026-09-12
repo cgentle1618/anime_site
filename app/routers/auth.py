@@ -141,7 +141,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         "is_admin": viewer.has(PERM_MANAGE_CATALOG),
         "username": viewer.username,
         "role": viewer.role_name,
-        "is_superuser": viewer.is_superuser,
+        "is_root": viewer.is_root,
         # TWO AXES, ONE LIST, deliberately. The role half answers "what may
         # this account DO"; the field_group.* half answers "which fields of a
         # reachable entry may this SESSION see" and comes from the active

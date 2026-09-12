@@ -46,7 +46,7 @@ read the rows, do not assume them.
 
 ### Roles — what an account may DO
 
-Columns are the four seeded roles. `admin` is `is_superuser`, so it holds no
+Columns are the four seeded roles. `admin` is `is_root`, so it holds no
 explicit grants at all; *implicit* means `Viewer.has()` short-circuits to
 true, including for permissions that do not exist yet.
 
@@ -78,22 +78,22 @@ true, including for permissions that do not exist yet.
 #### Locked grants
 
 Some cells of the role grid are not an administrator's to decide.
-`permissions.locked_permissions(role_name, is_superuser)` returns
+`permissions.locked_permissions(role_name, is_root)` returns
 `(locked_on, locked_off)` for one role: what it must hold and what it may
 never hold. A permission in neither set is a free choice.
 
 | Role | Locked ON | Locked OFF | Left to decide |
 |---|---|---|---|
-| `admin` (any superuser) | everything except `self.*` | `self.*` | nothing |
+| `admin` (any root role) | everything except `self.*` | `self.*` | nothing |
 | `super` | everything except `admin.authz` | `admin.authz` | nothing |
 | `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*` |
 | `user`, every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `self.*`, `media_type.*` |
 
-- **`admin.authz` is grantable to nothing.** The superuser short-circuit is
+- **`admin.authz` is grantable to nothing.** The root short-circuit is
   the only way to hold it: handing out the permission to change who may do
   what, through the very page that governs it, is how an installation loses
   control of itself.
-- **A superuser's `self.*` is locked OFF, not on.** `Viewer.has()` does not
+- **A root role's `self.*` is locked OFF, not on.** `Viewer.has()` does not
   short-circuit that family (`resolver.py`), so an administrative account
   genuinely keeps no list and no personal notes — a ticked box there would
   state the opposite of what the resolver does. It is the one cell where the
@@ -166,7 +166,7 @@ narrowed the same way, which is the whole reason the axes are separate.
 ### What each role can DO
 
 The matrix above is the grants; this is what holding one means. `implicit` is
-the superuser short-circuit; `never` is the `self` family, which that
+the root short-circuit; `never` is the `self` family, which that
 short-circuit deliberately does not cover.
 
 | A viewer may… | `guest` | `user` | `super` | `admin` |
@@ -229,7 +229,7 @@ restated here, or the two copies drift.
 
 | Table | Purpose | Notable columns / constraints |
 |---|---|---|
-| `role` | one named bundle of permissions | `name` unique (`guest`, `admin` read by name), `label`, `description`, `is_system` (cannot be deleted or renamed), `is_superuser` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
+| `role` | one named bundle of permissions | `name` unique (`guest`, `admin` read by name), `label`, `description`, `is_system` (cannot be deleted or renamed), `is_root` (holds every permission implicitly **except the `self` family** — see [The admin account holds no user data](#the-admin-account-holds-no-user-data)), `sort_order` |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
 | `content_label` | one admin-managed reason an entry may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
@@ -308,17 +308,17 @@ Four roles are seeded by `app/services/rbac/seed.py`, and the app reads three
 of them by name (`guest`, `user`, `admin`; `super` is reached only through its
 grants, the way any custom role is):
 
-| Name | `sort_order` | System | Superuser | Holds |
+| Name | `sort_order` | System | Root | Holds |
 |---|---|---|---|---|
 | `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
 | `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus `self.list` and `self.personal_notes` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog` and `manage.pipelines` — every catalogue capability, deliberately **not** `admin.authz` |
-| `admin` | 100 | yes | **yes** | nothing explicitly; a superuser role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
+| `admin` | 100 | yes | **yes** | nothing explicitly; a root role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
 
 `super` is the helper account the three named permissions make possible: it
 can write the catalogue and run pipelines without being able to touch roles,
 accounts or content labels. It is `is_system` (cannot be deleted or renamed)
-but **not** `is_superuser` — its grants are real rows, inspectable and
+but **not** `is_root` — its grants are real rows, inspectable and
 editable on `/roles` like a custom role's, and `viewer.has()` does not
 short-circuit for it the way it does for `admin`.
 
@@ -407,10 +407,10 @@ already allowed to see. Removing it from the UI entirely would mean routing on
 slugs instead of UUIDs.
 
 A decorative copy of it is printed down the spine of a detail page's poster,
-and **that block is drawn on `is_superuser`** — not on a permission, and
-deliberately not on `super`, which is not a superuser. There is nothing to
+and **that block is drawn on `is_root`** — not on a permission, and
+deliberately not on `super`, which is not a root role. There is nothing to
 gate server-side, so there is no permission to invent: the SPA reads the
-`is_superuser` field `/api/auth/me` already carries. It is presentation, like
+`is_root` field `/api/auth/me` already carries. It is presentation, like
 every `has()` call that hides a block the server has already emptied.
 
 Withheld fields are **absent, not blanked**, in the UI as well as the API: the
@@ -480,10 +480,10 @@ API refuses to let an admin do to one.
 | Role | Rules |
 |---|---|
 | `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold `media_type.*` and nothing else — the whole of `admin.*`, `manage.*` and `self.*` is locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
-| `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not superuser - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
-| `super` | A system role too. Not superuser - its grants are ordinary rows and editable on `/roles` - but seeded with `manage.catalog` and `manage.pipelines` and deliberately without `admin.authz`. |
-| `admin` | `is_superuser=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it) - **except the `self` family, which the short-circuit deliberately does not cover**, so an admin keeps no list, plan queue, season ratings, game copies or personal notes. `PUT /permissions` on a superuser role → **409**. Cannot be deleted or renamed. |
-| custom | `is_superuser=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Locked exactly like `user`: `admin.authz` and `manage.pipelines` refused, everything else a free choice. Deleting one with users still holding it → **409**. |
+| `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not root role - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
+| `super` | A system role too. Not root role - its grants are ordinary rows and editable on `/roles` - but seeded with `manage.catalog` and `manage.pipelines` and deliberately without `admin.authz`. |
+| `admin` | `is_root=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it) - **except the `self` family, which the short-circuit deliberately does not cover**, so an admin keeps no list, plan queue, season ratings, game copies or personal notes. `PUT /permissions` on a root role → **409**. Cannot be deleted or renamed. |
+| custom | `is_root=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Locked exactly like `user`: `admin.authz` and `manage.pipelines` refused, everything else a free choice. Deleting one with users still holding it → **409**. |
 
 Seed: `app/services/rbac/seed.py::ensure_rbac_seed` is idempotent and runs
 from both the `r1b2a3c4c5o6_add_rbac_core` migration and the app lifespan
@@ -494,7 +494,7 @@ grant an admin removed is not handed back on restart.
 ## Viewer resolution
 
 `app/services/rbac/resolver.py::resolve_viewer(request, db)` → frozen
-`Viewer(username, role_id, role_name, is_superuser, permissions, user_id,
+`Viewer(username, role_id, role_name, is_root, permissions, user_id,
 token_payload, mode_id, mode_key, visible_label_ids, field_groups)`.
 
 The last four are the **object axis**; `permissions` is the ROLE's capability
@@ -563,7 +563,7 @@ keeping:
   (`frontend/src/components/layout/ProtectedRoute.jsx`), which gates on
   `username` rather than on `has(permission)`. `/plan`, `/seasonal`,
   `/seasonal/:seasonal_id` and `/statistics` use it.
-- `/api/auth/me` returns `is_admin`, `username`, `role`, `is_superuser`,
+- `/api/auth/me` returns `is_admin`, `username`, `role`, `is_root`,
   `permissions` (sorted); `AuthContext.jsx` builds a `Set` and exposes `has()`.
 
 ### Cache (`cache.py`)
@@ -600,7 +600,7 @@ active MODE carries every label the entry carries, or the entry disappears. Both
 
 | Helper | Use | Behaviour |
 |---|---|---|
-| `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No `is_superuser` short-circuit** — labels are an object question, and holding every capability does not answer one |
+| `hidden_label_ids(db, viewer)` | building block | ids of labels the viewer's ACTIVE MODE does not carry; `[]` is the common case and every caller short-circuits on it. **No `is_root` short-circuit** — labels are an object question, and holding every capability does not answer one |
 | `apply_entry_visibility(query, model, media_type, db, viewer)` | list routes | `filter(false)` if the type is not held; otherwise `NOT EXISTS` anti-join on `media_content_label` |
 | `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join goes through `media_content_label.media_id`. The profile page needs this — it answers for all nine types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
@@ -610,9 +610,9 @@ active MODE carries every label the entry carries, or the entry disappears. Both
 `viewer=None` returns input untouched everywhere, and that half of the guard
 **must stay**: internal callers pass `None` to mean "not a request", and
 `_factory._finish(db, entry, viewer=None)` relies on it. There is deliberately
-no `is_superuser` half: object scoping lives on the mode axis, which holding
+no `is_root` half: object scoping lives on the mode axis, which holding
 every capability does not reach. The media-type half goes through `has()`,
-which does short-circuit on `is_superuser`, because `media_type.*` is a role
+which does short-circuit on `is_root`, because `media_type.*` is a role
 permission.
 
 **404, not 403.** A hidden entry answers exactly as an absent one, so a viewer
@@ -739,7 +739,7 @@ registry key would never match a grant and would hide the whole type.
 `gate(viewer, media_type, payload, schema)` applies withheld field groups to
 one entry or a list. **`_withheld(viewer)` reads `viewer.field_groups` — the
 active MODE's set — not `viewer.has(field_group.<key>)`, and it does not
-short-circuit on `is_superuser`.** A `None` viewer
+short-circuit on `is_root`.** A `None` viewer
 still withholds nothing, because internal callers pass `None` to mean "not a
 request".
 
@@ -822,7 +822,7 @@ Two rules that are **not** this one:
   `users.is_installation_owner` — see [The admin account holds no user
   data](#the-admin-account-holds-no-user-data) below — with two fallbacks for
   a database where nobody holds the flag: the alphabetically-first
-  non-superuser account, then the first account of any kind, so a restore onto
+  non-root account, then the first account of any kind, so a restore onto
   a fresh machine still lands.
 - **`viewer_user_id`** — the non-raising companion for the two public paths
   that must show nothing per-user. It has no fallback either.
@@ -833,7 +833,7 @@ An administrative account administers the site. It does not keep a library on
 it — no list rows, no plan queue, no season ratings, no game copies, no
 personal notes.
 
-**The rule is one condition in `Viewer.has()`: the superuser short-circuit
+**The rule is one condition in `Viewer.has()`: the root short-circuit
 does not cover the `self` family.** `self.list` and `self.personal_notes` are
 not privileges — they are OWNERSHIP, the right to keep rows of your own. "May
 do anything to the system" and "has a personal library" are different claims,
@@ -855,7 +855,7 @@ missing from the twenty-first.
 
 **A grant beats the carve-out.** The rule removes the *implicit* hold, so an
 account whose role is explicitly granted `self.list` keeps its library
-whatever its `is_superuser` flag says.
+whatever its `is_root` flag says.
 
 **Authorship is not ownership, and an admin does create rows.** Quotes, memes
 and catalogue-scope notes are `manage.catalog` writes, and `author_id` records
@@ -919,9 +919,9 @@ the `personal_reviews` section on every row the viewer did not author.
 |---|---|
 | `GET /api/roles/`, `GET /api/roles/{id}` | with `permissions` and `user_count` |
 | `GET /api/roles/catalog` | the vocabulary grouped by family — the editor grid is built from it, never mirrored in the SPA. **Four families only**: `admin`, `manage`, `media_type`, `self`. Content labels and field groups are not offered, because a role cannot express "minus this label" — permission resolution is a union |
-| `POST /api/roles/` | 409 on duplicate name or a locked-off grant; created non-superuser |
+| `POST /api/roles/` | 409 on duplicate name or a locked-off grant; created non-root |
 | `PATCH /api/roles/{id}` | label/description/sort_order only; `guest`/`admin` cannot be renamed |
-| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 superuser role, 409 if the payload holds a locked-off grant or drops a locked-on one |
+| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 root role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
 | `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204 |
@@ -1084,7 +1084,7 @@ object axis, where indistinguishability is the property being protected.
 ### Guards on users (`app/routers/users.py`)
 
 - **Last admin:** changing the role of, or deleting, the last account whose
-  role can administer (superuser or holds `admin.authz`) → **409** "last
+  role can administer (root role or holds `admin.authz`) → **409** "last
   account that can administer the site".
 - **Self-delete:** deleting your own account → **409**.
 
@@ -1092,7 +1092,7 @@ object axis, where indistinguishability is the property being protected.
 
 | Page | File | What it does |
 |---|---|---|
-| Roles | `frontend/src/pages/admin/Roles.jsx` | role list, create/delete, checkbox grid per family from `/api/roles/catalog`; superuser roles show a notice instead of a grid |
+| Roles | `frontend/src/pages/admin/Roles.jsx` | role list, create/delete, checkbox grid per family from `/api/roles/catalog`; root role roles show a notice instead of a grid |
 | Users | `frontend/src/pages/admin/Users.jsx` | create users, assign roles, reset passwords, delete |
 | Content Labels | `frontend/src/pages/admin/ContentLabels.jsx` | key/label/description; shows the `label.<key>` permission each becomes |
 | Label picker | `frontend/src/components/forms/ContentLabelPicker.jsx` | rendered **once** on Add and once on Modify (not in the per-type tabs); on Add the parent holds the selection and `PUT`s after create, mirroring the credits control |
@@ -1110,7 +1110,7 @@ What an admin can change from the browser, and what needs a commit:
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
 Some blocks the SPA hides itself: the detail pages read
-`useAuth().isSuperuser` to draw the poster-spine id. The component is named in
+`useAuth().isRoot` to draw the poster-spine id. The component is named in
 JSX, not declared anywhere server-side — there is no `ui_block` field and
 never was a mapping behind it.
 Where the server already blanks the value there is nothing to ask —
@@ -1123,7 +1123,7 @@ matters is enforced server-side.
 | File | Covers |
 |---|---|
 | `tests/unit/test_rbac_permissions.py` | catalog, naming, `split_perm` |
-| `tests/unit/test_rbac_viewer.py` | `Viewer.has`, superuser, guest |
+| `tests/unit/test_rbac_viewer.py` | `Viewer.has`, root role, guest |
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |

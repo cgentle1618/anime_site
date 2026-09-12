@@ -25,7 +25,7 @@ const ANONYMOUS = {
   isAdmin: false,
   username: null,
   role: "guest",
-  isSuperuser: false,
+  isRoot: false,
   permissions: [],
   // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
   // this account holds, each already carrying `requires_password` - the
@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
           isAdmin: data.is_admin,
           username: data.username,
           role: data.role ?? "guest",
-          isSuperuser: data.is_superuser ?? false,
+          isRoot: data.is_root ?? false,
           permissions: data.permissions ?? [],
           mode: data.mode ?? null,
           modes: data.modes ?? [],
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
   // A Set so has() stays O(1) on pages that ask about many permissions.
   const held = useMemo(() => new Set(auth.permissions), [auth.permissions]);
 
-  // Mirrors Viewer.has on the server, superuser short-circuit included, so a
+  // Mirrors Viewer.has on the server, root short-circuit included, so a
   // new content label or field group does not have to be granted to the admin.
   //
   // The one exception mirrors the server's: the short-circuit does NOT cover
@@ -85,8 +85,8 @@ export function AuthProvider({ children }) {
     (permission) =>
       permission.startsWith("self.")
         ? held.has(permission)
-        : auth.isSuperuser || held.has(permission),
-    [auth.isSuperuser, held],
+        : auth.isRoot || held.has(permission),
+    [auth.isRoot, held],
   );
 
   const value = useMemo(

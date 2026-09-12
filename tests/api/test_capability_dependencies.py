@@ -53,7 +53,7 @@ def test_an_anonymous_caller_is_refused_by_all_three(probe_app):
 
 
 def test_the_admin_account_passes_all_three(probe_app, admin_user, db):
-    """is_superuser short-circuits, so Phase A changes nothing for the owner."""
+    """is_root short-circuits, so Phase A changes nothing for the owner."""
     from app.services.security import create_access_token
 
     client = TestClient(probe_app)
