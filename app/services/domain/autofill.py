@@ -18,6 +18,7 @@ from app.models import (
     TVShows,
 )
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import download_cover_image
@@ -34,6 +35,7 @@ from app.services.integrations.tenrai import (
     fetch_tenrai_producer_data,
 )
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
@@ -76,6 +78,56 @@ def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
     ):
         upsert_main_source(
             db, entry.system_id, "reference", value, j_data.get(key)
+        )
+
+
+# The three AniList columns, identical on anime, anime_movies, manga and
+# novel - checked against all four models, not inferred from one.
+_ANILIST_COLUMNS = ("anilist_rating", "anilist_rank", "anilist_popularity_rank")
+
+
+def autofill_from_anilist(entry, anilist_type: str, db: Session = None) -> None:
+    """
+    AniList's score and two all-time ranks for one entry, plus its own link.
+
+    One function for all four media types: they carry the same three columns
+    and differ only in which AniList type they query, so four copies would be
+    four places to fix one bug.
+
+    Reads through the run-scoped cache, so a bulk run has already fetched this
+    entry in a block of 50. The single-entry Replace hook gets no pre_run, and
+    anilist_record falls back to a one-id fetch there.
+
+    All three columns are overwrite fields - a score and a rank drift, which
+    is what Replace is for - but a None NEVER overwrites a real value. An
+    idMal can resolve to a stub record carrying nulls, and without the
+    per-value guard a Replace would blank a good score with it.
+    """
+    mal_id = entry.mal_id
+    if not mal_id:
+        return
+
+    try:
+        mapped = map_anilist_record(anilist_record(mal_id, anilist_type))
+
+        for column in _ANILIST_COLUMNS:
+            value = mapped.get(column)
+            if value is not None:
+                setattr(entry, column, value)
+
+        if db is not None and mapped.get("anilist_link"):
+            from app.services.domain.sources import upsert_main_source
+            from app.utils.source_fields import ANILIST_VALUE
+
+            upsert_main_source(
+                db, entry.system_id, "reference", ANILIST_VALUE,
+                mapped["anilist_link"],
+            )
+
+    except Exception as e:
+        logger.error(
+            f"AniList Autofill failed for {type(entry).__name__} "
+            f"{entry.system_id} (MAL {mal_id}): {e}"
         )
 
 
