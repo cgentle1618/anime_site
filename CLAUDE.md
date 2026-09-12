@@ -89,12 +89,32 @@ backend change. Three rules follow:
 
 ## Git Worktrees
 
-A worktree (`git worktree add ../anime_site_<topic> -b <branch>`) is a good way
-to isolate a phase of work, and it is **required** as soon as more than one
-session is running — see "Concurrent Claude Code Sessions". A single session
-branches in place instead; a worktree costs a full per-machine setup, and it
-inherits none of it. One of those gaps destroys nothing yet looks exactly like
-data loss:
+**`git checkout` is the default; a worktree is the exception.** Switching
+branches in place is instant, carries uncommitted work with it, and costs one
+`npm run build`. A worktree costs a full per-machine setup that it inherits
+none of, so it has to earn that. Exactly two things earn it:
+
+1. **More than one session or task at once.** One checkout has one `HEAD`, so
+   a second branch needs a second tree — see "Concurrent Claude Code
+   Sessions".
+2. **Two versions running side by side**, to compare behaviour or keep a
+   stable instance up while something is broken.
+
+**Nothing has to be declared in advance.** A worktree can be added at any
+moment and does not touch the existing checkout, uncommitted changes included:
+
+```bash
+# from the main directory, mid-task, whatever branch is checked out
+git worktree add ../anime_site_<topic> -b <type>/<topic> dev
+```
+
+`dev` at the end matters — branch off `dev`, not off whatever the main
+directory happens to be on. So the rule is **the first task keeps the main
+directory and each additional concurrent task takes a worktree**, which puts
+the setup cost on the rarer case. Remove it with `git worktree remove
+../anime_site_<topic>` when the branch has merged.
+
+One of the setup gaps destroys nothing yet looks exactly like data loss:
 
 - **Pin the compose project.** `dev.ps1` runs
   `docker-compose --project-directory $root`, and compose derives the project
@@ -109,8 +129,20 @@ data loss:
   `python` on PATH) and **both** requirements files installed: `pytest` and
   `ruff` live in `requirements-dev.txt`, not `requirements.txt`. `node_modules`
   needs its own `npm install`.
-- Both trees share one PostgreSQL and one `anime_site_test`. Drive one at a
-  time.
+- **Give the worktree its own `POSTGRES_DB`.** Both trees share one
+  PostgreSQL, and the thing that actually collides is **migrations**: an
+  `alembic upgrade` run in one tree leaves the other tree's models
+  disagreeing with the schema, which is a broken app rather than a merge
+  conflict and says nothing about why. A worktree sharing one database
+  relocates that problem instead of solving it. Separate databases are also
+  what the pytest rule below needs, so this is one setting, not two.
+- **One pytest at a time across every tree**, whatever the databases —
+  see the lock in "Coordinated multi-session runs".
+- **Only one tree can hold the ports.** `dev.ps1` hard-codes `:8000` and
+  aborts if it is taken (deliberately — a second uvicorn would fail to bind
+  and surface only as Vite proxy errors). A worktree that just runs tests and
+  builds needs nothing; one that has to *run* needs `uvicorn --port 8001` and
+  Vite pointed at it.
 
 ## Frontend Ports and Rebuilds
 
@@ -191,6 +223,13 @@ one-line when it was described is exactly the one that grows.
 
   If you have already started editing on `dev`, `git checkout -b` carries the
   uncommitted changes onto the new branch — do that rather than trying to undo.
+- **The database does not follow the branch.** Files switch instantly;
+  `alembic_version` does not. Leaving a branch whose migrations you have run
+  leaves the local database *ahead* of the code you switched to, and the app
+  then fails on a column the models still declare — not corruption, but it
+  reads like it. `alembic downgrade` to the head the arriving branch expects
+  before switching away, or `upgrade` after switching in. This is the real
+  cost of moving between branches here; the files are free.
 - **Name it `<type>/<short-topic>`**, with the same prefixes the commits use:
   `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. `feat/role-locks`,
   `fix/guest-pipeline-409`, `docs/git-workflow`. The branch and its commits
