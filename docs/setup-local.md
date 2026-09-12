@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-10
+Last verified: 2026-09-12 (COMPOSE_PROJECT_NAME pinned)
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -119,6 +119,7 @@ list. Variable names are case-insensitive.
 | `IGDB_CLIENT_SECRET` | unset | IGDB (games): Twitch application client secret. Both must be set or IGDB calls are skipped. |
 | `GOOGLE_CREDENTIALS_JSON` | unset | Service-account JSON as one line (alternative to `credentials.json`) |
 | `GOOGLE_SHEET_ID` | unset | Spreadsheet used by Backup / Pull |
+| `COMPOSE_PROJECT_NAME` | `anime_site` | Pins the docker-compose project, and so the VOLUME name. Compose otherwise derives it from the directory, so a **worktree** mounts a brand-new EMPTY database on the same port while the real data sits untouched. The primary checkout works without it only because its directory happens to be named `anime_site` — a coincidence, not a setting. An empty database is also what blanks the Backup sheet, so this is a data-loss guard, not a convenience |
 
 Minimum for a working local app: the three `POSTGRES_*` values. Everything
 else can stay empty; the Fill pipelines and Backup/Pull will just log errors
