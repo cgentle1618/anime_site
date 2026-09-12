@@ -7,7 +7,7 @@ Layout: every library image lives at `library/<checksum>.jpg` under
 `library/thumbs/<checksum>.jpg`. Storage is CONTENT-ADDRESSED, which buys two
 things the per-row layout in image_manager.py cannot give:
 
-  * dedup - the same picture uploaded twice is one file and one row;
+  * dedup - the same bytes uploaded twice are one file and one row;
   * a safe replace - a replaced image is a NEW url, so no browser serves the
     old bytes from cache. Under `<owner>/<id>.jpg` the url never changes and a
     replaced cover goes stale in every open tab.
@@ -90,8 +90,11 @@ def normalize_image(raw: bytes) -> NormalizedImage:
     carry over a payload hidden in a container segment the decoder skipped,
     because the output is written from decoded pixels rather than copied.
 
-    The checksum is taken over the NORMALIZED bytes, so one picture uploaded
-    once as PNG and once as JPEG dedups to a single row.
+    The checksum is taken over the NORMALIZED bytes: identical bytes uploaded
+    twice dedup to a single row, and so do identical pixels arriving in two
+    LOSSLESS containers (PNG, lossless WebP). A lossy JPEG of the same picture
+    deliberately does not - it decodes to different pixels than its source,
+    so content addressing cannot bridge the two.
     """
     image = _decode(raw)
 
