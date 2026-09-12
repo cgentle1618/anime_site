@@ -13,7 +13,19 @@ Last updated: 2026-09-12
 
 ## In flight
 
-Nothing. The authorization redesign - phases 0, A, A.1, B, C and D - is
+### Game 攻略 / 劇情 / 待辦 note groups
+
+Plan: [superpowers/plans/2026-09-12-game-guides-story-todo.md](superpowers/plans/2026-09-12-game-guides-story-todo.md)
+Worktree `anime_site_game_guides_story_todo`, branch `feat/game-guides-story-todo`, test DB `anime_site_ggst_test`.
+
+| # | Task | Status |
+| --- | --- | --- |
+| 1 | Registry: three groups, 26 sections, two retirements | done 9dc8908f |
+| 2 | Data migration for the `guides` / `builds_and_mods` rows | wip game-notes-session |
+| 3 | Scope enforcement over the wire | todo |
+| 4 | Docs, roadmap entry, spec marked shipped | todo |
+
+The authorization redesign - phases 0, A, A.1, B, C and D - is
 finished and its table is gone; `docs/roadmap.md` holds what each phase did
 and why, and the gates themselves are described in
 [authorization.md](authorization.md#rules-not-to-break).
