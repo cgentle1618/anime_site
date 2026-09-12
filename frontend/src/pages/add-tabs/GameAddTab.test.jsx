@@ -10,6 +10,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import GameAddTab from "./GameAddTab";
 import { defaultGame } from "../../config/formFactories";
 
+// The form asks who is editing, because the Copies section is gated on
+// self.list - a copy is personal ownership, not catalogue data. These tests
+// are about the IGDB picker, so the account is whatever is convenient; the
+// gate itself is tested in GameCopiesGate.test.jsx.
+let mockHas = () => true;
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ has: mockHas }),
+}));
+
 const ELDEN = {
   id: 119133,
   name: "Elden Ring",

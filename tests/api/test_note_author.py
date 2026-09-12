@@ -26,9 +26,9 @@ def test_note_table_has_a_not_null_author_id(db):
 
 
 def test_a_note_created_through_the_api_records_its_author(
-    db, admin_client, sample_anime, admin_user
+    db, super_client, sample_anime, super_user
 ):
-    r = admin_client.post(
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -39,7 +39,7 @@ def test_a_note_created_through_the_api_records_its_author(
     )
     assert r.status_code == 201
     note = db.query(models.Note).filter_by(system_id=r.json()["system_id"]).one()
-    assert note.author_id == admin_user.id
+    assert note.author_id == super_user.id
 
 
 def test_a_note_without_an_author_is_rejected(db, sample_anime):

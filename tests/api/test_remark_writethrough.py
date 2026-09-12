@@ -73,11 +73,11 @@ def test_patching_an_empty_remark_clears_the_note(
 
 
 def test_a_notes_page_edit_shows_up_on_the_entry(
-    admin_client, db_session, sample_anime
+    super_client, db_session, sample_anime
 ):
     # The notes page posts to /api/notes; the entry response must read the
     # same row back.
-    res = admin_client.post(
+    res = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -88,7 +88,7 @@ def test_a_notes_page_edit_shows_up_on_the_entry(
     )
     assert res.status_code == 201
 
-    entry = admin_client.get(f"/api/anime/{sample_anime.system_id}")
+    entry = super_client.get(f"/api/anime/{sample_anime.system_id}")
     assert entry.json()["remark"] == "written on the notes page"
 
 

@@ -14,9 +14,16 @@ from app import models
 
 
 @pytest.fixture
-def anime_note(db_session, sample_anime, admin_user):
+def anime_note(db_session, sample_anime, super_user):
+    """
+    A personal-scope note (`advantages`), authored by the account that may
+    KEEP one. It was `admin_user` until 2026-09-12; an administrative account
+    holds no self.personal_notes grant now, and a personal note is edited by
+    its AUTHOR - so a fixture authored by the admin makes every edit through
+    super_client a 404 about ownership rather than the thing under test.
+    """
     n = models.Note(
-        author_id=admin_user.id,
+        author_id=super_user.id,
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
         section="advantages",
@@ -78,10 +85,11 @@ def test_highlight_dropdown_is_resolved_per_owner(client):
 # --- List -----------------------------------------------------------------
 
 
-def test_list_notes_for_owner(admin_client, sample_anime, anime_note):
-    # admin_client, not client: `advantages` is a personal-scope section, so a
-    # logged-out viewer sees none of it. The note's author is admin_user.
-    r = admin_client.get(
+def test_list_notes_for_owner(super_client, sample_anime, anime_note):
+    # super_client, not client: `advantages` is a personal-scope section, so a
+    # logged-out viewer sees none of it - and a personal note is read back by
+    # its AUTHOR, which the fixture makes super_user.
+    r = super_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
@@ -133,8 +141,8 @@ def test_create_rejects_a_logged_out_visitor(client, sample_anime):
     assert r.status_code == 401
 
 
-def test_admin_creates_note(admin_client, sample_anime):
-    r = admin_client.post(
+def test_a_member_creates_a_personal_note(super_client, sample_anime):
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -147,8 +155,8 @@ def test_admin_creates_note(admin_client, sample_anime):
     assert r.json()["content"] == "配樂與畫面高度契合"
 
 
-def test_create_rejects_section_not_applicable(admin_client, sample_franchise):
-    r = admin_client.post(
+def test_create_rejects_section_not_applicable(super_client, sample_franchise):
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "franchise",
@@ -190,21 +198,21 @@ def test_create_rejects_external_section(admin_client, sample_anime):
     assert r.status_code == 422
 
 
-def test_singleton_section_rejects_a_second_row(admin_client, sample_anime):
+def test_singleton_section_rejects_a_second_row(super_client, sample_anime):
     body = {
         "owner_type": "anime",
         "owner_id": str(sample_anime.system_id),
         "section": "remark",
         "content": "重看第三次",
     }
-    assert admin_client.post("/api/notes", json=body).status_code == 201
-    r = admin_client.post("/api/notes", json=body)
+    assert super_client.post("/api/notes", json=body).status_code == 201
+    r = super_client.post("/api/notes", json=body)
     assert r.status_code == 422
     assert "already has" in r.text
 
 
-def test_create_assigns_next_sort_index(admin_client, sample_anime, anime_note):
-    r = admin_client.post(
+def test_create_assigns_next_sort_index(super_client, sample_anime, anime_note):
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -216,12 +224,12 @@ def test_create_assigns_next_sort_index(admin_client, sample_anime, anime_note):
     assert r.json()["sort_index"] == 1.0
 
 
-def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample_anime, admin_user):
+def test_create_next_sort_index_skips_null_rows(super_client, db_session, sample_anime, super_user):
     # A NULL sort_index sorts first on DESC in PostgreSQL, so the query behind
     # _next_sort_index must exclude NULLs or it collides with the existing 2.0 row.
     db_session.add(
         models.Note(
-            author_id=admin_user.id,
+            author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
             section="advantages",
@@ -231,7 +239,7 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
     )
     db_session.add(
         models.Note(
-            author_id=admin_user.id,
+            author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
             section="advantages",
@@ -241,7 +249,7 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
     )
     db_session.flush()
 
-    r = admin_client.post(
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -257,8 +265,8 @@ def test_create_next_sort_index_skips_null_rows(admin_client, db_session, sample
 # --- Update and delete ----------------------------------------------------
 
 
-def test_admin_updates_one_row(admin_client, anime_note):
-    r = admin_client.patch(
+def test_an_author_updates_one_row(super_client, anime_note):
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"content": "改過的內容"}
     )
     assert r.status_code == 200
@@ -280,7 +288,7 @@ def test_update_revalidates_against_registry(admin_client, anime_note):
 
 
 def test_update_to_singleton_conflict_does_not_flush_mutation(
-    admin_client, db_session, sample_anime, anime_note, admin_user,
+    super_client, db_session, sample_anime, anime_note, super_user,
 ):
     # sample_anime already has a 'remark' note; patching anime_note's section
     # to 'remark' must be rejected, and - because the check must run before
@@ -288,7 +296,7 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
     # subsequent read, proving nothing was flushed by autoflush.
     db_session.add(
         models.Note(
-            author_id=admin_user.id,
+            author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
             section="remark",
@@ -298,13 +306,13 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
     )
     db_session.flush()
 
-    r = admin_client.patch(
+    r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "remark"}
     )
     assert r.status_code == 422
     assert "already has" in r.text
 
-    got = admin_client.get(
+    got = super_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     ).json()
@@ -335,11 +343,11 @@ def test_delete_rejects_a_logged_out_visitor(client, anime_note):
 # --- Reorder --------------------------------------------------------------
 
 
-def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime, admin_user):
+def test_reorder_rewrites_sort_index(super_client, db_session, sample_anime, super_user):
     ids = []
     for i, text in enumerate(("第一", "第二", "第三")):
         n = models.Note(
-            author_id=admin_user.id,
+            author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
             section="advantages",
@@ -350,7 +358,7 @@ def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime, adm
         ids.append(str(n.system_id))
     db_session.flush()
 
-    r = admin_client.patch(
+    r = super_client.patch(
         "/api/notes/reorder",
         json={
             "owner_type": "anime",
@@ -360,15 +368,15 @@ def test_reorder_rewrites_sort_index(admin_client, db_session, sample_anime, adm
         },
     )
     assert r.status_code == 200
-    got = admin_client.get(
+    got = super_client.get(
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     ).json()
     assert [n["content"] for n in got] == ["第三", "第一", "第二"]
 
 
-def test_reorder_rejects_ids_from_another_section(admin_client, sample_anime, anime_note):
-    r = admin_client.patch(
+def test_reorder_rejects_ids_from_another_section(super_client, sample_anime, anime_note):
+    r = super_client.patch(
         "/api/notes/reorder",
         json={
             "owner_type": "anime",
@@ -380,9 +388,9 @@ def test_reorder_rejects_ids_from_another_section(admin_client, sample_anime, an
     assert r.status_code == 400
 
 
-def test_create_rejects_an_episode_comment_with_no_locator(admin_client, sample_anime):
+def test_create_rejects_an_episode_comment_with_no_locator(super_client, sample_anime):
     # The section is only about where it points, so the anchor is required.
-    r = admin_client.post(
+    r = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",

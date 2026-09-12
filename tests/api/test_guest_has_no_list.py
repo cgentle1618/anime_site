@@ -15,6 +15,7 @@ data-ownership question and not a visibility one. That is
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app import models
 from app.services.domain.user_list import acting_user_id, installation_owner_id
@@ -125,14 +126,54 @@ def test_acting_user_id_still_answers_for_a_real_viewer(db, admin_user):
 # --- the owner rule that survives ----------------------------------------
 
 
-def test_installation_owner_id_names_the_admin(db, admin_user):
+def test_installation_owner_id_falls_back_to_the_only_account(db, admin_user):
     """
     Not a visibility rule. A Sheets restore and the Calculate pipeline both
     have to file rows under somebody, and neither is answering "what may this
     visitor see?" - which is why the fallback moved here rather than being
     deleted outright.
+
+    Nobody holds the flag here, and the only account is an admin, so the last
+    fallback names it. That case is a FRESH MACHINE, and it has to keep
+    working: a sheet must restore onto a database that has no second account
+    yet. It is not a claim that the admin owns the collection - the next two
+    tests are.
     """
     assert installation_owner_id(db) == admin_user.id
+
+
+def test_the_flag_beats_every_fallback(db, admin_user, plain_user):
+    """
+    The rule since 2026-09-12: whose rows a pipeline writes is DATA on the
+    user row, not the string 'admin' in a query. Set it on the account that
+    would LOSE both fallbacks - an admin sorts before `plainuser`, so a green
+    here cannot be the alphabetical tiebreak answering by accident.
+    """
+    admin_user.is_installation_owner = True
+    db.flush()
+    assert installation_owner_id(db) == admin_user.id
+
+
+def test_without_the_flag_a_non_superuser_wins(db, admin_user, plain_user):
+    """
+    The first fallback, and the one that matters on a real installation: an
+    administrative account does not own the collection just because it sorts
+    first. `aaa_testadmin` sorts before `plainuser` and still loses.
+    """
+    assert installation_owner_id(db) == plain_user.id
+
+
+def test_at_most_one_account_can_hold_the_flag(db, admin_user, plain_user):
+    """
+    ix_one_installation_owner is a PARTIAL unique index over a constant, so
+    it constrains the whole table rather than one row per something. Without
+    it the flag would be ambiguous and installation_owner_id() would answer by
+    insertion order.
+    """
+    admin_user.is_installation_owner = True
+    plain_user.is_installation_owner = True
+    with pytest.raises(IntegrityError):
+        db.flush()
 
 
 def test_the_two_are_not_the_same_function(db):

@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -285,6 +286,30 @@ class User(Base):
     # not the inviter's.
     list_is_public = Column(
         Boolean, nullable=False, default=False, server_default="false"
+    )
+    # Whose rows a restore or the Calculate pipeline files under. NOT a
+    # permission and not on any request path - see
+    # services/domain/user_list.py::installation_owner_id for what it answers
+    # and what it deliberately does not. It lives here, as data, so that
+    # moving the collection to another account is a row edit rather than a
+    # commit, and so that the answer travels between the two machines on the
+    # Sheets Users tab. `ix_one_installation_owner` is partial, so at most one
+    # account holds it and any number hold false.
+    is_installation_owner = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_one_installation_owner",
+            # The indexed expression is a constant, not the column, the same
+            # shape ix_one_guest_default_access_mode uses: this is a SITE
+            # singleton rather than one-per-something, so there is no column
+            # to key it on.
+            text("(true)"),
+            unique=True,
+            postgresql_where=text("is_installation_owner"),
+        ),
     )
 
     role_ref = relationship("Role", lazy="joined")

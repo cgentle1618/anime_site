@@ -28,16 +28,16 @@ def a_game(db, admin_client):
 
 
 def test_a_copy_written_through_the_router_belongs_to_the_acting_user(
-    db, admin_client, a_game, admin_user,
+    db, super_client, a_game, super_user,
 ):
-    response = admin_client.patch(
+    response = super_client.patch(
         f"/api/game/{a_game}",
         json={"copies": [{"storefront": "Steam", "ownership": "Owned",
                           "copy_format": "Digital"}]},
     )
     assert response.status_code == 200, response.text
     copy = db.query(models.GameCopy).filter(models.GameCopy.game_id == a_game).one()
-    assert copy.user_id == admin_user.id
+    assert copy.user_id == super_user.id
 
 
 def test_two_people_can_own_the_same_edition(db, admin_client, a_game, admin_user):

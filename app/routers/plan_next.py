@@ -3,9 +3,11 @@ routers/plan_next.py
 Handles Plan Next - what is queued to watch or read, at entry, series or
 franchise scope.
 
-Every route needs an account. A plan queue belongs to one user from Step 3 on,
-so a logged-out caller gets a 401 rather than somebody else's queue; the write
-routes act on the caller's own rows, so no additional admin gate applies.
+Every route needs an account that may KEEP a queue - `self.list`, not merely
+a session (narrowed 2026-09-12). A plan queue belongs to one user from Step 3
+on, so a logged-out caller gets a 401 rather than somebody else's queue; the
+write routes act on the caller's own rows, so no admin gate applies and an
+administrative account, which holds no self.* grant, gets 401 too.
 
 Replaces the watch_next / read_next booleans and franchise.watch_next_group.
 Nothing here derives plans automatically: they are curated on the admin forms
@@ -23,7 +25,8 @@ from app import models, schemas
 from app.dependencies import get_current_user_id, get_db
 from app.services.domain.plan_next import target_visible, validate_plan_target
 from app.services.rbac.enforcement import drop_hidden_rows
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.resolver import Viewer, get_viewer, require_permission
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import OWNER_TABLES
 from app.utils.plan_next_kinds import (
@@ -38,7 +41,18 @@ from app.utils.plan_next_kinds import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/plan-next", tags=["Plan Next"])
+router = APIRouter(
+    prefix="/api/plan-next",
+    tags=["Plan Next"],
+    # Router-level, not per-route, the shape /api/me uses: every route here
+    # reads or writes the caller's OWN rows, so one added later is gated by
+    # default rather than by someone remembering. Until 2026-09-12 the prefix
+    # asked get_current_user_id alone - "is anybody signed in" - which let an
+    # admin account, which holds no self.* grant, keep a plan queue of its own.
+    # require_permission answers 401, never 403, matching the one error shape
+    # the SPA knows.
+    dependencies=[Depends(require_permission(PERM_SELF_LIST))],
+)
 
 
 # ==========================================

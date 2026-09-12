@@ -10,7 +10,11 @@ theirs. This is the column.
 
 The fallback stays for a sheet written before Step 4, which carries no
 `username` header at all - a restore from it must still work, and everything
-in it did belong to one account.
+in it did belong to one account. WHICH account changed on 2026-09-12: it is
+the installation owner, which is a flag on the user row and falls back to the
+first NON-superuser account, not to `admin`. An administrative account holds
+no library, so inheriting a legacy sheet's rows is the one thing it must not
+do.
 
 Requires PostgreSQL. See tests/api/conftest.py.
 """
@@ -111,9 +115,15 @@ def test_a_seasonal_sheet_with_no_username_column_still_restores(
     db, sheets, two_users
 ):
     """A sheet written before Step 4. Everything in it belonged to one
-    account, and _restore_owner_id names the one the Step 3 migrations
-    backfilled to."""
-    admin, _kana = two_users
+    account, and _restore_owner_id names the installation owner.
+
+    THAT IS `kana`, NOT `admin`, since 2026-09-12: nobody holds the flag in
+    this fixture, and the first fallback is the alphabetically-first
+    NON-superuser account. An administrative account does not inherit a
+    legacy sheet's rows just because it sorts first - which is the whole
+    point of the change, and the reason a restore is where it shows up.
+    """
+    _admin, kana = two_users
     sheets({
         "Seasonal": [
             SEASONAL_HEADERS[:-1],
@@ -124,7 +134,7 @@ def test_a_seasonal_sheet_with_no_username_column_still_restores(
     result = pull.execute_pull_specific(db, "Seasonal", log_action=False)
 
     assert result["status"] == "success"
-    assert db.query(models.Seasonal).one().user_id == admin.id
+    assert db.query(models.Seasonal).one().user_id == kana.id
 
 
 def test_an_unknown_username_skips_the_seasonal_row_and_reports_it(
@@ -194,7 +204,10 @@ def test_two_users_plan_the_same_entry_as_two_rows(db, sheets, two_users):
 def test_a_plan_sheet_with_no_username_column_still_restores(
     db, sheets, two_users
 ):
-    admin, _kana = two_users
+    """The Plan Next half of the fallback. `kana`, not `admin` - see the
+    Seasonal test above for why an administrative account no longer inherits a
+    legacy sheet's rows."""
+    _admin, kana = two_users
     anime = models.Anime(anime_name_cn="計畫三")
     db.add(anime)
     db.flush()
@@ -209,7 +222,7 @@ def test_a_plan_sheet_with_no_username_column_still_restores(
     result = pull.execute_pull_specific(db, "Plan Next", log_action=False)
 
     assert result["status"] == "success"
-    assert db.query(models.PlanNext).one().user_id == admin.id
+    assert db.query(models.PlanNext).one().user_id == kana.id
 
 
 def test_an_unknown_username_skips_the_plan_row_and_reports_it(

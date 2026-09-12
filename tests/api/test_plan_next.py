@@ -2,6 +2,13 @@
 API integration tests for /api/plan-next.
 
 Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+
+The client here is `super_client`, not `admin_client`: since 2026-09-12 an
+administrative account holds no `self.*` grant and every route in this prefix
+answers it 401. The `super` role is the account shape that legitimately keeps
+a library - it holds both self.* grants and manage.catalog, so the catalogue
+writes some of these tests make still land. Spec:
+docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md.
 """
 
 import uuid
@@ -16,9 +23,9 @@ def _payload(scope, target_id, media_type="anime", remark=None):
     }
 
 
-def test_kinds_exposes_scopes_and_bucket_vocabularies(admin_client):
+def test_kinds_exposes_scopes_and_bucket_vocabularies(super_client):
     # Authenticated from Step 3 on: everything under the prefix needs a login.
-    res = admin_client.get("/api/plan-next/kinds")
+    res = super_client.get("/api/plan-next/kinds")
     assert res.status_code == 200
     body = res.json()
     assert body["scopes"] == ["entry", "series", "franchise"]
@@ -30,8 +37,8 @@ def test_kinds_exposes_scopes_and_bucket_vocabularies(admin_client):
     ]
 
 
-def test_the_list_starts_empty_for_the_caller(admin_client):
-    res = admin_client.get("/api/plan-next/")
+def test_the_list_starts_empty_for_the_caller(super_client):
+    res = super_client.get("/api/plan-next/")
     assert res.status_code == 200
     assert res.json() == []
 
@@ -46,8 +53,8 @@ def test_create_requires_admin(client, sample_franchise):
     assert res.status_code in (401, 403)
 
 
-def test_admin_can_plan_a_franchise(admin_client, sample_franchise):
-    res = admin_client.post(
+def test_admin_can_plan_a_franchise(super_client, sample_franchise):
+    res = super_client.post(
         "/api/plan-next/", json=_payload("franchise", sample_franchise.system_id)
     )
     assert res.status_code == 201
@@ -56,21 +63,21 @@ def test_admin_can_plan_a_franchise(admin_client, sample_franchise):
     assert body["media_type"] == "anime"
 
 
-def test_admin_can_plan_a_series(admin_client, sample_series):
-    res = admin_client.post(
+def test_admin_can_plan_a_series(super_client, sample_series):
+    res = super_client.post(
         "/api/plan-next/", json=_payload("series", sample_series.system_id)
     )
     assert res.status_code == 201
 
 
-def test_planning_the_same_target_twice_conflicts(admin_client, sample_franchise):
+def test_planning_the_same_target_twice_conflicts(super_client, sample_franchise):
     payload = _payload("franchise", sample_franchise.system_id)
-    assert admin_client.post("/api/plan-next/", json=payload).status_code == 201
-    assert admin_client.post("/api/plan-next/", json=payload).status_code == 409
+    assert super_client.post("/api/plan-next/", json=payload).status_code == 201
+    assert super_client.post("/api/plan-next/", json=payload).status_code == 409
 
 
-def test_a_disallowed_scope_is_rejected(admin_client, sample_franchise):
-    res = admin_client.post(
+def test_a_disallowed_scope_is_rejected(super_client, sample_franchise):
+    res = super_client.post(
         "/api/plan-next/",
         json=_payload("franchise", sample_franchise.system_id, "manga"),
     )
@@ -78,41 +85,41 @@ def test_a_disallowed_scope_is_rejected(admin_client, sample_franchise):
     assert "franchise" in res.json()["detail"]
 
 
-def test_an_unknown_media_type_is_rejected(admin_client, sample_franchise):
-    res = admin_client.post(
+def test_an_unknown_media_type_is_rejected(super_client, sample_franchise):
+    res = super_client.post(
         "/api/plan-next/",
         json=_payload("entry", sample_franchise.system_id, "podcast"),
     )
     assert res.status_code == 400
 
 
-def test_a_missing_target_is_rejected(admin_client):
-    res = admin_client.post("/api/plan-next/", json=_payload("franchise", uuid.uuid4()))
+def test_a_missing_target_is_rejected(super_client):
+    res = super_client.post("/api/plan-next/", json=_payload("franchise", uuid.uuid4()))
     assert res.status_code == 404
 
 
-def test_list_filters_by_media_type_and_scope(admin_client, sample_franchise, sample_series):
-    admin_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
-    admin_client.post("/api/plan-next/", json=_payload("series", sample_series.system_id))
+def test_list_filters_by_media_type_and_scope(super_client, sample_franchise, sample_series):
+    super_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
+    super_client.post("/api/plan-next/", json=_payload("series", sample_series.system_id))
 
-    assert len(admin_client.get("/api/plan-next/").json()) == 2
-    assert len(admin_client.get("/api/plan-next/?scope=series").json()) == 1
-    assert len(admin_client.get("/api/plan-next/?media_type=anime").json()) == 2
-    assert len(admin_client.get("/api/plan-next/?media_type=movie").json()) == 0
+    assert len(super_client.get("/api/plan-next/").json()) == 2
+    assert len(super_client.get("/api/plan-next/?scope=series").json()) == 1
+    assert len(super_client.get("/api/plan-next/?media_type=anime").json()) == 2
+    assert len(super_client.get("/api/plan-next/?media_type=movie").json()) == 0
 
 
-def test_delete_by_row_id(admin_client, sample_franchise):
-    created = admin_client.post(
+def test_delete_by_row_id(super_client, sample_franchise):
+    created = super_client.post(
         "/api/plan-next/", json=_payload("franchise", sample_franchise.system_id)
     ).json()
-    res = admin_client.delete(f"/api/plan-next/{created['system_id']}")
+    res = super_client.delete(f"/api/plan-next/{created['system_id']}")
     assert res.status_code == 200
-    assert admin_client.get("/api/plan-next/").json() == []
+    assert super_client.get("/api/plan-next/").json() == []
 
 
-def test_delete_by_target(admin_client, sample_franchise):
-    admin_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
-    res = admin_client.delete(
+def test_delete_by_target(super_client, sample_franchise):
+    super_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
+    res = super_client.delete(
         "/api/plan-next/target",
         params={
             "scope": "franchise",
@@ -121,11 +128,11 @@ def test_delete_by_target(admin_client, sample_franchise):
         },
     )
     assert res.status_code == 200
-    assert admin_client.get("/api/plan-next/").json() == []
+    assert super_client.get("/api/plan-next/").json() == []
 
 
-def test_delete_by_target_404s_when_not_planned(admin_client, sample_franchise):
-    res = admin_client.delete(
+def test_delete_by_target_404s_when_not_planned(super_client, sample_franchise):
+    res = super_client.delete(
         "/api/plan-next/target",
         params={
             "scope": "franchise",
@@ -137,12 +144,12 @@ def test_delete_by_target_404s_when_not_planned(admin_client, sample_franchise):
 
 
 def test_a_row_whose_target_was_deleted_is_gone(
-    admin_client, db_session, sample_franchise
+    super_client, db_session, sample_franchise
 ):
     # It used to survive as missing=True, because the target was FK-less.
     # fk_plan_next_franchise cascades now, so there is nothing left to flag.
-    admin_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
+    super_client.post("/api/plan-next/", json=_payload("franchise", sample_franchise.system_id))
     db_session.delete(sample_franchise)
     db_session.flush()
 
-    assert admin_client.get("/api/plan-next/").json() == []
+    assert super_client.get("/api/plan-next/").json() == []

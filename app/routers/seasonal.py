@@ -3,10 +3,11 @@ routers/seasonal.py
 Handles API endpoints for the Seasonal table — one account's seasons: their
 four counters and their own rating.
 
-Every route needs an account (Step 3). The counters and the rating belong to
-one user, so a logged-out caller gets 401 rather than somebody else's numbers,
-and the rating PATCH asks only for an account - not for admin - because the
-rating it writes is the caller's own.
+Every route needs an account that may KEEP one (Step 3, narrowed 2026-09-12).
+The counters and the rating belong to one user, so a logged-out caller gets
+401 rather than somebody else's numbers, and the rating PATCH asks for
+`self.list` rather than for admin - because the rating it writes is the
+caller's own, and an administrative account does not keep a library.
 """
 
 from typing import List
@@ -18,8 +19,21 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_current_user_id, get_db
+from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.resolver import require_permission
 
-router = APIRouter(prefix="/api/seasonal", tags=["Seasonal"])
+router = APIRouter(
+    prefix="/api/seasonal",
+    tags=["Seasonal"],
+    # Router-level, not per-route, the shape /api/me uses: every route here
+    # reads or writes the caller's OWN rows, so one added later is gated by
+    # default rather than by someone remembering. Until 2026-09-12 the prefix
+    # asked get_current_user_id alone - "is anybody signed in" - which let an
+    # admin account, which holds no self.* grant, keep season ratings of its own.
+    # require_permission answers 401, never 403, matching the one error shape
+    # the SPA knows.
+    dependencies=[Depends(require_permission(PERM_SELF_LIST))],
+)
 
 
 @router.get("/current-season", summary="Get Current Season")

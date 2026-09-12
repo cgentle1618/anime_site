@@ -125,6 +125,75 @@ def test_backup_then_pull_all_reproduces_two_users_lists(
     assert after_lists == before_lists
 
 
+def test_the_installation_owner_flag_travels(db, workbook, two_users_with_lists):
+    """
+    Whose collection this is has to survive the trip, or the two machines
+    disagree and each files restored rows under a different account - the very
+    drift that keeping the owner in `.env` was rejected for.
+
+    `parse_user_from_sheet` is an EXPLICIT projection, not a column sweep, so
+    this is not covered by the round-trip test above: a column absent from
+    that dict travels out and silently fails to come back.
+    """
+    cg, kana = two_users_with_lists
+    kana.is_installation_owner = True
+    db.commit()
+
+    backup.execute_backup(db, action_type="Manual")
+    assert "is_installation_owner" in workbook["Users"][0]
+
+    _wipe_what_the_sheet_owns(db)
+    pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
+
+    restored = {u.username: u.is_installation_owner
+                for u in db.query(models.User).all()}
+    assert restored["kana"] is True
+    assert restored["cg1618"] is False
+
+
+def test_a_stale_local_owner_flag_does_not_kill_the_users_tab(
+    db, workbook, two_users_with_lists
+):
+    """
+    ix_one_installation_owner is unique across the whole table, so restoring
+    the sheet's owner while a DIFFERENT local account still holds the flag
+    would raise at the tab's commit and roll back EVERY user - the failure
+    shape that lost the whole Quote tab in 709f9f00.
+
+    The sheet is the authority on whose collection this is, so the local flag
+    is cleared and the restored one stands. Asserting the tab survives is the
+    point: a green on the flag alone could coexist with every other account
+    having been rolled back.
+    """
+    cg, kana = two_users_with_lists
+    kana.is_installation_owner = True
+    db.commit()
+    backup.execute_backup(db, action_type="Manual")
+
+    # The other machine: the sheet's accounts are gone and a LOCAL account
+    # holds the flag. It is not named on the sheet, so nothing would clear it
+    # except the guard being tested.
+    _wipe_what_the_sheet_owns(db)
+    local = models.User(
+        username="localowner",
+        hashed_password="$2b$12$z" * 4,
+        role_id=db.query(models.Role).filter(models.Role.name == "user").one().system_id,
+        is_installation_owner=True,
+    )
+    db.add(local)
+    db.commit()
+
+    result = pull.execute_pull_all(db, action_type="Manual", may_restore_authz=True)
+    assert result["status"] == "success"
+
+    restored = {u.username: u.is_installation_owner
+                for u in db.query(models.User).all()}
+    assert restored["kana"] is True
+    assert restored["localowner"] is False
+    # The tab landed whole, not rolled back around the one row that collided.
+    assert restored["cg1618"] is False
+
+
 def test_the_users_tab_carries_no_credential_material(db, workbook,
                                                       two_users_with_lists):
     backup.execute_backup(db, action_type="Manual")

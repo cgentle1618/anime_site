@@ -21,9 +21,11 @@ from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
 from app.services.rbac.permissions import (
+    FAMILY_SELF,
     PERM_ADMIN_AUTHZ,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
+    split_perm,
 )
 
 GUEST_ROLE = "guest"
@@ -66,6 +68,29 @@ class Viewer:
     field_groups: frozenset[str] = frozenset()
 
     def has(self, permission: str) -> bool:
+        """
+        Whether this viewer holds one permission.
+
+        THE SUPERUSER SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
+        is the whole of "an admin account holds no user data" (spec:
+        docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md).
+        `self.list` and `self.personal_notes` are not privileges - they are
+        OWNERSHIP, the right to keep rows of your own. "May do anything to the
+        system" and "has a personal library" are different claims, and
+        conflating them is how every personal row in the first installation
+        came to belong to the `admin` account.
+
+        Expressed here rather than as refusals in the write routes on purpose:
+        a rule spelled out in twenty routers is a rule that will be missing
+        from the twenty-first. The SPA's AuthContext.has() mirrors this -
+        both halves or neither, or the two surfaces disagree about what the
+        admin may see and the nav advertises a page the API refuses.
+
+        Everything else still short-circuits, so a content label or a media
+        type added tomorrow hides nothing from an admin.
+        """
+        if split_perm(permission)[0] == FAMILY_SELF:
+            return permission in self.permissions
         return self.is_superuser or permission in self.permissions
 
 

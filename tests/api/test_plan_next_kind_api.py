@@ -2,6 +2,13 @@
 The kind parameter across /api/plan-next.
 
 Requires PostgreSQL (anime_site_test DB). See tests/api/conftest.py.
+
+The client here is `super_client`, not `admin_client`: since 2026-09-12 an
+administrative account holds no `self.*` grant and every route in this prefix
+answers it 401. The `super` role is the account shape that legitimately keeps
+a library - it holds both self.* grants and manage.catalog, so the catalogue
+writes some of these tests make still land. Spec:
+docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md.
 """
 
 import uuid
@@ -35,50 +42,50 @@ def _payload(scope, target_id, media_type="movie", kind=None):
     return body
 
 
-def test_kind_defaults_to_next(admin_client, seeded_movie):
-    res = admin_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
+def test_kind_defaults_to_next(super_client, seeded_movie):
+    res = super_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
     assert res.status_code == 201
     assert res.json()["kind"] == "next"
 
 
-def test_rewatch_row_round_trips(admin_client, seeded_movie):
-    res = admin_client.post(
+def test_rewatch_row_round_trips(super_client, seeded_movie):
+    res = super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     )
     assert res.status_code == 201
     assert res.json()["kind"] == "rewatch"
 
 
-def test_same_target_under_both_kinds(admin_client, seeded_movie):
-    assert admin_client.post(
+def test_same_target_under_both_kinds(super_client, seeded_movie):
+    assert super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie)
     ).status_code == 201
-    assert admin_client.post(
+    assert super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     ).status_code == 201
 
 
-def test_duplicate_within_a_kind_is_409(admin_client, seeded_movie):
-    admin_client.post("/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch"))
-    res = admin_client.post(
+def test_duplicate_within_a_kind_is_409(super_client, seeded_movie):
+    super_client.post("/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch"))
+    res = super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     )
     assert res.status_code == 409
 
 
-def test_unknown_kind_is_422(admin_client, seeded_movie):
-    res = admin_client.post(
+def test_unknown_kind_is_422(super_client, seeded_movie):
+    res = super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="reread")
     )
     assert res.status_code == 422
 
 
-def test_anime_entry_is_legal_for_next_but_not_rewatch(admin_client, seeded_anime):
+def test_anime_entry_is_legal_for_next_but_not_rewatch(super_client, seeded_anime):
     # The scope map differs by kind; the router must consult the right one.
-    assert admin_client.post(
+    assert super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_anime, media_type="anime")
     ).status_code == 201
-    res = admin_client.post(
+    res = super_client.post(
         "/api/plan-next/",
         json=_payload("entry", seeded_anime, media_type="anime", kind="rewatch"),
     )
@@ -90,26 +97,26 @@ def test_anime_entry_is_legal_for_next_but_not_rewatch(admin_client, seeded_anim
     assert res.status_code == 400
 
 
-def test_list_filters_by_kind(admin_client, seeded_movie):
-    admin_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
-    admin_client.post(
+def test_list_filters_by_kind(super_client, seeded_movie):
+    super_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
+    super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     )
 
-    both = admin_client.get("/api/plan-next/").json()
+    both = super_client.get("/api/plan-next/").json()
     assert len({r["kind"] for r in both}) == 2
 
-    only = admin_client.get("/api/plan-next/?kind=rewatch").json()
+    only = super_client.get("/api/plan-next/?kind=rewatch").json()
     assert only and all(r["kind"] == "rewatch" for r in only)
 
 
-def test_delete_by_target_is_kind_scoped(admin_client, seeded_movie):
-    admin_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
-    admin_client.post(
+def test_delete_by_target_is_kind_scoped(super_client, seeded_movie):
+    super_client.post("/api/plan-next/", json=_payload("entry", seeded_movie))
+    super_client.post(
         "/api/plan-next/", json=_payload("entry", seeded_movie, kind="rewatch")
     )
 
-    res = admin_client.delete(
+    res = super_client.delete(
         "/api/plan-next/target",
         params={
             "scope": "entry",
@@ -120,13 +127,13 @@ def test_delete_by_target_is_kind_scoped(admin_client, seeded_movie):
     )
     assert res.status_code == 200
 
-    left = admin_client.get("/api/plan-next/").json()
+    left = super_client.get("/api/plan-next/").json()
     assert [r["kind"] for r in left] == ["next"]
 
 
-def test_kinds_endpoint_exposes_both_maps(admin_client):
+def test_kinds_endpoint_exposes_both_maps(super_client):
     # Authenticated from Step 3 on: everything under the prefix needs a login.
-    body = admin_client.get("/api/plan-next/kinds").json()
+    body = super_client.get("/api/plan-next/kinds").json()
     assert body["kinds"] == ["next", "rewatch"]
     assert body["allowed_scopes"]["next"]["anime"] == ["entry", "series", "franchise"]
     assert body["allowed_scopes"]["rewatch"]["anime"] == ["franchise"]

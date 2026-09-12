@@ -74,8 +74,18 @@ export function AuthProvider({ children }) {
 
   // Mirrors Viewer.has on the server, superuser short-circuit included, so a
   // new content label or field group does not have to be granted to the admin.
+  //
+  // The one exception mirrors the server's: the short-circuit does NOT cover
+  // the `self` family. self.list and self.personal_notes are ownership, not
+  // privilege - an admin account administers the site and does not keep a
+  // library of its own. Both halves move together or neither does: with only
+  // the server half, the nav would advertise Plan, Seasonal and Statistics to
+  // an admin and the API would answer 401 on each.
   const has = useCallback(
-    (permission) => auth.isSuperuser || held.has(permission),
+    (permission) =>
+      permission.startsWith("self.")
+        ? held.has(permission)
+        : auth.isSuperuser || held.has(permission),
     [auth.isSuperuser, held],
   );
 

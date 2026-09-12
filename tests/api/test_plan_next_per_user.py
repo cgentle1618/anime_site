@@ -2,6 +2,13 @@
 plan_next is per user and points at its target with a real foreign key.
 
 Requires PostgreSQL. See tests/api/conftest.py.
+
+The client here is `super_client`, not `admin_client`: since 2026-09-12 an
+administrative account holds no `self.*` grant and every route in this prefix
+answers it 401. The `super` role is the account shape that legitimately keeps
+a library - it holds both self.* grants and manage.catalog, so the catalogue
+writes some of these tests make still land. Spec:
+docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md.
 """
 
 import uuid
@@ -22,9 +29,9 @@ def db(db_session):
 
 
 @pytest.fixture
-def owner(admin_user, admin_client):
-    """The account admin_client acts as (conftest's admin_user)."""
-    return admin_user
+def owner(super_user, super_client):
+    """The account super_client acts as (conftest's super_user)."""
+    return super_user
 
 
 @pytest.fixture
@@ -123,7 +130,7 @@ def test_entry_flags_are_per_user(db, owner, other_user, sample_anime):
 
 
 def test_the_list_endpoint_returns_the_viewers_rows(
-    admin_client, db, owner, other_user, sample_franchise
+    super_client, db, owner, other_user, sample_franchise
 ):
     db.add(
         models.PlanNext(
@@ -136,7 +143,7 @@ def test_the_list_endpoint_returns_the_viewers_rows(
     )
     db.flush()
     # The admin queued nothing; kana's row is not theirs to see.
-    assert admin_client.get("/api/plan-next/").json() == []
+    assert super_client.get("/api/plan-next/").json() == []
 
 
 def test_an_anonymous_visitor_is_refused(client, db, other_user, sample_franchise):
@@ -156,9 +163,9 @@ def test_an_anonymous_visitor_is_refused(client, db, other_user, sample_franchis
 
 
 def test_the_create_endpoint_stamps_the_caller(
-    admin_client, db, owner, sample_franchise
+    super_client, db, owner, sample_franchise
 ):
-    response = admin_client.post(
+    response = super_client.post(
         "/api/plan-next/",
         json={
             "media_type": "anime",

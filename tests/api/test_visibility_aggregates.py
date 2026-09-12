@@ -17,6 +17,7 @@ import uuid
 import pytest
 
 from app import models
+from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.seed import default_guest_permissions
 from tests.api.conftest import (  # noqa: F401
     HIDDEN_NAME,
@@ -69,8 +70,12 @@ def hidden_meme(db_session, hidden_anime, admin_user):
 
 
 @pytest.fixture
-def hidden_plan(db_session, admin_user, hidden_anime):
-    """The admin's own plan row on a hidden entry.
+def hidden_plan(db_session, super_user, hidden_anime):
+    """A library-keeping account's own plan row on a hidden entry.
+
+    `super_user`, not `admin_user`: since 2026-09-12 an administrative account
+    holds no `self.*` grant, so it has no plan queue to leak and /api/plan-next
+    answers it 401. The `super` role is the account shape that keeps one.
 
     A plan row belongs to a user from Step 3 on, so the row a viewer might leak
     is one of their OWN - queued before the entry was labelled, or labelled for
@@ -78,7 +83,7 @@ def hidden_plan(db_session, admin_user, hidden_anime):
     """
     p = models.PlanNext(
         system_id=uuid.uuid4(),
-        user_id=admin_user.id,
+        user_id=super_user.id,
         kind="next",
         media_type="anime",
         media_id=hidden_anime.system_id,
@@ -176,8 +181,15 @@ def test_a_plan_row_for_a_hidden_entry_is_dropped(
     # A logged-in viewer whose MODE lacks the label: their OWN plan row on
     # the hidden entry must not come back. (It was the role that lacked it
     # until Phase B moved object scoping to the access mode.)
+    # self.list on top of the guest set: reading a plan queue requires being
+    # able to KEEP one, and the guest defaults do not include it. What this
+    # test narrows is the MODE, not the role.
     make_viewer(
-        db_session, client, "untrusted", default_guest_permissions(), label_keys=()
+        db_session,
+        client,
+        "untrusted",
+        default_guest_permissions() | {PERM_SELF_LIST},
+        label_keys=(),
     )
     viewer = db_session.query(models.User).filter_by(username="untrusted").one()
     db_session.add(
@@ -197,8 +209,14 @@ def test_a_plan_row_for_a_hidden_entry_is_dropped(
     assert str(hidden_anime.system_id) not in response.text
 
 
-def test_admin_still_sees_the_plan_row(admin_client, hidden_plan):
-    assert HIDDEN_NAME in admin_client.get("/api/plan-next/").text
+def test_an_unnarrowed_viewer_still_sees_the_plan_row(super_client, hidden_plan):
+    """
+    The mirror of the test above, on the same fixture, so a green there proves
+    the MODE did the hiding rather than the row being absent or the caller
+    being refused outright. It was `admin_client` until 2026-09-12, when an
+    administrative account stopped holding a plan queue at all.
+    """
+    assert HIDDEN_NAME in super_client.get("/api/plan-next/").text
 
 
 # ---------------------------------------------------------------------------

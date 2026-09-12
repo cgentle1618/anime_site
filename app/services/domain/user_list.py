@@ -125,21 +125,38 @@ def installation_owner_id(db: Session) -> Optional[UUID]:
     share an implementation, which is how a stranger came to be shown somebody
     else's ratings.
 
-    The rule matches what the Step 3 migrations backfilled to: the account
-    named `admin`, or the alphabetically first user when no account carries
-    that name. `pull.py` had its own private copy of exactly this; there is
-    one answer now.
+    The answer is DATA: `users.is_installation_owner`, a partial-unique flag
+    so at most one account holds it. It used to be the account named `admin`,
+    which is how every personal row in the first installation came to belong
+    to an administrative account (revision o1a1ownerflag moved them). An admin
+    administers; it does not carry a library, and the two questions are not
+    the same one.
+
+    The two fallbacks are for a database where nobody holds the flag - a fresh
+    install, or a restore from a sheet backed up before the column existed:
+    the alphabetically-first NON-superuser account, then the
+    alphabetically-first account of any kind. Never None while any account
+    exists, because `user_media_list.user_id` is NOT NULL and a restore has to
+    file its rows somewhere. The second fallback can therefore still name an
+    admin, on a database that has no other account - which is right: a sheet
+    must restore onto a fresh machine before a second account exists on it.
 
     Nothing on a request path may call this. If a route needs to know who is
     asking, the answer is acting_user_id() and it is allowed to be None.
     """
     owner = (
         db.query(models.User)
-        .join(models.Role, models.User.role_id == models.Role.system_id)
-        .filter(models.Role.name == "admin")
-        .order_by(models.User.username)
+        .filter(models.User.is_installation_owner)
         .first()
     )
+    if owner is None:
+        owner = (
+            db.query(models.User)
+            .join(models.Role, models.User.role_id == models.Role.system_id)
+            .filter(~models.Role.is_superuser)
+            .order_by(models.User.username)
+            .first()
+        )
     if owner is None:
         owner = db.query(models.User).order_by(models.User.username).first()
     return owner.id if owner is not None else None

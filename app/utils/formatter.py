@@ -1202,14 +1202,25 @@ def parse_user_from_sheet(raw: dict) -> dict:
     app/main.py's lifespan on every machine, so the same person holds a
     different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
 
-    list_is_public is coerced rather than left None: the column is NOT NULL,
-    and a blank cell means "not public", not "unknown".
+    list_is_public and is_installation_owner are coerced rather than left
+    None: both columns are NOT NULL, and a blank cell means false, not
+    "unknown". A sheet written before either column existed has no header for
+    it at all, which is the same case and the same answer.
+
+    THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
+    User model does not travel until it is named here, and the failure is
+    silent on the machine doing the Backup - it shows up as the OTHER machine
+    disagreeing after a Pull. `is_installation_owner` in particular must
+    travel, or the two databases disagree about whose collection this is and
+    each files restored rows under a different account.
     """
     is_public = parse_from_sheet(raw.get("list_is_public"), bool)
+    is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
     return {
         "id": parse_from_sheet(raw.get("id"), UUID),
         "username": parse_from_sheet(raw.get("username"), str),
         "list_is_public": bool(is_public),
+        "is_installation_owner": bool(is_owner),
     }
 
 

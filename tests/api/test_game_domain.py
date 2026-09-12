@@ -7,6 +7,7 @@ from app.services.domain import (
     mark_game_list,
     write_game_copies,
 )
+from app.services.rbac.permissions import PERM_SELF_LIST
 
 
 def test_an_auto_created_franchise_is_stamped_game(admin_client, db_session):
@@ -47,10 +48,19 @@ class _Viewer:
     named. `acting_user_id` used to invent one by falling back to the first
     admin; it does not any more, and a test that relied on that was asserting
     the fallback as much as the function.
+
+    It carries has() as well as user_id because a copy is a personal-ownership
+    row: since 2026-09-12 write_game_copies asks whether the actor may KEEP
+    one, and a stand-in that answered only "who" would exercise a different
+    function than the routers call.
     """
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, can_own=True):
         self.user_id = user_id
+        self._can_own = can_own
+
+    def has(self, permission):
+        return permission == PERM_SELF_LIST and self._can_own
 
 
 def test_write_game_copies_inserts_updates_and_deletes(db_session, admin_user):
@@ -77,6 +87,52 @@ def test_write_game_copies_inserts_updates_and_deletes(db_session, admin_user):
     write_game_copies(db_session, game, [], _Viewer(admin_user.id))
     db_session.flush()
     assert db_session.query(models.GameCopy).count() == 0
+
+
+def test_a_viewer_who_may_not_own_rows_writes_no_copies(db_session, admin_user):
+    """
+    A copy is personal ownership written through a CATALOGUE route, so the
+    gate on the Game write (manage.catalog) is the wrong question and
+    `self.list` is the right one.
+
+    Skipped rather than refused: this is a nested field of a write the caller
+    IS allowed to make, so failing the whole edit would refuse a legitimate
+    catalogue change over a payload the SPA does not render for this account.
+    """
+    game = models.Game(game_name_en="Administered Not Owned")
+    db_session.add(game)
+    db_session.flush()
+
+    write_game_copies(
+        db_session,
+        game,
+        [{"storefront": "Steam", "ownership": "Owned"}],
+        _Viewer(admin_user.id, can_own=False),
+    )
+    db_session.flush()
+    assert db_session.query(models.GameCopy).count() == 0
+
+
+def test_the_same_payload_from_a_viewer_who_may_own_rows_lands(
+    db_session, admin_user
+):
+    """
+    The mirror, same payload and same entry, so the green above proves the
+    permission did the skipping rather than the payload being malformed or
+    the entry unsaveable.
+    """
+    game = models.Game(game_name_en="Administered And Owned")
+    db_session.add(game)
+    db_session.flush()
+
+    write_game_copies(
+        db_session,
+        game,
+        [{"storefront": "Steam", "ownership": "Owned"}],
+        _Viewer(admin_user.id, can_own=True),
+    )
+    db_session.flush()
+    assert db_session.query(models.GameCopy).count() == 1
 
 
 def test_none_means_not_supplied_and_leaves_copies_alone(db_session, admin_user):
@@ -115,15 +171,20 @@ def test_ownership_is_none_without_copies(db_session):
     assert derive_game_ownership(game) is None
 
 
-def test_the_list_endpoint_filters_on_derived_ownership(admin_client):
-    owned = admin_client.post(
+# super_client, not admin_client, in the two tests below: `copies` is a
+# personal-ownership payload, and since 2026-09-12 the server skips one sent
+# by an account that holds no self.* grant. An administrative account edits
+# the game without acquiring a copy of it, so posting copies as the admin
+# would derive ownership from an empty set and assert nothing.
+def test_the_list_endpoint_filters_on_derived_ownership(super_client):
+    owned = super_client.post(
         "/api/game/",
         json={
             "game_name_en": "Owned Game",
             "copies": [{"storefront": "Steam", "ownership": "Owned"}],
         },
     ).json()
-    admin_client.post(
+    super_client.post(
         "/api/game/",
         json={
             "game_name_en": "Wanted Game",
@@ -131,7 +192,7 @@ def test_the_list_endpoint_filters_on_derived_ownership(admin_client):
         },
     )
     ids = [
-        e["system_id"] for e in admin_client.get("/api/game/?ownership=Owned").json()
+        e["system_id"] for e in super_client.get("/api/game/?ownership=Owned").json()
     ]
     assert owned["system_id"] in ids
     assert len(ids) == 1
@@ -150,13 +211,13 @@ def test_a_listed_game_carries_its_plan_flags(admin_client):
     assert entry["to_replay"] is False
 
 
-def test_reads_carry_the_derived_ownership(admin_client):
+def test_reads_carry_the_derived_ownership(super_client):
     """
     ownership is declared on GameResponse but derived from the copy rows, so a
     read that never derives it returns null - which reads as "not owned"
     rather than as "unknown", and is worse than the field being absent.
     """
-    created = admin_client.post(
+    created = super_client.post(
         "/api/game/",
         json={
             "game_name_en": "Owned On Read",
@@ -168,10 +229,10 @@ def test_reads_carry_the_derived_ownership(admin_client):
     ).json()
     assert created["ownership"] == "Owned"
 
-    detail = admin_client.get(f"/api/game/{created['system_id']}").json()
+    detail = super_client.get(f"/api/game/{created['system_id']}").json()
     assert detail["ownership"] == "Owned"
 
-    listed = {e["system_id"]: e for e in admin_client.get("/api/game/").json()}
+    listed = {e["system_id"]: e for e in super_client.get("/api/game/").json()}
     assert listed[created["system_id"]]["ownership"] == "Owned"
 
 

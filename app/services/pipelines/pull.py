@@ -1096,6 +1096,20 @@ def execute_pull_specific(
                 continue
             clean_header_dict["role_id"] = role.system_id
 
+            # ix_one_installation_owner is a PARTIAL UNIQUE index over the
+            # whole table, so restoring the sheet's owner while a different
+            # local account still holds the flag raises at the tab's commit
+            # and rolls back every user - the failure shape that killed the
+            # whole Quote tab in 709f9f00. The sheet is the authority on whose
+            # collection this is, so clear the flag locally first and let this
+            # row set it. Flushed, not merely staged: the index is checked per
+            # statement, not at commit.
+            if clean_header_dict.get("is_installation_owner"):
+                db.query(User).filter(User.is_installation_owner).update(
+                    {"is_installation_owner": False}, synchronize_session=False
+                )
+                db.flush()
+
         # System Configs, Person Role, Publisher Scope, System Option Scope
         # and System Option Usage are autoincrement integer PKs and use 'id',
         # Seasonal uses 'seasonal', others use 'system_id'. System Options used

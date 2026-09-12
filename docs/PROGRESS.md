@@ -7,7 +7,7 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 
 ---
 
@@ -40,7 +40,7 @@ near-duplicate tables that numbered the same questions differently.
 | 5 | What the object axis means for `manage.pipelines` - Replace-one, Replace All and Pull All all rewrite entries no visibility test guards | **done `3c509dfd`** - spec decision 14 and its detail section. Unscoped on the object axis, and the `data_control.py` / `system.py` routes require the session's **active mode to be unscoped** (every `content_label` row, every `FIELD_GROUP_KEYS` entry, computed rather than a named mode). B was rejected because a per-viewer Backup would write a partial sheet over the complete one - data loss, not a leak. The Replace-one oracle closes for free. **Into Phase B**, which is where a mode first exists to test |
 | 6 | No SPA surface for a non-admin | **done `61f19d1`**. The tracker controls read `self.list` and RemarkModal reads `self.personal_notes` - a different permission, because a remark belongs to its author. The two SPA surfaces also disagreed (`requireAuth` at the route vs `has("self.list")` in the nav, making the NAV stricter, so pages were reachable but unlisted); both ask `self.list` now and `navigation.test.js` pins the pairing for ten routes |
 
-Read before designing: **[authorization.md](authorization.md#what-the-redesign-inherits)**
+Read before designing: **[authorization.md](authorization.md#rules-not-to-break)**
 - the gates that already exist, the rules not to break, and the lessons from
 making the system multi-user. The page was audited against the code on
 2026-09-10 and again on 2026-09-11 when Phase C landed; its residuals list is
@@ -153,6 +153,7 @@ otherwise.
 
 | Item | Where | Status |
 |---|---|---|
+| **The company machine still files rows under `admin`** | The admin account holds no user data as of `o1a1ownerflag` (2026-09-12), applied to the home `anime_site_db`: 2081 list rows, 1817 notes, 96 seasonals, 88 copies, 84 plans, 24 memes and 11 quotes moved to `cg1618`, which now holds `is_installation_owner`. The company database has neither the migration nor the move. **Arriving there: `git pull`, `alembic upgrade head`, then Pull All** - the migration will pick the same account (first non-superuser) and the sheet carries the flag, so the two agree either way, but running them out of order files a restore under whichever account that database's fallback names. Pre-migration dump: `~/anime_site_pre_owner_flag_20260912.sql` (home) | todo |
 | **The Clean action has never been run against real data** | Shipped and green - 8 tasks, 3851 backend tests - but **every test uses a faked sheet**. The identity rule, the two refusals and the re-scan are all pinned by tests written from the same understanding that produced five wrong assumptions about this codebase, and a sixth that only failed loudly by luck (a refusal test that got 503 instead of 401). The first scan against the real 2081 entries IS the test. **Run it and read it without ticking anything.** Not dangerous to try: the scan is read-only, and apply deletes nothing until a box is ticked. But it is the difference between "tests pass" and "works", and `clean-session` asked that it reach the owner from both of us rather than neither | todo |
 | `Note`, `Meme` and `Quote` tabs carry `author_id` as a raw uuid, so authorship does not round-trip | Each machine's lifespan mints its own `admin`, and the `Users` tab's username match keeps the local id - so the other machine's admin rows restore under this one's. `709f9f00` stopped the `Quote` tab dying on it (FK violation, whole tab rolled back); the durable fix is a `username` column on the three tabs, the way `Plan Next` has one. Invisible with one account; needed before a second person writes a note. `tabs.py:259/268/269` | todo |
 | The logged-out redirect browser check | **done 2026-09-11 by `cards-link-session`, on :8000.** The bounce PASSES on all four routes: `/plan`, `/seasonal`, `/seasonal/:id` and `/statistics` each reach `/login?next=...` with the right path (the `:id` case is double-encoded and correct - `location.pathname` keeps its own encoding and `encodeURIComponent` escapes the `%`). No flash: a hard load of `/statistics` logged out fires only `/api/auth/me` and `/api/constants`, so the page never mounts. The two permission surfaces agree for a logged-out visitor - `navigation.js` gates on `self.list`, a guest holds nothing, the links are absent from the DOM. **The redirect-BACK half is defective** - next row | done |
@@ -194,4 +195,5 @@ otherwise.
 | Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); Step 5 was finished on it; droppable |
 | Phase B test dbs | `anime_site_test_phaseb` (the suite; created 2026-09-11) and `anime_site_mig_check` (a pg_dump restore of `anime_site_db`, used to exercise `n1a1accessmode` forwards and back because `alembic upgrade head` from an EMPTY database still fails at `86982d71c2f1`). Both droppable |
 | Clean-orphans test db | `anime_site_test_clean`, created 2026-09-11 in the container for `clean-session`; droppable |
+| Owner-flag test db | `anime_site_test_owner`, created 2026-09-12 for the admin-holds-no-user-data change: a `pg_dump` restore of the real `anime_site_db`, used to exercise `o1a1ownerflag` forwards, backwards and forwards again before it was applied for real, then reused for the suite; droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

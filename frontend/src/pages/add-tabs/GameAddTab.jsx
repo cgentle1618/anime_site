@@ -28,6 +28,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import { useAuth } from "../../contexts/AuthContext";
 
 export { defaultGame } from "../../config/formFactories";
 
@@ -182,6 +183,8 @@ export function IgdbSearchBox({ onPick }) {
  * differ only in which state object they hand in.
  */
 export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
+  const { has } = useAuth();
+  const canOwnCopies = has("self.list");
   // ck_games_not_self_parent: a game can never be its own base game, so the
   // row being edited is never offered as a parent.
   const baseGameChoices = excludeGameId
@@ -542,16 +545,26 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
         {num("price_current_tw", "Current Price (TW)")}
       </div>
 
-      <SectionHeader icon="fa-box-open" title="Copies" />
-      <Field
-        label="Copies"
-        hint="One row per copy owned or wanted — Ownership on the entry is derived from these"
-      >
-        <GameCopiesEditor
-          items={f.copies}
-          onChange={(v) => u("copies", v)}
-        />
-      </Field>
+      {/* A copy is a personal-ownership row that happens to be edited from a
+          catalogue form, so it is gated on self.list rather than on the
+          manage.catalog this page already required. An administrative
+          account edits the game without acquiring a copy of it; the server
+          skips a `copies` payload from such a caller for the same reason
+          (services/domain/game_copies.py). */}
+      {canOwnCopies && (
+        <>
+          <SectionHeader icon="fa-box-open" title="Copies" />
+          <Field
+            label="Copies"
+            hint="One row per copy owned or wanted — Ownership on the entry is derived from these"
+          >
+            <GameCopiesEditor
+              items={f.copies}
+              onChange={(v) => u("copies", v)}
+            />
+          </Field>
+        </>
+      )}
 
       <SectionHeader icon="fa-external-link-alt" title="Sources" />
       {/* The id, not the link, is what Fill runs on. The public IGDB URL

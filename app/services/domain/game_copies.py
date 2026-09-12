@@ -12,6 +12,7 @@ from typing import Optional
 
 from app.models import GameCopy
 from app.services.domain.user_list import acting_user_id
+from app.services.rbac.permissions import PERM_SELF_LIST
 
 
 def write_game_copies(db, entry, copies, viewer=None) -> None:
@@ -34,6 +35,19 @@ def write_game_copies(db, entry, copies, viewer=None) -> None:
         # this is unreachable in practice - but game_copy.user_id is NOT NULL,
         # and reaching the INSERT would raise an IntegrityError that says
         # nothing about the cause. novel_unit_writer guards the same way.
+        return
+    # Somebody is acting, but may not KEEP rows of their own. A copy is a
+    # personal-ownership row that happens to be written through a catalogue
+    # route (the Game entry form), so `manage.catalog` is the wrong question
+    # and `self.list` is the right one: an administrative account edits the
+    # game and does not thereby acquire a copy of it.
+    #
+    # Skipped rather than refused, deliberately. This is a nested field of a
+    # write the caller IS allowed to make, so failing the whole Game edit
+    # would refuse the catalogue change over a payload the SPA does not even
+    # render for this account - GameCopiesEditor is gated on the same
+    # permission. This is the second stop, not the only one.
+    if viewer is not None and not viewer.has(PERM_SELF_LIST):
         return
     existing = {
         c.system_id: c
