@@ -15,8 +15,12 @@ from app.services.integrations import anilist as anilist_module
 from app.services.integrations.anilist import (
     ANIME,
     BATCH_SIZE,
+    MANGA,
     AniListRateLimiter,
+    anilist_record,
     fetch_anilist_batch,
+    prime_anilist_cache,
+    reset_anilist_cache,
 )
 
 
@@ -159,3 +163,154 @@ def test_the_limiter_sleeps_once_the_window_is_full(monkeypatch):
     assert slept, "the third request in a 2-request window must wait"
     assert sum(slept) >= AniListRateLimiter.WINDOW_SECONDS - 1
     assert elapsed < 5, "the limiter must not busy-wait against a real clock"
+
+
+# ---------------------------------------------------------------------------
+# Run-scoped cache tests
+# ---------------------------------------------------------------------------
+
+
+class FakeQuery:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def filter(self, *a, **k):
+        return self
+
+    def all(self):
+        return self._rows
+
+
+class FakeDb:
+    """Stands in for a Session: prime_anilist_cache only ever reads mal_ids."""
+
+    def __init__(self, mal_ids):
+        self._rows = [(i,) for i in mal_ids]
+
+    def query(self, *a, **k):
+        return FakeQuery(self._rows)
+
+
+class _Col:
+    """
+    Stands in for a SQLAlchemy Column. prime_anilist_cache only ever calls
+    .isnot() on it and hands the result to a filter this fake ignores, so one
+    method is the whole surface.
+    """
+
+    def isnot(self, _other):
+        return self
+
+
+class FakeModel:
+    mal_id = _Col()
+
+
+@pytest.fixture(autouse=True)
+def clean_cache():
+    reset_anilist_cache()
+    yield
+    reset_anilist_cache()
+
+
+def test_priming_batches_in_fifties(monkeypatch):
+    batches = []
+
+    def fake_batch(ids, media_type):
+        batches.append(list(ids))
+        return {i: {"idMal": i, "averageScore": 80, "rankings": []} for i in ids}
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fake_batch)
+
+    prime_anilist_cache(FakeDb(range(120)), FakeModel, ANIME)
+
+    assert [len(b) for b in batches] == [50, 50, 20]
+    assert anilist_record(7, ANIME)["averageScore"] == 80
+
+
+def test_a_primed_miss_makes_no_further_request(monkeypatch):
+    """
+    The batch ran and AniList had no record. Re-requesting it once per entry
+    would undo the whole point of batching.
+    """
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", lambda ids, t: {})
+    prime_anilist_cache(FakeDb([5114]), FakeModel, ANIME)
+
+    def explode(*a, **k):
+        raise AssertionError("a primed miss must not re-request")
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", explode)
+    assert anilist_record(5114, ANIME) is None
+
+
+def test_an_unprimed_lookup_fetches_that_one_id(monkeypatch):
+    """
+    The single-entry Replace hook never runs pre_run, so the cache is empty
+    and a cache-only read would write nothing at all.
+    """
+    calls = []
+
+    def fake_batch(ids, media_type):
+        calls.append(list(ids))
+        return {5114: {"idMal": 5114, "averageScore": 90, "rankings": []}}
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fake_batch)
+
+    assert anilist_record(5114, ANIME)["averageScore"] == 90
+    assert calls == [[5114]]
+
+
+def test_an_unprimed_miss_is_remembered(monkeypatch):
+    """One entry, one request - even when the answer is nothing."""
+    calls = []
+
+    def fake_batch(ids, media_type):
+        calls.append(list(ids))
+        return {}
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fake_batch)
+
+    assert anilist_record(999, ANIME) is None
+    assert anilist_record(999, ANIME) is None
+    assert len(calls) == 1
+
+
+def test_the_two_media_types_do_not_share_a_key(monkeypatch):
+    """A MAL anime id and a MAL manga id can collide; the type disambiguates."""
+    monkeypatch.setattr(
+        anilist_module,
+        "fetch_anilist_batch",
+        lambda ids, t: {1: {"idMal": 1, "averageScore": 11 if t == ANIME else 22,
+                            "rankings": []}},
+    )
+    assert anilist_record(1, ANIME)["averageScore"] == 11
+    assert anilist_record(1, MANGA)["averageScore"] == 22
+
+
+def test_priming_clears_the_previous_run(monkeypatch):
+    """
+    In a long-lived uvicorn process the cache would otherwise outlive the run
+    that filled it, and tomorrow's Replace would write today's scores.
+    """
+    monkeypatch.setattr(
+        anilist_module,
+        "fetch_anilist_batch",
+        lambda ids, t: {5114: {"idMal": 5114, "averageScore": 90, "rankings": []}},
+    )
+    prime_anilist_cache(FakeDb([5114]), FakeModel, ANIME)
+    assert anilist_record(5114, ANIME)["averageScore"] == 90
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", lambda ids, t: {})
+    prime_anilist_cache(FakeDb([5114]), FakeModel, ANIME)
+    assert anilist_record(5114, ANIME) is None
+
+
+def test_an_entry_with_no_mal_id_is_not_requested(monkeypatch):
+    batches = []
+    monkeypatch.setattr(
+        anilist_module,
+        "fetch_anilist_batch",
+        lambda ids, t: batches.append(list(ids)) or {},
+    )
+    prime_anilist_cache(FakeDb([]), FakeModel, ANIME)
+    assert batches == []
