@@ -23,10 +23,16 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.dependencies import get_db
 from app.services.domain.rating_points import points_to_letter, rating_points
+from app.services.rbac.enforcement import require_visible_media
+from app.services.rbac.resolver import Viewer, get_viewer
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/community", tags=["Community"])
+
+# The same words for hidden and for missing. This route serves every media
+# type, so it has no per-type label to borrow the way _factory.py does.
+NOT_FOUND = "Entry not found."
 
 
 @router.get(
@@ -34,12 +40,44 @@ router = APIRouter(prefix="/api/community", tags=["Community"])
     response_model=schemas.CommunityAggregate,
     summary="Public-list Aggregate for One Entry",
 )
-def get_community_aggregate(media_id: UUID, db: Session = Depends(get_db)):
+def get_community_aggregate(
+    media_id: UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """
-    An unknown media_id answers an empty aggregate rather than 404: this is a
+    A hidden entry and an entry that does not exist both 404, in the same
+    words, exactly as every per-type router answers (_factory.py).
+
+    THE VIEWER DEPENDENCY IS THE POINT OF THIS ROUTE, not boilerplate. Until
+    it was added this was the only router in the application with no viewer of
+    any kind - its single dependency was get_db - so it answered
+    unauthenticated, and `media_id` IS the entry's system_id (anime.system_id
+    FKs to media.system_id). Anything holding one id could read the full
+    per-status histogram, the sample size and the mean for an entry it was not
+    allowed to open.
+
+    Why the gate actually bites, which is worth stating because the intuitive
+    reading is wrong: enforcement.entry_visible returns True when `viewer` is
+    None, so a gate reached with None would wave everything through. It never
+    is. resolver.resolve_viewer NEVER returns None - an anonymous request gets
+    the guest role, or GUEST_FALLBACK with permissions=frozenset() when the
+    role cannot be resolved at all. None means "no request", which only
+    internal callers pass, and they do not come through here.
+
+    An unknown id 404s too, and that is a deliberate change from the empty
+    aggregate this used to answer. The two cases must agree: if hidden 404s
+    while unknown answers 200, the status code becomes the existence oracle
+    the gate exists to remove.
+
+    Do NOT restore the empty-aggregate answer on the grounds that this is a
     block on a detail page whose own route already decided whether the entry
-    exists, and a 404 here would blank a page that is otherwise fine.
+    exists. That argument needs the caller to have come through a detail page,
+    and nothing enforces it - the route is reachable directly, with no session.
     """
+    require_visible_media(
+        db, viewer, media_id, NOT_FOUND, require_media_row=True
+    )
     status_rows = (
         db.query(models.UserMediaList.status, func.count().label("count"))
         .join(models.User, models.User.id == models.UserMediaList.user_id)

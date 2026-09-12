@@ -11,7 +11,10 @@ import uuid
 import pytest
 
 from app import models
+from app.services.rbac.permissions import media_type_perm
+from app.services.rbac.seed import default_guest_permissions
 from app.services.security import get_password_hash
+from tests.api.conftest import make_viewer
 
 
 @pytest.fixture
@@ -96,7 +99,90 @@ def test_the_average_is_the_nearest_letter(db, client, sample_anime):
     assert body["average_rating"] == "A+"
 
 
-def test_an_unknown_media_id_reports_nothing_rather_than_erroring(client):
+def test_an_unknown_media_id_is_a_404(client):
+    """
+    Changed deliberately: this used to answer 200 with an empty aggregate.
+
+    It cannot any more, because a hidden entry now 404s. If an unknown id kept
+    answering 200 the status code would BE the existence oracle the gate exists
+    to remove - 404 would mean "real, and you may not see it" and 200 would mean
+    "no such entry". The two cases have to agree, so both are 404.
+    """
     r = client.get(f"/api/community/{uuid.uuid4()}")
+    assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# The gate.
+#
+# Every test below pairs a refusal with its MIRROR on the same fixture. A
+# refusal test alone proves nothing here: entry_visible short-circuits on
+# `if not hidden: return True`, so with media_content_label empty - which is
+# what a fresh database gives you - a "hidden entry is refused" assertion
+# passes without the gate ever running, and would keep passing through the
+# change that removes it. The mirror is what proves the refusal came from the
+# gate rather than from an empty set.
+# ---------------------------------------------------------------------------
+
+
+def test_a_labelled_entry_is_indistinguishable_from_missing(client, hidden_anime):
+    """The label axis refuses, and in the same words as a missing entry."""
+    unknown = client.get(f"/api/community/{uuid.uuid4()}")
+    hidden = client.get(f"/api/community/{hidden_anime.system_id}")
+
+    assert hidden.status_code == 404
+    assert hidden.json() == unknown.json()
+
+
+def test_a_viewer_holding_the_label_gets_the_aggregate(
+    db, client, hidden_anime
+):
+    """
+    The mirror of the test above, on the SAME fixture.
+
+    Without this, the refusal above could be an artifact of an empty label set
+    rather than the gate doing its job.
+    """
+    make_viewer(
+        db,
+        client,
+        "trusted",
+        default_guest_permissions(),
+        label_keys=("nsfw",),
+    )
+    r = client.get(f"/api/community/{hidden_anime.system_id}")
     assert r.status_code == 200
-    assert r.json()["list_count"] == 0
+    assert r.json()["media_id"] == str(hidden_anime.system_id)
+
+
+def test_a_labelled_entrys_public_counts_are_not_disclosed(
+    db, client, hidden_anime
+):
+    """
+    The disclosure this gate exists to stop: a hidden entry that real public
+    lists have rated must not hand its histogram to an anonymous caller.
+    """
+    _listed(db, _member(db, "pub1", True), hidden_anime.system_id, "Completed", "S")
+    _listed(db, _member(db, "pub2", True), hidden_anime.system_id, "Watching", "A")
+
+    r = client.get(f"/api/community/{hidden_anime.system_id}")
+    assert r.status_code == 404
+    assert "Completed" not in r.text
+    assert "Watching" not in r.text
+
+
+def test_a_viewer_lacking_the_media_type_is_refused(db, client, sample_anime):
+    """The TYPE axis, independent of labels: no media_type.anime, no aggregate."""
+    make_viewer(
+        db,
+        client,
+        "no-anime",
+        default_guest_permissions() - {media_type_perm("anime")},
+    )
+    assert client.get(f"/api/community/{sample_anime.system_id}").status_code == 404
+
+
+def test_a_viewer_holding_the_media_type_is_not(db, client, sample_anime):
+    """The mirror, on the same entry - so the 404 above is the gate, not the id."""
+    make_viewer(db, client, "yes-anime", default_guest_permissions())
+    assert client.get(f"/api/community/{sample_anime.system_id}").status_code == 200
