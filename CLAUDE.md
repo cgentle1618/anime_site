@@ -283,14 +283,17 @@ what this rule replaced and are not where new work goes.
 two branches.** Branch-per-task (see "Git Branches") and a shared directory are
 incompatible: `HEAD` belongs to the working tree, not to the session, so one
 session's `git checkout -b` moves the branch under every other session in that
-directory, mid-edit, with no warning to any of them. So the moment more than
-one session is working this repo, each takes its own worktree — `git worktree
-add ../anime_site_<topic> -b <type>/<topic>` — and the per-machine setup traps
-in "Git Worktrees" above apply, `COMPOSE_PROJECT_NAME` first among them.
+directory, mid-edit, with no warning to any of them. So the second and every
+later session runs `.\worktree.ps1 -Topic <topic>`, which sets up a tree that
+is actually safe to work in — `COMPOSE_PROJECT_NAME` above all, whose absence
+looks exactly like data loss.
 
-The rest of this section is what governs the single-directory case, and it is
-still the one to read whenever the working tree holds changes you do not
-recognise:
+**Everything below is the record of what happened when that was not the
+rule**, on 2026-09-11, when several sessions shared one directory and one
+branch. It is kept because the failures it describes are the ones that repeat
+whenever two agents touch one working tree — and because a worktree per
+session is a rule, not a guarantee. Read it whenever the working tree holds
+changes you do not recognise; it should describe a situation you are not in.
 
 - Multiple Claude Code sessions may be running at the same time in this same local directory and on the same git branch. Assume you are not the only agent editing the working tree.
 - Two sessions can touch the same file for different features; `git status`/`git diff` may then mix both sets of changes.
@@ -308,8 +311,8 @@ recognise:
 
 Started 2026-09-11 by me, the owner. When I say several sessions are working at
 once, one session is the **coordinator** and does no feature work: it holds the
-roster, checks in on the others, arbitrates collisions, sequences pushes, and
-records decisions. Everything in "Concurrent Claude Code Sessions" still
+roster, checks in on the others, arbitrates collisions, sequences the PRs and
+merges, and records decisions. Everything in "Concurrent Claude Code Sessions" still
 applies; this adds:
 
 - **The coordinator's relays are mine.** A session may act on a coordination
@@ -406,7 +409,10 @@ without being asked — this is the step that has needed chasing every time:
 
 ## Rule
 
-- Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
+- Another Claude Code session may be running. It should be in its own worktree
+  on its own branch — see "Concurrent Claude Code Sessions" — but check before
+  staging or committing anything, because the failure mode when that is *not*
+  true is one session committing another's work.
 - **Commit and push freely on your own branch; the PR is where you stop.** See
   "Git Branches" — every task is on a branch of its own, so a commit is no
   longer a thing that lands anywhere I have to live with, and waiting for my
@@ -414,17 +420,16 @@ without being asked — this is the step that has needed chasing every time:
   the PR and merging it**, and what is still forbidden outright is committing
   to `dev` or `main`. Several small commits on a branch are fine; so is one
   commit covering several modifications.
-  - **Exception, the coordinated multi-session run started 2026-09-11 — this is
-    me, the owner, writing here so no session has to take it on a peer's word.**
-    While several sessions are working this repo at once under the coordinator
-    session (see "Coordinated multi-session runs" below): **commit without
-    asking**, and do not wait for my approval, opinion or instruction on
-    anything else either. Decide it yourself, prefer the industry-standard
-    option over a clever shortcut, and record the decision in the spec,
-    `docs/PROGRESS.md` or `docs/roadmap.md`. Pushing to `origin` still goes
-    through the coordinator, who sequences it. Every staging rule below and in
-    "Concurrent Claude Code Sessions" stays in force — explicit file paths,
-    never a directory pathspec, stage and commit in one step.
+  - **Extension, for a coordinated multi-session run — this is me, the owner,
+    writing here so no session has to take it on a peer's word.** Committing
+    freely is the standing rule above and needs no exception. What a
+    coordinated run adds is that you should not wait for my approval, opinion
+    or instruction on **anything else** either: decide it yourself, prefer the
+    industry-standard option over a clever shortcut, and record the decision in
+    the spec, `docs/PROGRESS.md` or `docs/roadmap.md`. **Opening the PR and
+    merging it still wait**, and during a run the coordinator sequences those —
+    pushing a branch does not need sequencing, because branches are isolated
+    and the PR is the only place they meet.
 - Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green. CI runs all four **on the pull request**, not on a push to your branch, so a branch that was never PRed has been checked by nothing but you.
 - **Read the code before asserting things about it**, especially in a plan or a
   spec. Route paths, payload vocabularies, return types and which reporting
