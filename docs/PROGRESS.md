@@ -15,7 +15,7 @@ Last updated: 2026-09-13
 
 | Task | Status |
 |---|---|
-| Game completion axes take an `Inapplicable` state (`feat/game-inapplicable`, migration `g1c2f3flags4`) | wip anime-site-54 |
+| Game completion axes take an `Inapplicable` state (`feat/game-inapplicable`, migration `g1c2f3flags4`) | wip anime-site-9c |
 
 The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the AniList columns
 in #148; `docs/roadmap.md` holds the record for both.
