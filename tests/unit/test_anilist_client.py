@@ -7,6 +7,8 @@ request per entry would add ~36 minutes to a full run and 50 ids per request
 makes it ~22 requests.
 """
 
+import time
+
 import pytest
 
 from app.services.integrations import anilist as anilist_module
@@ -128,12 +130,32 @@ def test_the_limiter_ignores_a_junk_header():
 
 
 def test_the_limiter_sleeps_once_the_window_is_full(monkeypatch):
-    slept = []
+    """
+    The fake sleep advances the thing sleep is waiting on.
+
+    wait_if_needed re-checks the window after sleeping, so a sleep that does
+    not move time forward makes the loop spin until the window ages out for
+    real - a 60-second busy-wait that still passes. Ageing the limiter's own
+    timestamps simulates elapsed time without monkeypatching time.time, which
+    would be a process-wide patch that pytest itself runs under.
+    """
     limiter = AniListRateLimiter()
     limiter.max_requests = 2
-    monkeypatch.setattr(anilist_module.time, "sleep", lambda s: slept.append(s))
+    slept = []
 
+    def fake_sleep(seconds):
+        slept.append(seconds)
+        limiter.request_timestamps = [
+            t - seconds for t in limiter.request_timestamps
+        ]
+
+    monkeypatch.setattr(anilist_module.time, "sleep", fake_sleep)
+
+    started = time.monotonic()
     for _ in range(3):
         limiter.wait_if_needed()
+    elapsed = time.monotonic() - started
 
     assert slept, "the third request in a 2-request window must wait"
+    assert sum(slept) >= AniListRateLimiter.WINDOW_SECONDS - 1
+    assert elapsed < 5, "the limiter must not busy-wait against a real clock"
