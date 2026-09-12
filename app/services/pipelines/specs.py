@@ -55,6 +55,7 @@ from app.services.domain import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_from_anilist,
     autofill_game_from_igdb,
     autofill_game_from_steam,
     autofill_manga_from_mal,
@@ -80,6 +81,7 @@ from app.services.domain import (
     manga_post_processing,
     tv_show_post_processing,
 )
+from app.services.integrations.anilist import ANIME, MANGA, prime_anilist_cache
 from app.services.integrations.comicvine import comicvine_rate_limiter
 from app.services.integrations.steam import (
     reset_owned_games_cache,
@@ -97,6 +99,35 @@ STEAM_PAUSE = 0.5
 def _linked(model, *columns):
     """Bulk Replace only re-fetches entries that already carry an external id/link."""
     return lambda db: db.query(model).filter(or_(*[c.isnot(None) for c in columns])).all()
+
+
+def _fill_anime(db, entry) -> None:
+    """Tenrai first, then AniList: two sources, one pass, like _fill_game."""
+    autofill_anime_from_mal(entry, force_replace_ratings=True, db=db)
+    autofill_from_anilist(entry, ANIME, db)
+
+
+def _fill_anime_movie(db, entry) -> None:
+    autofill_anime_movie_from_mal(entry, force_replace_ratings=True, db=db)
+    autofill_from_anilist(entry, ANIME, db)
+
+
+def _fill_manga(db, entry) -> None:
+    # The Tenrai autofill takes no session - unchanged. AniList's half needs
+    # one for its media_source row, and gets it here.
+    autofill_manga_from_mal(entry, force_replace_ratings=True)
+    autofill_from_anilist(entry, MANGA, db)
+
+
+def _fill_novel(db, entry) -> None:
+    # Novel keeps its two-source routing: a mal_link means Tenrai, otherwise
+    # Open Library. AniList applies to the Tenrai branch only - an entry with
+    # no mal_id has nothing for AniList to key on either.
+    if entry.mal_link:
+        autofill_novel_from_mal(entry, force_replace_ratings=True)
+        autofill_from_anilist(entry, MANGA, db)
+    else:
+        autofill_novel_from_openlibrary(entry, db)
 
 
 def _fill_game(db, entry) -> None:
@@ -126,7 +157,8 @@ PIPELINES: dict[str, PipelineSpec] = {
         key="anime", label="Anime", model=Anime,
         extract_id=apply_extract_mal_id_anime,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime(e),
-        fill=lambda db, e: autofill_anime_from_mal(e, force_replace_ratings=True, db=db),
+        fill=_fill_anime,
+        pre_run=lambda db: prime_anilist_cache(db, Anime, ANIME),
         fill_sleep=MAL_PAUSE,
         post_process=anime_post_processing,
         fill_after=(
@@ -146,7 +178,8 @@ PIPELINES: dict[str, PipelineSpec] = {
         key="anime-movie", label="Anime Movie", model=AnimeMovies,
         extract_id=apply_extract_mal_id_anime,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime_movie(e),
-        fill=lambda db, e: autofill_anime_movie_from_mal(e, force_replace_ratings=True, db=db),
+        fill=_fill_anime_movie,
+        pre_run=lambda db: prime_anilist_cache(db, AnimeMovies, ANIME),
         fill_sleep=MAL_PAUSE,
         post_process=anime_movie_post_processing,
         fill_after=(("Syncing system options...", run_sync_anime_movie),),
@@ -195,7 +228,8 @@ PIPELINES: dict[str, PipelineSpec] = {
         key="manga", label="Manga", model=Manga,
         extract_id=apply_extract_mal_id_manga_novel,
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_manga(e),
-        fill=lambda db, e: autofill_manga_from_mal(e, force_replace_ratings=True),
+        fill=_fill_manga,
+        pre_run=lambda db: prime_anilist_cache(db, Manga, MANGA),
         fill_sleep=MAL_PAUSE,
         post_process=manga_post_processing,
         fill_after=(("Syncing system options...", run_sync_manga),),
@@ -226,11 +260,8 @@ PIPELINES: dict[str, PipelineSpec] = {
                 and has_missing_values_novel_openlibrary(db, e)
             )
         ),
-        fill=lambda db, e: (
-            autofill_novel_from_mal(e, force_replace_ratings=True)
-            if e.mal_link
-            else autofill_novel_from_openlibrary(e, db)
-        ),
+        fill=_fill_novel,
+        pre_run=lambda db: prime_anilist_cache(db, Novel, MANGA),
         fill_sleep=MAL_PAUSE,
         fill_after=(("Syncing system options...", run_sync_novel),),
         replace_select=_linked(Novel, Novel.mal_id, Novel.mal_link),
