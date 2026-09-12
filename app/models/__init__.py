@@ -22,6 +22,7 @@ from app.models.content_label import ContentLabel, MediaContentLabel
 from app.models.franchise import Franchise, Series
 from app.models.game import Game
 from app.models.game_copy import GameCopy
+from app.models.image import Image, ImageAttachment
 from app.models.manga import Manga
 from app.models.media import Media
 from app.models.media_credit import MediaCredit, MediaTag
@@ -85,6 +86,8 @@ __all__ = [
     "Comic",
     "Game",
     "GameCopy",
+    "Image",
+    "ImageAttachment",
     "WatchOrderList",
     "WatchOrderItem",
     "WatchOrderSection",
