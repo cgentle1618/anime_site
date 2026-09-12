@@ -163,37 +163,35 @@ def mode_normal_id(db):
 # ---------------------------------------------------------------------------
 
 
-def test_setting_a_new_guest_default_clears_the_old_one(
-    db_session, admin_client, mode
-):
-    """A partial unique index permits one flagged mode. Letting the index
-    enforce that would surface as a 500; the write clears the old flag in the
-    same transaction so the request does what it asked."""
-    response = admin_client.patch(
-        f"{MODES}{mode(MODE_NORMAL).system_id}", json={"is_guest_default": True}
-    )
-
-    assert response.status_code == 200
-    flagged = [
-        m.key
-        for m in db_session.query(models.AccessMode).filter(
-            models.AccessMode.is_guest_default.is_(True)
-        )
-    ]
-    assert flagged == [MODE_NORMAL]
+def test_the_mode_response_publishes_no_guest_flag(admin_client, mode):
+    """There is no such field any more, on any mode."""
+    rows = admin_client.get(MODES).json()
+    assert rows
+    assert all("is_guest_default" not in row for row in rows)
 
 
-def test_moving_the_guest_default_changes_what_a_visitor_sees(
+def test_nothing_an_admin_can_patch_changes_what_a_visitor_sees(
     db_session, client, admin_client, mode, nsfw_label, hidden_anime
 ):
-    """The flag is not decoration: it is what a logged-out visitor resolves."""
+    """The anonymous policy is `safe`, by key, and is not an administrator's
+    choice.
+
+    The old flag made it one, and this test asserted the opposite of what it
+    asserts now: that patching `unrestricted` published every labelled entry
+    to the internet. That was the point of the flag and it is exactly the
+    accident worth making unreachable - it looks like an ordinary edit and
+    nothing on any screen reports what it did.
+    """
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
-    admin_client.patch(
-        f"{MODES}{mode(MODE_UNRESTRICTED).system_id}", json={"is_guest_default": True}
+    response = admin_client.patch(
+        f"{MODES}{mode(MODE_UNRESTRICTED).system_id}",
+        json={"is_guest_default": True, "label": "Unrestricted"},
     )
+    assert response.status_code == 200
 
-    assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 200
+    # Still hidden. The extra key was ignored, not honoured.
+    assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
 
 # ---------------------------------------------------------------------------

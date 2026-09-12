@@ -54,15 +54,16 @@ def test_seeds_four_system_modes(db_session):
     assert all(m.is_system for m in db_session.query(models.AccessMode))
 
 
-def test_safe_is_the_guest_default_and_the_only_one(db_session):
+def test_the_seed_stores_no_anonymous_policy(db_session):
+    """Which mode a logged-out visitor gets is resolved by key, not seeded as
+    a flag, so there is no row here for a restore to move."""
     ensure_access_mode_seed(db_session)
-    flagged = [
-        m.key
-        for m in db_session.query(models.AccessMode).filter(
-            models.AccessMode.is_guest_default.is_(True)
-        )
-    ]
-    assert flagged == [MODE_SAFE]
+    assert not hasattr(models.AccessMode, "is_guest_default")
+
+    # The mirror: `safe` itself is still seeded, so the green above is the
+    # flag being gone and not the mode.
+    keys = {m.key for m in db_session.query(models.AccessMode)}
+    assert MODE_SAFE in keys
 
 
 def test_safe_withholds_restricted_sources_and_nothing_else(db_session):

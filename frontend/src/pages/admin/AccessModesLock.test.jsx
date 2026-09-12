@@ -18,7 +18,6 @@ const MODES = [
     label: "Unrestricted",
     description: "Every entry and every field.",
     is_system: true,
-    is_guest_default: false,
     label_keys: ["nsfw"],
     field_group_keys: ["credits"],
   },
@@ -28,7 +27,6 @@ const MODES = [
     label: "Normal",
     description: "No labelled entries.",
     is_system: true,
-    is_guest_default: false,
     label_keys: [],
     field_group_keys: ["credits"],
   },
@@ -125,5 +123,34 @@ describe("every other mode", () => {
   it("offers a Save button", async () => {
     await selectMode("Normal");
     expect(await screen.findByText("Save")).toBeTruthy();
+  });
+});
+
+describe("the anonymous policy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // A logged-out visitor always resolves to `safe`, by key, server-side
+  // (app/services/rbac/modes.py::resolve_mode). There is no column behind it
+  // and so no control here. This page used to render a radio plus the
+  // sentence "Logged-out visitors see this" under EVERY mode row.
+  it("offers no control over which mode logged-out visitors get", async () => {
+    await selectMode("Normal");
+    await waitFor(() => {
+      expect(screen.queryAllByRole("radio")).toHaveLength(0);
+      expect(screen.queryByText(/logged-out/i)).toBeNull();
+      expect(screen.queryByText(/visitors see this/i)).toBeNull();
+    });
+  });
+
+  // The mirror: the page still renders, so the green above is the absence of
+  // one control and not the absence of the page.
+  it("still renders the mode list and the item checkboxes", async () => {
+    await selectMode("Normal");
+    await waitFor(() => {
+      expect(screen.getAllByText("Normal").length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0);
+    });
   });
 });

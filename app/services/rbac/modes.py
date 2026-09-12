@@ -26,7 +26,11 @@ from app import models
 from app.dependencies import get_db
 from app.services.rbac import cache
 from app.services.rbac.resolver import Viewer, get_viewer
-from app.services.rbac.seed_modes import MODE_UNRESTRICTED, seeded_modes
+from app.services.rbac.seed_modes import (
+    MODE_SAFE,
+    MODE_UNRESTRICTED,
+    seeded_modes,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
@@ -66,7 +70,7 @@ def resolve_mode(
         token.mode  ->  still granted to this user?
                           yes -> effective = mode's sets - this pair's denials
                           no  -> effective = EMPTY SET
-        no token    ->  the is_guest_default mode, or EMPTY SET if none flagged
+        no token    ->  the `safe` mode, or EMPTY SET if it is missing
 
     The claim NAMES A CHOICE, NOT A GRANT. Whether the account may still use
     the mode is resolved from the database on every request, exactly as the
@@ -86,9 +90,18 @@ def resolve_mode(
     inheriting it would be a second fallback that can widen.
     """
     if user is None:
+        # `safe` BY KEY, and not a flag on the table. Which mode an anonymous
+        # visitor gets is not an administrator's choice: it is the definition
+        # of the mode, and storing it as data means a Pull All, a migration or
+        # a hand-edit can move it to `unrestricted` - a change that publishes
+        # every labelled entry to the internet while looking like a successful
+        # restore, and that nothing on any screen would report. The key is
+        # safe to depend on because it is deliberately not patchable
+        # (schemas/rbac.py): renaming one would detach the seeder from the row
+        # it maintains.
         mode = (
             db.query(models.AccessMode)
-            .filter(models.AccessMode.is_guest_default.is_(True))
+            .filter(models.AccessMode.key == MODE_SAFE)
             .first()
         )
         if mode is None:

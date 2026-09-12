@@ -48,7 +48,44 @@ chosen per session. An account holds one role and one *or more* access modes.
 | 3 | How is a mode switched? | **Free toggle, re-auth to widen.** Narrowing is instant; widening asks for the password again. So a browser left logged in at `safe` is actually safe |
 | 4 | Who has modes? | **General — any account may hold several, including the admin account.** A newly created account holds **`safe` only**, by default |
 | 5 | Structure for the access-mode axis | **Its own tables** (option B of three). **AMENDED 2026-09-11:** five tables, not three, because a mode carries field groups as well as labels — see section 2. Two *typed* link tables rather than one generic `access_mode_grant(permission text)`: neither has a column in which `manage.catalog` or `admin.authz` could be stored, so "a mode scopes objects, it never grants powers" stays a schema guarantee rather than a review rule. The role machinery keeps its current meaning and all its guards |
-| 6 | What access mode does a logged-out guest resolve to? | **A real mode, flagged `is_guest_default`**, seeded on `safe`. Rejected: hardcoding guests to the empty set, which would make the anonymous policy the one access decision in this codebase that is not data an admin edits. Rejected: resolving the literal key `safe`, which silently republishes to the internet whenever you edit that mode for yourself. A partial unique index enforces at-most-one flagged mode; the resolver falls back to the **empty set** when none is flagged, so the failure mode is closed |
+| 6 | What access mode does a logged-out guest resolve to? | **A real mode, flagged `is_guest_default`**, seeded on `safe`. Rejected: hardcoding guests to the empty set, which would make the anonymous policy the one access decision in this codebase that is not data an admin edits. Rejected: resolving the literal key `safe`, which silently republishes to the internet whenever you edit that mode for yourself. A partial unique index enforces at-most-one flagged mode; the resolver falls back to the **empty set** when none is flagged, so the failure mode is closed — **REVERSED, see below** |
+
+### Decision 6 was reversed: the anonymous policy is `safe`, by key
+
+The flag is gone (`p2g3guestsafe`); `resolve_mode` looks up `MODE_SAFE`, and
+which mode a logged-out visitor gets is no longer editable anywhere. Both of
+this row's rejections are worth reading against what actually happened.
+
+**The first rejection was sound and is untouched.** Guests still resolve a
+real mode with real, editable sets, not a hardcoded empty set. What stopped
+being data is only *which* mode, not what that mode carries.
+
+**The second rejection was the mistake, and it was a real argument that did
+not survive contact with the seed.** "Resolving the literal key `safe`
+silently republishes whenever you edit that mode for yourself" is true — and
+it was equally true of the flag, because the seed flags `safe` and nobody ever
+moved it. The protection existed only for an installation that had first
+pointed guests at some *other* mode, which is a configuration the seeder does
+not produce and the UI never suggested. So the flag bought a defence in a
+scenario that did not occur, and charged for it in the scenario that does: a
+column an admin can edit is a column a Pull All, a migration or a hand-edit can
+move to `unrestricted`, which publishes every labelled entry to the anonymous
+internet while looking like a successful restore, with nothing on any screen
+reporting it. The spec compared a hypothetical risk against a hypothetical
+protection and never asked which one the default configuration actually
+exposes.
+
+**The live risk is unchanged and should be stated plainly rather than
+designed around**: widening `safe` widens what the internet sees, immediately.
+That was true before this change and is true after it. The honest mitigation
+is that `safe`'s description says what it is, not an indirection that reads
+like a safeguard while protecting nobody.
+
+A second thing the spec never said, because Phase D had not shipped when it
+was written: a logged-out visitor gets **no mode switcher at all**, not a
+disabled one. `held_modes()` returns `[]` without an account, so the control is
+absent from the chrome and other modes are never advertised to anonymous
+visitors.
 | 7 | Which mode does a session start in? | **The account's chosen default** (`is_default` on `user_access_mode`). You just typed your password to log in, so landing wide is not a new grant. Rejected: always landing narrowest, which would make the widening prompt routine — and a prompt typed through by reflex has stopped being a control |
 | 8 | Can a per-account adjustment ADD to a mode, or only remove? | **Only remove — a mode is a ceiling.** An account's reach is always a subset of its mode's. So a mode name on the user list is a trustworthy upper bound, and widening a mode later reaches everyone not explicitly narrowed. To let one person reach more, assign a wider mode and deny the specific items (or create a mode, if it is policy you will reuse) |
 | 9 | Does a mode bind writes, or only reads? | **NEW 2026-09-11: writes follow reads, against the ACTIVE mode.** If `GET` answers 404 for you, every write to that id answers 404 too. Rejected: binding writes to the account's *ceiling* (the union of its modes), which would have the server 404 a `GET` and then accept a `PUT` for that same id. The industry precedent is uniform — Postgres RLS applies one `USING` clause to `SELECT` and `UPDATE` alike; AWS session policies and OAuth scopes narrow a session for every operation, not just reads; OWASP ranks the inverse as API1:2023, Broken Object Level Authorization. The same guard also enforces `media_type.*`, because `entry_visible` already checks both and calling it is less work than not |

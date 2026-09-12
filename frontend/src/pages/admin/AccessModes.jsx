@@ -5,10 +5,10 @@
 // shaped on Roles.jsx deliberately - two pages doing the same shape of job
 // should read the same way - with two differences that are not cosmetic:
 //
-//   1. The guest default is a RADIO ACROSS MODES, never a checkbox on one.
-//      At most one mode may be the anonymous policy, and a radio is the only
-//      control that cannot express otherwise. The server validates too; the
-//      UI simply cannot ask for the invalid thing.
+//   1. There is NOTHING here about logged-out visitors. They always resolve
+//      to `safe`, which is what that mode means rather than something an
+//      administrator picks, so the page offers no control over it and the
+//      server has no column to store one. `safe`'s own description says so.
 //
 //   2. A content label carried by NO mode is called out in red. Such a label
 //      hides its entries from everyone - the owner included - and looks like
@@ -149,19 +149,6 @@ export default function AccessModes() {
     }
   }
 
-  async function makeGuestDefault(mode) {
-    try {
-      await fetchJson(endpoints.accessModes.update(mode.system_id), {
-        method: "PATCH",
-        ...jsonBody({ is_guest_default: true }),
-      });
-      showToast(`Logged-out visitors now see ${mode.label}.`, "success");
-      await load();
-    } catch (err) {
-      showToast(err.message || "Could not change the guest default.", "error");
-    }
-  }
-
   async function createMode(e) {
     e.preventDefault();
     try {
@@ -238,17 +225,10 @@ export default function AccessModes() {
                   {mode.user_count > 0 && ` · ${mode.user_count} account(s)`}
                 </div>
               </button>
-              {/* A RADIO, not a checkbox: at most one mode is the anonymous
-                  policy, and this is the control that cannot say otherwise. */}
-              <label className="flex items-center gap-2 px-3 text-[11px] text-text-faint cursor-pointer">
-                <input
-                  type="radio"
-                  name="guest-default"
-                  checked={mode.is_guest_default}
-                  onChange={() => makeGuestDefault(mode)}
-                />
-                Logged-out visitors see this
-              </label>
+              {/* Nothing here about logged-out visitors. They always get
+                  `safe`, which is the definition of that mode rather than a
+                  choice — so there is no control, and repeating the sentence
+                  under every row said otherwise four times over. */}
             </div>
           ))}
 

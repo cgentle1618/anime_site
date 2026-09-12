@@ -16,16 +16,19 @@ def test_five_tables_are_mapped():
     assert models.UserAccessModeDenial.__tablename__ == "user_access_mode_denial"
 
 
-def test_only_one_mode_may_be_the_guest_default():
-    """A partial unique index over a constant, not a column constraint: at
-    most one row may carry the flag, and the rest are free to be false."""
-    index = next(
-        ix
+def test_the_table_stores_no_anonymous_policy():
+    """Which mode a logged-out visitor gets is not on this table at all.
+
+    It is the `safe` mode, by key (`services/rbac/modes.py::resolve_mode`).
+    A column would be one a Pull All, a migration or a hand-edit could move
+    to `unrestricted`, publishing every labelled entry to the internet while
+    looking like an ordinary restore.
+    """
+    assert "is_guest_default" not in models.AccessMode.__table__.columns
+    assert not any(
+        ix.name == "ix_one_guest_default_access_mode"
         for ix in models.AccessMode.__table__.indexes
-        if ix.name == "ix_one_guest_default_access_mode"
     )
-    assert index.unique is True
-    assert index.dialect_options["postgresql"]["where"] is not None
 
 
 def test_only_one_held_mode_may_be_the_login_default():

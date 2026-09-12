@@ -302,10 +302,10 @@ class User(Base):
     __table_args__ = (
         Index(
             "ix_one_installation_owner",
-            # The indexed expression is a constant, not the column, the same
-            # shape ix_one_guest_default_access_mode uses: this is a SITE
-            # singleton rather than one-per-something, so there is no column
-            # to key it on.
+            # The indexed expression is a constant, not the column: this is a
+            # SITE singleton rather than one-per-something, so there is no
+            # column to key it on. A partial unique index over `(true)` is how
+            # PostgreSQL says "at most one row in the whole table".
             text("(true)"),
             unique=True,
             postgresql_where=text("is_installation_owner"),

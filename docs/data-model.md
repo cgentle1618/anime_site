@@ -1646,16 +1646,16 @@ One named ceiling on what a session may reach.
 | `description` | Text | yes | | |
 | `sort_order` | Integer | no | `0` | **UI only.** Enforcement never ranks modes - with per-account denials they are genuinely not a total order |
 | `is_system` | Boolean | no | `false` | Cannot be deleted |
-| `is_guest_default` | Boolean | no | `false` | What a logged-out visitor resolves to |
+| *(no column)* | — | — | — | What a logged-out visitor resolves to is **not stored**: it is the `safe` mode, looked up by key in `resolve_mode`. Data here could be moved to a wider mode by a restore or a hand-edit, which publishes every labelled entry to the internet while looking like an ordinary edit |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-`ix_one_guest_default_access_mode` — a partial UNIQUE index over the constant
-`(true)` WHERE `is_guest_default`, so at most one mode is the anonymous
-policy. A flag rather than the hardcoded key `safe`, because editing the mode
-you sit in yourself must not silently republish it to the internet.
+There is no index for the anonymous policy, because there is no column: a
+logged-out visitor resolves `safe` by key
+(`services/rbac/modes.py::resolve_mode`), and a missing `safe` row gives them
+the empty set rather than everything.
 
 Four modes are seeded (`unrestricted`, `borderline`, `normal`, `safe`), all
-`is_system`, with `safe` flagged. `unrestricted`'s rows are written but not
+`is_system`. `unrestricted`'s rows are written but not
 read: its sets are derived from every `content_label` and every field group at
 resolution time, so a label minted later cannot narrow it. `safe` is seeded
 from whatever the **guest role actually holds**, not from a constant - see

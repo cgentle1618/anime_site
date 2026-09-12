@@ -1597,7 +1597,7 @@ route for route.
 | GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
 | GET | `/api/access-modes/{id}` | |
 | POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
-| PATCH | `/api/access-modes/{id}` | Label, description, sort order, and `is_guest_default`. Setting the flag **moves** it: the write clears every other mode's flag in the same transaction rather than letting `ix_one_guest_default_access_mode` raise and surface as a 500. Clearing the last flag is allowed - the resolver falls back to the empty set, which hides everything from a guest rather than publishing it. |
+| PATCH | `/api/access-modes/{id}` | Label, description and sort order. Not `key` — renaming one would detach the seeder from the row it maintains — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. |
 | PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
 | DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
 

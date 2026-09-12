@@ -90,7 +90,6 @@ def _to_response(db: Session, mode: models.AccessMode) -> schemas.AccessModeResp
         description=mode.description,
         sort_order=mode.sort_order,
         is_system=mode.is_system,
-        is_guest_default=mode.is_guest_default,
         label_keys=label_keys,
         field_group_keys=field_group_keys,
         user_count=db.query(models.UserAccessMode)
@@ -241,7 +240,6 @@ def create_mode(payload: schemas.AccessModeCreate, db: Session = Depends(get_db)
         # Never through the API: is_system marks the four the seeder
         # maintains, and a mode created here is not one of them.
         is_system=False,
-        is_guest_default=False,
     )
     db.add(mode)
     db.flush()
@@ -261,20 +259,9 @@ def update_mode(
         if value is not None:
             setattr(mode, field, value)
 
-    if payload.is_guest_default is True:
-        # MOVE it rather than letting ix_one_guest_default_access_mode raise.
-        # The index is the guarantee; this is the write doing what was asked
-        # instead of handing the caller a 500 to interpret.
-        db.query(models.AccessMode).filter(
-            models.AccessMode.system_id != mode.system_id
-        ).update({"is_guest_default": False}, synchronize_session=False)
-        mode.is_guest_default = True
-    elif payload.is_guest_default is False:
-        # Clearing the last flag is allowed: the resolver falls back to the
-        # EMPTY set when none is flagged, which hides everything from a guest
-        # rather than publishing it. Fail-closed, so this needs no guard.
-        mode.is_guest_default = False
-
+    # There is nothing here about the anonymous policy. A logged-out visitor
+    # always resolves to `safe` (services/rbac/modes.py::resolve_mode), which
+    # is not something this endpoint - or any other - can move.
     db.commit()
     cache.bump()
     return _to_response(db, mode)

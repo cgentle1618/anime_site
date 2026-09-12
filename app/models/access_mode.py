@@ -38,19 +38,6 @@ class AccessMode(Base):
     """One named ceiling on what a session may reach."""
 
     __tablename__ = "access_mode"
-    __table_args__ = (
-        # At most one mode may be the anonymous policy. A partial unique index
-        # over a constant is how PostgreSQL says "at most one row with this
-        # flag"; a column constraint cannot express it. The resolver falls
-        # back to the EMPTY set when none is flagged, so the failure mode of
-        # this index is closed rather than open.
-        Index(
-            "ix_one_guest_default_access_mode",
-            text("(true)"),
-            unique=True,
-            postgresql_where=text("is_guest_default"),
-        ),
-    )
 
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
@@ -63,12 +50,9 @@ class AccessMode(Base):
     # widening test for a mode switch is a set comparison and not a ">".
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
-    # What a logged-out visitor resolves to. A flag rather than the hardcoded
-    # key "safe": editing the mode you happen to sit in yourself must not
-    # silently republish it to the internet.
-    is_guest_default = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
+    # There is deliberately no column for "what a logged-out visitor gets".
+    # That is the `safe` mode, always, resolved by key in
+    # services/rbac/modes.py - see resolve_mode for why it is not data.
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
