@@ -1,12 +1,12 @@
 # Media Relations
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-08-30
 
 ## What this is for
 
 A media relation is a typed link between two entries — "this anime is the Sequel of that one", "this movie is the Adaptation of that manga" — that can cross any of the seven media tables and any franchise. Relations are curated by hand on the admin `/relations` canvas, read on every detail page's "Related Entries" card, and drawn read-only on the collection, franchise and series hubs. Nothing derives them automatically. This document describes the table, the vocabulary, the write and read rules, the API, the canvas and the Sheets round trip, citing the code that implements each piece; where an older doc (`../frontend/pages.md`, `docs/api.md`, `../business-rules.md`, `../data-model.md`) disagrees with this one, the code and this file are current.
 
-History, in one line: relations used to be the per-table `prequel_id` / `sequel_id` / `alternative` columns (plus `derive_related` on anime) filled partly by an automatic derivation; the `media_relation` table replaced them, the columns were dropped without backfill and the derivation retired (`alembic/versions/media_relation_add.py`, `alembic/versions/media_relation_drop_legacy.py`).
+Every relation is a `media_relation` row. There are no `prequel_id` / `sequel_id` / `alternative` columns on the entry tables and nothing derives relations automatically - both were deliberately retired, and a relation exists because somebody entered it.
 
 ## Model
 
@@ -94,7 +94,7 @@ Eleven labels in the dropdown, ten kinds in the column: **Prequel is Sequel read
 
 ## API
 
-Router: `app/routers/media_relation.py`, prefix `/api/media-relation`. Reads are public (subject to RBAC visibility via `get_viewer`); writes require `get_current_admin`. Schemas: `app/schemas/media_relation.py`. Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.mediaRelation`).
+Router: `app/routers/media_relation.py`, prefix `/api/media-relation`. Reads are public (subject to RBAC visibility via `get_viewer`); writes require `manage.catalog`. Schemas: `app/schemas/media_relation.py`. Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.mediaRelation`).
 
 | Method & path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- |

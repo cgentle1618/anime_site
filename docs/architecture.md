@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-09-08 (GCP deployment removed; local runtime only)
+Last verified: 2026-09-08
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -22,7 +22,7 @@ browser (React SPA, fetch /api/...)
        /api/*      -> routers (app/routers/*)
             Depends(get_db)              one SQLAlchemy session per request
             Depends(get_viewer)          who is asking (cookie -> user -> role -> permissions)
-            Depends(get_current_admin)   401 unless the viewer holds the admin permission
+            Depends(require_manage_catalog)  401 unless the viewer holds it
             -> services (domain / pipelines / integrations / rbac)
             -> models (SQLAlchemy) -> PostgreSQL
        /{path}     -> SPA catch-all (last route) serves frontend_dist/index.html
@@ -40,7 +40,7 @@ app/
   main.py          app factory, boot sequence, router registration, SPA catch-all
   config.py        Settings (pydantic-settings); the only place env vars are read
   database.py      engine, SessionLocal, Base, get_taipei_now()
-  dependencies.py  get_db, get_current_admin
+  dependencies.py  get_db, get_current_user_id
   registry.py      MEDIA_REGISTRY: one MediaTypeSpec per media type
   schema_guard.py  ensure_schema(): decides whether to create_all on boot
   models/          SQLAlchemy models (one module per table group)
@@ -115,7 +115,7 @@ Endpoint-level detail (parameters, bodies) is in `api.md`.
 Eight media types share one router shape. What differs per type is declared
 once in `app/registry.py` as a frozen `MediaTypeSpec`; `app/routers/_factory.py`
 (`make_media_router(spec)`) turns it into an `APIRouter`. Anime and anime
-movie used to be hand-written routers; they are now ordinary registry entries
+movie are ordinary registry entries, not hand-written routers
 that differ only in the hooks they declare.
 
 ### `MediaTypeSpec` fields
@@ -244,9 +244,8 @@ utf-8, case-insensitive, unknown keys ignored) and exposes a cached module
 singleton `settings`. There is one derived property left,
 `sqlalchemy_database_url`: `DATABASE_URL` verbatim when set, otherwise a
 localhost URL assembled from the `POSTGRES_*` parts. It is taken at face value
--- the old guard that ignored a `DATABASE_URL` pointing at localhost was
-removed with the GCP deployment on 2026-09-08, so a stale value in `.env`
-now breaks the app rather than being quietly skipped. Never call `os.getenv`
+and deliberately not second-guessed, so a stale `DATABASE_URL` in `.env`
+breaks the app rather than being quietly skipped. Never call `os.getenv`
 elsewhere. Full variable table: `setup-local.md`.
 
 ## Database engine and sessions
@@ -262,9 +261,10 @@ for timestamp columns. All ids are UUID `system_id` columns.
 | Dependency | Returns | Use |
 | --- | --- | --- |
 | `get_db` | one `Session` per request, closed in `finally` | every DB route |
-| `get_viewer` | `Viewer` (username, role, permission set, token payload); anonymous viewer if no/invalid cookie. Cached per request by FastAPI's dependency cache. | read routes that filter by visibility |
-| `get_current_admin` | the JWT payload dict; raises **401** (never 403) unless `viewer.has(PERM_ADMIN)`. Consults the user row, so a deleted user or a role that lost admin is rejected even with a valid token. | every write route |
-| `require_permission(perm)` | dependency factory for a single permission, same 401 shape | finer gates |
+| `get_viewer` | `Viewer` (username, role, permission set, active access mode); anonymous viewer if no/invalid cookie. Cached per request by FastAPI's dependency cache. | read routes that filter by visibility |
+| `require_permission(perm)` | dependency factory for a single permission; raises **401** (never 403). Consults the user row, so a deleted user or a role that lost the grant is rejected even with a valid token. | every gate |
+| `require_admin_authz`, `require_manage_catalog`, `require_manage_pipelines` | the three capabilities, bound once at import. There is deliberately no single "is an admin" dependency — grepping for a capability has to find every route holding it. | write and admin routes |
+| `get_current_user_id` | `viewer.user_id` or **401**. Asks for a person rather than a permission. | routes that scope a row to the caller |
 
 Permission sets per role are cached in-process (`rbac/cache.py`) and bumped on
 every grant change; the cache assumes a single process, which local

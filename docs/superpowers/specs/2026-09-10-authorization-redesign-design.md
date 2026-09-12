@@ -9,7 +9,7 @@ see "Decision 14 in detail". Phase B shipped on 2026-09-12 carrying decisions 12
 shipped the same day, 10 of its 11 tasks. `docs/PROGRESS.md` carries the live
 status and the handover note for the one remaining task.
 
-Read first: [authorization.md](../../authorization.md#what-the-redesign-inherits)
+Read first: [authorization.md](../../authorization.md#rules-not-to-break)
 — the four gates that already exist, the rules not to break, and the lessons
 from making the system multi-user.
 

@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-07 (publisher credit row added)
+Last verified: 2026-09-07
 
 ## What this is for
 
@@ -182,9 +182,8 @@ header is whatever that tab has always been called, while the label is what a
 reader sees, and `_LABEL_OVERRIDES` in `app/utils/credit_roles.py` owns it.
 Which publishers a type's picker offers is `publisher_scope`
 (see [data-model.md](data-model.md#publisher_scope)), so a games publisher is
-never suggested as an anime distributor. Anime Movie's `distributor_tw` is the
-one column the 2026-09-07 migration genuinely added - that tab never carried a
-distributor before.
+never suggested as an anime distributor. Anime Movie carries a
+`distributor_tw` of its own.
 
 Every type also gets `other` and `restricted` free-form access/reference
 buckets on `media_source`, gated by the `sources_other` / `sources_restricted`

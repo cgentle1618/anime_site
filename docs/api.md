@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-12 (the two Clean routes; Phase D: the access-mode admin surface and the session switcher)
+Last verified: 2026-09-12
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -9,7 +9,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Authentication
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
-- **Admin-only endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie, enforced via `Depends(get_current_admin)` in `app/dependencies.py`.
+- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
@@ -19,7 +19,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 |---|---|---|
 | `limit` / `offset` on list endpoints | collection, franchise, series, all nine media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
-| Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it **no longer surfaces as a 500**, which used to make the SPA retry and create duplicates. |
+| Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all nine media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. Until real accounts ship, a logged-out visitor resolves to the admin, so the public pages are unchanged. A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
@@ -430,8 +430,8 @@ endpoint gets it and `item_count` for every row in one grouped query.
 detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
-per media type present, never one per item. An item whose entry no longer
-exists can no longer occur — the FK cascades — but a step written without an
+per media type present, never one per item. An item whose entry is gone cannot
+occur — the FK cascades — but a step written without an
 entry still comes back with `missing: true` rather than being dropped.
 
 ---
@@ -509,69 +509,20 @@ from either end without a second copy of the kind vocabulary.
 
 What is queued to watch or read (kind `next`), or marked for rewatch/reread
 (kind `rewatch`), at entry, series, or franchise scope. **One table backs
-both Plan-page queues** — the `plan_next` name predates the second one; see
-data-model.md. **Per user and authenticated since Step 3:** every route requires an
-account (`get_current_user_id`, `401` otherwise) and answers only with the
-caller's own rows; the writes additionally stay admin-only, matching media
-relations and watch orders. There is no site-owner fallback and no public view
-of anybody's queue. The wire format is unchanged - `scope` and `target_id` are
-still sent and accepted, derived from the row's owner foreign key.
+both Plan-page queues** — the `plan_next` name covers both; see
+data-model.md. **Per user, and gated on `self.list`:** every route requires an
+account that may keep a queue (`401` otherwise) and answers only with the
+caller's own rows. There is no site-owner fallback and no public view of
+anybody's queue. The gate is `require_permission(PERM_SELF_LIST)` at the
+router, so an **administrative** account is refused too — `self.*` is
+ownership rather than privilege and an admin keeps no queue; see
+authorization.md, "The admin account holds no user data". The wire format
+still sends and accepts `scope` and `target_id`, derived from the row's owner
+foreign key.
+
 Replaces the `watch_next` / `read_next` booleans, `franchise.watch_next_group`,
 and the nine `to_rewatch` / `to_reread` booleans — see data-model.md and
 business-rules.md.
-
-| Method   | Path                                          | Auth   | Description                                                                                                     |
-| -------- | ---------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                       | Account | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `kinds` (`["next", "rewatch"]`), `allowed_scopes` (keyed by kind, then media type, scopes ordered entry/series/franchise), `size_groups` (per media type, `{key, label}` list). |
-| `GET`    | `/?media_type=&scope=&kind=`                   | Account | The caller's own rows, each resolved to its target's display data. All three filters optional; omitting `kind` returns both kinds in one call, so the Plan page still loads its whole dataset in one request. |
-| `POST`   | `/`                                            | Admin  | Create one row. Body includes `kind`, defaulting to `"next"` when omitted so every pre-rewatch caller keeps working. `422` for an unknown kind, `400` if the media type may not be planned at that scope for that kind, `404` if the target does not exist, `409` if the caller has already planned that `(kind, scope, target_id, media_type)` combination. |
-| `DELETE` | `/target?scope=&media_type=&target_id=&kind=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. Query params only. `kind` defaults to `"next"` when omitted. `404` if not planned. |
-| `DELETE` | `/{system_id}`                                 | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
-
-**Create body**
-
-```json
-{
-  "media_type": "anime",
-  "scope": "series",
-  "target_id": "…",
-  "remark": null,
-  "kind": "next"
-}
-```
-
-**Read response** — each row resolves its target through the same
-`OWNER_TABLES` map `media_relation` and `watch_order_item` use:
-
-```json
-{
-  "system_id": "…", "media_type": "anime", "scope": "series", "target_id": "…",
-  "remark": null, "kind": "next", "created_at": "…", "updated_at": "…",
-  "missing": false, "display_name": "…", "label": "…", "is_tier": true,
-  "cover_image_file": null, "nav_path": "/series", "expectation": "High"
-}
-```
-
-A deleted target takes its plan rows with it: since Step 3 the owner is one of
-three real foreign keys, all `ON DELETE CASCADE`, so `missing: true` is
-unreachable for a stored row. `expectation` is read off whichever
-of `franchise_expectation` / `series_expectation` / `expectation` the target
-actually has, so the Plan page can sort every scope by the same field.
-
-**Entry-level `watch_next` / `read_next` / `to_rewatch` / `to_reread` are not
-endpoints of their own.** They ride along on the existing entry endpoints
-(`/api/anime`, `/api/manga`, etc.) as virtual fields backed by `plan_next`
-rows (`kind='next'` / `kind='rewatch'` respectively) — see business-rules.md.
-Six of the nine dropped `to_rewatch` / `to_reread` columns survive this way:
-anime-movie, movie, tv-show (`to_rewatch`); manga, novel, comic (`to_reread`).
-`anime` and `cartoon` have **no** entry-level rewatch field — both are
-rewatched at franchise scope only, targeted directly through this router with
-`scope=franchise`, `kind=rewatch`. `franchise` and `series` have no rewatch
-field of any kind; their marks go through this router with `scope=franchise`
-/ `scope=series` and `kind=rewatch` directly, never through an entry-style
-boolean on `POST /api/franchise` / `POST /api/series`.
-
----
 
 ## Quote — `/api/quote`
 
@@ -643,7 +594,7 @@ the frontend hides the quote-link control in that case.
 ## Note — `/api/notes`
 
 Structured commentary on any owner: one row per bullet, linked resource or
-episode comment. Replaces the `notes` JSONB column that used to sit on the
+episode comment. This is the only storage for them — there is no `notes` JSONB column on the
 seven media tables. Reads are public; every write is admin-only.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
@@ -683,14 +634,14 @@ has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | Account | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
-| `GET`   | `/`               | Account | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
-| `GET`   | `/{seasonal_id}`  | Account | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
-| `PATCH` | `/{seasonal_id}`  | Account | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
+| `GET`   | `/current-season` | `self.list` | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
+| `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
+| `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
 **Response model:** `SeasonalResponse` (unchanged).
 
-**Per user and authenticated since Step 3.** A seasonal row is keyed
+**Per user, and behind `self.list`.** A seasonal row is keyed
 `(user_id, seasonal)`, its four counters are aggregates over that user's
 `user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
 gets `401` from every route here rather than somebody else's numbers. The admin
@@ -1386,7 +1337,7 @@ deletes by `system_id`. A narrowed session is refused both with 401.
 | `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`.                          |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
-| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author since 2026-09-12; the response carries one per entry, a shape that only means something once an author is fixed. |
+| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author, so the response carries one per entry. |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
 
@@ -1486,7 +1437,7 @@ which keys a type owns.
 
 Neither route takes a user id, so there is no shape of request that writes
 somebody else's list. Catalogue writes are unaffected and stay behind
-`Depends(get_current_admin)` on the per-type entry endpoints.
+`Depends(require_manage_catalog)` on the per-type entry endpoints.
 
 ---
 
@@ -1587,10 +1538,10 @@ server has already withheld what the viewer may not see.
 **`permissions` merges two axes, and only here.** The `admin.*`, `manage.*`,
 `media_type.*` and `self.*` entries are the ROLE's capability set. The
 `field_group.*` entries come from the active ACCESS MODE minus its denials —
-they stopped being role permissions in Phase B. The shape is preserved
-deliberately: the SPA has hundreds of `has("field_group.<key>")` calls that
-predate the split, and keeping this contract is what made Phase B cost the
-frontend nothing. The server never merges the two anywhere else.
+they are not role permissions. The merged shape is deliberate: the SPA has
+hundreds of `has("field_group.<key>")` calls, and one flat list is what lets
+them all keep working across the two axes. The server never merges the two
+anywhere else.
 
 **Content labels are NOT published.** They scope whole entries server-side,
 the browser never needs them, and listing them would tell a narrowed session
@@ -1682,7 +1633,7 @@ and being narrowed if somebody remembers.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/roles/` | Roles with their grants and user counts. |
-| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent since Phase B: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |

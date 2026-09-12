@@ -1,12 +1,12 @@
 # Quotes and memes
 
-Last verified: 2026-09-11 (Steps 0 and 5: real owner foreign keys and `author_id`)
+Last verified: 2026-09-11
 
 ## What this is for
 
 Quotes are memorable lines pulled from a media entry; memes are pictures or
 one-liners that belong to an entry *or* to a whole series, franchise or
-collection. They used to live as a `quotes_memes` list inside each entry's
+collection. They are rows of their own, not a list inside each entry's
 `notes` JSONB, which could not be filtered, searched or listed across the
 library. They are now two small tables with their own routers, a shared
 grouped-feed page component, and admin pickers that resolve the owner
@@ -60,12 +60,10 @@ declaration order is also the Google Sheets column order
 | `remark` | text | |
 | `created_at` / `updated_at` | datetime | |
 
-**The owner references used to be FK-less pairs, and are not any more.** No
-single foreign key could span nine media tables, so both rows stored
-`(media_type, entry_id)` / `(owner_type, owner_id)` and a deleted owner left a
-dangling row the resolver reported as `missing: true`. Multi-user Step 0 gave
-every entry a row in the `media` supertable and Step 5 did the same for the
-tiers, so each reference is now a real foreign key and the database cleans up:
+**Both owner references are real foreign keys**, through the `media`
+supertable and the three tier tables — not the `(media_type, entry_id)` /
+`(owner_type, owner_id)` pairs the API still speaks. The database cleans up
+after a delete, and the two tables do it differently on purpose:
 
 - **`quote.media_id` is `SET NULL`, not `CASCADE`**, and that is the point:
   a quote carries its own text, translation, speaker and episode, so deleting
@@ -113,7 +111,7 @@ and `MemeForm` hides the quote control for tier owners.
 ## Endpoints
 
 Routers: `app/routers/quote.py` (`/api/quote`) and `app/routers/meme.py`
-(`/api/meme`). Reads are public; writes need `get_current_admin`.
+(`/api/meme`). Reads are public; writes need `manage.catalog`.
 
 ### Quotes
 
@@ -222,9 +220,9 @@ its own to match on — so re-importing the same sheet updates rather than
 duplicates. The **tab headers are unchanged**: the sheet still carries the
 `(media_type, entry_id)` and `(owner_type, owner_id)` pair a human reads during
 an environment switch, and the parser translates it onto the columns (a Meme
-row's pre-Step-5 pair is renamed to `_legacy_*` on the way in). `author_id` is
-NOT NULL, so a row restored from a sheet that predates it falls back to the
-restore owner rather than failing. Blank timestamp
+row's pair is renamed to `_legacy_*` on the way in). `author_id` is NOT NULL,
+so a row from a sheet that carries no author falls back to the installation
+owner rather than failing. Blank timestamp
 cells parse to `None`, which is why `created_at`/`updated_at` are optional in
 the response schemas.
 

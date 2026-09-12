@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Last verified: 2026-09-10 (APP_ENV, and the two secrets the app now refuses to start without)
+Last verified: 2026-09-10
 
 **What this is for.** This page takes a machine with nothing on it to a working
 copy of the CG1618 Media Tracker: backend on :8000, Vite dev server on :5173,
@@ -52,7 +52,7 @@ installs `libpq-dev` because it builds wheels itself).
 The app connects to `localhost:5432` with `POSTGRES_USER` / `POSTGRES_PASSWORD`
 / `POSTGRES_DB` from `.env` (see `app/config.py`, `sqlalchemy_database_url`).
 
-**Use docker-compose.** Since 2026-09-08 that is the only supported way on both
+**Use docker-compose.** It is the only supported way on both
 machines, pinned to the same version the CI runner and the planned self-hosted
 deployment use. A native install is no longer part of the setup.
 
@@ -82,7 +82,7 @@ instead. The error names the services and prints the commands to stop them.
 > then silently shadowed — holding a *separate, empty* database while
 > `docker ps` makes it look like the container is in use. That is the usual
 > cause of "the data I just added is gone", and it is exactly what the home
-> machine was doing until 2026-09-08. On Windows, from an elevated PowerShell:
+> machine is doing. On Windows, from an elevated PowerShell:
 >
 > ```powershell
 > Stop-Service postgresql-x64-17 -Force
@@ -287,6 +287,6 @@ Details of the tiers and fixtures are in `testing.md`.
 | Data disappears between runs | Two Postgres servers on :5432 (native + Docker). Stop one. |
 | `alembic upgrade head` says a table already exists | The server was started on an empty DB first (schema guard `create_all`). Use `alembic stamp head` or drop and recreate the DB. |
 | API tests fail with `password authentication failed` | `POSTGRES_PASSWORD` in `.env` does not match the server. |
-| The app fails to connect with `password authentication failed`, but `POSTGRES_PASSWORD` is right | A leftover `DATABASE_URL` in `.env`. Since 2026-09-08 it is honoured **verbatim** - the old guard that ignored a value containing `localhost` was deleted with the GCP deployment - so an old placeholder or a copied cloud URL now wins over the `POSTGRES_*` parts. Comment `DATABASE_URL` out for local dev; `settings.sqlalchemy_database_url` (checklist step 1) shows which URL is actually in use. |
+| The app fails to connect with `password authentication failed`, but `POSTGRES_PASSWORD` is right | A leftover `DATABASE_URL` in `.env`. It is honoured **verbatim** whenever it is set, so a placeholder or a copied cloud URL wins over the `POSTGRES_*` parts. Comment `DATABASE_URL` out for local dev; `settings.sqlalchemy_database_url` (checklist step 1) shows which URL is actually in use. |
 | `/` on :8000 returns "Frontend not built" | Run `cd frontend && npm run build`. |
-| Covers not showing | Covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`, and that is the only storage there is. Make sure the pipeline has downloaded them (Data Control > Calculate > **download missing covers**), and that `scripts/migrate_cover_layout.py` has been run if this checkout predates the folder layout. |
+| Covers not showing | Covers are files in `static/covers/<owner_type>/`, served at `/static/covers/<owner_type>/<id>.jpg`, and that is the only storage there is. Make sure the pipeline has downloaded them (Data Control > Calculate > **download missing covers**), and that `scripts/migrate_cover_layout.py` has been run if `static/covers/` still holds loose `<uuid>.jpg` files. |

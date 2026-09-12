@@ -1,6 +1,6 @@
 # Watch Orders
 
-Last verified: 2026-09-11 (Step 0: `media_id`; the public_id column)
+Last verified: 2026-09-11
 
 ## What this is for
 
@@ -55,7 +55,7 @@ Constraint `ck_watch_order_list_single_owner`: exactly one of `franchise_id`, `c
 | `note` | Text | yes | per-step commentary |
 | `created_at` / `updated_at` | DateTime | yes | |
 
-`media_type` and `entry_id` are **not stored**. Multi-user Step 0 replaced the FK-less pair with `media_id`, and the pair survives as `entry_id`, a **synonym** for it, and `media_type`, a read-only `column_property` off the `media` row (`app/models/__init__.py`) — so the API wire format, the editor, the guide and the Google Sheets tab are all unchanged, and a step can no longer claim a `media_type` that disagrees with the entry it points at. The FK is CASCADE, unlike `quote`'s SET NULL, and for the opposite reason: a step is almost pure pointer — `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry — so a step left pointing at nothing is a blank row in a curated list.
+`media_type` and `entry_id` are **not stored**: the column is `media_id`, and the pair is derived — `entry_id` is a **synonym** for it and `media_type` a read-only `column_property` off the `media` row (`app/models/__init__.py`). The API wire format, the editor, the guide and the Google Sheets tab all speak the pair, and a step cannot claim a `media_type` that disagrees with the entry it points at. The FK is CASCADE, unlike `quote`'s SET NULL, and for the opposite reason: a step is almost pure pointer — `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry — so a step left pointing at nothing is a blank row in a curated list.
 
 The same entry may appear in several items of one list (a split run). A **dangling** step can no longer exist: deleting an entry now removes its steps in the database. `resolve_items` still flags `missing: true` for a step whose `media_id` is null or whose type is unknown, so the admin can see and remove it; a *hidden* entry's step is dropped instead, since `missing` means "broken reference, go fix it" and a hidden entry is neither broken nor the viewer's business.
 
@@ -112,7 +112,7 @@ Reads apply RBAC (`app/services/rbac/enforcement.py`): the list-detail endpoint 
 
 ## API
 
-Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/schemas/watch_order.py`. Admin = `Depends(get_current_admin)` (401 for guests, proved throughout `tests/api/test_watch_order.py`).
+Router: `app/routers/watch_order.py`, prefix `/api/watch-order`. Schemas: `app/schemas/watch_order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_watch_order.py`).
 
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |

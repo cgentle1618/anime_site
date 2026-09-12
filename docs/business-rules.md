@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-12 (a remark belongs to its author)
+Last verified: 2026-09-12
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -208,8 +208,8 @@ later is a one-line change.
 
 ### Finishing is two facts, not one
 
-Step 1 split every completion helper in half, because "this finished airing"
-and "I finished it" are different claims about different things:
+Every completion helper comes in halves, because "this finished airing" and
+"I finished it" are different claims about different things:
 
 - the **catalogue** half is a fact about the work - it finished airing, the
   serialisation closed, the published volume count settled. It lives on the
@@ -245,20 +245,16 @@ exist yet. `apply_list_completion_timestamp` stamps `completed_at` on the list
 row the first time a write moves it into a completed status, and never
 overwrites an existing stamp.
 
-### The automatic completion checks are gone
+### There are no automatic completion checks
 
-`check_is_tv_completed`, `check_is_movie_completed` and
-`check_is_reading_completed` were deleted in step 1, along with the
-post-processing calls that used them. A pipeline that concluded "`ep_fin ==
-ep_total`, therefore this is Completed" was deciding one person's fact from
-numbers, and once `ep_fin` is one reader's position that conclusion is not
-the pipeline's to draw. What a pipeline may still say is that the **work**
-has finished airing, and only when the source it fetched from says so - which
-`autofill` already writes.
+Nothing concludes "`ep_fin == ep_total`, therefore this is Completed". A
+pipeline that did would be deciding one person's fact from numbers, and once
+`ep_fin` is one reader's position that conclusion is not the pipeline's to
+draw. What a pipeline may say is that the **work** has finished airing, and
+only when the source it fetched from says so — which `autofill` writes.
 
-This also settles the old manga question this file used to flag: the
-`check_is_reading_completed` rule requiring both `完結` and a count match is
-not "the intended rule" or otherwise - it is gone.
+The same answers the manga case: a rule requiring both `完結` and a count
+match would still be a pipeline deciding somebody's reading for them.
 
 ### A game has five completion axes, and they are independent
 
@@ -411,7 +407,7 @@ in `app/utils/utils.py`.
 | Cartoon     | TV: `airing_status, release_date, imdb_rating, ep_total, cover_image_file`; Movie: same minus `ep_total`                   | List chosen by `airing_type == "Movie"`; every other type uses the TV list. The Fill spec additionally requires `airing_type in {TV, Movie}` before queueing.                                                                                                                          |
 | Manga       | `serialization_status, release_date, end_date, mal_rating, mal_rank, cover_image_file`                                     | When `serialization_status == "完結"`, also missing if **both** `vol_total` and `ch_total` are `None`. One missing total alone does not trigger a fetch.                                                                                                                                 |
 | Novel       | same as manga                                                                                                             | Gate: `mal_link is None` → never missing (nothing to fill from). `完結` rule uses `vol_total_original` and `ch_total`, again only when **both** are `None`.                                                                                                                             |
-| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — the last of those became a credit when the `comic_publisher` vocabulary retired on 2026-09-07, so Comic Vine's publisher now resolves to a `publisher` entity instead of a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
+| Comic       | `release_date, issue_total, cover_image_file`                                                                             | Plus `COMIC_LINK_FIELDS_TO_FILL`: `author` credit, `illustrator` credit, `publisher` credit — Comic Vine's publisher resolves to a `publisher` entity, not a tag. Imprint, continuity, era and events and `end_date` are manual and never required — Comic Vine does not model them.                                                          |
 | Studio      | `mal_link, founded_date, name_jp, website_url, logo_file`                                                                 | The only non-media type Fill covers. The spec additionally requires `mal_id` to be set — a studio with no MAL id has no source to fill from, however empty it is. Pasting the producer URL into `mal_link` is enough: `apply_extract_mal_id_studio` derives the id before eligibility is checked (section 2), on Fill and on every studio write. `my_rating`, `country` and `defunct_date` are absent on purpose: MAL's producer record reports none of them, so listing them would leave every studio permanently missing. |
 | Game        | `igdb_link, release_date, cover_image_file, hltb_main, hltb_main_extra, hltb_completionist`                                | Two independent sources, ORed rather than gated together: the IGDB clause above requires `igdb_id` set; the Steam clause is separate and ignores this column list entirely — `has_missing_values_game_steam(e)` is true when `steam_appid` is set and Steam has written **nothing at all** yet (`metacritic_score`, `price_original_us` and `achievements_total` all `None`). Deliberately not folded into the column list above: a free game has no price, an obscure one no Metacritic score, and many have no achievements, so testing those individually would leave such an entry eligible forever. `steam_appid` itself is written by IGDB, not typed in or picked directly — pasting a `store.steampowered.com/app/<id>` link into `steam_link` and running `apply_extract_steam_appid` (section 2) is the only hand-typed path onto it. Refreshing columns Steam already filled is Replace's job, not Fill's — see [external-apis.md](external-apis.md#steam). |
 
@@ -433,11 +429,10 @@ The episode version is skipped entirely when both values are `None`.
 ### Bahamut availability
 
 `apply_check_baha` (anime, anime movie): a Bahamut link means the entry is
-available on Bahamut. The verdict used to live in the `source_baha` tristate
-beside a `baha_link` column; both are dropped now, and the verdict lives on
-the entry's Bahamut `main` `access` row in `media_source` instead — if that
-row's `url` is set and its `available` is `None`, set `available = True`.
-Never overwrites an existing verdict.
+available on Bahamut. The verdict lives on the entry's Bahamut `main`
+`access` row in `media_source` — if that row's `url` is set and its
+`available` is `None`, set `available = True`. Never overwrites an existing
+verdict.
 
 ---
 
@@ -448,7 +443,7 @@ space: `"SPR 2025"`, `"WIN 2024"`. (Older docs said `"2025 SPR"`; that is wrong.
 `system_configs.current_season` is free-form, so an admin typing the old order
 would point at a bucket that never matches.)
 
-**A seasonal row is per user** since Step 3: the primary key is
+**A seasonal row is per user.** The primary key is
 `(user_id, seasonal)`, the rating is that user's, and so are the four counters.
 
 `create_missing_seasonal` scans anime for distinct `(release_season, first 4
@@ -459,8 +454,8 @@ that has to exist. A user with nothing in that season gets a row of zeroes.
 Commits only if it added something.
 
 `sync_seasonal_counts` zeroes every seasonal's four counters and recounts from
-**that row's user's `user_media_list` rows** (not from `anime.watching_status`,
-which Step 1 removed), joined through `media` to anime that have a season, a
+**that row's user's `user_media_list` rows** - statuses live there and on no
+entry table - joined through `media` to anime that have a season, a
 date, and `airing_type` in **`{TV, ONA, Movie, Special}`** (OVA, OAD, Other are
 excluded):
 
@@ -609,8 +604,8 @@ and de-duplicates on the normalised key, keeping the **first** spelling seen.
 
 Every media model resolves its display name through a fallback chain that is
 **hard-coded per type**. The four Tier 3 entities do not: which name they show
-is DATA. `studio` was the first, on 2026-09-04, and `person`, `publisher` and
-`character` were each deliberately shaped after it, so one rule covers all four.
+is DATA, and `studio`, `person`, `publisher` and `character` are shaped
+identically so that one rule covers all four.
 
 `display_name_field` holds `en` / `cn` / `jp` / `alt` and names the winning
 column. `display_name` returns that column's value when it is set and
@@ -680,7 +675,7 @@ and everybody sees - keep them in step, or move them onto the endpoint.
 `remark` is no longer a column on the owner tables: it is the `note` row with
 `section = "remark"` for that owner **and that author**.
 
-**A remark belongs to its author** (2026-09-12). It is a personal-scope
+**A remark belongs to its author.** It is a personal-scope
 section, so two accounts may each hold one on the same entry and each reads
 back their own; a viewer with none reads `null`, never somebody else's.
 
@@ -699,31 +694,19 @@ back their own; a viewer with none reads `null`, never somebody else's.
   in place (stamping `updated_at`) or insert with `sort_index = 0.0`. Text is
   stored as typed — only the emptiness test is stripped.
 
-**Why this took two changes landing together.** The read used to be a
-class-level `column_property` — a scalar subquery, which cannot know who is
-asking. So it served one person's private assessment to everybody, and
-`ix_note_one_remark_per_owner` had to stay per-OWNER to keep that subquery
-single-valued, which meant the database refused a second account's remark
-outright. Relaxing the index alone would have turned that **loud refusal into
-an accepted-then-invisible write** — a data-loss shape, strictly worse than
-doing neither. The index (now per-owner-per-author) and the per-viewer read
-therefore shipped in one commit, and
-`tests/api/test_remark_per_viewer.py` fails for each half independently on
-purpose.
-
-`find_all_remarks(db, author_id)` (`remarks.py`) lists the entries carrying
-**the caller's own** non-empty remark, for
-`GET /api/data-control/check/remarks`. `author_id=None` returns nothing rather
-than everything: the response carries one remark per entry, a shape that only
-means something once an author is fixed, and failing open would publish every
-account's private assessments to a screen that had only ever shown one
-person's. Identical to the old answer on a single-account installation.
-
----
+**The index and the read path are one mechanism.** A class-level
+`column_property` is a scalar subquery and cannot know who is asking, so it
+would serve one person's private assessment to everybody — and
+`ix_note_one_remark_per_owner` would have to be per-OWNER to keep that
+subquery single-valued, which makes the database refuse a second account's
+remark outright. Relaxing the index without a viewer-aware read turns that
+**loud refusal into an accepted-then-invisible write**, which is a data-loss
+shape and strictly worse than doing neither. Change one and you change both,
+in the same commit.
 
 ## 12. Hierarchy resolution (`hierarchy.py`)
 
-One rule for every media type (it used to be nine drifting copies). Input is
+One rule for every media type, not one per type. Input is
 whatever a form or a sheet row carries in its `franchise_id` / `series_id`
 cells.
 
@@ -888,10 +871,10 @@ wrapper, so a Fill or Replace of any type triggers a full scan.
 
 ---
 
-## 17. Retired or unused rules
+## 17. Unused rules
 
-Things that exist in the tree but are not wired, or that were removed by
-migrations. Each was confirmed by grep on 2026-08-30.
+Things that exist in the tree but are not wired. Verify with a grep before
+relying on any of them - a symbol acquires a caller.
 
 ### Defined but never read
 
@@ -933,8 +916,8 @@ because they are acted on: `derivation.py` extracts an id out of each one,
 `autofill.py` fetches on that id, `checking.py` and `calculation.py` gate on
 whether the link is present, and Comic Vine's conflict logic reads
 `comicvine_id` directly. `official_link`, `twitter_link` and `anilist_link`
-became `media_source` reference rows instead — nothing in `app/services/`
-ever read them back, only wrote them (`autofill.py`) or displayed them
+are `media_source` reference rows instead — nothing in `app/services/`
+reads them back, only writes them (`autofill.py`) or displays them
 (`SourcesCard`).
 
 On the RBAC side, gating a `media_source` bucket does much heavier lifting on

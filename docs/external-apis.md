@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-08 (GCP deployment removed; cover images are local disk only)
+Last verified: 2026-09-08
 
 ## What this is for
 
@@ -10,7 +10,7 @@ The app never asks you to type metadata that a public database already knows. Ei
 
 Nine fields are overwritten on every run, not three: `mal_rating`, `mal_rank`, `imdb_rating`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)).
 
-A note on names: the MAL client used to be called "Jikan". Any `jikan` still lurking in code or tests is a leftover — the live client is Tenrai v1.
+A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in code or tests is a stale name for the same thing, not a second client.
 
 ## Table of contents
 
@@ -207,7 +207,7 @@ A Comic Vine **volume** is one numbered run, which is what one `comic` row is. T
 | `start_year` | `volume_label` | `comic.volume_label` | `2018` → `"(2018)"`; fill-only |
 | `start_year` | `release_date` | `comic.release_date` | year-precision canonical date, e.g. `1963`; fill-only |
 | `count_of_issues` | `issue_total` | `comic.issue_total` | fill-only |
-| `publisher.name` | `publisher` | `media_credit` role `publisher` via `replace_credits` | only if the entry has no publisher credit yet. Was a `media_tag` row in the `Comic Publisher` vocabulary until 2026-09-07; `replace_credits` now resolves the name to a `publisher` entity and scopes it to `comic` |
+| `publisher.name` | `publisher` | `media_credit` role `publisher` via `replace_credits` | only if the entry has no publisher credit yet. `replace_credits` resolves the name to a `publisher` entity and scopes it to `comic` — it is a credit, not a tag |
 | `person_credits` with role token `writer` | `writer` | `media_credit` role `author` via `replace_credits` | only if no author credit yet; names comma-joined, deduplicated, matched on whole tokens (`ARTIST_ROLES = ("penciler", "penciller", "artist")`, so `inker` never matches) |
 | `person_credits` with penciler / penciller / artist | `artist` | `media_credit` role `illustrator` | same |
 | `image` | `cover_image_url` | cover download | fill-only |
@@ -307,7 +307,7 @@ Three things make `igdb.py` a genuinely different client rather than a copy of
 | Search-term safety | An APIcalypse `search` term is a quoted string, so `search_igdb_games` strips every `"` from the query before interpolating it; a stray quote would terminate the term. |
 | Failure codes | 401 → clear the token cache, log, return `None`. 404 → warning, `None`. 429 → `RateLimitExceeded`, retried. 5xx → warning, `None`, no retries. Same `@retry(stop_after_attempt(5), wait_exponential(1, 2, 10), reraise=False)` as every other client. |
 
-### Time to beat — verified against the live IGDB reference on 2026-09-06
+### Time to beat
 
 This is the part that is easy to get wrong, and all three details were checked
 against IGDB's published reference:
@@ -486,7 +486,7 @@ alias layer.
 **Currency.** Steam returns every price as an integer with two implied
 decimals, regardless of currency — yen included, despite yen having no minor
 unit in the real world. `PRICE_SCALE = 100` in `app/utils/steam_utils.py`
-divides uniformly. Verified against the live storefront on 2026-09-06 with
+divides uniformly. Verified against the live storefront with
 app 1245620: USD `5999` → $59.99, JPY `902000` → ¥9,020, TWD `179000` →
 NT$1,790. `map_steam_to_game_data` also asserts the returned `currency`
 matches what the requested `cc` should answer in (USD / JPY / TWD) and drops
@@ -573,7 +573,7 @@ What goes in which tab, the tab order, and the credit/tag columns are described 
 
 Images are stored one per row at `"{owner_type}/{system_id}.jpg"` under `COVER_DIR = "static/covers"`, and the column that references one (`cover_image_file`, `photo_file`, `logo_file`) holds that whole key, folder included. The owner type is the table the id belongs to - each table has its own id space, so a bare id does not identify a file. `image_manager.cover_key()` is the only place the layout is spelled out, and `COVER_OWNERS` lists the thirteen folders: the nine media types plus `staff`, `character`, `publisher` and `studio`.
 
-Local disk is the only storage path. The Google Cloud Storage branch was removed on 2026-09-08 along with the rest of the GCP deployment; `app/services/integrations/image_manager.py` is now plain local-disk cover storage, and it is the only module that knows where the files live. What a self-hosted deployment does about them is an open question - see [deployment-selfhost.md](deployment-selfhost.md).
+Local disk is the only storage path. `app/services/integrations/image_manager.py` is plain local-disk cover storage and is the only module that knows where the files live. What a self-hosted deployment does about them is an open question - see [deployment-selfhost.md](deployment-selfhost.md).
 
 | Item | Value |
 |---|---|

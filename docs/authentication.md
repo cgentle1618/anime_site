@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-10 (APP_ENV, the secret fail-fast, and the closed hardening gate)
+Last verified: 2026-09-10
 
 ## What this is for
 
@@ -13,7 +13,7 @@ Authentication answers one question: *who is making this request?* The app has a
 | Login / me / logout routes | `app/routers/auth.py` |
 | Password hashing, JWT minting | `app/services/security.py` |
 | Cookie -> viewer resolution | `app/services/rbac/resolver.py` |
-| `get_current_admin` dependency | `app/dependencies.py` |
+| the capability gates | `app/services/rbac/resolver.py` |
 | Admin seeding at boot | `app/main.py` (`lifespan`) |
 | Settings (`JWT_SECRET_KEY`, expiry) | `app/config.py` |
 | Frontend session state | `frontend/src/contexts/AuthContext.jsx` |
@@ -34,21 +34,18 @@ Authentication answers one question: *who is making this request?* The app has a
 
 There is no self-registration and no password reset. Accounts are created by an admin through `/api/users` (see [authorization.md](authorization.md)).
 
-> ### The hardening gate — closed on 2026-09-10
+> ### Before inviting anybody
 >
-> Step 2 shipped the `user` role, so an admin could invite somebody who is not
-> an administrator, and two defects made that unsafe: the login cookie was
-> `secure=False` unconditionally, and nothing refused a default
-> `JWT_SECRET_KEY` or `ADMIN_PASSWORD`. **Both are fixed.** The cookie's
-> `Secure` flag now follows `APP_ENV`, and `Settings.validate_secrets()` runs
-> from the lifespan in **every** environment. See
-> [The production signal](#the-production-signal-app_env) below.
+> Two things have to hold before a non-administrator has an account here, and
+> both do: the login cookie's `Secure` flag follows `APP_ENV`, and
+> `Settings.validate_secrets()` runs from the lifespan in **every**
+> environment, refusing to boot on a default `JWT_SECRET_KEY` or
+> `ADMIN_PASSWORD`. See [The production
+> signal](#the-production-signal-app_env) below.
 >
-> **Two things this did not do**, both still deliberately open: session
-> lifetime is still a flat 24 hours with no refresh or revocation, and there is
-> **no password reset** — an admin sets a password at `/users` and that is the
-> only path. Neither blocks inviting somebody; both are worth designing before
-> more than a handful of people use this.
+> **Two things are still deliberately open:** session lifetime is a flat 24
+> hours with no refresh or revocation, and there is no password reset — an
+> admin sets one at `/users`. Neither blocks inviting somebody.
 
 ## The production signal (`APP_ENV`)
 
@@ -67,7 +64,7 @@ to Production for the same reason. Both dev machines therefore carry
 
 `Settings.validate_secrets()` is **not** gated on it, and that separation is
 the point. It refuses to start while `JWT_SECRET_KEY` or `ADMIN_PASSWORD`
-still holds the value `.env.example` used to ship, in development as well as
+still holds the value `.env.example` ships, in development as well as
 production — Django's `SECRET_KEY` raises whether or not `DEBUG` is set, for
 exactly the reason this codebase already learned: the previous check,
 `validate_production()`, returned early unless it was running on Cloud Run, so
@@ -119,7 +116,7 @@ at `/users`.
 
 The `role` claim is **vestigial**. Nothing reads it for authorization: the server resolves the user's role and permissions from the database on every request (`resolver.py`), so a token minted before a role change carries a stale claim that is simply ignored. It is still minted because the login response and the old `User.role` shape returned it, and `User.role` is now a read-only `column_property` over `role.name` (`app/models/__init__.py`).
 
-There is no startup check on the secrets any more. `settings.validate_production()`, which refused to boot on Cloud Run with a default `JWT_SECRET_KEY` or `ADMIN_PASSWORD`, was deleted with the GCP deployment on 2026-09-08; it never did anything locally. Self-hosting needs an equivalent guard before the app is exposed - see [deployment-selfhost.md](deployment-selfhost.md).
+`settings.validate_secrets()` runs from the lifespan (`app/main.py`) in every environment and refuses to boot while `JWT_SECRET_KEY` or `ADMIN_PASSWORD` still holds the value `.env.example` ships. It is environment-blind on purpose: a guard that only fires in production is a guard nobody has ever seen fire.
 
 ## The cookie
 
@@ -151,9 +148,9 @@ The one place the SPA learns who it is. It **never raises**: a missing, expired 
 - `username` is `null` for an anonymous caller.
 - `permissions` is the sorted grant list of the viewer's role. For a superuser it may be empty; `is_superuser` is what says "everything".
 
-## `get_current_admin` (`app/dependencies.py`)
+## The capability gates (`app/services/rbac/resolver.py`)
 
-Every write route and every admin-only router uses `Depends(get_current_admin)`. It calls `resolve_viewer` and requires `viewer.has("admin")`.
+Every write route names the capability it needs — `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz`. Each calls `resolve_viewer` and requires that one permission; there is deliberately no single "is an admin" dependency, so grepping for a capability finds every route holding it.
 
 - Failure is always **401** with `Could not validate credentials or insufficient permissions` and `WWW-Authenticate: Bearer`. There is no 403 anywhere in the app: the SPA has one error shape to handle, and a non-admin caller learns nothing about *why* it was refused.
 - Because the user row is consulted on each request, a validly signed token for a deleted user, or for a user whose role has since lost `admin`, is rejected immediately. There is no token blacklist or refresh flow to maintain.

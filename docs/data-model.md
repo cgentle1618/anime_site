@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-12 (the five access-mode tables; the remark index carries `author_id`)
+Last verified: 2026-09-12
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -622,7 +622,7 @@ are not columns on the entry tables.
 
 | Field | Where it comes from | Tables |
 |---|---|---|
-| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. It was a `column_property` scalar subquery until 2026-09-12; that could not know who was asking, so it served one person's remark to everybody. **It is no longer a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for exactly that reason. | all 9 entries + series, franchise, collection |
+| `remark` | A **plain attribute**, defaulted to `None` on the class and set per request by `app.services.domain.remark_field.attach_remark`, which reads `note` (`section = 'remark'`) filtered on `note.author_id` - one query per page. Writes go through `upsert_remark`, which finds *this author's* row. **It is not a SQL expression**, so it cannot appear in a `filter` or `order_by` - `find_all_remarks` queries `note` directly for that reason. It must not become a `column_property` again: a scalar subquery cannot know who is asking, and would serve one person's remark to everybody. | all 9 entries + series, franchise, collection |
 | `display_name` | `NameFallbackMixin` property, first non-empty name in language order. | all entries and tiers |
 | `ownership` | Derived from a game's `game_copy` rows by `derive_game_ownership`; never stored. Declared on `GameResponse` but **not yet populated by any read path** - the list filter `?ownership=` is an EXISTS over `game_copy` and does not need it. | games |
 | `copies` | The game's `game_copy` rows, in `position` order, through the ORM relationship; written back through the `copies` payload key (`nested_collections`). | games |
@@ -801,11 +801,9 @@ collapsed role keys and made `scope` NOT NULL.
 
 One anime production studio, and a public entity with a page of its own.
 Publishers and distributors are **not** here - they have their own
-[`publisher`](#publisher) table. The earlier ruling recorded in this file (that
-they need no profile and stay a single "Publisher / Distributor TW"
-`system_option` vocabulary) was reversed on 2026-09-06, and that vocabulary is
-now **gone**: the 2026-09-07 migration moved its rows onto `media_credit` as
-`publisher` credits and deleted it, along with `Comic Publisher`.
+[`publisher`](#publisher) table. There is no "Publisher / Distributor TW" or
+"Comic Publisher" `system_option` vocabulary: every such value is a
+`media_credit` row pointing at a `publisher`.
 
 `studio` deliberately has **no** scope table of its own, unlike
 [`publisher`](#publisher_scope). A studio list that offers every studio on
@@ -857,16 +855,11 @@ added.
 
 One publisher or distributor - a games publisher, or a Taiwanese licensor -
 and a public entity with a page of its own. Model: `Publisher`
-(`app/models/staff.py`), added 2026-09-06 alongside the `publisher` credit
-role; see `docs/superpowers/specs/2026-09-06-games-media-type-design.md`
-Decision K.
+(`app/models/staff.py`).
 
-The 2026-09-07 migration finished the job the 09-06 work deliberately left
-half done. The `publisher` role now covers **six** media types (anime,
-anime-movie, manga, novel, comic, game), and the `Publisher / Distributor TW`
-and `Comic Publisher` vocabularies that used to hold the other five types'
-values are retired - every one of their rows is a `media_credit` row pointing
-here. See `docs/superpowers/specs/2026-09-07-publisher-entity-migration-design.md`.
+The `publisher` credit role covers **six** media types: anime, anime-movie,
+manga, novel, comic and game. There is no parallel `system_option`
+vocabulary - every publisher value is a `media_credit` row pointing here.
 
 Deliberately a separate table rather than a `publisher` role pointing at
 `studio`. The overlap is real - Bandai Namco and Kadokawa both develop and
@@ -914,15 +907,10 @@ Constraints:
 - `ck_publisher_founded_date` / `ck_publisher_defunct_date` CHECK the value
   matches `^\d{4}(-\d{2}(-\d{2})?)?$` when it is not NULL.
 
-Migration `p1u2b3l4i5s6` creates the table and adds
-`media_credit.publisher_id`. Migration `pb2m3i4g5r8` fills it: it ran
-`backfill_publishers` over the real data on 2026-09-07 and wrote **520**
-credits over **32** entities with **36** scope rows and 0 skipped.
-
 ### `publisher_scope`
 
 Which media types a publisher is offered on. Model: `PublisherScope`
-(`app/models/staff.py`), added by migration `pb1s2c3o4p5e`.
+(`app/models/staff.py`).
 
 Explicit rather than derived from credits, for the reason
 [`person_role`](#person_role) already gives: a distributor added today must
@@ -968,10 +956,9 @@ picker.
 
 ### `character`
 
-One fictional character, shared across every entry they appear in (Tier 3
-entity, added alongside `character_casting` for the seiyuu/character feature -
-see `docs/superpowers/specs/2026-09-05-seiyuu-character-design.md`). Model:
-`Character` (`app/models/character.py`). Shaped like `person` deliberately,
+One fictional character, shared across every entry they appear in (a Tier 3
+entity, paired with `character_casting`). Model: `Character`
+(`app/models/character.py`). Shaped like `person` deliberately,
 with one intentional deviation - see the constraints note below.
 
 | Column | Type | Null | Default | Description |
@@ -1053,18 +1040,18 @@ character genuinely removes their castings, and `POST
 /api/character/{id}/merge` (repoint then delete the loser) is the fix when a
 delete would otherwise lose casting history for a duplicate.
 
-Migration `c1h2a3r4a5c6` created both tables; nothing existing was altered.
-`person_role.role` carries no database enum or CHECK, so `seiyuu` became a
-legal `PERSON_ROLES` value with no migration of its own - see
+`person_role.role` carries no database enum or CHECK, so a new
+`PERSON_ROLES` value such as `seiyuu` needs no migration - see
 [options.md](options.md) and
 [systems/credits-and-tags.md](systems/credits-and-tags.md).
 
 ### `media_credit`
 
 One person, studio **or** publisher credited on one media entry. Model:
-`MediaCredit` (`app/models/media_credit.py`). Replaces the 26 comma-joined
-credit columns the entry tables used to carry. The target axis was a
-person/studio pair until 2026-09-06, when `publisher_id` widened it to three.
+`MediaCredit` (`app/models/media_credit.py`). This is where every credit
+lives; the entry tables carry no credit columns. The target axis is three
+columns wide - `person_id`, `studio_id`, `publisher_id` - exactly one of which
+is set.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -1073,7 +1060,7 @@ person/studio pair until 2026-09-06, when `publisher_id` widened it to three.
 | `role` | String | no | | One of CREDIT_ROLE_KEYS, indexed |
 | `person_id` | UUID | yes | | FK `person.system_id` ON DELETE CASCADE |
 | `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE |
-| `publisher_id` | UUID | yes | | FK `publisher.system_id` ON DELETE CASCADE, indexed. Added by migration `p1u2b3l4i5s6` |
+| `publisher_id` | UUID | yes | | FK `publisher.system_id` ON DELETE CASCADE, indexed |
 | `position` | Integer | no | `0` (server default too) | Order the names had in the old comma-joined column |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
@@ -1109,7 +1096,7 @@ index `ix_media_tag_entry` (`media_id`).
 
 Where one entry can be watched, read, or looked up. Shaped like
 `media_credit`: one row per named thing attached to an entry, through a real
-`media_id` foreign key since Step 0 (see
+`media_id` foreign key (see
 [The six tables that moved to `media_id`](#the-six-tables-that-moved-to-media_id)).
 Model: `MediaSource` (`app/models/media_source.py`).
 
@@ -1121,7 +1108,7 @@ Model: `MediaSource` (`app/models/media_source.py`).
 | `bucket` | String | no | | `main` (vocabulary platform, via `option_id`), `other` (free-form, gated by field group `sources_other`), or `restricted` (free-form, gated by `sources_restricted`), indexed |
 | `option_id` | UUID | yes | | FK `system_option.system_id` ON DELETE CASCADE, indexed. Set on `main` rows only |
 | `name` | String | yes | | Free text. Set on `other` / `restricted` rows only |
-| `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows (carries the role the now-dropped `source_baha` column used to play); NULL on every `reference` row and every free-form row |
+| `available` | Boolean | yes | | Tristate — `True` available, `False` not, NULL unknown. Meaningful only on `main` `access` rows; NULL on every `reference` row and every free-form row |
 | `url` | String | yes | | |
 | `position` | Integer | no | `0` (server default too) | `main` rows render in the pointed-at option's `sort_order` instead and never carry a meaningful `position`; `other`/`restricted` rows render in insertion order via this column |
 | `created_at` | DateTime | yes | now | |
@@ -1149,12 +1136,10 @@ because it is partial — a viewer can hold `other` and not `restricted` — see
 them (`derivation.py`) and gates on their presence (`checking.py`,
 `calculation.py`). The guiding rule: **a link the system acts on is a column;
 a link that is only ever displayed is a `media_source` row.** The older
-per-type source columns this table replaces — `source_baha`, `baha_link`,
-`source_netflix`, `source_other`, `official_link`, `twitter_link` and
-`anilist_link` — were dropped from `anime`, `anime_movies`, `manga`, `novel`,
-`movies`, `tv_shows`, `cartoons` and `comic` by migration `dc1o2l3s4d5`; they
-no longer exist on any entry table, and nothing reads or writes them anywhere,
-including the Sheets round trip.
+entry tables carry **no** per-type source columns — no `source_baha`,
+`baha_link`, `source_netflix`, `source_other`, `official_link`,
+`twitter_link` or `anilist_link` on any of them. Every source is a row here,
+including in the Sheets round trip.
 
 **Sheets.** Backed up and restored as its own tab, `Media Source`, after
 `Note` (both endpoints — the entry and, when set, the option — must already
@@ -1201,11 +1186,11 @@ its section's *shape* in `app/utils/note_sections.py`
 
 `ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
 franchise_id, series_id) = 1`, so exactly one owner is set. **`owner_type` and
-`owner_id` are no longer stored**: Step 5 replaced the FK-less pair with these
-four columns so every owner cascades, and both survive as read-only Python
-properties derived from whichever column is set - which is why the API, the SPA
-and the Note sheet tab did not change. The API's `owner_type` / `owner_id`
-parameters are translated onto the columns in `app/routers/note.py`.
+`owner_id` are not stored**: four real foreign keys replace the pair so every
+owner cascades. Both survive as read-only Python properties derived from
+whichever column is set, which is how the API, the SPA and the Note sheet tab
+keep the pair's vocabulary. The API's `owner_type` / `owner_id` parameters are
+translated onto the columns in `app/routers/note.py`.
 
 Each section also declares a **scope** - `catalog` (shared) or `personal` (one
 set per user) - which decides who may write a row and whose rows a read
@@ -1217,14 +1202,12 @@ notes page's only read path; **`ix_note_one_remark_per_owner`** - partial
 UNIQUE over the four owner columns **plus `author_id`**, **NULLS NOT
 DISTINCT**, `WHERE section = 'remark'`.
 
-The second is keyed per owner-per-author since revision `n1a2remarkauthor`
-(2026-09-12), because `remark` is a personal-scope section: two accounts may
-each hold one on the same entry and each reads back their own. It was per
-OWNER before that, and load-bearing for a bad reason - the read was a scalar
-subquery, which a second row would have made raise on every read of that
-owner, so the database refused the second write outright. **Both halves moved
-in one commit**: relaxing this index while the read still ignores the author
-would turn a loud refusal into an accepted-then-invisible write.
+The second is keyed per owner **per author**, because `remark` is a
+personal-scope section: two accounts may each hold one on the same entry and
+each reads back their own. It pairs with a viewer-aware read path
+(`attach_remark`) and the two are one mechanism — narrowing the index back to
+per-owner, or reverting the read to a scalar subquery, turns a loud database
+refusal into an accepted-then-invisible write.
 
 NULLS NOT DISTINCT is required because three of the four owner columns are
 always NULL - and `author_id` is NULL on rows written before accounts existed
@@ -1529,13 +1512,13 @@ Neither has a table of its own.
 
 One user's view of one airing season: their rating and their four counters,
 rebuilt by `run_sync_anime` (`app/services/domain/seasonal.py`) from **that
-user's** `user_media_list` rows. Model: `Seasonal`. Per-user since Step 3
+user's** `user_media_list` rows. Model: `Seasonal`. Per user
 (`m3b1seasonal`); every `/api/seasonal` route requires an account.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `user_id` | UUID | no | | PK part 1. FK `users.id` `ON DELETE CASCADE` (`fk_seasonal_user`) |
-| `seasonal` | String | no | | PK part 2 - the season string (`anime.release_season`). Indexed on its own; no longer unique on its own |
+| `seasonal` | String | no | | PK part 2 - the season string (`anime.release_season`). Indexed on its own, and **not** unique on its own: two accounts hold the same season independently |
 | `my_rating` | String | yes | | |
 | `entry_planned` | Integer | no | `0` | |
 | `entry_completed` | Integer | no | `0` | |
@@ -1593,7 +1576,8 @@ over `role.name` so login can still return it and mint it as a JWT claim.
 | `username` | String | no | | UNIQUE, indexed |
 | `hashed_password` | String | no | | |
 | `role_id` | UUID | **no** | | FK `role.system_id` ON DELETE **RESTRICT**, indexed |
-| `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. Added by `m2a2public`. |
+| `list_is_public` | Boolean | **no** | `false` (server default) | Whether anyone may read this account's list at `/user/<username>`. **Private by default**, and written only by its owner through `PATCH /api/account/settings` - an admin sees the flag on the Users page but does not set it, because whose list is visible is the account holder's decision and not the inviter's. NOT NULL so that no reader has to decide what a NULL would mean. |
+| `is_installation_owner` | Boolean | **no** | `false` (server default) | Whose rows a Sheets restore and the Calculate pipeline file under when nobody is logged in - `installation_owner_id()`. **Not a permission** and not on any request path. Partial unique index `ix_one_installation_owner` over a constant, so at most one account in the table holds it and any number hold false. It is data rather than a name in code so that moving the collection to another account is a row edit, and so the answer travels between the two machines on the Sheets `Users` tab - `parse_user_from_sheet` names it explicitly, because that parser is a projection and not a column sweep. |
 
 No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
@@ -1606,9 +1590,9 @@ No timestamps. Relationship `role_ref` (joined load). Virtual `role`.
 
 One admin-managed reason an entry might be restricted (e.g. `nsfw`). An entry
 carrying a label the viewer's active **access mode** does not carry disappears
-for that viewer. It was the permission `label.<key>` on a role until Phase B
-(2026-09-12) moved object scoping onto the mode axis — a role cannot express
-"minus this label", because permission resolution is a union. Kept out of
+for that viewer. It is **not** a role permission: object scoping lives on the
+mode axis, because a role cannot express "minus this label" — permission
+resolution is a union. Kept out of
 `system_option` because the Fill pipeline writes that table. Model:
 `ContentLabel`.
 
@@ -1643,7 +1627,7 @@ index `ix_media_content_label_entry` (`media_id`).
 
 ### The access-mode tables
 
-The **object axis**, added by revision `n1a1accessmode` (2026-09-12). A role
+The **object axis**. A role
 answers *what may this account do*; an access mode answers *which objects can
 those operations reach in this session*. Full reasoning:
 [authorization.md](authorization.md).
@@ -1842,54 +1826,56 @@ type added without them.
 
 ## Cross-table references without foreign keys
 
-Nine entry tables each have their own `system_id` space, so a bare UUID used to
-be ambiguous. Since the `media` supertable exists, a media entry's id is unique
-across all nine, and six tables now hold a real `media_id` FK instead of a
-pair. Since Step 5, `note` and `meme` do not store a pair either: an owner
-that may be a **grouping tier** cannot be one FK, so it is **four nullable FKs
-with a CHECK that exactly one is set** (`ck_note_one_owner`,
-`ck_meme_one_owner`) - `media_id`, `collection_id`, `franchise_id`,
-`series_id`, each `ON DELETE CASCADE`. `owner_type` and `owner_id` survive as
-**read-only Python properties** derived from whichever column is set, so every
-caller and the whole API shape are unchanged; being properties rather than
-columns, they are also absent from the Google Sheets row. What still stores a
-**(type, id) pair** with no FK are the two tables that point at entries on both
-ends. They resolve at read time through `app/utils/media_resolver.py`:
+Nine entry tables each have their own `system_id` space, so a bare UUID would
+be ambiguous — except that the `media` supertable makes a media entry's id
+unique across all nine, and six tables hold a real `media_id` FK instead of a
+pair.
+
+`note` and `meme` store no pair either: an owner that may be a **grouping
+tier** cannot be one FK, so it is **four nullable FKs with a CHECK that
+exactly one is set** (`ck_note_one_owner`, `ck_meme_one_owner`) — `media_id`,
+`collection_id`, `franchise_id`, `series_id`, each `ON DELETE CASCADE`.
+`owner_type` and `owner_id` survive as **read-only Python properties** derived
+from whichever column is set, so the API shape is the pair even though the
+storage is not; being properties rather than columns, they are absent from the
+Google Sheets row.
+
+What still stores a **(type, id) pair** with no FK are the two tables that
+point at entries on both ends. They resolve at read time through
+`app/utils/media_resolver.py`:
 
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` (anime, anime-movie, manga, novel only) |
-| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here any more. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns (Step 5); `plan_next` does the same over its three (Step 3). |
+| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose
-row no longer exists resolves to `missing=True` rather than vanishing, so a
+row does not exist resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
 **deleting an entry does not cascade** to `media_relation` or
-`character_casting`. `plan_next` left this group in Step 3, and `note` and
-`meme` left it in Step 5; all three cascade in the database now, like the
-`media_id` tables below.
+`character_casting`. Every other table listed below cascades in the database.
 
 ### `note`, `quote` and `meme`: who wrote it
 
-Step 5 gave all three a `NOT NULL author_id` referencing `users(id)
-ON DELETE CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`).
-It is always set - a catalogue note has an author too, and recording it is the
-only provenance the catalogue has. What the section's **scope** changes is who
-a row is *filtered* for, not whether somebody wrote it; quotes and memes are
+All three carry a `NOT NULL author_id` referencing `users(id) ON DELETE
+CASCADE` (`fk_note_author`, `fk_quote_author`, `fk_meme_author`). It is always
+set — a catalogue note has an author too, and recording it is the only
+provenance the catalogue has. What a section's **scope** changes is who a row
+is *filtered* for, not whether somebody wrote it; quotes and memes are
 universal and nothing filters on their author at all. See
 [authorization.md](authorization.md) for the read and write rules.
 
-### The six tables that moved to `media_id`
+### The six tables keyed on `media_id`
 
-Each now has a real FK to `media.system_id`, so the database cleans up after a
+Each has a real FK to `media.system_id`, so the database cleans up after a
 delete and no service call is involved. The rules differ on purpose:
 
 | Table | On delete | Why |
 |---|---|---|
-| `media_source` | CASCADE | Replaced `delete_sources_for` |
-| `media_credit` | CASCADE | Replaced `delete_links_for` |
-| `media_tag` | CASCADE | Replaced `delete_links_for` |
-| `media_content_label` | CASCADE | A label on a deleted entry means nothing. Had no cleanup path at all before, so its orphans were collected for the first time |
+| `media_source` | CASCADE | A source describes one entry and means nothing without it |
+| `media_credit` | CASCADE | Same: the credit is about that entry |
+| `media_tag` | CASCADE | Same |
+| `media_content_label` | CASCADE | A label on a deleted entry means nothing |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
 | `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 
@@ -1897,13 +1883,13 @@ delete and no service call is involved. The rules differ on purpose:
 `(media_id, role, person_id, studio_id, publisher_id)` and
 `(media_id, field, option_id)`.
 
-`quote` and `watch_order_item` still expose `media_type` and `entry_id` **in
-the API**, because the SPA reads that pair in ~93 places and Step 0 changes no
-user-visible behaviour. They are derived, not stored: `entry_id` is a
-SQLAlchemy synonym for `media_id`, and `media_type` is a read-only
-`column_property` off the `media` row - the same pattern `remark` and
-`User.role` use. That also removes a latent bug class: the old pair could store
-`media_type="manga"` beside an anime's `entry_id` and nothing objected.
+`quote` and `watch_order_item` expose `media_type` and `entry_id` **in the
+API**, because the SPA reads that pair in ~93 places. They are derived, not
+stored: `entry_id` is a SQLAlchemy synonym for `media_id`, and `media_type` is
+a read-only `column_property` off the `media` row — the same pattern
+`User.role` uses. Deriving them also rules out a bug class a stored pair
+allows: `media_type="manga"` beside an anime's `entry_id`, with nothing to
+object.
 
 The same hyphenated keys are what `system_option_scope.scope`, permission
 names (`media_type.tv-show`) and the sheet tab registry use.

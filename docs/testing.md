@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-12 (vacuous gates, and fixtures that look like decoration)
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -95,7 +95,7 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
    test writes survives it.
 3. `_clear_permission_cache` (autouse) bumps the process-global caches before
    and after every test, because they are not part of the rolled-back
-   transaction. There are **three** of them since Phase B - role permissions,
+   transaction. There are **three** of them - role permissions,
    access-mode items, per-account denials - and one `bump()` clears all three.
    If that ever stops being true, mode state leaks between tests and the
    failures are random and order-dependent.
@@ -134,7 +134,7 @@ the two-stage cursor stepper.
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
 | `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted, and a valid `access_token` cookie carrying a `mode` claim |
 | `user_client` / `plain_user` | function | The same for an account on the `user` role |
-| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. Use this rather than building one inline; Phase A left that duplicated in five files |
+| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
 | `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode travels in the token claim exactly as in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
 | `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
 | `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |

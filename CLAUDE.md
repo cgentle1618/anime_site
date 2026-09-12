@@ -21,6 +21,32 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.
 
+**Docs describe the present. They are not a changelog.** A doc says what the
+code does today, in the present tense, with the reasoning that is still load-
+bearing — never how it got here. Delete on sight, in any doc you are editing:
+phase and step names (`Since Phase B…`, `Step 3 made both tables per-user`),
+dated announcements (`Added 2026-09-12`, `changed on 2026-09-12`), commit
+shas, and the whole "it used to be X, and that was wrong because Y" shape. If
+the old behaviour genuinely explains a constraint that still binds, state the
+constraint and drop the history: write "`role_id` is minted per database, so
+the role name travels instead", not "`role_id` used to travel until Step 4
+broke the arriving machine". A reader of these files wants the system as it
+is; the version they are reading is the only version there has ever been.
+
+The record of how things changed lives in exactly three places, and only
+there: **`docs/roadmap.md`** (what shipped and why), **`docs/PROGRESS.md`**
+(work in flight) and **`docs/notes/`** (decision rationales, migration
+history, investigation notes — `docs/README.md` defines it as material that
+explains the past). Those three keep their history. A spec under
+`docs/superpowers/` keeps its own post-mortem. Everything else in `docs/`
+— including `docs/authorization.md`, `docs/data-model.md`, `docs/api.md` and
+every `systems/` and `frontend/` page — is present-tense only.
+
+Two standing exceptions, both deployment: **`docs/deployment-selfhost.md`**
+is the plan for something not built yet, so it is written in the future tense
+by nature, and **`docs/deployment-gcp.md`** deliberately records that a GCP
+deployment existed, was removed, and could be rebuilt. Leave both as they are.
+
 ## Tech Stack
 
 - **Backend**: FastAPI + SQLAlchemy + PostgreSQL, Python 3.13. All backend code lives under the `app/` package (run `uvicorn app.main:app`); services are split into `app/services/{domain,pipelines,integrations,rbac}`. Media routers come from `app/registry.py` + `app/routers/_factory.py`; pipelines from `app/services/pipelines/{runner,specs,tabs}.py`.

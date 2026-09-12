@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-07 (Play Anytime playing status)
+Last verified: 2026-09-07
 
 ## What this is for
 
@@ -105,17 +105,16 @@ file's own comment calls this Ruling R10). See
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 
 `anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
-name collision is deliberate to flag: `anime.seiyuu` predates the cast feature
-and remains exactly what it always was, a `Need`/`Done` to-do flag with no
-list of who voices whom. Now that a real seiyuu concept exists (`character`,
+name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
+with no list of who voices whom. The real seiyuu concept is elsewhere
+(`character`,
 `character_casting` - see [data-model.md](data-model.md#people-studios-and-links)
 and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
 
-**All eight game lists reach `/api/constants`.** They shipped with the games
-backend but were not served until commit `1bd3193`; `get_constants()`
-(`app/routers/constants.py`) now returns `playing_status`, `game_type`,
+**All eight game lists reach `/api/constants`.** `get_constants()`
+(`app/routers/constants.py`) returns `playing_status`, `game_type`,
 `completion_level`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
@@ -349,32 +348,22 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 `producer`, `composer`, `author`, `illustrator`, `seiyuu` - `CREDIT_ROLES`
 filtered to `target == "person"`, which excludes both company keys.
 
-**`target` became a three-value axis on 2026-09-06.** It was `"person"` or
-`"studio"`; the `publisher` role added `"publisher"`, pointing at the new
-`publisher` table (see [data-model.md](data-model.md#publisher)) rather than at
-a `system_option` vocabulary. Every reader of the axis dispatches on all three
-explicitly - a two-way branch whose `else` meant "person" would have minted a
-`Person` row for a publisher credit.
+**`target` is a three-value axis**: `"person"`, `"studio"` or `"publisher"`,
+the last pointing at the `publisher` table (see
+[data-model.md](data-model.md#publisher)) rather than at a `system_option`
+vocabulary. Every reader dispatches on all three explicitly - a two-way branch
+whose `else` means "person" mints a `Person` row for a publisher credit.
 
 **A game's developer *is* its studio.** `studio` widened to `game` rather
 than a new `developer` role: one company that made the work is the same fact
 the anime role records, and a separate key would split one studio's anime and
 game credits across two vocabularies. `director` and `composer` widened the
-same way. `publisher` widened on 2026-09-07 to all six types that credit one
-(anime, anime-movie, manga, novel, comic, game) for the same reason - see
-below.
+same way. `publisher` covers all six types that credit one (anime,
+anime-movie, manga, novel, comic, game) for the same reason - see below.
 
-The temporary `_PENDING_MEDIA_TYPES = {"game"}` allowlist in
-`tests/unit/test_credit_roles.py` - which let the `publisher` role name a
-media type `MEDIA_TABLES` did not yet register - is **gone**, deleted when
-`game` joined the registry. The guard is back to rejecting any unknown key.
-
-**`publisher_tw` and `comic_publisher` are gone.** On 2026-09-06 the entity
-shipped *beside* the vocabulary; on 2026-09-07 it replaced it. Migration
-`pb2m3i4g5r8` turned every `media_tag` row in the `Publisher / Distributor TW`
-and `Comic Publisher` categories into a `publisher` credit (520 credits over 32
-entities), deleted both `TagFields`, and deleted both categories. `publisher`
-is now the last of the vocabularies that named an outside **company** rather
+**There is no `publisher_tw` or `comic_publisher` vocabulary.** A publisher is
+an entity with a page, not a tag: every such value is a `publisher` credit on
+`media_credit`. `publisher` is now the last of the vocabularies that named an outside **company** rather
 than a fact about the work; the remaining comic vocabularies (`comic_imprint`,
 `comic_continuity`, `comic_era`, `comic_event`) stay tag fields, because an
 imprint is arguably a sub-entity of a publisher and the flat `publisher` table
@@ -521,7 +510,6 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERM_ADMIN` | `admin` |
 | `PERMISSION_FAMILIES` | `media_type`, `field_group`, `label` |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
 | `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
@@ -713,15 +701,11 @@ at rather than taking entry data with it — the drop list is guarded in
 `tests/unit/test_retire_orphan_option_categories.py`, which fails if a live
 category is ever named in it.
 
-Two more retired on 2026-09-07: `Publisher / Distributor TW` and
-`Comic Publisher`, deleted by `pb2m3i4g5r8` after their rows became `publisher`
-credits. (This is what became of the `bilibili` value the earlier migration had
-just moved into `Publisher / Distributor TW`: it is a `publisher` entity now,
-seeded with the `anime` scope even though no entry credits it, since a
-publisher holding no scope rows is offered nowhere. `bilibili (GoodShow)`, also
-credited on nothing, was dropped instead.)
+`Publisher / Distributor TW` and `Comic Publisher` are on the drop list too:
+their rows are `publisher` credits now. `bilibili` among them is a `publisher`
+entity, seeded with the `anime` scope even though no entry credits it, since a
+scope row is cheap and a missing one is invisible.
 
----
 
 ## Tier 3: people, studios and publishers
 
@@ -844,7 +828,7 @@ anime-movie, manga, novel) and comic.
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
-| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - narrowed by Decision G to `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"), now that `novel.type` drives structure and the only genuine remaining choice is JP/KR volumes vs TW volumes; a novel whose stored `progress_display` predates the narrowing (`ch`, `vol_original`, `arc_ch`) is appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
+| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `novel.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A novel holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
 Relation kinds and note sections are **not** copied: the frontend fetches
 `/api/media-relation/kinds` and the note registry over HTTP.

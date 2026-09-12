@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-10 (accounts and list rows now travel in the sheet; passwords do not)
+Last verified: 2026-09-10
 
 ## What this is for
 
@@ -22,7 +22,7 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 |---|---|---|
 | Project path | `C:\Users\q601513\Documents\anime_site` | `C:\Users\cgent\Documents\anime_site` |
 | OS | Windows 11 Pro (10.0.26200) | Windows 11 Home (10.0.26200) |
-| PostgreSQL | **docker-compose** (`postgres:17`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`) — the same on both machines since 2026-09-08. Start it with `docker-compose up -d`. | **docker-compose**, identical. This machine ran **native PostgreSQL 17.6** until 2026-09-08; the data was dumped and restored into the container, and the native 17 and 18 services were set to **Manual** start so they can no longer claim 5432 ahead of it. If the container will not bind the port, check that neither native service has been started by hand. |
+| PostgreSQL | **docker-compose** (`postgres:17`, container `anime_site_postgres_db`, `5432:5432`, volume `postgres_anime_data`), identical on both machines. Start it with `docker-compose up -d`. | **docker-compose**, identical. Native PostgreSQL 17 and 18 are also installed here, with their services set to **Manual** start so they cannot claim 5432 ahead of the container. If the container will not bind the port, check that neither native service has been started by hand. |
 | Database | `anime_site_db` as `postgres` on `127.0.0.1:5432` | same — `anime_site_db` as `postgres` on `127.0.0.1:5432` |
 | Python | `venv/Scripts/python.exe` — **3.11.9** (the project targets 3.13; this machine runs 3.11) | `venv/Scripts/python.exe` — **3.13.6**, the version the project targets |
 | Node / npm | v24.18.0 / 11.16.0 | v24.14.1 / 11.11.0 |
@@ -32,10 +32,10 @@ Backup and Pull actions themselves are [data-actions.md](data-actions.md).
 > Both columns are recorded from the machine itself. Keep it that way — record
 > from the machine rather than from memory, and bump the `Last verified` line.
 
-There is no shared server. The GCP deployment went down on 2026-09-02 and its
-code was removed on 2026-09-08 (history: [deployment-gcp.md](deployment-gcp.md)),
-so local development is the only runtime on either machine. Each machine has its
-**own local database**, and they diverge the moment either one is edited.
+There is no shared server — local development is the only runtime on either
+machine. (A GCP deployment existed once and could be rebuilt; the record is
+[deployment-gcp.md](deployment-gcp.md).) Each machine has its **own local
+database**, and the two diverge the moment either one is edited.
 
 ---
 
@@ -47,8 +47,8 @@ so local development is the only runtime on either machine. Each machine has its
 | Database contents | Google Sheets | **Backup** writes local DB → sheet; **Pull All** writes sheet → local DB |
 | `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them. Deliberately different per machine: **company** sets `STEAM_ENABLED=false` and leaves `STEAM_API_KEY` / `STEAM_ID` unset, because the company network inspects TLS to Steam's hosts and would log the key from the Web API's URL; **home** omits the line entirely (the default is `true`) so prices, Metacritic and playtime all fill. Nothing else about the two files should diverge — see [external-apis.md](external-apis.md#turning-steam-off-entirely) |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
-| Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy — **278 MB** on the home machine on 2026-09-08. They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
-| Accounts and everybody's list rows | Google Sheets | the `Users` and `User Media List` tabs, since Step 4. **Passwords do not travel** — an account restored here needs a password set at `/users` before it can be logged into |
+| Cover images (`static/covers/`) | **nothing** | Local disk is the only cover storage there is, and the folder is gitignored, so each machine holds its own copy (a few hundred MB). They are not in the sheet either. Rebuild them where they are missing with `/system` → Calculate → **download missing covers**, which re-runs the autofills for every row whose file is gone |
+| Accounts and everybody's list rows | Google Sheets | the `Users` and `User Media List` tabs. **Passwords do not travel** — an account restored here needs a password set at `/users` before it can be logged into |
 | Roles and their grants | **nothing** | `ensure_rbac_seed` recreates guest, user and admin anywhere; a role added or a grant removed by hand is per-machine. Content *labels* do travel — see [data-actions.md](data-actions.md#2-sheet-tab-registry-tabspy) |
 
 ### The one hard rule
@@ -83,40 +83,31 @@ tab; Pull All overwrites every table. So:
 
 > ### One-time on the company machine: the Postgres 15 -> 17 volume
 >
-> `docker-compose.yml` was bumped from `postgres:15` to `postgres:17` on
-> 2026-09-08. **A `postgres:17` container will refuse to start on the existing
-> `postgres_anime_data` volume**, which still holds a version-15 data
-> directory: the log says *"database files are incompatible with server"* and
-> the container exits. The volume has to be recreated once. Do it the normal
-> way, through the sheet:
+> `docker-compose.yml` pins `postgres:17`. **A `postgres:17` container refuses
+> to start on a `postgres_anime_data` volume holding an older data directory**
+> — the log says *"database files are incompatible with server"* and the
+> container exits. The volume has to be recreated once, which means the
+> database in it is destroyed, so take the data out first:
 >
-> 1. On the machine with the newer data, run **Backup** first. (Home was backed
->    up and is current as of 2026-09-08.)
+> 1. On the machine with the newer data, run **Backup**.
 > 2. `docker-compose down -v` — this **deletes** the local database volume.
-> 3. `docker-compose up -d` (now on 17), then `alembic upgrade head`.
+> 3. `docker-compose up -d`, then `alembic upgrade head`.
 > 4. **Pull All** from `/system` to refill from the sheet, then **Calculate All**.
 >
-> If you would rather not go through the sheet, dump *before* recreating the
-> volume: with the image temporarily set back to `postgres:15`, run
-> `pg_dump -U postgres -h 127.0.0.1 anime_site_db -f dump.sql`, then do steps 2-3
-> and `psql -U postgres -h 127.0.0.1 -d anime_site_db -f dump.sql` instead of
-> the Pull. Home was migrated this way; its dump is
-> `~/anime_site_home_pre_docker_20260908.sql`.
->
-> This is a **one-time** step. Once the volume is on 17 the machines match again.
+> To avoid the sheet, dump first instead: with the image temporarily set back
+> to the older major version, run `pg_dump -U postgres -h 127.0.0.1
+> anime_site_db -f dump.sql`, then do steps 2-3 and `psql -U postgres -h
+> 127.0.0.1 -d anime_site_db -f dump.sql` in place of the Pull.
 
 
 1. `git pull` on the branch you were working on.
-2. Start PostgreSQL: `docker-compose up -d` (both machines, since 2026-09-08).
+2. Start PostgreSQL: `docker-compose up -d`.
    **Check that `DATABASE_URL` is commented out in this machine's `.env`.**
-   Since 2026-09-08 `app/config.py` uses `DATABASE_URL` verbatim whenever it is
-   set — the old guard that ignored a value containing `localhost` went away
-   with the GCP code — so a leftover line from the Cloud SQL days now wins over
-   the `POSTGRES_*` parts and the app dies with `password authentication
-   failed`. This bit the home machine on 2026-09-08 and the line had to be
-   commented out. `venv\Scripts\python.exe -c "from app.config import
-   settings; print(settings.sqlalchemy_database_url)"` prints the URL actually
-   in use.
+   `app/config.py` uses `DATABASE_URL` verbatim whenever it is set, so a
+   leftover line wins over the `POSTGRES_*` parts and the app dies with
+   `password authentication failed`. `venv\Scripts\python.exe -c "from
+   app.config import settings; print(settings.sqlalchemy_database_url)"`
+   prints the URL actually in use.
 3. Re-install dependencies **if they changed**: `pip install -r requirements.txt`,
    `cd frontend && npm install`.
 4. `alembic upgrade head` — always, before any Pull. The sheet's columns follow
@@ -124,8 +115,8 @@ tab; Pull All overwrites every table. So:
 5. **Pull All** from `/system` if the data changed on the other machine, then
    run **Calculate All** if derivations matter for what you are about to do.
 
-   > **Passwords do not travel.** Since Step 4 the `Users` tab carries who
-   > exists and what role they hold, and the `User Media List` tab carries
+   > **Passwords do not travel.** The `Users` tab carries who exists and what
+   > role they hold, and the `User Media List` tab carries
    > everybody's statuses, ratings and progress - but **not** the password
    > hash. It is credential material, and the sheet leaves this database's
    > trust boundary on every Backup. An account Pull created on this machine
@@ -138,8 +129,8 @@ tab; Pull All overwrites every table. So:
    > restore - a role, a username or an entry the sheet named that this
    > database does not have. See
    > [data-actions.md](data-actions.md#32-pull-all--execute_pull_alldb-action_type).
-6. If this checkout predates the owner-typed cover folders (`static/covers/`
-   still holds loose `<uuid>.jpg` files), run
+6. If `static/covers/` still holds loose `<uuid>.jpg` files rather than
+   owner-typed folders, run
    `venv/Scripts/python.exe -m scripts.migrate_cover_layout` and then the same
    with `--apply`. `static/covers/` is gitignored, so each machine holds its own
    copy of the images and each has to be moved once; the column values arrive

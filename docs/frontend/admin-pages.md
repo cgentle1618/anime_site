@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
+Last verified: 2026-09-07
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -236,11 +236,11 @@ the external value alone, so a second API knowing a value by the same string
 keeps its own row.
 
 Category is a closed picker (`forms/OptionCategorySelect.jsx`), the same
-component and the same grouping the Modify and Delete pages browse with. Add
-used to render a text box with a `datalist` of suggestions, which made it the
-one place a category could be coined by typing — and a typo there made a
-category of its own that no other page would list. `POST /api/system-option`
-still accepts any category string; the restriction is the form's. The picker
+component and the same grouping the Modify and Delete pages browse with. It is
+deliberately not a text box with a `datalist`: that lets a category be coined
+by typing, and a typo then makes a category of its own that no other page
+lists. `POST /api/system-option` accepts any category string; the restriction
+is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
@@ -474,11 +474,10 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic and Source & Platform. That last group lost
-`Publisher / Distributor TW` and `Comic Publisher` when the publisher migration
-retired both categories on 2026-09-07 — publishers are edited on the Entity →
-Publisher tab now, not here — leaving it holding the platform and reference
-vocabularies, which still name an outside party.
+reads as Tags, Game, Comic and Source & Platform. That last group holds the
+platform and reference vocabularies, the ones that name an outside party.
+Publishers and distributors are **not** among them — they are entities, edited
+on the Entity → Publisher tab.
 
 A group left with a single member is demoted into Other rather than printed as
 a heading over one card. The left-hand section index lists one level per tier —

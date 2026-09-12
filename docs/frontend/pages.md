@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-10 (Plan, Seasonal and Statistics need a login)
+Last verified: 2026-09-10
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -280,7 +280,7 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`), each
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
 them**, so a game can never supply a collection cover — the same shape of gap
-comics used to have on the franchise pages. Search over the five
+comics have on the franchise pages. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`.
 No filter panel, no table view, no admin controls. Renders `CollectionCard`
 with member count.
@@ -585,7 +585,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Playing Status, Completion Level, All Endings / All Achievements / All Collected (a row of three tristates; an unset one is dropped rather than shown as "No"), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than the bare literal it used to hard-code), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Playing Status, Completion Level, All Endings / All Achievements / All Collected (a row of three tristates; an unset one is dropped rather than shown as "No"), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
@@ -620,7 +620,7 @@ Editing happens only on the admin `/watch-orders` page.
 ### Four pages that need an account
 
 `/plan`, `/seasonal`, `/seasonal/:seasonal_id` and `/statistics` sit inside
-`<Route element={<ProtectedRoute requireAuth />}>` in `App.jsx` since Step 3.
+`<Route element={<ProtectedRoute permission="self.list" />}>` in `App.jsx`.
 They are built from `plan_next` and `seasonal`, which are per-user tables whose
 API routes answer `401` to a stranger, so a logged-out visitor is redirected to
 `/login?next=…` rather than shown a page that fills with errors. `requireAuth`

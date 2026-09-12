@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-09-11 (Step 5: owner foreign keys, `author_id`, and per-section scope)
+Last verified: 2026-09-11
 
 ## What this is for
 
@@ -27,7 +27,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
 
-**`owner_type` and `owner_id` are no longer stored.** Multi-user Step 5 replaced the FK-less pair with the four owner columns above, because the pair could not cascade: deleting an entry used to leave orphan rows that `media_resolver` flagged as missing, and every owner now cascades in the database instead. Both survive as **read-only Python properties** derived from whichever column is set, so the API wire format, the SPA and the Google Sheets tab are unchanged — and, being properties rather than columns, they stay out of the sheet row. The API still takes `?owner_type=&owner_id=` and translates them onto the columns (`_owner_filters`, `_owner_columns` in `app/routers/note.py`). `meme` has the identical shape; `quote` is entry-only and so takes one `media_id` alone.
+**`owner_type` and `owner_id` are not stored.** The four owner columns above replace the pair, because a pair cannot cascade — it leaves orphan rows behind that `media_resolver` can only flag as missing. Both survive as **read-only Python properties** derived from whichever column is set, so the API wire format, the SPA and the Google Sheets tab all speak the pair — and, being properties rather than columns, they stay out of the sheet row. The API still takes `?owner_type=&owner_id=` and translates them onto the columns (`_owner_filters`, `_owner_columns` in `app/routers/note.py`). `meme` has the identical shape; `quote` is entry-only and so takes one `media_id` alone.
 
 Constraint and indexes (declared in `__table_args__`, so `create_all` test databases enforce them too):
 
@@ -125,9 +125,9 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | admin only | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only (a superuser may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-A profile owner's personal rows can be read through `GET /api/notes?author=<username>`, but only when their `list_is_public` **and** the viewer holds `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same 403, so the reply cannot be read as "this account exists". The full rules live in [../authorization.md](../authorization.md#note-scope).
+A profile owner's personal rows can be read through `GET /api/notes?author=<username>`, but only when their `list_is_public` **and** the viewer holds `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same **404**, so the reply cannot be read as "this account exists". The full rules live in [../authorization.md](../authorization.md#note-scope).
 
-**`remark` is the one place the split is not fully honoured.** It is personal-scope, but its read path is the class-level `column_property` scalar subquery on all twelve owner models (`app/models/__init__.py`), which cannot know who is asking — and `ix_note_one_remark_per_owner` is what keeps that subquery returning one row. So the index stays per owner, and a second user's remark is **refused** rather than shown to the first: first writer wins. Deliberate, pinned by a test, and left for the authorization redesign, which is touching those read paths anyway.
+**`remark` is per author, like any other personal-scope section.** It is read by `app.services.domain.remark_field.attach_remark`, filtered on `note.author_id`, and `ix_note_one_remark_per_owner` carries `author_id` — so two accounts each hold one on the same entry and each reads back their own. The index and the read path are one mechanism: a class-level `column_property` cannot know who is asking, and pairing one with a per-author index would turn a loud database refusal into an accepted-then-invisible write.
 
 ## Rules
 
@@ -169,7 +169,7 @@ Singleton uniqueness is **not** here — it needs a query, so `_reject_second_si
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. Grouping tiers carry no labels, so they skip this check.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer (or the profile owner named by `?author=`); a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
-- `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). The only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`), and since Step 5 it withholds **only rows the viewer did not write** — hiding someone's own notes from them is not a permission, it is a bug.
+- `gated_note_sections(viewer)` (`app/services/rbac/field_gate.py`) returns section keys the viewer is not entitled to; those rows are simply **absent** from the response (an empty card would advertise that there is something to not-see). The only field group naming a note section is `personal_notes` → `personal_reviews` (`app/services/rbac/field_groups.py`), and it withholds **only rows the viewer did not write** — hiding someone's own notes from them is not a permission, it is a bug.
 - `GET /api/notes/sections` is *not* filtered: withheld sections still appear in the registry, they just never have rows.
 
 ## API
@@ -185,7 +185,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | PATCH | `/api/notes/{note_id}` | by scope | body `NoteUpdate` (partial; `exclude_unset`) | `NoteResponse` | 404; 422 — the merged row (current values + patch, built from `NoteUpdate.model_fields`) is validated **before** mutation so autoflush never writes a bad row. A PATCH may move a note to another owner. |
 | DELETE | `/api/notes/{note_id}` | by scope | — | 204 | 404. Audited via `log_deleted_record(db, note, "Note")` (`app/utils/data_control_utils.py`). |
 
-"By scope" means the section decides: a **catalogue** section is admin-only, a **personal** one needs a signed-in account holding `self.personal_notes` and reaches only that account's own rows (403 "That note belongs to someone else." otherwise). A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **403** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
+"By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. See [Scope](#scope). `?author=` answers **404** for an unknown user, a private list, or a viewer without `field_group.personal_notes` — the same reply for all three.
 
 `/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). No frontend calls it yet; it is intentional surface kept for a future reorder UI and covered by tests — do not delete as unused.
 

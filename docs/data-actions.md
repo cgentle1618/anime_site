@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-09-12 (Clean added: the reviewed diff-and-delete action)
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -57,7 +57,7 @@ raises on `Model(**dict)` but **not** on `setattr`, and Pull upserts with
 `tests/services/test_pipelines_write_no_personal_columns.py`, which derives
 the forbidden names from `LIST_FIELDS` so a new column on `user_media_list` is
 guarded from the day it lands. The personal values travel in the **User Media
-List** tab instead, and the nine media tabs' parsers no longer emit them.
+List** tab instead, and the nine media tabs' parsers do not emit them.
 
 The restore order follows from that: `users` and every media tab must land
 before **User Media List**, because a list row is keyed by `(user_id,
@@ -69,12 +69,11 @@ in the sheet names whichever database wrote it.
 
 ### 2.1 The restore-order contract
 
-Its order is the **restore** order and is **strict**. It used to be strict by
-convention: most references were FK-less `(media_type, entry_id)` pairs, so an
-out-of-order restore produced quiet orphans that a later pass could fix. Steps
-0-2 of the multi-user work replaced those with real foreign keys, so the same
-mistake now raises a `ForeignKeyViolation` at the tab's commit and rolls back
-**every row on that tab** - for `User Media List`, every user's entire list.
+Its order is the **restore** order and is **strict**. Most references are
+real foreign keys, so an out-of-order restore raises a `ForeignKeyViolation`
+at the tab's commit and rolls back **every row on that tab** — for
+`User Media List`, every user's entire list. Adding a tab means placing it
+correctly, not placing it last.
 
 The chains that must hold:
 
@@ -145,7 +144,7 @@ its own commit. Each of the nine entry tabs drops its constant `media_type`
 column and appends a derived, read-only `display_name` for the human reader;
 Pull drops any header that is not a column of the model (`drop_non_columns`).
 
-**`Users`** carries `id`, `username`, `list_is_public` and `role`.
+**`Users`** carries `id`, `username`, `list_is_public`, `is_installation_owner` and `role`.
 `hashed_password` and `role_id` are dropped. `role_id` because
 `role.system_id` is minted per database by `ensure_rbac_seed`, so the role
 **name** travels instead and Pull resolves it locally - the same arrangement
@@ -159,6 +158,14 @@ boundary; Pull stamps `UNUSABLE_PASSWORD_HASH` on an account it creates and
 (UNIQUE), not `id`: the lifespan mints the `admin` account on every machine,
 so the same person holds a different uuid here and there.
 
+The tab also carries **`is_installation_owner`**, so the two machines agree
+about whose collection this is. A restored `true` clears the flag from
+whatever local account held it first: `ix_one_installation_owner` is unique
+across the whole table, and without the clearing step the tab would raise at
+its commit and roll back **every** account. `parse_user_from_sheet` is an
+explicit projection, so a column added to the User model does not travel until
+it is named there.
+
 **`User Media List`** carries every user's list rows. `user_id`, `media_id`
 and `system_id` are dropped for `username`, `media_type` and `public_id` -
 both pairs are exact (`users.username` UNIQUE, `uq_media_type_public_id`), and
@@ -168,14 +175,13 @@ resolved to local uuids. A reference that resolves to nothing skips the row
 and lands in `unresolved_refs`.
 
 **`Plan Next` and `Seasonal`** drop `user_id` for `username` too, for the same
-reason. Step 3 made both tables per-user but left their tabs with no user
-column, so Pull stamped every restored row to the `admin` account; a second
-account's plans and season ratings came back as the admin's. Since Step 4 the
-name travels. Pull falls back to `_restore_owner_id` (the `admin` account, or
-the alphabetically first user) **only** when the header is absent altogether -
-a sheet written before Step 4, everything in which did belong to one person. A
-`username` that is present and names nobody skips the row and lands in
-`unresolved_refs`, rather than being quietly filed under the admin. `seasonal`'s
+reason. Pull falls back to `_restore_owner_id` — the **installation owner**:
+`users.is_installation_owner`, else the alphabetically-first non-superuser
+account, else the first account — **only** when the header is absent
+altogether, which means a sheet written before the column existed and in which
+everything did belong to one person. A `username` that is present and names
+nobody skips the row and lands in `unresolved_refs` rather than being quietly
+filed under somebody else. `seasonal`'s
 primary key **is** the `(user_id, seasonal)` pair, so the user is not
 decoration there: without it a Pull updates whichever user's row for that
 season happened to be first.
@@ -197,24 +203,20 @@ Unit` pairing repeated). `Game Copy` is not a `media_type` tab: it carries no
 credit or tag link columns, since a copy is a purchase record rather than an
 entry.
 
-**`source_baha`, `baha_link`, `source_netflix`, `source_other`,
-`official_link`, `twitter_link` and `anilist_link` are gone.** Migration
-`dc1o2l3s4d5` dropped all seven from every table that had them (`anime`,
-`anime_movies`, `manga`, `novel`, `movies`, `tv_shows`, `cartoons`, `comic`),
-and `formatter.py` no longer round-trips any of them on any media tab.
-`media_source` rows (the `Media Source` tab) are the only mechanism left for
-this data, on every read and write path.
+**Entry tables carry no source columns.** There is no `source_baha`,
+`baha_link`, `source_netflix`, `source_other`, `official_link`,
+`twitter_link` or `anilist_link` on `anime`, `anime_movies`, `manga`,
+`novel`, `movies`, `tv_shows`, `cartoons` or `comic`, and `formatter.py`
+round-trips none of them on any media tab. `media_source` rows (the
+`Media Source` tab) are the only mechanism for this data, on every read and
+write path.
 
-**This was a breaking sheet change.** A sheet backed up before the
-`Media Source` tab existed has no `media_source` rows and, now that the
-columns are dropped, nothing to fall back on. Per
+**A sheet with no `Media Source` tab restores no sources at all** — there is
+nothing for them to fall back on. Per
 [switching-environments.md](switching-environments.md), Backup and Pull All
-carry the *whole* database state each way with no merge — so **on any machine
-that has not yet run a Backup since this migration landed, run Backup from
-the machine with the newer data before the other machine runs Pull All.**
-Pulling an old sheet into the dropped schema silently restores nothing for
-sources: the columns it used to fill no longer exist, and an old sheet has no
-`Media Source` rows to replace them with.
+carry the *whole* database state each way with no merge, so a machine holding
+such a sheet must run Backup from the machine with the newer data before the
+other machine runs Pull All.
 
 **`publisher_scope` has its own tab, `Publisher Scope`,** sitting between
 `Publisher` and the media tabs exactly as `Person Role` sits after `Person`, and
@@ -288,7 +290,7 @@ cannot be resolved is skipped with a warning rather than failing the tab.
 Still outside the sheet, deliberately: `role` and `role_permission`
 (`ensure_rbac_seed` recreates guest, user and admin on any machine, but a role
 added or narrowed by hand is per-machine), `data_control_logs` and
-`deleted_record`. `users` **is** in the sheet since Step 4, minus its
+`deleted_record`. `users` **is** in the sheet, minus its
 `hashed_password` - see the per-tab note below.
 
 ---
@@ -334,12 +336,12 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Remark notes**: a `Note` row with `section == "remark"` is retargeted at the owner's existing remark row (the `ix_note_one_remark_per_owner` index allows only one), keeping the local `system_id`.
-   - **The Note and Meme tabs changed shape in Step 5.** Both lost `owner_type`
-     and `owner_id` and gained `media_id`, `collection_id`, `franchise_id` and
-     `series_id` — one of the four is set per row and a CHECK enforces it — and
-     all three of `Note`, `Quote` and `Meme` gained `author_id`. Consequences
-     for a round trip:
-     - **An older sheet still Pulls.** `parse_note_from_sheet` and
+   - **The Note and Meme tabs carry four owner columns**, not an
+     `owner_type` / `owner_id` pair: `media_id`, `collection_id`,
+     `franchise_id` and `series_id`, exactly one set per row and a CHECK
+     enforcing it. All three of `Note`, `Quote` and `Meme` carry `author_id`.
+     Consequences for a round trip:
+     - **A sheet carrying the old pair still Pulls.** `parse_note_from_sheet` and
        `parse_meme_from_sheet` read the old pair as `_legacy_owner_type` /
        `_legacy_owner_id`, and `_resolve_owner_columns` in `pull.py` turns it
        into the right column against `media` and the three tier tables. A row
@@ -349,131 +351,20 @@ Returns a status dict; the router turns `"status": "error"` into an HTTP error.
        portable.** An account the sheet *inserts* here keeps the uuid it
        carries (`Users` is deliberately absent from `DERIVED_IDENTITY_MINTED_PK`),
        so most authors resolve. `admin` is the exception: `app/main.py`'s
-       lifespan mints one on every machine, so the two were never the same row,
+       lifespan mints one on every machine, so the two are never the same row,
        and the `username` match keeps the local id and discards the sheet's —
        permanently, since it re-matches the same way on every Pull. Every row
        the other machine's admin wrote therefore names a user this database
        does not have. That, a blank cell, or any other unknown id falls back to
-       the **admin** — the column is `NOT NULL`, and a line whose author is
-       uncertain is still the line. The fallback covers `Note`, `Meme` **and
-       `Quote`**; it covered only the first two until 2026-09-11, and the
-       missing case failed the `Quote` tab's commit with a `ForeignKeyViolation`
-       that rolled back every quote in it. So authorship does not round-trip
-       for the admin's own rows: a cross-machine restore re-files them under
-       the local admin. Harmless while one person writes them; these three tabs
-       need a `username` column, the way `Plan Next` has one, before a second
-       author matters.
-     - **Back up after the change, and do not Pull an older sheet over a newer
-       database.** The dropped headers have nowhere to land once the sheet is
-       rewritten.
-   - **Three tabs need `admin.authz` and are otherwise skipped.** `Users`
-     (which carries each account's role name), `Content Label` and
-     `Media Content Label` decide *authorization*, not catalogue content — and
-     Pull writes the sheet **into** this database. The sheet is an ordinary
-     Google Sheet, editable by anyone with access, so without a gate an account
-     holding `manage.pipelines` but not `admin.authz` could type `admin` into
-     the Users tab's role column, run Pull All, and be promoted. Those three
-     are marked `requires_authz=True` in `tabs.py` (`AUTHZ_TABS`) and return
-     `status: "skipped"` for a caller without the permission; every other tab
-     restores as normal and the skip is reported in `unresolved_refs`, so the
-     audit row is red rather than the gap silent. **Backup is deliberately not
-     gated** — it writes local → sheet and cannot change this database. The flag
-     defaults to **closed**, so a programmatic caller has to ask for the
-     permission rather than inherit it. Added 2026-09-11; decision 10 in the
-     authorization spec.
-   - **Derived identity** (`DERIVED_IDENTITY_KEYS` in `pull.py`): tables hold rows whose identifier is *minted per database* rather than carried by the sheet — the credit backfill, `extract_system_options` and the rewatch→`plan_next` migration all mint as they go. Two databases therefore hold the same logical rows under different ids, and resolving by id alone misses every time; the INSERT that follows collides with the UNIQUE constraint that row already occupies and rolls back the whole tab. So these tabs also match on their natural key, and **keep the local id** (the PK is popped from the payload so the `setattr` loop cannot overwrite it):
-
-     | Tab | Matched on | Sheet PK |
-     |---|---|---|
-     | `Users` | `username` (`users.username` is UNIQUE) | uuid — tried first |
-     | `User Media List` | `user_id` + `media_id` (`uq_user_media`), both resolved from `username` and `(media_type, public_id)` first | uuid — **not carried at all** |
-     | `System Options` | `category` + `value` | uuid — tried first |
-     | `Person`, `Studio` | `name_en` + `name_cn` + `name_jp` + `name_alt` | uuid — tried first |
-     | `Media Relation` | `from_type` + `from_id` + `relation_type` + `to_type` + `to_id` | uuid — tried first |
-     | `Plan Next` | `kind` + `scope` + `target_id` + `media_type` | uuid — tried first |
-     | `Media Source` | `media_type` + `entry_id` + `kind` + `bucket` + `option_id` + `name` (`uq_media_source_row`) | uuid — tried first |
-     | `System Option Scope` | `option_id` + `scope` | integer — **ignored** |
-| `System Option Alias` | `option_id` + `source` + `value` | integer — **ignored** |
-     | `Person Role` | `person_id` + `role` + `scope` | integer — **ignored** |
-     | `Publisher Scope` | `publisher_id` + `scope` (no `role`: a publisher holds exactly one) | integer — **ignored** |
-
-     A uuid that misses is merely unknown, so trying it first costs nothing and lets a value *renamed* in the sheet follow its existing row. The two autoincrement ids are ignored outright: the sheet's `id = 1` names a real but unrelated local row, and honouring it retargets the wrong row.
-
-     `Media Source` needs `option_id` in its own natural key, unlike the other
-     FK-less tabs above: two `main`-bucket rows on the same entry for two
-     different platforms both have `name = NULL`, so without `option_id` they
-     would collide with each other as duplicates on a second Pull. `option_id`
-     is resolved to the **local** option id (from the tab's `option_category`/
-     `option_value` columns, see below) before this match runs, so the
-     comparison is a plain local-to-local uuid check like every other column
-     in the key.
-   - **Foreign uuid translation** (`DERIVED_IDENTITY_PARENTS`): `System Option Scope.option_id`, `System Option Usage.option_id`, `System Option Alias.option_id`, `Person Role.person_id`, `Publisher Scope.publisher_id` and `Media Content Label.label_id` cite a derived-identity parent by the *other* database's uuid. When that uuid is unknown locally it is translated by reading the parent's own tab and matching each of its rows by natural key. Reading the sheet rather than threading a map through Pull All is what lets a single-tab Pull of a child work on its own. A reference that still cannot be resolved skips the row, like every other FK miss.
-   - **`Media Source`'s `option_id` is never written to the sheet as a uuid at all** — `system_option` mints a different id per database, so a raw `option_id` column would not survive the round trip the way `entry_id` does (entry ids *are* identical across databases). The tab instead carries the option's `category` and `value` as two extra string columns, `option_category` and `option_value` (`tabs.py`'s `extra_columns`, resolved by a small helper rather than being real model columns). Before the natural-key match above runs, Pull resolves `(option_category, option_value)` against the **local** `system_option` table and fills in a local `option_id`; when it cannot be resolved (the value does not exist on this machine), `option_id` is left `None`, which then trips `ck_media_source_one_target` and fails the whole tab's Pull — there is no per-row skip-with-warning here the way the neighbouring `Franchise`/`Series` lookups above have, so a Platform value renamed or deleted on one machine can block a `Media Source` Pull on the other until the vocabularies are reconciled.
-   - **Target row**: `existing = query(Model).filter(pk == pk_value)` when a PK is present.
-   - **INSERT-only defaults** (never applied to an UPDATE, so a sheet that omits a column cannot wipe a good value):
-
-     | Tab | Defaults |
-     |---|---|
-     | `Anime`, `Movies`, `Anime Movie`, `TV Shows`, `Cartoons`, `Manga`, `Game` | `created_at` / `updated_at = get_taipei_now()` |
-     | `Collection`, `Franchise`, `Series` | `created_at` / `updated_at` (non-nullable on these models) |
-     | `Users` | `hashed_password = UNUSABLE_PASSWORD_HASH` |
-
-     The `watching_status` / `reading_status` / `playing_status` defaults that
-     used to sit here are gone: Step 1 moved those columns to
-     `user_media_list`, and a status default belongs with the row that owns
-     it. An entry with no list row reads back as `user_list.DEFAULT_STATUS`
-     anyway. `Novel` and `Comic` are not in the table at all.
-
-     The `Users` default is INSERT-only *by construction*, not merely by
-     convention: an UPDATE that touched `hashed_password` would lock the admin
-     out of their own machine on every Pull All.
-   - **Upsert**: existing → `setattr` every remaining key (`rows_updated += 1`); otherwise `Model(**dict)` + `db.add` (`rows_added += 1`).
-   - **Link columns applied**: after the row exists (a fresh insert is `db.flush()`ed first so `system_id` is real), `replace_credits` / `replace_tags` are called per popped column with `names_from_sheet_value(raw)`.
-   - `db.flush()` every 50 rows so newly minted UUIDs are visible to later FK references.
-5. **Commit** once per tab. A commit failure rolls back the entire tab, logs `Failed`, returns `{"status": "error"}`.
-6. **Sequence resync**: because Postgres does not advance a sequence when ids are supplied explicitly, after restoring `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope` or `System Option Usage` the matching `*_id_seq` is `setval`'d to `MAX(id) + 1`. `System Options` is deliberately not in this list — its key is a UUID.
-6b. **`public_id` resync**: the same hazard, on every tab whose model carries a
-   `public_id`. Backup writes `public_id` on all seventeen entity tabs and Pull
-   restores it unchanged - that is what keeps the company and home databases
-   agreeing on the ids that appear in URLs - so the per-table
-   `<table>_public_id_seq` is left wherever the *local* database had it.
-   `resync_public_id_sequence(db, Model)` runs after the tab's commit (so
-   `MAX()` reads the rows that actually landed) and `setval`s it past them. It
-   is a no-op for a model with no `public_id`, because Pull walks every tab.
-   Without it nothing fails at restore time; the next entry an admin adds
-   fails on the unique index, with a message that says nothing about Pull.
-
-   Restoring `public_id` is also why its unique constraint is `DEFERRABLE
-   INITIALLY DEFERRED` (see [data-model.md](data-model.md)): the sheet's ids
-   are routinely a *permutation* of the local ones, so mid-restore two rows
-   briefly share a value. The whole tab is one transaction, so the check lands
-   at COMMIT, by which point the end state is unique again.
-7. Log `Pull {tab_name}` / `Success` with `rows_added` / `rows_updated`; return `{"status": "success", "processed", "rows_added", "rows_updated", "rows_skipped", "credit_conflicts", "created_entities", "unresolved_refs"}`.
-
-   **`unresolved_refs`** is the channel for everything the sheet named that
-   this database cannot resolve, one line each. A row it names was **skipped**,
-   which on a restore is lost data, so it is reported rather than only logged:
-
-   | Source | Line |
-   |---|---|
-   | `Users` with a role name no local role matches | `Users: role 'wizard' for user 'ghost' is unknown here` |
-   | `User Media List` with an unknown `username` | `User Media List: user 'nobody' is unknown here` |
-   | `User Media List` with an unknown `(media_type, public_id)` | `User Media List: entry (anime, 999999) is unknown here, for user 'cg1618'` |
-   | `Plan Next` / `Seasonal` naming a `username` no local account matches | `Seasonal: user 'nobody' is unknown here` |
-   | a header the tab's model no longer has | `Anime: column 'watching_status' is not on this model any more` |
-
-   The last one is the **stale-column guard** reporting itself. `drop_non_columns`
-   silently discards any header that is not a column of the model - which is
-   right for the ones the tab writes on purpose (the denormalised
-   `display_name`, the natural keys standing in for a database-local id, the
-   legacy credit and tag headers) and wrong for one that means "this sheet
-   predates a migration" or "this header is a typo that has been quietly
-   discarding a real value". `unexpected_headers(tab_name, headers)` decides
-   which is which, **once per tab from the header row**, so a tab with a
-   thousand stale rows writes one line, not a thousand. Without the guard
-   itself, `Model(**payload)` would raise `TypeError` and abort the whole tab -
-   which is what the first Pull All after Step 1 would have done, on nine tabs
-   at once.
+       the **installation owner** — the column is `NOT NULL`, and a line whose
+       author is uncertain is still the line. The fallback covers `Note`, `Meme` **and
+       `Quote`** — all three, and it has to: without it the `Quote` tab's
+       commit fails with a `ForeignKeyViolation` that rolls back every quote in
+       it. So authorship does not round-trip for the admin's own rows: a
+       cross-machine restore re-files them under the local installation owner.
+       Harmless
+       while one person writes them; these three tabs need a `username`
+       column, the way `Plan Next` has one, before a second author matters.
 
 ### 3.2 Pull All — `execute_pull_all(db, action_type)`
 
@@ -616,7 +507,7 @@ Any exception logs `Failed` with the message and re-raises (500). Response on su
 
 ## 7. Cover-image maintenance
 
-All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). "Storage" means the local filesystem: every image is a file at `static/covers/{owner_type}/{system_id}.jpg`, and every column holds that whole `{owner_type}/{system_id}.jpg` key. The helpers take the owner type alongside the id. All four actions worked against Google Cloud Storage as well until 2026-09-08; that branch is gone with the rest of the GCP deployment, and the actions are otherwise unchanged. None of these write a `DataControlLog` row.
+All in `calculation.py`; storage helpers come from `app/services/integrations/image_manager.py` (`cover_image_exists`, `list_all_cover_images`, `delete_cover_image`). "Storage" means the local filesystem: every image is a file at `static/covers/{owner_type}/{system_id}.jpg`, and every column holds that whole `{owner_type}/{system_id}.jpg` key. The helpers take the owner type alongside the id. None of these write a `DataControlLog` row.
 
 | Function | Route | What it does | Response keys |
 |---|---|---|---|
