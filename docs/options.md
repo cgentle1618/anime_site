@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-07
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -520,7 +520,7 @@ the bare `admin`, which implies everything.
 | Key | Label | Gates |
 |---|---|---|
 | `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, every media type; UI block `info.SourcesCard.other` |
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from `default_guest_permissions()` via `GUEST_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed.py`) — a fresh guest role does not hold it |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
 | `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
 | `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
 | `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; also `studio_refs` (types with a `studio` role) and `publisher_refs` (types with a `publisher` role); UI block `info.CreditsCard` |

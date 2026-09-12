@@ -35,6 +35,88 @@ Related: [authentication.md](authentication.md) (login, cookie),
 [data-model.md](data-model.md) (tables), [api.md](api.md) (routes),
 [notes/decisions.md](notes/decisions.md) (2026-08-29 View authorization).
 
+## What each role and mode holds
+
+The two matrices below are the seeds — what `ensure_rbac_seed` and
+`ensure_access_mode_seed` create on a fresh database. Both are editable
+afterwards (`/roles`, `/access-modes`), and both seeders **top up only a row
+holding nothing at all**, so a grant an admin removed is never handed back on
+restart. An established installation can therefore differ from either table;
+read the rows, do not assume them.
+
+### Roles — what an account may DO
+
+Columns are the four seeded roles. `admin` is `is_superuser`, so it holds no
+explicit grants at all; *implicit* means `Viewer.has()` short-circuits to
+true, including for permissions that do not exist yet.
+
+| Permission | `guest` | `user` | `super` | `admin` | a custom role |
+|---|---|---|---|---|---|
+| `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (all nine) | yes | yes | yes | implicit | — |
+| `self.list` | — | yes | yes | **never implicit** | — |
+| `self.personal_notes` | — | yes | yes | **never implicit** | — |
+| `manage.catalog` | **refused, 409** | — | yes | implicit | — |
+| `manage.pipelines` | **refused, 409** | — | yes | implicit | — |
+| `admin.authz` | **refused, 409** | — | — (the point of the role) | implicit | — |
+
+- **A custom role is created empty.** Every cell is `—` until an admin grants
+  it; grants are replaced as a whole set by `PUT`, never appended.
+- **`guest` cannot be granted the bottom three at all** — `PUT
+  /api/roles/{id}/permissions` answers **409**, because that role is what
+  every anonymous request resolves to.
+- **`admin` never holds `self.*`, implicitly or otherwise**, so an
+  administrative account keeps no list, plan queue, season ratings, game
+  copies or personal notes. An explicit grant still wins. See
+  [The admin account holds no user data](#the-admin-account-holds-no-user-data).
+- **`user` and `super` are derived, not restated**:
+  `default_user_permissions()` builds on `default_guest_permissions()` and
+  `default_super_permissions()` on that, so a media type added later reaches
+  all three at once.
+- **No role holds a content label or a field group.** Neither family is in
+  `catalog()`, so neither can be granted here — they are the other axis.
+
+### Access modes — which OBJECTS those operations reach
+
+Columns are the four seeded modes. A mode carries content labels and field
+groups and nothing else; there is no column on `access_mode_label` or
+`access_mode_field_group` in which `manage.catalog` could be stored.
+
+| Item | `unrestricted` | `borderline` | `normal` | `safe` |
+|---|---|---|---|---|
+| `sort_order` | 0 | 10 | 20 | 30 |
+| `is_guest_default` | — | — | — | **yes** |
+| every content label that exists when the seed runs | yes | yes | — | — |
+| `field_group.sources_other` | yes | yes | yes | derived from guest |
+| `field_group.personal_notes` | yes | yes | yes | derived from guest |
+| `field_group.system_info` | yes | yes | yes | derived from guest |
+| `field_group.credits` | yes | yes | yes | derived from guest |
+| `field_group.sources_restricted` | yes | yes | yes | **—** |
+
+- **`unrestricted` and `borderline` are seeded identically.** Both carry every
+  label and every field group; only the label, description and `sort_order`
+  differ. The distinction their descriptions draw is one an admin makes by
+  editing `borderline`'s label set — modes are deliberately unordered for
+  enforcement, so nothing in the code treats one as narrower than the other.
+- **"derived from guest"** is the rule, not the fallback: `safe` means "today's
+  guest exactly", so `ensure_access_mode_seed` reads the field groups the guest
+  *role* actually holds (`guest_field_groups()`) and seeds those. Only when
+  that role holds none — a database where `ensure_rbac_seed` has not run — does
+  it fall back to every group minus `SAFE_WITHHELD_FIELD_GROUPS`, currently
+  `{"sources_restricted"}`. Assuming the two were the same would have published
+  the other-sources list and other people's personal reviews to every
+  logged-out visitor.
+- **Content labels are not seeded.** They are admin-created, so on a fresh
+  database that row is empty for every mode — and a label minted *after* the
+  seed reaches no mode, hiding its entries from everyone until an admin grants
+  it on `/access-modes`. Fail-closed, deliberately.
+- **A mode is a ceiling.** What an account actually reaches is the mode's sets
+  minus that account's `user_access_mode_denial` rows; there is no grant
+  counterpart, so the effective set is always a subset of the column above.
+
+**Effective access is the two read together.** `super` in `safe` can write the
+catalogue but cannot see a labelled entry to write it; `admin` in `safe` is
+narrowed the same way, which is the whole reason the axes are separate.
+
 ## Tables
 
 | Table | Purpose | Notable columns / constraints |
@@ -120,7 +202,7 @@ grants, the way any custom role is):
 
 | Name | `sort_order` | System | Superuser | Holds |
 |---|---|---|---|---|
-| `guest` | 0 | yes | no | `default_guest_permissions()` — every media type and every field group except `GUEST_WITHHELD_FIELD_GROUPS` |
+| `guest` | 0 | yes | no | `default_guest_permissions()` — every media type, and nothing else. Field groups are the mode axis, not this one |
 | `user` | 50 | yes | no | `default_user_permissions()` — guest's set plus `self.list` and `self.personal_notes` |
 | `super` | 75 | yes | no | `default_user_permissions()` plus `manage.catalog` and `manage.pipelines` — every catalogue capability, deliberately **not** `admin.authz` |
 | `admin` | 100 | yes | **yes** | nothing explicitly; a superuser role holds every permission implicitly **except `self.*`**, which is ownership rather than privilege and so has no implicit holder |
@@ -163,16 +245,18 @@ personal-scope note write. See [Note scope](#note-scope) below.
 
 `sources_other` points at the `other` bucket of `media_source`.
 
-**`sources_restricted` is deliberately excluded from a fresh guest role.**
-`app/services/rbac/seed.py`'s `GUEST_WITHHELD_FIELD_GROUPS` (currently just
-`{"sources_restricted"}`) is subtracted from `default_guest_permissions()`,
-so a newly seeded guest role does not hold it — a field group whose whole
+**`sources_restricted` is deliberately excluded from a fresh `safe` mode.**
+`app/services/rbac/seed_modes.py`'s `SAFE_WITHHELD_FIELD_GROUPS` (currently
+just `{"sources_restricted"}`) is subtracted from the group set seeded onto
+`safe`, the mode a logged-out visitor resolves — a field group whose whole
 point is to withhold something from ordinary viewers must not be granted by
-default, or it withholds nothing until an admin remembers to revoke it.
-Every other field group is granted by default. This applies to a *fresh*
-seed only: `_ensure_role`'s `if not held:` guard means an already-established
-guest role is never re-granted a permission it does not hold, so a grant an
-admin removed is not handed back on restart.
+default, or it withholds nothing until an admin remembers to revoke it. Every
+other field group is granted to every seeded mode. That subtraction is only
+the fallback: on a database whose guest role already holds field groups,
+`safe` is seeded from those instead, so it means "today's guest exactly".
+Either way it applies to a *fresh* seed only — `ensure_access_mode_seed` tops
+up only a mode holding nothing, so an item an admin removed is not handed back
+on restart.
 
 **Gating a `media_source` bucket is not the "real columns" copy-and-strip
 path described below** — it happens earlier, inside
