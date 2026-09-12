@@ -117,6 +117,65 @@ groups and nothing else; there is no column on `access_mode_label` or
 catalogue but cannot see a labelled entry to write it; `admin` in `safe` is
 narrowed the same way, which is the whole reason the axes are separate.
 
+### What each role can DO
+
+The matrix above is the grants; this is what holding one means. `implicit` is
+the superuser short-circuit; `never` is the `self` family, which that
+short-circuit deliberately does not cover.
+
+| A viewer may… | `guest` | `user` | `super` | `admin` |
+|---|---|---|---|---|
+| browse entries of a type — lists, detail, search | yes | yes | yes | implicit |
+| switch their own access mode | — (no account) | yes | yes | yes |
+| keep a list row — status, rating, progress | — | yes | yes | **never** |
+| keep a plan queue | — | yes | yes | **never** |
+| rate a season | — | yes | yes | **never** |
+| change their own account settings | — | yes | yes | **never** |
+| write a personal note — a review or a remark | — | yes | yes | **never** |
+| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes | **409 if granted** | — | yes | implicit |
+| run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | — | yes | implicit |
+| restore accounts, content labels and entry labels on a Pull | — | — | **no** — those three tabs are skipped | implicit |
+| create roles and change what they hold | **409 if granted** | — | — | implicit |
+| create accounts, set a role, assign modes | **409 if granted** | — | — | implicit |
+| create content labels, and label an entry | **409 if granted** | — | — | implicit |
+| create and edit access modes | **409 if granted** | — | — | implicit |
+
+- **`super` is the row to read down.** Everything catalogue-shaped is yes and
+  everything authorization-shaped is `—`; that gap is why the bare `admin`
+  permission became three named ones.
+- **A capability refusal is 401, never 403**, so the SPA sees one error shape.
+  An *object* refusal is 404 — a hidden entry answers exactly as an absent one.
+- **`guest` cannot hold the bottom six at all**: granting one answers **409**,
+  because every anonymous request resolves to that role.
+
+### What each mode lets a session SEE
+
+Same reading for the object axis: the matrix above is what a mode carries,
+this is what carrying it means.
+
+| Item | Without it, a session… | `unrestricted` | `borderline` | `normal` | `safe` |
+|---|---|---|---|---|---|
+| `label.<key>` | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes, memes and a public profile, 404 on its detail page | **always, derived** | at seed time | — | — |
+| `field_group.sources_other` | gets a source list with the `other` bucket missing | yes | yes | yes | from guest |
+| `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | yes | yes | yes | **—** |
+| `field_group.personal_notes` | cannot read **another** user's personal notes; its own are never withheld | yes | yes | yes | from guest |
+| `field_group.system_info` | gets no created/updated timestamps, and no id down the poster spine | yes | yes | yes | from guest |
+| `field_group.credits` | gets every credit link blank — studio, director, … | yes | yes | yes | from guest |
+
+Which fields each group covers is [Field groups](#field-groups); it is not
+restated here, or the two copies drift.
+
+- **A fresh database carries no labels at all.** Content labels are
+  admin-created, so the first row is empty for every mode but `unrestricted`,
+  which derives its set rather than reading rows. A label minted later reaches
+  no other mode until an admin grants it there, hiding its entries from
+  everyone else. Fail-closed, deliberately.
+- **Withheld fields are absent, not blanked**, in the API and the UI both: no
+  `—` placeholder, because a placeholder announces what it conceals.
+- **A mode is a ceiling, and an account can sit below it.** What it actually
+  reaches is the column above minus that account's denials; there is no grant
+  counterpart.
+
 ## Tables
 
 | Table | Purpose | Notable columns / constraints |
