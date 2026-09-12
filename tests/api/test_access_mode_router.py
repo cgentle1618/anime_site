@@ -75,14 +75,14 @@ def test_creating_a_mode_stores_its_items(admin_client, nsfw_label, mode):
             "description": "A hand-made tier.",
             "sort_order": 5,
             "label_keys": [nsfw_label.key],
-            "field_group_keys": ["credits", "system_info"],
+            "field_group_keys": ["personal_notes", "sources_other"],
         },
     )
 
     assert response.status_code == 201
     body = response.json()
     assert body["label_keys"] == [nsfw_label.key]
-    assert sorted(body["field_group_keys"]) == ["credits", "system_info"]
+    assert sorted(body["field_group_keys"]) == ["personal_notes", "sources_other"]
     assert body["is_system"] is False
 
 
@@ -101,13 +101,13 @@ def test_grants_are_replaced_wholesale(admin_client, mode, nsfw_label):
 
     response = admin_client.put(
         f"{MODES}{target.system_id}/grants",
-        json={"label_keys": [nsfw_label.key], "field_group_keys": ["credits"]},
+        json={"label_keys": [nsfw_label.key], "field_group_keys": ["sources_other"]},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["label_keys"] == [nsfw_label.key]
-    assert body["field_group_keys"] == ["credits"]
+    assert body["field_group_keys"] == ["sources_other"]
 
 
 def test_an_unknown_field_group_is_422(admin_client, mode):

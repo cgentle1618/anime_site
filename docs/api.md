@@ -1528,7 +1528,7 @@ Now also returns:
 ```json
 { "is_admin": false, "username": null, "role": "guest",
   "is_superuser": false,
-  "permissions": ["media_type.anime", "field_group.credits", ...],
+  "permissions": ["media_type.anime", "field_group.sources_other", ...],
   "mode": { "id": "…uuid…", "key": "safe" } }
 ```
 

@@ -148,7 +148,7 @@ def test_a_missing_field_group_also_narrows(db_session, everything_mode, mode_cl
 
     db_session.query(models.AccessModeFieldGroup).filter(
         models.AccessModeFieldGroup.mode_id == everything_mode.system_id,
-        models.AccessModeFieldGroup.field_group_key == "credits",
+        models.AccessModeFieldGroup.field_group_key == "sources_other",
     ).delete(synchronize_session=False)
     db_session.flush()
     cache.bump()

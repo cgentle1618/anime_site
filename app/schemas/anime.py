@@ -82,8 +82,8 @@ class AnimeResponse(AnimeBase, AnimeLinkFields):
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
-    # Optional because field_gate blanks them for a viewer without
-    # field_group.system_info, matching the other seven Response schemas.
+    # Optional to match the other seven Response schemas. Nothing gates them
+    # any more - they are served to every viewer and displayed to none.
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
