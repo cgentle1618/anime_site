@@ -60,7 +60,11 @@ toggled inside a hub does not update the library cache until it goes stale.
 - **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
   `username`, `role`, `isSuperuser`, `permissions`, `loading`, `has(permission)`
   (superuser short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
-  gate on `has("admin")`; page controls gate on `isAdmin`.
+  gate on `has("admin")`; page controls gate on `isAdmin`. `refetchAuth()` is
+  *not* how an identity change is applied: sign-in, sign-out and an
+  access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
+  load the page again, because the cached answers around them belong to the
+  outgoing identity. See `docs/authentication.md`.
 - **`ThemeContext`** — `theme` (`"light"|"dark"`, what is on screen),
   `preference` (`"light"|"dark"|"system"`), `setTheme`, `toggle`. The choice is
   stored in `localStorage["cg1618:theme"]`; `"system"` follows

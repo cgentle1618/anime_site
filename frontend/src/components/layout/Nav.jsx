@@ -8,8 +8,9 @@
 // Every link comes from `config/navigation.js`; the desktop strip and the
 // mobile drawer render the same tree, so there is one place to edit.
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import ModeSwitcher from "./ModeSwitcher";
+import { hardNavigate } from "../../lib/hardNavigate";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
@@ -99,9 +100,8 @@ const DRAWER_ROW =
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { isAdmin, has, refetchAuth } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openKey, setOpenKey] = useState(null);
@@ -173,10 +173,15 @@ export default function Nav() {
     }
   }
 
+  // Signing out is a FULL page load of the page we are on, not a route
+  // change. Swapping the auth snapshot leaves every answer React Query
+  // cached for the outgoing account in place, and `staleTime` serves those
+  // again without asking the server - so the dashboard of the person who
+  // just signed out keeps rendering to a guest. ProtectedRoute sorts out
+  // where a guest may actually stand once the page comes back.
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    await refetchAuth();
-    navigate(location.pathname + location.search, { replace: true });
+    hardNavigate(location.pathname + location.search);
   }
 
   // On /login itself the next ProtectedRoute already put in the query string

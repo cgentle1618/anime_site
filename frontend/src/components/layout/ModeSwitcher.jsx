@@ -19,15 +19,18 @@
 //   3. It renders only when more than one mode is held. A control with one
 //      option is noise.
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
+import { hardNavigate } from "../../lib/hardNavigate";
 
-export default function ModeSwitcher({ onSwitched }) {
-  const { mode, modes, refetchAuth } = useAuth();
+export default function ModeSwitcher() {
+  const { mode, modes } = useAuth();
   const { showToast } = useToast();
+  const location = useLocation();
   const [pending, setPending] = useState(null);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,11 +52,13 @@ export default function ModeSwitcher({ onSwitched }) {
       });
       setPending(null);
       setPassword("");
-      showToast("success", `Now browsing as ${target.label}.`);
-      // What this viewer may see has just changed, so the cached answers are
-      // stale - not just the auth snapshot.
-      await refetchAuth();
-      onSwitched?.();
+      // What this viewer may SEE has just changed, so every answer already
+      // on screen was computed under the old ceiling: narrowing leaves rows
+      // visible that the new mode hides, widening leaves them missing. A
+      // full page load is the only thing that reaches all of it - the query
+      // cache, and the component state the cache does not own. It also
+      // discards the success toast, which is why there is not one.
+      hardNavigate(location.pathname + location.search);
     } catch (err) {
       showToast("error", err.message || "Could not change access mode.");
     } finally {

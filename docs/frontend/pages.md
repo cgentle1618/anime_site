@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-10
+Last verified: 2026-09-12
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -97,8 +97,9 @@ links inside `[data-nav-panel]`, any route change closes the panel and the
 mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
 `aria-pressed`), and for admins an "Admin" badge, **Back up** (POST
 `/api/data-control/backup`, toasts "Backup completed successfully" /
-"Backup failed") and **Log out** (POST `/api/auth/logout`, then
-`refetchAuth()`); guests get **Log in** → `/login?next=<current path>`.
+"Backup failed") and **Log out** (POST `/api/auth/logout`, then a full load of
+the page it is on, so nothing cached for the outgoing account survives);
+guests get **Log in** → `/login?next=<current path>`.
 
 **`components/layout/NavSearch.jsx`** is the universal search box. It
 debounces 250 ms, discards stale responses by request id, and calls
@@ -717,8 +718,10 @@ and delete, followed by `invalidateQueries` on the grouped key.
 
 File `pages/public/Login.jsx`. Heading "Admin Access". POSTs
 `/api/auth/login` as `application/x-www-form-urlencoded` (`username`,
-`password`), then `refetchAuth()` and navigates to `?next` when it starts with
-`/`, otherwise `/system` (replace). Errors show inline and as a toast.
+`password`), then **loads** `?next` when it starts with `/` and does not point
+back at `/login`, otherwise `/system`. A full page load, not a route change -
+everything cached up to that moment was cached as a guest. Errors show inline
+and as a toast.
 
 ### UnderDevelopment — `/under-development`
 

@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ModeSwitcher from "./ModeSwitcher";
 
@@ -24,18 +26,38 @@ vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
 }));
 
+const { hardNavigate } = vi.hoisted(() => ({ hardNavigate: vi.fn() }));
+vi.mock("../../lib/hardNavigate", () => ({ hardNavigate }));
+
+const { fetchJson } = vi.hoisted(() => ({
+  fetchJson: vi.fn(() => Promise.resolve({})),
+}));
+vi.mock("../../api/client", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchJson: (...args) => fetchJson(...args),
+}));
+
+beforeEach(() => {
+  hardNavigate.mockClear();
+  fetchJson.mockClear();
+});
+
 let authValue = {};
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => authValue,
 }));
 
-function setup(modes) {
+function setup(modes, route = "/") {
   authValue = {
     mode: modes[0] ? { id: modes[0].id, key: modes[0].key } : null,
     modes,
     refetchAuth: vi.fn(),
   };
-  return render(<ModeSwitcher />);
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <ModeSwitcher />
+    </MemoryRouter>,
+  );
 }
 
 describe("ModeSwitcher visibility", () => {
@@ -73,5 +95,32 @@ describe("ModeSwitcher visibility", () => {
     const options = screen.getByLabelText("Access mode").querySelectorAll("option");
     expect(options[0].textContent).not.toContain("🔒");
     expect(options[1].textContent).toContain("🔒");
+  });
+});
+
+describe("ModeSwitcher - what happens after the switch lands", () => {
+  // A mode is a ceiling on what the session may SEE, so every answer already
+  // cached was computed under the old ceiling. Narrowing without a full load
+  // leaves the wider mode's rows on screen; widening leaves them missing.
+  it("reloads the page rather than refetching the auth snapshot alone", async () => {
+    const user = userEvent.setup();
+    setup(MODES, "/library/anime?sort=name");
+
+    await user.selectOptions(screen.getByLabelText("Access mode"), "b");
+
+    await waitFor(() =>
+      expect(hardNavigate).toHaveBeenCalledWith("/library/anime?sort=name"),
+    );
+  });
+
+  it("does not reload when the switch is refused", async () => {
+    fetchJson.mockRejectedValueOnce(new Error("Password required."));
+    const user = userEvent.setup();
+    setup(MODES, "/library/anime");
+
+    await user.selectOptions(screen.getByLabelText("Access mode"), "b");
+
+    await waitFor(() => expect(fetchJson).toHaveBeenCalled());
+    expect(hardNavigate).not.toHaveBeenCalled();
   });
 });

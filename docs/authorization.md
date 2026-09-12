@@ -893,8 +893,14 @@ component alone:
   `/api/auth/me`. Never recompute the subset test in the browser: two
   implementations of one rule drift, and the browser's is the one nobody
   tested.
-- **On success it refetches `/api/auth/me` and invalidates the entry
-  queries**, because what the viewer may see has just changed.
+- **On success it loads the page again from scratch** - a real browser
+  navigation, not a client-side route change. A mode is a ceiling on what the
+  session may SEE, so every answer already on screen was computed under the
+  old ceiling: narrowing leaves rows visible that the new mode hides, widening
+  leaves them missing. Refetching `/api/auth/me` alone fixes neither, because
+  the stale rows live in the React Query cache and in component state, not in
+  the auth snapshot. There is no success toast, for the same reason: the load
+  discards it.
 
 ### The pipeline routers need an unscoped MODE as well
 

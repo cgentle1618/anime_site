@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-09-10
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -183,7 +183,7 @@ Any exception during seeding is printed and swallowed so the server still starts
 | `permissions` | Array of grant strings |
 | `has(permission)` | `isSuperuser || permissions.includes(permission)` - same semantics as `Viewer.has` on the server, backed by a `Set` |
 | `loading` | True until the first `/me` response |
-| `refetchAuth()` | Re-runs the `/me` fetch; the login page calls it after a successful `POST /login` |
+| `refetchAuth()` | Re-runs the `/me` fetch. Nothing calls it on an identity change - see below |
 
 A failed or non-OK `/me` request resets to the anonymous snapshot rather than erroring. Hiding in the UI is cosmetic - the server has already withheld anything the viewer may not see.
 
@@ -191,7 +191,27 @@ A failed or non-OK `/me` request resets to the anonymous snapshot rather than er
 
 `<Route element={<ProtectedRoute />}>` wraps every admin page in `App.jsx`. It takes an optional `permission` prop (default `"admin"`), shows a spinner while `loading`, then either renders the `<Outlet />` or redirects to `/login?next=<current path + search>` with `replace`.
 
-`Login.jsx` posts the form, calls `refetchAuth()`, then navigates to `next` **only if it starts with `/`** (an absolute path on this site), otherwise to `/system`. That prevents an open redirect through the query string.
+`Login.jsx` posts the form, then **loads** `next` **only if it starts with `/`** (an absolute path on this site) and does not point back at `/login`, otherwise `/system`. The first test prevents an open redirect through the query string; the second stops a `next` that lands a signed-in visitor on the login form again.
+
+### An identity change is a full page load
+
+Signing in, signing out and switching access mode all leave the SPA and load a
+URL from scratch, through `hardNavigate()` in `frontend/src/lib/hardNavigate.js`.
+None of the three swaps the auth snapshot and stays put.
+
+Swapping the snapshot is not enough, and the failure is a leak rather than a
+cosmetic one: every answer React Query has already cached was computed for the
+outgoing identity, and `staleTime` (30 s, `refetchOnWindowFocus` off) serves
+those cached answers again without asking the server. Signing out on a
+dashboard therefore left the previous account's rows on screen, to a guest,
+until something happened to evict them. Clearing the query cache would fix that
+half and not the other: component state holds the same rows in places the cache
+does not own.
+
+A full load fixes both by construction, and it is the browser doing something
+it already does well. What it costs is a flash and any unsaved form state -
+both acceptable at the moment WHO the session is has changed. `ProtectedRoute`
+then decides where the new identity may actually stand.
 
 ### No automatic redirect on 401
 

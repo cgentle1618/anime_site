@@ -4,6 +4,9 @@
 // next lands an authenticated visitor on the login form again, with the page
 // they actually wanted buried one level further down, and Login has no
 // already-signed-in bounce to rescue them from it.
+//
+// It reaches that destination with a FULL PAGE LOAD, not a client-side
+// navigate: everything the SPA cached a moment ago it cached as a guest.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -11,11 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Login from "./Login";
 
-const navigate = vi.fn();
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual, useNavigate: () => navigate };
-});
+const { hardNavigate } = vi.hoisted(() => ({ hardNavigate: vi.fn() }));
+vi.mock("../../lib/hardNavigate", () => ({ hardNavigate }));
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ refetchAuth: vi.fn() }),
 }));
@@ -24,7 +24,7 @@ vi.mock("../../hooks/useToast", () => ({
 }));
 
 beforeEach(() => {
-  navigate.mockClear();
+  hardNavigate.mockClear();
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })),
@@ -49,21 +49,21 @@ async function signIn(route) {
 describe("Login - where ?next= is allowed to send you", () => {
   it("honours a next naming a real page", async () => {
     await signIn("/login?next=%2Fstatistics");
-    expect(navigate).toHaveBeenCalledWith("/statistics", { replace: true });
+    expect(hardNavigate).toHaveBeenCalledWith("/statistics");
   });
 
   it("refuses a next pointing back at /login", async () => {
     await signIn("/login?next=%2Flogin%3Fnext%3D%252Fstatistics");
-    expect(navigate).toHaveBeenCalledWith("/system", { replace: true });
+    expect(hardNavigate).toHaveBeenCalledWith("/system");
   });
 
   it("refuses a bare /login next", async () => {
     await signIn("/login?next=%2Flogin");
-    expect(navigate).toHaveBeenCalledWith("/system", { replace: true });
+    expect(hardNavigate).toHaveBeenCalledWith("/system");
   });
 
   it("still refuses an absolute URL", async () => {
     await signIn("/login?next=https%3A%2F%2Felsewhere.example%2Fx");
-    expect(navigate).toHaveBeenCalledWith("/system", { replace: true });
+    expect(hardNavigate).toHaveBeenCalledWith("/system");
   });
 });

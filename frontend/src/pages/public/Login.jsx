@@ -1,7 +1,7 @@
 // Frontend: page component file for Login.
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useLocation } from "react-router-dom";
+import { hardNavigate } from "../../lib/hardNavigate";
 import { useToast } from "../../hooks/useToast";
 import { Button, Eyebrow, Slip } from "../../components/ui/primitives";
 
@@ -11,9 +11,7 @@ const INPUT_CLS =
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { refetchAuth } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const location = useLocation();
 
   async function handleSubmit(e) {
@@ -32,7 +30,6 @@ export default function Login() {
       });
 
       if (res.ok) {
-        await refetchAuth();
         const params = new URLSearchParams(location.search);
         const next = params.get("next");
         // Must start with "/" (an absolute URL would be an open redirect) and
@@ -41,7 +38,10 @@ export default function Login() {
         // The negative lookahead keeps a genuine page like /loginary usable.
         const usable =
           next && next.startsWith("/") && !/^\/login(?![\w-])/.test(next);
-        navigate(usable ? next : "/system", { replace: true });
+        // A FULL page load, not a client-side navigate. Everything the SPA
+        // cached up to this moment it cached as a guest, and the destination
+        // would be drawn from that cache.
+        hardNavigate(usable ? next : "/system");
       } else {
         const data = await res.json();
         setError(data.detail || "Authentication failed.");

@@ -21,12 +21,15 @@ const auth = {
   refetchAuth: vi.fn(),
 };
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+const { hardNavigate } = vi.hoisted(() => ({ hardNavigate: vi.fn() }));
+vi.mock("../../lib/hardNavigate", () => ({ hardNavigate }));
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
 }));
 
 beforeEach(() => {
   auth.isAdmin = false;
+  hardNavigate.mockClear();
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })),
@@ -172,5 +175,25 @@ describe("Nav - the log in link's next", () => {
     for (const link of screen.getAllByRole("link", { name: /log in/i })) {
       expect(link).toHaveAttribute("href", "/login");
     }
+  });
+});
+
+describe("Nav - logging out", () => {
+  // The leak this pins: signing out only swapped the auth snapshot, so every
+  // answer React Query had already cached for the outgoing account kept being
+  // served - a dashboard still showing that account's rows to a guest. A full
+  // load of the same page is what evicts them.
+  it("reloads the page it is on rather than routing to it", async () => {
+    auth.isAdmin = true;
+    const user = userEvent.setup();
+    renderNav("/statistics?tab=anime");
+
+    await user.click(screen.getByRole("button", { name: /log out/i }));
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/logout",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(hardNavigate).toHaveBeenCalledWith("/statistics?tab=anime");
   });
 });
