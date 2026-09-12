@@ -19,7 +19,7 @@ def test_mode_sets_reads_the_modes_items(db_session):
     safe = _safe(db_session)
     sets = cache.mode_sets(db_session, safe.system_id)
     assert "sources_restricted" not in sets.field_groups
-    assert "credits" in sets.field_groups
+    assert "sources_other" in sets.field_groups
     assert sets.label_ids == frozenset()
 
 
@@ -65,7 +65,7 @@ def test_denials_for_reads_both_kinds(db_session, admin_user):
     )
     db_session.add(
         models.UserAccessModeDenial(
-            user_access_mode_id=grant.system_id, field_group_key="credits"
+            user_access_mode_id=grant.system_id, field_group_key="sources_other"
         )
     )
     db_session.flush()
@@ -73,4 +73,4 @@ def test_denials_for_reads_both_kinds(db_session, admin_user):
 
     denials = cache.denials_for(db_session, grant.system_id)
     assert denials.label_ids == frozenset({label.system_id})
-    assert denials.field_groups == frozenset({"credits"})
+    assert denials.field_groups == frozenset({"sources_other"})

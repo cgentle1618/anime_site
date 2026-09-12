@@ -42,7 +42,6 @@ def test_group_covers_at_least_one_surface(key):
         or any(link_fields_for(group, mt) for mt in MEDIA_TYPE_KEYS)
         or group.note_sections
         or group.source_buckets
-        or group.ui_block
     )
     assert covers, f"{key} gates nothing"
 
@@ -90,13 +89,36 @@ def test_source_other_is_gated_on_every_media_type():
     assert group.source_buckets == ("other",)
 
 
-def test_credits_group_gates_credits_but_not_tags():
-    """Genre and era are content vocabulary, not people; they stay visible."""
-    group = FIELD_GROUPS["credits"]
-    assert "studio" in link_fields_for(group, "anime")
-    assert "director" in link_fields_for(group, "anime")
-    assert "genre_main" not in link_fields_for(group, "anime")
-    assert "era" not in link_fields_for(group, "comic")
+def test_no_group_gates_credits_or_system_info():
+    """Both left this axis, for opposite reasons.
+
+    `credits` is ungated entirely - studio and director are what an entry IS,
+    and there was never a case for withholding them. `system_info` became the
+    role permission `view.system_info`, held by super and admin: who may read
+    an entry's timestamps is a property of the account rather than a ceiling
+    on what the session may reach.
+    """
+    assert "credits" not in FIELD_GROUPS
+    assert "system_info" not in FIELD_GROUPS
+
+    # No survivor picked them up by accident.
+    for key, group in FIELD_GROUPS.items():
+        for media_type in MEDIA_TYPE_KEYS:
+            assert "studio" not in link_fields_for(group, media_type), key
+            assert "created_at" not in columns_for(group, media_type), key
+
+
+def test_no_group_declares_a_frontend_block():
+    """There is no `ui_block` field.
+
+    One named the SPA component a group hides and read as a wiring mechanism
+    in the module docstring, but nothing in `app/` ever loaded it: the SPA
+    hides those blocks by checking the permission, with the component named in
+    JSX. A string documenting a mapping the code does not make is worse than
+    no string.
+    """
+    for key, group in FIELD_GROUPS.items():
+        assert not hasattr(group, "ui_block"), key
 
 
 def test_every_gated_bucket_is_a_real_bucket():

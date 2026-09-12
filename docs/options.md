@@ -42,7 +42,7 @@ code.
 
 | Tier | Lives in | Who changes it | Read by the frontend via | Examples |
 |---|---|---|---|---|
-| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.credits` |
+| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_other` |
 | 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 

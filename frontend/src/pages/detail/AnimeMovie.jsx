@@ -115,7 +115,7 @@ const lineageLinkCls =
 export default function AnimeMovie() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, isSuperuser } = useAuth();
   const { showToast } = useToast();
 
   const [movie, setMovie] = useState(null);
@@ -295,9 +295,12 @@ export default function AnimeMovie() {
               >
                 Anime · Movie
               </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding
-                  it tidies the spine rather than concealing the value. */}
-              {has("field_group.system_info") && (
+              {/* Cosmetic only: the id is this page's own URL, so hiding it
+                  tidies the spine rather than concealing the value. Gated on
+                  is_superuser rather than a permission - `super` is
+                  deliberately NOT a superuser, and this is the one thing in
+                  the app only the owner's own account sees. */}
+              {isSuperuser && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -372,7 +375,6 @@ export default function AnimeMovie() {
               malScore={movie.mal_rating}
               malRank={movie.mal_rank}
               anilistScore={movie.anilist_rating}
-              updatedAt={movie.updated_at}
             />
           </header>
 

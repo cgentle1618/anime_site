@@ -8,9 +8,12 @@ autoflush and the value would be gone for everyone, permanently. Since
 Task 7, sources_other gates the `other` media_source bucket instead: the
 withheld rows are simply left out of the query in
 services.domain.sources.attach_sources, so there is no live-instance
-mutation to guard against for this group. See tests/api/test_field_gating.py
-'s system_info section below for the columns flavour's own version of that
-guard, which still applies to created_at/updated_at.
+mutation to guard against for this group. No group gates a real column at
+all any more - created_at/updated_at were the last two and are now served to
+everybody - so the copy-not-setattr rule is currently unexercised by any
+group. The section below keeps testing it against the mechanism rather than
+against a group, because the next column group added will need it and will
+not come with its own reason to remember.
 """
 
 import uuid
@@ -183,10 +186,16 @@ def test_gating_does_not_erase_the_stored_row(
 
 
 # ---------------------------------------------------------------------------
-# Credits are a field group too
+# Credits are not gated at all any more
 # ---------------------------------------------------------------------------
+# Studio, director and the rest are what an entry IS. There was never a case
+# for withholding them, so the field group is gone and nothing replaced it -
+# not a role permission either. These two are the regression guard: the
+# narrowest viewer this suite can build still gets both the legacy strings and
+# the linkable refs.
 
-def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
+
+def test_credits_are_served_to_the_narrowest_viewer(client, db_session, sample_anime):
     studio = models.Studio(system_id=uuid.uuid4(), name_en="Zvornik Studio")
     db_session.add(studio)
     db_session.flush()
@@ -200,26 +209,20 @@ def test_a_gated_credit_link_field_is_blank(client, db_session, sample_anime):
     )
     db_session.flush()
 
-    # Holding the group: the studio name is served.
-    assert "Zvornik Studio" in client.get("/api/anime/").text
-
     make_viewer(
         db_session,
         client,
         "nocredits",
         default_guest_permissions(),
-        field_groups=all_field_group_keys() - {"credits"},
+        field_groups=(),
     )
-    assert "Zvornik Studio" not in client.get("/api/anime/").text
+    assert "Zvornik Studio" in client.get("/api/anime/").text
 
 
-def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
-    """
-    credit_refs names the same people the legacy strings do, so withholding
-    Credits must take it as well - a linkable ref leaks the same name the
-    string does. It is a dict, so the blank is {}, not None: the response
-    field does not accept None and a 500 would be the alternative.
-    """
+def test_credit_refs_are_served_too(client, db_session, sample_anime):
+    """credit_refs names the same people the legacy strings do, so the two
+    have to agree about being ungated; a divergence would show as a linkable
+    ref for a name the string withheld."""
     person = models.Person(system_id=uuid.uuid4(), name_en="Zvornik Composer")
     db_session.add(person)
     db_session.flush()
@@ -233,19 +236,17 @@ def test_gating_empties_credit_refs_too(client, db_session, sample_anime):
     )
     db_session.flush()
 
-    body = client.get(f"/api/anime/{sample_anime.system_id}").json()
-    assert body["credit_refs"]["composer"][0]["display_name"] == "Zvornik Composer"
-
     make_viewer(
         db_session,
         client,
-        "nocredits2",
+        "norefs",
         default_guest_permissions(),
-        field_groups=all_field_group_keys() - {"credits"},
+        field_groups=(),
     )
     body = client.get(f"/api/anime/{sample_anime.system_id}").json()
-    assert body["credit_refs"] == {}
-    assert "Zvornik Composer" not in client.get("/api/anime/").text
+    assert body["credit_refs"]["composer"][0]["display_name"] == "Zvornik Composer"
+    # And the legacy string beside it, so the two cannot diverge unnoticed.
+    assert "Zvornik Composer" in client.get("/api/anime/").text
 
 
 # ---------------------------------------------------------------------------
@@ -308,86 +309,119 @@ def test_a_gated_note_section_is_withheld(
 
 
 # ---------------------------------------------------------------------------
-# System info: the timestamps
+# The timestamps are not gated, by anything, for anybody
 # ---------------------------------------------------------------------------
-# system_id is deliberately NOT gated. It is the route parameter of the page
+# `created_at`/`updated_at` were the whole of the old `system_info` field
+# group. They say when the CATALOGUE ROW was last edited - a fact about the
+# database rather than about the work - and no page displays them, so there is
+# nothing for a gate to protect. The group went; nothing replaced it.
+#
+# `system_id` was never gated either: it is the route parameter of the page
 # the viewer is already on, so withholding it would break navigation without
-# concealing anything - the detail pages hide the spine text as presentation
-# only. created_at/updated_at are in no URL and nothing routes on them, so
-# they are the half that can actually be withheld.
+# concealing anything. The decorative copy printed down a detail page's spine
+# is drawn on `is_superuser` in the SPA, which is presentation and not a gate.
 
 
 @pytest.fixture
-def no_system_info_client(client, db_session):
+def narrowest_client(client, db_session):
+    """The narrowest viewer this suite can build: guest permissions, and not
+    one field group. If anything were still gating the timestamps, they would
+    be null here."""
     return make_viewer(
         db_session,
         client,
-        "nosysteminfo",
+        "narrowest",
         default_guest_permissions(),
-        field_groups=all_field_group_keys() - {"system_info"},
+        field_groups=(),
     )
 
 
-def test_timestamps_are_null_in_the_list(no_system_info_client, anime_with_sources):
-    body = no_system_info_client.get("/api/anime/").json()
+def test_the_narrowest_viewer_sees_the_timestamps_in_the_list(
+    narrowest_client, anime_with_sources
+):
+    body = narrowest_client.get("/api/anime/").json()
     row = next(e for e in body if e["system_id"] == str(anime_with_sources.system_id))
-    assert row["created_at"] is None
-    assert row["updated_at"] is None
+    assert row["created_at"] is not None
+    assert row["updated_at"] is not None
 
 
-def test_timestamps_are_null_in_the_detail(no_system_info_client, anime_with_sources):
-    """
-    Also the regression guard for AnimeResponse: its timestamps were the only
-    required ones of the eight, so a gated copy failed response validation and
-    the route answered 500 rather than a blanked entry.
-    """
-    response = no_system_info_client.get(f"/api/anime/{anime_with_sources.system_id}")
+def test_the_narrowest_viewer_sees_them_in_the_detail(
+    narrowest_client, anime_with_sources
+):
+    """Also the regression guard for AnimeResponse: its timestamps were the
+    only required ones of the eight, which is why they are Optional now."""
+    response = narrowest_client.get(f"/api/anime/{anime_with_sources.system_id}")
     assert response.status_code == 200
     body = response.json()
-    assert body["created_at"] is None
-    assert body["updated_at"] is None
+    assert body["created_at"] is not None
+    assert body["updated_at"] is not None
 
 
-def test_the_entry_id_is_not_gated(no_system_info_client, anime_with_sources):
+def test_a_logged_out_visitor_sees_them_too(client, anime_with_sources):
+    body = client.get(f"/api/anime/{anime_with_sources.system_id}").json()
+    assert body["updated_at"] is not None
+
+
+def test_the_factory_routers_do_not_gate_them_either(
+    narrowest_client, movie_with_sources
+):
+    body = narrowest_client.get(
+        f"/api/movies/{movie_with_sources.system_id}"
+    ).json()
+    assert body["created_at"] is not None
+    assert body["updated_at"] is not None
+
+
+def test_the_entry_id_is_not_gated(narrowest_client, anime_with_sources):
     """Withholding the id would break every link on the page."""
-    body = no_system_info_client.get(
+    body = narrowest_client.get(
         f"/api/anime/{anime_with_sources.system_id}"
     ).json()
     assert body["system_id"] == str(anime_with_sources.system_id)
 
 
-def test_the_factory_routers_gate_the_timestamps(
-    no_system_info_client, movie_with_sources
+def test_gating_a_column_does_not_erase_it_from_the_database(
+    client, db_session, anime_with_sources, monkeypatch
 ):
-    body = no_system_info_client.get(
-        f"/api/movies/{movie_with_sources.system_id}"
-    ).json()
-    assert body["created_at"] is None
-    assert body["updated_at"] is None
+    """The copy-not-setattr rule, kept alive without a real column group.
 
+    No field group gates a real column today, so this stands one up: a probe
+    group covering `created_at`, held by nobody. The rule it protects is the
+    expensive kind - nulling a column on a live ORM instance marks the entity
+    dirty, and the next autoflush writes the blank to disk, so gating would
+    become silent, permanent data loss. The next columns group added inherits
+    that hazard and will not arrive with its own reminder.
+    """
+    from app.services.rbac.field_groups import ALL, FIELD_GROUPS, FieldGroup
 
-def test_a_holder_still_sees_the_timestamps(client, anime_with_sources):
+    monkeypatch.setitem(
+        FIELD_GROUPS,
+        "timestamps_probe",
+        FieldGroup(
+            key="timestamps_probe",
+            label="Probe",
+            description="",
+            columns={ALL: ("created_at",)},
+        ),
+    )
+    make_viewer(
+        db_session,
+        client,
+        "probed",
+        default_guest_permissions(),
+        field_groups=(),
+    )
+    stored = anime_with_sources.created_at
+
     body = client.get(f"/api/anime/{anime_with_sources.system_id}").json()
+    assert body["created_at"] is None
+    # The mirror: a column the probe does not name is untouched, so the null
+    # above is the gate acting and not the whole response collapsing.
     assert body["updated_at"] is not None
-
-
-def test_admin_still_sees_the_timestamps(admin_client, anime_with_sources):
-    body = admin_client.get(f"/api/anime/{anime_with_sources.system_id}").json()
-    assert body["updated_at"] is not None
-
-
-def test_gating_does_not_erase_the_stored_timestamps(
-    no_system_info_client, db_session, anime_with_sources
-):
-    """The copy-not-setattr rule, for the columns SQLAlchemy maintains itself."""
-    no_system_info_client.get(f"/api/anime/{anime_with_sources.system_id}")
-    no_system_info_client.get("/api/anime/")
 
     db_session.expire_all()
-    stored = db_session.get(models.Anime, anime_with_sources.system_id)
-    assert stored.created_at is not None
-    assert stored.updated_at is not None
-
+    fresh = db_session.get(models.Anime, anime_with_sources.system_id)
+    assert fresh.created_at == stored
 
 # ---------------------------------------------------------------------------
 # media_source buckets: partial gating, filtered at attach time

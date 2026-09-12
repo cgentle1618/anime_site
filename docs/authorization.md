@@ -125,8 +125,6 @@ groups and nothing else; there is no column on `access_mode_label` or
 | every content label that exists | **always, derived** | at seed time | — | — |
 | `field_group.sources_other` | yes | yes | yes | derived from guest |
 | `field_group.personal_notes` | yes | yes | yes | derived from guest |
-| `field_group.system_info` | yes | yes | yes | derived from guest |
-| `field_group.credits` | yes | yes | yes | derived from guest |
 | `field_group.sources_restricted` | yes | yes | yes | **—** |
 
 - **`unrestricted` is DERIVED; every other mode is a row set.** Its sets are
@@ -212,8 +210,6 @@ this is what carrying it means.
 | `field_group.sources_other` | gets a source list with the `other` bucket missing | yes | yes | yes | from guest |
 | `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | yes | yes | yes | **—** |
 | `field_group.personal_notes` | cannot read **another** user's personal notes; its own are never withheld | yes | yes | yes | from guest |
-| `field_group.system_info` | gets no created/updated timestamps, and no id down the poster spine | yes | yes | yes | from guest |
-| `field_group.credits` | gets every credit link blank — studio, director, … | yes | yes | yes | from guest |
 
 Which fields each group covers is [Field groups](#field-groups); it is not
 restated here, or the two copies drift.
@@ -352,8 +348,19 @@ personal-scope note write. See [Note scope](#note-scope) below.
 | `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, on every media type | fifth `FieldGroup` flavour, `source_buckets`; filtered inside `attach_sources` before the response is built (not `field_gate.gate()` — see below) |
 | `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, on every media type | same flavour, `source_buckets=("restricted",)` |
 | `personal_notes` | Personal Reviews | reading **another user's** personal notes, through `GET /api/notes?author=<username>` | Narrow by design: personal sections filter by `author_id` on the entry page, so this group withholds nothing a viewer wrote themselves. See [Note scope](#note-scope) |
-| `system_info` | System Info | `created_at` / `updated_at` on every media type, plus the entry id printed down a detail page's poster spine | timestamps are real columns, stripped from a copy; the spine id is `ui_block` only |
-| `credits` | Credits | every credit-kind link field (studio, director, …), derived from `credit_roles` | link attrs blanked before response |
+Three groups, and all three are genuinely object-scoped. Two others used to
+be here:
+
+- **`credits` is ungated.** Studio, director and the rest are what an entry
+  *is*, and there was never a case for withholding them from anyone. Nothing
+  replaced it — not a role permission either.
+- **`system_info` is gone too, and became nothing.** It gated
+  `created_at` / `updated_at` — when the catalogue *row* was last edited,
+  which is a fact about the database rather than about the work, and which no
+  page displays. Nothing withheld it usefully, so the group went and no
+  permission replaced it. See
+  [The entry id on the poster spine](#the-entry-id-on-the-poster-spine) for
+  the one visible thing it also named.
 
 `sources_other` points at the `other` bucket of `media_source`.
 
@@ -378,20 +385,33 @@ viewer may hold `sources_other` and not `sources_restricted`, so the whole
 `media_source` with the withheld buckets excluded and sets `entry.sources` to
 the result; `field_gate.gate()` never sees it.
 
-Each `FieldGroup` may also carry a `ui_block` name for a block the SPA hides
-itself. `tests/unit/test_field_groups.py` asserts every declared column and
-link field still exists (drift test).
+`tests/unit/test_field_groups.py` asserts every declared column and link
+field still exists (drift test).
 
-**`system_info` gates two things at two strengths, deliberately.** Its
-timestamps are withheld for real — they appear in no URL and nothing routes on
-them. Its `system_id` is not gated at all: that id is the route parameter of
-the page the viewer is already on (`/anime/<system_id>`), as well as the query
-cache key, the notes owner and every link out, so withholding it would break
-navigation while concealing nothing. Hiding the spine text is presentation, and
-the code says so. This is not a hole — an id is not a credential here; a hidden
-entry is protected by `entry_visible` answering 404, and a viewer can only
-learn an id for an entry they were already allowed to see. Removing the id from
-the UI entirely would mean routing on slugs instead of UUIDs.
+**There is no `ui_block` field.** One used to name the SPA component a group
+hides — `"info.SourcesCard.other"` — and the module docstring described it as
+a mechanism, but nothing in `app/` ever read it and nothing was served from
+it: the SPA hides those blocks by checking the permission, with the component
+named in JSX. A string documenting a mapping the code does not make is worse
+than no string, because the next reader changes it and expects an effect.
+
+#### The entry id on the poster spine
+
+**`system_id` is not gated at all**, and never was. That id is the route
+parameter of the page the viewer is already on (`/anime/<system_id>`), as well
+as the query cache key, the notes owner and every link out, so withholding it
+would break navigation while concealing nothing. This is not a hole — an id is
+not a credential here; a hidden entry is protected by `entry_visible`
+answering 404, and a viewer can only learn an id for an entry they were
+already allowed to see. Removing it from the UI entirely would mean routing on
+slugs instead of UUIDs.
+
+A decorative copy of it is printed down the spine of a detail page's poster,
+and **that block is drawn on `is_superuser`** — not on a permission, and
+deliberately not on `super`, which is not a superuser. There is nothing to
+gate server-side, so there is no permission to invent: the SPA reads the
+`is_superuser` field `/api/auth/me` already carries. It is presentation, like
+every `has()` call that hides a block the server has already emptied.
 
 Withheld fields are **absent, not blanked**, in the UI as well as the API: the
 "Last updated" figure is dropped rather than showing `—`, for the same reason
@@ -413,9 +433,9 @@ Edit the `columns` mapping on a group. `ALL` (`"*"`) means every media type;
 otherwise key by the **hyphenated** media type. Both forms merge.
 
 ```python
-"system_info": FieldGroup(
+"sources_other": FieldGroup(
     ...
-    columns={ALL: ("created_at", "updated_at")},   # every type
+    columns={ALL: ("some_column",)},   # every type
 ),
 # or, for columns that only exist on some types:
     columns={"anime": ("mal_rank",), "tv-show": ("imdb_rating",)},
@@ -431,8 +451,8 @@ the vocabulary is code, only the grants are rows. Restart to pick it up.
    response is a copy with the column set to `None`, and FastAPI re-validates
    it against the route's `response_model`. A required field means the route
    answers **500** instead of a blanked entry. `AnimeResponse` was the one
-   schema with required timestamps and had to be widened before `system_info`
-   could gate them.
+   schema with required timestamps and had to be widened before they could be
+   gated at all.
 2. **Never gate a column the SPA routes on.** `system_id` is the route
    parameter, the query cache key and the notes owner id; withholding it breaks
    navigation and conceals nothing, since it is the page's own URL.
@@ -725,7 +745,8 @@ request".
 
 - **Link fields** (credits) are plain attributes attached at read time by
   `attach_link_fields`, so they are blanked in place — nothing to flush.
-- **Real columns** (`created_at`/`updated_at` under `system_info`) are
+- **Real columns** (no group gates one today; `created_at`/`updated_at` were
+  the last and are now served to everyone) are
   stripped from a **copy**: `schema.model_validate(entry).model_copy(update=
   {col: None})`. Never `setattr` on a live ORM row — autoflush would persist
   the blank and gating would become silent data loss.
@@ -1088,8 +1109,10 @@ What an admin can change from the browser, and what needs a commit:
 | which field groups exist | | `field_groups.py` |
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
-A field group's `ui_block` is hidden by the SPA itself: the detail pages read
-`useAuth().has("field_group.system_info")` to drop the poster-spine id.
+Some blocks the SPA hides itself: the detail pages read
+`useAuth().isSuperuser` to draw the poster-spine id. The component is named in
+JSX, not declared anywhere server-side — there is no `ui_block` field and
+never was a mapping behind it.
 Where the server already blanks the value there is nothing to ask —
 `ScoreBlock.jsx` drops its "Last updated" figure on a null timestamp, so the
 component stays presentational. Either way this is cosmetic; every gate that
@@ -1110,7 +1133,7 @@ matters is enforced server-side.
 | `tests/api/test_catalog_router_gates.py` | a `super` account may edit the catalogue, an ordinary `user` may not - one representative route per router family, pinning that the *right* capability was chosen |
 | `tests/api/test_no_bare_admin_permission.py` | the bare `admin` permission is absent from `static_catalog()`, and no module imports a single all-powerful admin dependency |
 | `tests/api/test_media_type_gating.py` | whole type disappears, 404 on detail |
-| `tests/api/test_field_gating.py` | column and link stripping, DB untouched, `system_info` timestamps null while `system_id` survives |
+| `tests/api/test_field_gating.py` | link and source stripping; the narrowest viewer there is still gets credits, both timestamps and `system_id`; and a probe group stands the columns flavour up so the copy-not-setattr rule stays tested with no real column group left |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |

@@ -17,7 +17,7 @@ from app.services.rbac.seed_modes import (
 def test_field_groups_still_appear_in_permissions(mode_client):
     body = mode_client(MODE_NORMAL).get("/api/auth/me").json()
     assert "field_group.sources_restricted" in body["permissions"]
-    assert "field_group.credits" in body["permissions"]
+    assert "field_group.sources_other" in body["permissions"]
 
 
 def test_a_narrow_mode_withholds_them(mode_client):
@@ -25,7 +25,25 @@ def test_a_narrow_mode_withholds_them(mode_client):
     database it carries everything except sources_restricted."""
     body = mode_client(MODE_SAFE).get("/api/auth/me").json()
     assert "field_group.sources_restricted" not in body["permissions"]
-    assert "field_group.credits" in body["permissions"]
+    assert "field_group.sources_other" in body["permissions"]
+
+
+def test_neither_credits_nor_system_info_is_a_field_group_any_more(mode_client):
+    """Both left, for different reasons, and neither became a permission.
+
+    `credits` is ungated - studio and director are what an entry IS.
+    `system_info` was two timestamps nothing displays plus a decorative id,
+    so the whole group went rather than moving axis; the id that survives on
+    a detail page spine is drawn on `is_superuser`, which /me already carries
+    as its own field.
+    """
+    for key in (MODE_NORMAL, MODE_SAFE):
+        held = mode_client(key).get("/api/auth/me").json()["permissions"]
+        for gone in ("field_group.credits", "field_group.system_info"):
+            assert gone not in held, gone
+        # The mirror: the three surviving groups still arrive, so the green
+        # above is these two being gone and not the merge being dropped.
+        assert "field_group.sources_other" in held
 
 
 def test_narrowing_the_mode_does_not_take_away_what_the_account_may_do(
@@ -71,8 +89,9 @@ def test_labels_stay_out_of_the_payload(mode_client, nsfw_label):
 def test_a_guest_gets_the_guest_default_modes_groups(client, access_modes):
     body = client.get("/api/auth/me").json()
     assert body["mode"]["key"] == MODE_SAFE
-    assert "field_group.credits" in body["permissions"]
+    assert "field_group.sources_other" in body["permissions"]
     assert "field_group.sources_restricted" not in body["permissions"]
+
 
 
 # ---------------------------------------------------------------------------
