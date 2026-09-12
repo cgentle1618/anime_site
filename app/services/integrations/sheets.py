@@ -262,8 +262,12 @@ def bulk_overwrite_sheet(tab_name: str, data_matrix: List[List[Any]]) -> bool:
     if len(data_matrix) < 2:
         # Headers and no data rows. Harmless over an already-empty tab; over a
         # populated one it is the destructive case above.
+        # gspread answers an EMPTY cell with [[]] - one empty row - not with
+        # [], so truthiness alone reports "the sheet has data" for every
+        # already-empty tab and refuses the backup. Ask whether any cell
+        # actually holds a value.
         existing_first_data_row = _execute_with_retry(worksheet.get, "A2:A2")
-        if existing_first_data_row:
+        if any(any(cell for cell in row) for row in existing_first_data_row):
             raise ValueError(
                 f"Refusing to blank tab '{tab_name}': the table being backed up "
                 "has no rows, but the sheet does. That means this database is "
