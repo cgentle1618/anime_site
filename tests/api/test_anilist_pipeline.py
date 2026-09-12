@@ -6,6 +6,8 @@ null for obscure entries, so if it ever reached ANIME_FIELDS_TO_FILL those
 entries would be re-requested on every run for ever.
 """
 
+import uuid
+
 from app.services.pipelines.specs import PIPELINES
 from app.utils.utils import (
     ANIME_FIELDS_TO_FILL,
@@ -77,3 +79,44 @@ def test_manga_fill_gives_anilist_the_session(monkeypatch, db_session, sample_ma
 
     assert seen["db"] is db_session
     assert seen["type"] == "MANGA"
+
+
+def test_novel_with_no_mal_link_uses_openlibrary_not_anilist(
+    monkeypatch, db_session, sample_franchise
+):
+    """
+    _fill_novel is the single non-uniform routing arm: a mal_link means
+    Tenrai (+ AniList), no mal_link means Open Library only. Nothing else
+    covered this branch, so a future edit could route an Open Library-only
+    novel into AniList (which has nothing to key on without a mal_id)
+    silently.
+    """
+    from app import models
+    from app.services.pipelines import specs as specs_module
+
+    novel = models.Novel(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        novel_name_en="Test Novel",
+    )
+    db_session.add(novel)
+    db_session.flush()
+    assert novel.mal_link is None
+
+    called = []
+    monkeypatch.setattr(
+        specs_module, "autofill_novel_from_openlibrary",
+        lambda e, db: called.append("openlibrary"),
+    )
+    monkeypatch.setattr(
+        specs_module, "autofill_novel_from_mal",
+        lambda e, force_replace_ratings=True: called.append("mal"),
+    )
+    monkeypatch.setattr(
+        specs_module, "autofill_from_anilist",
+        lambda e, t, db=None: called.append(f"anilist:{t}"),
+    )
+
+    PIPELINES["novel"].fill(db_session, novel)
+
+    assert called == ["openlibrary"]

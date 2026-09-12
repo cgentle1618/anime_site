@@ -381,9 +381,10 @@ export default function AnimeAddTab({
         <Field label="AniList Rating">
           <input
             className={inputCls}
+            type="number"
             value={af.anilist_rating}
             onChange={(e) => ua("anilist_rating", e.target.value)}
-            placeholder="e.g. 85%"
+            placeholder="85"
           />
         </Field>
         <Field label="AniList Rank">

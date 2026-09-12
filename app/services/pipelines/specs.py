@@ -81,7 +81,12 @@ from app.services.domain import (
     manga_post_processing,
     tv_show_post_processing,
 )
-from app.services.integrations.anilist import ANIME, MANGA, prime_anilist_cache
+from app.services.integrations.anilist import (
+    ANIME,
+    MANGA,
+    prime_anilist_cache,
+    reset_anilist_cache,
+)
 from app.services.integrations.comicvine import comicvine_rate_limiter
 from app.services.integrations.steam import (
     reset_owned_games_cache,
@@ -159,6 +164,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime(e),
         fill=_fill_anime,
         pre_run=lambda db: prime_anilist_cache(db, Anime, ANIME),
+        post_run=lambda db: reset_anilist_cache(),
         fill_sleep=MAL_PAUSE,
         post_process=anime_post_processing,
         fill_after=(
@@ -180,6 +186,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_anime_movie(e),
         fill=_fill_anime_movie,
         pre_run=lambda db: prime_anilist_cache(db, AnimeMovies, ANIME),
+        post_run=lambda db: reset_anilist_cache(),
         fill_sleep=MAL_PAUSE,
         post_process=anime_movie_post_processing,
         fill_after=(("Syncing system options...", run_sync_anime_movie),),
@@ -230,6 +237,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         fill_eligible=lambda db, e: e.mal_id is not None and has_missing_values_manga(e),
         fill=_fill_manga,
         pre_run=lambda db: prime_anilist_cache(db, Manga, MANGA),
+        post_run=lambda db: reset_anilist_cache(),
         fill_sleep=MAL_PAUSE,
         post_process=manga_post_processing,
         fill_after=(("Syncing system options...", run_sync_manga),),
@@ -262,6 +270,7 @@ PIPELINES: dict[str, PipelineSpec] = {
         ),
         fill=_fill_novel,
         pre_run=lambda db: prime_anilist_cache(db, Novel, MANGA),
+        post_run=lambda db: reset_anilist_cache(),
         fill_sleep=MAL_PAUSE,
         fill_after=(("Syncing system options...", run_sync_novel),),
         replace_select=_linked(Novel, Novel.mal_id, Novel.mal_link),

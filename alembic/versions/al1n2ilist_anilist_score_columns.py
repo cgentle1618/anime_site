@@ -1,7 +1,7 @@
 """anilist score and rank columns
 
 Revision ID: al1n2ilist
-Revises: b1n2amealign
+Revises: s1r2rootflag
 Create Date: 2026-09-12
 
 anilist_rating already existed as a hand-typed String and was filled on 0 of

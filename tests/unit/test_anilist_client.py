@@ -305,6 +305,46 @@ def test_priming_clears_the_previous_run(monkeypatch):
     assert anilist_record(5114, ANIME) is None
 
 
+def test_a_lookup_after_the_run_ends_refetches_instead_of_serving_a_stale_record(
+    monkeypatch,
+):
+    """
+    Regression for the process-scoped cache: prime_anilist_cache() only ever
+    reset _primed at the START of the next bulk run. Nothing reset it at the
+    END of one, so `_primed` stayed set for the life of the uvicorn process
+    and a single-entry Replace run a week later would silently serve that
+    old batch's answer - or its absence - making zero requests.
+
+    reset_anilist_cache() is now wired as `post_run` on the four AniList
+    specs (runner.py's run_fill/run_replace call it in a finally), so it
+    fires when the bulk run that primed the cache ends. This test plays
+    that sequence directly against the cache module: prime, then the
+    run-end reset, then confirm a lookup for the same id goes back out to
+    AniList rather than reusing the run's answer.
+    """
+    monkeypatch.setattr(
+        anilist_module,
+        "fetch_anilist_batch",
+        lambda ids, t: {5114: {"idMal": 5114, "averageScore": 90, "rankings": []}},
+    )
+    prime_anilist_cache(FakeDb([5114]), FakeModel, ANIME)
+    assert anilist_record(5114, ANIME)["averageScore"] == 90
+
+    # The mirror of pre_run, fired once the bulk run ends.
+    reset_anilist_cache()
+
+    calls = []
+
+    def fresh_batch(ids, media_type):
+        calls.append(list(ids))
+        return {5114: {"idMal": 5114, "averageScore": 77, "rankings": []}}
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fresh_batch)
+
+    assert anilist_record(5114, ANIME)["averageScore"] == 77
+    assert calls == [[5114]], "the id must be re-requested, not served from the ended run's cache"
+
+
 def test_an_entry_with_no_mal_id_is_not_requested(monkeypatch):
     """
     The filter, not the empty case: a row whose mal_id is NULL must be dropped

@@ -189,11 +189,15 @@ def test_an_entry_with_no_mal_id_is_skipped(db_session, sample_anime, monkeypatc
     assert sample_anime.anilist_rating is None
 
 
-def test_no_session_means_no_source_row_and_no_crash(sample_anime, monkeypatch):
-    """The pure-mapping call path passes no db; columns still fill."""
+def test_no_session_means_no_source_row_and_no_crash(
+    db_session, sample_anime, monkeypatch
+):
+    """The pure-mapping call path passes no db; columns still fill, but with
+    no session to write through, no media_source row is created either."""
     patch_record(monkeypatch, FULL)
     sample_anime.mal_id = 5114
 
     autofill_from_anilist(sample_anime, ANIME, db=None)
 
     assert sample_anime.anilist_rating == 90
+    assert ANILIST_VALUE not in _source_rows(db_session, sample_anime)

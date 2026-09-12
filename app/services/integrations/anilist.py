@@ -166,7 +166,11 @@ def fetch_anilist_batch(mal_ids: List[int], media_type: str) -> Dict[int, Dict[s
 # One Fill or Replace run fetches every entry's scores in blocks of 50 and
 # reads them back per entry. prime_anilist_cache() is how a pipeline run says
 # "start fresh"; it is wired as `pre_run` on the four specs, which fires once
-# before any entry is queued.
+# before any entry is queued. reset_anilist_cache() is also wired as `post_run`
+# on those same specs, firing once the run ends (success, failure, or client
+# disconnect) - without that, `_primed` would stay set for the life of the
+# uvicorn process, and the single-entry Replace hook below would read a stale
+# cached record instead of making a fresh request.
 #
 # _cache holds (mal_id, media_type) -> record-or-None. _primed holds the media
 # types a bulk prime has already covered, and it is what separates the two
@@ -174,9 +178,11 @@ def fetch_anilist_batch(mal_ids: List[int], media_type: str) -> Dict[int, Dict[s
 #
 #   * primed and absent  - the batch ran, AniList has no record. Return None
 #     and do NOT re-request; re-fetching per entry would undo the batching.
-#   * never primed       - no bulk run is in progress. This is the single-entry
-#     Replace hook, which runner.py deliberately does not give a pre_run, so
-#     fetch that one id on demand or it would silently write nothing.
+#   * never primed       - no bulk run is in progress (either none has run
+#     yet, or the last one's post_run already reset this). This is the
+#     single-entry Replace hook, which runner.py deliberately does not give a
+#     pre_run or post_run, so fetch that one id on demand or it would
+#     silently write nothing.
 
 _cache: Dict[tuple, Any] = {}
 _primed: set = set()
