@@ -15,13 +15,13 @@ ensure_rbac_seed and the Users tab carries only the role NAME), so no sheet
 header changes and Backup/Pull are unaffected.
 
 Revision ID: s1r2rootflag
-Revises: b1n2amealign
+Revises: g1u2i3d4e5s6
 """
 
 from alembic import op
 
 revision = "s1r2rootflag"
-down_revision = "b1n2amealign"
+down_revision = "g1u2i3d4e5s6"
 branch_labels = None
 depends_on = None
 
