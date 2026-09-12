@@ -1,6 +1,7 @@
 # AniList integration — score and rankings for anime, manga and novels — design
 
-Status: awaiting review
+Status: **SHIPPED 2026-09-12.** 297f710b..c9f066a8, plus the sheet round-trip
+test and this doc pass that close out Task 9.
 Date: 2026-09-12
 Branch: feat/anilist-api
 
@@ -298,3 +299,30 @@ Recorded now, so that marking it shipped can say whether it was right:
   anime. If Fill All's wall-clock turns out to be dominated by four primes
   rather than by the entries, the assumption was wrong and the hook ordering
   is worth revisiting after all.
+
+## What this spec got wrong
+
+- **"It reads the cache *in preference to* the network, not instead of it"
+  undersold the single-entry gap.** The spec named the fallback correctly but
+  did not flag it as a defect worth watching: `run_replace_single` genuinely
+  never calls `pre_run`, so every one-entry Replace was one on-demand fetch
+  away from writing nothing at all if `anilist_record`'s fallback had been
+  left out. The fallback was built alongside the cache from the start, so
+  nothing shipped broken — but the spec's phrasing reads as a deliberate
+  design choice narrated after the fact, not as the gap it actually is: a
+  hook contract (`pre_run` not firing for a single-entry write) that this
+  feature is the first to be tripped by.
+- **The overwrite-set count needed conscious widening, not just updating.**
+  The spec correctly predicted "nine fields to twelve" but that number lives
+  in prose in `docs/external-apis.md`, not in a constant — the tripwire test
+  guarding it had to be edited by hand to add the three new column names, and
+  a spec that only says the count changes reads as if the test would just
+  pass. It would not have; nothing catches a hand-maintained list falling out
+  of sync except a person reading the diff.
+- **Real-API verification surfaced no surprise, which is itself worth
+  recording.** A live Fill against 40 anime and 10 manga ids matched 100% of
+  the collection by `idMal`, and roughly a third of scored entries carried no
+  all-time rank — confirming the "absence is normal" design decision on real
+  data rather than only on the two probed examples in this spec. The design
+  did not need correcting on this point; it is recorded because an unsure
+  section that never gets resolved either way teaches nothing.

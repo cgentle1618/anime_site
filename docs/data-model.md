@@ -287,7 +287,9 @@ Model: `Anime`. CHECK: `ck_anime_release_date_iso`.
 | `ep_special` | Float | yes | | The episode number a special sits at (0, 14.5) - a position, not a count. Part of the duplicate key. |
 | `mal_rating` | Float | yes | | From Tenrai |
 | `mal_rank` | String | yes | | From Tenrai |
-| `anilist_rating` | String | yes | | |
+| `anilist_rating` | Integer | yes | | AniList `averageScore`, keyed on `mal_id`. From AniList - see [external-apis.md](external-apis.md#anilist) |
+| `anilist_rank` | Integer | yes | | AniList all-time rated rank. Null is common - not every scored title has one |
+| `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_season` | String | yes | | e.g. `WIN 2024` (RELEASE_SEASONS) - drives `seasonal` |
 | `release_date` | String | yes | | ISO date string |
 | `broadcast_day` | String | yes | | WEEKDAYS |
@@ -311,7 +313,10 @@ Model: `AnimeMovies`. CHECKs: `ck_anime_movies_release_date_jp_iso`,
 | `anime_movie_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
 | `airing_status` | String | yes | | AiringStatus |
 | `mal_rating` | Float | yes | | |
-| `mal_rank` / `anilist_rating` | String | yes | | |
+| `mal_rank` | String | yes | | |
+| `anilist_rating` | Integer | yes | | From AniList, keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
+| `anilist_rank` | Integer | yes | | AniList all-time rated rank |
+| `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `length_min` | Integer | yes | | Runtime in minutes |
 | `release_date_jp` | String | yes | | Preferred release date (RELEASE_PRIORITY) |
 | `release_date_tw` | String | yes | | |
@@ -403,11 +408,14 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `vol_total` | Integer | yes | | |
 | `ch_total` | Integer | yes | | |
 | `mal_rating` | Float | yes | | |
-| `mal_rank` / `anilist_rating` | String | yes | | |
+| `mal_rank` | String | yes | | |
+| `anilist_rating` | Integer | yes | | From AniList (queried as `MANGA`), keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
+| `anilist_rank` | Integer | yes | | AniList all-time rated rank |
+| `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
 | `anime_studio` | String | yes | | Studio of the anime adaptation (plain text) |
 | `mal_id` | Integer | yes | | Derived from `mal_link` (`MAL_MANGA_ID_PATTERN`) |
-| `mal_link` / `anilist_link` | String | yes | | |
+| `mal_link` | String | yes | | |
 
 Virtual: `remark`, `read_next`, `to_reread`, `display_name`,
 `author_plot` / `author_draw` / `publisher_tw` / `serialization_platform`
@@ -440,12 +448,15 @@ Alembic revision `nv1u2n3i4t5s`.
 | `arc_total` | Float | yes | | **Derived**: count of the novel's `novel_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_novel_progress`, called unconditionally by the router). Still a stored column - null on a novel with no arc rows, and null on every volume-only type (see below) |
 | `ch_total` | Float | yes | | **Derived**: sum of `ch_count` over the novel's arc rows; null on every volume-only type |
 | `mal_rating` | Float | yes | | |
-| `mal_rank` / `anilist_rating` | String | yes | | |
+| `mal_rank` | String | yes | | |
+| `anilist_rating` | Integer | yes | | From AniList (queried as `MANGA`), keyed on `mal_id` - see [external-apis.md](external-apis.md#anilist) |
+| `anilist_rank` | Integer | yes | | AniList all-time rated rank |
+| `anilist_popularity_rank` | Integer | yes | | AniList all-time popularity rank |
 | `release_date` / `end_date` | String | yes | | |
 | `is_main_entry` | Boolean | yes | | |
 | `read_order` | Float | yes | | Manual ordering within the group |
 | `mal_id` | Integer | yes | | |
-| `mal_link` / `anilist_link` | String | yes | | |
+| `mal_link` | String | yes | | |
 | `openlibrary_id` | String | yes | | Open Library work id (`"OL5738148W"`). **String**, unlike `comicvine_id`'s `Integer` - the trailing letter distinguishes a work (`OL…W`) from an edition (`OL…M`) or an author (`OL…A`), which a bare integer would discard |
 | `openlibrary_link` | String | yes | | The pasted Open Library work URL; `openlibrary_id` is derived from it |
 

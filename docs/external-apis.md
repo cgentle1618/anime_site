@@ -1,14 +1,14 @@
 # External APIs
 
-Last verified: 2026-09-08
+Last verified: 2026-09-12
 
 ## What this is for
 
-The app never asks you to type metadata that a public database already knows. Eight outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
+The app never asks you to type metadata that a public database already knows. Nine outside services feed it: **Tenrai** (a mirror of MyAnimeList) fills anime, anime movies, manga, novels and studios; **AniList** fills a second score and two all-time ranks on the same four title types, keyed on the `mal_id` they already carry; **TMDB** plus **OMDb** fill movies, TV shows and cartoons from an IMDb ID; **Comic Vine** fills comics; **Open Library** fills novels that have no MAL entry; **IGDB** and **Steam** together fill games — IGDB supplies the catalogue facts and the Steam appid, Steam fills prices, the Metacritic score and this collection's own playtime; and **Google Sheets** is the human-readable backup and restore source. Cover images are not an outside service any more: they are downloaded to local disk under `static/covers/`. This page says, for each service, where the code lives, what it sends, how it protects itself (throttle, retry, timeout), and exactly which database columns it writes. How those calls are strung into the Fill / Replace / Backup / Pull actions is in [data-actions.md](data-actions.md); the columns themselves are in [data-model.md](data-model.md); the "does this entry still need filling" tests and the ID-from-link rules are in [business-rules.md](business-rules.md) sections 2 and 5.
 
 **In the app**: the same coverage — every field each service writes, and whether it fills or replaces it — is served to admins at `GET /api/constants/external-apis` and rendered on the read-only **External APIs** page (`/external-apis`). That catalog lives in `app/services/integrations/catalog.py`; it is hand-authored against this document and the autofill code, and `tests/api/test_external_api_catalog.py` guards it from drifting (media keys against `PIPELINES`, column names against the model). This page keeps the mapping rules — how MAL's `aired.string` becomes a date, how a placeholder cover is spotted — that the catalog does not carry.
 
-Nine fields are overwritten on every run, not three: `mal_rating`, `mal_rank`, `imdb_rating`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)).
+Twelve fields are overwritten on every run, not three: `mal_rating`, `mal_rank`, `imdb_rating`, `anilist_rating`, `anilist_rank`, `anilist_popularity_rank`, plus games' `metacritic_score`, `price_current_us`, `price_current_jp`, `price_current_tw`, `hours_played` and `achievements_earned`. Everything else is fill-only, written only when the column is `None` (or, for the two progress columns, guarded further — see [Steam](#steam)). The three AniList columns are overwrite fields at the column level but fill-only **per value**: a fetched `None` never blanks a real score or rank, because AniList can resolve an id to a stub record with nothing in it — see [AniList](#anilist).
 
 A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in code or tests is a stale name for the same thing, not a second client.
 
@@ -17,6 +17,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 - [At a glance](#at-a-glance)
 - [Shared behaviour](#shared-behaviour)
 - [Tenrai (MyAnimeList)](#tenrai-myanimelist)
+- [AniList](#anilist)
 - [TMDB](#tmdb)
 - [OMDb](#omdb)
 - [IMDb orchestration (TMDB + OMDb together)](#imdb-orchestration-tmdb--omdb-together)
@@ -34,6 +35,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | Service | Base URL | Key / env var (`app/config.py`) | Client file | Mapper file | Feeds |
 |---|---|---|---|---|---|
 | Tenrai v1 | `https://api.tenrai.org/v1` | none | `app/services/integrations/tenrai.py` | `app/utils/tenrai_utils.py` | `anime`, `anime_movies`, `manga`, `novel`, `studio` |
+| AniList | `https://graphql.anilist.co` | none | `app/services/integrations/anilist.py` | `app/utils/anilist_utils.py` | `anime`, `anime_movies`, `manga`, `novel` |
 | TMDB | `https://api.themoviedb.org/3` | `settings.tmdb_api_key` ← `TMDB_API_KEY` | `app/services/integrations/tmdb.py` | `app/utils/tmdb_utils.py` | `movies`, `tv_shows`, `cartoons` |
 | OMDb | `http://www.omdbapi.com` | `settings.omdb_api_key` ← `OMDB_API_KEY` | `app/services/integrations/omdb.py` | `app/utils/omdb_utils.py` | `imdb_rating` on the three above |
 | Comic Vine | `https://comicvine.gamespot.com/api` | `settings.comicvine_api_key` ← `COMICVINE_API_KEY` | `app/services/integrations/comicvine.py` | `app/utils/comicvine_utils.py` | `comic` |
@@ -129,6 +131,24 @@ MAL calls a studio a "producer". The record is a different shape from a title's:
 Deliberately dropped: `about` (`remark` is the admin's own note, not MAL's blurb), and `favorites` / `count` (no columns).
 
 `autofill_studio_from_mal` is **fill-only for every column**, including `logo_file` — a producer carries nothing that drifts, so there is no force-replace variant and no Replace pipeline. It also swallows and logs every failure, because it runs inside the studio write request: a flaky Tenrai must never turn a save into a 500.
+
+## AniList
+
+AniList is a public GraphQL API. No key is needed and no key exists — `ANILIST_URL = "https://graphql.anilist.co"` is called anonymously.
+
+| Item | Value |
+|---|---|
+| Endpoint | `POST https://graphql.anilist.co`, one `Page(perPage: 50) { media(idMal_in: $ids, type: $type) { ... } }` query per batch (`BATCH_QUERY` in `app/services/integrations/anilist.py`). |
+| Rate limiter | `AniListRateLimiter`, a sliding 60-second window. AniList's docs say 90 requests/minute; the API actually serves 30/minute. The limiter starts at the pessimistic 30 and then `observe()` adopts whatever `X-RateLimit-Limit` the last response actually reported — the header is trusted over both the documentation and the starting constant, because either could be wrong in either direction. |
+| Batching | Up to 50 `mal_id`s go into one request (`BATCH_SIZE = 50`). Over the ~1066 entries across anime, anime movies, manga and novel that carry a `mal_id`, one request per entry at 30/minute would add roughly 36 minutes to a Fill run; batches of 50 bring that to ~22 requests, about a minute. `fetch_anilist_batch` raises rather than silently truncating if handed more than 50 ids. |
+| Lookup key | `idMal` — the same MAL id these four tables already carry in `mal_id`, extracted from `mal_link` the same way Tenrai's is. No second id column exists or is needed. |
+| Media type | `ANIME` for anime and anime movies; `MANGA` for manga **and** novel — AniList has no separate light-novel type, distinguishing them internally by `format: NOVEL` inside its `MANGA` media type, which is transparent to this integration. |
+| Rankings | AniList's `rankings` array mixes a `RATED` and a `POPULAR` kind across three scopes (all-time, year, season) — six rows for a well-ranked title. Only the `allTime` row of each kind is stored, in `anilist_rank` (rated) and `anilist_popularity_rank` (popularity): a seasonal or yearly rank says nothing about where a title sits against the whole collection. |
+| Score | `averageScore` → `anilist_rating` (`Integer`, AniList's own 0–100 scale — not normalized to MAL's 0–10). |
+| Empty results are normal | An id AniList resolves finds a `Media` record with a null `averageScore` and an empty `rankings` array about as often as it finds a fully-scored one — a resolved-but-empty stub is a real response, not a failure, and is treated identically to an id AniList has no record for at all. Roughly a third of a real collection's entries carry a score with **no** all-time rank; that is the expected shape, not a partial fetch. |
+| Cache | `prime_anilist_cache(db, model, media_type)` fetches every `mal_id` on the table in blocks of 50 and is wired as the `pre_run` hook on the anime, anime movie, manga and novel Fill/Replace specs, so a run reads the cache per entry instead of issuing a request per entry. The single-entry Replace path gets no `pre_run` (see [data-actions.md](data-actions.md)); `anilist_record` falls back to a one-id fetch there rather than silently returning nothing for an unprimed table. |
+| Write rule | `autofill_from_anilist` overwrites `anilist_rating`, `anilist_rank` and `anilist_popularity_rank` on every run (scores and ranks drift, which is what Replace is for) — but only **per value**: a fetched `None` never blanks a column that already holds a real number, because a stub record must not erase a good score. It also upserts an AniList `reference` row via `upsert_main_source` when the record carries a `siteUrl`. |
+| Failure handling | Same shape as the other clients: a network error, a non-200, a GraphQL `errors` array, or an unparseable body all return `{}`/`None` and are logged, never raised — AniList is additive, so an entry is never worse off for it being unreachable. |
 
 ## TMDB
 
@@ -594,13 +614,13 @@ From `PIPELINES` in `app/services/pipelines/specs.py` (the runner loop itself is
 
 | Pipeline key | ID extraction | Fill calls | Pause between entries | Services hit |
 |---|---|---|---|---|
-| `anime` | `apply_extract_mal_id_anime` | `autofill_anime_from_mal` | `MAL_PAUSE` (1 s) | Tenrai |
-| `anime-movie` | `apply_extract_mal_id_anime` | `autofill_anime_movie_from_mal` | 1 s | Tenrai |
+| `anime` | `apply_extract_mal_id_anime` | `autofill_anime_from_mal`, `autofill_from_anilist` | `MAL_PAUSE` (1 s) | Tenrai, AniList |
+| `anime-movie` | `apply_extract_mal_id_anime` | `autofill_anime_movie_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
 | `movie` | `apply_extract_imdb_id` | `autofill_movie_from_imdb` | none | TMDB, OMDb |
 | `tv-show` | `apply_extract_imdb_id` | `autofill_tv_show_from_imdb` | none | TMDB (+ season), OMDb |
 | `cartoon` | `apply_extract_imdb_id` | `autofill_cartoon_from_imdb` (only `airing_type` in `{"Movie", "TV"}`) | none | TMDB (+ season for TV), OMDb |
-| `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal` | 1 s | Tenrai |
-| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` when `mal_link` is present, else `autofill_novel_from_openlibrary` | 1 s | Tenrai **or** Open Library |
+| `manga` | `apply_extract_mal_id_manga_novel` | `autofill_manga_from_mal`, `autofill_from_anilist` | 1 s | Tenrai, AniList |
+| `novel` | `apply_extract_novel_ids` (`apply_extract_mal_id_manga_novel` then `apply_extract_openlibrary_id`) | `autofill_novel_from_mal` + `autofill_from_anilist` when `mal_link` is present, else `autofill_novel_from_openlibrary` alone (nothing for AniList to key on without a `mal_id`) | 1 s | Tenrai **or** Open Library, plus AniList on the Tenrai branch |
 | `studio` | `apply_extract_mal_id_studio` | `autofill_studio_from_mal`; `fill_only`, so no Replace routes exist | 1 s | Tenrai |
 | `comic` | `apply_extract_comicvine_id` | `autofill_comic_from_comicvine`; stops when `comicvine_rate_limiter.has_capacity()` is false; not in Fill All; no bulk Replace | `COMICVINE_PAUSE` (1 s) | Comic Vine |
 | `game` | `apply_extract_game_ids` (IGDB then Steam) | `autofill_game_from_igdb` (no budget) then `autofill_game_from_steam` (`budget=steam_store_rate_limiter.has_capacity`); in Fill All; bulk Replace runs the Steam half only | `STEAM_PAUSE` (0.5 s) | IGDB (+ Twitch for the token), Steam |
@@ -618,3 +638,4 @@ Things the code does today that a reader might not expect. None is a documentati
 - `fetch_openlibrary_work`'s `@retry` wraps all three calls (work, editions, authors), so a flaky author call re-runs the work and editions calls too on each attempt — the same shape as the `fetch_tmdb_data` note above.
 - The docstring of `_status_code` in `sheets.py` says gspread `5.12.0` is pinned; `requirements.txt` pins `6.2.1`. The function handles both shapes, so behaviour is unaffected.
 - MAL's `OAD` type maps to `"Other"` even though the app's own vocabulary has an `OAD` value.
+- A single-entry Replace never fires `pre_run`, so AniList's cache is never bulk-primed for it; `anilist_record` falls back to a one-id fetch instead of returning nothing, which is what keeps a one-entry Replace from silently writing no AniList data at all.
