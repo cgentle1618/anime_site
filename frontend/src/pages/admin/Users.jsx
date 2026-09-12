@@ -30,6 +30,7 @@ export default function Users() {
         ...jsonBody({ modes: next }),
       });
       showToast("success", `Updated ${user.username}'s access.`);
+      setModesFor(null);
       await load();
     } catch (err) {
       showToast("error", err.message);
@@ -279,6 +280,22 @@ export default function Users() {
           ))}
         </tbody>
       </table>
+
+      {/*
+        Keyed by the account so switching straight from one user's panel to
+        another remounts it: `held` is seeded in a useState initializer, which
+        runs once per mount and would otherwise keep the first account's
+        grants under the second account's name.
+      */}
+      {modesFor !== null && (
+        <AccessModePanel
+          key={modesFor}
+          user={users.find((u) => u.id === modesFor)}
+          modes={modes}
+          onClose={() => setModesFor(null)}
+          onSave={saveAccessModes}
+        />
+      )}
     </div>
   );
 }
