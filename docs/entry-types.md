@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-07
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -276,8 +276,12 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | |
 | `highlight_passages` | | | | | | | x | | | |
 | `highlight_moments` (label `神場景 Highlights`, locator "Chapter / Boss") | | | | | | | | | x | |
-| `guides` (`name_entries`) | | | | | | | | | x | |
-| `builds_and_mods` (`name_entries`, kinds `Build`/`Mod`/`Tool`) | | | | | | | | | x | |
+| 攻略 group — `beginner`, `controls`, `trivia`, `stats_and_points` (`text_links`) | | | | | | | | | x | |
+| 攻略 group — `side_quests`, `builds_and_styles`, `skills`, `collectibles`, `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`, `guide_resources` (`name_entries`) | | | | | | | | | x | |
+| 攻略 group — `mods_and_tools` (`name_entries`, kinds `Mod`/`Tool`) | | | | | | | | | x | |
+| 劇情 group — `main_plot`, `side_plot` (`episode_text`, locator optional) | | | | | | | | | x | |
+| 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | |
+| 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | series |
 | `craft` (`巧思`) | | | | | | | x | | | |
 | `foreshadowing` | x | x | | x | x | x | x | | | both |
@@ -287,4 +291,4 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | both |
 
-Movie and comic get only the shared sections. Game's three own sections sit beside the shared ones, and note that its bookmark section is **`builds_and_mods`, not `resources`** - a site-wide `resources` section already exists (shape `name_links`, `ALL_OWNERS`) which games inherit, so reusing the key would have shadowed it. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections. Game carries 27 of its own - `highlight_moments` plus the 攻略 (15), 劇情 (7) and 待辦 (4) groups - beside the shared ones. Its guide bookmarks are **`guide_resources`, inside the 攻略 group**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

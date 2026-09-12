@@ -236,13 +236,37 @@ media types only.
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
-| `guides` | name_entries | 攻略 Guides | game | | |
-| `builds_and_mods` | name_entries | 配裝/模組 Builds & Mods | game | | kinds `Build`, `Mod`, `Tool` |
 | `analysis` | text_links | 解析 Analysis | All | analysis_group | |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
+| `beginner` | text_links | 新手 Beginner | game | guides | |
+| `controls` | text_links | 操作 Controls | game | guides | |
+| `trivia` | text_links | 小知識 Trivia | game | guides | |
+| `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | |
+| `builds_and_styles` | name_entries | 配裝&流派 Builds & Styles | game | guides | |
+| `stats_and_points` | text_links | 屬性&配點 Stats & Points | game | guides | |
+| `skills` | name_entries | 技能 Skills | game | guides | |
+| `collectibles` | name_entries | 收集物 Collectibles | game | guides | |
+| `items` | name_entries | 道具 Items | game | guides | |
+| `weapons_and_gear` | name_entries | 武器&裝備 Weapons & Gear | game | guides | |
+| `characters_guide` | name_entries | 角色 Characters | game | guides | |
+| `enemies` | name_entries | 敵人 Enemies | game | guides | |
+| `endings` | name_entries | 結局 Endings | game | guides | |
+| `mods_and_tools` | name_entries | 模組&工具 Mods & Tools | game | guides | kinds `Mod`, `Tool` |
+| `guide_resources` | name_entries | 攻略資源 Guide Resources | game | guides | |
+| `main_plot` | episode_text | 主線劇情 Main Plot | game | story | locator optional, placeholder "Chapter / Part" |
+| `side_plot` | episode_text | 支線劇情 Side Stories | game | story | locator optional, placeholder "Chapter / Part" |
+| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
+| `lore` | text_links | 世界觀&設定 Lore | game | story | |
+| `timeline` | text | 時間線 Timeline | game | story | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game | story | |
+| `story_other` | text_links | 其他 Other | game | story | |
+| `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
+| `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
+| `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |
+| `todo_maybe` | text_links | 可能 Might do | game | todo | personal scope |
 | `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
@@ -264,14 +288,22 @@ Kind vocabularies:
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` (same values as `constants.MUSIC_STATUSES`) |
 | `HIGHLIGHT_KINDS` | `神回`, `神片段`, `神篇章` |
 
-**`builds_and_mods` is deliberately not called `resources`.** A site-wide
-`resources` section already exists (`name_links`, all owners), and games
-inherit it for plain bookmarks; reusing the key would have shadowed it, and
-a second card also labelled "Resources" would be unreadable - hence a
-distinct key *and* a distinct label. Builds, mods and tools are one section
-with a `kind` rather than three near-identical ones, because they took the
-same shape once guides became `name_entries`; `guides` stays separate
-because it is filled for nearly every game and these are not.
+**`guide_resources` is not `resources`, and neither replaces the other.** The
+site-wide `resources` section (`name_links`, all owners, standalone) holds
+plain bookmarks and games inherit it; `guide_resources` (`name_entries`,
+game-only, inside the 攻略 group) holds a pointer to somebody else's
+walkthrough with notes attached. Two keys and two labels, because a second
+card also called "Resources" would be unreadable.
+
+**The 攻略 group is fifteen sections rather than one with a `kind`**, because
+each is a list kept separately: which build to run is not the same question as
+where the collectibles are.
+
+**The 待辦 buckets are four sections, not one section with a `kind`.**
+`sort_index` orders rows within one `(owner, section)` pair and
+`PATCH /api/notes/reorder` renumbers the whole section, so a kind-tagged
+single section could not order items *within* a bucket. Moving an item
+between buckets is a PATCH of `section`, which the API already accepts.
 
 The API rejects a kind the section does not list. The old `特殊變動` values
 `回顧` and `其他` belong to no section and cannot be entered.

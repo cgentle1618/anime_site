@@ -1,9 +1,40 @@
 # Game guides, story and todo — design
 
 Last verified: 2026-09-12
-Status: **APPROVED, not implemented.** Design approved by the owner on
-2026-09-12. Four decisions were made during brainstorming and are recorded as
-Decisions 1–4 below.
+Status: **SHIPPED 2026-09-12.** Four tasks — 9dc8908f (registry), 331c1fe5
+(migration), c9879f26 (scope tests), plus the docs commit. Design approved by
+the owner on 2026-09-12; Decisions 1–4 below all survived implementation
+unchanged.
+
+## What this spec got wrong
+
+Recorded because a spec that is only amended forward teaches nothing about its
+own reasoning, and its confident paragraphs are what the next design pass leans
+on.
+
+- **"There is no frontend code change" was right for the wrong reason.** The
+  spec asserted every shape already had a renderer, and it does — but
+  `docs/systems/notes.md` claimed the opposite in two places (`name_entries`
+  "has no component yet"; `parse_note_from_sheet` "has no `entries` key"), and
+  the spec was written without checking either. Both doc claims were stale, so
+  the conclusion held by luck. Had the docs been right, this would have shipped
+  eleven sections rendering null and a Sheets round trip that ate their
+  contents. The check that settled it — reading `NotesTemplate.jsx:27` and
+  `formatter.py:1397` — happened during the docs task, three tasks too late.
+- **The spec did not anticipate `mods_and_tools`.** The section list had
+  fourteen entries and `builds_and_mods`'s Mod and Tool rows had nowhere to go.
+  That was caught while drafting the design rather than while writing the spec;
+  a migration written from the section list alone would have stranded them.
+- **The spec was silent on which test database its tests take**, which is where
+  this work's only real hazard lived: `tests/conftest.py` does
+  `os.environ.setdefault("POSTGRES_DB", "anime_site_test")` and
+  `tests/api/conftest.py` then runs `DROP SCHEMA public CASCADE` on whatever
+  that resolves to. A spec for work done during a multi-session run should name
+  its database.
+
+Decision 1's reasoning — `sort_index` is per-section — is the one load-bearing
+claim that was verified against the code *before* being written down, and it is
+the only one nothing later revised.
 
 ## The problem
 

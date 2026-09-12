@@ -13,17 +13,11 @@ Last updated: 2026-09-12
 
 ## In flight
 
-### Game 攻略 / 劇情 / 待辦 note groups
-
-Plan: [superpowers/plans/2026-09-12-game-guides-story-todo.md](superpowers/plans/2026-09-12-game-guides-story-todo.md)
-Worktree `anime_site_game_guides_story_todo`, branch `feat/game-guides-story-todo`, test DB `anime_site_ggst_test`.
-
-| # | Task | Status |
-| --- | --- | --- |
-| 1 | Registry: three groups, 26 sections, two retirements | done 9dc8908f |
-| 2 | Data migration for the `guides` / `builds_and_mods` rows | wip game-notes-session |
-| 3 | Scope enforcement over the wire | todo |
-| 4 | Docs, roadmap entry, spec marked shipped | todo |
+Nothing. The game 攻略 / 劇情 / 待辦 note groups are finished on
+`feat/game-guides-story-todo` and awaiting a PR; `docs/roadmap.md` holds the
+record. **Run `alembic upgrade head` and then a Backup after that branch
+merges** - an older sheet still names the retired `guides` and
+`builds_and_mods` sections, and Pull does not validate section keys.
 
 The authorization redesign - phases 0, A, A.1, B, C and D - is
 finished and its table is gone; `docs/roadmap.md` holds what each phase did
