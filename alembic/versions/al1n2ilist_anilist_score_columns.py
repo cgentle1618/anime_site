@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "al1n2ilist"
-down_revision = "b1n2amealign"
+down_revision = "s1r2rootflag"
 branch_labels = None
 depends_on = None
 
