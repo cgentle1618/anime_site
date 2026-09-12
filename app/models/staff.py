@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -82,7 +83,14 @@ class Person(Base, NameFallbackMixin):
     )
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("person_public_id_seq"), nullable=False)
+    public_id = Column(
+        Integer,
+        Sequence("person_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('person_public_id_seq'::regclass)"),
+        nullable=False,
+    )
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)
@@ -248,7 +256,14 @@ class Studio(Base, NameFallbackMixin):
     )
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("studio_public_id_seq"), nullable=False)
+    public_id = Column(
+        Integer,
+        Sequence("studio_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('studio_public_id_seq'::regclass)"),
+        nullable=False,
+    )
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)
@@ -375,7 +390,14 @@ class Publisher(Base, NameFallbackMixin):
     )
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("publisher_public_id_seq"), nullable=False)
+    public_id = Column(
+        Integer,
+        Sequence("publisher_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('publisher_public_id_seq'::regclass)"),
+        nullable=False,
+    )
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)

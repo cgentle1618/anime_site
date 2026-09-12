@@ -136,13 +136,14 @@ What it does, and why each part is there:
   `python` on PATH) with `pip install -r requirements-dev.txt`, which is
   sufficient on its own: that file starts with `-r requirements.txt`.
   `node_modules` needs its own `npm install`.
-- **A fresh database is built by `create_all` and then STAMPED, never by
-  `alembic upgrade head`.** The chain cannot build this schema from nothing —
-  the initial migration aborts its transaction on an empty database and the
-  whole run rolls back leaving zero tables. Nothing catches it because
-  `tests/api/conftest.py` builds its schema with `create_all` and never runs
-  Alembic. `schema_guard.ensure_schema` is the app's own path and says so in
-  its startup log; `worktree.ps1` follows it.
+- **A fresh database is built by `alembic upgrade head`**, which is what
+  `worktree.ps1` runs. That is only true since the chain was squashed onto a
+  baseline — the old initial revision aborted its transaction on an empty
+  database and the run rolled back to zero tables, for 145 revisions, unnoticed
+  because `tests/api/conftest.py` builds its schema with `create_all` and never
+  ran Alembic. `tests/api/test_migrations_build_the_schema.py` now runs the
+  real command against a scratch database and compares the result to the
+  models, so the chain cannot rot that way again.
 - **Give the worktree its own `POSTGRES_DB`.** Both trees share one
   PostgreSQL, and the thing that actually collides is **migrations**: an
   `alembic upgrade` run in one tree leaves the other tree's models

@@ -11,6 +11,7 @@ from sqlalchemy import (
     Sequence,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -57,7 +58,12 @@ class Collection(Base, NameFallbackMixin):
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
     public_id = Column(
-        Integer, Sequence("collection_public_id_seq"), nullable=False
+        Integer,
+        Sequence("collection_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('collection_public_id_seq'::regclass)"),
+        nullable=False,
     )
     collection_name_en = Column(String, nullable=True)
     collection_name_cn = Column(String, nullable=True)
