@@ -18,7 +18,7 @@ from app import models
 from app.database import SQLALCHEMY_DATABASE_URL, Base
 from app.dependencies import get_db
 from app.main import app
-from app.services.integrations import image_manager
+from app.services.integrations import image_manager, sheets
 from app.services.rbac import cache as rbac_cache
 from app.services.rbac.modes import grant_all_modes_to_existing_accounts
 from app.services.rbac.permissions import PERM_MANAGE_CATALOG
@@ -115,6 +115,41 @@ def _no_real_cover_downloads(monkeypatch):
         )
 
     monkeypatch.setattr(image_manager.requests, "get", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_google_sheets(monkeypatch):
+    """
+    Stop a test from reaching the real Google Sheet.
+
+    The same idea as the cover-image guard above, with a worse failure mode.
+    Backup and Pull talk to a live spreadsheet using the developer's real
+    credentials, and the test database is EMPTY - so a test that reached the
+    backup path for real would write header-only tabs over the production
+    sheet and trim everything beneath. That is precisely how 16,774 rows were
+    erased on 2026-09-12; see tests/api/test_backup_never_blanks_a_tab.py for
+    the defect that made a header-only write destructive.
+
+    Unlike the cover guard this one IS a detector, not a backstop: nothing in
+    the pipelines swallows it, so a test that trips it goes red. Every test
+    that means to exercise Backup or Pull already stubs `bulk_overwrite_sheet`
+    or `get_all_raw_rows` and never reaches this accessor. Before this fixture
+    that was a per-test discipline, and the cost of one future test forgetting
+    was not a red test but a destroyed backup.
+
+    tests/api/test_no_real_sheets_in_tests.py proves the guard is armed -
+    without it, deleting this fixture would break nothing visible.
+    """
+
+    def _blocked(tab_name, *args, **kwargs):
+        raise AssertionError(
+            f"A test tried to reach the real Google Sheet (tab {tab_name!r}). "
+            "The test database is empty, so a real backup write would blank "
+            "the production sheet. Stub bulk_overwrite_sheet or "
+            "get_all_raw_rows instead."
+        )
+
+    monkeypatch.setattr(sheets, "get_google_sheet_tab", _blocked)
 
 
 @pytest.fixture(autouse=True)
