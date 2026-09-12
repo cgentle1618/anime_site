@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -62,7 +63,12 @@ class WatchOrderList(Base):
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
     public_id = Column(
-        Integer, Sequence("watch_order_list_public_id_seq"), nullable=False
+        Integer,
+        Sequence("watch_order_list_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('watch_order_list_public_id_seq'::regclass)"),
+        nullable=False,
     )
     # CASCADE, not SET NULL as Collection uses: the single-owner check
     # constraint means a nulled owner would leave an unsavable orphan row.

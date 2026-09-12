@@ -14,7 +14,7 @@ import pathlib
 _spec = importlib.util.spec_from_file_location(
     "bf1i2l3l4",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/bf1i2l3l4_backfill_media_source.py",
+    / "alembic/versions_archive/bf1i2l3l4_backfill_media_source.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)

@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -61,7 +62,14 @@ class Character(Base, NameFallbackMixin):
     )
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("character_public_id_seq"), nullable=False)
+    public_id = Column(
+        Integer,
+        Sequence("character_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('character_public_id_seq'::regclass)"),
+        nullable=False,
+    )
     name_en = Column(String, nullable=True, index=True)
     name_cn = Column(String, nullable=True)
     name_jp = Column(String, nullable=True)

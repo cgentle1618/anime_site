@@ -71,9 +71,13 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
 
 1. `test_engine` (session scope) refuses to run unless the database name
    contains `test`, then `DROP SCHEMA public CASCADE` / `CREATE SCHEMA public`
-   and `Base.metadata.create_all`. Alembic is never run in tests; the schema
+   and `Base.metadata.create_all`. Alembic is not run for *this* schema; it
    comes from the current models, which is why the drop is needed (stale
-   columns from old runs would otherwise linger). The RBAC roles that
+   columns from old runs would otherwise linger). That blind spot is why the
+   migration chain went 145 revisions unable to build a database at all, so
+   one file does run it: `test_migrations_build_the_schema.py` upgrades a
+   scratch database from empty and compares the result to the models, object
+   by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
    `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
    `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.

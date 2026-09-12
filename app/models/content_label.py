@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -33,7 +34,13 @@ class ContentLabel(Base):
     __tablename__ = "content_label"
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
     # Becomes the permission `label.<key>`.
     key = Column(String, nullable=False, unique=True, index=True)
@@ -70,7 +77,13 @@ class MediaContentLabel(Base):
     )
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
     media_id = Column(
         UUID(as_uuid=True),

@@ -1,7 +1,7 @@
 # Lint + format for the backend. Run: ruff check . && ruff format --check .
 line-length = 100
 target-version = "py313"
-extend-exclude = ["alembic/versions", "venv", "frontend", "frontend_dist", "node_modules"]
+extend-exclude = ["alembic/versions", "alembic/versions_archive", "venv", "frontend", "frontend_dist", "node_modules"]
 
 [lint]
 select = ["E", "F", "I", "B"]

@@ -7,7 +7,7 @@ import pathlib
 _path = (
     pathlib.Path(__file__).resolve().parents[2]
     / "alembic"
-    / "versions"
+    / "versions_archive"
     / "nv1u2n3i4t5s_novel_units.py"
 )
 _spec = importlib.util.spec_from_file_location("nv1u2n3i4t5s_novel_units", _path)

@@ -9,10 +9,10 @@ import pytest
 # `alembic` pip package (which has no `versions` submodule), not this repo's
 # alembic/ directory, so it raises ModuleNotFoundError. Load the migration
 # file directly by path instead — same pattern already used by
-# tests/unit/test_note_backfill.py for alembic/versions/note_backfill_rows.py.
+# tests/unit/test_note_backfill.py for alembic/versions_archive/note_backfill_rows.py.
 _spec = importlib.util.spec_from_file_location(
     "d1e2f3a4b5c6_iso_release_dates",
-    pathlib.Path(__file__).parents[2] / "alembic/versions/d1e2f3a4b5c6_iso_release_dates.py",
+    pathlib.Path(__file__).parents[2] / "alembic/versions_archive/d1e2f3a4b5c6_iso_release_dates.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)

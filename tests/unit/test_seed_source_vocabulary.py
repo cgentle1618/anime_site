@@ -13,7 +13,7 @@ from app.utils.source_fields import (
 _spec = importlib.util.spec_from_file_location(
     "sv1o2c3a4b",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/sv1o2c3a4b_seed_source_vocabulary.py",
+    / "alembic/versions_archive/sv1o2c3a4b_seed_source_vocabulary.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)

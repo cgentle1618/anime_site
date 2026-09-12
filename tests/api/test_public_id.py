@@ -14,7 +14,7 @@ from app.database import Base
 _spec = importlib.util.spec_from_file_location(
     "pid1a2b3c4d5",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/pid1a2b3c4d5_add_public_id.py",
+    / "alembic/versions_archive/pid1a2b3c4d5_add_public_id.py",
 )
 _migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_migration)
@@ -22,7 +22,7 @@ _spec.loader.exec_module(_migration)
 _deferral_spec = importlib.util.spec_from_file_location(
     "pdf1e2r3d4e5",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/pdf1e2r3d4e5_defer_public_id_unique.py",
+    / "alembic/versions_archive/pdf1e2r3d4e5_defer_public_id_unique.py",
 )
 _deferral_migration = importlib.util.module_from_spec(_deferral_spec)
 _deferral_spec.loader.exec_module(_deferral_migration)

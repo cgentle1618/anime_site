@@ -213,7 +213,13 @@ class Role(Base):
     __tablename__ = "role"
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
     name = Column(String, nullable=False, unique=True, index=True)
     label = Column(String, nullable=False)

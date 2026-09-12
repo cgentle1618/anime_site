@@ -9,7 +9,7 @@ from app.utils.constants import NOVEL_UNIT_KINDS_BY_TYPE, NOVEL_VOLUME_ONLY_TYPE
 _path = (
     pathlib.Path(__file__).resolve().parents[2]
     / "alembic"
-    / "versions"
+    / "versions_archive"
     / "v1o2l3o4n5l6_volume_only_novel_counters.py"
 )
 _spec = importlib.util.spec_from_file_location("v1o2l3o4n5l6", _path)

@@ -5,7 +5,7 @@ import pathlib
 
 spec = importlib.util.spec_from_file_location(
     "backfill",
-    pathlib.Path(__file__).parents[2] / "alembic/versions/note_backfill_rows.py",
+    pathlib.Path(__file__).parents[2] / "alembic/versions_archive/note_backfill_rows.py",
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

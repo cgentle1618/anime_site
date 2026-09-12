@@ -176,21 +176,13 @@ if (-not $SkipDatabase) {
         Invoke-Native { docker exec $dbContainer createdb -U postgres $workDb } 'createdb' -IgnoreExitCode
         Push-Location $target
         try {
-            # NOT `alembic upgrade head`. The chain cannot build this schema
-            # from nothing: the initial migration aborts its transaction on an
-            # empty database, and the whole run rolls back leaving zero
-            # tables. Nothing catches it because tests/api/conftest.py builds
-            # its schema with create_all and never runs Alembic.
-            #
-            # So this is the app's own fresh-database path, the one
-            # schema_guard.ensure_schema takes on startup: create the tables
-            # from the models, then STAMP - which is what its log tells you to
-            # do by hand. The result is identical to a migrated database for
-            # every purpose except having replayed history.
-            Invoke-Native {
-                & $newPython -c "from app.database import engine; from app.schema_guard import ensure_schema; print('[schema]', ensure_schema(engine))"
-            } 'schema creation'
-            Invoke-Native { & $newPython -m alembic stamp head } 'alembic stamp'
+            # The ordinary command. It builds the schema from nothing and is
+            # pinned by tests/api/test_migrations_build_the_schema.py to
+            # produce exactly what the models declare. It could not do either
+            # until the chain was squashed onto a baseline: the old initial
+            # revision aborted its transaction on an empty database and the
+            # whole run rolled back to zero tables.
+            Invoke-Native { & $newPython -m alembic upgrade head } 'alembic upgrade'
         }
         finally { Pop-Location }
         Note "$workDb has the schema and nothing else - Pull All from /system to fill it."

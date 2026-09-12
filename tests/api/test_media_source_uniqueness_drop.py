@@ -21,7 +21,7 @@ from sqlalchemy import text
 _spec = importlib.util.spec_from_file_location(
     "m0c1source",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/m0c1source_media_source_media_fk.py",
+    / "alembic/versions_archive/m0c1source_media_source_media_fk.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)
