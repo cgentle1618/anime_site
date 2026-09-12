@@ -1046,19 +1046,30 @@ component alone:
   the auth snapshot. There is no success toast, for the same reason: the load
   discards it.
 
-### The pipeline routers need an unscoped MODE as well
+### The pipeline routers gate on the ROLE only
 
-`data_control.py` and `system.py` carry **two** router-level dependencies:
-`require_manage_pipelines` *and* `require_unscoped_mode`, which answers **401**
-unless the session's active mode carries every `content_label` row and every
-`FIELD_GROUP_KEYS` entry.
+`data_control.py` and `system.py` carry **one** router-level dependency:
+`require_manage_pipelines`. The session's access mode is not consulted, so
+`admin` and `super` may run any pipeline from whatever mode they are sitting
+in.
 
-`manage.pipelines` is declared **unscoped on the object axis** — no pipeline
-filters by label, field group or media type. That is deliberate and the
-alternative is worse: the sheet holds exactly one version of the data and
-Backup overwrites every tab, so filtering the runner per viewer would write a
-*partial* sheet over the complete one and a Pull All would restore a partial
-database. Silent data loss, in place of an information leak.
+`manage.pipelines` is **unscoped on the object axis** — no pipeline filters by
+label, field group or media type. `execute_backup` reads
+`db.query(tab.model).all()`, `runner.py` reads `db.query(spec.model).all()`,
+and `calculation.py` states outright that Calculate "is a pipeline with no
+viewer"; `entry_visible` and `hidden_label_ids` are called only from the entry
+routers. A pipeline therefore reads the whole database whatever the caller's
+mode, and writes the same complete sheet either way.
+
+**One route gives something up, and it is `/clean/scan`.** Its report names
+every orphan row, including entries a narrow mode conceals, and `/clean/apply`
+deletes by `system_id`; `/replace/{type}/{id}` likewise distinguishes a hidden
+entry from a missing one. Both are now reachable from a narrowed session. The
+caller holds `manage.pipelines` — `admin` or `super` — and a mode is a view
+ceiling they chose for themselves rather than a boundary against them. If
+either needs closing, close it at the route (filter the report, add an
+`entry_visible` check to replace-one), not by gating the router on a mode the
+other four pipelines never read.
 
 This does **not** contradict "a mode never changes which kinds of operation an
 account may perform". A pipeline's object set is every entry, declared and not

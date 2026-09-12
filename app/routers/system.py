@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.rbac.modes import require_unscoped_mode
 from app.services.rbac.resolver import require_manage_pipelines
 
 logger = logging.getLogger(__name__)
@@ -22,11 +21,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/system",
     tags=["System Administration"],
-    # The access-mode gate too - see data_control.py for why a pipeline must
-    # not run from a narrowed session. Decision 14.
+    # The role gate only - see data_control.py. These routes are season
+    # config, logs and deleted records; they read no entries, so there was
+    # never an object set for a mode to narrow.
     dependencies=[
         Depends(require_manage_pipelines),
-        Depends(require_unscoped_mode),
     ],
 )
 

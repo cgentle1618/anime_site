@@ -30,7 +30,6 @@ from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
-from app.services.rbac.modes import require_unscoped_mode
 from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
 from app.services.rbac.resolver import Viewer, require_manage_pipelines
 
@@ -44,19 +43,24 @@ class DownloadCoversBody(BaseModel):
 router = APIRouter(
     prefix="/api/data-control",
     tags=["Data Control Pipelines"],
-    # Two gates, and the second is not redundant. require_manage_pipelines
-    # answers "may this account run pipelines at all"; require_unscoped_mode
-    # answers "may it run one from THIS session" - a pipeline rewrites every
-    # entry, so running it from a narrowed session would write a partial sheet
-    # over the complete one. Decision 14.
+    # ONE gate: the ROLE. `manage.pipelines` answers "may this account run
+    # pipelines", and nothing asks which access mode it is sitting in.
     #
-    # ROUTER level, not per handler, and for the same reason the capability
-    # gate is: most of this router's routes are registered in a loop over
-    # PIPELINES rather than declared, so a per-handler gate would miss them
-    # silently - which is exactly how the Replace-one oracle survived a year.
+    # There used to be a second gate requiring an unscoped mode (Decision 14),
+    # on the grounds that a narrowed session would write a PARTIAL sheet over
+    # the complete one. No pipeline is viewer-aware, so it never could:
+    # execute_backup reads db.query(tab.model).all(), runner.py reads
+    # db.query(spec.model).all(), and calculation.py says outright that
+    # Calculate "is a pipeline with no viewer". entry_visible and
+    # hidden_label_ids are called only from the entry routers. The gate
+    # refused requests without changing a byte of output.
+    #
+    # ROUTER level, not per handler: most of this router's routes are
+    # registered in a loop over PIPELINES rather than declared, so a
+    # per-handler gate would miss them silently - which is exactly how the
+    # Replace-one oracle survived a year.
     dependencies=[
         Depends(require_manage_pipelines),
-        Depends(require_unscoped_mode),
     ],
 )
 
@@ -221,13 +225,21 @@ def clean_scan(db: Session = Depends(get_db)):
     """
     Read-only, and logs nothing - like check/duplicates.
 
-    Both Clean routes inherit this router's require_unscoped_mode gate, and for
-    Clean the reason differs from the one decision 14 was written for. That
-    rationale is about writes: a pipeline run from a narrowed session would
-    write a partial sheet over a complete one. Clean's is about objects - this
-    report names every orphan in the database, so it is an unrestricted read of
-    the whole catalogue by construction, and apply deletes by system_id. A
-    narrowed operator must be refused both.
+    Both Clean routes are gated on `manage.pipelines` and nothing else.
+
+    Clean is the one place on this router where the removed mode gate did
+    something real, and it is recorded here rather than left to be found. The
+    rest of the router is viewer-blind in a way that made the gate inert; this
+    report is an unrestricted READ of the whole catalogue by construction - it
+    names every orphan row, including entries a narrow mode hides - and apply
+    deletes by system_id. So a narrowed operator now sees orphans it could not
+    see through any entry route.
+
+    Accepted: that operator holds `manage.pipelines`, which is `admin` or
+    `super`, and a mode is a view ceiling they chose for themselves rather
+    than a boundary against them. If this ever needs closing, close it here,
+    by filtering the report - not by gating the router on a mode that the
+    other four pipelines never read.
     """
     try:
         return JSONResponse(content=scan_orphans(db))
