@@ -26,6 +26,9 @@ from dataclasses import dataclass
 
 from PIL import Image as PILImage
 from PIL import UnidentifiedImageError
+from sqlalchemy.orm import Session
+
+from app import models
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +164,24 @@ def file_exists(storage_key: str) -> bool:
     if not storage_key:
         return False
     return os.path.exists(_local_path(storage_key))
+
+
+def uploaded_image_ids(db: Session) -> set:
+    """
+    Every image that was UPLOADED rather than downloaded.
+
+    `bulk_download_missing_covers` needs this: it re-fetches a missing cover
+    from MAL, and an uploaded image cannot be re-fetched by anything, so doing
+    that to one destroys the only reference to the file. Lives here rather
+    than in the router so a service can read it without reaching upward into
+    a router module.
+    """
+    return {
+        row[0]
+        for row in db.query(models.Image.system_id)
+        .filter(models.Image.uploaded_by.isnot(None))
+        .all()
+    }
 
 
 def delete_file(storage_key: str, thumb_key: str) -> None:

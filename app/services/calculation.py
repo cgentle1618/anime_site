@@ -50,6 +50,7 @@ from app.services.domain import (
 )
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
+from app.services.integrations.image_library import uploaded_image_ids
 from app.services.integrations.image_manager import (
     cover_image_exists,
     cover_key,
@@ -311,8 +312,6 @@ def bulk_download_missing_covers(
     # null a reference to a file no external API can supply. Uploaded images
     # deliberately do not travel through Backup or Pull, so a missing file is
     # the normal state on the other machine, not a repairable one.
-    from app.routers.images import uploaded_image_ids
-
     uploaded = uploaded_image_ids(db)
     uploaded_owners = (
         {

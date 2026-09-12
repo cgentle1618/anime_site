@@ -155,6 +155,15 @@ phase 3 is gated on a Sheets migration story and may reasonably sit longer than
 an expand/contract usually would. Recorded on the roadmap with that reason
 attached, so a later reader does not mistake the delay for neglect.
 
+**The backfill keeps each legacy image's existing `<owner_type>/<system_id>`
+path rather than re-keying it to a checksum.** Re-keying would disclose
+nothing new: `system_id` is a required field on every entity response schema,
+belongs to no field group, and so is never stripped by `field_gate.py` —
+every detail page already fires `GET /api/community/<system_id>` and the id
+is visible regardless of what the image's filename is. Re-keying legacy
+covers to content-addressed paths is out of scope for the expand phase; it is
+a phase 2/3 concern, if it is done at all.
+
 ### Decision 4 — uploaded images never travel through Backup or Pull
 
 Decided by the owner. Sheets carries the *reference*, never the bytes, and

@@ -11,7 +11,6 @@ second owner without re-uploading; the picker widget simply makes both calls in
 sequence.
 """
 
-import logging
 from typing import Optional
 from uuid import UUID
 
@@ -28,8 +27,6 @@ from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, require_manage_catalog, viewer_user_id
 from app.utils.media_resolver import MEDIA_TABLES
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/api/images", tags=["Images"])
 
 MAX_UPLOAD_BYTES = settings.max_image_upload_mb * 1024 * 1024
@@ -45,6 +42,62 @@ CHUNK_SIZE = 1024 * 1024
 ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
     {"staff", "character", "publisher", "studio", "quote"}
 )
+
+# The owner tables that carry a mirror column, and what that column is called.
+# Media entries mirror onto the `media` supertable's cover_image_file; the
+# entity tables carry their own. Read each definition rather than assuming the
+# shape is uniform - staff and character use `photo_file`, publisher and
+# studio use `logo_file` (not `cover_image_file`), and `quote` uses
+# `image_file` and resolves against static/quotes/ rather than static/covers/.
+MIRROR_COLUMNS = {
+    "staff": "photo_file",
+    "character": "photo_file",
+    "publisher": "logo_file",
+    "studio": "logo_file",
+    "quote": "image_file",
+}
+
+# `staff` maps to Person, not a `Staff` class - app/models/staff.py defines
+# Person, Studio and Publisher; Character lives in app/models/character.py.
+_ENTITY_MODELS = {
+    "staff": models.Person,
+    "character": models.Character,
+    "publisher": models.Publisher,
+    "studio": models.Studio,
+    "quote": models.Quote,
+}
+
+
+def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
+    """
+    Write the storage key onto the owner's legacy column.
+
+    Phase 1 of the expand/contract keeps `cover_image_file` and friends
+    written-through so that the Sheets formatters, the download pipelines, the
+    orphan checks and every getCoverUrl call in the SPA keep working with no
+    change at all. Phases 2 and 3 - moving readers, then dropping the columns -
+    are on the roadmap, and this function is what they eventually delete.
+    """
+    if role != "cover" and owner_type != "quote":
+        return
+
+    if owner_type in MEDIA_TABLES:
+        model = MEDIA_TABLES[owner_type].model
+        row = db.get(model, owner_id)
+        if row is not None:
+            row.cover_image_file = storage_key
+        return
+
+    column = MIRROR_COLUMNS.get(owner_type)
+    if column is None:
+        return
+
+    model = _ENTITY_MODELS.get(owner_type)
+    if model is None:
+        return
+    row = db.get(model, owner_id)
+    if row is not None:
+        setattr(row, column, storage_key)
 
 
 def _read_capped(upload: UploadFile) -> bytes:
@@ -91,22 +144,6 @@ def _to_out(db: Session, image: models.Image) -> ImageOut:
         .all()
     ]
     return out
-
-
-def uploaded_image_ids(db: Session) -> set:
-    """
-    Every image that was UPLOADED rather than downloaded.
-
-    `bulk_download_missing_covers` needs this: it re-fetches a missing cover
-    from MAL, and an uploaded image cannot be re-fetched by anything, so doing
-    that to one destroys the only reference to the file.
-    """
-    return {
-        row[0]
-        for row in db.query(models.Image.system_id)
-        .filter(models.Image.uploaded_by.isnot(None))
-        .all()
-    }
 
 
 @router.post("", status_code=201, response_model=ImageOut, summary="Upload an image")
@@ -252,6 +289,10 @@ def attach_image(
         )
         db.add(attachment)
 
+    mirror_to_owner_column(
+        db, payload.owner_type, payload.owner_id, payload.role, image.storage_key
+    )
+
     db.commit()
     db.refresh(attachment)
     return AttachmentOut.model_validate(attachment)
@@ -272,6 +313,10 @@ def detach_image(
     attachment = db.get(models.ImageAttachment, attachment_id)
     if attachment is None or attachment.image_id != image_id:
         raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    mirror_to_owner_column(
+        db, attachment.owner_type, attachment.owner_id, attachment.role, None
+    )
 
     db.delete(attachment)
     db.commit()

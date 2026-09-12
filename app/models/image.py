@@ -35,8 +35,11 @@ class Image(Base):
     )
 
     # --- Storage ---
-    # Both keys are relative to static/covers/, matching cover_image_file, so
-    # the SPA's existing /static/covers/ prefix resolves them unchanged.
+    # Both keys are relative to static/, resolved by image_library against
+    # STATIC_DIR. An uploaded row's key is `library/<checksum>.jpg`; a
+    # backfilled legacy row's is `covers/<owner_type>/<system_id>.jpg` -
+    # see the c1image0002 migration docstring for why that differs from what
+    # the owner's mirror column (cover_image_file and friends) holds.
     storage_key = Column(String, nullable=False)
     thumb_key = Column(String, nullable=True)
     checksum = Column(String(64), nullable=False, unique=True, index=True)
