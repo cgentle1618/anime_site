@@ -652,6 +652,8 @@ export default function Manga() {
               malScore={manga.mal_rating}
               malRank={manga.mal_rank}
               anilistScore={manga.anilist_rating}
+              anilistRank={manga.anilist_rank}
+              anilistPopularityRank={manga.anilist_popularity_rank}
             />
           </header>
 

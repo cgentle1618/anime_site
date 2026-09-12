@@ -144,6 +144,12 @@ export const COMMON_FIELD_META = {
     control: "number",
     group: "Ratings",
   },
+  anilist_rank: { label: "AniList Rank", control: "number", group: "Ratings" },
+  anilist_popularity_rank: {
+    label: "AniList Popularity Rank",
+    control: "number",
+    group: "Ratings",
+  },
   imdb_rating: { label: "IMDb Rating", group: "Ratings" },
 
   // ---- Credits ---------------------------------------------------------

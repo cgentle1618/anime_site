@@ -521,6 +521,8 @@ export default function Novel() {
               malScore={novel.mal_rating}
               malRank={novel.mal_rank}
               anilistScore={novel.anilist_rating}
+              anilistRank={novel.anilist_rank}
+              anilistPopularityRank={novel.anilist_popularity_rank}
             />
           </header>
 

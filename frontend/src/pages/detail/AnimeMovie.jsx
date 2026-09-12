@@ -375,6 +375,8 @@ export default function AnimeMovie() {
               malScore={movie.mal_rating}
               malRank={movie.mal_rank}
               anilistScore={movie.anilist_rating}
+              anilistRank={movie.anilist_rank}
+              anilistPopularityRank={movie.anilist_popularity_rank}
             />
           </header>
 

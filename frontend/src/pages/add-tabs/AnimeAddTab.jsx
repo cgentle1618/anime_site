@@ -386,6 +386,22 @@ export default function AnimeAddTab({
             placeholder="e.g. 85%"
           />
         </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={af.anilist_rank}
+            onChange={(e) => ua("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={af.anilist_popularity_rank}
+            onChange={(e) => ua("anilist_popularity_rank", e.target.value)}
+          />
+        </Field>
       </div>
 
       <SectionHeader icon="fa-tags" title="Classification" />

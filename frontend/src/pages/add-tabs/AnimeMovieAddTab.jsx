@@ -232,6 +232,22 @@ export default function AnimeMovieAddTab({
             placeholder="e.g. 85%"
           />
         </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={amf.anilist_rank}
+            onChange={(e) => uam("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={amf.anilist_popularity_rank}
+            onChange={(e) => uam("anilist_popularity_rank", e.target.value)}
+          />
+        </Field>
       </div>
 
       <div className="flex flex-wrap gap-6 mt-2">

@@ -1911,7 +1911,12 @@ export default function Add() {
       mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
       mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
       anilist_rating:
-        mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
+        mgf.anilist_rating !== "" ? parseInt(mgf.anilist_rating) : null,
+      anilist_rank: mgf.anilist_rank !== "" ? parseInt(mgf.anilist_rank) : null,
+      anilist_popularity_rank:
+        mgf.anilist_popularity_rank !== ""
+          ? parseInt(mgf.anilist_popularity_rank)
+          : null,
       release_date: mgf.release_date || null,
       end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
@@ -2090,7 +2095,12 @@ export default function Add() {
       mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
       mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
       anilist_rating:
-        nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
+        nvf.anilist_rating !== "" ? parseInt(nvf.anilist_rating) : null,
+      anilist_rank: nvf.anilist_rank !== "" ? parseInt(nvf.anilist_rank) : null,
+      anilist_popularity_rank:
+        nvf.anilist_popularity_rank !== ""
+          ? parseInt(nvf.anilist_popularity_rank)
+          : null,
       release_date: nvf.release_date || null,
       end_date: nvf.end_date || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
