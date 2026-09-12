@@ -32,7 +32,13 @@ class FakeWorksheet:
 
     def get(self, rng):
         # Only 'A2:A2' is asked for: "is there a first data row?"
-        return [["something"]] if len(self._existing) >= 2 else []
+        #
+        # gspread does NOT return [] for an empty cell - it returns [[]], a
+        # list holding one empty row, which is TRUTHY. A fake that returns []
+        # here is the reason the guard shipped refusing every legitimately
+        # empty tab: the test agreed with the code and both disagreed with
+        # the API. Mirror the real return value, exactly.
+        return [["something"]] if len(self._existing) >= 2 else [[]]
 
     def update(self, *args, **kwargs):
         self.updated = args
@@ -80,6 +86,23 @@ def test_a_write_with_real_rows_is_unaffected(fake_tab):
 
     assert sheets.bulk_overwrite_sheet("Media", [["system_id"], ["a"], ["b"]]) is True
     assert ws.updated is not None
+
+
+def test_a_blank_first_data_row_is_not_data(monkeypatch):
+    """The specific shape that broke Backup: gspread reports an empty cell as
+    [[]] and a row of empty strings as [[""]]. Neither is data, and neither may
+    stop a backup of a legitimately empty table."""
+
+    for probe_result in ([[]], [[""]], []):
+        ws = FakeWorksheet([["system_id", "name_en"]])
+        ws.get = lambda rng, _r=probe_result: _r
+        monkeypatch.setattr(sheets, "get_google_sheet_tab", lambda name, _w=ws: _w)
+
+        assert (
+            sheets.bulk_overwrite_sheet("Character", [["system_id", "name_en"]])
+            is True
+        ), f"probe {probe_result!r} must not read as data"
+        assert ws.updated is not None
 
 
 def test_a_completely_empty_matrix_is_still_refused(fake_tab):
