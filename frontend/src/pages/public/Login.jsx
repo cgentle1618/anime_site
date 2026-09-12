@@ -71,13 +71,11 @@ export default function Login() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <Slip title="Admin" className="w-full max-w-md" bodyClassName="p-8">
+      <Slip title="User" className="w-full max-w-md" bodyClassName="p-8">
         <header className="mb-8">
-          <Eyebrow className="mb-2">Sign in</Eyebrow>
-          <h1 className="font-display text-4xl font-semibold text-text leading-none mb-2">
-            Admin access
+          <h1 className="font-display text-4xl font-semibold text-text leading-none">
+            Sign in
           </h1>
-          <p className="text-sm text-text-muted">Sign in to manage the collection.</p>
         </header>
 
         {error && (
@@ -135,7 +133,7 @@ export default function Login() {
               onChange={(e) => setUsername(e.target.value)}
               required
               className={INPUT_CLS}
-              placeholder="admin"
+              placeholder="user123"
             />
           </div>
 
