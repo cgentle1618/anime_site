@@ -114,7 +114,14 @@ directory and each additional concurrent task takes a worktree**, which puts
 the setup cost on the rarer case. Remove it with `git worktree remove
 ../anime_site_<topic>` when the branch has merged.
 
-One of the setup gaps destroys nothing yet looks exactly like data loss:
+**`.\worktree.ps1 -Topic <topic> [-Type feat] [-From dev]` does all of it.**
+It creates the worktree, copies the secrets, pins the two settings below,
+builds the venv, runs `npm install`, gives the tree its own database and
+prints the port to run on. Use it rather than the steps by hand — one of the
+gaps below destroys nothing yet looks exactly like data loss, and a script
+step cannot be skipped the way a checklist item can.
+
+What it does, and why each part is there:
 
 - **Pin the compose project.** `dev.ps1` runs
   `docker-compose --project-directory $root`, and compose derives the project
@@ -126,9 +133,16 @@ One of the setup gaps destroys nothing yet looks exactly like data loss:
   worktree's `.env` before running anything there.
 - `.env` and `credentials.json` must be copied in; `venv/` must be rebuilt
   (`venv/Scripts/python.exe -m venv <worktree>/venv` — there is no system
-  `python` on PATH) and **both** requirements files installed: `pytest` and
-  `ruff` live in `requirements-dev.txt`, not `requirements.txt`. `node_modules`
-  needs its own `npm install`.
+  `python` on PATH) with `pip install -r requirements-dev.txt`, which is
+  sufficient on its own: that file starts with `-r requirements.txt`.
+  `node_modules` needs its own `npm install`.
+- **A fresh database is built by `create_all` and then STAMPED, never by
+  `alembic upgrade head`.** The chain cannot build this schema from nothing —
+  the initial migration aborts its transaction on an empty database and the
+  whole run rolls back leaving zero tables. Nothing catches it because
+  `tests/api/conftest.py` builds its schema with `create_all` and never runs
+  Alembic. `schema_guard.ensure_schema` is the app's own path and says so in
+  its startup log; `worktree.ps1` follows it.
 - **Give the worktree its own `POSTGRES_DB`.** Both trees share one
   PostgreSQL, and the thing that actually collides is **migrations**: an
   `alembic upgrade` run in one tree leaves the other tree's models
@@ -244,6 +258,20 @@ one-line when it was described is exactly the one that grows.
 - **Creating the branch, committing to it and pushing it need no approval.**
   The branch is the review buffer; the gate moved to the PR. **Opening the PR
   and merging it are mine** — show me the title and body and wait.
+- **Do not stack PRs.** Every branch comes off `dev`. When work B genuinely
+  needs work A's unmerged code, put both on **one branch with two commits** —
+  simpler than two PRs with an ordering constraint. Stack only when the two
+  must be reviewed separately, and then the parent merges **first** and the
+  child is rebased onto `dev` and re-pushed **before** it is merged.
+
+  The reason is which way each option fails. A branch that conflicts with
+  another is **loud**: git refuses, you fix it, you move on. A stacked PR
+  merged in the wrong order is **silent** — GitHub merges the child into its
+  base branch instead of retargeting it, so `dev` never receives it and
+  nothing says so. That happened on 2026-09-12 with #134 and #135: four PRs
+  approved, three landed, and the fourth sat on a feature branch until someone
+  checked `git merge-base --is-ancestor`. The stack had been created to dodge
+  a **documentation** conflict, which is precisely the cheap kind.
 - `origin` is `https://github.com/cgentle1618/anime_site.git`.
 
 The older names in the history — `modify`, `manga`, `novel`, `extract` — are

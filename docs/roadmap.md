@@ -64,6 +64,24 @@ tunnel, and backups. Until that lands, local development is the only runtime.
 
 ## Deferred / known debt
 
+**The migration chain cannot build a database from scratch.** `alembic upgrade
+head` on an empty database dies inside the very first revision
+(`86982d71c2f1 initial_migration`): the transaction aborts, everything rolls
+back, and the database is left with **zero tables** and no `alembic_version`.
+It has presumably never worked - the chain has only ever been run
+incrementally against databases that already existed - and nothing catches it,
+because `tests/api/conftest.py` builds its schema with `Base.metadata.create_all`
+and never runs Alembic at all ([testing.md](testing.md)). Found on 2026-09-12
+while giving a git worktree its own database.
+
+The supported path meanwhile is the app's own: `schema_guard.ensure_schema`
+creates the tables from the models on an empty database and its log tells you
+to `alembic stamp head`, which is what `worktree.ps1` does. That produces a
+schema identical to a migrated one for every purpose except having replayed
+history - so the cost of this defect is not a broken installation, it is that
+**the migrations are not actually tested end to end anywhere**, and a
+new machine or a rebuilt database quietly takes the create_all path instead.
+
 **Left by Step 5, for the authorization redesign:**
 
 - **One remark per owner, site-wide.** `remark` is a personal-scope section,
