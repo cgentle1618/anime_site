@@ -307,8 +307,29 @@ one-line when it was described is exactly the one that grows.
   head. The revision *id* may already be applied to a database, and changing
   it strands that row in `alembic_version`.
 
+  **`alembic heads` does not catch every version of this.** One evening
+  produced three, and the command above only sees the first:
+
+  1. **A revision file parented on a stale head** — the case above. `heads`
+     catches it.
+  2. **A stale `down_revision` written in PROSE** — a spec or plan naming the
+     head it was drafted against. `heads` reads revision *files*, so a wrong
+     id sitting in a plan is invisible to it, and the two heads appear later,
+     when somebody executes the plan as written. Found on 2026-09-12 in an
+     image-upload plan that still named `b1n2amealign`. **So when a plan
+     names a `down_revision`, re-read it against `alembic heads` at the
+     moment you execute it, not when you wrote it.**
+  3. **`heads` plus an incremental `upgrade` is not proof the chain builds.**
+     Both run against a database that already has the earlier revisions. The
+     from-zero proof is `tests/api/test_migrations_build_the_schema.py`,
+     which runs the real command against a scratch database and compares the
+     result to the models. Say which of the two you actually ran — "I checked
+     `heads` and upgraded incrementally" and "the chain builds from zero" are
+     different claims, and the weaker one is worth stating honestly rather
+     than rounding up.
+
   Same shape as the stacked-PR rule above: the failure is silent, so the
-  cheap habit is to run the one command rather than to trust that nothing
+  cheap habit is to run the check rather than to trust that nothing
   complained.
 - **Name it `<type>/<short-topic>`**, with the same prefixes the commits use:
   `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. `feat/role-locks`,
