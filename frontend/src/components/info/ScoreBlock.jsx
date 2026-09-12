@@ -20,12 +20,23 @@ function Figure({ label, value }) {
   );
 }
 
-export default function ScoreBlock({ malScore, malRank, anilistScore }) {
+export default function ScoreBlock({
+  malScore,
+  malRank,
+  anilistScore,
+  anilistRank,
+  anilistPopularityRank,
+}) {
   return (
     <div className="flex flex-wrap items-end gap-y-4">
       <Figure label="MAL score" value={malScore} />
       <Figure label="MAL rank" value={malRank ? `#${malRank}` : null} />
       <Figure label="AniList" value={anilistScore} />
+      <Figure label="AniList rank" value={anilistRank ? `#${anilistRank}` : null} />
+      <Figure
+        label="AniList popularity"
+        value={anilistPopularityRank ? `#${anilistPopularityRank}` : null}
+      />
     </div>
   );
 }

@@ -186,7 +186,12 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     my_rating: amf.my_rating || null,
     mal_rating: amf.mal_rating !== "" ? parseFloat(amf.mal_rating) : null,
     mal_rank: amf.mal_rank || null,
-    anilist_rating: amf.anilist_rating || null,
+    anilist_rating: amf.anilist_rating !== "" ? parseInt(amf.anilist_rating) : null,
+    anilist_rank: amf.anilist_rank !== "" ? parseInt(amf.anilist_rank) : null,
+    anilist_popularity_rank:
+      amf.anilist_popularity_rank !== ""
+        ? parseInt(amf.anilist_popularity_rank)
+        : null,
     release_date_jp: amf.release_date_jp || null,
     release_date_tw: amf.release_date_tw || null,
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
@@ -235,7 +240,12 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     my_rating: af.my_rating || null,
     mal_rating: af.mal_rating !== "" ? parseFloat(af.mal_rating) : null,
     mal_rank: af.mal_rank || null,
-    anilist_rating: af.anilist_rating || null,
+    anilist_rating: af.anilist_rating !== "" ? parseInt(af.anilist_rating) : null,
+    anilist_rank: af.anilist_rank !== "" ? parseInt(af.anilist_rank) : null,
+    anilist_popularity_rank:
+      af.anilist_popularity_rank !== ""
+        ? parseInt(af.anilist_popularity_rank)
+        : null,
     release_season: af.release_season || null,
     release_date: af.release_date || null,
     broadcast_day: af.broadcast_day || null,

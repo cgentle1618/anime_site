@@ -66,6 +66,7 @@ BAHAMUT_VALUE = "Bahamut"
 # links Tenrai returns.
 OFFICIAL_SITE_VALUE = "Official site"
 TWITTER_VALUE = "Twitter"
+ANILIST_VALUE = "AniList"
 
 _CATEGORY_BY_KIND: dict[str, str] = {
     "access": PLATFORM_CATEGORY,

@@ -166,6 +166,9 @@ def test_only_volatile_numbers_are_ever_overwritten():
         "price_current_tw",
         "hours_played",
         "achievements_earned",
+        "anilist_rating",
+        "anilist_rank",
+        "anilist_popularity_rank",
     }
 
 

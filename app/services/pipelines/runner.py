@@ -47,6 +47,12 @@ class PipelineSpec:
     # that filled it). Never called per-entry and never called by the single
     # write hooks (run_replace_single), which touch one entry in isolation.
     pre_run: Optional[Callable[[Session], None]] = None
+    # Runs once at the very end of a Fill or a Replace, in a finally, whatever
+    # the outcome - the mirror of pre_run. For state that must not outlive the
+    # run that filled it: pre_run resetting at the START is not enough when
+    # something reads that state BETWEEN runs, which the single-entry write
+    # hooks do.
+    post_run: Optional[Callable[[Session], None]] = None
     fill_sleep: float = 0
     post_process: Optional[Callable[[Any, Session], None]] = None  # every entry, after the queue
     fill_after: tuple[Step, ...] = ()                   # (progress message, fn(db))
@@ -116,7 +122,7 @@ async def run_fill(
 
     try:
         if spec.pre_run:
-            spec.pre_run(db)
+            await run_in_threadpool(spec.pre_run, db)
         entries = db.query(spec.model).all()
         if spec.extract_id:
             for entry in entries:
@@ -183,6 +189,15 @@ async def run_fill(
         _log(db, "Fill", action_specific, action_type, "Failed", log_action,
              rows_updated=processed, error_message=str(e))
         yield _sse(status="error", message=str(e))
+    finally:
+        if spec.post_run:
+            # Synchronous, not run_in_threadpool: this finally can fire while
+            # the generator is being torn down on a client disconnect
+            # (GeneratorExit thrown by StreamingResponse's aclose()), where
+            # scheduling a fresh awaitable is fragile. Every post_run today
+            # (reset_anilist_cache) is two dict/set .clear() calls and never
+            # blocks, so running it inline costs nothing.
+            spec.post_run(db)
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +224,7 @@ async def run_replace(
 
     try:
         if spec.pre_run:
-            spec.pre_run(db)
+            await run_in_threadpool(spec.pre_run, db)
         entries = spec.replace_select(db)
         total = len(entries)
         if total == 0:
@@ -268,6 +283,12 @@ async def run_replace(
         _log(db, "Replace", action_specific, action_type, "Failed", log_action,
              rows_updated=processed, error_message=str(e))
         yield _sse(status="error", message=str(e))
+    finally:
+        if spec.post_run:
+            # See run_fill's matching finally: synchronous and cheap, so it
+            # is safe to call however this generator ends, including a
+            # client disconnect that tears it down via GeneratorExit.
+            spec.post_run(db)
 
 
 async def run_replace_single(

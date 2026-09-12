@@ -178,6 +178,35 @@ async def test_disconnect_aborts_and_logs_aborted(db_session, movies):
 
 
 @pytest.mark.anyio
+async def test_fill_post_run_fires_on_success_and_on_disconnect(db_session, movies):
+    """post_run is pre_run's mirror at the other end of a run: it must fire
+    whatever the outcome, since it exists to drop state (the AniList cache)
+    that must not outlive the run that filled it."""
+    seen = []
+    spec = movie_spec(post_run=lambda db: seen.append("reset"))
+
+    await events(run_fill(spec, db_session, FakeRequest()))
+    assert seen == ["reset"]
+
+    seen.clear()
+    spec = movie_spec(fill_eligible=lambda db, e: True, post_run=lambda db: seen.append("reset"))
+    await events(run_fill(spec, db_session, FakeRequest(disconnect_after=1)))
+    assert seen == ["reset"]
+
+
+@pytest.mark.anyio
+async def test_fill_post_run_fires_on_a_crash(db_session, movies):
+    def explode(db, e):
+        raise RuntimeError("boom")
+
+    seen = []
+    spec = movie_spec(fill_eligible=explode, post_run=lambda db: seen.append("reset"))
+    out = await events(run_fill(spec, db_session, FakeRequest()))
+    assert out[-1]["status"] == "error"
+    assert seen == ["reset"]
+
+
+@pytest.mark.anyio
 async def test_exhausted_budget_stops_early_and_says_how_many_are_left(db_session, movies):
     spec = movie_spec(fill_eligible=lambda db, e: True, budget=lambda: False)
     out = await events(run_fill(spec, db_session, FakeRequest()))
@@ -209,6 +238,30 @@ async def test_bulk_replace_overwrites_every_selected_entry(db_session, movies):
         db_session.refresh(m)
         assert m.imdb_rating == "bulk"
     assert [r.status for r in logs(db_session, "Replace")] == ["Success"]
+
+
+@pytest.mark.anyio
+async def test_replace_post_run_fires_on_success_disconnect_and_crash(db_session, movies):
+    seen = []
+    await events(run_replace(movie_spec(post_run=lambda db: seen.append("reset")), db_session, FakeRequest()))
+    assert seen == ["reset"]
+
+    seen.clear()
+    await events(run_replace(
+        movie_spec(post_run=lambda db: seen.append("reset")), db_session, FakeRequest(disconnect_after=1),
+    ))
+    assert seen == ["reset"]
+
+    seen.clear()
+
+    def explode(db):
+        raise RuntimeError("boom")
+
+    out = await events(run_replace(
+        movie_spec(replace_select=explode, post_run=lambda db: seen.append("reset")), db_session, FakeRequest(),
+    ))
+    assert out[-1]["status"] == "error"
+    assert seen == ["reset"]
 
 
 @pytest.mark.anyio

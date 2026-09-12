@@ -542,7 +542,11 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -569,7 +573,11 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
         "release_date_jp": release_date.normalize(parse_from_sheet(raw.get("release_date_jp"), str)),
         "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
@@ -708,7 +716,11 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "ch_total": parse_from_sheet(raw.get("ch_total"), int),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "author_plot": parse_from_sheet(raw.get("author_plot"), str),
         "author_draw": parse_from_sheet(raw.get("author_draw"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
@@ -750,7 +762,11 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "ch_total": parse_from_sheet(raw.get("ch_total"), float),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "author": parse_from_sheet(raw.get("author"), str),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),

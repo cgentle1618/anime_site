@@ -75,7 +75,12 @@ class AnimeMovies(Base, NameFallbackMixin):
 
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
-    anilist_rating = Column(String, nullable=True)
+    # AniList's averageScore is an integer 0-100 and both ranks are
+    # positions. mal_rank next door is a String for historical reasons; that
+    # is not a reason to repeat it.
+    anilist_rating = Column(Integer, nullable=True)
+    anilist_rank = Column(Integer, nullable=True)
+    anilist_popularity_rank = Column(Integer, nullable=True)
 
     length_min = Column(Integer, nullable=True)
     release_date_jp = Column(String, nullable=True)
