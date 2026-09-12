@@ -16,10 +16,11 @@ Last updated: 2026-09-12
 Nothing. The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the
 AniList columns in #148; `docs/roadmap.md` holds the record for both.
 
-**A Backup is still owed on the home machine.** `anime_site_db` is upgraded
-to `al1n2ilist`, so the schema half is done - but the sheet still names the
-retired `guides` and `builds_and_mods` sections, and **Pull does not validate
-section keys**, so a Pull All from the current sheet would put them back.
+The home machine is current: `anime_site_db` is at `al1n2ilist` and a Backup
+ran against it on 2026-09-12 at 23:07, so the sheet no longer names the
+retired `guides` and `builds_and_mods` sections. That mattered because **Pull
+does not validate section keys** - a Pull All from the pre-Backup sheet would
+have restored them.
 
 The authorization redesign - phases 0, A, A.1, B, C and D - is
 finished and its table is gone; `docs/roadmap.md` holds what each phase did
