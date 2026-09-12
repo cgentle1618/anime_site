@@ -193,6 +193,28 @@ A failed or non-OK `/me` request resets to the anonymous snapshot rather than er
 
 `Login.jsx` posts the form, then **loads** `next` **only if it starts with `/`** (an absolute path on this site) and does not point back at `/login`, otherwise `/system`. The first test prevents an open redirect through the query string; the second stops a `next` that lands a signed-in visitor on the login form again.
 
+### Saved usernames on the login page
+
+The login form keeps up to three usernames in this browser's `localStorage`
+under `cg1618:saved-users`, so the accounts that share a machine can be swapped
+without retyping. The list is read and written by
+`frontend/src/lib/savedUsers.js`; the login page is the only thing that touches
+it.
+
+| | |
+|---|---|
+| What is stored | The username string only. No password, no token, no server record. |
+| When | On a **successful** sign-in, so a typo never takes a slot. |
+| Cap | Three. A fourth username is **not** saved and nothing is evicted - the three stay until one is removed by hand. |
+| Order | Most recently used first; signing in again as a saved user moves it to the front. |
+| Removing | The `×` on each entry drops it immediately, and frees the slot. |
+| Clicking one | Fills the username field and focuses the password. It does **not** authenticate - there is no stored credential to authenticate with. |
+
+Swapping users is still sign out, then sign in: the saved list shortens the
+second half of that, nothing more. A read or write that throws (a private
+window, blocked site data, a full quota) degrades to an empty list rather than
+breaking the form.
+
 ### An identity change is a full page load
 
 Signing in, signing out and switching access mode all leave the SPA and load a

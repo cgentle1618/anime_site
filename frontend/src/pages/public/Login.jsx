@@ -1,9 +1,10 @@
 // Frontend: page component file for Login.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { hardNavigate } from "../../lib/hardNavigate";
 import { useToast } from "../../hooks/useToast";
 import { Button, Eyebrow, Slip } from "../../components/ui/primitives";
+import { forgetUser, readSavedUsers, rememberUser } from "../../lib/savedUsers";
 
 const INPUT_CLS =
   "w-full px-3 py-2 border border-border-strong bg-surface text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
@@ -11,6 +12,11 @@ const INPUT_CLS =
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Usernames saved on this browser, most recently used first. Read once:
+  // nothing outside this page writes the list while it is open.
+  const [savedUsers, setSavedUsers] = useState(readSavedUsers);
+  const [username, setUsername] = useState("");
+  const passwordRef = useRef(null);
   const { showToast } = useToast();
   const location = useLocation();
 
@@ -30,6 +36,8 @@ export default function Login() {
       });
 
       if (res.ok) {
+        // Only a sign-in that worked earns a slot, so a typo never spends one.
+        rememberUser(formData.get("username"));
         const params = new URLSearchParams(location.search);
         const next = params.get("next");
         // Must start with "/" (an absolute URL would be an open redirect) and
@@ -55,6 +63,12 @@ export default function Login() {
     }
   }
 
+  function pickUser(name) {
+    setUsername(name);
+    // The password is then the only thing missing; leave nothing to do but type.
+    passwordRef.current?.focus();
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <Slip title="Admin" className="w-full max-w-md" bodyClassName="p-8">
@@ -75,6 +89,39 @@ export default function Login() {
           </div>
         )}
 
+        {savedUsers.length > 0 && (
+          <div className="mb-6">
+            <Eyebrow className="block mb-1.5">Saved users</Eyebrow>
+            <ul className="flex flex-wrap gap-2">
+              {savedUsers.map((name) => (
+                <li
+                  key={name}
+                  className="flex items-stretch border border-border-strong bg-surface-2 text-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => pickUser(name)}
+                    className="px-3 py-1.5 text-text hover:bg-surface-3 focus:outline-none focus:ring-2 focus:ring-brand transition"
+                  >
+                    {/* "Use", not "Sign in as": clicking fills the form, it
+                        does not authenticate - the password is still needed. */}
+                    <span className="sr-only">Use </span>
+                    {name}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => setSavedUsers(forgetUser(name))}
+                    className="px-2 border-l border-border-strong text-text-faint hover:bg-surface-3 hover:text-danger focus:outline-none focus:ring-2 focus:ring-brand transition"
+                  >
+                    <i className="fas fa-times" aria-hidden="true"></i>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Eyebrow as="label" htmlFor="login-username" className="block mb-1.5">
@@ -84,6 +131,8 @@ export default function Login() {
               id="login-username"
               type="text"
               name="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               className={INPUT_CLS}
               placeholder="admin"
@@ -96,6 +145,7 @@ export default function Login() {
             </Eyebrow>
             <input
               id="login-password"
+              ref={passwordRef}
               type="password"
               name="password"
               required
