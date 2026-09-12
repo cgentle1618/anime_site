@@ -116,6 +116,12 @@ def _can_administer(db: Session, role: models.Role) -> bool:
         return False
     if role.is_superuser:
         return True
+    # No role can be GRANTED admin.authz any more - it is locked off for every
+    # one of them (permissions.locked_permissions), so in practice the branch
+    # above is the only one that answers True. The row lookup stays because
+    # this guard decides whether the last administrator may be demoted, and a
+    # guard that reads the grants directly keeps answering correctly if the
+    # lock table ever widens.
     return (
         db.query(models.RolePermission)
         .filter(

@@ -53,17 +53,17 @@ true, including for permissions that do not exist yet.
 | Permission | `guest` | `user` | `super` | `admin` | a custom role |
 |---|---|---|---|---|---|
 | `media_type.anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game` (all nine) | yes | yes | yes | implicit | — |
-| `self.list` | — | yes | yes | **never implicit** | — |
-| `self.personal_notes` | — | yes | yes | **never implicit** | — |
-| `manage.catalog` | **refused, 409** | — | yes | implicit | — |
-| `manage.pipelines` | **refused, 409** | — | yes | implicit | — |
-| `admin.authz` | **refused, 409** | — | — (the point of the role) | implicit | — |
+| `self.list` | **locked off** | yes | **locked on** | **never implicit** | — |
+| `self.personal_notes` | **locked off** | yes | **locked on** | **never implicit** | — |
+| `manage.catalog` | **locked off** | — | **locked on** | implicit | — |
+| `manage.pipelines` | **locked off** | **locked off** | **locked on** | implicit | **locked off** |
+| `admin.authz` | **locked off** | **locked off** | **locked off** | implicit | **locked off** |
 
 - **A custom role is created empty.** Every cell is `—` until an admin grants
   it; grants are replaced as a whole set by `PUT`, never appended.
-- **`guest` cannot be granted the bottom three at all** — `PUT
-  /api/roles/{id}/permissions` answers **409**, because that role is what
-  every anonymous request resolves to.
+- **Locked means that cell is not an admin choice** — see
+  [Locked grants](#locked-grants) below. Saving a locked-off grant answers
+  **409**, and so does a save that drops a locked-on one.
 - **`admin` never holds `self.*`, implicitly or otherwise**, so an
   administrative account keeps no list, plan queue, season ratings, game
   copies or personal notes. An explicit grant still wins. See
@@ -74,6 +74,43 @@ true, including for permissions that do not exist yet.
   all three at once.
 - **No role holds a content label or a field group.** Neither family is in
   `catalog()`, so neither can be granted here — they are the other axis.
+
+#### Locked grants
+
+Some cells of the role grid are not an administrator's to decide.
+`permissions.locked_permissions(role_name, is_superuser)` returns
+`(locked_on, locked_off)` for one role: what it must hold and what it may
+never hold. A permission in neither set is a free choice.
+
+| Role | Locked ON | Locked OFF | Left to decide |
+|---|---|---|---|
+| `admin` (any superuser) | everything except `self.*` | `self.*` | nothing |
+| `super` | everything except `admin.authz` | `admin.authz` | nothing |
+| `guest` | — | `admin.*`, `manage.*`, `self.*` | `media_type.*` |
+| `user`, every custom role | — | `admin.authz`, `manage.pipelines` | `manage.catalog`, `self.*`, `media_type.*` |
+
+- **`admin.authz` is grantable to nothing.** The superuser short-circuit is
+  the only way to hold it: handing out the permission to change who may do
+  what, through the very page that governs it, is how an installation loses
+  control of itself.
+- **A superuser's `self.*` is locked OFF, not on.** `Viewer.has()` does not
+  short-circuit that family (`resolver.py`), so an administrative account
+  genuinely keeps no list and no personal notes — a ticked box there would
+  state the opposite of what the resolver does. It is the one cell where the
+  admin column is not uniform.
+- **`guest` can only view.** Every anonymous request resolves to it, so a
+  `self.*` grant would hand one shared list to the whole internet, and any
+  `manage.*` grant would hand an anonymous visitor the collection.
+- **`super` means everything except changing authorization**, so there is
+  nothing on that role to tick or untick at all.
+- **One table, three readers.** `RoleResponse` serves `locked_on` /
+  `locked_off`, so the editor draws those boxes disabled; `PUT
+  /api/roles/{id}/permissions` and `POST /api/roles/` refuse a payload that
+  disagrees; and `ensure_rbac_seed` reconciles every stored grant set on
+  start, adding a missing locked-on grant and dropping a locked-off one. The
+  seed rule that tops up only a role holding nothing at all still governs
+  everything else, so a deliberate removal of a *free* grant survives a
+  restart. A locked one does not, because it was never anyone's to remove.
 
 ### Access modes — which OBJECTS those operations reach
 
@@ -143,8 +180,8 @@ short-circuit deliberately does not cover.
 | rate a season | — | yes | yes | **never** |
 | change their own account settings | — | yes | yes | **never** |
 | write a personal note — a review or a remark | — | yes | yes | **never** |
-| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes | **409 if granted** | — | yes | implicit |
-| run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | — | yes | implicit |
+| write the catalogue — entries, groups, people, credits, options, relations, watch orders, quotes, memes, catalogue notes | **409 if granted** | grantable | **always** | implicit |
+| run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **always** | implicit |
 | restore accounts, content labels and entry labels on a Pull | — | — | **no** — those three tabs are skipped | implicit |
 | create roles and change what they hold | **409 if granted** | — | — | implicit |
 | create accounts, set a role, assign modes | **409 if granted** | — | — | implicit |
@@ -153,11 +190,16 @@ short-circuit deliberately does not cover.
 
 - **`super` is the row to read down.** Everything catalogue-shaped is yes and
   everything authorization-shaped is `—`; that gap is why the bare `admin`
-  permission became three named ones.
+  permission became three named ones. None of it is editable —
+  [Locked grants](#locked-grants).
 - **A capability refusal is 401, never 403**, so the SPA sees one error shape.
   An *object* refusal is 404 — a hidden entry answers exactly as an absent one.
-- **`guest` cannot hold the bottom six at all**: granting one answers **409**,
-  because every anonymous request resolves to that role.
+- **`guest` cannot hold any of these**: granting one answers **409**, because
+  every anonymous request resolves to that role. Nor can it hold `self.*` — it
+  has no account to own rows in.
+- **`user` and a custom role may be granted `manage.catalog`**, and nothing
+  else from this block. Running a pipeline is refused there because one Pull
+  All overwrites every table, accounts and role assignments included.
 
 ### What each mode lets a session SEE
 
@@ -417,11 +459,11 @@ API refuses to let an admin do to one.
 
 | Role | Rules |
 |---|---|
-| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can never hold `admin.authz`, `manage.catalog` or `manage.pipelines` → **409** (`app/routers/roles.py::replace_permissions`), because that would hand any anonymous caller the ability to administer, write the catalogue, or run a pipeline. Cannot be deleted or renamed. |
+| `guest` | Has no user rows; every anonymous or unresolvable request becomes this role. Can hold `media_type.*` and nothing else — the whole of `admin.*`, `manage.*` and `self.*` is locked off → **409** ([Locked grants](#locked-grants)), because that would hand any anonymous caller the ability to administer, write the catalogue, run a pipeline, or keep a list every visitor shares. Cannot be deleted or renamed. |
 | `user` | A system role like the others, so it cannot be deleted or renamed either. Its grants *can* be edited - it is not superuser - and `self.list` / `self.personal_notes` are the only things separating it from `guest`. |
 | `super` | A system role too. Not superuser - its grants are ordinary rows and editable on `/roles` - but seeded with `manage.catalog` and `manage.pipelines` and deliberately without `admin.authz`. |
 | `admin` | `is_superuser=True`, so `Viewer.has()` short-circuits and it holds every permission including ones that do not exist yet (a new content label hides nothing from it) - **except the `self` family, which the short-circuit deliberately does not cover**, so an admin keeps no list, plan queue, season ratings, game copies or personal notes. `PUT /permissions` on a superuser role → **409**. Cannot be deleted or renamed. |
-| custom | `is_superuser=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Deleting one with users still holding it → **409**. |
+| custom | `is_superuser=False`. Created empty; grants replaced as a whole set (`PUT`, never append). Locked exactly like `user`: `admin.authz` and `manage.pipelines` refused, everything else a free choice. Deleting one with users still holding it → **409**. |
 
 Seed: `app/services/rbac/seed.py::ensure_rbac_seed` is idempotent and runs
 from both the `r1b2a3c4c5o6_add_rbac_core` migration and the app lifespan
@@ -845,9 +887,9 @@ the `personal_reviews` section on every row the viewer did not author.
 |---|---|
 | `GET /api/roles/`, `GET /api/roles/{id}` | with `permissions` and `user_count` |
 | `GET /api/roles/catalog` | the vocabulary grouped by family — the editor grid is built from it, never mirrored in the SPA. **Four families only**: `admin`, `manage`, `media_type`, `self`. Content labels and field groups are not offered, because a role cannot express "minus this label" — permission resolution is a union |
-| `POST /api/roles/` | 409 on duplicate name; created non-superuser |
+| `POST /api/roles/` | 409 on duplicate name or a locked-off grant; created non-superuser |
 | `PATCH /api/roles/{id}` | label/description/sort_order only; `guest`/`admin` cannot be renamed |
-| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 superuser role, 409 guest+admin |
+| `PUT /api/roles/{id}/permissions` | replaces the set; 422 unknown, 409 superuser role, 409 if the payload holds a locked-off grant or drops a locked-on one |
 | `DELETE /api/roles/{id}` | 204; 409 for system roles or roles still held |
 | `GET/POST/PATCH/DELETE /api/users/…` | `role_id` must exist (422); username 409 |
 | `GET /api/content-labels/`, `POST`, `PATCH`, `DELETE` | 409 duplicate key; delete cascades assignments (entries become visible again); 204 |
@@ -1053,7 +1095,8 @@ matters is enforced server-side.
 | `tests/unit/test_rbac_viewer.py` | `Viewer.has`, superuser, guest |
 | `tests/unit/test_field_groups.py` | every declared column/link field exists |
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
-| `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards; guest can never be granted `admin.authz`, `manage.catalog` or `manage.pipelines` |
+| `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
+| `tests/api/test_role_locks.py` | the locked-grant table and both halves that read it: what the role list serves, what the write path refuses, and what the seed reconciles |
 | `tests/api/test_admin_compat.py` | characterization test: every route enumerated from the app itself must stay gated by one of the three capabilities, so a route that loses its guard in a refactor fails here |
 | `tests/api/test_capability_dependencies.py` | `require_admin_authz` / `require_manage_catalog` / `require_manage_pipelines` each answer 401, never 403 |
 | `tests/api/test_catalog_router_gates.py` | a `super` account may edit the catalogue, an ordinary `user` may not - one representative route per router family, pinning that the *right* capability was chosen |

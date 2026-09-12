@@ -158,3 +158,70 @@ def catalog(db: "Session") -> frozenset[str]:
 
 def is_valid(db: "Session", permission: str) -> bool:
     return permission in catalog(db)
+
+
+# ---------------------------------------------------------------------------
+# Which grants a role may not change
+# ---------------------------------------------------------------------------
+#
+# Some cells of the role grid are not an admin's to decide. `admin.authz` is
+# the clearest: it is the permission to change who may do what, so handing it
+# out through the very page it governs is how an installation loses control of
+# itself. It is now grantable to NOTHING - the superuser short-circuit is the
+# only way to hold it.
+#
+# The rest follow from what each system role IS, rather than from what it
+# happens to have been seeded with. `super` means "everything except changing
+# authorization", so every permission but admin.authz is locked on; `guest` is
+# what an anonymous request resolves to, so the whole of admin.*, manage.* and
+# self.* is locked off and that role can only view.
+#
+# Returned to the frontend per role (RoleResponse.locked_on / locked_off) and
+# enforced on the write path from this same table, so the disabled checkbox
+# and the 409 can never disagree.
+#
+# The role NAMES live here rather than in seed.py, which imports them back:
+# a table keyed on a name must own that name, or a rename reaches the seed and
+# silently unlocks the role.
+
+SUPER_ROLE_NAME = "super"
+GUEST_ROLE_NAME = "guest"
+
+
+def _self_family() -> frozenset[str]:
+    return frozenset(self_perm(key) for key in SELF_PERMISSION_KEYS)
+
+
+def locked_permissions(
+    role_name: str, is_superuser: bool
+) -> tuple[frozenset[str], frozenset[str]]:
+    """
+    (locked_on, locked_off) for one role: what it must hold and what it may
+    never hold. Disjoint by construction - a permission in neither set is the
+    admin's free choice.
+
+    A superuser's locked_on is everything EXCEPT the self family, and its
+    locked_off is that family, because Viewer.has() deliberately does not
+    short-circuit self.* (resolver.py): an administrative account keeps no
+    list and no personal notes, so drawing those boxes ticked would state the
+    opposite of what the code does.
+    """
+    every = static_catalog()
+    own = _self_family()
+
+    if is_superuser:
+        return frozenset(every - own), own
+    if role_name == GUEST_ROLE_NAME:
+        # Every anonymous request resolves to this role, so anything beyond a
+        # read would be handed to every visitor on the internet.
+        return frozenset(), frozenset(
+            {admin_perm(key) for key in ADMIN_PERMISSION_KEYS}
+            | {manage_perm(key) for key in MANAGE_PERMISSION_KEYS}
+            | own
+        )
+    if role_name == SUPER_ROLE_NAME:
+        return frozenset(every - {PERM_ADMIN_AUTHZ}), frozenset({PERM_ADMIN_AUTHZ})
+    # `user` and every custom role. manage.catalog and the self family are
+    # free choices here; running a pipeline is not, because one Pull All
+    # overwrites every table including the accounts and role assignments.
+    return frozenset(), frozenset({PERM_ADMIN_AUTHZ, PERM_MANAGE_PIPELINES})

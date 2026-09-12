@@ -63,6 +63,12 @@ class RoleResponse(RoleBase):
     is_superuser: bool
     permissions: List[str] = []
     user_count: int = 0
+    # What this role must hold and what it may never hold, from
+    # permissions.locked_permissions(). Served rather than mirrored in the SPA
+    # for the same reason the permission catalog is: the disabled checkbox and
+    # the 409 that would reject the same save come from one table.
+    locked_on: List[str] = []
+    locked_off: List[str] = []
 
     model_config = ConfigDict(from_attributes=True)
 

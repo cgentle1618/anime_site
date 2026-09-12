@@ -32,19 +32,16 @@ from app.services.rbac.permissions import (
     FAMILY_SELF,
     MANAGE_PERMISSION_KEYS,
     MANAGE_PERMISSION_LABELS,
-    PERM_ADMIN_AUTHZ,
-    PERM_MANAGE_CATALOG,
-    PERM_MANAGE_PIPELINES,
     SELF_PERMISSION_KEYS,
     SELF_PERMISSION_LABELS,
     admin_perm,
     catalog,
+    locked_permissions,
     manage_perm,
     media_type_perm,
     self_perm,
 )
 from app.services.rbac.resolver import require_admin_authz
-from app.services.rbac.seed import GUEST_ROLE
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
@@ -57,6 +54,7 @@ router = APIRouter(
 
 
 def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
+    locked_on, locked_off = locked_permissions(role.name, bool(role.is_superuser))
     granted = [
         row.permission
         for row in db.query(models.RolePermission.permission).filter(
@@ -76,6 +74,8 @@ def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
         is_superuser=role.is_superuser,
         permissions=sorted(granted),
         user_count=user_count,
+        locked_on=sorted(locked_on),
+        locked_off=sorted(locked_off),
     )
 
 
@@ -184,6 +184,34 @@ def _validate(db: Session, permissions: List[str]) -> None:
         )
 
 
+def _enforce_locks(role: models.Role, requested: set[str]) -> None:
+    """
+    Refuse a save that disagrees with permissions.locked_permissions().
+
+    The role editor draws these boxes disabled, so a payload reaching here can
+    only come from a hand-made request - but this is the half that actually
+    decides, and the half the editor reads is served from the same table, so
+    the two cannot drift.
+    """
+    locked_on, locked_off = locked_permissions(role.name, bool(role.is_superuser))
+    forbidden = sorted(locked_off & requested)
+    if forbidden:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"The {role.label} role can never hold {', '.join(forbidden)}."
+            ),
+        )
+    missing = sorted(locked_on - requested)
+    if missing:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"The {role.label} role always holds {', '.join(missing)}."
+            ),
+        )
+
+
 @router.post(
     "/", response_model=schemas.RoleResponse, status_code=201, summary="Create Role"
 )
@@ -191,6 +219,12 @@ def create_role(payload: schemas.RoleCreate, db: Session = Depends(get_db)):
     if db.query(models.Role).filter(models.Role.name == payload.name).first():
         raise HTTPException(status_code=409, detail="A role with that name exists.")
     _validate(db, payload.permissions)
+    # A new role is never guest, super or a superuser, so its locks are the
+    # custom-role row: admin.authz and manage.pipelines refused, nothing forced.
+    _enforce_locks(
+        models.Role(name=payload.name, label=payload.label, is_superuser=False),
+        set(payload.permissions),
+    )
 
     role = models.Role(
         name=payload.name,
@@ -244,23 +278,7 @@ def replace_permissions(
             detail="A superuser role holds every permission; grants do not apply.",
         )
     _validate(db, payload.permissions)
-    _forbidden_for_guest = {
-        PERM_ADMIN_AUTHZ,
-        PERM_MANAGE_CATALOG,
-        PERM_MANAGE_PIPELINES,
-    }
-    if role.name == GUEST_ROLE and _forbidden_for_guest & set(payload.permissions):
-        # Anonymous requests resolve to the guest role's grants, so any of
-        # these would hand every visitor a capability, not just a wider view -
-        # manage.catalog worst of all, since it would let an anonymous
-        # visitor write the collection.
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "The guest role can never hold admin.authz, manage.catalog "
-                "or manage.pipelines."
-            ),
-        )
+    _enforce_locks(role, set(payload.permissions))
 
     db.query(models.RolePermission).filter(
         models.RolePermission.role_id == role.system_id

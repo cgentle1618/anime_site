@@ -22,15 +22,19 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.services.rbac.permissions import (
+    GUEST_ROLE_NAME,
     PERM_MANAGE_CATALOG,
     PERM_MANAGE_PIPELINES,
     PERM_SELF_LIST,
     PERM_SELF_PERSONAL_NOTES,
+    SUPER_ROLE_NAME,
+    locked_permissions,
     media_type_perm,
 )
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
-GUEST_ROLE = "guest"
+# Both names are owned by permissions.py, which keys the lock table on them.
+GUEST_ROLE = GUEST_ROLE_NAME
 ADMIN_ROLE = "admin"
 # A signed-in member. Not an administrator and not a second kind of admin:
 # guest reads plus the two self.* writes, and nothing else.
@@ -38,7 +42,7 @@ USER_ROLE = "user"
 # Everything except the ability to change who may do what. NOT is_superuser:
 # the point of the role is that its grant set is finite and inspectable, so a
 # permission minted in code reaches it only when someone grants it.
-SUPER_ROLE = "super"
+SUPER_ROLE = SUPER_ROLE_NAME
 
 def default_guest_permissions() -> set[str]:
     """Every media type. That is the whole of the guest role now.
@@ -181,4 +185,43 @@ def ensure_rbac_seed(db: Session) -> None:
                 )
             )
 
+    db.flush()
+    _enforce_locks(db)
+
+
+def _enforce_locks(db: Session) -> None:
+    """
+    Make every stored grant set agree with permissions.locked_permissions().
+
+    The top-up blocks above deliberately leave an established role alone, so
+    that a grant an admin removed is not handed back. A LOCKED grant is the
+    one thing that rule must not cover: `super` means "everything except
+    changing authorization", and a super role sitting in the database without
+    manage.catalog would have the role editor drawing a ticked, disabled box
+    over a permission it does not actually hold. The same run drops a locked
+    OFF grant - a guest role still holding manage.catalog from before this
+    rule existed is exactly the row that must not survive a restart.
+
+    Superuser roles are skipped: they hold everything through the resolver's
+    short-circuit and store no rows at all.
+    """
+    roles = db.query(models.Role).filter(models.Role.is_superuser.is_(False)).all()
+    for role in roles:
+        locked_on, locked_off = locked_permissions(role.name, False)
+        held = {
+            row.permission
+            for row in db.query(models.RolePermission).filter(
+                models.RolePermission.role_id == role.system_id
+            )
+        }
+        for permission in sorted(locked_on - held):
+            db.add(
+                models.RolePermission(role_id=role.system_id, permission=permission)
+            )
+        stale = sorted(locked_off & held)
+        if stale:
+            db.query(models.RolePermission).filter(
+                models.RolePermission.role_id == role.system_id,
+                models.RolePermission.permission.in_(stale),
+            ).delete(synchronize_session=False)
     db.flush()

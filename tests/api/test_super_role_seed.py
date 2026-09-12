@@ -57,9 +57,15 @@ def test_seeding_twice_does_not_duplicate_the_role(db):
     )
 
 
-def test_a_grant_removed_by_hand_is_not_handed_back(db):
-    """Matches the rule guest and user already follow: top up only a role
-    holding nothing at all."""
+def test_a_grant_removed_by_hand_is_handed_back(db):
+    """The one place `super` does NOT follow the rule guest and user follow.
+
+    Top-up-only-an-empty-role exists so that a deliberate removal sticks, and
+    that still holds for guest and user. Every one of this role's grants is
+    locked on, though (permissions.locked_permissions), so there is no such
+    thing as a deliberate removal here - a super role missing manage.pipelines
+    is a row the editor would draw as a ticked, disabled box over a permission
+    it does not hold. See tests/api/test_role_locks.py."""
     ensure_rbac_seed(db)
     db.flush()
     role = db.query(models.Role).filter(models.Role.name == SUPER_ROLE).one()
@@ -78,4 +84,4 @@ def test_a_grant_removed_by_hand_is_not_handed_back(db):
             models.RolePermission.role_id == role.system_id
         )
     }
-    assert PERM_MANAGE_PIPELINES not in held
+    assert PERM_MANAGE_PIPELINES in held

@@ -7,6 +7,12 @@
 //
 // Grants are saved as a whole set. Unticking a box means "not this", which an
 // append-only save could not express.
+//
+// Some boxes are not the admin's to decide, and which ones is served per role
+// as locked_on / locked_off rather than decided here - the same table the PUT
+// enforces with a 409, so a box that looks editable can never be refused on
+// save. A locked_on box draws ticked, a locked_off box draws clear, and both
+// draw disabled.
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
@@ -61,6 +67,27 @@ export default function Roles() {
     setDraft(new Set(selected?.permissions ?? []));
   }, [selected]);
 
+  const lockedOn = useMemo(
+    () => new Set(selected?.locked_on ?? []),
+    [selected],
+  );
+  const lockedOff = useMemo(
+    () => new Set(selected?.locked_off ?? []),
+    [selected],
+  );
+
+  // A role with nothing left to decide gets no Save button rather than a
+  // permanently disabled one.
+  const anyEditable = useMemo(
+    () =>
+      catalog.some((family) =>
+        family.permissions.some(
+          (p) => !lockedOn.has(p.permission) && !lockedOff.has(p.permission),
+        ),
+      ),
+    [catalog, lockedOn, lockedOff],
+  );
+
   const dirty = useMemo(() => {
     if (!selected) return false;
     const held = new Set(selected.permissions);
@@ -70,6 +97,7 @@ export default function Roles() {
   }, [selected, draft]);
 
   function toggle(permission) {
+    if (lockedOn.has(permission) || lockedOff.has(permission)) return;
     setDraft((prev) => {
       const next = new Set(prev);
       if (next.has(permission)) next.delete(permission);
@@ -229,15 +257,17 @@ export default function Roles() {
         <section>
           {!selected ? (
             <p className="text-text-faint text-sm">Pick a role.</p>
-          ) : selected.is_superuser ? (
-            <div className="border border-warning/40 bg-warning/15 rounded-lg p-4 text-sm text-warning">
-              <strong>{selected.label}</strong> is a superuser role: it holds
-              every permission implicitly, including ones that do not exist yet.
-              That is why creating a new content label never hides anything from
-              an administrator.
-            </div>
           ) : (
             <>
+              {selected.is_superuser && (
+                <div className="border border-warning/40 bg-warning/15 rounded-lg p-4 text-sm text-warning mb-4">
+                  <strong>{selected.label}</strong> holds every permission
+                  implicitly, including ones that do not exist yet - which is
+                  why minting a content label never hides anything from an
+                  administrator. Own Rows are the exception: an administrative
+                  account keeps no list and no personal notes.
+                </div>
+              )}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-bold text-text">
@@ -254,13 +284,15 @@ export default function Roles() {
                       Delete
                     </button>
                   )}
-                  <button
-                    onClick={save}
-                    disabled={!dirty || saving}
-                    className="px-4 py-1.5 text-xs font-semibold rounded bg-brand text-on-brand disabled:opacity-40"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
+                  {anyEditable && (
+                    <button
+                      onClick={save}
+                      disabled={!dirty || saving}
+                      className="px-4 py-1.5 text-xs font-semibold rounded bg-brand text-on-brand disabled:opacity-40"
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -282,15 +314,21 @@ export default function Roles() {
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {family.permissions.map((p) => (
+                        {family.permissions.map((p) => {
+                          const on = lockedOn.has(p.permission);
+                          const locked = on || lockedOff.has(p.permission);
+                          return (
                           <label
                             key={p.permission}
-                            className="flex items-start gap-2 text-sm cursor-pointer"
+                            className={`flex items-start gap-2 text-sm ${
+                              locked ? "opacity-60" : "cursor-pointer"
+                            }`}
                           >
                             <input
                               type="checkbox"
                               className="mt-0.5"
-                              checked={draft.has(p.permission)}
+                              checked={on || draft.has(p.permission)}
+                              disabled={locked}
                               onChange={() => toggle(p.permission)}
                             />
                             <span>
@@ -302,7 +340,8 @@ export default function Roles() {
                               )}
                             </span>
                           </label>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

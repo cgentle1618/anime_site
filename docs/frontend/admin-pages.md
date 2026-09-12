@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-07
+Last verified: 2026-09-12
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -533,7 +533,11 @@ anyone remembering this file.
 ## /roles, /users, /content-labels
 
 - **Roles** — create roles, replace their permission set from the catalog
-  (`/api/roles/catalog`); the guest role can never receive `admin` (409).
+  (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
+  the `locked_on` / `locked_off` the role itself carries, and a role with
+  nothing left to decide (`super`, `admin`) gets no Save button. The same
+  table answers 409 on the write path, so a box that looks editable is one the
+  server will accept.
 - **Users** — create users with a role, change role, delete; the last
   administrator and your own account are protected.
 - **Content Labels** — the label vocabulary; deleting a label immediately
