@@ -222,7 +222,7 @@ def test_priming_batches_in_fifties(monkeypatch):
 
     monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fake_batch)
 
-    prime_anilist_cache(FakeDb(range(120)), FakeModel, ANIME)
+    prime_anilist_cache(FakeDb(range(1, 121)), FakeModel, ANIME)
 
     assert [len(b) for b in batches] == [50, 50, 20]
     assert anilist_record(7, ANIME)["averageScore"] == 80
@@ -306,11 +306,19 @@ def test_priming_clears_the_previous_run(monkeypatch):
 
 
 def test_an_entry_with_no_mal_id_is_not_requested(monkeypatch):
+    """
+    The filter, not the empty case: a row whose mal_id is NULL must be dropped
+    before it reaches a batch. Seeded with a real id alongside it so a green
+    proves the None was filtered rather than that nothing was requested at all.
+    """
     batches = []
-    monkeypatch.setattr(
-        anilist_module,
-        "fetch_anilist_batch",
-        lambda ids, t: batches.append(list(ids)) or {},
-    )
-    prime_anilist_cache(FakeDb([]), FakeModel, ANIME)
-    assert batches == []
+
+    def fake_batch(ids, media_type):
+        batches.append(list(ids))
+        return {}
+
+    monkeypatch.setattr(anilist_module, "fetch_anilist_batch", fake_batch)
+
+    prime_anilist_cache(FakeDb([None, 5114]), FakeModel, ANIME)
+
+    assert batches == [[5114]]

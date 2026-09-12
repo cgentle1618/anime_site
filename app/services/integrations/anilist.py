@@ -203,7 +203,7 @@ def prime_anilist_cache(db, model, media_type: str) -> None:
     mal_ids = [
         row[0]
         for row in db.query(model.mal_id).filter(model.mal_id.isnot(None)).all()
-        if row[0] is not None
+        if row[0]
     ]
 
     for start in range(0, len(mal_ids), BATCH_SIZE):
