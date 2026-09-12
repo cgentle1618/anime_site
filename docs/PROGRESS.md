@@ -13,7 +13,13 @@ Last updated: 2026-09-12
 
 ## In flight
 
-Nothing. The authorization redesign - phases 0, A, A.1, B, C and D - is
+Nothing. The game 攻略 / 劇情 / 待辦 note groups are finished on
+`feat/game-guides-story-todo` and awaiting a PR; `docs/roadmap.md` holds the
+record. **Run `alembic upgrade head` and then a Backup after that branch
+merges** - an older sheet still names the retired `guides` and
+`builds_and_mods` sections, and Pull does not validate section keys.
+
+The authorization redesign - phases 0, A, A.1, B, C and D - is
 finished and its table is gone; `docs/roadmap.md` holds what each phase did
 and why, and the gates themselves are described in
 [authorization.md](authorization.md#rules-not-to-break).

@@ -63,8 +63,15 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | --- | --- | --- |
 | `reviews` | 評論 Reviews and Comments | `fa-comments` |
 | `analysis_group` | 解析 Analysis and Cinematography | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
+| `guides` | 攻略 Guides | `fa-map` — game-only, 15 sections |
+| `story` | 劇情 Story | `fa-book-open` — game-only, 7 sections |
+| `todo` | 待辦 Todo | `fa-list-check` — game-only, 4 personal-scope buckets |
 | `music` | 音樂 Music | `fa-music` |
 | `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` |
+
+**`guides` names a group and no section**, so unlike `analysis_group` it needs no suffix. **`todo` is not called `progress`**: the game detail page already renders a `<Slip title="Progress">` (playtime and achievements) beside the notes, and two cards with one name is unreadable.
+
+**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
 
 ### Section registry
 
@@ -83,13 +90,37 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 | `highlight_episodes` | 神回/神片段 (manga: 神回) | episode_text | flat | tv-show, cartoon, manga | tv-show & cartoon: 神回, 神片段, 神篇章; manga: none | — | "Episode(s), e.g. ep 3" (manga: "Chapter(s), e.g. ch 6") | **yes** | no | no |
 | `highlight_passages` | 神片段 | text | flat | novel | — | — | — | no | no | no |
 | `highlight_moments` | 神場景 Highlights | episode_text | flat | game | — | — | "Chapter / Boss, e.g. Ch 3" | **yes** | no | no |
-| `guides` | 攻略 Guides | name_entries | flat | game | — | — | — | no | no | no |
-| `builds_and_mods` | 配裝/模組 Builds & Mods | name_entries | flat | game | Build, Mod, Tool | — | — | no | no | no |
 | `analysis` | 解析 Analysis | text_links | analysis_group | All | — | — | — | no | no | no |
 | `cinematography` | 分鏡/演出/巧思 | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, series | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `craft` | 巧思 | text_links | analysis_group | novel | — | — | — | no | no | no |
 | `foreshadowing` | Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
+| `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
+| `controls` | 操作 Controls | text_links | guides | game | — | — | — | no | no | no |
+| `trivia` | 小知識 Trivia | text_links | guides | game | — | — | — | no | no | no |
+| `side_quests` | 支線任務列表 Side Quests | name_entries | guides | game | — | — | — | no | no | no |
+| `builds_and_styles` | 配裝&流派 Builds & Styles | name_entries | guides | game | — | — | — | no | no | no |
+| `stats_and_points` | 屬性&配點 Stats & Points | text_links | guides | game | — | — | — | no | no | no |
+| `skills` | 技能 Skills | name_entries | guides | game | — | — | — | no | no | no |
+| `collectibles` | 收集物 Collectibles | name_entries | guides | game | — | — | — | no | no | no |
+| `items` | 道具 Items | name_entries | guides | game | — | — | — | no | no | no |
+| `weapons_and_gear` | 武器&裝備 Weapons & Gear | name_entries | guides | game | — | — | — | no | no | no |
+| `characters_guide` | 角色 Characters | name_entries | guides | game | — | — | — | no | no | no |
+| `enemies` | 敵人 Enemies | name_entries | guides | game | — | — | — | no | no | no |
+| `endings` | 結局 Endings | name_entries | guides | game | — | — | — | no | no | no |
+| `mods_and_tools` | 模組&工具 Mods & Tools | name_entries | guides | game | Mod, Tool | — | — | no | no | no |
+| `guide_resources` | 攻略資源 Guide Resources | name_entries | guides | game | — | — | — | no | no | no |
+| `main_plot` | 主線劇情 Main Plot | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
+| `side_plot` | 支線劇情 Side Stories | episode_text | story | game | — | — | "Chapter / Part, e.g. Ch 3" | no | no | no |
+| `character_arcs` | 角色劇情 Character Arcs | text_links | story | game | — | — | — | no | no | no |
+| `lore` | 世界觀&設定 Lore | text_links | story | game | — | — | — | no | no | no |
+| `timeline` | 時間線 Timeline | text | story | game | — | — | — | no | no | no |
+| `mysteries` | 未解之謎 Mysteries | text_links | story | game | — | — | — | no | no | no |
+| `story_other` | 其他 Other | text_links | story | game | — | — | — | no | no | no |
+| `todo_now` | 現在進行 Doing now | text_links | todo | game | — | — | — | no | no | no |
+| `todo_next` | 接下來 To do next | text_links | todo | game | — | — | — | no | no | no |
+| `todo_later` | 未來 To do in the future | text_links | todo | game | — | — | — | no | no | no |
+| `todo_maybe` | 可能 Might do | text_links | todo | game | — | — | — | no | no | no |
 | `op` | OP | music_track | music | anime | normal, different version, all inclusive version (default `normal`) | Need, Pending, Done | — | no | no | no |
 | `ed` | ED | music_track | music | anime | same as `op` | Need, Pending, Done | — | no | no | no |
 | `insert_songs` | 插入曲 Insert Song | episode_name_links | music | anime | — | Need, Pending, Done | "Episode(s), e.g. ep 3" | **yes** | no | no |
@@ -112,8 +143,8 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 20 | One shared set of rows, read by everyone unfiltered |
-| `personal` | 7 — `remark`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions` | One set per user; a viewer sees their own rows and nobody else's |
+| `catalog` | 40 | One shared set of rows, read by everyone unfiltered |
+| `personal` | 11 — `remark`, `advantages`, `disadvantages`, `double_edged`, `episode_comments`, `personal_reviews`, `questions`, and the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`); the frontend does not act on it yet.
@@ -139,7 +170,9 @@ Design rules baked into the registry:
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
 | **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the same four owner columns `note` does, so every one of the twelve owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
-| **A game's bookmark section is `builds_and_mods`, never `resources`.** The site-wide `resources` section (name_links, all owners, standalone) already existed and games inherit it for plain bookmarks; reusing the key would have shadowed it, and a second card also labelled "Resources" would be unreadable — hence a distinct key *and* a distinct label. Builds, mods and tools are one section with a `kind` rather than three near-identical ones, because they took the same shape once `guides` became `name_entries`; `guides` stays separate because it is filled for nearly every game and these are not. | `NOTE_SECTIONS["builds_and_mods"]` and its comment. |
+| **A game's guide vocabulary is the 攻略 group, not one section.** Fifteen sections rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, all owners, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
+| **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which the API already accepts. | The 待辦 run in `NOTE_SECTIONS` and its banner comment. |
+| **劇情 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. The 劇情 plot sections take an *optional* locator, unlike `episode_comments` and `highlight_moments`, which require one — a beat remembered without its chapter is still a beat. | `main_plot` / `side_plot`, and `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A game is cut into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so game gets a `labels` override (各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. | `NOTE_SECTIONS["episode_comments"]`. |
 | **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. | Comment above `op` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
@@ -198,7 +231,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 | Behaviour | How |
 | --- | --- |
 | Loads registry + rows in parallel (`fetchSections`, `fetchNotes`), then refetches only rows after a mutation; the registry is static for the session. | `useEffect` / `reloadNotes`. |
-| Dispatches on `section.shape` via the `SHAPES` map (7 of the 8 stored shapes → components; **`name_entries` has no component yet**, so `guides` and `builds_and_mods` render null until the frontend catches up). `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
+| Dispatches on `section.shape` via the `SHAPES` map — all 8 stored shapes have a component, `name_entries` → `NameEntriesSection` among them. `external` shapes dispatch on **section key** via `EXTERNAL_SHAPES` (`quotes` → `QuoteSection`, `memes` → `MemeSection`) — the first of two scoped exceptions to "the frontend never names sections". An external key with no component renders null. | `renderSection`. |
 | `splitBlocks()` splits the registry into `flat` (ungrouped, non-standalone), `groups` (one card per group key, registry order), `standalone`. | `splitBlocks`. |
 | The **Notes card** holds the flat sections and **renders only when ≥1 flat section is visible** (`flat.length > 0`). A comic with `remark` hidden has no flat section, so no empty headed card. | JSX near the bottom. |
 | Each group renders as its own `GroupCard` *beside* Notes (Music is a peer of Notes, not inside it). Standalone sections (`resources`, `questions`) render lifted out with no wrapper — every shape component already draws its own `SectionCard`. | Same. |
@@ -239,7 +272,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | --- | --- |
 | Columns | `note` column declaration order: `system_id, owner_type, owner_id, section, locator, kind, status, title, content, links, entries, sort_index, created_at, updated_at` (`format_model_for_sheet`, `app/utils/formatter.py`). `links` and `entries` are serialised as JSON text. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
-| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **It has no `entries` key**: Backup writes the column (the formatter walks real columns) but Pull does not read it back, so a `guides` or `builds_and_mods` row loses its entries on a round trip. |
+| Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` is parsed exactly like `links` beside it** — without that key Backup would still write the column (the formatter walks real columns) and Pull would drop it, losing every item of every `name_entries` row on a round trip. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
 | Remark rows | A sheet `remark` row whose `system_id` is unknown locally is retargeted at the owner's existing remark row and updated in place, keeping the local id — otherwise the partial unique index would fail the whole tab at commit. |
 | Round-trip | Because owner tables no longer have a `remark` column (and `format_model_for_sheet` walks real columns, so the column_property is not exported), **remark round-trips only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
