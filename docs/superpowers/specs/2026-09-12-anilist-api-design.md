@@ -63,8 +63,8 @@ distinguished by `format: NOVEL`, so novel and manga use the same query.
 AniList documents 90 requests/minute. The live API returns
 `X-RateLimit-Limit: 30`, and has done for a long stretch. Probed 2026-09-12.
 
-The throttle therefore **reads `X-RateLimit-Limit` and `X-RateLimit-Remaining`
-off each response** and adapts, rather than hard-coding a constant the way
+The throttle therefore **reads `X-RateLimit-Limit` off each response** and
+adapts its window, rather than hard-coding a constant the way
 `TenraiRateLimiter.DEFAULT_LIMITS` does. It starts pessimistic at 30/minute. A
 constant here would be wrong in whichever direction the limit next moves.
 
@@ -175,9 +175,15 @@ contract Steam already depends on. 32 seconds does not justify that.
 
 ### Writing
 
-Each `autofill_*_from_mal` gains a sibling `autofill_*_from_anilist(entry, db)`
-that reads the cache, never the network, and writes the three columns plus the
-source row. The specs call both in sequence, the way `_fill_game` calls IGDB
+Each `autofill_*_from_mal` gains a sibling `autofill_from_anilist(entry, type,
+db)` that reads the cache and writes the three columns plus the source row.
+
+It reads the cache *in preference to* the network, not instead of it. The
+single-entry Replace hook `run_replace_single` never fires `pre_run`
+(`app/services/pipelines/runner.py:44`), so there the cache is empty and a
+cache-only read would silently write nothing. The cache therefore separates a
+**primed miss** - the batch ran, AniList has no record, return `None` and do
+not re-request - from **never primed**, which fetches that one id on demand. The specs call both in sequence, the way `_fill_game` calls IGDB
 then Steam (`app/services/pipelines/specs.py:102`).
 
 ### manga and novel need a session
