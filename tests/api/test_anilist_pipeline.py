@@ -34,6 +34,22 @@ def test_the_four_anilist_pipelines_prime_the_cache():
         assert PIPELINES[key].pre_run is not None, key
 
 
+def test_the_four_anilist_pipelines_reset_the_cache_when_the_run_ends():
+    """
+    The mirror of the pre_run test. pre_run resetting at the START is not
+    enough: run_replace_single never fires pre_run, so without post_run the
+    _primed set outlives the run and a single-entry Replace serves a stale
+    cached record while making no request at all.
+    """
+    for key in ("anime", "anime-movie", "manga", "novel"):
+        assert PIPELINES[key].post_run is not None, key
+
+
+def test_pipelines_without_anilist_do_not_reset_it():
+    for key in ("movie", "tv-show", "cartoon", "comic"):
+        assert PIPELINES[key].post_run is None, key
+
+
 def test_pipelines_without_anilist_do_not_prime_it():
     """Movie, TV show, cartoon and comic have no AniList record to fetch."""
     for key in ("movie", "tv-show", "cartoon", "comic"):
