@@ -1,10 +1,10 @@
 """resolve_mode, in isolation.
 
-The four branches of the resolution order, plus the two that matter most:
-a revoked mode resolves to NOTHING rather than to the account's default, and
-an unflagged guest default resolves to nothing rather than to everything.
-Both are the fail-closed direction, and both would be invisible in manual
-testing.
+The four branches of the resolution order, plus the two that matter most: a
+revoked mode resolves to NOTHING rather than to the account's default, and a
+logged-out visitor resolves to `safe` and to nothing else, whatever the
+database holds. Both are the fail-closed direction, and both would be
+invisible in manual testing.
 """
 
 import uuid
@@ -15,6 +15,7 @@ from app import models
 from app.services.rbac import cache
 from app.services.rbac.modes import EMPTY_MODE, resolve_mode
 from app.services.rbac.seed_modes import (
+    MODE_NORMAL,
     MODE_SAFE,
     MODE_UNRESTRICTED,
     ensure_access_mode_seed,
@@ -98,15 +99,37 @@ def test_a_logged_in_account_with_no_claim_resolves_to_nothing(
     assert resolve_mode(db_session, admin_user, None) == EMPTY_MODE
 
 
-def test_no_user_resolves_to_the_guest_default(db_session, label):
+def test_no_user_resolves_to_safe(db_session, label):
     resolved = resolve_mode(db_session, None, None)
     assert resolved.mode_key == MODE_SAFE
     assert "sources_restricted" not in resolved.field_groups
 
 
-def test_no_flagged_guest_default_resolves_to_nothing(db_session, label):
+def test_the_anonymous_policy_is_not_stored_anywhere(db_session, label):
+    """`safe` is looked up by key, so there is no row an edit could move.
+
+    The flag this replaced was ordinary data: a Pull All, a migration or a
+    hand-edit could point it at `unrestricted`, and that failure publishes
+    every labelled entry to the internet while looking like a successful
+    restore. Nothing on the table decides this any more.
+    """
+    assert not hasattr(models.AccessMode, "is_guest_default")
+
+    # The mirror, so a green above is not just the attribute being renamed:
+    # widening every OTHER mode changes nothing about what a guest reaches.
+    for key in (MODE_UNRESTRICTED, MODE_NORMAL):
+        _mode(db_session, key).sort_order = -1
+    db_session.flush()
+    cache.bump()
+
+    assert resolve_mode(db_session, None, None).mode_key == MODE_SAFE
+
+
+def test_a_missing_safe_mode_resolves_to_nothing(db_session, label):
     """Fail closed. A misconfiguration must hide everything, not publish it."""
-    db_session.query(models.AccessMode).update({"is_guest_default": False})
+    db_session.query(models.AccessMode).filter(
+        models.AccessMode.key == MODE_SAFE
+    ).delete(synchronize_session=False)
     db_session.flush()
     cache.bump()
 

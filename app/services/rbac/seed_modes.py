@@ -93,7 +93,6 @@ def seeded_modes() -> tuple[dict, ...]:
             "label": "Unrestricted",
             "description": "Every entry and every field. The widest mode.",
             "sort_order": 0,
-            "is_guest_default": False,
             "all_labels": True,
             "field_groups": every_group,
         },
@@ -104,7 +103,6 @@ def seeded_modes() -> tuple[dict, ...]:
                 "Adult-labelled entries are visible; every field shows."
             ),
             "sort_order": 10,
-            "is_guest_default": False,
             "all_labels": True,
             "field_groups": every_group,
         },
@@ -115,7 +113,6 @@ def seeded_modes() -> tuple[dict, ...]:
                 "No labelled entries; every field of a visible entry shows."
             ),
             "sort_order": 20,
-            "is_guest_default": False,
             "all_labels": False,
             "field_groups": every_group,
         },
@@ -124,10 +121,11 @@ def seeded_modes() -> tuple[dict, ...]:
             "label": "Safe",
             "description": (
                 "No labelled entries, and the restricted source list is "
-                "withheld. What a logged-out visitor sees."
+                "withheld. Always what a logged-out visitor sees - the "
+                "anonymous policy is this mode and cannot be moved to "
+                "another."
             ),
             "sort_order": 30,
-            "is_guest_default": True,
             "all_labels": False,
             "field_groups": tuple(
                 key
@@ -170,7 +168,6 @@ def ensure_access_mode_seed(db: Session) -> None:
                 description=spec["description"],
                 sort_order=spec["sort_order"],
                 is_system=True,
-                is_guest_default=spec["is_guest_default"],
             )
             db.add(mode)
             db.flush()

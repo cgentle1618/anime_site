@@ -86,11 +86,13 @@ def test_revoking_a_live_sessions_mode_resolves_to_nothing_not_to_the_default(
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
 
-def test_a_guest_sees_nothing_labelled_when_no_mode_is_flagged(
+def test_a_guest_sees_nothing_labelled_when_the_safe_mode_is_missing(
     db_session, client, access_modes, nsfw_label, hidden_anime
 ):
     """Fail closed. A misconfiguration must hide everything, not publish it."""
-    db_session.query(models.AccessMode).update({"is_guest_default": False})
+    db_session.query(models.AccessMode).filter(
+        models.AccessMode.key == MODE_SAFE
+    ).delete(synchronize_session=False)
     db_session.flush()
     cache.bump()
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404

@@ -102,7 +102,6 @@ class AccessModeUpdate(BaseModel):
     label: Optional[str] = None
     description: Optional[str] = None
     sort_order: Optional[int] = None
-    is_guest_default: Optional[bool] = None
 
 
 class AccessModeResponse(BaseModel):
@@ -112,7 +111,6 @@ class AccessModeResponse(BaseModel):
     description: Optional[str] = None
     sort_order: int
     is_system: bool
-    is_guest_default: bool
     label_keys: List[str]
     field_group_keys: List[str]
     user_count: int

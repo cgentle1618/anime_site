@@ -242,7 +242,7 @@ shape is a guarantee rather than a style choice.
 
 | Control | Shape | Why it cannot be a checkbox / free field |
 |---|---|---|
-| Guest default (`AccessModes.jsx`) | a **radio across modes** | At most one mode is the anonymous policy. A radio is the only control that cannot express otherwise; the server validates too, but the UI never asks for the invalid thing. |
+| Guest default (`AccessModes.jsx`) | **no control at all** | A logged-out visitor always resolves the `safe` mode, which is what that mode means rather than something an administrator picks. There is no column to store a choice, so the page offers none; `safe`'s own description carries the fact. |
 | Per-account denials (`Users.jsx`) | **the mode's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its mode's - so showing the ceiling and letting you remove from it is structurally incapable of naming something outside it. |
 | Login default (`Users.jsx`) | a radio among the modes that account **holds** | It cannot drift out of the granted set, which is the same guarantee the partial unique index gives in the database. |
 

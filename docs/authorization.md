@@ -121,7 +121,7 @@ groups and nothing else; there is no column on `access_mode_label` or
 | Item | `unrestricted` | `borderline` | `normal` | `safe` |
 |---|---|---|---|---|
 | `sort_order` | 0 | 10 | 20 | 30 |
-| `is_guest_default` | — | — | — | **yes** |
+| what a logged-out visitor gets | — | — | — | **always** |
 | every content label that exists | **always, derived** | at seed time | — | — |
 | `field_group.sources_other` | yes | yes | yes | derived from guest |
 | `field_group.personal_notes` | yes | yes | yes | derived from guest |
@@ -237,7 +237,7 @@ restated here, or the two copies drift.
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
 | `content_label` | one admin-managed reason an entry may be restricted | `key` unique (becomes permission `label.<key>`), `label`, `description`, `sort_order` |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
-| `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (UI only — modes are deliberately **not** ordered for enforcement), `is_system`, `is_guest_default` with a partial unique index `ix_one_guest_default_access_mode` so at most one mode is the anonymous policy |
+| `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (UI only — modes are deliberately **not** ordered for enforcement), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
 | `access_mode_label` | one content label a mode CARRIES (i.e. does not hide) | `mode_id` → access_mode (`CASCADE`), `label_id` → content_label (`CASCADE`); unique `(mode_id, label_id)` |
 | `access_mode_field_group` | one field group a mode carries | `mode_id` (`CASCADE`), `field_group_key` — a plain string validated against `FIELD_GROUP_KEYS`, not an FK, because field groups are code and not rows; unique `(mode_id, field_group_key)` |
 | `user_access_mode` | one mode an account holds | `user_id` → users (`CASCADE`), `mode_id` (`CASCADE`), `is_default` with a partial unique index `ix_one_default_mode_per_user`. `is_default` lives here rather than on `users` so an account's landing mode is necessarily one it holds |
@@ -495,7 +495,7 @@ see [What a guest sees](#what-a-guest-sees).
 token.mode  ->  still granted to this user?
                   yes -> effective = mode's sets - this pair's denials
                   no  -> effective = EMPTY SET
-no token    ->  the is_guest_default mode, or EMPTY SET if none flagged
+no token    ->  the `safe` mode by key, or EMPTY SET if it is missing
 ```
 
 The claim **names a choice, not a grant**: whether the account may still use
@@ -513,8 +513,8 @@ keeping:
   revokes `safe` would hand the viewer `unrestricted` with no password.
 - A signed-in caller with no usable claim does **not** inherit the guest
   default. That mode is the anonymous policy, not this account's.
-- No mode flagged `is_guest_default` gives a guest nothing, rather than
-  everything. A misconfiguration must hide, not publish.
+- A missing `safe` mode gives a guest nothing, rather than everything. A
+  misconfiguration must hide, not publish.
 - **Never raises.** Missing/garbage/expired cookie, deleted user, deleted role,
   any exception → `GUEST_FALLBACK` (no permissions). Fails closed; this is what
   lets `/api/auth/me` and the public routes share it.
@@ -749,11 +749,22 @@ request".
 
 ## What a guest sees
 
-**Which OBJECTS:** a logged-out visitor resolves the access mode flagged
-`is_guest_default`, seeded on `safe`. A flag rather than the hardcoded key
-`safe`, because editing the mode you happen to sit in yourself must not
-silently republish it to the internet; and if no mode is flagged, a guest gets
-the **empty set** rather than everything.
+**Which OBJECTS:** a logged-out visitor resolves to the `safe` mode, always.
+It is looked up **by key**, and there is no column anywhere that says
+otherwise — which mode an anonymous visitor gets is the definition of that
+mode, not an administrator's choice, so no page offers to change it and no
+row stores it. Had it stayed data, a Pull All, a migration or a hand-edit
+could point it at `unrestricted`, publishing every labelled entry to the
+internet while looking like a successful restore, with nothing on any screen
+reporting it. The `key` column is safe to depend on because it is deliberately
+not patchable: renaming one would detach the seeder from the row it maintains.
+If the `safe` row is missing, a guest gets the **empty set** rather than
+everything.
+
+A logged-out visitor also gets **no mode switcher at all** — not a disabled
+one. `held_modes()` returns `[]` without an account and the switcher renders
+`null` below two modes, so the control is absent from the chrome and the
+existence of other modes is never advertised.
 
 `safe` is seeded from whatever the **guest role actually holds**, not from
 the default set. The two differ: `ensure_rbac_seed` tops up only a role
@@ -913,12 +924,9 @@ All under `admin.authz`; every write calls `cache.bump()`.
 
 **Three rules the router enforces that the page alone could not:**
 
-- **The guest default MOVES rather than raising.**
-  `ix_one_guest_default_access_mode` permits one flagged mode, and letting the
-  index enforce it would surface as a 500 for the caller to interpret. The
-  `PATCH` clears every other flag in the same transaction. Clearing the *last*
-  flag is allowed and needs no guard, because the resolver falls back to the
-  empty set - a guest then sees nothing rather than everything.
+- **Nothing here touches the anonymous policy.** `PATCH` changes a mode's
+  label, description and sort order and that is all; which mode a logged-out
+  visitor gets is `safe`, by key, and no endpoint can move it.
 - **A mode an account still holds cannot be deleted** (409). The FK would
   cascade the grants away and silently narrow those accounts, possibly to
   nothing if it was their only mode.
