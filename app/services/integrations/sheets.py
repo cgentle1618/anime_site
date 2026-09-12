@@ -239,11 +239,37 @@ def bulk_overwrite_sheet(tab_name: str, data_matrix: List[List[Any]]) -> bool:
     failed write leaves the previous backup intact instead of an empty tab.
     Failures propagate: Backup must report them, never log Success over a
     blank tab (the next Pull would read that blank tab as "no data").
+
+    TWO refusals, and the second exists because the first could not fire.
+    `execute_backup` always calls this as `[headers] + matrix`, which is never
+    falsy, so `if not data_matrix` never caught the case that mattered: an
+    EMPTY TABLE produced a header-only write that was written and then trimmed,
+    erasing everything beneath it. That is what emptied the backup sheet on
+    2026-09-12 - 16,774 rows across 40 tabs, from a Backup run against a
+    database that was not the one being backed up.
+
+    An empty table is not by itself wrong (Character and Media Content Label
+    are legitimately empty on some installations), so the rule is not "refuse
+    every header-only write" - it is "refuse to blank a tab that CURRENTLY HAS
+    DATA". The probe costs one small read, and only for a header-only write,
+    so an ordinary Backup pays nothing.
     """
     if not data_matrix:
         raise ValueError(f"No data provided for tab '{tab_name}'; refusing to overwrite.")
 
     worksheet = get_google_sheet_tab(tab_name)
+
+    if len(data_matrix) < 2:
+        # Headers and no data rows. Harmless over an already-empty tab; over a
+        # populated one it is the destructive case above.
+        existing_first_data_row = _execute_with_retry(worksheet.get, "A2:A2")
+        if existing_first_data_row:
+            raise ValueError(
+                f"Refusing to blank tab '{tab_name}': the table being backed up "
+                "has no rows, but the sheet does. That means this database is "
+                "not the one this sheet backs up (an empty worktree database, "
+                "or the wrong DATABASE_URL). Nothing was written."
+            )
     rows, cols = len(data_matrix), max(len(r) for r in data_matrix)
 
     _execute_with_retry(
