@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-10
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -69,9 +69,11 @@ tab; Pull All overwrites every table. So:
 
 1. **Finish or park the code.** Stage only the files belonging to your task (see
    the concurrent-sessions rule in `CLAUDE.md`), commit, and push the branch.
-2. **Leave a trail for the next session.** Anything half-done goes into the
-   relevant `docs/` file or `docs/roadmap.md` — the other machine starts with an
-   empty conversation and only sees what is written down.
+2. **Leave a trail for the next session, starting with the branch name.**
+   Anything half-done goes into the relevant `docs/` file or
+   `docs/roadmap.md` — the other machine starts with an empty conversation and
+   only sees what is written down, and now that every task has its own branch,
+   *which branch* is the first thing it cannot guess.
 3. **Back up the database** if you changed any data: admin page `/system` →
    **Backup** (or `POST /api/data-control/backup`). Wait for the success log row;
    a failed write leaves the previous backup intact, so a failure means the sheet
@@ -100,7 +102,12 @@ tab; Pull All overwrites every table. So:
 > 127.0.0.1 -d anime_site_db -f dump.sql` in place of the Pull.
 
 
-1. `git pull` on the branch you were working on.
+1. `git fetch origin`, then `git checkout <branch>` — the branch you left work
+   on exists only on `origin` and on the other machine, so a plain `git pull`
+   on whatever this machine last had checked out silently leaves you on the
+   wrong branch with the right-looking history. Every task has its own branch
+   (`CLAUDE.md`, "Git Branches"), so the branch name is part of the handover:
+   write it down before leaving.
 2. Start PostgreSQL: `docker-compose up -d`.
    **Check that `DATABASE_URL` is commented out in this machine's `.env`.**
    `app/config.py` uses `DATABASE_URL` verbatim whenever it is set, so a
@@ -142,13 +149,13 @@ tab; Pull All overwrites every table. So:
 
 **Before switching away**
 
-- [ ] committed and pushed (only my files)
-- [ ] WIP state written into `docs/` or `docs/roadmap.md`
+- [ ] committed and pushed (only my files) on the task branch
+- [ ] WIP state written into `docs/` or `docs/roadmap.md`, **branch name first**
 - [ ] Backup run and succeeded (only if data changed)
 
 **After switching to**
 
-- [ ] `git pull`
+- [ ] `git fetch origin` and `git checkout <branch>` — not a bare `git pull`
 - [ ] database up, and `DATABASE_URL` commented out in `.env`
 - [ ] deps installed if `requirements.txt` / `package.json` moved
 - [ ] `alembic upgrade head`

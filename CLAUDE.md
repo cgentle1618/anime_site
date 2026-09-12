@@ -90,8 +90,11 @@ backend change. Three rules follow:
 ## Git Worktrees
 
 A worktree (`git worktree add ../anime_site_<topic> -b <branch>`) is a good way
-to isolate a phase of work, but it inherits none of the per-machine setup and
-one of the gaps destroys nothing yet looks exactly like data loss:
+to isolate a phase of work, and it is **required** as soon as more than one
+session is running — see "Concurrent Claude Code Sessions". A single session
+branches in place instead; a worktree costs a full per-machine setup, and it
+inherits none of it. One of those gaps destroys nothing yet looks exactly like
+data loss:
 
 - **Pin the compose project.** `dev.ps1` runs
   `docker-compose --project-directory $root`, and compose derives the project
@@ -175,14 +178,52 @@ per-machine details: **`docs/switching-environments.md`**.
 
 ## Git Branches
 
-- **`dev` is the working branch.** Unless I say otherwise, commit here and push
-  with `git push origin dev`. Earlier work happened on `modify` and before that
-  on per-feature branches (`manga`, `novel`, `extract`, …); those are history and
-  are not where new work goes.
-- `main` is the trunk. Do not commit to it directly — it moves by merging `dev`.
+**Never work directly on `main` or `dev`.** Every task gets its own branch — a
+one-line doc fix as much as a subsystem. The branch is what makes the work
+reviewable and what makes abandoning it free, and a task that looked
+one-line when it was described is exactly the one that grows.
+
+- **Start of every task**, before the first edit:
+
+  ```bash
+  git checkout dev && git pull origin dev && git checkout -b <type>/<short-topic>
+  ```
+
+  If you have already started editing on `dev`, `git checkout -b` carries the
+  uncommitted changes onto the new branch — do that rather than trying to undo.
+- **Name it `<type>/<short-topic>`**, with the same prefixes the commits use:
+  `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. `feat/role-locks`,
+  `fix/guest-pipeline-409`, `docs/git-workflow`. The branch and its commits
+  should agree about what kind of change this is.
+- **`main` is production.** It moves only by a PR merged from `dev`. Nothing
+  else reaches it, ever.
+- **`dev` is the integration branch, and it is not written to by hand either.**
+  A feature branch reaches it by PR, so CI (`.github/workflows/ci.yml` — ruff,
+  pytest, eslint, vitest, the frontend build) runs on the work *before* it
+  lands rather than after. A branch merged locally into `dev` gets none of
+  that, which is the whole reason the PR is the gate.
+- **Creating the branch, committing to it and pushing it need no approval.**
+  The branch is the review buffer; the gate moved to the PR. **Opening the PR
+  and merging it are mine** — show me the title and body and wait.
 - `origin` is `https://github.com/cgentle1618/anime_site.git`.
 
+The older names in the history — `modify`, `manga`, `novel`, `extract` — are
+what this rule replaced and are not where new work goes.
+
 ## Concurrent Claude Code Sessions
+
+**Several sessions at once means several worktrees — one checkout cannot hold
+two branches.** Branch-per-task (see "Git Branches") and a shared directory are
+incompatible: `HEAD` belongs to the working tree, not to the session, so one
+session's `git checkout -b` moves the branch under every other session in that
+directory, mid-edit, with no warning to any of them. So the moment more than
+one session is working this repo, each takes its own worktree — `git worktree
+add ../anime_site_<topic> -b <type>/<topic>` — and the per-machine setup traps
+in "Git Worktrees" above apply, `COMPOSE_PROJECT_NAME` first among them.
+
+The rest of this section is what governs the single-directory case, and it is
+still the one to read whenever the working tree holds changes you do not
+recognise:
 
 - Multiple Claude Code sessions may be running at the same time in this same local directory and on the same git branch. Assume you are not the only agent editing the working tree.
 - Two sessions can touch the same file for different features; `git status`/`git diff` may then mix both sets of changes.
@@ -299,7 +340,13 @@ without being asked — this is the step that has needed chasing every time:
 ## Rule
 
 - Other Claude Code sessions may be editing the same files on the same branch at the same time — see "Concurrent Claude Code Sessions" before staging or committing anything.
-- Never commit or push automatically right after finishing a task. Ask for permission and show a one-line version of the commit. Only commit (and push) after I approve. Note that it's possible that we only commit once after multiple modifications.
+- **Commit and push freely on your own branch; the PR is where you stop.** See
+  "Git Branches" — every task is on a branch of its own, so a commit is no
+  longer a thing that lands anywhere I have to live with, and waiting for my
+  approval to write one buys nothing. What still needs my say-so is **opening
+  the PR and merging it**, and what is still forbidden outright is committing
+  to `dev` or `main`. Several small commits on a branch are fine; so is one
+  commit covering several modifications.
   - **Exception, the coordinated multi-session run started 2026-09-11 — this is
     me, the owner, writing here so no session has to take it on a peer's word.**
     While several sessions are working this repo at once under the coordinator
