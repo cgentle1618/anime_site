@@ -176,13 +176,21 @@ def test_thumbnail_is_capped_at_the_thumb_edge():
     assert max(thumb.size) == image_library.THUMB_EDGE
 
 
-def test_the_same_picture_as_png_and_jpeg_dedups_to_one_checksum():
-    # The checksum is taken over the NORMALIZED bytes, not the upload, which is
-    # the whole reason two formats of one picture are one library row.
+def test_the_same_bytes_uploaded_twice_dedup_to_one_checksum():
+    # The re-encode is deterministic, so one file arriving twice is one row.
+    first = image_library.normalize_image(_png_bytes())
+    second = image_library.normalize_image(_png_bytes())
+
+    assert first.checksum == second.checksum
+
+
+def test_a_lossy_jpeg_source_does_not_dedup_against_its_png_original():
+    # A JPEG decodes to DIFFERENT pixels than the PNG it was made from, so
+    # content addressing cannot bridge the two. See the spec's correction.
     from_png = image_library.normalize_image(_png_bytes())
     from_jpeg = image_library.normalize_image(_jpeg_bytes())
 
-    assert from_png.checksum == from_jpeg.checksum
+    assert from_png.checksum != from_jpeg.checksum
 
 
 def test_different_pictures_get_different_checksums():
@@ -445,7 +453,7 @@ def delete_file(storage_key: str, thumb_key: str) -> None:
 venv/Scripts/python.exe -m pytest tests/api/test_image_library_service.py -q
 ```
 
-Expected: PASS, 13 tests.
+Expected: PASS, 15 tests.
 
 - [ ] **Step 7: Write the models**
 

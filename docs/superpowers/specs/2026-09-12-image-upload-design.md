@@ -110,8 +110,19 @@ runs in this order, each step assuming the last one passed:
 3. **Re-encode.** This strips EXIF (including GPS coordinates, which a phone
    screenshot carries) and cannot preserve a payload hidden in a container
    segment the decoder skipped.
-4. **Checksum the normalized bytes**, not the upload. The same picture arriving
-   once as PNG and once as JPEG therefore dedups to a single `image` row.
+4. **Checksum the normalized bytes**, not the upload. Because the re-encode is
+   deterministic, one file uploaded twice is one `image` row, and so is one set
+   of pixels arriving in two lossless containers (PNG and lossless WebP).
+
+   **Correction, found while implementing.** This section first claimed that
+   the same picture arriving once as PNG and once as JPEG dedups to a single
+   row. It does not, and cannot: a JPEG is lossy, so it decodes to different
+   pixels than the PNG it was made from — a flat `(200, 30, 30)` comes back
+   `(202, 30, 30)` — and re-encoding two different pixel buffers cannot yield
+   identical bytes. Content addressing dedups identical *pixels*, never
+   "the same picture"; nothing short of perceptual hashing does the latter, and
+   that is not in scope. `test_a_lossy_jpeg_source_does_not_dedup_against_its_png_original`
+   pins the real behaviour so the claim cannot come back.
 
 This adds **Pillow** to `requirements.txt` — the first image library in the
 backend. There is no reasonable alternative for step 3.
@@ -257,7 +268,9 @@ build on a hard-coded grey.
 
 - **Upload validation** — a zip renamed `.jpg` is rejected at the sniff step;
   an oversized file is rejected without being read into memory; EXIF is absent
-  after re-encode; the same picture as PNG and as JPEG yields one `image` row.
+  after re-encode; one file uploaded twice yields one `image` row, as do the same pixels in
+  two lossless containers — and a lossy JPEG of the same picture deliberately
+  does not.
 - **The label gate** — refusal *and* its mirror, both with the non-empty label
   fixture of Decision 6.
 - **The dual-write invariant** — after attach, `cover_image_file` and the
