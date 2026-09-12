@@ -55,7 +55,7 @@ deployment existed, was removed, and could be rebuilt. Leave both as they are.
 - **Auth**: JWT in an HTTP-only cookie; RBAC via `Depends(get_current_admin)` / `get_viewer` in `app/dependencies.py`.
 - **Migrations**: Alembic (single head; run on container start).
 - **External services**: Tenrai v1 API (MAL metadata), TMDB, OMDb, Comic Vine, Google Sheets (backup/restore). Cover images are local disk under `static/covers/` — there is no object storage.
-- **Deployment**: none. **Local development is the only runtime.** CI (`.github/workflows/ci.yml`, name `Tests`) runs ruff + pytest + eslint + vitest + the frontend build on every PR and push, and **deploys nothing**. Self-hosting (a mini PC behind a Cloudflare Tunnel) is the intended production and is not built yet — `docs/deployment-selfhost.md`. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; the code supporting it was removed on 2026-09-08, so reviving GCP means building it again from scratch. The record is `docs/deployment-gcp.md`. `dockerfile`, `entrypoint.sh` and `docker-compose.yml` are kept: compose runs Postgres locally and self-hosting will reuse the image.
+- **Deployment**: none. **Local development is the only runtime.** CI (`.github/workflows/ci.yml`, name `Tests`) runs ruff + pytest + eslint + vitest + the frontend build on **every pull request, and on pushes to `main`** — a push to any other branch runs nothing, which is why the PR is the gate — and it **deploys nothing**. Self-hosting (a mini PC behind a Cloudflare Tunnel) is the intended production and is not built yet — `docs/deployment-selfhost.md`. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; the code supporting it was removed on 2026-09-08, so reviving GCP means building it again from scratch. The record is `docs/deployment-gcp.md`. `dockerfile`, `entrypoint.sh` and `docker-compose.yml` are kept: compose runs Postgres locally and self-hosting will reuse the image.
 
 ## Development Commands
 
@@ -358,7 +358,7 @@ without being asked — this is the step that has needed chasing every time:
     through the coordinator, who sequences it. Every staging rule below and in
     "Concurrent Claude Code Sessions" stays in force — explicit file paths,
     never a directory pathspec, stage and commit in one step.
-- Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green (CI runs all four on every PR and push).
+- Write a failing test before a bug fix or a behaviour change; keep `pytest`, `ruff`, `vitest` and `eslint` green. CI runs all four **on the pull request**, not on a push to your branch, so a branch that was never PRed has been checked by nothing but you.
 - **Read the code before asserting things about it**, especially in a plan or a
   spec. Route paths, payload vocabularies, return types and which reporting
   channel a helper feeds are all things that read as obvious and are frequently
