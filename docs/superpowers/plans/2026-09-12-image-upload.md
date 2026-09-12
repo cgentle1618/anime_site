@@ -572,7 +572,7 @@ Create `alembic/versions/c1image0001_image_library.py`:
 """image library: uploaded files and their attachments
 
 Revision ID: c1image0001
-Revises: b1n2amealign
+Revises: al1n2ilist
 Create Date: 2026-09-12
 
 Phase 1 of an expand/contract. These tables become the source of truth for
