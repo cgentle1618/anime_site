@@ -154,7 +154,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | Scope | Write (`_authorize_write` / `_authorize_edit`) | Read |
 | --- | --- | --- |
 | `catalog` | admin only | everyone, unfiltered |
-| `personal` | any signed-in account holding `self.personal_notes`, own rows only (a superuser may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
+| `personal` | any signed-in account holding `self.personal_notes`, own rows only (a root role may also edit another's) | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
 A profile owner's personal rows can be read through `GET /api/notes?author=<username>`, but only when their `list_is_public` **and** the viewer holds `field_group.personal_notes`; an unknown user, a private list and a viewer without the group all answer the same **404**, so the reply cannot be read as "this account exists". The full rules live in [../authorization.md](../authorization.md#note-scope).
 

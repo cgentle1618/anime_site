@@ -58,8 +58,8 @@ toggled inside a hub does not update the library cache until it goes stale.
 ## Contexts
 
 - **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
-  `username`, `role`, `isSuperuser`, `permissions`, `loading`, `has(permission)`
-  (superuser short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
+  `username`, `role`, `isRoot`, `permissions`, `loading`, `has(permission)`
+  (root short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
   gate on `has("admin")`; page controls gate on `isAdmin`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and

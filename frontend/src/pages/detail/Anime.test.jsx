@@ -35,7 +35,7 @@ function respond(url, isAdmin) {
       is_admin: isAdmin,
       username: isAdmin ? "admin" : null,
       role: isAdmin ? "admin" : "guest",
-      is_superuser: isAdmin,
+      is_root: isAdmin,
       permissions: [],
     };
   }

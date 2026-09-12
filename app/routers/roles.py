@@ -54,7 +54,7 @@ router = APIRouter(
 
 
 def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_superuser))
+    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
     granted = [
         row.permission
         for row in db.query(models.RolePermission.permission).filter(
@@ -71,7 +71,7 @@ def _to_response(db: Session, role: models.Role) -> schemas.RoleResponse:
         description=role.description,
         sort_order=role.sort_order,
         is_system=role.is_system,
-        is_superuser=role.is_superuser,
+        is_root=role.is_root,
         permissions=sorted(granted),
         user_count=user_count,
         locked_on=sorted(locked_on),
@@ -193,7 +193,7 @@ def _enforce_locks(role: models.Role, requested: set[str]) -> None:
     decides, and the half the editor reads is served from the same table, so
     the two cannot drift.
     """
-    locked_on, locked_off = locked_permissions(role.name, bool(role.is_superuser))
+    locked_on, locked_off = locked_permissions(role.name, bool(role.is_root))
     forbidden = sorted(locked_off & requested)
     if forbidden:
         raise HTTPException(
@@ -219,10 +219,10 @@ def create_role(payload: schemas.RoleCreate, db: Session = Depends(get_db)):
     if db.query(models.Role).filter(models.Role.name == payload.name).first():
         raise HTTPException(status_code=409, detail="A role with that name exists.")
     _validate(db, payload.permissions)
-    # A new role is never guest, super or a superuser, so its locks are the
+    # A new role is never guest, super or a root role, so its locks are the
     # custom-role row: admin.authz and manage.pipelines refused, nothing forced.
     _enforce_locks(
-        models.Role(name=payload.name, label=payload.label, is_superuser=False),
+        models.Role(name=payload.name, label=payload.label, is_root=False),
         set(payload.permissions),
     )
 
@@ -232,7 +232,7 @@ def create_role(payload: schemas.RoleCreate, db: Session = Depends(get_db)):
         description=payload.description,
         sort_order=payload.sort_order,
         is_system=False,
-        is_superuser=False,
+        is_root=False,
     )
     db.add(role)
     db.flush()
@@ -272,10 +272,10 @@ def replace_permissions(
     db: Session = Depends(get_db),
 ):
     role = _get_or_404(db, role_id)
-    if role.is_superuser:
+    if role.is_root:
         raise HTTPException(
             status_code=409,
-            detail="A superuser role holds every permission; grants do not apply.",
+            detail="A root role role holds every permission; grants do not apply.",
         )
     _validate(db, payload.permissions)
     _enforce_locks(role, set(payload.permissions))

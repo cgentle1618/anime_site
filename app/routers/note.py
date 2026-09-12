@@ -207,7 +207,7 @@ def _authorize_edit(viewer: Viewer, db_note: models.Note) -> None:
     """A personal note is edited by its author; a catalogue note by an admin."""
     section = section_by_key(db_note.section or "")
     if section is not None and section.scope == SCOPE_PERSONAL:
-        if viewer.is_superuser or db_note.author_id == viewer.user_id:
+        if viewer.is_root or db_note.author_id == viewer.user_id:
             return
         # 404, not 403. Somebody else's note is an OBJECT this caller may not
         # reach, and saying "that belongs to someone else" confirms it exists.

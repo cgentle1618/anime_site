@@ -60,7 +60,7 @@ class RolePermissions(BaseModel):
 class RoleResponse(RoleBase):
     system_id: UUID
     is_system: bool
-    is_superuser: bool
+    is_root: bool
     permissions: List[str] = []
     user_count: int = 0
     # What this role must hold and what it may never hold, from

@@ -546,7 +546,7 @@ def super_user(db_session):
     """
     user = models.User(
         id=uuid.uuid4(),
-        username="superuser",
+        username="root role",
         hashed_password=get_password_hash("testpass"),
         role_id=role_id_for(db_session, "super"),
     )
@@ -593,7 +593,7 @@ def make_viewer(
         name=f"role-{username}",
         label=username,
         is_system=False,
-        is_superuser=False,
+        is_root=False,
     )
     db_session.add(role)
     db_session.flush()
@@ -667,7 +667,7 @@ def catalog_writer(db_session, client):
     A catalogue editor who cannot see the labelled entry.
 
     This account is the whole point of Phase C. Before Phase A it could not
-    exist: every catalogue writer was is_superuser, and entry_visible
+    exist: every catalogue writer was is_root, and entry_visible
     short-circuits to True for those. Phase A made the capability axis
     independent of the object axis, so `manage.catalog` now says nothing about
     which entries you may reach.

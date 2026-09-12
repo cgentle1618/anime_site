@@ -100,7 +100,7 @@ const DRAWER_ROW =
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { isAdmin, has, username } = useAuth();
+  const { isAdmin, has, username, role } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -216,10 +216,19 @@ export default function Nav() {
               {/* The role CHIP is a capability and stays gated; the name
                   beside it is an identity and is not. Three states, one
                   strip: a guest reads "Guest", any signed-in account reads
-                  its username and gets a way out. */}
+                  its username and gets a way out.
+
+                  It prints the ROLE, never a fixed word. `isAdmin` is
+                  has(manage.catalog), which `super` holds as well as
+                  `admin`, so a chip hard-coding "Admin" labels a super
+                  account with the wrong role - and the two are exactly what
+                  this chip exists to tell apart. */}
               {isAdmin && (
-                <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
-                  Admin
+                <span
+                  title="Your role"
+                  className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5"
+                >
+                  {role}
                 </span>
               )}
               {/* A username is a VALUE, so it keeps the body face and its own
@@ -395,8 +404,11 @@ export default function Nav() {
                   {username ?? "Guest"}
                 </span>
                 {isAdmin && (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5">
-                    Admin
+                  <span
+                    title="Your role"
+                    className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5"
+                  >
+                    {role}
                   </span>
                 )}
               </div>

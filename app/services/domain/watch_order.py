@@ -209,7 +209,7 @@ def resolve_items(
     remove the broken step.
     """
     items = list(items)
-    if viewer is not None and not viewer.is_superuser:
+    if viewer is not None and not viewer.is_root:
         from app.services.rbac.enforcement import drop_hidden_rows
 
         # A step is removed rather than flagged missing: missing means "broken

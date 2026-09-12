@@ -139,14 +139,14 @@ The one place the SPA learns who it is. It **never raises**: a missing, expired 
   "is_admin": false,
   "username": null,
   "role": "guest",
-  "is_superuser": false,
+  "is_root": false,
   "permissions": ["field_group.sources_other", "media_type.anime", "..."]
 }
 ```
 
-- `is_admin` is `viewer.has("admin")` - true for a superuser role or any role granted the `admin` permission.
+- `is_admin` is `viewer.has("admin")` - true for a root role or any role granted the `admin` permission.
 - `username` is `null` for an anonymous caller.
-- `permissions` is the sorted grant list of the viewer's role. For a superuser it may be empty; `is_superuser` is what says "everything".
+- `permissions` is the sorted grant list of the viewer's role. For a root role it may be empty; `is_root` is what says "everything".
 
 ## The capability gates (`app/services/rbac/resolver.py`)
 
@@ -179,9 +179,9 @@ Any exception during seeding is printed and swallowed so the server still starts
 | `isAdmin` | `is_admin` from the server; the flag every existing "show this control" check reads |
 | `username` | `null` when anonymous |
 | `role` | Role name, `"guest"` by default |
-| `isSuperuser` | Mirrors the server flag |
+| `isRoot` | Mirrors the server flag |
 | `permissions` | Array of grant strings |
-| `has(permission)` | `isSuperuser || permissions.includes(permission)` - same semantics as `Viewer.has` on the server, backed by a `Set` |
+| `has(permission)` | `isRoot || permissions.includes(permission)` - same semantics as `Viewer.has` on the server, backed by a `Set` |
 | `loading` | True until the first `/me` response |
 | `refetchAuth()` | Re-runs the `/me` fetch. Nothing calls it on an identity change - see below |
 

@@ -2,7 +2,7 @@
 
 Read scoping, denials, fail-closed resolution and axis independence. The last
 of those is the test that proves the redesign did what it set out to do: it
-would have been unwritable in the old model, where is_superuser
+would have been unwritable in the old model, where is_root
 short-circuited every gate.
 """
 
@@ -98,22 +98,22 @@ def test_a_guest_sees_nothing_labelled_when_the_safe_mode_is_missing(
     assert client.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
 
-def test_a_superuser_sitting_in_safe_does_not_see_a_labelled_entry(
+def test_a_root_role_sitting_in_safe_does_not_see_a_labelled_entry(
     db_session, admin_user, nsfw_label, hidden_anime, mode_client
 ):
     """The test that proves the two axes are independent.
 
-    admin_user is on the `admin` role, which is is_superuser=True. Under the
+    admin_user is on the `admin` role, which is is_root=True. Under the
     old model that short-circuited every label check and this could not have
-    been written. is_superuser now means "holds every CAPABILITY permission"
+    been written. is_root now means "holds every CAPABILITY permission"
     and says nothing about which objects a session reaches.
     """
-    assert db_session.get(models.Role, admin_user.role_id).is_superuser is True
+    assert db_session.get(models.Role, admin_user.role_id).is_root is True
     c = mode_client(MODE_SAFE, user=admin_user)
     assert c.get(f"/api/anime/{hidden_anime.system_id}").status_code == 404
 
 
-def test_a_superuser_in_a_narrow_mode_still_holds_every_capability(
+def test_a_root_role_in_a_narrow_mode_still_holds_every_capability(
     db_session, admin_user, nsfw_label, mode_client, sample_anime
 ):
     """The other half of axis independence: narrowing the objects a session

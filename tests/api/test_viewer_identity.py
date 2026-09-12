@@ -76,7 +76,7 @@ def test_viewer_user_id_is_the_viewers_own_id(db):
         username="kana",
         role_id=anonymous.role_id,
         role_name=anonymous.role_name,
-        is_superuser=False,
+        is_root=False,
         permissions=frozenset(),
         user_id=kana.id,
     )

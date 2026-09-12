@@ -14,7 +14,7 @@ had to leave this one because permission resolution is a union and a union can
 only add - a role holding field_group.sources_restricted could never have it
 taken away by a mode. label_perm() and field_group_perm() were deleted rather
 than left unused, so that any call site still asking has(field_group.<key>) -
-which would silently answer True for a superuser - is an ImportError instead.
+which would silently answer True for a root role - is an ImportError instead.
 
 A name is always `<family>.<key>`. The bare `admin` that used to be the
 exception was removed in Phase A of the authorization redesign; it is now
@@ -167,7 +167,7 @@ def is_valid(db: "Session", permission: str) -> bool:
 # Some cells of the role grid are not an admin's to decide. `admin.authz` is
 # the clearest: it is the permission to change who may do what, so handing it
 # out through the very page it governs is how an installation loses control of
-# itself. It is now grantable to NOTHING - the superuser short-circuit is the
+# itself. It is now grantable to NOTHING - the root short-circuit is the
 # only way to hold it.
 #
 # The rest follow from what each system role IS, rather than from what it
@@ -193,14 +193,14 @@ def _self_family() -> frozenset[str]:
 
 
 def locked_permissions(
-    role_name: str, is_superuser: bool
+    role_name: str, is_root: bool
 ) -> tuple[frozenset[str], frozenset[str]]:
     """
     (locked_on, locked_off) for one role: what it must hold and what it may
     never hold. Disjoint by construction - a permission in neither set is the
     admin's free choice.
 
-    A superuser's locked_on is everything EXCEPT the self family, and its
+    A root role's locked_on is everything EXCEPT the self family, and its
     locked_off is that family, because Viewer.has() deliberately does not
     short-circuit self.* (resolver.py): an administrative account keeps no
     list and no personal notes, so drawing those boxes ticked would state the
@@ -209,7 +209,7 @@ def locked_permissions(
     every = static_catalog()
     own = _self_family()
 
-    if is_superuser:
+    if is_root:
         return frozenset(every - own), own
     if role_name == GUEST_ROLE_NAME:
         # Every anonymous request resolves to this role, so anything beyond a

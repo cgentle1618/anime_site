@@ -237,7 +237,7 @@ def grant_all_modes_to_existing_accounts(db: Session) -> None:
     Every existing account holds all four modes and lands in `unrestricted`.
 
     This is what makes Phase B behaviour-neutral: for the owner's admin
-    account, `unrestricted` is the faithful mapping of today's is_superuser,
+    account, `unrestricted` is the faithful mapping of today's is_root,
     which sees everything. A NEW account gets `safe` only - that is runtime
     code in users.py's create handler, and it belongs with the admin panel
     that shows what an account holds.

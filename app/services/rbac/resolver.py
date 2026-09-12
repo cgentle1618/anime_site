@@ -39,7 +39,7 @@ class Viewer:
     username: Optional[str]
     role_id: Optional[UUID]
     role_name: str
-    is_superuser: bool
+    is_root: bool
     permissions: frozenset[str]
     # The resolved user's id, so a request can join their user_media_list row
     # without a second lookup. None for a guest - see user_list.acting_user_id
@@ -72,7 +72,7 @@ class Viewer:
         """
         Whether this viewer holds one permission.
 
-        THE SUPERUSER SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
+        THE ROOT SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
         is the whole of "an admin account holds no user data" (spec:
         docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md).
         `self.list` and `self.personal_notes` are not privileges - they are
@@ -92,7 +92,7 @@ class Viewer:
         """
         if split_perm(permission)[0] == FAMILY_SELF:
             return permission in self.permissions
-        return self.is_superuser or permission in self.permissions
+        return self.is_root or permission in self.permissions
 
 
 # The object-set fields take their defaults, which are empty - already the
@@ -103,7 +103,7 @@ GUEST_FALLBACK = Viewer(
     username=None,
     role_id=None,
     role_name=GUEST_ROLE,
-    is_superuser=False,
+    is_root=False,
     permissions=frozenset(),
 )
 
@@ -175,7 +175,7 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
             user_id=user.id if user else None,
             role_id=role.system_id,
             role_name=role.name,
-            is_superuser=bool(role.is_superuser),
+            is_root=bool(role.is_root),
             permissions=cache.permissions_for(db, role.system_id),
             token_payload=payload,
             mode_id=mode.mode_id,

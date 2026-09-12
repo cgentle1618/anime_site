@@ -66,7 +66,7 @@ def test_the_object_families_are_not_grantable_to_a_role():
 
     The helpers are DELETED rather than left unused on purpose: any call site
     still asking has(field_group.<key>) would silently answer True for a
-    superuser, which is a wrong answer no test would obviously catch. An
+    root role, which is a wrong answer no test would obviously catch. An
     ImportError that stops the build beats a behaviour that quietly changes.
     """
     from app.services.rbac import permissions as perms
