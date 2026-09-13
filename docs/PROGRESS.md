@@ -13,12 +13,9 @@ Last updated: 2026-09-13
 
 ## In flight
 
-| Task | Status |
-|---|---|
-| Game completion axes take an `Inapplicable` state (`feat/game-inapplicable`, migration `g1c2f3flags4`) | wip anime-site-9c |
-
-The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the AniList columns
-in #148; `docs/roadmap.md` holds the record for both.
+Nothing. The game spend block and its hand-maintained FX rates shipped on
+`feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
+AniList columns in #148; `docs/roadmap.md` holds the record for all three.
 
 The home machine is current: `anime_site_db` is at `al1n2ilist` and a Backup
 ran against it on 2026-09-12 at 23:07, so the sheet no longer names the
@@ -107,4 +104,5 @@ otherwise.
 | Clean-orphans test db | `anime_site_test_clean`, created 2026-09-11 in the container for `clean-session`; droppable |
 | Community-gate test db | `anime_site_test_community_gate`, created 2026-09-13 for `fix/community-gate`; the tree's own app database is `anime_site_community_gate`. Both droppable |
 | Owner-flag test db | `anime_site_test_owner`, created 2026-09-12 for the admin-holds-no-user-data change: a `pg_dump` restore of the real `anime_site_db`, used to exercise `o1a1ownerflag` forwards, backwards and forwards again before it was applied for real, then reused for the suite; droppable |
+| Game-spend test db | `anime_site_test_game_cost_stats`, created 2026-09-13 for the statistics spend block; the worktree's own `anime_site_game_cost_stats` is the app database and is not a test database - `tests/api/conftest.py:54` refuses any name without "test" in it, because its fixture runs `DROP SCHEMA public CASCADE`. Both droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

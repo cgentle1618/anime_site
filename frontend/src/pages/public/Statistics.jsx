@@ -2,6 +2,7 @@
 import useStatisticsData from "../statistics/useStatisticsData";
 import StatsFavoriteGrids from "../statistics/StatsFavoriteGrids";
 import StatsFranchiseSummary from "../statistics/StatsFranchiseSummary";
+import StatsGameSpend from "../statistics/StatsGameSpend";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow } from "../../components/ui/primitives";
 
@@ -13,6 +14,8 @@ export default function Statistics() {
     allMovies,
     allManga,
     allNovel,
+    allGame,
+    fxRates,
     seasonals,
     currentSeason,
     allEntriesByFranchise,
@@ -63,6 +66,9 @@ export default function Statistics() {
         seasonals={seasonals}
         currentSeason={currentSeason}
       />
+
+      {/* Block 3 — what the game collection cost */}
+      <StatsGameSpend games={allGame} fxRates={fxRates} />
 
     </div>
   );

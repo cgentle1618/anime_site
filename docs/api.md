@@ -51,6 +51,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Search — `/api/search`](#search--apisearch)
+- [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
 - [Constants — `/api/constants`](#constants--apiconstants)
 - [Options — `/api/options`](#options--apioptions)
 - [Person — `/api/person`](#person--apiperson)
@@ -726,6 +727,36 @@ holds franchises whose own name matched.
 
 ---
 
+## FX Rates — `/api/fx-rates`
+
+The hand-maintained exchange rates the Statistics page converts game spend
+with. Stored as one JSON string in `system_configs` under the key `fx_rates`
+— one key rather than one per currency, so `as_of` cannot drift out of sync
+with the numbers it describes. `system_configs` is a backed-up sheet tab, so
+rates entered on one machine reach the other by Backup / Pull All.
+
+Rates are typed by hand and stored, never fetched: a personal collection's
+spend does not need live FX, and a stored rate printed beside its `as_of`
+date is honest in a way a stale cached fetch is not.
+
+| Method | Path | Auth               | Description                                                                     |
+| ------ | ---- | ------------------ | ------------------------------------------------------------------------------- |
+| `GET`  | `/`  | Public             | `{base, as_of, rates}`. All null/empty when no rates have been entered.          |
+| `PUT`  | `/`  | `manage.pipelines` | Replace the whole table. Body: `{base, as_of, rates: {CODE: number}}`.           |
+
+Not part of `/api/system` deliberately, and the reason is the gate: every
+route there sits behind `manage.pipelines`, but `/statistics` only asks for
+`self.list`. A member who can see the spend block has to be able to read the
+rates it converts with, so the read is open and only the write is gated.
+
+An unset table and an unparseable stored row answer the same way — no rates
+at all. The page then prints per-currency subtotals and no converted total,
+because a figure built from a rate nobody entered looks exactly like a real
+one. `PUT` forces `rates[base] = 1`; a rate of zero, a non-ISO `as_of` and
+anything that is not a three-letter currency code are refused with `422`.
+
+---
+
 ## Constants — `/api/constants`
 
 Read-only. Serves the Tier 1 closed enums from `app/utils/constants.py` (and
@@ -1371,6 +1402,10 @@ All endpoints in this router require admin authentication.
 | ------ | ------------------------ | --------------------------------------------------------------------------------- |
 | `GET`  | `/config/current_season` | Get the current season setting from `system_configs`. Returns `{current_season}`. |
 | `POST` | `/config/current_season` | Set the current season. Body: `{current_season: "YYYY SSS"}`.                     |
+
+The other `system_configs` key with an endpoint of its own, `fx_rates`, is
+served from `/api/fx-rates` rather than here, because its read has to reach
+members who are not admins. See that section.
 
 ### Data Control Logs
 

@@ -23,6 +23,9 @@ export default function useStatisticsData() {
     ["api", "seasonal", "current-season"],
     "/api/seasonal/current-season",
   );
+  // Hand-maintained rates for the game spend block. Unset is normal and the
+  // endpoint answers with an empty table, so this never gates the page.
+  const fxRatesQuery = useApiQuery(["api", "fx-rates"], "/api/fx-rates");
 
   const franchises = franchiseQuery.data || [];
   const allAnime = animeQuery.data || [];
@@ -34,6 +37,7 @@ export default function useStatisticsData() {
   const allNovel = novelQuery.data || [];
   const allComic = comicQuery.data || [];
   const allGame = gameQuery.data || [];
+  const fxRates = fxRatesQuery.data || null;
 
   const franchiseMap = useMemo(
     () =>
@@ -99,6 +103,7 @@ export default function useStatisticsData() {
     gameQuery,
     seasonalQuery,
     currentSeasonQuery,
+    fxRatesQuery,
   ];
   const firstError = queries.find((query) => query.error)?.error;
 
@@ -113,6 +118,7 @@ export default function useStatisticsData() {
     allNovel,
     allComic,
     allGame,
+    fxRates,
     seasonals,
     currentSeason: currentSeasonQuery.data?.current_season || null,
     allEntriesByFranchise,
