@@ -34,8 +34,8 @@ WiFi (`wlp1s0`); `eno1` is down until a cable exists.
 | Phases A-D: stick, inspect, BIOS, install | done |
 | 6 - SSH in, monitor off | done |
 | 7 - base packages and Docker 29.8.0 / compose v5.5.1 | done |
-| 8 - timezone, unattended-upgrades, `apt autoremove` | todo |
-| 9 - SMART baseline on `/dev/sda`, `dmidecode` memory | todo |
+| 8 - timezone, unattended-upgrades, `apt autoremove` | done |
+| 9 - SMART baseline on `/dev/sda`, `dmidecode` memory | done - agrees with the Windows readings |
 | 10 - DHCP reservation, WiFi MAC `f8:34:41:b1:ef:e5` | todo - needs the router |
 | 11 - cable handover | blocked no Ethernet yet |
 
