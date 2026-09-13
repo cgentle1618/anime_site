@@ -353,7 +353,7 @@ every answer that only Windows holds.
 
 | Check | How | Why later |
 | --- | --- | --- |
-| Actual idle power | A plug-in power meter at the wall, once the box is installed, headless and idle | Expect roughly 8-12 W. Windows idles differently from a headless Linux server, so a measurement taken now would not describe the thing that actually runs 24/7. Worth doing once, since it is on all the time. |
+| Actual idle power | A plug-in power meter at the wall, once the box is installed, headless and idle | Expect roughly 8-12 W. Windows idles differently from a headless Linux server, so a measurement taken now would not describe the thing that actually runs 24/7. **Skipped** — no meter, and the figure changes nothing about how the box is run; the estimate in [Running cost](#running-cost) stands unmeasured. |
 | A SMART baseline to compare against | `sudo smartctl -a /dev/sda`, in [step 9](#step-9--finish-the-hardware-checks) | Duplicates what CrystalDiskInfo already showed, but it is the reading in the form you will see it in from then on. Keep it. |
 
 #### What the WiFi-card answer decides
@@ -797,6 +797,10 @@ The box is ready for the next build-order step when all of these are true:
 - [ ] `lsb_release -a` shows **26.04** — not an interim release, not an ESM one.
 - [ ] The arrival checks are done — the Windows ones before wiping, the idle-power and SMART readings after — and their answers written down somewhere off this machine.
 - [ ] The router shows a reservation for the box, on its **Ethernet** MAC.
+      **Not yet possible**: the box runs on a phone hotspot, which offers no
+      reservations. Its address is whatever DHCP hands out, and `ssh` failing
+      is the signal that it moved. This closes when the box reaches a network
+      with a router of its own.
 - [ ] If setup happened over WiFi: step 11 is done — the `wifis:` block is out
       of the netplan file and the reservation is on the Ethernet MAC.
 - [ ] The monitor and keyboard are unplugged and it still works.

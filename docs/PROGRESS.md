@@ -36,8 +36,12 @@ WiFi (`wlp1s0`); `eno1` is down until a cable exists.
 | 7 - base packages and Docker 29.8.0 / compose v5.5.1 | done |
 | 8 - timezone, unattended-upgrades, `apt autoremove` | done |
 | 9 - SMART baseline on `/dev/sda`, `dmidecode` memory | done - agrees with the Windows readings |
-| 10 - DHCP reservation, WiFi MAC `f8:34:41:b1:ef:e5` | todo - needs the router |
+| 10 - DHCP reservation | blocked on a phone hotspot, no reservations possible |
 | 11 - cable handover | blocked no Ethernet yet |
+| Idle power reading | skipped no meter |
+
+The bring-up is otherwise finished: the box is a working Docker host and the
+next move is build-order step 4, the production `docker-compose.yml`.
 
 The game spend block and its hand-maintained FX rates shipped on
 `feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
