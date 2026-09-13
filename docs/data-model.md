@@ -556,10 +556,10 @@ same table carrying a `base_game_id`, not a row in a second table. Model:
 | `game_type` | String | yes | | GAME_TYPES (Base Game / DLC / Expansion / Bundle) |
 | `base_game_id` | UUID | yes | | Self-FK `games.system_id` ON DELETE **SET NULL** - deleting a base game must not delete the DLC rows bought separately. Deliberately nullable even for a DLC: a DLC is often entered before its base game exists, and a link filled in later beats a write that fails on entry order. |
 | `completion_level` | String | yes | | COMPLETION_LEVELS (Main Story / Main + Extras / Post-game / Completionist). Independent of `playing_status`. |
-| `all_endings` | Boolean | yes | | Tristate, orthogonal to `completion_level` |
-| `all_achievements` | Boolean | yes | | Tristate. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against |
-| `all_collected` | Boolean | yes | | Tristate: every in-game collectible found |
-| `steam_progress_sync` | Boolean | yes | | Tristate, built as a straight copy of `all_achievements`. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
+| `all_endings` | String | yes | | GAME_COMPLETION_FLAGS (Yes / No / Inapplicable), orthogonal to `completion_level`. `NULL` is the fourth state, "not recorded yet"; `Inapplicable` is the game having no endings at all, which is an answer rather than an absence of one |
+| `all_achievements` | String | yes | | GAME_COMPLETION_FLAGS. **Stored, never derived** from the counts below - a game often publishes no achievement list to count against, which is what `Inapplicable` records |
+| `all_collected` | String | yes | | GAME_COMPLETION_FLAGS: every in-game collectible found, or `Inapplicable` for a game that hides none |
+| `steam_progress_sync` | Boolean | yes | | A tristate boolean, and the one flag here that is NOT a completion axis - it is about the source, not the game, so it kept its type when the three above became a vocabulary. `NULL`/`true` = Steam is the authority for `hours_played` and `achievements_earned`; `false` blocks Steam from writing either, for a game owned on Steam but played elsewhere. Governs those two columns only - prices and the Metacritic score ignore it entirely. |
 | `achievements_earned` / `achievements_total` | Integer | yes | | A count, independent of `all_achievements`. `achievements_earned` is Steam-fillable and overwrite, guarded by `steam_progress_sync` and a zero/unknown check - see [external-apis.md](external-apis.md#steam); `achievements_total` is fill-only. |
 | `release_status` | String | yes | | GAME_RELEASE_STATUSES (Rumored / Unreleased / Early Access / Released / Ongoing / Discontinued / Cancelled) |
 | `release_date` | String | yes | | Truncated ISO-8601, CHECK `ck_games_release_date_iso` |
@@ -1562,10 +1562,16 @@ backed up through the `System Option Alias` tab.
 
 ### `system_configs`
 
-Persistent key/value settings. Model: `SystemConfigs`. Holds announcements
-and the per-media-type **form defaults** (`config_key =
-"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`).
-Neither has a table of its own.
+Persistent key/value settings. Model: `SystemConfigs`. Holds announcements,
+the per-media-type **form defaults** (`config_key =
+"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`)
+and the **exchange rates** the Statistics page converts game spend with
+(`config_key = "fx_rates"`, value = `{base, as_of, rates}` as JSON;
+`app/routers/fx_rates.py`). None has a table of its own.
+
+The rates are one key rather than one per currency so that `as_of` cannot
+drift out of sync with the numbers it describes. This table is a backed-up
+sheet tab, which is what lets a rate entered on one machine reach the other.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|

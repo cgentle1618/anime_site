@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -94,6 +94,7 @@ file's own comment calls this Ruling R10). See
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | `game_type` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
 | `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status` | `game_release_status` |
+| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
 | `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
 | `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
 | `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
@@ -127,8 +128,9 @@ Only `playing_status` is wired into the frontend fallback map, though. It is
 the one game list in `CONSTANTS_FALLBACK` in
 `frontend/src/config/fieldOptions.js`, so it is the one `applyConstants()`
 overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
-`GAME_RELEASE_STATUSES` and the four `game_copy` arrays are still
-hand-maintained literals in that file, kept matching `constants.py` by hand.
+`GAME_RELEASE_STATUSES`, `GAME_COMPLETION_FLAGS` and the four `game_copy`
+arrays are still hand-maintained literals in that file, kept matching
+`constants.py` by hand.
 
 `/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),

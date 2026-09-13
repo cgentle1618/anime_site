@@ -1,7 +1,7 @@
 """image library: uploaded files and their attachments
 
 Revision ID: c1image0001
-Revises: al1n2ilist
+Revises: g1c2f3flags4
 Create Date: 2026-09-12
 
 Phase 1 of an expand/contract. These tables become the source of truth for
@@ -16,7 +16,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision = "c1image0001"
-down_revision = "al1n2ilist"
+down_revision = "g1c2f3flags4"
 branch_labels = None
 depends_on = None
 

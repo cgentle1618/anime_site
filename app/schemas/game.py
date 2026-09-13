@@ -52,9 +52,10 @@ class GameBase(BaseModel):
 
     playing_status: str = "Might Play"
     completion_level: Optional[str] = None
-    all_endings: Optional[bool] = None
-    all_achievements: Optional[bool] = None
-    all_collected: Optional[bool] = None
+    # GAME_COMPLETION_FLAGS; None is the unrecorded fourth state.
+    all_endings: Optional[str] = None
+    all_achievements: Optional[str] = None
+    all_collected: Optional[str] = None
     steam_progress_sync: Optional[bool] = None
     achievements_earned: Optional[int] = None
     achievements_total: Optional[int] = None

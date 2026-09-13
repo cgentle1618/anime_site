@@ -36,6 +36,7 @@ from app.routers import (
     data_control,
     form_defaults,
     franchise,
+    fx_rates,
     game,
     images,
     manga,
@@ -204,6 +205,7 @@ app.include_router(auth.router)
 
 app.include_router(options.router)
 app.include_router(constants.router)
+app.include_router(fx_rates.router)
 app.include_router(collection.router)
 app.include_router(franchise.router)
 app.include_router(series.router)

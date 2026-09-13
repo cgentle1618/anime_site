@@ -231,6 +231,15 @@ export const endpoints = {
     entries: (id) => `/api/studio/${id}/entries`,
   },
 
+  // Hand-maintained exchange rates, read by the statistics spend block and
+  // written from the admin page. Not under `system`: those routes all sit
+  // behind manage.pipelines, and the read has to be open to any member who
+  // can open /statistics.
+  fxRates: {
+    get: () => "/api/fx-rates",
+    update: () => "/api/fx-rates",
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",

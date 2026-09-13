@@ -524,8 +524,9 @@ Every write to `hours_played` / `achievements_earned` passes both, in order,
 inside `autofill_game_from_steam`:
 
 1. `steam_progress_sync is False` → skip both columns entirely. `None` does
-   **not** block — it means "never asked" and counts as permission, the same
-   as `all_achievements`'s tristate.
+   **not** block — it means "never asked" and counts as permission. This one
+   is a boolean, not a completion axis: it says whether Steam may write, not
+   what happened in the game, so it has no use for an `Inapplicable`.
 2. A value that is `0` or unknown (`None`) → skip that column. A game owned
    but never launched on Steam reports `playtime_forever = 0`, and without
    this guard the first run would erase a hand-typed figure before anyone had

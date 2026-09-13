@@ -220,6 +220,15 @@ export const PART_NUMS = Array.from({ length: 7 }, (_, i) => String(i + 1));
 // with "" meaning "unset".
 export const TRISTATE = ["true", "false"];
 
+// The three game completion axes - all_endings / all_achievements /
+// all_collected. Unlike TRISTATE these store the value itself, because the
+// column is a vocabulary rather than a boolean. "" is still "unset";
+// "Inapplicable" says the game has none of that thing to find, which is an
+// answer about the game rather than an absence of one.
+// Mirrors GAME_COMPLETION_FLAGS in app/utils/constants.py, served by
+// GET /api/constants as `game_completion_flag`.
+export const GAME_COMPLETION_FLAGS = ["Yes", "No", "Inapplicable"];
+
 export const MUSIC_STATUSES = ["Need", "Pending", "Done"];
 
 export const SEIYUU_STATUSES = ["Need", "Done"];
