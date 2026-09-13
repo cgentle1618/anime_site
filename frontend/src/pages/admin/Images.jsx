@@ -5,8 +5,9 @@
 // still accepts DELETE ?force=true, but no control here offers it - removing
 // an attached image is a decision made at the place that uses it, not a
 // blanket "delete anyway" from this page.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { IMAGE_OWNER_TYPE_GROUPS } from "../../config/imageOwnerTypes";
 import { getCoverUrl } from "../../lib/covers";
 import {
   useDeleteImage,
@@ -17,6 +18,7 @@ import {
 import { Button, Chip } from "../../components/ui/primitives";
 
 const PAGE_SIZE = 30;
+const SEARCH_DEBOUNCE_MS = 250;
 
 const FILTERS = [
   { key: "unused", label: "Unused" },
@@ -104,11 +106,26 @@ export default function Images() {
     missing: false,
     duplicates: false,
   });
+  const [ownerType, setOwnerType] = useState("");
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [error, setError] = useState(null);
 
+  // Debounced the same way the rest of the app debounces typed search (see
+  // useGlobalMediaSearch / CastEditor).
+  useEffect(() => {
+    const handle = setTimeout(() => setQ(qInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [qInput]);
+
   const query = useImages({
     ...filters,
+    // `unused` wins over `owner_type` on the backend - the combination is
+    // always empty - so skip sending it while Unused is active rather than
+    // offering a filter combination that silently returns nothing.
+    ownerType: filters.unused ? "" : ownerType,
+    q,
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
@@ -207,6 +224,45 @@ export default function Images() {
             <Chip tone={filters[f.key] ? "brand" : "ink"}>{f.label}</Chip>
           </button>
         ))}
+
+        <select
+          aria-label="Used on"
+          value={ownerType}
+          disabled={filters.unused}
+          title={
+            filters.unused
+              ? "Clear Unused to filter by where an image is used."
+              : undefined
+          }
+          onChange={(e) => {
+            setPage(0);
+            setOwnerType(e.target.value);
+          }}
+          className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text disabled:opacity-50"
+        >
+          <option value="">Used on…</option>
+          {IMAGE_OWNER_TYPE_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+
+        <input
+          type="search"
+          value={qInput}
+          onChange={(e) => {
+            setPage(0);
+            setQInput(e.target.value);
+          }}
+          placeholder="Search filename…"
+          aria-label="Search filename"
+          className="min-w-[10rem] flex-1 rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text placeholder:text-text-faint"
+        />
       </div>
 
       {error && <p className="mb-4 text-sm text-danger">{error}</p>}
