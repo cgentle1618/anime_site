@@ -1,6 +1,6 @@
 # Switching between development environments
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -43,7 +43,7 @@ database**, and the two diverge the moment either one is edited.
 
 | Thing | Channel | Notes |
 |---|---|---|
-| Code, migrations, docs, roadmap | git (`origin`) | commit + push before leaving; pull on arrival |
+| Code, migrations, docs | git (`origin`) | commit + push before leaving; pull on arrival |
 | Database contents | Google Sheets | **Backup** writes local DB → sheet; **Pull All** writes sheet → local DB |
 | `.env`, `credentials.json` | **nothing** | per-machine, gitignored; never commit them. Deliberately different per machine: **company** sets `STEAM_ENABLED=false` and leaves `STEAM_API_KEY` / `STEAM_ID` unset, because the company network inspects TLS to Steam's hosts and would log the key from the Web API's URL; **home** omits the line entirely (the default is `true`) so prices, Metacritic and playtime all fill. Nothing else about the two files should diverge — see [external-apis.md](external-apis.md#turning-steam-off-entirely) |
 | `venv/`, `node_modules/`, `frontend_dist/` | **nothing** | rebuilt locally on each machine |
@@ -70,16 +70,16 @@ tab; Pull All overwrites every table. So:
 1. **Finish or park the code.** Stage only the files belonging to your task (see
    the concurrent-sessions rule in `CLAUDE.md`), commit, and push the branch.
 2. **Leave a trail for the next session, starting with the branch name.**
-   Anything half-done goes into the relevant `docs/` file or
-   `docs/roadmap.md` — the other machine starts with an empty conversation and
-   only sees what is written down, and now that every task has its own branch,
-   *which branch* is the first thing it cannot guess.
+   Anything half-done goes into the relevant `docs/` file — the other machine
+   starts with an empty conversation and only sees what is written down, and
+   now that every task has its own branch, *which branch* is the first thing
+   it cannot guess.
 3. **Back up the database** if you changed any data: admin page `/system` →
    **Backup** (or `POST /api/data-control/backup`). Wait for the success log row;
    a failed write leaves the previous backup intact, so a failure means the sheet
    is still *old* and must not be pulled.
-4. **Note in the commit or roadmap that a backup was taken**, so the next
-   environment knows the sheet is fresh.
+4. **Note in the commit that a backup was taken**, so the next environment
+   knows the sheet is fresh.
 
 ## 4. Arriving in an environment (handoff in)
 
@@ -172,14 +172,14 @@ tab; Pull All overwrites every table. So:
    copy of the images and each has to be moved once; the column values arrive
    already migrated through Pull All, so the script only moves files here.
 7. `cd frontend && npm run build` before checking anything on `:8000`.
-8. Re-read `docs/roadmap.md` and the doc for the area you were in.
+8. Re-read the doc for the area you were in.
 
 ## 5. Quick checklist
 
 **Before switching away**
 
 - [ ] committed and pushed (only my files) on the task branch
-- [ ] WIP state written into `docs/` or `docs/roadmap.md`, **branch name first**
+- [ ] WIP state written into `docs/`, **branch name first**
 - [ ] Backup run and succeeded (only if data changed)
 
 **After switching to**

@@ -16,7 +16,6 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Pipelines (Backup/Pull/Fill/Replace/Calculate) → `docs/data-actions.md`, `docs/external-apis.md`.
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
 - Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-selfhost.md` (the plan); `docs/deployment-gcp.md` is history.
-- Plan → `docs/roadmap.md`. Remind me to update it when we move to the next feature and I have not.
 - In-flight work → **`docs/PROGRESS.md`**. See "Progress tracking" below.
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.
@@ -33,14 +32,15 @@ the role name travels instead", not "`role_id` used to travel until Step 4
 broke the arriving machine". A reader of these files wants the system as it
 is; the version they are reading is the only version there has ever been.
 
-The record of how things changed lives in exactly three places, and only
-there: **`docs/roadmap.md`** (what shipped and why), **`docs/PROGRESS.md`**
-(work in flight) and **`docs/notes/`** (decision rationales, migration
-history, investigation notes — `docs/README.md` defines it as material that
-explains the past). Those three keep their history. A spec under
-`docs/superpowers/` keeps its own post-mortem. Everything else in `docs/`
-— including `docs/authorization.md`, `docs/data-model.md`, `docs/api.md` and
-every `systems/` and `frontend/` page — is present-tense only.
+The record of how things changed lives in exactly two places, and only
+there: **`docs/PROGRESS.md`** (work in flight) and **`docs/notes/`**
+(decision rationales, migration history, investigation notes —
+`docs/README.md` defines it as material that explains the past). What shipped
+and why lives in git history — the commits and the pull request. Those two
+docs keep their history. A spec under `docs/superpowers/` keeps its own
+post-mortem. Everything else in `docs/` — including `docs/authorization.md`,
+`docs/data-model.md`, `docs/api.md` and every `systems/` and `frontend/`
+page — is present-tense only.
 
 Two standing exceptions, both deployment: **`docs/deployment-selfhost.md`**
 is the plan for something not built yet, so it is written in the future tense
@@ -220,8 +220,7 @@ per-machine details: **`docs/switching-environments.md`**.
   *before* touching the other one, and never Pull All over unsaved local changes.
   If both databases moved since the last backup, stop and ask — there is no merge.
 - **Before I switch away**: push my commits, write any half-done state into
-  `docs/` or `docs/roadmap.md` (the next session starts blank), and run Backup if
-  data changed.
+  `docs/` (the next session starts blank), and run Backup if data changed.
 - **After switching in**: `git pull` → start Postgres → install deps if they moved
   → `alembic upgrade head` (always, before any Pull) → Pull All if data changed
   elsewhere → `cd frontend && npm run build`.
@@ -513,7 +512,8 @@ applies; this adds:
 plus open items and the scratch test databases currently in use.
 
 - **Status only.** No prose, no summaries, no rationale. Reasoning belongs in the
-  spec, the plan, or the commit message; `docs/roadmap.md` records what shipped.
+  spec, the plan, or the commit message; git history — the commits and the pull
+  request — records what shipped.
 - **Edit in place.** Change the Status cell; do not append a log.
 - Status values: `todo`, `wip <who>`, `done <sha>`, `blocked <one clause>`,
   `skipped <one clause>`.
@@ -523,19 +523,15 @@ plus open items and the scratch test databases currently in use.
 - **Constantly update the doc.** Keep the status of each task updated.
 - Read it first when picking up work, and when a session starts and the working
   tree looks unfamiliar — it says what someone else already has in hand.
-- When a plan is fully done, its table can be deleted; the roadmap keeps the
-  record.
+- When a plan is fully done, its table can be deleted; git history — the
+  commits and the pull request — keeps the record.
 
-**Finishing a plan is three edits, not one.** Do all three in the same commit,
+**Finishing a plan is two edits, not one.** Do both in the same commit,
 without being asked — this is the step that has needed chasing every time:
 
-1. `docs/roadmap.md` — add a **Done** entry, newest first, in the style of the
-   entries already there: what changed, *why* it was done that way, what was
-   deliberately not done, and any defect found on the way. This is the durable
-   record; everything else about the plan is then disposable.
-2. `docs/PROGRESS.md` — delete the finished plan's task table and its prose.
+1. `docs/PROGRESS.md` — delete the finished plan's task table and its prose.
    Leave only what is still open.
-3. The spec and plan under `docs/superpowers/` — mark the phase done with its
+2. The spec and plan under `docs/superpowers/` — mark the phase done with its
    sha, so a reader of either knows it has shipped. **Marking a spec shipped is
    also the moment to record what the spec got wrong**, not just that it
    landed: a spec that is only ever amended forward teaches nothing about its
@@ -564,7 +560,7 @@ without being asked — this is the step that has needed chasing every time:
     coordinated run adds is that you should not wait for my approval, opinion
     or instruction on **anything else** either: decide it yourself, prefer the
     industry-standard option over a clever shortcut, and record the decision in
-    the spec, `docs/PROGRESS.md` or `docs/roadmap.md`. **Opening the PR and
+    the spec or `docs/PROGRESS.md`. **Opening the PR and
     merging it still wait**, and during a run the coordinator sequences those —
     pushing a branch does not need sequencing, because branches are isolated
     and the PR is the only place they meet.
