@@ -5,13 +5,7 @@
 // so the block must render nothing at all rather than a misleading "0 h".
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import {
-  completionFlag,
-  GameCopiesSection,
-  GameProgress,
-  outOf,
-  yesNo,
-} from "./Game";
+import { GameCopiesSection, GameProgress, outOf, yesNo } from "./Game";
 
 describe("GameProgress", () => {
   it("shows playtime against the main-story estimate", () => {
@@ -36,29 +30,8 @@ describe("GameProgress", () => {
   });
 });
 
-// The three completion axes carry a vocabulary. Unknown must stay blank on the
-// page: rendering "No" would claim the endings were missed.
-describe("completionFlag", () => {
-  it("renders each answer as itself", () => {
-    expect(completionFlag("Yes")).toBe("Yes");
-    expect(completionFlag("No")).toBe("No");
-  });
-
-  it("keeps Inapplicable distinct from Yes", () => {
-    // The bug this exists to stop: yesNo() would call the non-empty string
-    // truthy and render "Yes" - turning "this game has no endings" into
-    // "I saw every ending".
-    expect(completionFlag("Inapplicable")).toBe("Inapplicable");
-  });
-
-  it("drops the unrecorded state so the InfoCard omits the row", () => {
-    expect(completionFlag(null)).toBeNull();
-    expect(completionFlag(undefined)).toBeNull();
-    expect(completionFlag("")).toBeNull();
-  });
-});
-
-// Still the renderer for steam_progress_sync, which stayed a boolean.
+// The renderer for steam_progress_sync, the one boolean left in the card. The
+// four completion axes moved to GameCompletionBlock, which has its own tests.
 describe("yesNo", () => {
   it("renders the two answers and drops the unknown", () => {
     expect(yesNo(true)).toBe("Yes");
