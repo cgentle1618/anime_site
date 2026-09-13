@@ -45,3 +45,33 @@ describe("Images manager", () => {
     expect(srcs).not.toContain("/static/library/full-1.jpg");
   });
 });
+
+describe("Images manager - backfilled legacy rows", () => {
+  it("renders a tile for a backfilled-style row without doubling covers/", async () => {
+    vi.resetModules();
+    vi.doMock("../../hooks/useImages", () => ({
+      useImages: () => ({
+        data: {
+          images: [
+            {
+              system_id: "img-legacy",
+              storage_key: "covers/anime/x.jpg",
+              thumb_key: null,
+              attachments: [],
+            },
+          ],
+          total: 1,
+        },
+        isLoading: false,
+      }),
+      useUploadImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+      useDetachImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+      useDeleteImage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    }));
+    const { default: ImagesWithLegacyRow } = await import("./Images");
+    const { container } = render(<ImagesWithLegacyRow />);
+    const imgs = Array.from(container.querySelectorAll("img"));
+    const srcs = imgs.map((img) => img.getAttribute("src"));
+    expect(srcs).toContain("/static/covers/anime/x.jpg");
+  });
+});

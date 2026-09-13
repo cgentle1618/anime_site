@@ -44,6 +44,15 @@ describe("getCoverUrl", () => {
       "/static/library/abc123.jpg",
     );
   });
+
+  it("resolves a backfilled image.storage_key that already carries covers/", () => {
+    // image.storage_key for a backfilled legacy row is `covers/<owner_type>/<id>.jpg`,
+    // relative to static/ - not to static/covers/. Prefixing it again doubles
+    // the "covers/" segment and 404s.
+    expect(getCoverUrl("covers/anime/abc123.jpg")).toBe(
+      "/static/covers/anime/abc123.jpg",
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -66,6 +75,12 @@ describe("getQuoteImageUrl", () => {
   it("resolves a library key even though jsdom's hostname is localhost", () => {
     expect(getQuoteImageUrl("library/abc123.jpg")).toBe(
       "/static/library/abc123.jpg",
+    );
+  });
+
+  it("resolves a backfilled image.storage_key that already carries covers/", () => {
+    expect(getQuoteImageUrl("covers/quote/abc123.jpg")).toBe(
+      "/static/covers/quote/abc123.jpg",
     );
   });
 });
