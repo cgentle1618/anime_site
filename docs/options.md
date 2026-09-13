@@ -359,8 +359,7 @@ declare, **silently**. `GameBase` therefore declares `play_next` and
 
 `anime-movie`, `manga`, `novel` and `game` have no bucket vocabulary. Games
 are deliberately unbucketed for now: length is hours, not a count of
-episodes or issues, and no threshold was agreed - see
-[roadmap.md](roadmap.md#deferred--known-debt).
+episodes or issues, and no threshold has been agreed.
 
 ### Credit roles and tag fields (`app/utils/credit_roles.py`)
 

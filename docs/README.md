@@ -62,7 +62,6 @@ right and the doc needs the fix.
 | [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08; nothing deployed yet** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
-| [roadmap.md](roadmap.md) | done / next / deferred — the working plan (see the rule in CLAUDE.md) |
 
 ## History
 

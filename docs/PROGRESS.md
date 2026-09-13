@@ -5,7 +5,8 @@ Status only. No prose, no summaries - one line per task, edited in place.
 Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `skipped <one clause>`
 `<who>` is a session or agent label, so two sessions never claim the same task.
 
-A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
+A finished plan's table is deleted from here; git history — the commits and
+the pull request — keeps the record.
 
 Last updated: 2026-09-13
 
@@ -15,7 +16,7 @@ Last updated: 2026-09-13
 
 Nothing. The game spend block and its hand-maintained FX rates shipped on
 `feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
-AniList columns in #148; `docs/roadmap.md` holds the record for all three.
+AniList columns in #148.
 
 The home machine is current: `anime_site_db` is at `al1n2ilist` and a Backup
 ran against it on 2026-09-12 at 23:07, so the sheet no longer names the
@@ -24,8 +25,7 @@ does not validate section keys** - a Pull All from the pre-Backup sheet would
 have restored them.
 
 The authorization redesign - phases 0, A, A.1, B, C and D - is
-finished and its table is gone; `docs/roadmap.md` holds what each phase did
-and why, and the gates themselves are described in
+finished and its table is gone; the gates themselves are described in
 [authorization.md](authorization.md#rules-not-to-break).
 
 ## Concurrent sessions
@@ -69,7 +69,7 @@ otherwise.
 | **Who emptied the backup sheet is still unknown** | Eliminated, with evidence rather than recollection: the **test suite** (all 3877 tests re-run with the real Sheets accessor patched to throw - all passed, so no test ever reaches the live sheet; now enforced permanently by an autouse guard, `9a9e07d7`); **both other sessions** (one frontend-only, one docs-only, neither started a server or a database); **every database on this machine** (a Backup logs into whichever DB it ran against, and across all eight the last one before the recovery was 2026-09-10 20:26); and the **stale codex worktree** (pre-`app/` layout, no `.env`, so the app refuses to start there). That leaves the **company machine** - a Backup there against a freshly-migrated-but-empty database would blank every tab and log into that database, invisible from here - or a manual clear in the browser. Only the owner can close this | todo |
 | **The company machine can still erase the sheet** | The guard exists in two commits, and **`fd9776c8` alone is not enough**: the guard it added probed `worksheet.get("A2:A2")` for truthiness, and gspread answers an empty cell with `[[]]`, so it refused every Backup on an installation with a legitimately empty tab. `c649f3c6` is the one that makes it usable. That machine has neither, and the sheet now holds the restored copy. **`git pull` there before running Backup**, not after | todo |
 | `Note`, `Meme` and `Quote` tabs carry `author_id` as a raw uuid, so authorship does not round-trip | Each machine's lifespan mints its own `admin`, and the `Users` tab's username match keeps the local id - so the other machine's admin rows restore under this one's. `709f9f00` stopped the `Quote` tab dying on it (FK violation, whole tab rolled back); the durable fix is a `username` column on the three tabs, the way `Plan Next` has one. Invisible with one account; needed before a second person writes a note. `tabs.py:259/268/269` | todo |
-| Two community-adjacent measurements are still unanswered | (a) does any endpoint return an entry's `system_id` for a type the viewer lacks - now answerable, `anime_site_db` is at `o1a1ownerflag`; (b) the same for a label-hidden entry - `media_content_label` has **0 rows** in the real database, 2 labels defined and nothing labelled, so the sharper case can be argued but not demonstrated there. The third question - 404 or empty aggregate - is answered and shipped; `docs/roadmap.md` holds the reasoning | todo |
+| Two community-adjacent measurements are still unanswered | (a) does any endpoint return an entry's `system_id` for a type the viewer lacks - now answerable, `anime_site_db` is at `o1a1ownerflag`; (b) the same for a label-hidden entry - `media_content_label` has **0 rows** in the real database, 2 labels defined and nothing labelled, so the sharper case can be argued but not demonstrated there. The third question - 404 or empty aggregate - is answered and shipped | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
 | `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | `pb2m3i4g5r8` (and the `86982d71c2f1` item above) call service functions that query `app.models`, which always SELECT every column the model declares. Reordering fixed the one instance that blocked the home machine on 2026-09-07; the class of defect stands, and the next column added to `publisher`, `media_credit`, `media_tag` or `system_option` re-breaks it. The durable fix is a frozen snapshot in the revision instead of the live models | todo |

@@ -7,7 +7,7 @@ Create Date: 2026-09-12
 Phase 1 of an expand/contract. These tables become the source of truth for
 images; `cover_image_file` is kept written-through so every existing reader -
 the Sheets formatters, the download pipelines, the orphan checks, the SPA -
-is untouched. Phases 2 and 3 are on the roadmap.
+is untouched. Phases 2 and 3 are deliberately deferred.
 """
 
 import sqlalchemy as sa

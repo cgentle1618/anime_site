@@ -85,7 +85,7 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
     written-through so that the Sheets formatters, the download pipelines, the
     orphan checks and every getCoverUrl call in the SPA keep working with no
     change at all. Phases 2 and 3 - moving readers, then dropping the columns -
-    are on the roadmap, and this function is what they eventually delete.
+    are deliberately deferred, and this function is what they eventually delete.
     """
     if role != "cover" and owner_type not in NON_COVER_ROLE_OWNERS:
         return
