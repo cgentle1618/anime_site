@@ -1,21 +1,24 @@
 # Production, on the homelab box. Run from the repository root:
 #
-#   docker compose -f deploy/docker-compose.prod.yml <command>
+#   docker compose -f docker-compose.prod.yml <command>
 #
 # or through deploy/deploy.sh, which takes a dump before it pulls. How this is
 # operated, what is in .env, and how to roll back are in deploy/README.md.
 #
-# The docker-compose.yml at the repository root is a DIFFERENT thing: it runs a
-# bare PostgreSQL for local development and nothing else. Keeping production
-# here rather than there is what stops the two colliding.
+# This file lives at the repository root ON PURPOSE. Compose takes its project
+# directory from the compose file's own location and loads `.env` from there,
+# so the same file under deploy/ would look for deploy/.env and silently
+# interpolate every ${...} below to an empty string. `env_file:` is a separate
+# mechanism and would keep working, which is what makes the failure quiet.
 #
-# Relative paths below are relative to this file's directory, so `..` is the
-# repository root.
+# It does not collide with docker-compose.yml - that is the development file,
+# running a bare PostgreSQL and nothing else. Compose only picks up
+# `docker-compose.yml`/`compose.yaml` by default, never this name, so
+# production is always explicit: `-f docker-compose.prod.yml`.
 
 services:
   db:
     image: postgres:17
-    container_name: anime_site_prod_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -34,15 +37,19 @@ services:
 
   app:
     build:
-      context: ..
+      context: .
       dockerfile: dockerfile
     # Named even though it is built here, so moving to a registry later is a
     # change to what this name points at rather than a restructure.
-    image: anime-site-app:local
-    container_name: anime_site_prod_app
+    #
+    # No container_name: on any service here. Compose derives container names
+    # from COMPOSE_PROJECT_NAME (media-db-1, media-app-1, ...), which makes the
+    # project name the single place a name is written. A hardcoded
+    # container_name is a second place for a stale one to hide.
+    image: media-app:local
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       # entrypoint.sh binds ${PORT:-8080}; the ingress routes to app:8000.
       PORT: 8000
@@ -50,8 +57,8 @@ services:
       # Bind mounts, not named volumes, so rsync and the backup see ordinary
       # files. static/library/ is the only copy of every uploaded image there
       # is - it cannot be re-fetched the way covers can.
-      - ../static/covers:/app/static/covers
-      - ../static/library:/app/static/library
+      - ./static/covers:/app/static/covers
+      - ./static/library:/app/static/library
     depends_on:
       db:
         # Without this, a boot where PostgreSQL is slower than the app makes
@@ -60,13 +67,12 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: anime_site_prod_cloudflared
     restart: unless-stopped
     # --no-autoupdate: the image is the unit of upgrade here, and an in-place
     # self-update would restart the tunnel outside anyone's knowledge.
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run ${TUNNEL_ID}
     volumes:
-      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./deploy/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
       - ${CLOUDFLARED_CREDENTIALS}:/etc/cloudflared/credentials.json:ro
     depends_on:
       - app

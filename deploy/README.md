@@ -4,15 +4,22 @@ The box is `homelab`, an HP ProDesk 600 G4 Desktop Mini. The checkout lives at
 `~/anime_site`, and everything below runs from there.
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml <command>
+docker compose -f docker-compose.prod.yml <command>
 ```
 
 Deploying is `./deploy/deploy.sh`, which dumps the database before it pulls.
 
-The design behind all of this — why the box builds its own image, why the
-ingress is in git, why the data arrives by `pg_dump` — is
-[docs/superpowers/specs/2026-09-13-production-deployment-design.md](../docs/superpowers/specs/2026-09-13-production-deployment-design.md).
-The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md).
+The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md),
+and the reasoning behind this shape is in
+[docs/notes/decisions.md](../docs/notes/decisions.md).
+
+**`docker-compose.prod.yml` lives at the repository root, not in this
+directory.** Compose takes its project directory from the compose file's own
+location and loads `.env` from there, so the same file under `deploy/` would
+look for `deploy/.env` and interpolate every `${...}` to an empty string —
+while `env_file:` kept working, so the app would still start, with a blank
+database password. It does not collide with `docker-compose.yml`, which is the
+development file: Compose only picks that name up by default, never this one.
 
 ## The three services
 
@@ -64,8 +71,20 @@ CLOUDFLARED_CREDENTIALS=/home/<user>/.cloudflared/<uuid>.json
 GOOGLE_SHEET_ID=<the App Database sheet; never the development one>
 GOOGLE_CREDENTIALS_JSON=<service account JSON, on one line>
 
-COMPOSE_PROJECT_NAME=anime_site
+COMPOSE_PROJECT_NAME=media
 ```
+
+**`COMPOSE_PROJECT_NAME` names the volume**, so it decides which database the
+stack sees. Compose otherwise derives it from the directory, and a checkout
+moved or cloned under another name would come up on a brand-new empty volume
+while the real data sat in the old one — which looks exactly like data loss.
+It is `media` here, matching `media.cg1618.com`; the development machines pin
+`anime_site` for the same reason and must keep it.
+
+**`CLOUDFLARED_CREDENTIALS` must point at a file that exists before
+`cloudflared` first starts.** Docker creates a *directory* at a bind-mount
+source that does not exist, and Task 7 then cannot write the credentials file
+there. Starting only `db` is safe — that mount is never touched.
 
 Plus the third-party API keys, which are account credentials rather than
 per-environment secrets and are reused from a dev machine: `TMDB_API_KEY`,
@@ -105,8 +124,8 @@ migration that caused the problem.
 2. **Restore the data:**
 
    ```bash
-   docker compose -f deploy/docker-compose.prod.yml up -d db
-   docker compose -f deploy/docker-compose.prod.yml exec -T db \
+   docker compose -f docker-compose.prod.yml up -d db
+   docker compose -f docker-compose.prod.yml exec -T db \
      pg_restore -U postgres -d anime_site_db --clean --if-exists --no-owner \
      < ~/backups/pre-deploy-<stamp>.dump
    ```
@@ -114,15 +133,15 @@ migration that caused the problem.
 3. **Start:**
 
    ```bash
-   docker compose -f deploy/docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml up -d
    ```
 
 **If only the code is bad and no migration ran**, step 2 is unnecessary and the
 previous image avoids a rebuild:
 
 ```bash
-docker tag anime-site-app:previous anime-site-app:local
-docker compose -f deploy/docker-compose.prod.yml up -d
+docker tag media-app:previous media-app:local
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## What this does not protect against

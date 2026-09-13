@@ -11,7 +11,7 @@ Last verified: 2026-09-13 (Ubuntu installed and the box is a working Docker host
 > followed, and it is done bar the DHCP reservation, which the box cannot have
 > while it lives on a phone hotspot.
 >
-> **The application is not on it.** `deploy/docker-compose.prod.yml`,
+> **The application is not on it.** `docker-compose.prod.yml`,
 > `deploy/cloudflared/config.yml` and `deploy/deploy.sh` now exist and are
 > reviewable, but nothing has been built, no data has been loaded and the
 > tunnel has not been created. That work is build-order steps 4-6, planned in
@@ -1092,7 +1092,7 @@ proceed in parallel with the hardware bring-up.
    `docker-compose.yml` in step 4 must set `APP_ENV=production`, and must set
    real `JWT_SECRET_KEY` and `ADMIN_PASSWORD` values or the container will
    refuse to start.
-4. **The production compose file** is `deploy/docker-compose.prod.yml` — app +
+4. **The production compose file** is `docker-compose.prod.yml` — app +
    postgres + cloudflared, a named volume for the database, bind mounts for
    `static/covers/` and `static/library/`, and **no published ports on
    anything**. How it is operated, what belongs in the box's `.env`, and how to

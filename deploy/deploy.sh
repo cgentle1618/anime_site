@@ -16,7 +16,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-COMPOSE=(docker compose -f deploy/docker-compose.prod.yml)
+COMPOSE=(docker compose -f docker-compose.prod.yml)
 BACKUP_DIR="${HOME}/backups"
 KEEP=5
 
@@ -50,9 +50,9 @@ fi
 git rev-parse HEAD > "${dump}.revision"
 echo "    dump belongs to $(cat "${dump}.revision")"
 
-echo "==> Tagging the outgoing image as anime-site-app:previous"
-if docker image inspect anime-site-app:local >/dev/null 2>&1; then
-    docker tag anime-site-app:local anime-site-app:previous
+echo "==> Tagging the outgoing image as media-app:previous"
+if docker image inspect media-app:local >/dev/null 2>&1; then
+    docker tag media-app:local media-app:previous
 else
     echo "    no current image - first deploy"
 fi

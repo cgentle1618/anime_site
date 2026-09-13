@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-DEPLOY = Path(__file__).resolve().parents[2] / "deploy"
-COMPOSE = DEPLOY / "docker-compose.prod.yml"
-INGRESS = DEPLOY / "cloudflared" / "config.yml"
+ROOT = Path(__file__).resolve().parents[2]
+COMPOSE = ROOT / "docker-compose.prod.yml"
+INGRESS = ROOT / "deploy" / "cloudflared" / "config.yml"
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +47,15 @@ def test_every_service_restarts_unless_stopped(compose, service):
     assert compose["services"][service]["restart"] == "unless-stopped"
 
 
+@pytest.mark.parametrize("service", ["db", "app", "cloudflared"])
+def test_no_service_hardcodes_a_container_name(compose, service):
+    # Compose derives names from COMPOSE_PROJECT_NAME (media-db-1, ...), which
+    # makes the project name the one place a name is written. A hardcoded
+    # container_name is a second place for a stale one to hide - and this
+    # project has already renamed itself once, from "anime" to a media tracker.
+    assert "container_name" not in compose["services"][service]
+
+
 def test_db_has_a_readiness_healthcheck(compose):
     assert "healthcheck" in compose["services"]["db"]
 
@@ -66,8 +75,8 @@ def test_app_carries_an_image_name_alongside_build(compose):
     # Keeps the move to a registry a one-line change: the service already
     # refers to an image by name, so only what that name points at changes.
     app = compose["services"]["app"]
-    assert app["build"]["context"] == ".."
-    assert app["image"] == "anime-site-app:local"
+    assert app["build"]["context"] == "."
+    assert app["image"] == "media-app:local"
 
 
 def test_covers_and_library_are_bind_mounts(compose):
@@ -75,14 +84,27 @@ def test_covers_and_library_are_bind_mounts(compose):
     # build-order step 7 adds. static/library/ is the only copy of every
     # uploaded image in existence.
     volumes = compose["services"]["app"]["volumes"]
-    assert any(v.startswith("../static/covers:") for v in volumes)
-    assert any(v.startswith("../static/library:") for v in volumes)
+    assert any(v.startswith("./static/covers:") for v in volumes)
+    assert any(v.startswith("./static/library:") for v in volumes)
 
 
 def test_cloudflared_mounts_its_config_read_only(compose):
     volumes = compose["services"]["cloudflared"]["volumes"]
     assert any(v.endswith("/etc/cloudflared/config.yml:ro") for v in volumes)
     assert any(v.endswith("/etc/cloudflared/credentials.json:ro") for v in volumes)
+
+
+def test_the_compose_file_sits_beside_the_env_it_interpolates():
+    """Compose loads `.env` from the compose file's own directory.
+
+    Moving this file into a subdirectory makes every ${...} below interpolate
+    to an empty string, while `env_file:` keeps working - so the app still
+    starts, with a database password of "". That is the quiet version of this
+    failure, and it is why the file lives at the repository root.
+    """
+    assert COMPOSE.parent == ROOT, (
+        f"{COMPOSE.name} must sit beside .env at the repository root; found it in {COMPOSE.parent}"
+    )
 
 
 def test_ingress_ends_with_a_catch_all():
