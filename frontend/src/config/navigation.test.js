@@ -81,13 +81,14 @@ describe("NAV_SECTIONS", () => {
     expect(activeItem("/game/12").item.label).toBe("Game");
   });
 
-  it("gathers the four entry forms under their own Entry tab", () => {
+  it("gathers the entry forms and the image library under their own Entry tab", () => {
     const entry = NAV_SECTIONS.find((s) => s.key === "entry");
     expect(sectionItems(entry).map((i) => i.to)).toEqual([
       "/add",
       "/modify",
       "/delete",
       "/defaults",
+      "/images",
     ]);
   });
 

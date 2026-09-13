@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { FALLBACK_SVG, getCoverUrl } from "../lib/covers";
+import { FALLBACK_SVG, getCoverUrl, getQuoteImageUrl } from "../lib/covers";
 import { getDisplayName, getSortName } from "../lib/naming";
 import {
   getStatusButtonConfig,
@@ -37,6 +37,36 @@ describe("getCoverUrl", () => {
     // jsdom sets hostname to 'localhost' by default
     const url = getCoverUrl("abc123.jpg");
     expect(url).toBe("/static/covers/abc123.jpg");
+  });
+
+  it("resolves a library key outside the cover tree", () => {
+    expect(getCoverUrl("library/abc123.jpg")).toBe(
+      "/static/library/abc123.jpg",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getQuoteImageUrl
+// ---------------------------------------------------------------------------
+
+describe("getQuoteImageUrl", () => {
+  it("returns null for null", () => {
+    expect(getQuoteImageUrl(null)).toBe(null);
+  });
+
+  it("returns null for 'N/A'", () => {
+    expect(getQuoteImageUrl("N/A")).toBe(null);
+  });
+
+  it("returns local static path on localhost (jsdom default)", () => {
+    expect(getQuoteImageUrl("my-meme.png")).toBe("/static/quotes/my-meme.png");
+  });
+
+  it("resolves a library key even though jsdom's hostname is localhost", () => {
+    expect(getQuoteImageUrl("library/abc123.jpg")).toBe(
+      "/static/library/abc123.jpg",
+    );
   });
 });
 

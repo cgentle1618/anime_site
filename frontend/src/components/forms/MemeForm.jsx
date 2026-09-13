@@ -8,7 +8,7 @@ import { useState } from "react";
 import { inputCls } from "./FormField";
 import ComboBox from "./ComboBox";
 import { isTierOwner } from "./MemeOwnerPicker";
-import { getQuoteImageUrl } from "../../lib/covers";
+import ImagePicker from "./ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { useApiQuery } from "../../hooks/useApiQuery";
@@ -59,7 +59,6 @@ function Row({ label, children, hint }) {
 export default function MemeForm({ val, setVal, ownerType, ownerId }) {
   const set = (key, value) => setVal({ ...val, [key]: value });
   const [creating, setCreating] = useState(false);
-  const imageUrl = getQuoteImageUrl(val.image_file);
 
   // Quotes are entry-only, so a tier-owned meme has none of its own to link and
   // the control is hidden entirely.
@@ -144,31 +143,15 @@ export default function MemeForm({ val, setVal, ownerType, ownerId }) {
         </Row>
       )}
 
-      {/* Local only: getQuoteImageUrl returns null off localhost, so this whole
-          block disappears in production. */}
-      {getQuoteImageUrl("probe.png") && (
-        <Row
-          label="Image"
-          hint="Filename inside static/quotes/ — at most one, local only"
-        >
-          <input
-            value={val.image_file || ""}
-            onChange={(e) => set("image_file", e.target.value)}
-            placeholder="my-meme.png"
-            className={inputCls}
-          />
-          {imageUrl && (
-            <img
-              src={imageUrl}
-              alt=""
-              className="mt-2 max-h-40 rounded-lg border border-border"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          )}
-        </Row>
-      )}
+      <Row label="Image" hint="Upload a file or pick one already in the library">
+        <ImagePicker
+          ownerType="meme"
+          ownerId={val.system_id}
+          role="cover"
+          value={val.image_file}
+          onChange={(key) => set("image_file", key)}
+        />
+      </Row>
 
       <div className="grid grid-cols-2 gap-3">
         <Row label="Episode">

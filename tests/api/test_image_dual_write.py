@@ -93,9 +93,9 @@ def test_the_mirror_receives_the_library_storage_key_verbatim(
 ):
     # The mirror column is written through unchanged - a new upload's key is
     # `library/<checksum>.jpg`, not rewritten into the `<owner>/<id>.jpg` shape
-    # legacy covers use. getCoverUrl still prefixes /static/covers/, so this
-    # value does not resolve correctly in the SPA until the SPA gains its
-    # `library/` branch - that is out of scope here and lands separately.
+    # legacy covers use. getCoverUrl's `library/` branch (frontend/src/lib/
+    # covers.js) resolves this verbatim key straight to /static/library/..., so
+    # it renders correctly in the SPA without any rewriting here.
     image = _upload(admin_client)
     admin_client.post(
         f"/api/images/{image['system_id']}/attach",

@@ -70,6 +70,7 @@ const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
 const Aliases = lazy(() => import("./pages/admin/Aliases"));
 const ExternalApis = lazy(() => import("./pages/admin/ExternalApis"));
+const Images = lazy(() => import("./pages/admin/Images"));
 const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
@@ -201,6 +202,7 @@ export default function App() {
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                  <Route path="/images" element={<Images />} />
                 </Route>
 
                 {/* Pipeline work: these pages call only /api/system/* and
