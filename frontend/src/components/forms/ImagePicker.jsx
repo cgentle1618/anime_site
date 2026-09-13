@@ -6,8 +6,10 @@
 //
 // A brand-new quote or meme has no ownerId at all until it is first saved, so
 // there is deliberately nothing to attach to yet - attach is skipped with no
-// error, and the surrounding form persists the storage key itself on save.
-// That is the ONLY case attach is silently skipped: once an ownerId exists,
+// error, and `onChange` is called with the picked image's id as well as its
+// storage key so the surrounding form can attach it once the row exists (see
+// `attachUploadedImage` below, used by QuoteForm/MemeForm's save flow). That
+// is the ONLY case attach is silently skipped here: once an ownerId exists,
 // attach is attempted and a failure is surfaced, not swallowed - a 400 for an
 // unsupported owner type or a 404 from the content-label gate is a real
 // failure the caller needs to see, not a no-op. The upload still succeeds and
@@ -15,9 +17,23 @@
 // lost even when the attach itself did not go through.
 import { useRef, useState } from "react";
 
+import { fetchJson, jsonBody } from "../../api/client";
+import { endpoints } from "../../api/endpoints";
 import { getCoverUrl } from "../../lib/covers";
 import { useAttachImage, useImages, useUploadImage } from "../../hooks/useImages";
 import { Button } from "../ui/primitives";
+
+// Attaches an already-uploaded image to a just-created owner row. Used by
+// forms (QuoteForm, MemeForm) whose ImagePicker had no ownerId yet at pick
+// time - see the module comment above - once the row has been saved and has
+// an id. Not a react-query mutation because these call sites are one-shot
+// saves, not components re-rendering off mutation state.
+export function attachUploadedImage(imageId, ownerType, ownerId, role) {
+  return fetchJson(endpoints.images.attach(imageId), {
+    method: "POST",
+    ...jsonBody({ owner_type: ownerType, owner_id: ownerId, role }),
+  });
+}
 
 export default function ImagePicker({
   ownerType,
@@ -53,7 +69,7 @@ export default function ImagePicker({
     try {
       const image = await upload.mutateAsync(file);
       const attachError = await tryAttach(image.system_id);
-      onChange(image.storage_key);
+      onChange(image.storage_key, image.system_id);
       if (attachError) setError(attachError);
     } catch (err) {
       setError(err.message || "Upload failed.");
@@ -66,7 +82,7 @@ export default function ImagePicker({
     setLibraryOpen(false);
     setError(null);
     const attachError = await tryAttach(image.system_id);
-    onChange(image.storage_key);
+    onChange(image.storage_key, image.system_id);
     if (attachError) setError(attachError);
   }
 
@@ -174,7 +190,7 @@ function LibraryModal({ onSelect, onClose }) {
                   </span>
                 ) : (
                   <img
-                    src={getCoverUrl(image.storage_key)}
+                    src={getCoverUrl(image.thumb_key || image.storage_key)}
                     alt=""
                     className="h-full w-full object-cover"
                   />

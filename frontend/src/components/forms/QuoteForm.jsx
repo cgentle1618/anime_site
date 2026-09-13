@@ -13,6 +13,7 @@ export function emptyQuote(overrides = {}) {
     episode: "",
     link: "",
     image_file: "",
+    pending_image_id: null,
     tags: [],
     is_general: false,
     is_favorite: false,
@@ -176,7 +177,18 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
           ownerId={val.system_id}
           role="quote"
           value={val.image_file}
-          onChange={(key) => set("image_file", key)}
+          onChange={(key, imageId) => {
+            // No system_id yet - ImagePicker had nothing to attach to, so
+            // remember the image id and attach it once the quote is saved
+            // (see attachUploadedImage callers). Once system_id exists,
+            // ImagePicker already attached at pick time and nothing is
+            // pending.
+            setVal({
+              ...val,
+              image_file: key,
+              pending_image_id: val.system_id ? null : imageId,
+            });
+          }}
         />
       </Row>
 

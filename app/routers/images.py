@@ -347,15 +347,24 @@ def delete_image(
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found.")
 
-    attached = (
+    attachments = (
         db.query(models.ImageAttachment)
         .filter(models.ImageAttachment.image_id == image_id)
-        .count()
+        .all()
     )
-    if attached and not force:
+    if attachments and not force:
         raise HTTPException(
             status_code=409,
-            detail=f"Image is still attached to {attached} owner(s).",
+            detail=f"Image is still attached to {len(attachments)} owner(s).",
+        )
+
+    # A forced delete removes the attachment rows (they cascade with the
+    # image below), but the legacy columns those rows were mirroring do not
+    # cascade - they are plain string columns, not foreign keys. Left alone
+    # they would still point at a file that no longer exists.
+    for attachment in attachments:
+        mirror_to_owner_column(
+            db, attachment.owner_type, attachment.owner_id, attachment.role, None
         )
 
     storage_key, thumb_key = image.storage_key, image.thumb_key

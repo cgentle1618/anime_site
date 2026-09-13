@@ -325,6 +325,32 @@ def test_delete_force_removes_the_image_and_its_attachments(
     assert db_session.query(models.ImageAttachment).count() == 0
 
 
+def test_delete_force_clears_the_owner_mirror_column(
+    admin_client, db_session, sample_anime
+):
+    # A forced delete removes the attachment row, but that row's mirror
+    # column (cover_image_file here) is a plain string, not a foreign key -
+    # it does not cascade on its own. Left alone it would still name a file
+    # that no longer exists.
+    image = _upload(admin_client).json()
+    admin_client.post(
+        f"/api/images/{image['system_id']}/attach",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "role": "cover",
+        },
+    )
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file == image["storage_key"]
+
+    response = admin_client.delete(f"/api/images/{image['system_id']}?force=true")
+
+    assert response.status_code == 204
+    db_session.refresh(sample_anime)
+    assert sample_anime.cover_image_file is None
+
+
 # ---------------------------------------------------------------------------
 # The guard on bulk_download_missing_covers
 #

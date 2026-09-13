@@ -11,9 +11,11 @@ import QuoteForm, {
   emptyQuote,
   toQuotePayload,
 } from "../../../components/forms/QuoteForm";
+import { attachUploadedImage } from "../../../components/forms/ImagePicker";
 import { endpoints } from "../../../api/endpoints";
 import { fetchJson, jsonBody } from "../../../api/client";
 import { getQuoteImageUrl } from "../../../lib/covers";
+import { useToast } from "../../../hooks/useToast";
 import {
   ItemActions,
   LinkPill,
@@ -32,6 +34,7 @@ export default function QuoteSection({
   isAdmin,
   onCount,
 }) {
+  const { showToast } = useToast();
   const queryClient = useQueryClient();
   const queryKey = ["quotes-by-entry", mediaType, entryId];
 
@@ -66,7 +69,7 @@ export default function QuoteSection({
     if (!draft.text?.trim() && !draft.image_file?.trim()) return;
     setBusy(true);
     try {
-      await fetchJson(endpoints.quotes.create(), {
+      const created = await fetchJson(endpoints.quotes.create(), {
         method: "POST",
         ...jsonBody(
           toQuotePayload(draft, {
@@ -76,6 +79,23 @@ export default function QuoteSection({
           }),
         ),
       });
+      // The quote had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (draft.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            draft.pending_image_id,
+            "quote",
+            created.system_id,
+            "quote",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Quote saved, but attaching the image failed.",
+          );
+        }
+      }
       setDraft(emptyQuote());
       setAdding(false);
       await refresh();
