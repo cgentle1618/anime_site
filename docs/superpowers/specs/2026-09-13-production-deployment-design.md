@@ -24,8 +24,9 @@ that serves `media.cg1618.com`.
 - **Not a CI/CD pipeline.** The box builds its own image from a git checkout.
   Moving to a registry is deliberately left as a later, cheap change — see
   Decision 1.
-- **Not a backup system.** Build-order step 7 covers nightly `pg_dump` and the
-  off-box copy. This design produces one dump, as a migration artifact.
+- **Not a backup system.** Build-order step 7 covers the nightly off-box copy.
+  This design produces the migration dump and a dump before every deploy — see
+  Decision 7 — which protects a deploy but not a fault noticed a week later.
 - **Not a monitoring setup.** No metrics, no alerting, and deliberately no app
   healthcheck — see Decision 6.
 - **Not multi-app.** Six more hostnames are planned; this routes one. The
@@ -175,6 +176,52 @@ would pass with the database completely down. A healthcheck that lies is worse
 than none. A real `/healthz` belongs with monitoring, which this design does not
 cover.
 
+### 7. Every deploy dumps first, and rollback reverts the code with the data
+
+Updating production is `git pull` and `docker compose up -d --build`. Three
+things can go wrong, and they are not equally recoverable:
+
+| Failure | Recovery |
+| --- | --- |
+| The build fails | Nothing happened. Compose aborts before replacing containers, and the running ones keep serving. |
+| The code is broken but starts | The data is untouched. Check out the previous revision and bring it back up. |
+| **A migration damages data** | **Nothing to recover from, without the protection below.** |
+
+The third is the real risk, and it is structural: `entrypoint.sh` runs
+`alembic upgrade head` on every start, so the schema has already changed by the
+time anyone sees a problem.
+
+**`alembic downgrade` is not a restore.** Eight of the nine current migrations
+implement a real downgrade and one (`s1e2asonalix`) is a deliberate no-op, but
+even a correct downgrade only reverses *schema*: reversing a dropped column
+recreates it empty. The column returns and the data does not.
+
+So:
+
+- **`deploy/deploy.sh` takes a timestamped `pg_dump` before it pulls**, and
+  keeps the last few. It costs seconds and it is what makes a migration
+  reversible at all.
+- **The outgoing image is tagged `anime-site-app:previous` before the build**,
+  so a code-only rollback is an immediate `up` rather than a fifteen-minute
+  rebuild on a box behind a phone hotspot.
+- **Rollback is three things, not two.** Restoring a pre-migration dump while
+  leaving the new code in place does not work: the next start runs
+  `alembic upgrade head` and re-applies the migration that caused the problem.
+  Rollback is *check out the previous revision, restore the dump, bring it up*
+  — in that order.
+
+**Rejected: taking migrations out of `entrypoint.sh` and running them by hand.**
+It is the textbook separation, and it would make the schema change an explicit,
+observable step. Rejected because it makes every deploy two commands with a
+window in between where the code and the schema disagree, and because it breaks
+parity with how the application starts on every dev machine and in CI. The
+pre-deploy dump buys the same protection without that.
+
+**What this still does not cover:** a migration that is wrong in a way nobody
+notices for a week. By then every deploy dump predates the damage or postdates
+it uselessly. That is what the nightly off-box backup in build-order step 7 is
+for, and it is the argument for doing step 7 early rather than last.
+
 ## Verification
 
 The self-healing claim is the one that cannot be verified by reading, so it is
@@ -191,17 +238,20 @@ The rest:
 - `media.cg1618.com` serves the SPA and an authenticated admin route works.
 - Logging in with the development admin password **fails**.
 - A production Backup populates the new sheet, and the dev sheet is untouched.
+- `deploy/deploy.sh` writes a dump before it pulls, and a deliberate rollback
+  — previous revision, restore, `up` — returns the row counts above.
 
 ## Sequencing
 
-1. `deploy/docker-compose.prod.yml` and `deploy/cloudflared/config.yml`, plus
-   documentation. Reviewable without the box.
+1. `deploy/docker-compose.prod.yml`, `deploy/cloudflared/config.yml` and
+   `deploy/deploy.sh`, plus documentation. Reviewable without the box.
 2. On the box: clone, write `.env`, `docker compose up -d db`.
 3. Dump here, copy the dump and `static/covers/` across, restore.
 4. First full `up`, then rotate the passwords.
 5. Tunnel: login here, create on the box, route DNS, start `cloudflared`.
 6. New production sheet, first Backup.
-7. The hotspot test.
+7. The hotspot test, and a rehearsed rollback while production still holds
+   nothing that a re-restore could not replace.
 
 Steps 2-7 happen on the box and cannot be covered by the repository's test
 suite. Step 1 is the only part CI sees, and what it checks is that nothing else
