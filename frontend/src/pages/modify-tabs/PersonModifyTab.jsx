@@ -263,6 +263,7 @@ export default function PersonModifyTab() {
               roles={roles}
               setRoles={setRoles}
               legalScopes={legalScopes}
+              ownerId={selectedId}
             />
           </div>
 

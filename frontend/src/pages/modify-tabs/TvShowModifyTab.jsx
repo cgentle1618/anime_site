@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -309,11 +310,13 @@ export default function TvShowModifyTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
-        <input
-          className={inputCls}
-          value={tvmf.cover_image_file || ""}
-          onChange={(e) => utv("cover_image_file", e.target.value)}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="tv-show"
+          ownerId={editingItem?.system_id}
+          role="cover"
+          value={tvmf.cover_image_file}
+          onChange={(key) => utv("cover_image_file", key)}
         />
       </Field>
       <Field label="Remark">

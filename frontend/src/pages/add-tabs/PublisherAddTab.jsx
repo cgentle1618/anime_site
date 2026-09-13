@@ -16,6 +16,7 @@ import {
 } from "../../components/forms/FormField";
 import PublisherScopePills from "../../components/forms/PublisherScopePills";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
+import ImagePicker from "../../components/forms/ImagePicker";
 import { MY_RATINGS } from "../../config/fieldOptions";
 // Publisher is the third consumer of this list, after Studio and Person: all
 // three carry the same four name columns and the same display_name_field
@@ -24,7 +25,11 @@ import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export { defaultPublisher } from "../../config/formFactories";
 
-export function PublisherFields({ publisherForm, upf }) {
+// `ownerId` is only passed by PublisherModifyTab, where the publisher row
+// already exists - see ImagePicker's own module comment on why a brand-new
+// (Add tab) row has nothing to attach to yet. When it is absent, Logo File
+// stays the plain text input the Add tab has always had.
+export function PublisherFields({ publisherForm, upf, ownerId }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => publisherForm[field]?.trim(),
   );
@@ -82,12 +87,22 @@ export function PublisherFields({ publisherForm, upf }) {
             ))}
           </select>
         </Field>
-        <Field label="Logo File">
-          <input
-            className={inputCls}
-            value={publisherForm.logo_file ?? ""}
-            onChange={(e) => upf("logo_file", e.target.value)}
-          />
+        <Field label="Logo">
+          {ownerId ? (
+            <ImagePicker
+              ownerType="publisher"
+              ownerId={ownerId}
+              role="cover"
+              value={publisherForm.logo_file}
+              onChange={(key) => upf("logo_file", key)}
+            />
+          ) : (
+            <input
+              className={inputCls}
+              value={publisherForm.logo_file ?? ""}
+              onChange={(e) => upf("logo_file", e.target.value)}
+            />
+          )}
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

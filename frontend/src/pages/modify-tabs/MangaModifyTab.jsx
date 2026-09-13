@@ -4,6 +4,7 @@ import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -435,11 +436,13 @@ export default function MangaModifyTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File">
-        <input
-          className={inputCls}
-          value={cmgf.cover_image_file || ""}
-          onChange={(e) => umg("cover_image_file", e.target.value)}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="manga"
+          ownerId={editingItem?.system_id}
+          role="cover"
+          value={cmgf.cover_image_file}
+          onChange={(key) => umg("cover_image_file", key)}
         />
       </Field>
       <Field label="Remark">

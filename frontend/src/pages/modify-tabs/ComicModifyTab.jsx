@@ -3,6 +3,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -407,12 +408,13 @@ export default function ComicModifyTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
-        <input
-          className={inputCls}
-          value={ccmf.cover_image_file || ""}
-          onChange={(e) => ucm("cover_image_file", e.target.value)}
-          placeholder="5114.jpg"
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="comic"
+          ownerId={editingItem?.system_id}
+          role="cover"
+          value={ccmf.cover_image_file}
+          onChange={(key) => ucm("cover_image_file", key)}
         />
       </Field>
       <Field label="Remark">

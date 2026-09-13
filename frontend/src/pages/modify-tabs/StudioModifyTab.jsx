@@ -198,7 +198,11 @@ export default function StudioModifyTab() {
           </div>
 
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-            <StudioFields studioForm={studioForm} usf={usf} />
+            <StudioFields
+              studioForm={studioForm}
+              usf={usf}
+              ownerId={selectedId}
+            />
           </div>
 
           <div className="flex justify-end">

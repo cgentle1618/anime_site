@@ -12,6 +12,7 @@
 // existing character's form state instead of duplicating them - the same
 // arrangement StudioFields/PersonFields use.
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+import ImagePicker from "../../components/forms/ImagePicker";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 
 // A character carries the same four name columns and display_name_field
@@ -20,7 +21,11 @@ export const CHARACTER_NAME_FIELDS = PERSON_NAME_FIELDS;
 
 export { defaultCharacter } from "../../config/formFactories";
 
-export function CharacterFields({ characterForm, ucf }) {
+// `ownerId` is only passed by CharacterModifyTab, where the character row
+// already exists - see ImagePicker's own module comment on why a brand-new
+// (Add tab) row has nothing to attach to yet. When it is absent, Photo File
+// stays the plain text input the Add tab has always had.
+export function CharacterFields({ characterForm, ucf, ownerId }) {
   const hasAnyName = CHARACTER_NAME_FIELDS.some(
     ({ field }) => characterForm[field]?.trim(),
   );
@@ -77,12 +82,22 @@ export function CharacterFields({ characterForm, ucf }) {
           />
         </Field>
       </div>
-      <Field label="Photo File">
-        <input
-          className={inputCls}
-          value={characterForm.photo_file ?? ""}
-          onChange={(e) => ucf("photo_file", e.target.value)}
-        />
+      <Field label="Photo">
+        {ownerId ? (
+          <ImagePicker
+            ownerType="character"
+            ownerId={ownerId}
+            role="cover"
+            value={characterForm.photo_file}
+            onChange={(key) => ucf("photo_file", key)}
+          />
+        ) : (
+          <input
+            className={inputCls}
+            value={characterForm.photo_file ?? ""}
+            onChange={(e) => ucf("photo_file", e.target.value)}
+          />
+        )}
       </Field>
       <Field label="Remark">
         <textarea
