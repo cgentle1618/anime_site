@@ -93,6 +93,7 @@ from app.services.domain.duplicates import (
     find_duplicate_tv_show,
 )
 from app.services.domain.game_copies import (
+    attach_own_copies,
     derive_game_ownership,
     write_game_copies,
 )
@@ -304,6 +305,7 @@ __all__ = [
     "normalize_arc_progress",
     "unit_display_key",
     "write_novel_units",
+    "attach_own_copies",
     "write_game_copies",
     "derive_game_ownership",
     "STATUS_FIELD",
