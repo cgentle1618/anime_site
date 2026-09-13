@@ -6,6 +6,8 @@ postgres_anime_data/
 one_time/
 static/covers/
 !/static/covers/.gitkeep
+static/library/*
+!/static/library/.gitkeep
 .vs/
 
 node_modules/

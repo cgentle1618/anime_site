@@ -209,13 +209,19 @@ def list_images(
     unused: bool = Query(False),
     missing: bool = Query(False),
     duplicates: bool = Query(False),
+    owner_type: Optional[str] = Query(None),
     q: Optional[str] = Query(None),
     limit: int = Query(60, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
 ):
-    """The library, filtered by the three questions the manager page asks."""
+    """The library, filtered by the questions the manager page and picker ask."""
+    if owner_type is not None and owner_type not in ATTACHABLE_OWNERS:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown owner type: {owner_type}"
+        )
+
     query = db.query(models.Image)
 
     if q:
@@ -225,20 +231,54 @@ def list_images(
         attached = db.query(models.ImageAttachment.image_id)
         query = query.filter(models.Image.system_id.notin_(attached))
 
+    # `unused` (no attachments at all) and `owner_type` (has an attachment of
+    # a given type) are contradictory: no image can satisfy both. Rather than
+    # 400 on the combination - a picker wiring both chips together is a UI
+    # bug, not a request worth failing loudly for - `unused` wins and the
+    # owner_type filter is skipped, which is what already falls out of
+    # applying `unused`'s NOT IN first: adding the owner_type filter here
+    # would always yield zero rows, silently. Skipping it instead returns the
+    # (already well-defined) unused set rather than an empty page that looks
+    # like a bug.
+    if owner_type is not None and not unused:
+        owned = db.query(models.ImageAttachment.image_id).filter(
+            models.ImageAttachment.owner_type == owner_type
+        )
+        query = query.filter(models.Image.system_id.in_(owned))
+
     if duplicates:
         # Should always be empty: checksum is unique, so this exists to PROVE
         # dedup works rather than to fix anything. `query.filter(False)` is not
         # valid SQLAlchemy - it needs the sql-expression false().
         query = query.filter(false())
 
-    rows = query.order_by(models.Image.uploaded_at.desc()).all()
+    total = query.count()
+
+    # `missing` is computed per row from the filesystem, not from the
+    # database, so it cannot be pushed into the SQL query above. Filtering it
+    # in Python after LIMIT/OFFSET would give a short page (rows that turn out
+    # present are silently dropped) and a `total` that only counts the current
+    # page. The honest fix costs a full scan of the filtered set on every
+    # `missing` request - this is an admin-only library of ~2000 rows, not a
+    # hot path, so trading that scan for a correct page and a correct total is
+    # the right side of the tradeoff.
+    if missing:
+        rows = query.order_by(models.Image.uploaded_at.desc()).all()
+        out_all = [_to_out(db, row) for row in rows]
+        out_all = [row for row in out_all if row.missing]
+        total = len(out_all)
+        page = out_all[offset : offset + limit]
+        return ImageListOut(images=page, total=total)
+
+    rows = (
+        query.order_by(models.Image.uploaded_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     out = [_to_out(db, row) for row in rows]
 
-    if missing:
-        out = [row for row in out if row.missing]
-
-    total = len(out)
-    return ImageListOut(images=out[offset : offset + limit], total=total)
+    return ImageListOut(images=out, total=total)
 
 
 @router.post(

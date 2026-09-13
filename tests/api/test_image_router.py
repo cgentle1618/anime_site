@@ -267,6 +267,98 @@ def test_list_missing_reports_a_reference_with_no_file(
     assert response.json()["images"][0]["missing"] is True
 
 
+def test_list_owner_type_filters_to_images_attached_to_that_owner(
+    admin_client, sample_anime
+):
+    attached = _upload(admin_client).json()
+    _upload(admin_client, data=_png(color=(30, 30, 200)))
+    admin_client.post(
+        f"/api/images/{attached['system_id']}/attach",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "role": "cover",
+        },
+    )
+
+    response = admin_client.get("/api/images?owner_type=anime")
+
+    assert response.status_code == 200
+    images = response.json()["images"]
+    assert len(images) == 1
+    assert images[0]["system_id"] == attached["system_id"]
+
+
+def test_list_owner_type_rejects_an_unknown_value(admin_client):
+    response = admin_client.get("/api/images?owner_type=not-a-table")
+
+    assert response.status_code == 400
+
+
+def test_list_unused_wins_over_owner_type(admin_client, sample_anime):
+    # unused (no attachments at all) and owner_type (has an attachment of a
+    # given type) can never both be true of the same image. Rather than 400
+    # on a picker request that wires both chips together, unused wins and
+    # the result is the unused set - not an owner_type-filtered empty page
+    # that would look like a bug rather than a deliberate no-op.
+    attached = _upload(admin_client).json()
+    unused_image = _upload(admin_client, data=_png(color=(30, 30, 200))).json()
+    admin_client.post(
+        f"/api/images/{attached['system_id']}/attach",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "role": "cover",
+        },
+    )
+
+    response = admin_client.get("/api/images?unused=true&owner_type=anime")
+
+    assert response.status_code == 200
+    images = response.json()["images"]
+    assert len(images) == 1
+    assert images[0]["system_id"] == unused_image["system_id"]
+
+
+def test_list_pagination_reports_the_full_total_but_a_short_page(admin_client):
+    for i in range(5):
+        _upload(admin_client, data=_png(color=(i, i, i)))
+
+    response = admin_client.get("/api/images?limit=2&offset=0")
+
+    body = response.json()
+    assert body["total"] == 5
+    assert len(body["images"]) == 2
+
+
+def test_list_pagination_offset_advances_the_page(admin_client):
+    for i in range(5):
+        _upload(admin_client, data=_png(color=(i, i, i)))
+
+    first = admin_client.get("/api/images?limit=2&offset=0").json()
+    second = admin_client.get("/api/images?limit=2&offset=2").json()
+
+    first_ids = {row["system_id"] for row in first["images"]}
+    second_ids = {row["system_id"] for row in second["images"]}
+    assert first_ids.isdisjoint(second_ids)
+
+
+def test_list_missing_pagination_reports_the_full_filtered_total(
+    admin_client, tmp_path
+):
+    images = [_upload(admin_client, data=_png(color=(i, i, i))).json() for i in range(3)]
+    for image in images:
+        (tmp_path / "library" / f"{image['checksum']}.jpg").unlink()
+    # One present image that should not count toward the missing total.
+    _upload(admin_client, data=_png(color=(9, 9, 9)))
+
+    response = admin_client.get("/api/images?missing=true&limit=2&offset=0")
+
+    body = response.json()
+    assert body["total"] == 3
+    assert len(body["images"]) == 2
+
+
 def test_detach_leaves_the_image_in_the_library(
     admin_client, db_session, sample_anime
 ):

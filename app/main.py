@@ -141,7 +141,7 @@ async def lifespan(app: FastAPI):
 
         if not admin_user:
             admin_pass = settings.admin_password
-            print("🚀 [System] No admin detected. Seeding master account...")
+            logger.info("[System] No admin detected. Seeding master account...")
 
             hashed_pwd = get_password_hash(admin_pass)
             new_admin = models.User(
@@ -151,12 +151,18 @@ async def lifespan(app: FastAPI):
             )
             db.add(new_admin)
             db.commit()
-            print("✅ [System] Admin user 'admin' created successfully.")
+            logger.info("[System] Admin user 'admin' created successfully.")
         else:
-            print("ℹ️ [System] Admin account verified.")
+            logger.info("[System] Admin account verified.")
 
     except Exception as e:
-        print(f"❌ [System] Critical Error during seeding: {e}")
+        # `logging` never lets an emit failure propagate (it routes through
+        # Handler.handleError, which swallows it), so this is safe even on a
+        # non-UTF-8 stream where a bare print() of a unicode message would
+        # raise here and mask the real exception behind a UnicodeEncodeError.
+        # `%s` formatting (not an f-string) keeps that safety: the message is
+        # only rendered once inside the logging machinery's own guarded path.
+        logger.error("[System] Critical Error during seeding: %s", e, exc_info=True)
     finally:
         db.close()
 
