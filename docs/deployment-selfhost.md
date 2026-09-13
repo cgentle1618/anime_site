@@ -1,13 +1,13 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-13 (machine inspected in the bundled Windows — parts, drive wear, SATA mode and disk contents confirmed and recorded; still nothing installed)
+Last verified: 2026-09-13 (machine inspected in the bundled Windows — parts, drive wear, SATA mode, disk contents, network cards and firmware confirmed and recorded; still nothing installed)
 
 > ## Status: hardware bought and inspected, nothing deployed yet
 >
 > **The machine is purchased and inspected** — an HP ProDesk 600 G4 Desktop
 > Mini, bought 2026-09-08 for NT$5,680 (see [The machine](#the-machine)). It
-> matches what was advertised, the drive is healthy and every port works, so
-> it is being kept. Everything else in
+> matches what was advertised, the drive is healthy, every port works and the
+> WiFi card is one Linux supports, so it is being kept. Everything else in
 > this file is still ahead: no OS is installed, no production
 > `docker-compose.yml` exists, and none of the code changes under
 > [What has to change in the code](#what-has-to-change-in-the-code) have been
@@ -60,8 +60,8 @@ file is now about building on the machine that exists.**
 | **RAM** | 16 GB DDR4 SO-DIMM as **2 × 8 GB, both slots occupied** — Kingston `9905700-012.A00G`, DDR4-2667 running at its rated 2667, dual channel (DIMM1 on channel B, DIMM3 on channel A). Official maximum is 32 GB, so that upgrade **replaces both sticks** rather than adding one. |
 | **Storage** | 512 GB **SATA** SSD — Transcend `TS512GSSD370S`, 477 GB usable, on the DM SATA connector. **Not NVMe**, so it appears as `/dev/sda` under Linux and tops out around 550 MB/s. |
 | **Storage expansion** | 2× M.2 PCIe x4 (2280/2230). The boot SSD is on the DM SATA connector, so both should be empty — not confirmed, since the case has not been opened |
-| **WLAN slot** | 1× M.2 PCIe x1 2230 — occupied by the bundled WiFi card |
-| **Network** | 1× RJ-45 Gigabit Ethernet |
+| **WLAN slot** | 1× M.2 PCIe x1 2230, holding an Intel **Dual Band Wireless-AC 8265** (WiFi MAC `F8-34-41-B1-EF-E5`, Bluetooth on the same card) |
+| **Network** | Intel **I219-LM** Gigabit Ethernet (1× RJ-45), MAC `B0-5C-DA-34-A2-0C` |
 | **Video** | 2× DisplayPort 1.2 + one configurable port; a DP→HDMI adapter was included |
 | **USB** | 3× USB 3.1 Gen 1, 3× USB 3.1 Gen 2, 1× USB 3.1 Gen 2 Type-C (front) |
 | **Other** | Optional RS-232 serial (rear), headphone jack, front combo audio |
@@ -95,6 +95,10 @@ This is the baseline to compare later readings against; the same numbers in
   Controller`), not RAID / Intel RST, so the change in
   [step 3](#step-3--bios-settings) is a confirmation rather than an edit.
 - **Virtualisation (VT-x) is enabled** in firmware.
+- **Serial `8CC0201TF9`**, BIOS **`Q22 Ver. 02.35.00` dated 2026-07-28** — recent
+  firmware rather than a factory image, so there is probably nothing to flash.
+  Confirm against HP's support page for the 600 G4 DM before the install, since
+  flashing is far easier from the bundled Windows than from Linux.
 - The disk carries an EFI system partition (0.3 GB), `C:` (250 GB) and `D:`
   (226.6 GB), and **nothing else — no HP recovery partition**. `D:` holds only
   an empty recycle bin, so the whole disk can be given to the installer with
@@ -120,7 +124,7 @@ phase is a heading below, with its steps under it.
 | Phase | Where you are | Steps | What happens |
 | --- | --- | --- | --- |
 | **[A. Prepare the stick](#phase-a--prepare-the-usb-stick)** | At the dev machine | 1-2 | Download the ISO, write the USB. Touches nothing on the box, so do it while waiting for it to arrive. |
-| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. **Mostly done — the machine passed**; three checks remain, and none of them blocks phase C. |
+| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. **Done — the machine passed**; only the PSU label is unchecked, and it blocks nothing. |
 | **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Five firmware settings. **After phase B, never before** — see below. |
 | **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
 | **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the remaining hardware readings, the router. The monitor comes off at the start of this phase and does not go back on. |
@@ -284,15 +288,15 @@ for, and which three are still open:
 | **SATA mode** | `Get-CimInstance Win32_IDEController \| Select-Object Name` | If it reports RAID or Intel RST, the Ubuntu installer will find no disks. Knowing now turns [step 3](#step-3--bios-settings) into a confirmation instead of a surprise at the disk screen. | ✅ Already AHCI. |
 | **Is anything on the disk worth keeping?** | `Get-ChildItem D:\ -Force`, and `Get-Partition` | The installer takes the whole disk. A used machine occasionally arrives with the previous owner's files still on a second partition. | ✅ Nothing. `D:` holds an empty recycle bin; there is no recovery partition. |
 | **Does the hardware physically work?** | Plug something into each USB port, both DisplayPort outputs, and the headphone jack. Leave it running 30 minutes and listen | Used-machine faults are usually dead ports, a noisy or seized fan, or thermal shutdown under load — none of which a spec sheet shows. A machine that is loud on a desk is a machine that gets unplugged. | ✅ USB, both DisplayPorts and the headphone jack all work; quiet and 25 °C after 30 minutes. |
-| **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. | **Open** |
-| **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. | **Open** — obtainable later from Linux, unlike the rest. |
+| **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. | ✅ Intel **Dual Band Wireless-AC 8265** — supported by the installer. |
+| **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. | ✅ I219-LM, `B0-5C-DA-34-A2-0C`. |
 | **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. | **Open** |
-| **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. | **Open** |
+| **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. | ✅ Serial `8CC0201TF9`, BIOS `Q22 Ver. 02.35.00` (2026-07-28). |
 
-**The three still open are the reason not to erase Windows yet.** The WiFi card,
-the PSU label and the serial/BIOS pair are all cheaper to read here than
-anywhere else, and two of them stop being readable at all once the disk is
-wiped.
+**One check is still open — the PSU label — and it is a look at the brick, not
+a command.** Everything Windows can answer has been answered, so the only
+reason left to keep it is that flashing a BIOS update is far easier from here
+than from Linux. Settle that question before phase D takes the disk.
 
 Most of the software answers come out of one PowerShell window (right-click
 Start → **Windows PowerShell**):
@@ -346,8 +350,12 @@ every answer that only Windows holds.
 
 #### What the WiFi-card answer decides
 
-If the box cannot reach the router with a cable for its first setup, the card
-named in Device Manager decides which of the alternatives in
+**This box has an Intel Wireless-AC 8265, so WiFi works in the installer** —
+`iwlwifi` covers it and the firmware ships in `linux-firmware`, which puts it in
+the first case below. If no cable reaches the box, its network screen will offer
+WiFi and connect.
+
+The card decides which of the alternatives in
 [phase D](#phase-d--install-ubuntu) is worth trying:
 
 - **Intel** (`Wireless-AC 9560`, `AX200`, ...) — driver and firmware ship in the
@@ -361,6 +369,11 @@ named in Device Manager decides which of the alternatives in
 
 Once Windows is erased this is much harder to answer, which is why it is the one
 arrival check that has to happen first.
+
+Setting up over WiFi is a fallback, not the target state: a server that is on
+all the time wants the cable, and the DHCP reservation belongs on the **Ethernet**
+MAC. [Step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi) is what to do
+once the cable goes in.
 
 ### Phase C — Set the BIOS
 
@@ -671,9 +684,10 @@ to a fixed local IP. Find the MAC with:
 ip link show
 ```
 
-It is the `link/ether` value on the wired interface. **Use the Ethernet MAC, not
-the WiFi one** — they differ, so a reservation made during a WiFi setup stops
-applying the moment the cable goes in.
+It is the `link/ether` value on the wired interface, and on this box it should
+read **`b0:5c:da:34:a2:0c`** — the I219-LM. **Use the Ethernet MAC, not the WiFi
+one** (`f8:34:41:b1:ef:e5`): they differ, so a reservation made during a WiFi
+setup stops applying the moment the cable goes in.
 
 The tunnel does not need this — `cloudflared` dials out. SSH and `psql` from a
 laptop do, and an address that changes after a power cut is an afternoon lost.
