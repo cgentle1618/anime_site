@@ -889,9 +889,74 @@ moment it will ever be to find out it is wrong.
 
 - [ ] **Step 4: Record the outcome**
 
-Mark the tasks done in `docs/PROGRESS.md`, and mark the spec shipped with its
-sha — including what the spec got wrong, if anything did. Commit on a docs
-branch and open a PR.
+Mark the tasks done in `docs/PROGRESS.md`. Then Task 10 retires this plan and
+its spec.
+
+---
+
+### Task 10: Retire the superpowers documents
+
+**These two files are scaffolding, not deliverables.** A spec left in the tree
+describes the system as it was imagined, in the same confident tone as a page
+that is accurate — and development never follows a spec exactly. The next design
+pass then leans on fiction. So nothing under `docs/superpowers/` survives the
+task.
+
+**Files:**
+- Modify: `docs/notes/decisions.md`
+- Modify: `docs/deployment-selfhost.md` (only if something is still only in the spec)
+- Delete: `docs/superpowers/specs/2026-09-13-production-deployment-design.md`
+- Delete: `docs/superpowers/plans/2026-09-13-production-deployment.md`
+- Modify: `docs/PROGRESS.md`
+
+- [ ] **Step 1: Move the rationale to `docs/notes/decisions.md`**
+
+The decisions worth keeping are the ones with a rejected alternative, since
+those are what a future reader would otherwise re-litigate:
+
+- why the box builds its own image rather than pulling from a registry, and the
+  three constraints that keep the switch cheap;
+- why the tunnel is locally-managed with its ingress in git rather than a
+  dashboard token;
+- why data arrives by `pg_dump` rather than through the Sheets pipeline;
+- why production has its own sheet and never reads the development one;
+- why migrations stay inside `entrypoint.sh` and the protection is a pre-deploy
+  dump instead;
+- why the app deliberately has no healthcheck.
+
+Write them as they ended up, not as they were designed. Where the
+implementation diverged from the spec — the tunnel id moving to `.env` is one —
+record what is true now and drop the intermediate version.
+
+- [ ] **Step 2: Check nothing else is only in the spec**
+
+```bash
+grep -rn "production-deployment-design" docs/ deploy/
+```
+
+Every reference must be gone or repointed before the file is deleted. The
+`deploy/README.md` header links to the spec and needs repointing to
+`docs/notes/decisions.md`.
+
+- [ ] **Step 3: Delete both files**
+
+```bash
+git rm docs/superpowers/specs/2026-09-13-production-deployment-design.md
+git rm docs/superpowers/plans/2026-09-13-production-deployment.md
+```
+
+- [ ] **Step 4: Remove the plan's table from `docs/PROGRESS.md`**
+
+A finished plan's table is deleted; git history keeps the record.
+
+- [ ] **Step 5: Run the suite, ruff, and commit**
+
+```bash
+venv/Scripts/python.exe -m pytest -q
+venv/Scripts/ruff.exe check .
+git add docs/notes/decisions.md docs/deployment-selfhost.md docs/PROGRESS.md deploy/README.md
+git commit -m "docs: record the deployment decisions and retire the spec"
+```
 
 ---
 
