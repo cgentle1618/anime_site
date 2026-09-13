@@ -15,13 +15,17 @@
 // failure the caller needs to see, not a no-op. The upload still succeeds and
 // the key is still handed to onChange either way, so the reference is never
 // lost even when the attach itself did not go through.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
+import { IMAGE_OWNER_TYPE_GROUPS } from "../../config/imageOwnerTypes";
 import { getCoverUrl } from "../../lib/covers";
 import { useAttachImage, useImages, useUploadImage } from "../../hooks/useImages";
-import { Button } from "../ui/primitives";
+import { Button, Chip } from "../ui/primitives";
+
+const PAGE_SIZE = 60;
+const SEARCH_DEBOUNCE_MS = 250;
 
 // Attaches an already-uploaded image to a just-created owner row. Used by
 // forms (QuoteForm, MemeForm) whose ImagePicker had no ownerId yet at pick
@@ -137,8 +141,58 @@ export default function ImagePicker({
 }
 
 function LibraryModal({ onSelect, onClose }) {
-  const { data, isLoading } = useImages({ limit: 60 });
+  // Opens defaulted to Unused, newest first: when you are setting an entry's
+  // cover you almost always want something you just uploaded, not one of
+  // ~2000 images already in use elsewhere. The filter is a normal chip, so it
+  // can be cleared to see everything.
+  const [unused, setUnused] = useState(true);
+  const [missing, setMissing] = useState(false);
+  const [ownerType, setOwnerType] = useState("");
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+
+  // Debounce typed search the same way the rest of the app does (see
+  // useGlobalMediaSearch / CastEditor): one request per keystroke is one too
+  // many against a ~2000-row library.
+  useEffect(() => {
+    const handle = setTimeout(() => setQ(qInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [qInput]);
+
+  const { data, isLoading } = useImages({
+    unused,
+    missing,
+    ownerType: unused ? "" : ownerType,
+    q,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  });
   const images = data?.images ?? [];
+  const total = data?.total ?? 0;
+
+  function resetPage() {
+    setPage(0);
+  }
+
+  function toggleUnused() {
+    resetPage();
+    setUnused((prev) => !prev);
+  }
+
+  function toggleMissing() {
+    resetPage();
+    setMissing((prev) => !prev);
+  }
+
+  function clearFilters() {
+    resetPage();
+    setUnused(false);
+    setMissing(false);
+    setOwnerType("");
+    setQInput("");
+  }
+
   // stopPropagation-free backdrop dismiss, matching RemarkModal: only a press
   // that both starts and ends on the backdrop itself closes the modal.
   const pressedBackdrop = useRef(false);
@@ -171,10 +225,72 @@ function LibraryModal({ onSelect, onClose }) {
             <i className="fas fa-times"></i>
           </button>
         </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
+          <button type="button" onClick={toggleUnused} aria-pressed={unused}>
+            <Chip tone={unused ? "brand" : "ink"}>Unused</Chip>
+          </button>
+          <button type="button" onClick={toggleMissing} aria-pressed={missing}>
+            <Chip tone={missing ? "brand" : "ink"}>Not on this machine</Chip>
+          </button>
+
+          <select
+            aria-label="Used on"
+            value={ownerType}
+            disabled={unused}
+            title={
+              unused
+                ? "Clear Unused to filter by where an image is used."
+                : undefined
+            }
+            onChange={(e) => {
+              resetPage();
+              setOwnerType(e.target.value);
+            }}
+            className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text disabled:opacity-50"
+          >
+            <option value="">Used on…</option>
+            {IMAGE_OWNER_TYPE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+
+          <input
+            type="search"
+            value={qInput}
+            onChange={(e) => {
+              resetPage();
+              setQInput(e.target.value);
+            }}
+            placeholder="Search filename…"
+            aria-label="Search filename"
+            className="min-w-[10rem] flex-1 rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-text placeholder:text-text-faint"
+          />
+
+          {(unused || missing || ownerType || q) && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[11px] uppercase tracking-wide text-text-faint underline hover:text-text"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
         <div className="max-h-[70vh] overflow-y-auto p-4">
           {isLoading && <p className="text-sm text-text-muted">Loading…</p>}
           {!isLoading && images.length === 0 && (
-            <p className="text-sm text-text-muted">The library is empty.</p>
+            <p className="text-sm text-text-muted">
+              {unused
+                ? "No unused images match these filters."
+                : "No images match these filters."}
+            </p>
           )}
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
             {images.map((image) => (
@@ -198,6 +314,31 @@ function LibraryModal({ onSelect, onClose }) {
               </button>
             ))}
           </div>
+
+          {total > PAGE_SIZE && (
+            <div className="mt-4 flex items-center justify-between text-sm text-text-muted">
+              <Button
+                kind="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                Previous
+              </Button>
+              <span>
+                {page * PAGE_SIZE + 1}–{Math.min(total, (page + 1) * PAGE_SIZE)} of{" "}
+                {total}
+              </span>
+              <Button
+                kind="outline"
+                size="sm"
+                disabled={(page + 1) * PAGE_SIZE >= total}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

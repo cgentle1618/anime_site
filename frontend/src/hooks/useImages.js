@@ -12,6 +12,7 @@ export function useImages(filters = {}, options = {}) {
   if (filters.unused) params.set("unused", "true");
   if (filters.missing) params.set("missing", "true");
   if (filters.duplicates) params.set("duplicates", "true");
+  if (filters.ownerType) params.set("owner_type", filters.ownerType);
   if (filters.q) params.set("q", filters.q);
   if (filters.limit != null) params.set("limit", String(filters.limit));
   if (filters.offset != null) params.set("offset", String(filters.offset));
