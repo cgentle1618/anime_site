@@ -15,6 +15,8 @@ export function isLocalHost() {
 // on every host.
 export function getCoverUrl(coverFile) {
   if (!coverFile || coverFile === "N/A") return FALLBACK_SVG;
+  // Library images are not covers and do not live in the cover tree.
+  if (coverFile.startsWith("library/")) return `/static/${coverFile}`;
   return `/static/covers/${coverFile}`;
 }
 
@@ -24,6 +26,10 @@ export function getCoverUrl(coverFile) {
 // to be revisited when self-hosting lands. Callers just check for null.
 export function getQuoteImageUrl(imageFile) {
   if (!imageFile || imageFile === "N/A") return null;
+  // Uploaded images resolve everywhere. The localhost hold below exists because
+  // there was no way to get a file onto the machine at all - which is the thing
+  // upload removes - so it does not apply to library keys.
+  if (imageFile.startsWith("library/")) return `/static/${imageFile}`;
   if (!isLocalHost()) return null;
   return `/static/quotes/${imageFile}`;
 }

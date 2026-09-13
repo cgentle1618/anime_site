@@ -16,6 +16,7 @@ from app.models import (
     CharacterCasting,
     Comic,
     Game,
+    ImageAttachment,
     Manga,
     Media,
     Movies,
@@ -49,6 +50,7 @@ from app.services.domain import (
 )
 from app.services.domain.plan_next import derive_size_groups
 from app.services.domain.user_list import installation_owner_id, list_row
+from app.services.integrations.image_library import uploaded_image_ids
 from app.services.integrations.image_manager import (
     cover_image_exists,
     cover_key,
@@ -306,6 +308,23 @@ def bulk_delete_orphaned_cover_images(db: Session) -> dict:
 def bulk_download_missing_covers(
     db: Session, system_ids: Optional[list[str]] = None
 ) -> dict:
+    # Rows whose cover is an UPLOAD are skipped: re-fetching from MAL would
+    # null a reference to a file no external API can supply. Uploaded images
+    # deliberately do not travel through Backup or Pull, so a missing file is
+    # the normal state on the other machine, not a repairable one.
+    uploaded = uploaded_image_ids(db)
+    uploaded_owners = (
+        {
+            (row.owner_type, row.owner_id)
+            for row in db.query(ImageAttachment)
+            .filter(ImageAttachment.image_id.in_(uploaded))
+            .all()
+        }
+        if uploaded
+        else set()
+    )
+    skipped_uploads = 0
+
     downloaded = 0
     skipped = 0
     total = 0
@@ -313,11 +332,18 @@ def bulk_download_missing_covers(
     def _collect(query, model, owner_type):
         if system_ids is not None:
             query = query.filter(model.system_id.in_(system_ids))
-        return [
-            e
-            for e in query.all()
-            if not cover_image_exists(owner_type, str(e.system_id))
-        ]
+        nonlocal skipped_uploads
+        result = []
+        for e in query.all():
+            if cover_image_exists(owner_type, str(e.system_id)):
+                continue
+            if (owner_type, e.system_id) in uploaded_owners:
+                # This row IS missing its cover and WOULD have been
+                # re-fetched - it is skipped specifically to protect it.
+                skipped_uploads += 1
+                continue
+            result.append(e)
+        return result
 
     anime_query = db.query(Anime).join(Anime.media_row).filter(Media.cover_image_file.isnot(None))
     for anime in _collect(anime_query, Anime, "anime"):
@@ -408,7 +434,13 @@ def bulk_download_missing_covers(
     parts = [f"Downloaded {downloaded} of {total} missing cover images."]
     if skipped:
         parts.append(f"{skipped} skipped (no external source on the entry).")
-    return {"status": "success", "message": " ".join(parts)}
+    if skipped_uploads:
+        parts.append(f"{skipped_uploads} skipped (uploaded image, not re-fetchable).")
+    return {
+        "status": "success",
+        "message": " ".join(parts),
+        "skipped_uploads": skipped_uploads,
+    }
 
 
 # ==========================================

@@ -96,8 +96,9 @@ class Meme(Base):
     # One text and/or one image - never a list. Both optional individually, but
     # a meme with neither has nothing to show.
     text = Column(Text, nullable=True)
-    # Bare filename under static/quotes/. The frontend still hides the image
-    # controls off localhost. The image renders above the text, so its position
+    # A bare filename resolved against static/quotes/ for a pre-existing image,
+    # or a library/-prefixed storage key for an uploaded one, resolved against
+    # /static/ instead. The image renders above the text, so its position
     # is not stored.
     image_file = Column(String, nullable=True)
 

@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     admin_password: str = "admin123"
 
+    # --- Image uploads ---
+    # A cap on what one upload may weigh, checked twice: against the declared
+    # Content-Length, and again while the body is streamed. The header is a
+    # claim from the client and cannot be the only check.
+    max_image_upload_mb: int = 10
+
     # --- External metadata APIs ---
     tmdb_api_key: Optional[str] = None
     omdb_api_key: Optional[str] = None

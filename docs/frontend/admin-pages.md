@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -19,6 +19,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
 | `/review-queue` | `pages/admin/ReviewQueue.jsx` | Remarks and duplicate clusters to act on |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
+| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
 | `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling |
 | `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults |
@@ -278,7 +279,31 @@ no counterpart, because studios carry no scope. `POST /api/publisher/` is
 find-or-create exactly as studio's is.
 
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
-`MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).
+`MemeOwnerPicker`, and an `ImagePicker` for the image itself (see
+[components.md](components.md) for the shared picker) — see
+[../systems/quotes-memes.md](../systems/quotes-memes.md).
+
+## /images (`Images.jsx`)
+
+The image library: every file ever uploaded, from this machine or another,
+behind `manage.catalog`. A drop zone accepts multiple files at once
+(`POST /api/images` per file); a grid below shows each image's thumbnail,
+size, dimensions and what it is attached to.
+
+Three filters, each answering one question: **Unused** (no attachment),
+**Not on this machine** (the row exists but the file does not — the normal
+state of an uploaded image after a machine switch, since uploads never travel
+through Backup or Pull), and **Duplicates** (same checksum; always empty in
+practice — checksum is unique — and kept to prove dedup rather than to find
+anything to fix).
+
+**Deletion is unused-only by design.** The API still accepts
+`DELETE /api/images/{id}?force=true` against an attached image, but no button
+here sends it — removing an image that is still in use is a decision made at
+the place that uses it (detach there first), not a blanket "delete anyway"
+from the library. Each tile's **Detach** button removes one attachment
+(`DELETE /api/images/{id}/attach/{attachment_id}`) and leaves the file in the
+library; **Delete** is disabled until every attachment is gone.
 
 ## /modify (`Modify.jsx`)
 

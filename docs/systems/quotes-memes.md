@@ -1,6 +1,6 @@
 # Quotes and memes
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -201,13 +201,31 @@ row offers inline edit (PATCH), favourite toggle (PATCH) and delete, all via
 
 ## Images
 
-`app/main.py` creates `static/quotes/` at startup and mounts `/static`. Both
-`quote.image_file` and `meme.image_file` are bare file names under that
-folder, placed by hand — there is no upload endpoint and no GCS copy, unlike
-covers. `getQuoteImageUrl()` in `frontend/src/lib/covers.js` returns
-`/static/quotes/<file>` only when the app runs on localhost and `null`
-otherwise, so production simply shows no image. Deleting a quote or meme
-never touches the file.
+Both `QuoteForm` and `MemeForm` edit the image through
+`components/forms/ImagePicker.jsx`: upload
+(`POST /api/images`) and attach (`POST /api/images/{id}/attach`,
+`owner_type` `quote` or `meme`) are two separate calls the picker makes in
+sequence, and the image library (`docs/data-model.md#image-library`) is the
+source of truth. `image_file` is kept written-through by attach/detach for
+every existing reader, and holds one of two shapes: a bare file name under
+`static/quotes/` — placed by hand, pre-dating upload, `app/main.py` still
+creates the folder at startup — or `library/<checksum>.jpg` for anything
+attached through the picker. `getQuoteImageUrl()` in
+`frontend/src/lib/covers.js` resolves a `library/`-prefixed value to
+`/static/<value>` on every host; a bare legacy file name still resolves to
+`/static/quotes/<file>` only on localhost and `null` otherwise, a hold that
+existed only because there was no way to get a file onto the machine at all.
+Deleting a quote or meme never touches the file or its library row — the
+image stays in the library, unattached.
+
+A brand-new quote or meme has no `system_id` until first saved, so
+`ImagePicker` cannot attach yet; it uploads anyway and hands the form the
+storage key, which the form persists on the create `POST` itself. Once the
+row exists, a picker call that fails — an unsupported owner type, for
+instance — surfaces as an error rather than being swallowed. `quote` and
+`meme` carry no content label of their own, so attach does not run the
+`entry_visible` check that a media-type owner gets (see
+`docs/authorization.md`).
 
 ## Google Sheets
 

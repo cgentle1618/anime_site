@@ -34,6 +34,7 @@ import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
 import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
+import { attachUploadedImage } from "../../components/forms/ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import ContentLabelPicker, {
   saveEntryLabels,
@@ -966,7 +967,7 @@ export default function Add() {
       return;
     }
     try {
-      await fetchJson(endpoints.quotes.create(), {
+      const created = await fetchJson(endpoints.quotes.create(), {
         method: "POST",
         ...jsonBody(
           toQuotePayload(qf, {
@@ -975,6 +976,23 @@ export default function Add() {
           }),
         ),
       });
+      // The quote had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (qf.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            qf.pending_image_id,
+            "quote",
+            created.system_id,
+            "quote",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Quote saved, but attaching the image failed.",
+          );
+        }
+      }
       showToast("success", "Quote appended.");
       setLastAdded(qf.text?.trim() || qf.image_file);
       // Keep the entry selected: quotes are usually added several at a time.
@@ -994,7 +1012,7 @@ export default function Add() {
       return;
     }
     try {
-      await fetchJson(endpoints.memes.create(), {
+      const created = await fetchJson(endpoints.memes.create(), {
         method: "POST",
         ...jsonBody(
           toMemePayload(memf, {
@@ -1003,6 +1021,23 @@ export default function Add() {
           }),
         ),
       });
+      // The meme had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (memf.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            memf.pending_image_id,
+            "meme",
+            created.system_id,
+            "cover",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Meme saved, but attaching the image failed.",
+          );
+        }
+      }
       showToast("success", "Meme appended.");
       setLastAdded(memf.text?.trim() || memf.image_file);
       // Keep the entry selected: memes are usually added several at a time.

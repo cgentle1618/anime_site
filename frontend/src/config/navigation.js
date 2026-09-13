@@ -207,6 +207,7 @@ export const NAV_SECTIONS = [
       { label: "Modify Entry", icon: "fas fa-edit", to: "/modify" },
       { label: "Delete Entry", icon: "fas fa-trash-alt", to: "/delete" },
       { label: "Form Defaults", icon: "fas fa-sliders-h", to: "/defaults" },
+      { label: "Images", icon: "fas fa-images", to: "/images" },
     ],
   },
   {

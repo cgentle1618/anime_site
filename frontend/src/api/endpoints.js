@@ -116,6 +116,16 @@ export const endpoints = {
     remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
   },
 
+  images: {
+    list: (params = "") => `/api/images${params ? `?${params}` : ""}`,
+    upload: () => "/api/images",
+    attach: (imageId) => `/api/images/${imageId}/attach`,
+    detach: (imageId, attachmentId) =>
+      `/api/images/${imageId}/attach/${attachmentId}`,
+    remove: (imageId, force = false) =>
+      `/api/images/${imageId}${force ? "?force=true" : ""}`,
+  },
+
   // Watch orders don't fit the resource() CRUD shape: lists and their items
   // live under one prefix, and reorder is its own verb.
   watchOrder: {
