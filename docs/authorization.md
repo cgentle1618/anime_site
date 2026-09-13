@@ -729,8 +729,16 @@ helper exists because the shortest form has to be the safe one.
   entry's system_id: anything exposing one hands over the other.
 - Watch-order *list* summaries expose `media_types` and `item_count` including
   hidden items.
-- `/static/covers/...` files are served without checks (a cover URL is only
-  learned from a visible response, but it is not itself gated).
+- `/static/covers/...` and `/static/library/...` files are served without
+  checks: the whole `/static` tree is mounted unauthenticated. The two differ
+  in what that costs. A `/static/covers/<owner_type>/<system_id>.jpg` path is
+  **constructible** — anyone who learns an entry's id from any source can
+  build the cover URL for an entry they are not allowed to see, and `/static/`
+  will serve it. A `/static/library/<checksum>.jpg` path is **not
+  constructible** — the key has to be handed to you. Content addressing
+  narrows this residual for uploads without closing it for existing covers;
+  an uploaded image is not "secure", only unguessable, and is still served to
+  anyone holding the URL.
 - Franchise/series hubs may render empty rather than 404 when all children are hidden.
 - A newly created content label reaches **`unrestricted` and no other mode**,
   so it hides its entries from every narrower session until somebody carries

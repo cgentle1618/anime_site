@@ -74,13 +74,14 @@ logger = logging.getLogger(__name__)
 # SYSTEM INITIALIZATION
 # ==========================================
 
-# One folder per owner table: an image is stored at
+# One folder per owner table: a downloaded cover is stored at
 # static/covers/<owner_type>/<system_id>.jpg, since a system_id alone is
-# ambiguous across tables.
+# ambiguous across tables. Uploaded images are content-addressed instead,
+# under static/library/ (see below).
 for _owner in COVER_OWNERS:
     os.makedirs(os.path.join(COVER_DIR, _owner), exist_ok=True)
-# Quote images are local-only for now, and the frontend still hides the image
-# controls off localhost - a deliberate hold to revisit with self-hosting.
+# static/quotes/ holds the pre-existing quote images, referenced by bare
+# filename. Newly uploaded quote images go to the library instead.
 os.makedirs("static/quotes", exist_ok=True)
 
 # Uploaded library images and their thumbnails, content-addressed by

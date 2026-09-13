@@ -156,13 +156,16 @@ an expand/contract usually would. Recorded on the roadmap with that reason
 attached, so a later reader does not mistake the delay for neglect.
 
 **The backfill keeps each legacy image's existing `<owner_type>/<system_id>`
-path rather than re-keying it to a checksum.** Re-keying would disclose
-nothing new: `system_id` is a required field on every entity response schema,
-belongs to no field group, and so is never stripped by `field_gate.py` —
-every detail page already fires `GET /api/community/<system_id>` and the id
-is visible regardless of what the image's filename is. Re-keying legacy
-covers to content-addressed paths is out of scope for the expand phase; it is
-a phase 2/3 concern, if it is done at all.
+path rather than re-keying it to a checksum.** Re-keying existing covers is
+deferred because it does not reduce disclosure for entries the viewer can
+already see — `system_id` is a required, ungated field on every entity
+response, and every detail page already fires
+`GET /api/community/<system_id>`. It does not follow that `system_id`-keyed
+paths are equivalent to opaque ones: `/static/` is ungated, so a
+`system_id`-keyed cover URL is constructible for an entry the viewer cannot
+see, while a content-addressed one is not. That residual is unchanged by this
+work. Re-keying legacy covers to content-addressed paths is out of scope for
+the expand phase; it is a phase 2/3 concern, if it is done at all.
 
 ### Decision 4 — uploaded images never travel through Backup or Pull
 

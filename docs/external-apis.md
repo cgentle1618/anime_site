@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -600,7 +600,7 @@ Local disk is the only storage path. `app/services/integrations/image_manager.py
 | Where | `app/main.py` creates one subdirectory per owner type under `static/covers/` at startup and mounts `/static`. |
 | `download_cover_image(url, owner_type, system_id)` | Skips if the file already exists; otherwise `requests.get` with the MediaTracker User-Agent and a 15 s timeout, then a local write. **No resizing or format conversion** - a WebP from Tenrai is stored under a `.jpg` name as-is. Returns the storage key to record on the row, or `None` on any error (logged). |
 | `cover_image_exists(owner_type, id)`, `list_all_cover_images(owner_type=None)`, `delete_cover_image(owner_type, id)` | The checks behind the Calculate-page cover tools (`bulk_check_cover_image`, `bulk_download_missing_covers`, `bulk_delete_orphaned_cover_images` in `app/services/calculation.py`) and the delete-entry background task. All swallow errors and log. `list_all_cover_images` returns keys and ignores anything left at `static/covers/` root, so an un-migrated file belongs to no owner and is never matched to a row. |
-| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js` returns `/static/covers/{key}` on every host. It concatenates whatever the column holds, so the folder comes along for free; the "convention filename" fallbacks for an entry with no stored key build `{media_type}/{system_id}.jpg` and need the caller to have tagged the entry with its media type (`withMediaType`). |
+| Frontend URL | `getCoverUrl(coverFile)` in `frontend/src/lib/covers.js` returns `/static/covers/{key}` on every host, except when `key` starts with `library/` (an uploaded, content-addressed image), in which case it returns `/static/{key}` instead. For the `static/covers/` case it concatenates whatever the column holds, so the folder comes along for free; the "convention filename" fallbacks for an entry with no stored key build `{media_type}/{system_id}.jpg` and need the caller to have tagged the entry with its media type (`withMediaType`). |
 
 ### Placeholder handling
 
