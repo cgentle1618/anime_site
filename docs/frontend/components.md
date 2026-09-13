@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -212,7 +212,17 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   (the `game_copy` rows a game's Add/Modify tab sends as `copies`; controlled
   exactly like `NovelUnitsEditor` — the parent owns the array, every add /
   remove / edit / reorder goes out through `onChange` with `position`
-  renumbered 1..n, and the array handed in is never mutated).
+  renumbered 1..n, and the array handed in is never mutated), `ImagePicker`
+  (an inline "upload or choose from the library" control: upload
+  (`POST /api/images`) and attach (`POST /api/images/{id}/attach`) are two
+  separate calls made in sequence, since an image can exist in the library
+  with no owner. A brand-new quote or meme has no `ownerId` until first
+  saved, so attach is silently skipped in that one case — the upload still
+  succeeds and hands back a storage key for the form to persist on save; once
+  an `ownerId` exists, an attach failure (an unsupported owner type, or the
+  content-label 404) is surfaced rather than swallowed. Used today in
+  `QuoteForm` and `MemeForm`; the entry, staff and character forms still take
+  `cover_image_file`/`photo_file`/`logo_file` as a plain text input).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
@@ -276,7 +286,7 @@ is a second place to keep in step.
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
 | `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
-| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/static/covers/<key>` on every host - the app serves its own covers off local disk, so there is no hostname switch and no bucket URL; the column holds a full `<owner_type>/<id>.jpg` key, so the URL builder just concatenates). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. Passing fewer lists than the page loaded is the standing bug here, and it fails silently. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/` and `getQuoteImageUrl` still returns `null` off localhost, a deliberate hold to be revisited with self-hosting rather than a hosting constraint - callers just check for null |
+| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/static/covers/<key>` on every host, except a `library/`-prefixed key — an uploaded image — which resolves to `/static/<key>` instead, since the library root is a sibling of `covers/` under `static/`, not part of it. The app serves its own images off local disk, so there is no hostname switch and no bucket URL). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. Passing fewer lists than the page loaded is the standing bug here, and it fails silently. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/`, and a `library/`-prefixed key (an uploaded quote or meme image) resolves the same way `getCoverUrl` resolves one — off the localhost hold, which only ever existed because there was no way to get a file onto the machine at all |
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
 | `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, publishers, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. `people` and `publishers` are **maps**, not flat lists: people fan out by `{role, scope}` and publishers by media type, one `/api/publisher/?scope=` request per scope, because a publisher is offered only where its `publisher_scope` rows say — a games publisher must not be suggested as an anime distributor. Studios stay a single flat list; they have no scope concept. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |

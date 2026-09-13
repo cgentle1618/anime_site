@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -24,6 +24,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [People, studios and links](#people-studios-and-links): person, person_role, studio, publisher, publisher_scope, character, character_casting, media_credit, media_tag
 - [Where an entry can be watched or read](#media_source): media_source
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, quote, meme
+- [Image library](#image-library): image, image_attachment
 - [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item
 - [Planning](#planning): plan_next
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
@@ -1282,6 +1283,59 @@ gag often spans a franchise). Sibling of Quote, not a variant of it. Model: `Mem
 `owner_type` and `owner_id` are derived read-only properties over the four
 owner columns, exactly as on [`note`](#note); the API and the Meme sheet tab
 still speak the pair.
+
+---
+
+## Image library
+
+An uploaded file (`image`) and what it is being used for (`image_attachment`)
+— a two-table library on the Rails ActiveStorage / Django shape: one row per
+stored file, joined polymorphically to whatever uses it. This is the source
+of truth for an uploaded image; `cover_image_file` and the entity photo/logo
+columns above are kept written-through by the attach/detach endpoints so
+every existing reader of those columns is unaffected.
+
+### `image`
+
+One stored file, content-addressed by the sha256 of its **normalized** JPEG
+bytes. Model: `Image`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `storage_key` | String | no | | Path relative to `static/`. An uploaded row is `library/<checksum>.jpg`; a backfilled legacy row is `covers/<owner_type>/<system_id>.jpg` |
+| `thumb_key` | String | yes | | `library/thumbs/<checksum>.jpg` for an uploaded row; NULL for a backfilled legacy row, which has no thumbnail |
+| `checksum` | String(64) | no | | sha256 of the normalized bytes, **unique** - this is the dedup. A backfilled row's value is `legacy:<owner_type>/<system_id>.jpg`, since the original file is not re-read during the backfill |
+| `original_filename` | String | yes | | What the uploader called it. Display and search only |
+| `byte_size` | Integer | yes | | |
+| `width` / `height` | Integer | yes | | |
+| `uploaded_by` | UUID | yes | | FK `users.id` ON DELETE SET NULL, indexed. NULL for every backfilled (downloaded) image; set only when a person uploaded it - this is how `bulk_download_missing_covers` tells an upload apart from a download it may re-fetch |
+| `uploaded_at` | DateTime | yes | now | |
+
+Identical bytes uploaded twice, and identical pixels arriving in two lossless
+containers (PNG, lossless WebP), dedup to one row. A lossy JPEG of the same
+picture does not: re-encoding decodes to different pixels than its source, so
+content addressing cannot bridge the two — dedup is over pixels, not over
+"the same picture".
+
+### `image_attachment`
+
+What an image is attached to. Polymorphic: `owner_type` is a plain string
+rather than a set of nullable foreign keys, so a new owner type costs a
+string, not a migration. Model: `ImageAttachment`.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `image_id` | UUID | no | | FK `image.system_id` ON DELETE CASCADE, indexed |
+| `owner_type` | String | no | | Hyphenated for media types (`anime-movie`, `tv-show`, matching `app/utils/media_resolver.py`), plain for the rest: `staff`, `character`, `publisher`, `studio`, `quote`, `meme` |
+| `owner_id` | UUID | no | | **Not a foreign key** - there is no single table to point at, so nothing in the database stops an attachment outliving its owner; the manager page's `unused` filter is what finds those |
+| `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`) |
+| `position` | Integer | no | `0` | Reserved for a future multi-image case; always 0 today |
+
+Unique on `(owner_type, owner_id, role, position)` - re-attaching an owner's
+existing role replaces the row rather than creating a second one, so "change
+the cover" never leaves two attachments behind.
 
 ---
 

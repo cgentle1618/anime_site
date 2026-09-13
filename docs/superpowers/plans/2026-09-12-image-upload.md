@@ -1,5 +1,17 @@
 # Image Upload Implementation Plan
 
+**Status: SHIPPED** — `ab822576..873148a7` on `feat/image-upload`. See the
+spec's own post-mortem
+(`docs/superpowers/specs/2026-09-12-image-upload-design.md`) for what shipped
+differently from what is planned below: the storage root moved from
+`static/covers/library/` to `static/library/` on the owner's decision, `meme`
+was added to the attachable owners after being missed here too, and the
+`SOURCES` table in the backfill task below names the wrong tables and the
+wrong column for four of nine owners (see the decision ledger,
+`.superpowers/sdd/2026-09-12-image-upload/progress.md`, Ruling H and Ruling
+F) — the plan text is left as originally written rather than edited to match
+what actually shipped.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a catalogue editor upload an image from their own machine and attach it to any entry, person, character or quote, instead of only ever receiving images downloaded from external APIs.

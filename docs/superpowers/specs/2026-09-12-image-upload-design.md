@@ -1,10 +1,10 @@
 # Image upload — design
 
-Last verified: 2026-09-12
-Status: **APPROVED, not started.** Design approved by the owner in four
-sections (data model, endpoints, UI, testing/sequencing) on 2026-09-12.
-Branch `feat/image-upload`, worktree `../anime_site_image_upload`,
-database `anime_site_image_upload`.
+Last verified: 2026-09-13
+Status: **SHIPPED** — `ab822576..873148a7` on `feat/image-upload`. Design
+approved by the owner in four sections (data model, endpoints, UI,
+testing/sequencing) on 2026-09-12. Branch `feat/image-upload`, worktree
+`../anime_site_image_upload`, database `anime_site_image_upload`.
 
 ## The problem
 
@@ -308,3 +308,29 @@ None blocking. The one deliberately deferred item is **how uploaded images
 eventually survive a machine switch** — Decision 4 settles that they do not
 today, and self-hosting (`docs/deployment-selfhost.md`) is where a single
 runtime makes the question disappear rather than needing an answer.
+
+## Post-mortem: what this spec got wrong
+
+Three things, found during implementation rather than review:
+
+1. **Decision 2's cross-format dedup claim was wrong and impossible.** The
+   original text claimed the same picture arriving once as PNG and once as
+   JPEG would dedup to one row. It cannot: JPEG is lossy, so it decodes to
+   different pixels than the PNG it came from, and re-encoding two different
+   pixel buffers cannot produce identical bytes. Corrected in place in
+   Decision 2 above; the real contract is that identical pixels dedup and
+   "the same picture" does not.
+2. **The storage root this spec implied — under `static/covers/` so
+   `getCoverUrl` needed no change — was overruled by the owner during
+   implementation.** Nothing here stated the root explicitly, but the plan
+   built from this spec assumed `static/covers/library/` on exactly that
+   reasoning, and the owner rejected it: uploaded images are library images,
+   not covers, and do not belong in the cover tree. The root is `static/`
+   directly (`storage_key` values are unchanged, `library/<checksum>.jpg`),
+   and `getCoverUrl` / `getQuoteImageUrl` both gained a `library/` branch
+   rather than resolving it for free.
+3. **Decision 7 and the endpoints section never listed `meme` as an
+   attachable owner**, despite "Quote and meme images" naming the problem
+   this feature solves in the opening paragraph. The omission shipped as a
+   400 on every meme attach and was caught and fixed after Task 4 landed,
+   not before.

@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -48,6 +48,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
+- [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Search — `/api/search`](#search--apisearch)
@@ -588,6 +589,34 @@ no dangling-quote state to represent: deleting a quote simply unlinks it.
 
 Quotes are entry-only, so a tier-owned meme has no quotes of its own to link;
 the frontend hides the quote-link control in that case.
+
+---
+
+## Images — `/api/images`
+
+Upload an image from the caller's own machine and attach it to anything else
+in the catalogue. Every route is behind `require_manage_catalog` — there is
+no public read.
+
+| Method   | Path                          | Auth   | Description                                                                                                                                |
+| -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST`   | `/`                           | Catalog | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
+| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
+| `POST`   | `/{image_id}/attach`          | Catalog | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}/attach/{attachment_id}` | Catalog | Detach. The file and its `image` row stay in the library for reuse. |
+| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment still points at it, unless `?force=true`. |
+
+**The 404 on attach.** `manage.catalog` says nothing about *which* entries a
+holder may reach, so attaching to a media owner (one of `MEDIA_TABLES`) also
+runs `entry_visible` — the same content-label check a detail read applies —
+and answers **404 "Entry not found."** exactly as a genuinely missing entry
+would, rather than a 403 that would confirm the entry exists. Entity owners
+(`staff`, `character`, `publisher`, `studio`) and `quote`/`meme` carry no
+content label and skip this check.
+
+**Response models:** `ImageOut` (adds `missing` — computed per request from
+whether the file exists on this machine — and `attachments`, the list of
+`AttachmentOut` rows pointing at it), `ImageListOut` (`images` + `total`).
 
 ---
 
@@ -1335,7 +1364,7 @@ see [authorization.md](authorization.md) for why that is accepted.
 | `POST`   | `/calculate/all`                     | Run full Calculate All pipeline (post-processing, derive, sync, cover check). Returns JSON. |
 | `GET`    | `/calculate/check-cover-image`       | Report on missing and orphaned cover images. Optional query param `entry_type`.             |
 | `POST`   | `/calculate/set-cover-image-fields`  | Populate `cover_image_file` fields for entries whose file already exists in storage.        |
-| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`.                          |
+| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`. Skips an entry whose cover attachment points at an uploaded `image` (`uploaded_by` set) rather than re-fetching from MAL over it — an uploaded file cannot be re-fetched by anything, so overwriting the reference would destroy it. Response: `{status, message}`, with a `skipped_uploads` count folded into `message` when non-zero. |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
 | `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author, so the response carries one per entry. |

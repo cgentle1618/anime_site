@@ -7,23 +7,11 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ---
 
 ## In flight
-
-### Image upload — `feat/image-upload`, worktree `../anime_site_image_upload`, db `anime_site_image_upload`
-
-Spec: [2026-09-12-image-upload-design.md](superpowers/specs/2026-09-12-image-upload-design.md) ·
-Plan: [2026-09-12-image-upload.md](superpowers/plans/2026-09-12-image-upload.md)
-
-| # | Task | Status |
-|---|---|---|
-| 1 | Library service, models, migration | todo |
-| 2 | Upload router, gates, download-pipeline guard | todo |
-| 3 | Backfill and dual-write | todo |
-| 4 | Manager page and inline picker | todo |
 
 The game 攻略 / 劇情 / 待辦 note groups are finished on
 `feat/game-guides-story-todo` and awaiting a PR; `docs/roadmap.md` holds the

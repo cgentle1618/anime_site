@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -630,6 +630,7 @@ sees one error shape.
 | memes (list, grouped, by id) | `routers/meme.py` |
 | plan-next rows | `routers/plan_next.py` |
 | relations `for-entry`, `scope`, `graph` | `routers/media_relation.py` — hidden anchor → 404; an edge naming a hidden entry is dropped whole; graph is viewer-filtered |
+| attaching an image to a media entry | `routers/images.py` → 404 "Entry not found." Entity and quote/meme owners carry no label and are not checked |
 | watch-order items, addable candidates | `routers/watch_order.py` (`resolve_items`, `list_candidate_entries`) |
 | search | `routers/search.py` |
 | a public profile (`/api/profile/{username}`) | `routers/profile.py` (`apply_media_visibility`) - filtered by the **reader's** permissions, never the list owner's |
@@ -640,17 +641,29 @@ sees one error shape.
 
 ### Write binding
 
-**A write answers exactly what a read would.** Eight routers — the per-type
+**A write answers exactly what a read would.** Nine routers — the per-type
 entry routes, `casting`, `credits`, `quote`, `meme`, `note`, `media_relation`,
-`watch_order` — resolve a client-supplied entry id through `entry_visible`
-before writing, and a hidden or nonexistent entry gets the
+`watch_order`, `images` — resolve a client-supplied entry id through
+`entry_visible` before writing, and a hidden or nonexistent entry gets the
 same answer a `GET` of it would: the per-type routes and `casting`/`credits`
 their existing 404, `media_relation`/`watch_order` their existing
 `400 "Referenced entry does not exist."`, `note` its existing
-`404 "Owner not found."`. `entry_visible` (`enforcement.py`) is the single
-place this is decided; nothing else re-implements the check. No route gained
-a new status code or a new message — a 403 would itself confirm the entry
-exists, which is the property being protected.
+`404 "Owner not found."`, `images` its existing `404 "Entry not found."`.
+`entry_visible` (`enforcement.py`) is the single place this is decided;
+nothing else re-implements the check. No route gained a new status code or a
+new message — a 403 would itself confirm the entry exists, which is the
+property being protected.
+
+`images.py`'s `POST /api/images/{image_id}/attach` is gated by
+`require_manage_catalog` first — that answers *may this account write the
+catalogue at all* — and only then, when `owner_type` names a media type,
+calls `entry_visible` to answer *may it reach this particular entry*. A
+holder of `manage.catalog` who lacks an entry's restriction label would
+otherwise be able to attach a cover to (and so overwrite the cover of) an
+entry it cannot even read; the same trap `casting.py`'s `_resolve_entry`
+documents. Entity owners (`staff`, `character`, `publisher`, `studio`) and
+`quote`/`meme` carry no content label, so attach skips the check for them —
+there is nothing for it to test.
 
 `_factory.py::_get_or_404`'s `viewer` parameter **has no default, and must not
 be given one**. `entry_visible` returns `True` for a `None` viewer, so a
@@ -659,9 +672,9 @@ routes, including the four per-type write routes across all nine media types.
 Required means a write route that forgets it is a `TypeError` rather than a
 silent grant.
 
-That is eight routers, not *every* route in the app.
+That is nine routers, not *every* route in the app.
 `POST /api/data-control/replace/{key}/{entry_id}` is deliberately outside it —
-see the residuals below — so do not read the list of eight as proof of
+see the residuals below — so do not read the list of nine as proof of
 completeness.
 
 Three routers — `quote`, `note`, `meme` — take a `(type, id)` pair from the
