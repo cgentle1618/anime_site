@@ -279,6 +279,58 @@ one-line when it was described is exactly the one that grows.
   branch caused it. **Downgrade before you leave a branch whose migration you
   ran**, and if you are the one seeing `column <x> does not exist`, suspect an
   unmerged migration on somebody else's branch before you suspect the data.
+- **A branch carrying a migration needs `alembic heads` checked before it
+  merges — a clean git merge proves nothing about it.** Two migrations that
+  never touch the same file still collide, because both name the same
+  `down_revision`. Two children of one revision is two heads, and
+  `alembic upgrade head` refuses to run with more than one.
+
+  **Nothing warns you.** The files do not overlap, so git merges them cleanly,
+  GitHub reports no conflict, and `git merge-tree` says clean. Merging `dev`
+  into your branch does not fix it either — the merge has nothing to resolve.
+  The collision lives in the revision DAG, which only alembic can see:
+
+  ```bash
+  venv/Scripts/python.exe -m alembic heads     # more than one line = broken
+  venv/Scripts/python.exe -m alembic history   # and this shows the fork
+  ```
+
+  Run it after rebasing or merging `dev` in, whenever your branch adds a
+  revision and any other branch has landed since you branched. On 2026-09-12
+  #147 landed `g1u2i3d4e5s6` while #145 was open; both claimed
+  `b1n2amealign`, and #145 failed CI on
+  `test_migrations_build_the_schema.py` — which is the safety net working,
+  but only after a merge, a conflict fixed by hand on GitHub, and a full CI
+  run had all said the branch was fine.
+
+  **Fix by reparenting, not renumbering**: point `down_revision` at the new
+  head. The revision *id* may already be applied to a database, and changing
+  it strands that row in `alembic_version`.
+
+  **`alembic heads` does not catch every version of this.** One evening
+  produced three, and the command above only sees the first:
+
+  1. **A revision file parented on a stale head** — the case above. `heads`
+     catches it.
+  2. **A stale `down_revision` written in PROSE** — a spec or plan naming the
+     head it was drafted against. `heads` reads revision *files*, so a wrong
+     id sitting in a plan is invisible to it, and the two heads appear later,
+     when somebody executes the plan as written. Found on 2026-09-12 in an
+     image-upload plan that still named `b1n2amealign`. **So when a plan
+     names a `down_revision`, re-read it against `alembic heads` at the
+     moment you execute it, not when you wrote it.**
+  3. **`heads` plus an incremental `upgrade` is not proof the chain builds.**
+     Both run against a database that already has the earlier revisions. The
+     from-zero proof is `tests/api/test_migrations_build_the_schema.py`,
+     which runs the real command against a scratch database and compares the
+     result to the models. Say which of the two you actually ran — "I checked
+     `heads` and upgraded incrementally" and "the chain builds from zero" are
+     different claims, and the weaker one is worth stating honestly rather
+     than rounding up.
+
+  Same shape as the stacked-PR rule above: the failure is silent, so the
+  cheap habit is to run the check rather than to trust that nothing
+  complained.
 - **Name it `<type>/<short-topic>`**, with the same prefixes the commits use:
   `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `chore/`. `feat/role-locks`,
   `fix/guest-pipeline-409`, `docs/git-workflow`. The branch and its commits
