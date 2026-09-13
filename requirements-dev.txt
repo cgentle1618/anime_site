@@ -8,3 +8,4 @@ httpx>=0.27            # FastAPI TestClient (async-compatible)
 freezegun>=1.5         # Freeze/travel time for JWT expiry tests
 responses>=0.25        # Mock requests.get for Tenrai/TMDB/OMDb/Comic Vine tests
 ruff>=0.6              # Lint + format (ruff.toml)
+pyyaml>=6.0            # Parses deploy/docker-compose.prod.yml in its guard test
