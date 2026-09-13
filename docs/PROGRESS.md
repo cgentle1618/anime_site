@@ -7,14 +7,15 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 
 A finished plan's table is deleted from here; `docs/roadmap.md` keeps the record.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ---
 
 ## In flight
 
-Nothing. The game 攻略 / 劇情 / 待辦 note groups shipped in #147 and the
-AniList columns in #148; `docs/roadmap.md` holds the record for both.
+Nothing. The game spend block and its hand-maintained FX rates shipped on
+`feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
+AniList columns in #148; `docs/roadmap.md` holds the record for all three.
 
 The home machine is current: `anime_site_db` is at `al1n2ilist` and a Backup
 ran against it on 2026-09-12 at 23:07, so the sheet no longer names the
@@ -103,4 +104,5 @@ otherwise.
 | Phase B test dbs | `anime_site_test_phaseb` (the suite; created 2026-09-11) and `anime_site_mig_check` (a pg_dump restore of `anime_site_db`, used to exercise `n1a1accessmode` forwards and back because `alembic upgrade head` from an EMPTY database still fails at `86982d71c2f1`). Both droppable |
 | Clean-orphans test db | `anime_site_test_clean`, created 2026-09-11 in the container for `clean-session`; droppable |
 | Owner-flag test db | `anime_site_test_owner`, created 2026-09-12 for the admin-holds-no-user-data change: a `pg_dump` restore of the real `anime_site_db`, used to exercise `o1a1ownerflag` forwards, backwards and forwards again before it was applied for real, then reused for the suite; droppable |
+| Game-spend test db | `anime_site_test_game_cost_stats`, created 2026-09-13 for the statistics spend block; the worktree's own `anime_site_game_cost_stats` is the app database and is not a test database - `tests/api/conftest.py:54` refuses any name without "test" in it, because its fixture runs `DROP SCHEMA public CASCADE`. Both droppable |
 | Droppable test dbs | The old list lived in the **native** server, which is now stopped — those databases are unreachable and effectively gone (the data directory is still on disk at `C:/Program Files/PostgreSQL/17/data` if anything is ever needed from it). The container currently holds `anime_site_test`, `anime_site_test_step2` (created 2026-09-10 for Step 2; **not dropped**), `anime_site_test_step3` (created 2026-09-10; Step 3 was finished on it), `anime_site_test_gcprm`, `anime_site_test_step0` and `anime_site_test_step1` / `_step1b` / `_step1c` / `_step1d` (created 2026-09-09; `_step1d` is the one Step 1 was finished on; the b and c copies exist so parallel agents do not reset each other's schema mid-run); all are droppable |

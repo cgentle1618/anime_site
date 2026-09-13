@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1508,10 +1508,16 @@ backed up through the `System Option Alias` tab.
 
 ### `system_configs`
 
-Persistent key/value settings. Model: `SystemConfigs`. Holds announcements
-and the per-media-type **form defaults** (`config_key =
-"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`).
-Neither has a table of its own.
+Persistent key/value settings. Model: `SystemConfigs`. Holds announcements,
+the per-media-type **form defaults** (`config_key =
+"form_defaults:<media_type>"`, value = JSON blob; `app/routers/form_defaults.py`)
+and the **exchange rates** the Statistics page converts game spend with
+(`config_key = "fx_rates"`, value = `{base, as_of, rates}` as JSON;
+`app/routers/fx_rates.py`). None has a table of its own.
+
+The rates are one key rather than one per currency so that `as_of` cannot
+drift out of sync with the numbers it describes. This table is a backed-up
+sheet tab, which is what lets a rate entered on one machine reach the other.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|

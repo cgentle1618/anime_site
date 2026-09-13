@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
 import { entityPath } from "../../lib/entityPath";
+import FxRatesEditor from "./FxRatesEditor";
 
 // entityPath returns "" when an entity has no public_id; never navigate to the site root.
 function goTo(path) {
@@ -2151,6 +2152,9 @@ export default function Admin() {
           </div>
         </div>
       </div>
+
+      {/* 2.5 Exchange Rates — feeds the game spend block on /statistics */}
+      <FxRatesEditor showToast={showToast} />
 
       {/* 3. Calculate & Fix */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
