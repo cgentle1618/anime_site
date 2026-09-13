@@ -48,6 +48,24 @@ describe("CommunityCard", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders nothing when the entry is gated away", async () => {
+    // The backend 404s a hidden entry and a non-existent one identically, so
+    // this is the ONLY thing the card sees for either. It must stay silent
+    // rather than render an error slip: an error where a hidden entry would be
+    // tells the reader the entry exists, which is what the 404 is hiding.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: "Entry not found." }),
+      })),
+    );
+    const { container } = renderCard();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("renders nothing for a payload that is not an aggregate", async () => {
     // Nine detail pages mount this card, and a page whose stubbed fetch answers
     // something else must not be taken down by it.
