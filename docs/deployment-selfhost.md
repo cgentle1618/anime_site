@@ -95,10 +95,17 @@ This is the baseline to compare later readings against; the same numbers in
   Controller`), not RAID / Intel RST, so the change in
   [step 3](#step-3--bios-settings) is a confirmation rather than an edit.
 - **Virtualisation (VT-x) is enabled** in firmware.
-- **Serial `8CC0201TF9`**, BIOS **`Q22 Ver. 02.35.00` dated 2026-07-28** — recent
-  firmware rather than a factory image, so there is probably nothing to flash.
-  Confirm against HP's support page for the 600 G4 DM before the install, since
-  flashing is far easier from the bundled Windows than from Linux.
+- **Serial `8CC0201TF9`**, **product number `2YE28AV`** — the product number is
+  what HP's support and spare-parts lookups want. The chassis label and
+  `Win32_BIOS` report the same serial, so the board is the one the case was
+  built with. `AV` marks a configure-to-order unit, which is why the memory is
+  Kingston rather than HP-branded.
+- **BIOS `Q22 Ver. 02.35.00`, dated 2026-07-28** — recent firmware rather than a
+  factory image, so there is probably nothing to flash. Confirm against HP's
+  support page before the install, since flashing is far easier from the
+  bundled Windows than from Linux.
+- **Warranty expired.** The label reads 3y/3y/3y from original purchase, so the
+  seller's return window is the only remedy there is.
 - The disk carries an EFI system partition (0.3 GB), `C:` (250 GB) and `D:`
   (226.6 GB), and **nothing else — no HP recovery partition**. `D:` holds only
   an empty recycle bin, so the whole disk can be given to the installer with
