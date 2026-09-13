@@ -385,8 +385,8 @@ once the cable goes in.
 
 ### Phase C — Set the BIOS
 
-*At the box, monitor and keyboard. **Only once phase B is finished** — the first
-setting here stops the pre-installed Windows from booting.*
+*At the box, monitor and keyboard. **Only once phase B is finished** — phase D,
+next, erases the disk and with it every answer only Windows can give.*
 
 #### Step 3 — BIOS settings
 
