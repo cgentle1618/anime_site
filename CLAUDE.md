@@ -37,8 +37,9 @@ there: **`docs/PROGRESS.md`** (work in flight) and **`docs/notes/`**
 (decision rationales, migration history, investigation notes —
 `docs/README.md` defines it as material that explains the past). What shipped
 and why lives in git history — the commits and the pull request. Those two
-docs keep their history. A spec under `docs/superpowers/` keeps its own
-post-mortem. Everything else in `docs/` — including `docs/authorization.md`,
+docs keep their history. **Nothing under `docs/superpowers/` survives the task
+that created it** — see "Finishing a plan" below. Everything else in `docs/` —
+including `docs/authorization.md`,
 `docs/data-model.md`, `docs/api.md` and every `systems/` and `frontend/`
 page — is present-tense only.
 
@@ -526,20 +527,28 @@ plus open items and the scratch test databases currently in use.
 - When a plan is fully done, its table can be deleted; git history — the
   commits and the pull request — keeps the record.
 
-**Finishing a plan is two edits, not one.** Do both in the same commit,
+**Finishing a plan is three edits, not one.** Do all three in the same commit,
 without being asked — this is the step that has needed chasing every time:
 
 1. `docs/PROGRESS.md` — delete the finished plan's task table and its prose.
    Leave only what is still open.
-2. The spec and plan under `docs/superpowers/` — mark the phase done with its
-   sha, so a reader of either knows it has shipped. **Marking a spec shipped is
-   also the moment to record what the spec got wrong**, not just that it
-   landed: a spec that is only ever amended forward teaches nothing about its
-   own reasoning, and its confident-sounding paragraphs are what the next
-   design pass will lean on. Phase D's spec said it had to come last because
-   "until this ships, modes can only be changed in the database" — the ordering
-   was right and the reason was incomplete; what actually made it safe to defer
-   was that Phase B landed behaviour-neutral.
+2. **Move what is worth keeping out of the spec and plan**, into the ordinary
+   docs: design rationales and rejected alternatives into
+   `docs/notes/decisions.md`, present-tense behaviour into the matching `docs/`
+   page, operational procedure next to the thing it operates. Write it **as it
+   ended up, not as it was designed** — development rarely follows a spec
+   exactly, and where the two diverged, only what is true now belongs.
+3. **Delete the spec and the plan.** Documents under `docs/superpowers/` are
+   working scaffolding, not deliverables, and none of them outlives its task.
+
+   The reason is what an abandoned spec does to the next design pass. It
+   describes the system as it was *imagined*, in exactly the same confident
+   tone as a page that is accurate, and nothing on its face says which it is.
+   Phase D's spec argued it had to come last because "until this ships, modes
+   can only be changed in the database" — the ordering was right and the reason
+   was incomplete, and what actually made the deferral safe was that Phase B
+   landed behaviour-neutral. A reader a year later cannot tell that from the
+   spec, and has no reason to doubt it.
 
 ## Rule
 

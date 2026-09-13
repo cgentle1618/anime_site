@@ -1,19 +1,21 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-13 (machine inspected in the bundled Windows and kept — parts, drive wear, SATA mode, disk contents, network cards, firmware and PSU all confirmed and recorded; still nothing installed)
+Last verified: 2026-09-13 (Ubuntu installed and the box is a working Docker host; the production compose file, tunnel ingress and deploy script now exist in `deploy/` — nothing is deployed yet)
 
-> ## Status: hardware bought and inspected, nothing deployed yet
+> ## Status: the box runs; nothing is deployed on it yet
 >
-> **The machine is purchased and inspected** — an HP ProDesk 600 G4 Desktop
-> Mini, bought 2026-09-08 for NT$5,680 (see [The machine](#the-machine)). It
-> matches what was advertised, the drive is healthy, every port works and the
-> WiFi card is one Linux supports, so it is being kept. Everything else in
-> this file is still ahead: no OS is installed, no production
-> `docker-compose.yml` exists, and none of the code changes under
-> [What has to change in the code](#what-has-to-change-in-the-code) have been
-> made. The OS install is now documented step by step under
-> [Bringing up the box](#bringing-up-the-box) — documented, not
-> done.
+> **The machine is up.** An HP ProDesk 600 G4 Desktop Mini, bought 2026-09-08
+> for NT$5,680 (see [The machine](#the-machine)), inspected and kept, now
+> running **Ubuntu 26.04.1 LTS as `homelab`** with Docker 29.8.0 and key-only
+> SSH. [Bringing up the box](#bringing-up-the-box) is the procedure that was
+> followed, and it is done bar the DHCP reservation, which the box cannot have
+> while it lives on a phone hotspot.
+>
+> **The application is not on it.** `deploy/docker-compose.prod.yml`,
+> `deploy/cloudflared/config.yml` and `deploy/deploy.sh` now exist and are
+> reviewable, but nothing has been built, no data has been loaded and the
+> tunnel has not been created. That work is build-order steps 4-6, planned in
+> `docs/superpowers/plans/2026-09-13-production-deployment.md`.
 >
 > The code side has moved too. On **2026-09-08 the GCP code was removed**,
 > which finished the cover-image work listed under
@@ -1090,15 +1092,27 @@ proceed in parallel with the hardware bring-up.
    `docker-compose.yml` in step 4 must set `APP_ENV=production`, and must set
    real `JWT_SECRET_KEY` and `ADMIN_PASSWORD` values or the container will
    refuse to start.
-4. **Write the production `docker-compose.yml`** — app + postgres + cloudflared,
-   named volume for the database, bind mounts for `static/covers/` and
-   `static/library/`.
-5. **Load the data** — restore the database, copy `static/covers/` and
-   `static/library/` across. The version is settled at 17, so a dump from a
-   dev machine restores cleanly.
-6. **Domain and tunnel** — register `cg1618.com` at Cloudflare Registrar (the
-   zone comes with Cloudflare nameservers already set), create the tunnel, then
-   `cloudflared tunnel route dns` for the chosen hostname.
+4. **The production compose file** is `deploy/docker-compose.prod.yml` — app +
+   postgres + cloudflared, a named volume for the database, bind mounts for
+   `static/covers/` and `static/library/`, and **no published ports on
+   anything**. How it is operated, what belongs in the box's `.env`, and how to
+   roll a deploy back are in [`deploy/README.md`](../deploy/README.md).
+   `tests/unit/test_prod_compose.py` pins the properties that are easy to break
+   silently.
+5. **Load the data** — `pg_dump` from a dev machine, restored on the box. The
+   version is settled at 17, so it restores cleanly. **Order matters**: start
+   only the `db` service first, because `app/main.py` calls `create_all` at
+   import and an app container started against an empty database creates every
+   table, which makes the restore collide. The dump also carries the
+   development password hashes, and `app/main.py` seeds the admin account only
+   when it is absent — so both accounts have their passwords rotated after the
+   restore, or the box runs on development credentials.
+6. **Domain and tunnel** — `cg1618.com` is registered at Cloudflare Registrar,
+   so the zone already has Cloudflare nameservers. The tunnel is
+   locally-managed: its ingress map lives in `deploy/cloudflared/config.yml`,
+   the credentials JSON stays on the box, and the tunnel id reaches the
+   container from `.env` as `TUNNEL_ID`. `cloudflared tunnel login` needs a
+   browser, so it runs on a dev machine and `cert.pem` is copied across.
 7. **Backups** — nightly `pg_dump` + a sync of `static/covers/` and
    `static/library/` to R2, and verify a restore actually works before relying
    on it. The `static/library/` half of that sync is the one that matters most:

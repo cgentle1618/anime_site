@@ -23,7 +23,35 @@ record for all of them.
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |
 
-### Self-host bring-up (`docs/prodesk-inspection`, PR #166)
+### Production deployment (`feat/production-deployment`)
+
+Plan: `docs/superpowers/plans/2026-09-13-production-deployment.md`.
+Spec: `docs/superpowers/specs/2026-09-13-production-deployment-design.md`.
+Tasks 4-9 run on the box and are not reachable by CI.
+
+| Task | Status |
+|---|---|
+| 1 - production compose file and its guard test | wip anime-site-prod |
+| 2 - `deploy/deploy.sh` | wip anime-site-prod |
+| 3 - `deploy/README.md`, build-order steps 4-6, this table | wip anime-site-prod |
+| 4 - clone, `.env`, db service only | todo |
+| 5 - dump, copy, restore, verify row counts | todo |
+| 6 - first full start, rotate both passwords | todo |
+| 7 - tunnel: login, create, route, run | todo |
+| 8 - App Database sheet, first production Backup | todo |
+| 9 - hotspot test, reboot test, rollback rehearsal | todo |
+| 10 - move the rationale to `notes/decisions.md`, delete the spec and plan | todo |
+
+Scratch test database in use: `anime_site_prodtest`.
+
+### Open
+
+- **Retire the ~45 leftover documents under `docs/superpowers/`** from finished
+  work. Not a `git rm`: each needs its rationale salvaged into
+  `docs/notes/decisions.md` first, written as the system ended up rather than as
+  it was designed. Its own task, not folded into the deployment work.
+
+### Self-host bring-up (`docs/prodesk-inspection`, PR #166 - merged)
 
 The box is `homelab`, Ubuntu 26.04.1 LTS, reachable as `ssh homelab`
 (`10.45.216.243`, DHCP and **unreserved**, so the address can move). It is on
