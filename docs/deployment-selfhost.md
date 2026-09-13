@@ -692,9 +692,22 @@ EOF
 sudo reboot
 ```
 
-`power_scheme=1` is continuous-active mode; the installed default is `2`,
-balanced. On this box the interface is **`wlp1s0`** (the wired one is `eno1`,
-and it stays `DOWN` until a cable arrives). After the reboot:
+**`power_scheme` is the one that matters.** `iwlwifi.power_save` already
+defaults to `N`; it is set here only so a future change of driver default
+cannot reintroduce the problem quietly. The culprit is `iwlmvm.power_scheme`,
+which installs as `2` (balanced) — `1` is continuous-active. Both are
+**read-only at runtime**, so this needs the reboot; there is no sysfs write
+that avoids it. Check they exist before rebooting, because an invalid module
+option stops `iwlwifi` loading at all, and that costs a monitor and keyboard
+on a box that has neither:
+
+```bash
+cat /sys/module/iwlwifi/parameters/power_save     # N
+cat /sys/module/iwlmvm/parameters/power_scheme    # 2
+```
+
+On this box the interface is **`wlp1s0`** (the wired one is `eno1`, and it
+stays `DOWN` until a cable arrives). After the reboot:
 
 ```bash
 cat /sys/module/iwlmvm/parameters/power_scheme   # want: 1
