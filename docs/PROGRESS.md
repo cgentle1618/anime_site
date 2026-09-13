@@ -23,6 +23,26 @@ record for all of them.
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |
 
+### Self-host bring-up (`docs/prodesk-inspection`, PR #166)
+
+The box is `homelab`, Ubuntu 26.04.1 LTS, reachable as `ssh homelab`
+(`10.45.216.243`, DHCP and **unreserved**, so the address can move). It is on
+WiFi (`wlp1s0`); `eno1` is down until a cable exists.
+
+| Step | Status |
+|---|---|
+| Phases A-D: stick, inspect, BIOS, install | done |
+| 6 - SSH in, monitor off | done |
+| 7 - base packages and Docker 29.8.0 / compose v5.5.1 | done |
+| 8 - timezone, unattended-upgrades, `apt autoremove` | done |
+| 9 - SMART baseline on `/dev/sda`, `dmidecode` memory | done - agrees with the Windows readings |
+| 10 - DHCP reservation | blocked on a phone hotspot, no reservations possible |
+| 11 - cable handover | blocked no Ethernet yet |
+| Idle power reading | skipped no meter |
+
+The bring-up is otherwise finished: the box is a working Docker host and the
+next move is build-order step 4, the production `docker-compose.yml`.
+
 The game spend block and its hand-maintained FX rates shipped on
 `feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
 AniList columns in #148.

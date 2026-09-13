@@ -59,7 +59,7 @@ right and the doc needs the fix.
 | File | Scope |
 |---|---|
 | [deployment-gcp.md](deployment-gcp.md) | **History.** How the GCP deployment worked: Docker image, CI, Cloud Run, Cloud SQL, GCS, and the Sheets service account (that part still live). It went down 2026-09-02 and **the code supporting it was removed on 2026-09-08**; reviving GCP means building it again, not redeploying. Kept as the reference for that, and for the container image self-hosting will reuse. |
-| [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08; nothing deployed yet** |
+| [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08 and inspected; nothing deployed yet** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
 
