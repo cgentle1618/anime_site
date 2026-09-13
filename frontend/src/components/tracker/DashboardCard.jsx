@@ -8,6 +8,7 @@ import {
   getBahaRow,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
 
 const STEPPER_INPUT =
@@ -18,6 +19,7 @@ export default function DashboardCard({
   franchise,
   isAdmin,
   onEpChange,
+  view = "card",
 }) {
   const { showToast } = useToast();
 
@@ -101,6 +103,23 @@ export default function DashboardCard({
       ({cumFin}/{cumTotal})
     </span>
   ) : null;
+
+  // List view reuses every derivation above and none of the card's layout.
+  // The stepper does not come with it - see the note in DashboardTable.
+  if (view === "list") {
+    return (
+      <EntryRow
+        path={navigatePath}
+        title={title}
+        subTitle={subTitle}
+        type={spineLabel}
+        status={statusText}
+        rating={anime.my_rating}
+        progress={`${localFin}/${localTotal} ${isReading ? "ch" : "ep"}`}
+        percent={localTotal !== "?" ? `${progressPercent}%` : null}
+      />
+    );
+  }
 
   return (
     <div

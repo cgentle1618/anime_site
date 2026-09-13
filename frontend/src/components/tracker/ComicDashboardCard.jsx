@@ -8,6 +8,7 @@ import {
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+import { EntryRow } from "./DashboardTable";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-16 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -18,6 +19,7 @@ export default function ComicDashboardCard({
   franchise,
   isAdmin,
   onProgressChange,
+  view = "card",
 }) {
   const { showToast } = useToast();
 
@@ -55,6 +57,21 @@ export default function ComicDashboardCard({
   }
 
   const cardPath = entityPath("comic", comic);
+
+  if (view === "list") {
+    return (
+      <EntryRow
+        path={cardPath}
+        title={title}
+        subTitle={subTitle}
+        type="Comic"
+        status={comic.reading_status}
+        rating={comic.my_rating}
+        progress={`${fin}/${hasTotal ? total : "?"} iss`}
+        percent={hasTotal ? `${progressPercent}%` : null}
+      />
+    );
+  }
 
   return (
     <div

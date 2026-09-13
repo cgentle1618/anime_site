@@ -8,10 +8,11 @@ import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+import { EntryRow } from "./DashboardTable";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
-export default function GameDashboardCard({ game, franchise }) {
+export default function GameDashboardCard({ game, franchise, view = "card" }) {
 
   const title = getDisplayName(game, "game") || "Unknown Title";
   const subTitle = franchise
@@ -29,6 +30,27 @@ export default function GameDashboardCard({ game, franchise }) {
       : 0;
 
   const cardPath = entityPath("game", game);
+
+  // Hours, not a count of anything - the unit in the cell is what stops this
+  // column being read as episodes.
+  if (view === "list") {
+    return (
+      <EntryRow
+        path={cardPath}
+        title={title}
+        subTitle={subTitle}
+        type="Game"
+        status={game.playing_status}
+        rating={game.my_rating}
+        progress={
+          played != null
+            ? `${played}${hasEstimate ? `/${estimate}` : ""} h`
+            : ""
+        }
+        percent={hasEstimate && played != null ? `${progressPercent}%` : null}
+      />
+    );
+  }
 
   return (
     <div

@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -160,9 +160,26 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
   `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
   the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
-  `ComicDashboardCard`, `GameDashboardCard`, `MyTrackerCard`, `WeeklySchedule`,
+  `ComicDashboardCard`, `GameDashboardCard`, `DashboardTable`,
+  `MyTrackerCard`, `WeeklySchedule`,
   `RelationsSection`, `WatchOrderSection`, `WatchOrderGuide`,
   `WatchOrderEditor`.
+  The four dashboard cards take a `view` prop (`"card"` | `"list"`). In
+  `"list"` they reuse every derivation above their return and render one
+  `<EntryRow>` from `DashboardTable` instead of a tile, so the dashboard's
+  list view adds no second data path — a media type that gets its progress
+  wrong gets it wrong in both views, which is the point. `DashboardTable`
+  defines the five columns (Title, Type, Status, Rating, Progress) exactly
+  once; a type writing its own `<td>`s would drift out of alignment with the
+  others the first time a column changed. Because the four types measure
+  different things, every row carries its unit in the Progress cell
+  (`12/28 ep`, `97/364 ch`, `4/12 vol`, `44/144 iss`, `62/55 h`) — the column
+  is five honest measurements rather than one dishonest one. There is no
+  stepper in list view: a one-line row has nowhere to put a control without
+  becoming a card again, so tracking stays in card view and on the entry
+  page. The mode is chosen in each division's type-filter bar, is one setting
+  for the whole dashboard, and persists per browser through
+  `lib/dashboardView.js` (`cg1618:dashboard-view`) — never server-side.
   `MyTrackerCard` renders its −/input/+ stepper **only when the caller passes
   an `onEpChange`**; a game passes none, so its card shows status, rating and
   the To Replay checkbox alone rather than an inert `0 / undefined` counter
