@@ -100,12 +100,11 @@ This is the baseline to compare later readings against; the same numbers in
   `Win32_BIOS` report the same serial, so the board is the one the case was
   built with. `AV` marks a configure-to-order unit, which is why the memory is
   Kingston rather than HP-branded.
-- **BIOS `Q22 Ver. 02.35.00`, dated 2026-07-28.** Recent firmware, not a factory
-  image: HP's published history for the Q22 family reaches 02.27.00 in March
-  2024 and 02.30.00 in January 2025, so this machine is ahead of both.
-  **Treated as current, and not flashed.** If it is ever worth revisiting, do it
-  from the bundled Windows — HP ships these as a Windows `.exe`, and from Linux
-  it means `fwupd` or a bootable updater.
+- **BIOS `Q22 Ver. 02.35.00`, dated 2026-07-28 — the current release.** HP lists
+  02.35.00 (SoftPaq Rev.A) for this product number, so the machine is already
+  on the latest firmware and **nothing needs flashing**. Should a later release
+  ever matter, do it from the bundled Windows: HP ships these as a Windows
+  `.exe`, and from Linux it means `fwupd` or a bootable updater.
 - **PSU** — the genuine HP brick, 19.5 V, as listed.
 - **Warranty expired.** The label reads 3y/3y/3y from original purchase, so the
   seller's return window is the only remedy there is.
@@ -303,10 +302,9 @@ for, and which three are still open:
 | **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. | ✅ Genuine HP, 19.5 V. |
 | **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. | ✅ Serial `8CC0201TF9`, BIOS `Q22 Ver. 02.35.00` (2026-07-28). |
 
-**All of it passes; the machine is kept.** The only reason left to keep the
-bundled Windows is that flashing a BIOS update is far easier from here than
-from Linux — and that looks unnecessary, see below. Once that is settled,
-nothing else needs Windows and phase D can take the disk.
+**All of it passes; the machine is kept, and nothing further needs the bundled
+Windows.** The BIOS is already the current release, which was the last reason
+to keep it — so phase D can take the disk whenever the rest is ready.
 
 Most of the software answers come out of one PowerShell window (right-click
 Start → **Windows PowerShell**):
