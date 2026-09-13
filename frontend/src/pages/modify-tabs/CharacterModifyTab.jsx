@@ -185,7 +185,11 @@ export default function CharacterModifyTab() {
           </div>
 
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-            <CharacterFields characterForm={characterForm} ucf={ucf} />
+            <CharacterFields
+              characterForm={characterForm}
+              ucf={ucf}
+              ownerId={selectedId}
+            />
           </div>
 
           <div className="flex justify-end">

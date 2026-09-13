@@ -22,6 +22,7 @@ import {
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
+import GameCompletionBlock from "../../components/tracker/GameCompletionBlock";
 import GameNotes from "./GameNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
@@ -66,21 +67,12 @@ export function outOf(value, max) {
   return Number.isFinite(n) ? `${n} / ${max}` : null;
 }
 
-// Tristate: null is "never recorded", and the InfoCard drops a null field
-// rather than showing a misleading "No". Still the renderer for
-// steam_progress_sync, which is a boolean lock rather than an answer.
+// Tristate: null is "never recorded", and the InfoCard renders an em dash for
+// it rather than a misleading "No". The renderer for steam_progress_sync,
+// which is a boolean lock on Steam writes rather than an answer about play.
 export function yesNo(value) {
   if (value == null) return null;
   return value ? "Yes" : "No";
-}
-
-// The three completion axes carry GAME_COMPLETION_FLAGS, so the stored value
-// IS the label and passes straight through. Deliberately not yesNo(): that
-// would read "Inapplicable" as truthy and render it "Yes", turning "this game
-// has no endings" into "I saw every ending". An unrecorded axis returns null
-// so the InfoCard drops the row rather than claiming anything.
-export function completionFlag(value) {
-  return value || null;
 }
 
 /**
@@ -502,6 +494,15 @@ export default function Game() {
             }
           />
 
+          {/* How deep the finish went, and the three axes beside it. Next to
+              the tracker rather than in Information: these are answers about a
+              playthrough, not facts about the game. */}
+          <GameCompletionBlock
+            game={game}
+            isAdmin={isAdmin}
+            onChange={(patch) => performPatch(patch, "Completion updated")}
+          />
+
           {/* What every public list says about it, beside what I say.
               Renders nothing when no public list holds this entry. */}
           <CommunityCard mediaId={game.system_id} />
@@ -540,24 +541,11 @@ export default function Game() {
                   { label: "Current Patch", value: game.current_patch },
                 ],
                 [
-                  { label: "Playing Status", value: game.playing_status },
-                  { label: "Completion Level", value: game.completion_level },
-                ],
-                [
-                  // Three independent axes; null is "unknown", not "no", and
-                  // "Inapplicable" is the game having none to find.
-                  {
-                    label: "All Endings",
-                    value: completionFlag(game.all_endings),
-                  },
-                  {
-                    label: "All Achievements",
-                    value: completionFlag(game.all_achievements),
-                  },
-                  {
-                    label: "All Collected",
-                    value: completionFlag(game.all_collected),
-                  },
+                  // Playing status and the four completion axes are NOT here:
+                  // they are editable in My tracker and the Completion block
+                  // above. This one stays because it is a fact about the
+                  // source - whether Steam may write this entry's progress -
+                  // rather than an answer about a playthrough.
                   {
                     label: "Steam Progress Sync",
                     value: yesNo(game.steam_progress_sync),

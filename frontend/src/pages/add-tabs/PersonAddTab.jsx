@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
+import ImagePicker from "../../components/forms/ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
@@ -120,7 +121,12 @@ export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
   );
 }
 
-export function PersonFields({ personForm, upf, roles, setRoles, legalScopes }) {
+// `ownerId` is only passed by PersonModifyTab, where the person row already
+// exists - see ImagePicker's own module comment on why a brand-new (Add tab)
+// row has nothing to attach to yet. When it is absent (the Add tab), the
+// picked image cannot be attached until the person is saved, so its id is
+// kept as `pending_image_id` for PersonAddTab's caller to attach afterward.
+export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ownerId }) {
   const hasAnyName = PERSON_NAME_FIELDS.some(
     ({ field }) => personForm[field]?.trim(),
   );
@@ -183,11 +189,16 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes }) 
           />
         </Field>
       </div>
-      <Field label="Photo File">
-        <input
-          className={inputCls}
-          value={personForm.photo_file ?? ""}
-          onChange={(e) => upf("photo_file", e.target.value)}
+      <Field label="Photo">
+        <ImagePicker
+          ownerType="staff"
+          ownerId={ownerId}
+          role="cover"
+          value={personForm.photo_file}
+          onChange={(key, imageId) => {
+            upf("photo_file", key);
+            upf("pending_image_id", ownerId ? null : imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

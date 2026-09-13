@@ -16,6 +16,7 @@ import {
 } from "../../components/forms/FormField";
 import PublisherScopePills from "../../components/forms/PublisherScopePills";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
+import ImagePicker from "../../components/forms/ImagePicker";
 import { MY_RATINGS } from "../../config/fieldOptions";
 // Publisher is the third consumer of this list, after Studio and Person: all
 // three carry the same four name columns and the same display_name_field
@@ -24,7 +25,13 @@ import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export { defaultPublisher } from "../../config/formFactories";
 
-export function PublisherFields({ publisherForm, upf }) {
+// `ownerId` is only passed by PublisherModifyTab, where the publisher row
+// already exists - see ImagePicker's own module comment on why a brand-new
+// (Add tab) row has nothing to attach to yet. When it is absent (the Add
+// tab), the picked image cannot be attached until the publisher is saved, so
+// its id is kept as `pending_image_id` for PublisherAddTab's caller to
+// attach afterward.
+export function PublisherFields({ publisherForm, upf, ownerId }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => publisherForm[field]?.trim(),
   );
@@ -82,11 +89,16 @@ export function PublisherFields({ publisherForm, upf }) {
             ))}
           </select>
         </Field>
-        <Field label="Logo File">
-          <input
-            className={inputCls}
-            value={publisherForm.logo_file ?? ""}
-            onChange={(e) => upf("logo_file", e.target.value)}
+        <Field label="Logo">
+          <ImagePicker
+            ownerType="publisher"
+            ownerId={ownerId}
+            role="cover"
+            value={publisherForm.logo_file}
+            onChange={(key, imageId) => {
+              upf("logo_file", key);
+              upf("pending_image_id", ownerId ? null : imageId);
+            }}
           />
         </Field>
       </div>

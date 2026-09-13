@@ -332,8 +332,22 @@ factory sets them, but pydantic drops an undeclared field silently).
 novels: a `GameCopyIO` item with a `system_id` updates that row, one without
 inserts, and a row the payload omits is **deleted**. Omitting the key
 entirely (`null`) means "not supplied" and leaves the rows alone; `[]` clears
-them. `uq_game_copy_row` (`game_id`, `storefront`, `copy_format`) rejects the
-same edition bought twice on the same store.
+them. `uq_game_copy_row` (`user_id`, `game_id`, `storefront`, `copy_format`)
+rejects the same edition bought twice on the same store by the same person —
+`user_id` leads, so two accounts can each own Hollow Knight, Digital, on
+Steam.
+
+**The `copies` array carries only the acting user's rows**, on the read side
+of both the list and the detail route (`attach_own_copies`). A copy is a
+purchase record, not a fact about the game, so the relationship holds every
+account's rows and the response must not — and `GameCopyIO` exposes no
+`user_id`, so nothing downstream could tell them apart. A caller with no
+account sees an empty array rather than somebody else's purchases.
+
+It is scoped by populating the loaded value, **never** by assigning a
+filtered list to the relationship: `Game.copies` is `cascade="all,
+delete-orphan"`, so an assignment would orphan every row the filter dropped
+and delete it on the next flush.
 
 **`?ownership=Owned`** filters on the derived value rather than a column:
 there is no `games.ownership`, so the filter is an `EXISTS` over `game_copy`

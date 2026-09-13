@@ -4,6 +4,7 @@ import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -672,12 +673,15 @@ export default function AnimeAddTab({
           </select>
         </Field>
       </div>
-      <Field label="Cover Image File" hint="e.g. anime/5114.jpg or https://...">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="anime"
+          role="cover"
           value={af.cover_image_file}
-          onChange={(e) => ua("cover_image_file", e.target.value)}
-          placeholder="anime/5114.jpg"
+          onChange={(key, imageId) => {
+            ua("cover_image_file", key);
+            ua("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

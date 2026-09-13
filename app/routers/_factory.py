@@ -26,6 +26,7 @@ from app.services.domain import (
     upsert_remark,
 )
 from app.services.domain.credits import attach_link_fields
+from app.services.domain.game_copies import attach_own_copies
 from app.services.domain.plan_next import (
     PLAN_FLAG_FIELDS,
     attach_plan_flag,
@@ -140,6 +141,9 @@ def make_media_router(spec) -> APIRouter:
         attach_plan_flag(db, spec.owner_type, entry, user_id=viewer_user_id(viewer))
         attach_link_fields(db, spec.owner_type, entry)
         attach_sources(db, spec.owner_type, entry, viewer)
+        # A game copy is a purchase record, so the relationship holds every
+        # account's rows and the response must not. No-op for every other type.
+        attach_own_copies(db, spec.owner_type, entry, user_id)
         # `remark` is a personal-scope note, so it is read per viewer rather
         # than mapped on the class - see app/models/__init__.py. A path that
         # forgets this call shows no remark, never somebody else's.
@@ -248,6 +252,8 @@ def make_media_router(spec) -> APIRouter:
         # One IN query for the whole page, not one per entry.
         attach_list_fields(db, spec.owner_type, entries, user_id)
         attach_unit_ratings(db, spec.owner_type, entries, user_id)
+        # One query for the page, filtered to this viewer's own purchases.
+        attach_own_copies(db, spec.owner_type, entries, user_id)
         # One query for the page, filtered to this viewer's own remarks.
         attach_remark(db, spec.owner_type, entries, plan_user_id)
         return gate(viewer, spec.owner_type, entries, spec.response_schema)

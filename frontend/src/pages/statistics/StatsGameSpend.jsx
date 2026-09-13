@@ -1,5 +1,11 @@
 // Frontend: statistics page file for StatsGameSpend.
-import computeGameSpend, { NO_CURRENCY, formatMoney } from "./gameSpend";
+import computeGameSpend, {
+  NO_CURRENCY,
+  costPerHour,
+  formatMoney,
+  spendByStorefront,
+  spendByYear,
+} from "./gameSpend";
 import { Eyebrow, Slip } from "../../components/ui/primitives";
 
 function SpendColumn({ column }) {
@@ -74,6 +80,149 @@ function SpendColumn({ column }) {
   );
 }
 
+
+/**
+ * One breakdown row: a label, what it actually cost in each currency, and
+ * the converted figures beside them.
+ *
+ * Actuals and conversions on one line rather than in two blocks: the two
+ * answer different questions ("what left my account" and "what is that
+ * worth") and reading them apart means holding a row in your head while you
+ * scroll to find its other half.
+ */
+function BreakdownRow({ bucket }) {
+  const { key, currencies, copies, converted } = bucket;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1.5 border-b border-dotted border-border last:border-0">
+      <span className="w-24 shrink-0 font-mono text-[11px] text-text truncate" title={key}>
+        {key}
+      </span>
+
+      <span className="flex flex-wrap gap-x-3 gap-y-0.5 flex-1 min-w-[8rem] justify-end">
+        {currencies.map(({ code, cents }) => (
+          <span key={code} className="font-mono text-sm tabular-nums text-text">
+            {formatMoney(code, cents)}
+          </span>
+        ))}
+      </span>
+
+      {converted.length > 0 && (
+        <span className="flex gap-x-3 shrink-0 justify-end">
+          {converted.map(({ code, cents, missing }) => (
+            <span
+              key={code}
+              className="font-mono text-[11px] tabular-nums text-text-muted"
+              title={
+                missing.length > 0
+                  ? `No rate for ${missing.join(", ")}; excluded from this figure.`
+                  : undefined
+              }
+            >
+              ≈ {formatMoney(code, cents)}
+              {missing.length > 0 && "*"}
+            </span>
+          ))}
+        </span>
+      )}
+
+      <span className="w-8 shrink-0 text-right font-mono text-[11px] text-text-faint tabular-nums">
+        {copies}
+      </span>
+    </div>
+  );
+}
+
+function BreakdownCard({ title, subtitle, buckets }) {
+  if (buckets.length === 0) return null;
+  return (
+    <Slip title={title} actions={subtitle ? <Eyebrow>{subtitle}</Eyebrow> : null}>
+      <div>
+        {buckets.map((bucket) => (
+          <BreakdownRow key={bucket.key} bucket={bucket} />
+        ))}
+      </div>
+    </Slip>
+  );
+}
+
+/** A single "≈ USD 0.42 / hour" figure, for whichever targets have a rate. */
+function PerHour({ perHour, className = "" }) {
+  return (
+    <span className={`flex gap-3 ${className}`}>
+      {Object.entries(perHour).map(([code, cents]) => (
+        <span key={code} className="font-mono tabular-nums text-text">
+          ≈ {formatMoney(code, cents)}
+          <span className="text-text-faint"> /h</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function ValueCard({ value }) {
+  return (
+    <Slip
+      title="Value"
+      actions={<Eyebrow>Rates as of {value.asOf}</Eyebrow>}
+    >
+      <div className="mb-4">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-text-faint mb-1">
+          Overall
+        </div>
+        <PerHour perHour={value.overall} className="text-lg" />
+        <p className="mt-1 font-mono text-[11px] text-text-faint">
+          {Math.round(value.hours).toLocaleString()} hours over {value.titles}{" "}
+          priced {value.titles === 1 ? "title" : "titles"}
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {[
+          { label: "Best value", titles: value.best },
+          { label: "Worst value", titles: value.worst },
+        ].map(({ label, titles }) => (
+          <div key={label}>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-text-faint mb-1.5">
+              {label}
+            </div>
+            <div className="space-y-1">
+              {titles.map((title) => (
+                <div
+                  key={title.id}
+                  className="flex items-baseline justify-between gap-3"
+                >
+                  <span className="text-sm text-text truncate" title={title.name}>
+                    {title.name}
+                  </span>
+                  <PerHour perHour={title.perHour} className="text-[11px] shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Two ways to be left out, and they mean different things - so both
+          are named rather than rolled into one "excluded" number. */}
+      {(value.excluded > 0 || value.unconvertible > 0) && (
+        <p className="mt-4 pt-3 border-t border-dotted border-border-strong/60 font-mono text-[11px] text-text-faint">
+          {value.excluded > 0 && (
+            <>Excludes {value.excluded} priced{" "}
+            {value.excluded === 1 ? "title" : "titles"} with no hours logged.{" "}</>
+          )}
+          {value.unconvertible > 0 && (
+            <>
+              {value.unconvertible}{" "}
+              {value.unconvertible === 1 ? "title has" : "titles have"} no rate
+              for {value.unconvertible === 1 ? "its" : "their"} currency.
+            </>
+          )}
+        </p>
+      )}
+    </Slip>
+  );
+}
+
 /**
  * What the game collection cost.
  *
@@ -86,6 +235,11 @@ export default function StatsGameSpend({ games, fxRates }) {
 
   // Nothing priced anywhere: a wall of zeroes says less than no block at all.
   if (spend.isEmpty) return null;
+
+  const years = spendByYear(games, fxRates);
+  const storefronts = spendByStorefront(games, fxRates);
+  // Null without rates, by design - see costPerHour.
+  const value = costPerHour(games, fxRates);
 
   return (
     <section>
@@ -110,6 +264,25 @@ export default function StatsGameSpend({ games, fxRates }) {
           ))}
         </div>
       </Slip>
+
+      {value && (
+        <div className="mt-6">
+          <ValueCard value={value} />
+        </div>
+      )}
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <BreakdownCard
+          title="By Year"
+          subtitle="when acquired"
+          buckets={years}
+        />
+        <BreakdownCard
+          title="By Storefront"
+          subtitle="where bought"
+          buckets={storefronts}
+        />
+      </div>
     </section>
   );
 }

@@ -11,6 +11,12 @@
 // /api/form-defaults are layered on top by resolveDefaults() in
 // hooks/useFormDefaults.js -- these factories are what the app falls back to
 // when nothing is configured or the fetch fails.
+//
+// `pending_image_id` is not a real column - it holds the id of an image
+// ImagePicker uploaded before this row existed, so the Add tab's submit
+// handler can attach it once the row is saved and has an id (see
+// ImagePicker.jsx's module comment and attachUploadedImage()). It is never
+// sent to the API and is always reset to null by freshForm() after a save.
 
 export const defaultAnime = () => ({
   anime_name_en: "",
@@ -60,6 +66,7 @@ export const defaultAnime = () => ({
   seiyuu: "",
   watch_next: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -92,6 +99,7 @@ export const defaultAnimeMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -119,6 +127,7 @@ export const defaultMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -147,6 +156,7 @@ export const defaultTvShow = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -175,6 +185,7 @@ export const defaultCartoon = () => ({
   sources: [],
   watch_next: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -216,6 +227,7 @@ export const defaultManga = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -265,6 +277,7 @@ export const defaultNovel = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -299,6 +312,7 @@ export const defaultComic = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -365,6 +379,7 @@ export const defaultGame = () => ({
   play_next: false,
   to_replay: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -419,6 +434,7 @@ export const defaultStudio = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  pending_image_id: null,
   country: "",
   website_url: "",
   founded_date: "",
@@ -439,6 +455,7 @@ export const defaultPublisher = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  pending_image_id: null,
   country: "",
   website_url: "",
   founded_date: "",
@@ -458,6 +475,7 @@ export const defaultPerson = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -473,6 +491,7 @@ export const defaultCharacter = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  pending_image_id: null,
   remark: "",
 });
 

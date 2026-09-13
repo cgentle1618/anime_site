@@ -10,6 +10,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -558,11 +559,13 @@ export default function NovelModifyTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File">
-        <input
-          className={inputCls}
-          value={cnvf.cover_image_file || ""}
-          onChange={(e) => unv("cover_image_file", e.target.value)}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="novel"
+          ownerId={editingItem?.system_id}
+          role="cover"
+          value={cnvf.cover_image_file}
+          onChange={(key) => unv("cover_image_file", key)}
         />
       </Field>
       <Field label="Remark">

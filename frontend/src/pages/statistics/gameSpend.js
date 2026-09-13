@@ -144,3 +144,178 @@ export function formatMoney(code, cents) {
   });
   return code === NO_CURRENCY ? amount : `${code} ${amount}`;
 }
+
+// A copy with no storefront, or no acquisition date, still cost money. It
+// goes in a named bucket rather than being dropped, so the breakdown's rows
+// always add up to the total above them - a breakdown that quietly omits
+// rows is worse than one with an ugly bucket in it.
+export const UNKNOWN_KEY = "Unrecorded";
+
+/**
+ * Group the priced copies by something on the copy row.
+ *
+ * `keyOf` reads one copy and returns its bucket; anything falsy lands in
+ * UNKNOWN_KEY. Each bucket carries the same shape a column does - per
+ * currency actuals AND converted USD/TWD - because the question "what did
+ * this actually cost me" and "what is that worth in one currency" are both
+ * worth answering at every level, not only at the top.
+ */
+export function groupSpend(games, fxRates, keyOf) {
+  const fx = fxRates && fxRates.base ? fxRates : null;
+  const buckets = {};
+  pricedCopies(games).forEach((row) => {
+    const key = keyOf(row.copy) || UNKNOWN_KEY;
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(row);
+  });
+  return Object.entries(buckets).map(([key, rows]) => column(key, key, rows, fx));
+}
+
+// Biggest first, with the unrecorded bucket pinned last however big it is.
+// Ranked on converted USD where rates allow it and on copy count where they
+// do not: adding JPY to USD to decide an ORDER is the same mistake as adding
+// them to decide a total, and a count is at least a fact.
+const byMagnitude = (a, b) => {
+  if ((a.key === UNKNOWN_KEY) !== (b.key === UNKNOWN_KEY)) {
+    return a.key === UNKNOWN_KEY ? 1 : -1;
+  }
+  const cents = (c) => c.converted.find((x) => x.code === "USD")?.cents ?? null;
+  const [ac, bc] = [cents(a), cents(b)];
+  if (ac !== null && bc !== null) return bc - ac;
+  return b.copies - a.copies;
+};
+
+/**
+ * Spend per calendar year, newest first.
+ *
+ * `acquired_date` is a partial ISO string - "2024", "2024-06" or "2024-06-11"
+ * - and a CHECK constraint guarantees one of those three shapes, so the year
+ * is the first four characters and needs no date parsing. A copy with no date
+ * lands in the unrecorded bucket, which is pinned last rather than sorted
+ * into the middle of the years.
+ */
+export function spendByYear(games, fxRates) {
+  return groupSpend(games, fxRates, (copy) =>
+    copy.acquired_date ? String(copy.acquired_date).slice(0, 4) : null,
+  ).sort((a, b) => {
+    if ((a.key === UNKNOWN_KEY) !== (b.key === UNKNOWN_KEY)) {
+      return a.key === UNKNOWN_KEY ? 1 : -1;
+    }
+    return b.key.localeCompare(a.key);
+  });
+}
+
+/** Spend per storefront, biggest first. */
+export function spendByStorefront(games, fxRates) {
+  return groupSpend(games, fxRates, (copy) => copy.storefront).sort(byMagnitude);
+}
+
+/**
+ * What an hour of play cost.
+ *
+ * Converted only, and absent entirely without rates: ranking titles by value
+ * means comparing them to each other, and a TWD purchase and a USD one cannot
+ * be ranked without a rate. Per-currency-per-hour would be several lists that
+ * answer a question nobody asked.
+ *
+ * A title counts only when it has BOTH logged hours and a convertible price.
+ * Two counts come back rather than one, because there are two ways to be
+ * left out and they mean different things. `excluded` is priced titles with
+ * no logged hours - `hours_played` is populated automatically only for Steam
+ * titles, so a value figure computed over a third of a library should say so
+ * rather than imply it covers everything. `unconvertible` is priced titles
+ * whose currency has no rate; they are skipped rather than converted to zero,
+ * which would have counted them as free and dragged the average down.
+ */
+export function costPerHour(games, fxRates) {
+  const fx = fxRates && fxRates.base ? fxRates : null;
+  if (!fx) return null;
+
+  const titles = [];
+  let noHours = 0;
+  let unconvertible = 0;
+  let totalCents = { USD: 0, TWD: 0 };
+  let totalHours = 0;
+
+  (games || []).forEach((game) => {
+    const rows = pricedCopies([game]);
+    if (rows.length === 0) return;
+
+    const currencies = subtotal(rows);
+    // At least one of THIS title's currencies must have a rate. Without this
+    // check a title priced only in an unrated currency converts to zero and
+    // is counted as free: its hours land in the denominator while nothing
+    // lands in the numerator, so it silently drags the overall figure down.
+    // Skipped and counted, not dropped quietly.
+    if (!currencies.some((c) => fx.rates[c.code])) {
+      unconvertible += 1;
+      return;
+    }
+
+    const perTarget = {};
+    TARGETS.forEach((target) => {
+      const converted = convertSubtotal(currencies, fx, target);
+      if (converted) perTarget[target] = converted;
+    });
+    // No rate for either target currency, so there is nothing to express it in.
+    if (!perTarget.USD && !perTarget.TWD) return;
+
+    const hours = Number(game.hours_played);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      noHours += 1;
+      return;
+    }
+
+    TARGETS.forEach((target) => {
+      if (perTarget[target]) totalCents[target] += perTarget[target].cents;
+    });
+    totalHours += hours;
+
+    titles.push({
+      id: game.system_id,
+      name: gameName(game),
+      hours,
+      perHour: Object.fromEntries(
+        TARGETS.filter((t) => perTarget[t]).map((t) => [
+          t,
+          Math.round(perTarget[t].cents / hours),
+        ]),
+      ),
+    });
+  });
+
+  if (titles.length === 0) return null;
+
+  const ranked = [...titles].sort(
+    (a, b) => (a.perHour.USD ?? a.perHour.TWD) - (b.perHour.USD ?? b.perHour.TWD),
+  );
+  return {
+    overall: Object.fromEntries(
+      TARGETS.filter((t) => totalCents[t] > 0).map((t) => [
+        t,
+        Math.round(totalCents[t] / totalHours),
+      ]),
+    ),
+    hours: totalHours,
+    titles: titles.length,
+    best: ranked.slice(0, 3),
+    worst: ranked.slice(-3).reverse(),
+    excluded: noHours,
+    unconvertible,
+    asOf: fx.asOf || fx.as_of || null,
+  };
+}
+
+// The nine media types do not share a name column - a game's is game_name_en,
+// and the shape that reads as uniform is exactly the one that is not. Falls
+// back through the other recorded names before giving up, so a title recorded
+// only in Chinese is still nameable in the value list.
+function gameName(game) {
+  return (
+    game.game_name_en ||
+    game.game_name_roman ||
+    game.game_name_cn ||
+    game.game_name_jp ||
+    "Untitled"
+  );
+}
