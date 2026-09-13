@@ -777,7 +777,8 @@ Two things to do at that point, neither of which is automatic:
   the cable goes in, and the box moves. Do the reservation last (step 10), once
   the cable is the connection it will keep. Reserving both MACs to one address is
   the alternative.
-- **Remove the `wifis:` block** from `/etc/netplan/50-cloud-init.yaml` and
+- **Remove the `wifis:` block** from `/etc/netplan/00-installer-config.yaml`
+  — the installer writes that file, not a `50-cloud-init.yaml` — and
   `sudo netplan apply`. A machine quietly holding two routes onto the network is
   a machine whose address is hard to explain a year later — and it leaves the
   WiFi password on disk for no reason.
