@@ -123,8 +123,9 @@ export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
 
 // `ownerId` is only passed by PersonModifyTab, where the person row already
 // exists - see ImagePicker's own module comment on why a brand-new (Add tab)
-// row has nothing to attach to yet. When it is absent, Photo File stays the
-// plain text input the Add tab has always had.
+// row has nothing to attach to yet. When it is absent (the Add tab), the
+// picked image cannot be attached until the person is saved, so its id is
+// kept as `pending_image_id` for PersonAddTab's caller to attach afterward.
 export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ownerId }) {
   const hasAnyName = PERSON_NAME_FIELDS.some(
     ({ field }) => personForm[field]?.trim(),
@@ -189,21 +190,16 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
         </Field>
       </div>
       <Field label="Photo">
-        {ownerId ? (
-          <ImagePicker
-            ownerType="staff"
-            ownerId={ownerId}
-            role="cover"
-            value={personForm.photo_file}
-            onChange={(key) => upf("photo_file", key)}
-          />
-        ) : (
-          <input
-            className={inputCls}
-            value={personForm.photo_file ?? ""}
-            onChange={(e) => upf("photo_file", e.target.value)}
-          />
-        )}
+        <ImagePicker
+          ownerType="staff"
+          ownerId={ownerId}
+          role="cover"
+          value={personForm.photo_file}
+          onChange={(key, imageId) => {
+            upf("photo_file", key);
+            upf("pending_image_id", ownerId ? null : imageId);
+          }}
+        />
       </Field>
       <Field label="Remark">
         <textarea

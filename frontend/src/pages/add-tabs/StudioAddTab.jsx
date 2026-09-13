@@ -18,8 +18,9 @@ export { defaultStudio } from "../../config/formFactories";
 
 // `ownerId` is only passed by StudioModifyTab, where the studio row already
 // exists - see ImagePicker's own module comment on why a brand-new (Add tab)
-// row has nothing to attach to yet. When it is absent, Logo File stays the
-// plain text input the Add tab has always had.
+// row has nothing to attach to yet. When it is absent (the Add tab), the
+// picked image cannot be attached until the studio is saved, so its id is
+// kept as `pending_image_id` for StudioAddTab's caller to attach afterward.
 export function StudioFields({ studioForm, usf, ownerId }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => studioForm[field]?.trim(),
@@ -75,21 +76,16 @@ export function StudioFields({ studioForm, usf, ownerId }) {
           </select>
         </Field>
         <Field label="Logo">
-          {ownerId ? (
-            <ImagePicker
-              ownerType="studio"
-              ownerId={ownerId}
-              role="cover"
-              value={studioForm.logo_file}
-              onChange={(key) => usf("logo_file", key)}
-            />
-          ) : (
-            <input
-              className={inputCls}
-              value={studioForm.logo_file ?? ""}
-              onChange={(e) => usf("logo_file", e.target.value)}
-            />
-          )}
+          <ImagePicker
+            ownerType="studio"
+            ownerId={ownerId}
+            role="cover"
+            value={studioForm.logo_file}
+            onChange={(key, imageId) => {
+              usf("logo_file", key);
+              usf("pending_image_id", ownerId ? null : imageId);
+            }}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

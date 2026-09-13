@@ -10,6 +10,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -183,7 +184,12 @@ export function IgdbSearchBox({ onPick }) {
  * Modify tab. `f` is the form state and `u` its updater, so the two pages
  * differ only in which state object they hand in.
  */
-export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
+// `ownerId` is only passed by GameModifyTab, where the game row already
+// exists - see ImagePicker's own module comment on why a brand-new (Add tab)
+// row has nothing to attach to yet. When it is absent (the Add tab), the
+// picked image cannot be attached until the game is saved, so its id is kept
+// as `pending_image_id` for GameAddTab's caller to attach afterward.
+export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }) {
   const { has } = useAuth();
   const canOwnCopies = has("self.list");
   // ck_games_not_self_parent: a game can never be its own base game, so the
@@ -661,12 +667,16 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. game/5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="game"
+          ownerId={ownerId}
+          role="cover"
           value={f.cover_image_file}
-          onChange={(e) => u("cover_image_file", e.target.value)}
-          placeholder="game/5114.jpg"
+          onChange={(key, imageId) => {
+            u("cover_image_file", key);
+            u("pending_image_id", ownerId ? null : imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

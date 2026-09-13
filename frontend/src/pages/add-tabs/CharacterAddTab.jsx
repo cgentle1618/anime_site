@@ -23,8 +23,10 @@ export { defaultCharacter } from "../../config/formFactories";
 
 // `ownerId` is only passed by CharacterModifyTab, where the character row
 // already exists - see ImagePicker's own module comment on why a brand-new
-// (Add tab) row has nothing to attach to yet. When it is absent, Photo File
-// stays the plain text input the Add tab has always had.
+// (Add tab) row has nothing to attach to yet. When it is absent (the Add
+// tab), the picked image cannot be attached until the character is saved, so
+// its id is kept as `pending_image_id` for CharacterAddTab's caller to
+// attach afterward.
 export function CharacterFields({ characterForm, ucf, ownerId }) {
   const hasAnyName = CHARACTER_NAME_FIELDS.some(
     ({ field }) => characterForm[field]?.trim(),
@@ -83,21 +85,16 @@ export function CharacterFields({ characterForm, ucf, ownerId }) {
         </Field>
       </div>
       <Field label="Photo">
-        {ownerId ? (
-          <ImagePicker
-            ownerType="character"
-            ownerId={ownerId}
-            role="cover"
-            value={characterForm.photo_file}
-            onChange={(key) => ucf("photo_file", key)}
-          />
-        ) : (
-          <input
-            className={inputCls}
-            value={characterForm.photo_file ?? ""}
-            onChange={(e) => ucf("photo_file", e.target.value)}
-          />
-        )}
+        <ImagePicker
+          ownerType="character"
+          ownerId={ownerId}
+          role="cover"
+          value={characterForm.photo_file}
+          onChange={(key, imageId) => {
+            ucf("photo_file", key);
+            ucf("pending_image_id", ownerId ? null : imageId);
+          }}
+        />
       </Field>
       <Field label="Remark">
         <textarea

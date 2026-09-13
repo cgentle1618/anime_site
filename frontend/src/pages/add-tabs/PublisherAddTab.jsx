@@ -27,8 +27,10 @@ export { defaultPublisher } from "../../config/formFactories";
 
 // `ownerId` is only passed by PublisherModifyTab, where the publisher row
 // already exists - see ImagePicker's own module comment on why a brand-new
-// (Add tab) row has nothing to attach to yet. When it is absent, Logo File
-// stays the plain text input the Add tab has always had.
+// (Add tab) row has nothing to attach to yet. When it is absent (the Add
+// tab), the picked image cannot be attached until the publisher is saved, so
+// its id is kept as `pending_image_id` for PublisherAddTab's caller to
+// attach afterward.
 export function PublisherFields({ publisherForm, upf, ownerId }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => publisherForm[field]?.trim(),
@@ -88,21 +90,16 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
           </select>
         </Field>
         <Field label="Logo">
-          {ownerId ? (
-            <ImagePicker
-              ownerType="publisher"
-              ownerId={ownerId}
-              role="cover"
-              value={publisherForm.logo_file}
-              onChange={(key) => upf("logo_file", key)}
-            />
-          ) : (
-            <input
-              className={inputCls}
-              value={publisherForm.logo_file ?? ""}
-              onChange={(e) => upf("logo_file", e.target.value)}
-            />
-          )}
+          <ImagePicker
+            ownerType="publisher"
+            ownerId={ownerId}
+            role="cover"
+            value={publisherForm.logo_file}
+            onChange={(key, imageId) => {
+              upf("logo_file", key);
+              upf("pending_image_id", ownerId ? null : imageId);
+            }}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

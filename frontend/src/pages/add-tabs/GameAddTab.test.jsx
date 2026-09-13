@@ -4,6 +4,7 @@
 // entry here before saving. The endpoint answers with IGDB's raw game objects,
 // so this widget reads `id`, `name`, `first_release_date` (Unix seconds) and
 // `cover.url` (protocol-relative) itself.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,19 +28,26 @@ const ELDEN = {
   url: "https://www.igdb.com/games/elden-ring",
 };
 
+// The Cover Image field is now an ImagePicker, which reads react-query hooks
+// even before anything is uploaded - every render needs a QueryClientProvider.
 function renderTab(props = {}) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <GameAddTab
-      franchiseCollections={{}}
-      gmf={defaultGame()}
-      ugm={() => {}}
-      allFranchises={[]}
-      allGames={[]}
-      seriesItemsForGame={[]}
-      sources={[]}
-      applyGameAutofill={() => {}}
-      {...props}
-    />,
+    <QueryClientProvider client={client}>
+      <GameAddTab
+        franchiseCollections={{}}
+        gmf={defaultGame()}
+        ugm={() => {}}
+        allFranchises={[]}
+        allGames={[]}
+        seriesItemsForGame={[]}
+        sources={[]}
+        applyGameAutofill={() => {}}
+        {...props}
+      />
+    </QueryClientProvider>,
   );
 }
 

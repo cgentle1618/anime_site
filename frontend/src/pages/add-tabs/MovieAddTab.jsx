@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -378,12 +379,15 @@ export default function MovieAddTab({
       />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
-      <Field label="Cover Image File" hint="e.g. movie/5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="movie"
+          role="cover"
           value={mf.cover_image_file}
-          onChange={(e) => umf("cover_image_file", e.target.value)}
-          placeholder="movie/5114.jpg"
+          onChange={(key, imageId) => {
+            umf("cover_image_file", key);
+            umf("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

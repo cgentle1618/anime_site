@@ -93,6 +93,11 @@ export const COMMON_FIELD_META = {
   collection_text: { hidden: true },
   franchise_text: { hidden: true },
   series_text: { hidden: true },
+  // Not a real column - the id of an image ImagePicker uploaded before this
+  // row existed, held only so the Add tab's submit handler can attach it
+  // once the row is saved (see formFactories.js and ImagePicker.jsx's module
+  // comment). Never configurable and never copied by auto-fill.
+  pending_image_id: { hidden: true },
 
   // ---- Status ----------------------------------------------------------
   airing_status: {
