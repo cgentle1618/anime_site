@@ -13,6 +13,7 @@ import io
 import pytest
 from PIL import Image as PILImage
 
+from app import models
 from app.services.integrations import image_library
 
 
@@ -86,6 +87,35 @@ def test_detaching_clears_the_mirror(admin_client, db_session, sample_anime):
 
     db_session.refresh(sample_anime)
     assert sample_anime.cover_image_file is None
+
+
+def test_attaching_to_a_meme_writes_the_mirror_column(
+    admin_client, db_session, sample_anime
+):
+    # meme is a non-cover-role owner like quote - both mirror onto their own
+    # image_file column rather than cover_image_file.
+    meme = admin_client.post(
+        "/api/meme/",
+        json={
+            "owner_type": "anime",
+            "owner_id": str(sample_anime.system_id),
+            "text": "meme",
+        },
+    ).json()
+    image = _upload(admin_client)
+
+    admin_client.post(
+        f"/api/images/{image['system_id']}/attach",
+        json={
+            "owner_type": "meme",
+            "owner_id": meme["system_id"],
+            "role": "cover",
+        },
+    )
+
+    db_meme = db_session.get(models.Meme, meme["system_id"])
+    db_session.refresh(db_meme)
+    assert db_meme.image_file == image["storage_key"]
 
 
 def test_the_mirror_receives_the_library_storage_key_verbatim(

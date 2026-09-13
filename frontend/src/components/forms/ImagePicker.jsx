@@ -2,12 +2,17 @@
 //
 // Upload and attach are two separate API calls (see app/routers/images.py) -
 // an image can exist in the library with no owner, and this widget just makes
-// both calls in sequence so the caller sees one action. Attach is best-effort:
-// some owner types the surrounding form uses (a meme, for instance) are not
-// yet attachable owners on the backend, and a brand-new quote/meme has no
-// ownerId at all until it is first saved. Either way the upload still
-// succeeds and the surrounding form persists the storage key itself on save,
-// so a failed or skipped attach never loses the reference.
+// both calls in sequence so the caller sees one action.
+//
+// A brand-new quote or meme has no ownerId at all until it is first saved, so
+// there is deliberately nothing to attach to yet - attach is skipped with no
+// error, and the surrounding form persists the storage key itself on save.
+// That is the ONLY case attach is silently skipped: once an ownerId exists,
+// attach is attempted and a failure is surfaced, not swallowed - a 400 for an
+// unsupported owner type or a 404 from the content-label gate is a real
+// failure the caller needs to see, not a no-op. The upload still succeeds and
+// the key is still handed to onChange either way, so the reference is never
+// lost even when the attach itself did not go through.
 import { useRef, useState } from "react";
 
 import { getCoverUrl } from "../../lib/covers";
@@ -29,12 +34,15 @@ export default function ImagePicker({
 
   const busy = upload.isPending || attach.isPending;
 
+  // Returns an attach-failure message, or null when attach was skipped
+  // (no ownerId yet) or succeeded.
   async function tryAttach(imageId) {
-    if (!ownerId) return;
+    if (!ownerId) return null;
     try {
       await attach.mutateAsync({ imageId, ownerType, ownerId, role });
-    } catch {
-      // Best-effort - see file header.
+      return null;
+    } catch (err) {
+      return err.message || "Attaching the image failed.";
     }
   }
 
@@ -44,8 +52,9 @@ export default function ImagePicker({
     setError(null);
     try {
       const image = await upload.mutateAsync(file);
-      await tryAttach(image.system_id);
+      const attachError = await tryAttach(image.system_id);
       onChange(image.storage_key);
+      if (attachError) setError(attachError);
     } catch (err) {
       setError(err.message || "Upload failed.");
     } finally {
@@ -56,8 +65,9 @@ export default function ImagePicker({
   async function chooseFromLibrary(image) {
     setLibraryOpen(false);
     setError(null);
-    await tryAttach(image.system_id);
+    const attachError = await tryAttach(image.system_id);
     onChange(image.storage_key);
+    if (attachError) setError(attachError);
   }
 
   return (

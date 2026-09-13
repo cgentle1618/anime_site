@@ -40,21 +40,23 @@ CHUNK_SIZE = 1024 * 1024
 # named explicitly. Note this is NOT the same set as image_manager.COVER_OWNERS,
 # which has no `quote` - the shape reads uniform and is not.
 ATTACHABLE_OWNERS: frozenset[str] = frozenset(MEDIA_TABLES) | frozenset(
-    {"staff", "character", "publisher", "studio", "quote"}
+    {"staff", "character", "publisher", "studio", "quote", "meme"}
 )
 
 # The owner tables that carry a mirror column, and what that column is called.
 # Media entries mirror onto the `media` supertable's cover_image_file; the
 # entity tables carry their own. Read each definition rather than assuming the
 # shape is uniform - staff and character use `photo_file`, publisher and
-# studio use `logo_file` (not `cover_image_file`), and `quote` uses
-# `image_file` and resolves against static/quotes/ rather than static/covers/.
+# studio use `logo_file` (not `cover_image_file`), and `quote` and `meme` both
+# use `image_file` and resolve against static/quotes/ rather than
+# static/covers/.
 MIRROR_COLUMNS = {
     "staff": "photo_file",
     "character": "photo_file",
     "publisher": "logo_file",
     "studio": "logo_file",
     "quote": "image_file",
+    "meme": "image_file",
 }
 
 # `staff` maps to Person, not a `Staff` class - app/models/staff.py defines
@@ -65,7 +67,14 @@ _ENTITY_MODELS = {
     "publisher": models.Publisher,
     "studio": models.Studio,
     "quote": models.Quote,
+    "meme": models.Meme,
 }
+
+# Owners that attach with a role other than "cover". Everything else only
+# ever mirrors a "cover" role - expressed as set membership rather than a
+# growing list of `!= "quote"`-style comparisons, so the next non-cover owner
+# type does not have to remember to touch this guard too.
+NON_COVER_ROLE_OWNERS: frozenset[str] = frozenset({"quote", "meme"})
 
 
 def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
@@ -78,7 +87,7 @@ def mirror_to_owner_column(db, owner_type, owner_id, role, storage_key):
     change at all. Phases 2 and 3 - moving readers, then dropping the columns -
     are on the roadmap, and this function is what they eventually delete.
     """
-    if role != "cover" and owner_type != "quote":
+    if role != "cover" and owner_type not in NON_COVER_ROLE_OWNERS:
         return
 
     if owner_type in MEDIA_TABLES:
