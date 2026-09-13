@@ -1,11 +1,13 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-13 (backup and bind-mount material extended to cover `static/library/`, the uploaded-image store; OS install written out; ISO pinned to 26.04.1 LTS against releases.ubuntu.com; still nothing installed)
+Last verified: 2026-09-13 (machine inspected in the bundled Windows — parts, drive wear, SATA mode and disk contents confirmed and recorded; still nothing installed)
 
-> ## Status: hardware bought, nothing deployed yet
+> ## Status: hardware bought and inspected, nothing deployed yet
 >
-> **The machine is purchased** — an HP ProDesk 600 G4 Desktop Mini, bought
-> 2026-09-08 for NT$5,680 (see [The machine](#the-machine)). Everything else in
+> **The machine is purchased and inspected** — an HP ProDesk 600 G4 Desktop
+> Mini, bought 2026-09-08 for NT$5,680 (see [The machine](#the-machine)). It
+> matches what was advertised, the drive is healthy and every port works, so
+> it is being kept. Everything else in
 > this file is still ahead: no OS is installed, no production
 > `docker-compose.yml` exists, and none of the code changes under
 > [What has to change in the code](#what-has-to-change-in-the-code) have been
@@ -55,9 +57,9 @@ file is now about building on the machine that exists.**
 | | |
 | --- | --- |
 | **CPU** | Intel Core i5-8500T — 6C/6T, 2.1 GHz base / 3.5 GHz turbo, 35 W TDP, Coffee Lake, UHD 630 |
-| **RAM** | 16 GB DDR4 SO-DIMM, **2 slots, official maximum 32 GB** |
-| **Storage** | 512 GB SSD |
-| **Storage expansion** | 2× M.2 PCIe x4 (2280/2230) + 1× DM SATA connector for a 2.5" drive |
+| **RAM** | 16 GB DDR4 SO-DIMM as **2 × 8 GB, both slots occupied** — Kingston `9905700-012.A00G`, DDR4-2667 running at its rated 2667, dual channel (DIMM1 on channel B, DIMM3 on channel A). Official maximum is 32 GB, so that upgrade **replaces both sticks** rather than adding one. |
+| **Storage** | 512 GB **SATA** SSD — Transcend `TS512GSSD370S`, 477 GB usable, on the DM SATA connector. **Not NVMe**, so it appears as `/dev/sda` under Linux and tops out around 550 MB/s. |
+| **Storage expansion** | 2× M.2 PCIe x4 (2280/2230). The boot SSD is on the DM SATA connector, so both should be empty — not confirmed, since the case has not been opened |
 | **WLAN slot** | 1× M.2 PCIe x1 2230 — occupied by the bundled WiFi card |
 | **Network** | 1× RJ-45 Gigabit Ethernet |
 | **Video** | 2× DisplayPort 1.2 + one configurable port; a DP→HDMI adapter was included |
@@ -70,7 +72,35 @@ The Windows licence is irrelevant — this box runs Linux. The proprietary
 barrel-plug 變壓器 being included is the accessory that actually mattered;
 these are awkward to replace.
 
-**What to do with it when it arrives** is [Bringing up the box](#bringing-up-the-box)
+### Condition of the drive
+
+The SSD is used and holds the only copy of `static/library/`, so its wear
+numbers are the ones worth keeping. Read with CrystalDiskInfo:
+
+| | |
+| --- | --- |
+| Health / temperature | 良好 **97 %**, 25 °C idle |
+| Power-on hours | **4,325 h** — roughly six months of continuous use, far short of the ~20,000 h that marks a well-used drive |
+| Power cycles | 1,049 |
+| Host writes / NAND writes | 21,610 GB / 55,150 GB (write amplification ≈ 2.6) |
+| Reallocated sectors, uncorrectable errors | **0 / 0** |
+| Firmware | O0919A |
+
+This is the baseline to compare later readings against; the same numbers in
+`smartctl` form are taken in [step 9](#step-9--finish-the-hardware-checks).
+
+### Firmware and disk state as delivered
+
+- **SATA mode is already AHCI** (`Intel(R) 300 Series Chipset Family SATA AHCI
+  Controller`), not RAID / Intel RST, so the change in
+  [step 3](#step-3--bios-settings) is a confirmation rather than an edit.
+- **Virtualisation (VT-x) is enabled** in firmware.
+- The disk carries an EFI system partition (0.3 GB), `C:` (250 GB) and `D:`
+  (226.6 GB), and **nothing else — no HP recovery partition**. `D:` holds only
+  an empty recycle bin, so the whole disk can be given to the installer with
+  nothing to preserve.
+
+**What to do with it** is [Bringing up the box](#bringing-up-the-box)
 below — the inspection comes first, in the Windows it ships with, and the
 Windows licence stops mattering after that.
 
@@ -90,7 +120,7 @@ phase is a heading below, with its steps under it.
 | Phase | Where you are | Steps | What happens |
 | --- | --- | --- | --- |
 | **[A. Prepare the stick](#phase-a--prepare-the-usb-stick)** | At the dev machine | 1-2 | Download the ISO, write the USB. Touches nothing on the box, so do it while waiting for it to arrive. |
-| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. |
+| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. **Mostly done — the machine passed**; three checks remain, and none of them blocks phase C. |
 | **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Five firmware settings. **After phase B, never before** — see below. |
 | **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
 | **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the remaining hardware readings, the router. The monitor comes off at the start of this phase and does not go back on. |
@@ -108,11 +138,11 @@ Two things that are easy to get wrong, both of which cost real time:
   are a checkbox on one of the installer's own screens (step 5). By first boot,
   SSH is already running with your key already installed. Step 6 does not set it
   up; it is the moment you first *use* it and put the monitor away.
-- **The BIOS changes break Windows on purpose.** Switching SATA mode from RST to
-  AHCI stops the pre-installed Windows booting. That is expected and harmless —
-  Windows is about to be erased — but it means every check in phase B has to be
-  finished first. Do it the other way round and the easiest way to inspect a
-  machine that can still be returned is gone.
+- **Phase B has to be finished before phase D.** The install erases the
+  bundled Windows, and with it the easiest way to inspect a machine that can
+  still be returned — the WiFi card model and the serial/BIOS pair are read
+  there or not at all. (The usual extra hazard, SATA mode changing under
+  Windows, does not apply: this box is already AHCI.)
 
 ### Which Ubuntu, and why Server rather than Desktop
 
@@ -241,16 +271,28 @@ Three reasons the order matters:
 - **Nothing of yours is on it.** Wiping and starting over costs nothing at this
   point, so it is the right moment to stress it.
 
-| Check | How, in Windows | Why it matters |
-| --- | --- | --- |
-| **Is it the machine that was advertised?** i5-8500T, 16 GB, 512 GB | Right-click the taskbar → **Task Manager** → **Performance**, and **Settings → System → About** | The listing promised specific parts. Confirming them is the entire point of booting Windows first: a mismatch is a return, and only while the window is open. |
-| **Is the 16 GB `1×16 GB` or `2×8 GB`?** | Task Manager → Performance → **Memory**; read **"Slots used: 1 of 2"** | One stick leaves the second SO-DIMM slot free, so 32 GB later costs one module instead of two. Two sticks means any upgrade is a full replacement. Worth knowing before RAM prices move again. |
-| **SSD health and power-on hours** | [CrystalDiskInfo](https://crystalmark.info/) — free, portable, no install needed | It is a used drive of unknown age holding the only copy of the covers and, more importantly, the only copy of every uploaded image in `static/library/` — covers can be re-fetched, uploads cannot. Read **Health Status**, **Power On Hours** and **Total Host Writes**. Anything other than a Good/正常 health status is a return, not a risk to accept. Over ~20,000 hours is a well-used drive — fine, but plan the backup accordingly. |
-| **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. |
-| **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. |
-| **Does the hardware physically work?** | Plug something into each USB port, both DisplayPort outputs, and the headphone jack. Leave it running 30 minutes and listen | Used-machine faults are usually dead ports, a noisy or seized fan, or thermal shutdown under load — none of which a spec sheet shows. A machine that is loud on a desk is a machine that gets unplugged. |
-| **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. |
-| **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. |
+**Most of it is done, and the machine passed.** The readings live in
+[The machine](#the-machine) above — parts, [drive condition](#condition-of-the-drive)
+and [firmware state](#firmware-and-disk-state-as-delivered). What each check is
+for, and which three are still open:
+
+| Check | How, in Windows | Why it matters | Result |
+| --- | --- | --- | --- |
+| **Is it the machine that was advertised?** i5-8500T, 16 GB, 512 GB | Right-click the taskbar → **Task Manager** → **Performance**, and **Settings → System → About** | The listing promised specific parts. Confirming them is the entire point of booting Windows first: a mismatch is a return, and only while the window is open. | ✅ All three match. 6C/6T, 9 MB L3, 16.0 GB at 2667 MHz, 477 GB SSD. |
+| **Is the 16 GB `1×16 GB` or `2×8 GB`?** | Task Manager → Performance → **Memory**; read **"已使用插槽: 2 (總共 2)"** | One stick leaves the second SO-DIMM slot free, so 32 GB later costs one module instead of two. Two sticks means any upgrade is a full replacement. Worth knowing before RAM prices move again. | ⚠️ **2 × 8 GB, both slots used.** 32 GB means buying 2 × 16 GB and retiring both existing sticks. The consolation is that it runs dual-channel. |
+| **SSD health and power-on hours** | [CrystalDiskInfo](https://crystalmark.info/) — free, portable, no install needed | It is a used drive of unknown age holding the only copy of the covers and, more importantly, the only copy of every uploaded image in `static/library/` — covers can be re-fetched, uploads cannot. Read **Health Status**, **Power On Hours** and **Total Host Writes**. Anything other than a Good/正常 health status is a return, not a risk to accept. Over ~20,000 hours is a well-used drive — fine, but plan the backup accordingly. | ✅ 97 %, 4,325 h, zero reallocated or uncorrectable sectors — see [Condition of the drive](#condition-of-the-drive). |
+| **SATA mode** | `Get-CimInstance Win32_IDEController \| Select-Object Name` | If it reports RAID or Intel RST, the Ubuntu installer will find no disks. Knowing now turns [step 3](#step-3--bios-settings) into a confirmation instead of a surprise at the disk screen. | ✅ Already AHCI. |
+| **Is anything on the disk worth keeping?** | `Get-ChildItem D:\ -Force`, and `Get-Partition` | The installer takes the whole disk. A used machine occasionally arrives with the previous owner's files still on a second partition. | ✅ Nothing. `D:` holds an empty recycle bin; there is no recovery partition. |
+| **Does the hardware physically work?** | Plug something into each USB port, both DisplayPort outputs, and the headphone jack. Leave it running 30 minutes and listen | Used-machine faults are usually dead ports, a noisy or seized fan, or thermal shutdown under load — none of which a spec sheet shows. A machine that is loud on a desk is a machine that gets unplugged. | ✅ USB, both DisplayPorts and the headphone jack all work; quiet and 25 °C after 30 minutes. |
+| **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. | **Open** |
+| **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. | **Open** — obtainable later from Linux, unlike the rest. |
+| **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. | **Open** |
+| **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. | **Open** |
+
+**The three still open are the reason not to erase Windows yet.** The WiFi card,
+the PSU label and the serial/BIOS pair are all cheaper to read here than
+anywhere else, and two of them stop being readable at all once the disk is
+wiped.
 
 Most of the software answers come out of one PowerShell window (right-click
 Start → **Windows PowerShell**):
@@ -272,6 +314,14 @@ Get-NetAdapter | Select-Object Name, InterfaceDescription, MacAddress, Status
 
 # Serial number and BIOS
 Get-CimInstance Win32_BIOS | Select-Object SerialNumber, SMBIOSBIOSVersion, ReleaseDate
+
+# SATA mode — anything naming RAID or Intel RST means the BIOS needs changing
+Get-CimInstance Win32_IDEController | Select-Object Name
+
+# Partitions, and whether the second one holds anything of the previous owner's
+Get-Partition | Select-Object DiskNumber, PartitionNumber, DriveLetter, Type,
+  @{n='GB';e={[math]::Round($_.Size/1GB,1)}}
+Get-ChildItem D:\ -Force
 ```
 
 Write the answers down somewhere outside this machine — they are wanted again
@@ -282,17 +332,17 @@ eventually needs replacing.
 is urgent enough to justify building a server on a drive that reports Caution or
 a fan that screams. The seller's return window is short.
 
-**Finish all of it before touching the BIOS.** Phase C, next,
-switches SATA mode to AHCI, which stops this Windows installation booting — expected, since it
-is about to be erased, but it also ends your ability to run any of the checks
-above. Windows first, BIOS second.
+**Finish the open checks before phase D erases the disk.** The BIOS step is
+harmless here — SATA mode is already AHCI, so nothing phase C changes stops
+Windows booting — but the install in phase D takes the whole drive, and with it
+every answer that only Windows holds.
 
 #### What cannot be answered until Linux is running
 
 | Check | How | Why later |
 | --- | --- | --- |
 | Actual idle power | A plug-in power meter at the wall, once the box is installed, headless and idle | Expect roughly 8-12 W. Windows idles differently from a headless Linux server, so a measurement taken now would not describe the thing that actually runs 24/7. Worth doing once, since it is on all the time. |
-| A SMART baseline to compare against | `sudo smartctl -a /dev/nvme0n1`, in [step 9](#step-9--finish-the-hardware-checks) | Duplicates what CrystalDiskInfo already showed, but it is the reading in the form you will see it in from then on. Keep it. |
+| A SMART baseline to compare against | `sudo smartctl -a /dev/sda`, in [step 9](#step-9--finish-the-hardware-checks) | Duplicates what CrystalDiskInfo already showed, but it is the reading in the form you will see it in from then on. Keep it. |
 
 #### What the WiFi-card answer decides
 
@@ -323,11 +373,12 @@ These are set on the box itself, in its firmware, and they have to be right
 *before* the installer boots — the first one decides whether the installer can
 see the drive at all. Press **F10** at power-on to get in.
 
-1. **SATA mode → AHCI** (from RAID / Intel RST). Without this the Linux
-   installer will reach the disk step and report that there are no disks — the
-   single most common way this install goes wrong on these HP machines. It also
-   stops the pre-installed Windows booting, which is why every check in
-   [phase B](#phase-b--inspect-the-machine-in-the-bundled-windows) has to be done first.
+1. **SATA mode → AHCI.** This box is **already AHCI**, so confirm it and move
+   on. It is listed first because RAID / Intel RST is the single most common
+   way this install goes wrong on these HP machines: the installer reaches the
+   disk step and reports that there are no disks. Changing the mode would also
+   stop the pre-installed Windows booting — not a concern here, since nothing
+   needs changing.
 2. **After Power Loss → Power On.** The default is to stay off. For an
    always-on server this is the difference between a brief power cut and a trip
    home to press a button.
@@ -600,13 +651,16 @@ matters, because it is the state the box spends its life in.
 `smartmontools` and `dmidecode` were installed in step 7:
 
 ```bash
-sudo smartctl -a /dev/nvme0n1 | grep -i "power_on\|percentage used\|health"
-sudo dmidecode -t memory | grep -A2 "Memory Device"    # confirms the 1x16 / 2x8 answer
+sudo smartctl -a /dev/sda | grep -i "power_on\|health\|reallocated"
+sudo dmidecode -t memory | grep -A2 "Memory Device"    # should show two 8 GB sticks
 ```
 
-The memory line should agree with what Task Manager said in Windows. If it does
-not, trust this one — and re-read the disk numbers too, since something was
-misread the first time.
+The drive is SATA, not NVMe, so it is `/dev/sda` — `/dev/nvme0n1` does not
+exist on this box. Compare the readings against
+[Condition of the drive](#condition-of-the-drive): health, 4,325 power-on hours
+and zero reallocated sectors. The memory output should show two 8 GB sticks. If
+either disagrees with what Windows reported, trust this one and re-read
+everything, since something was misread the first time.
 
 #### Step 10 — Give it a fixed address on the router
 
@@ -662,7 +716,7 @@ as containers in build-order step 4.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| Installer says there are no disks | SATA mode is RAID / Intel RST | Reboot into F10, set SATA mode to AHCI ([step 3](#step-3--bios-settings)), start over. |
+| Installer says there are no disks | SATA mode is RAID / Intel RST | Unlikely on this box — it ships AHCI — so suspect a disconnected drive first. If F10 does show RAID/RST, set it to AHCI ([step 3](#step-3--bios-settings)) and start over. |
 | The USB stick does not appear in the F9 boot menu | Written in a way that is not bootable, or Secure Boot objects | Rewrite with Rufus in ISO mode, GPT / UEFI. Ubuntu is signed, so Secure Boot is normally not the cause. |
 | It boots the installer again after finishing | The stick was left in, or it is ahead of the SSD in the boot order | Remove the stick; if it persists, fix the boot order in F10. |
 | No IPv4 address during the network step | Cable, port, or the router | Try the other end of the cable and another router port. Do not fall back to WiFi. |
@@ -696,12 +750,14 @@ travel to a container.
 **The 512 GB SSD holds this roughly 1,800 times over.** At ten times the
 current collection — 20,000 entries — covers would reach about 2.5 GB and the
 database about 250 MB. Storage capacity will not be a constraint on this
-machine, and the two free M.2 slots plus the DM SATA connector mean it could
-not become one without plenty of warning.
+machine, and the two M.2 slots mean it could not become one without plenty of
+warning — an NVMe drive added there would also be considerably faster than the
+SATA disk the box boots from.
 
 This is also why the box was chosen for RAM rather than capacity: memory
 decides how many apps share it, and at 2026 prices it is the one spec that is
-ruinous to add later.
+ruinous to add later. Both SO-DIMM slots being full makes that sharper still —
+going to 32 GB buys 2 × 16 GB and throws away the pair already fitted.
 
 ### One outlier worth knowing about
 
