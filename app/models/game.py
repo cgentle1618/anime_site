@@ -103,16 +103,25 @@ class Game(Base, NameFallbackMixin):
     # plus "Main Story" is the ordinary state of having rolled credits and
     # still playing for achievements.
     completion_level = Column(String, nullable=True)
-    # Three tristate flags, orthogonal to completion_level and to each other:
+    # Three completion axes, orthogonal to completion_level and to each other:
     # every ending can be seen on a main-story-only run, and a collectible
     # missed on a Completionist one.
-    all_endings = Column(Boolean, nullable=True)
+    #
+    # Each carries GAME_COMPLETION_FLAGS - "Yes" / "No" / "Inapplicable" - with
+    # NULL as the unrecorded fourth state. A game that ships no endings, or
+    # publishes no achievements, answers "Inapplicable"; that is a claim about
+    # the game, where NULL is only a claim about the row. No CHECK constraint,
+    # matching completion_level and game_type: the vocabulary lives in
+    # app/utils/constants.py and reaches the client via /api/constants.
+    all_endings = Column(String, nullable=True)
     # Stored, never derived from the counts below - they are often unknown
     # (no published achievement list, or the numbers not looked up yet).
-    all_achievements = Column(Boolean, nullable=True)
-    all_collected = Column(Boolean, nullable=True)
-    # Whether Steam may write this entry's progress. Not a completion flag:
-    # it is about the source, not about the game. See the migration.
+    all_achievements = Column(String, nullable=True)
+    all_collected = Column(String, nullable=True)
+    # Whether Steam may write this entry's progress. Not a completion axis: it
+    # is about the source, not about the game, so it stayed a boolean when the
+    # three above became a vocabulary. autofill.py tests it with `is False`,
+    # and NULL means "never asked", which counts as permission.
     steam_progress_sync = Column(Boolean, nullable=True)
     achievements_earned = Column(Integer, nullable=True)
     achievements_total = Column(Integer, nullable=True)

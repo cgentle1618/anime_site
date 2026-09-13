@@ -1,6 +1,7 @@
 # Roadmap
 
 Last verified: 2026-09-13 (game spend on the statistics page, with hand-maintained FX rates; AniList fills a second score and two all-time ranks; the admin account holds no user data; the authorization redesign is complete: phases 0, A, A.1, B, C and D)
+Last verified: 2026-09-13 (the three game completion axes carry a vocabulary with an Inapplicable state; AniList fills a second score and two all-time ranks; the admin account holds no user data; the authorization redesign is complete: phases 0, A, A.1, B, C and D)
 Last verified: 2026-09-13 (the franchise library has a table view and fetches all nine entry types; AniList fills a second score and two all-time ranks; the admin account holds no user data; the authorization redesign is complete: phases 0, A, A.1, B, C and D)
 
 ## What this is for

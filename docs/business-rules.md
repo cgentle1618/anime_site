@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -265,9 +265,9 @@ other and none derived from `playing_status`:
 | Axis | Column(s) | Why it is its own axis |
 | --- | --- | --- |
 | Depth of content | `completion_level` (`Main Story` → `Main + Extras` → `Post-game` → `Completionist`) | A ladder of how much of the game was played. Independent of `playing_status`: `Active Playing` **plus** `Main Story` is the ordinary state of having rolled credits and still playing for achievements. |
-| Endings | `all_endings` (tristate boolean) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. |
-| Achievements, judged | `all_achievements` (tristate boolean) | Deliberately not derived from the counts below. The counts are frequently unknown - platforms that publish no achievement list, or a row entered before the numbers were looked up - so "did I get them all" is answered directly. |
-| Collectibles | `all_collected` (tristate boolean) | Every in-game collectible gathered. A Completionist run can still miss one. |
+| Endings | `all_endings` (GAME_COMPLETION_FLAGS) | Orthogonal to the ladder: every ending can be seen on a main-story-only run, and missed on a Completionist one. `Inapplicable` for a game with no endings to see. |
+| Achievements, judged | `all_achievements` (GAME_COMPLETION_FLAGS) | Deliberately not derived from the counts below. The counts are frequently unknown - a row entered before the numbers were looked up, which is `NULL`, or a platform that publishes no achievement list, which is `Inapplicable` - so "did I get them all" is answered directly. |
+| Collectibles | `all_collected` (GAME_COMPLETION_FLAGS) | Every in-game collectible gathered. A Completionist run can still miss one, and a game with nothing to collect is `Inapplicable`. |
 | Achievements, counted | `achievements_earned` / `achievements_total` | A number the platform keeps, not a judgement about content. |
 
 Consequences worth stating plainly, because they are what makes games unlike

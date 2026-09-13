@@ -304,9 +304,11 @@ export function gameFieldsPayload(f) {
     // ck_games_base_no_parent: a Base Game may never carry one.
     base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
     completion_level: f.completion_level || null,
-    all_endings: tri(f.all_endings),
-    all_achievements: tri(f.all_achievements),
-    all_collected: tri(f.all_collected),
+    // A vocabulary, not a tristate - the value travels as itself so that
+    // "Inapplicable" survives. "" is still the unrecorded state.
+    all_endings: f.all_endings || null,
+    all_achievements: f.all_achievements || null,
+    all_collected: f.all_collected || null,
     steam_progress_sync: tri(f.steam_progress_sync),
     achievements_earned: int(f.achievements_earned),
     achievements_total: int(f.achievements_total),

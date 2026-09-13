@@ -15,6 +15,10 @@ from uuid import UUID
 from app.services.domain.watch_order import normalize_importance
 from app.utils import release_date
 
+# The vocabulary the three game completion axes carry. Imported so the sheet
+# parser and the API cannot disagree about what a valid value is.
+from app.utils.constants import GAME_COMPLETION_FLAGS
+
 # The scope -> owner column map. plan_next_kinds imports only media_resolver,
 # so there is no cycle.
 from app.utils.plan_next_kinds import OWNER_COLUMN
@@ -118,6 +122,37 @@ def _uuid_or_none(val: Any) -> Any:
     """
     parsed = parse_from_sheet(val, UUID)
     return parsed if isinstance(parsed, UUID) else None
+
+
+def parse_completion_flag(val_str: Any) -> Optional[str]:
+    """
+    Parses one of games.all_endings / all_achievements / all_collected.
+
+    These are a GAME_COMPLETION_FLAGS vocabulary, not booleans, because
+    "Inapplicable" - the game has no endings at all - is a different answer
+    from "No", and both differ from the blank "not recorded yet" (None).
+
+    Sheets written before the columns became a vocabulary hold TRUE and FALSE,
+    and a backup is the only copy of the data that crosses between the two dev
+    machines, so Pull has to keep reading them: anything parse_from_sheet would
+    have called a boolean maps to "Yes" / "No". A value that is neither the
+    vocabulary nor a boolean is dropped to None rather than stored, because no
+    code branch would recognise it.
+    """
+    if val_str is None or str(val_str).strip() == "":
+        return None
+
+    raw = str(val_str).strip()
+    for flag in GAME_COMPLETION_FLAGS:
+        if raw.casefold() == flag.casefold():
+            return flag
+
+    legacy = parse_from_sheet(raw, bool)
+    if legacy is True:
+        return "Yes"
+    if legacy is False:
+        return "No"
+    return None
 
 
 def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
@@ -873,9 +908,9 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "game_type": parse_from_sheet(raw.get("game_type"), str),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
-        "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
-        "all_achievements": parse_from_sheet(raw.get("all_achievements"), bool),
-        "all_collected": parse_from_sheet(raw.get("all_collected"), bool),
+        "all_endings": parse_completion_flag(raw.get("all_endings")),
+        "all_achievements": parse_completion_flag(raw.get("all_achievements")),
+        "all_collected": parse_completion_flag(raw.get("all_collected")),
         "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
         "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
