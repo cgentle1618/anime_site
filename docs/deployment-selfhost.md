@@ -1,6 +1,6 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-13 (machine inspected in the bundled Windows — parts, drive wear, SATA mode, disk contents, network cards and firmware confirmed and recorded; still nothing installed)
+Last verified: 2026-09-13 (machine inspected in the bundled Windows and kept — parts, drive wear, SATA mode, disk contents, network cards, firmware and PSU all confirmed and recorded; still nothing installed)
 
 > ## Status: hardware bought and inspected, nothing deployed yet
 >
@@ -100,10 +100,13 @@ This is the baseline to compare later readings against; the same numbers in
   `Win32_BIOS` report the same serial, so the board is the one the case was
   built with. `AV` marks a configure-to-order unit, which is why the memory is
   Kingston rather than HP-branded.
-- **BIOS `Q22 Ver. 02.35.00`, dated 2026-07-28** — recent firmware rather than a
-  factory image, so there is probably nothing to flash. Confirm against HP's
-  support page before the install, since flashing is far easier from the
-  bundled Windows than from Linux.
+- **BIOS `Q22 Ver. 02.35.00`, dated 2026-07-28.** Recent firmware, not a factory
+  image: HP's published history for the Q22 family reaches 02.27.00 in March
+  2024 and 02.30.00 in January 2025, so this machine is ahead of both.
+  **Treated as current, and not flashed.** If it is ever worth revisiting, do it
+  from the bundled Windows — HP ships these as a Windows `.exe`, and from Linux
+  it means `fwupd` or a bootable updater.
+- **PSU** — the genuine HP brick, 19.5 V, as listed.
 - **Warranty expired.** The label reads 3y/3y/3y from original purchase, so the
   seller's return window is the only remedy there is.
 - The disk carries an EFI system partition (0.3 GB), `C:` (250 GB) and `D:`
@@ -131,7 +134,7 @@ phase is a heading below, with its steps under it.
 | Phase | Where you are | Steps | What happens |
 | --- | --- | --- | --- |
 | **[A. Prepare the stick](#phase-a--prepare-the-usb-stick)** | At the dev machine | 1-2 | Download the ISO, write the USB. Touches nothing on the box, so do it while waiting for it to arrive. |
-| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. **Done — the machine passed**; only the PSU label is unchecked, and it blocks nothing. |
+| **[B. Inspect](#phase-b--inspect-the-machine-in-the-bundled-windows)** | At the box, in **the bundled Windows** | — | Every check that needs Windows, run before anything is changed. Ends with a keep-or-return decision. **Done — the machine passed on every check.** |
 | **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Five firmware settings. **After phase B, never before** — see below. |
 | **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
 | **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the remaining hardware readings, the router. The monitor comes off at the start of this phase and does not go back on. |
@@ -297,13 +300,13 @@ for, and which three are still open:
 | **Does the hardware physically work?** | Plug something into each USB port, both DisplayPort outputs, and the headphone jack. Leave it running 30 minutes and listen | Used-machine faults are usually dead ports, a noisy or seized fan, or thermal shutdown under load — none of which a spec sheet shows. A machine that is loud on a desk is a machine that gets unplugged. | ✅ USB, both DisplayPorts and the headphone jack all work; quiet and 25 °C after 30 minutes. |
 | **Which WiFi card is fitted?** | **Device Manager → Network adapters** | Intel cards work in the Ubuntu installer; several Realtek ones need a driver compiled after install, which cannot be done without a network. This decides whether the first setup can happen over WiFi at all — see [if no cable can reach the box](#if-no-cable-can-reach-the-box). Windows is much the easiest place to learn this, and the answer is gone once it is erased. | ✅ Intel **Dual Band Wireless-AC 8265** — supported by the installer. |
 | **The Ethernet MAC address** | Device Manager, or the PowerShell block below | Needed for the DHCP reservation in [step 10](#step-10--give-it-a-fixed-address-on-the-router). Writing it down now saves a trip back to the console later. | ✅ I219-LM, `B0-5C-DA-34-A2-0C`. |
-| **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. | **Open** |
+| **PSU is the genuine HP unit** | Look at the label on the brick | Listed as 原廠; third-party bricks on these are a known source of instability, and the proprietary barrel plug makes a replacement awkward. | ✅ Genuine HP, 19.5 V. |
 | **Serial number and BIOS version** | **Settings → System → About**, or the block below | The serial dates the machine on HP's support site, which is the only honest answer to "how old is this really". The BIOS version tells you whether an update is worth applying before Linux goes on. | ✅ Serial `8CC0201TF9`, BIOS `Q22 Ver. 02.35.00` (2026-07-28). |
 
-**One check is still open — the PSU label — and it is a look at the brick, not
-a command.** Everything Windows can answer has been answered, so the only
-reason left to keep it is that flashing a BIOS update is far easier from here
-than from Linux. Settle that question before phase D takes the disk.
+**All of it passes; the machine is kept.** The only reason left to keep the
+bundled Windows is that flashing a BIOS update is far easier from here than
+from Linux — and that looks unnecessary, see below. Once that is settled,
+nothing else needs Windows and phase D can take the disk.
 
 Most of the software answers come out of one PowerShell window (right-click
 Start → **Windows PowerShell**):
