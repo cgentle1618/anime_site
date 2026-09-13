@@ -1,5 +1,5 @@
 // Frontend: page component file for Index.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
@@ -8,6 +8,11 @@ import DashboardCard from "../../components/tracker/DashboardCard";
 import NovelDashboardCard from "../../components/tracker/NovelDashboardCard";
 import ComicDashboardCard from "../../components/tracker/ComicDashboardCard";
 import GameDashboardCard from "../../components/tracker/GameDashboardCard";
+import { DashboardTable } from "../../components/tracker/DashboardTable";
+import {
+  readDashboardView,
+  writeDashboardView,
+} from "../../lib/dashboardView";
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
@@ -60,7 +65,7 @@ const MEDIA_TYPES = [
 // divisions; the same state renders under both headers. While a type is
 // picked the bar pins below the sticky division header and reports its
 // height so the sub-section headers can stack beneath it.
-function TypeFilterBar({ id, types, value, onChange, sticky, top, onHeightChange }) {
+function TypeFilterBar({ id, types, value, onChange, sticky, top, onHeightChange, view, onViewChange }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!sticky) return;
@@ -101,6 +106,31 @@ function TypeFilterBar({ id, types, value, onChange, sticky, top, onHeightChange
           </button>
         );
       })}
+      {/* The mode is one setting for the whole dashboard, so every division's
+          bar shows the same state and can change it. */}
+      <div className="ml-auto flex items-center gap-2">
+        <Eyebrow className="mr-1">View</Eyebrow>
+        {[
+          ["Cards", "card"],
+          ["List", "list"],
+        ].map(([label, val]) => {
+          const isActive = view === val;
+          return (
+            <button
+              key={val}
+              onClick={() => onViewChange(val)}
+              aria-pressed={isActive}
+              className={`px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+                isActive
+                  ? "border-brand text-brand"
+                  : "border-border text-text-faint hover:text-text hover:border-border-strong"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -174,6 +204,7 @@ function Section({
   isAdmin,
   onEpChange,
   headerTop,
+  view,
 }) {
   const typeGroups = { Anime: [], "TV Show": [], Cartoon: [] };
   items.forEach((item) => {
@@ -200,6 +231,27 @@ function Section({
       {items.length === 0 ? (
         <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
           <p className="text-sm text-text-faint">Nothing filed here right now.</p>
+        </div>
+      ) : view === "list" ? (
+        // List view drops the per-type sub-headings: Type is a column, so
+        // grouping by it would say the same thing twice and cost the density
+        // the view exists for. `items` already arrives sorted by rating then
+        // name across all three types.
+        <div className="pt-4">
+          <DashboardTable>
+            {items.map((anime) => (
+              <DashboardCard
+                key={anime.system_id}
+                anime={anime}
+                franchise={franchiseData.find(
+                  (f) => f.system_id === anime.franchise_id,
+                )}
+                isAdmin={isAdmin}
+                onEpChange={onEpChange}
+                view="list"
+              />
+            ))}
+          </DashboardTable>
         </div>
       ) : (
         <div className="pt-4 space-y-6">
@@ -252,6 +304,7 @@ function ReadingSection({
   onNovelProgressChange,
   onComicProgressChange,
   headerTop,
+  view,
 }) {
   return (
     <div id={id}>
@@ -270,6 +323,50 @@ function ReadingSection({
       {items.length === 0 ? (
         <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
           <p className="text-sm text-text-faint">Nothing filed here right now.</p>
+        </div>
+      ) : view === "list" ? (
+        <div className="pt-4">
+          <DashboardTable>
+            {items.map((item) => {
+              const franchise = franchiseData.find(
+                (f) => f.system_id === item.franchise_id,
+              );
+              if (item._ui_type === "Comic") {
+                return (
+                  <ComicDashboardCard
+                    key={item.system_id}
+                    comic={item}
+                    franchise={franchise}
+                    isAdmin={isAdmin}
+                    onProgressChange={onComicProgressChange}
+                    view="list"
+                  />
+                );
+              }
+              if (item._ui_type === "Novel") {
+                return (
+                  <NovelDashboardCard
+                    key={item.system_id}
+                    novel={item}
+                    franchise={franchise}
+                    isAdmin={isAdmin}
+                    onProgressChange={onNovelProgressChange}
+                    view="list"
+                  />
+                );
+              }
+              return (
+                <DashboardCard
+                  key={item.system_id}
+                  anime={item}
+                  franchise={franchise}
+                  isAdmin={isAdmin}
+                  onEpChange={onChChange}
+                  view="list"
+                />
+              );
+            })}
+          </DashboardTable>
         </div>
       ) : (
         <div className="pt-4 space-y-6">
@@ -350,6 +447,7 @@ function PlayingSection({
   items,
   franchiseData,
   headerTop,
+  view,
 }) {
   return (
     <div id={id}>
@@ -367,6 +465,21 @@ function PlayingSection({
       {items.length === 0 ? (
         <div className="mt-2 py-8 px-4 border border-dashed border-border-strong text-center">
           <p className="text-sm text-text-faint">Nothing filed here right now.</p>
+        </div>
+      ) : view === "list" ? (
+        <div className="pt-4">
+          <DashboardTable>
+            {items.map((item) => (
+              <GameDashboardCard
+                key={item.system_id}
+                game={item}
+                franchise={franchiseData.find(
+                  (f) => f.system_id === item.franchise_id,
+                )}
+                view="list"
+              />
+            ))}
+          </DashboardTable>
         </div>
       ) : (
         <div className="pt-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -435,6 +548,12 @@ export default function Index() {
   // One type filter shared by Watching and Reading: null shows every type;
   // a value shows only it across both divisions.
   const [typeFilter, setTypeFilter] = useState(null);
+  // Card or list. A per-device display preference, so it is read from and
+  // written to localStorage and never travels to the server.
+  const [view, setView] = useState(readDashboardView);
+  const changeView = useCallback((next) => {
+    setView(writeDashboardView(next));
+  }, []);
   const [filterBarH, setFilterBarH] = useState(0);
 
   // Subsection headers pin below a division header. Its height depends on
@@ -853,6 +972,8 @@ export default function Index() {
               sticky={!!typeFilter}
               top={divisionTop}
               onHeightChange={setFilterBarH}
+              view={view}
+              onViewChange={changeView}
             />
             <div className="pt-8 space-y-12">
               <Section
@@ -862,6 +983,7 @@ export default function Index() {
                 items={active}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -872,6 +994,7 @@ export default function Index() {
                 items={passive}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -882,6 +1005,7 @@ export default function Index() {
                 items={paused}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onEpChange={handleEpChange}
               />
@@ -915,6 +1039,8 @@ in progress
               sticky={!!typeFilter}
               top={divisionTop}
               onHeightChange={setFilterBarH}
+              view={view}
+              onViewChange={changeView}
             />
             <div className="pt-8 space-y-12">
               <ReadingSection
@@ -924,6 +1050,7 @@ in progress
                 items={activeReading}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
@@ -936,6 +1063,7 @@ in progress
                 items={passiveReading}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
@@ -948,6 +1076,7 @@ in progress
                 items={pausedReading}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
                 isAdmin={isAdmin}
                 onChChange={handleChChange}
                 onNovelProgressChange={handleNovelProgressChange}
@@ -984,6 +1113,8 @@ in progress
               sticky={!!typeFilter}
               top={divisionTop}
               onHeightChange={setFilterBarH}
+              view={view}
+              onViewChange={changeView}
             />
             <div className="pt-8 space-y-12">
               <PlayingSection
@@ -993,6 +1124,7 @@ in progress
                 items={activePlaying}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
               />
               <PlayingSection
                 id="playing-passive"
@@ -1001,6 +1133,7 @@ in progress
                 items={passivePlaying}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
               />
               <PlayingSection
                 id="playing-anytime"
@@ -1009,6 +1142,7 @@ in progress
                 items={anytimePlaying}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
               />
               <PlayingSection
                 id="playing-paused"
@@ -1017,6 +1151,7 @@ in progress
                 items={pausedPlaying}
                 franchiseData={franchiseData}
                 headerTop={subHeaderTop}
+                view={view}
               />
             </div>
           </div>
