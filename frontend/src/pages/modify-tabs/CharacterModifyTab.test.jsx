@@ -34,6 +34,25 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn((url, options = {}) => {
+      const u = String(url);
+      if (u === "/api/images" && options.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              system_id: "img1",
+              storage_key: "library/uploaded.jpg",
+            }),
+        });
+      }
+      if (u.includes("/attach") && options.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ system_id: "att1" }),
+        });
+      }
       if (options.method === "PUT") {
         return Promise.resolve({
           ok: true,
@@ -45,7 +64,7 @@ beforeEach(() => {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(respond(String(url))),
+        json: () => Promise.resolve(respond(u)),
       });
     }),
   );
@@ -86,6 +105,30 @@ it("loads the picked character into the form", async () => {
   expect(
     screen.getByDisplayValue("スパイク・スピーゲル"),
   ).toBeInTheDocument();
+});
+
+// The Photo field renders ImagePicker rather than a bare text input once a
+// character is selected (selectedId is the ownerId ImagePicker attaches to),
+// and picking a file uploads it, attaches it to this character, and writes
+// the returned storage key back into the form.
+it("renders the image picker for Photo and writes the picked key through", async () => {
+  const user = userEvent.setup();
+  await openSpike(user);
+
+  const fileInput = screen.getByLabelText(/upload/i);
+  const file = new File(["x"], "spike.jpg", { type: "image/jpeg" });
+  await user.upload(fileInput, file);
+
+  await waitFor(() =>
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "/static/library/uploaded.jpg",
+    ),
+  );
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/attach"),
+    expect.objectContaining({ method: "POST" }),
+  );
 });
 
 // Same reason as the Studio and Person tabs: the toast sits at the top of a

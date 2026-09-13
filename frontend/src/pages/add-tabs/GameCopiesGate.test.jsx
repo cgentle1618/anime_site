@@ -7,6 +7,7 @@
 // skips a `copies` payload from such a caller for the same reason
 // (app/services/domain/game_copies.py), so this is the first of two stops
 // rather than the only one.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GameFormBody } from "./GameAddTab";
@@ -17,9 +18,16 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ has: mockHas }),
 }));
 
+// The Cover Image field is now an ImagePicker, which reads react-query hooks
+// even before anything is uploaded - every render needs a QueryClientProvider.
 function renderBody() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <GameFormBody f={defaultGame()} u={() => {}} allGames={[]} sources={[]} />,
+    <QueryClientProvider client={client}>
+      <GameFormBody f={defaultGame()} u={() => {}} allGames={[]} sources={[]} />
+    </QueryClientProvider>,
   );
 }
 

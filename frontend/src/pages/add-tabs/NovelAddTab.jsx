@@ -9,6 +9,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -664,12 +665,15 @@ export default function NovelAddTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. novel/5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="novel"
+          role="cover"
           value={nvf.cover_image_file}
-          onChange={(e) => unv("cover_image_file", e.target.value)}
-          placeholder="novel/5114.jpg"
+          onChange={(key, imageId) => {
+            unv("cover_image_file", key);
+            unv("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

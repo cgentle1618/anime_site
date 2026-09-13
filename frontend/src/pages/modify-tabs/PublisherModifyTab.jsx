@@ -197,7 +197,11 @@ export default function PublisherModifyTab() {
           </div>
 
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-            <PublisherFields publisherForm={publisherForm} upf={upf} />
+            <PublisherFields
+              publisherForm={publisherForm}
+              upf={upf}
+              ownerId={selectedId}
+            />
           </div>
 
           <div className="flex justify-end">

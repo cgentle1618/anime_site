@@ -36,6 +36,7 @@ export default function GameModifyTab({
         allGames={allGames}
         excludeGameId={editingItem?.system_id}
         sources={sources}
+        ownerId={editingItem?.system_id}
       />
     </>
   );
