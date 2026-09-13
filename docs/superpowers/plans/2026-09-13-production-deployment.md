@@ -791,8 +791,13 @@ password.
 - Consumes: a working production app from Task 7.
 - Produces: a populated production sheet; the development sheet untouched.
 
-- [ ] **Step 1: Create a new empty Google Sheet** named so it cannot be confused
-  with the development one, e.g. `CG1618 Media — PRODUCTION`.
+- [ ] **Step 1: Create a new empty Google Sheet** named **App Database**.
+
+The spreadsheet's name is for humans only — `open_by_key` is the only way the
+app opens it (`app/services/integrations/sheets.py:184`), so it can be renamed
+at any time without consequence. The **tab** names inside are the opposite:
+`app/services/pipelines/tabs.py` matches them exactly, so renaming one makes
+Backup create a fresh tab under the old name and leave the renamed one stale.
 
 - [ ] **Step 2: Share it with the service account**
 

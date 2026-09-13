@@ -122,7 +122,11 @@ handover into a three-way sync with no merge.
 `get_google_sheet_tab` creates a tab when it does not find one
 (`app/services/integrations/sheets.py:199`), so a **new empty spreadsheet**
 works: production's first Backup builds every tab itself. The service account
-needs Editor access on it.
+needs Editor access on it. Production's sheet is named **App Database**, which
+matters to nobody but a human: `open_by_key` is the only way the app opens a
+spreadsheet (`sheets.py:184`), so the name is free to change and the id is not.
+Tab names, by contrast, are matched exactly by
+`app/services/pipelines/tabs.py`.
 
 Production therefore never runs Pull All, and is never configured with the dev
 sheet's id. That matters because Backup overwrites every tab: the configuration
