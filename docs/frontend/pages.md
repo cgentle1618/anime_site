@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -160,6 +160,19 @@ File `pages/public/Index.jsx`.
 `useApiQuery(["announcements"], "/api/announcements/")`. Announcements are kept
 out of the combined loading/error gate so a failure there never blanks the
 dashboard.
+
+**Card or list**: each division's `TypeFilterBar` carries a **View** toggle
+(Cards / List) at its right end. It is one setting for the whole dashboard —
+flipping it in any division changes all three — and it persists per browser in
+`localStorage` through `lib/dashboardView.js`, never server-side. In list view
+a section renders one `DashboardTable` holding every type it contains, instead
+of a grid of tiles grouped by type: Type is a column, so the per-type
+sub-headings would say the same thing twice. The columns are Title, Type,
+Status, Rating and Progress; each row's Progress carries its own unit (`ep`,
+`ch`, `vol`, `iss`, `h`) because the types do not measure the same thing. List
+view has **no stepper** — tracking stays in card view and on the entry page.
+The table scrolls sideways inside its own wrapper below ~640px so the page
+itself never does.
 
 **Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
 division with a `scrollY + 140` threshold):
