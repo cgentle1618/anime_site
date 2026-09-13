@@ -394,21 +394,41 @@ These are set on the box itself, in its firmware, and they have to be right
 *before* the installer boots — the first one decides whether the installer can
 see the drive at all. Press **F10** at power-on to get in.
 
-1. **SATA mode → AHCI.** This box is **already AHCI**, so confirm it and move
-   on. It is listed first because RAID / Intel RST is the single most common
-   way this install goes wrong on these HP machines: the installer reaches the
-   disk step and reports that there are no disks. Changing the mode would also
-   stop the pre-installed Windows booting — not a concern here, since nothing
-   needs changing.
-2. **After Power Loss → Power On.** The default is to stay off. For an
-   always-on server this is the difference between a brief power cut and a trip
-   home to press a button.
-3. **Wake on LAN** — leave enabled if remote power-on is ever wanted; harmless.
-4. **Secure Boot** — Ubuntu supports it, so it can stay on. Turn it off only if
-   an out-of-tree driver later needs it.
-5. Set a BIOS password if the box will be physically reachable by others.
+The menu is **HP Computer Setup**, four tabs — Main, Security, Advanced, UEFI
+Drivers — and everything below is under **Advanced**.
 
-Save and exit (**F10**), and leave the USB stick plugged in.
+1. **`Advanced → Boot Options → After Power Loss` = `Power On`.** The one
+   setting that actually has to be right. For an always-on server this is the
+   difference between a brief power cut and a trip home to press a button. Not
+   `Previous State`: a machine that was off for an unrelated reason then stays
+   off.
+2. **`Advanced → Power Management Options → S5 Maximum Power Savings` must stay
+   UNCHECKED.** It is off by default. Enabling it cuts power to devices in S5
+   and is a known way to break both Wake-on-LAN and reliable power-on-after-
+   loss — it quietly undoes setting 1, which is why it is listed second rather
+   than buried.
+3. **`Advanced → System Options → Configure Storage Controller for RAID` stays
+   unchecked**, which is how AHCI reads on this firmware. RAID / Intel RST is
+   the single most common way this install goes wrong on these HP machines: the
+   installer reaches the disk step and reports that there are no disks. Nothing
+   to change here — the box ships correct.
+4. **`Advanced → Boot Options → USB Storage Boot` must be ticked** or the F9
+   menu in [step 4](#step-4--boot-the-installer) will not list the stick. It is
+   ticked by default.
+5. **`Advanced → Built-In Device Options → Wake On LAN`** — `Boot to Hard Drive`
+   is right; leave it.
+6. **`Advanced → Secure Boot Configuration`** — Ubuntu supports it, so leave it
+   enabled. Turn it off only if an out-of-tree driver later needs it.
+7. **`Security`** — set a BIOS password if the box will be physically reachable
+   by others. No benefit against a remote attacker.
+
+Two optional, neither needed: **`Network (PXE) Boot`** can be unticked, since
+this box will never PXE boot and it is one less network-facing firmware path;
+and **`LAN / WLAN Auto Switching`** is better left off, so that which interface
+is up is netplan's decision and not firmware's.
+
+Save and exit (**Main → Save Changes and Exit**, or **F10**), and leave the USB
+stick plugged in.
 
 ### Phase D — Install Ubuntu
 
