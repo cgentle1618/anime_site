@@ -1,6 +1,6 @@
 # Migrations history
 
-Last verified: 2026-09-04 (commit c80c84a)
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -99,6 +99,20 @@ table, the chain wins.
 | 78 | `nv1u2n3i4t5s` (head) | Create `novel_unit`; add `novel.ch_fin_in_arc`; migrate `novel_name_each_cn`/`novel_name_each_en` to `novel_unit` rows then drop both columns | zips the two parallel per-volume JSONB lists into one row per surviving position (`unit_key` prefers CN's key, falling back to EN's; a position where key and both names are empty is skipped); `ch_fin_in_arc` gets `server_default='0'`. **Downgrade is lossy on purpose**: it rebuilds the two JSONB lists from `volume`-kind rows only — `arc`/`story`/`chapter` rows and every unit's `remark` have nowhere to go in the old shape and are dropped. Run a Sheets Backup before upgrading |
 
 ## Patterns worth knowing
+
+- **A UNIQUE index is not a UNIQUE constraint, and dropping one leaves the
+  other.** #1 replaced `seasonal.seasonal`'s unique *constraint* with a unique
+  *index*; `m3b1seasonal` later made the table per-user and dropped the primary
+  key and `seasonal_seasonal_key`, but `ix_seasonal_seasonal` is an index, so
+  `DROP CONSTRAINT` never saw it and it stayed UNIQUE on every database built
+  before the squash. The baseline declares it correctly, so a database created
+  since was fine and nothing in the suite could see the difference -
+  `conftest.py` builds with `create_all`, and
+  `test_migrations_build_the_schema.py` compares index *names*. It surfaced
+  only when a second user existed and `create_missing_seasonal` tried to insert
+  the same season string twice, failing every anime Calculate. `s1e2asonalix`
+  recreates the index non-unique. When a revision drops a uniqueness rule, list
+  `pg_indexes` for the table as well as `pg_constraint`.
 
 - **Stamp-only revisions** (#14, #18): the dev server's `create_all` had
   already created the table, so the migration is empty. See the local DB
