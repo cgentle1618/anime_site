@@ -25,8 +25,7 @@ def bahamut(db_session):
 
 def _row(db_session, entry, option, **kwargs):
     row = models.MediaSource(
-        media_type="anime",
-        entry_id=entry.system_id,
+        media_id=entry.system_id,
         kind="access",
         bucket="main",
         option_id=option.system_id,

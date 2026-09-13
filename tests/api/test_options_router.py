@@ -89,12 +89,12 @@ def test_delete_cascades_the_tags(admin_client, db_session):
     created = admin_client.post(
         "/api/options/", json={"category": "Genre Main", "value": "Action"}
     ).json()
-    import uuid
-
+    anime = models.Anime(anime_name_cn="測試")
+    db_session.add(anime)
+    db_session.flush()
     db_session.add(
         models.MediaTag(
-            media_type="anime",
-            entry_id=uuid.uuid4(),
+            media_id=anime.system_id,
             field="genre_main",
             option_id=created["system_id"],
         )
@@ -128,7 +128,7 @@ def test_using_an_unscoped_value_does_not_narrow_it(admin_client, client, db_ses
     show = models.TVShows(tv_name_cn="A")
     db_session.add(show)
     db_session.commit()
-    replace_tags(db_session, "tv-show", show.system_id, "original_source", ["Disney+"])
+    replace_tags(db_session, show.system_id, "original_source", ["Disney+"])
     db_session.commit()
 
     offered = {

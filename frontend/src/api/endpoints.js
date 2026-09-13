@@ -32,6 +32,7 @@ export const endpoints = {
     login: () => "/api/auth/login",
     logout: () => "/api/auth/logout",
     me: () => "/api/auth/me",
+    accessMode: () => "/api/auth/access-mode",
   },
 
   // Tier 1 closed enums. Read-only by design - they live in Python.
@@ -60,11 +61,36 @@ export const endpoints = {
     remove: (id) => `/api/roles/${id}`,
   },
 
+  accessModes: {
+    list: () => "/api/access-modes/",
+    catalog: () => "/api/access-modes/catalog",
+    detail: (id) => `/api/access-modes/${id}`,
+    create: () => "/api/access-modes/",
+    update: (id) => `/api/access-modes/${id}`,
+    grants: (id) => `/api/access-modes/${id}/grants`,
+    remove: (id) => `/api/access-modes/${id}`,
+  },
+
   users: {
     list: () => "/api/users/",
     create: () => "/api/users/",
     update: (id) => `/api/users/${id}`,
     remove: (id) => `/api/users/${id}`,
+    accessModes: (id) => `/api/users/${id}/access-modes`,
+  },
+
+  // The caller's own account. No id in any path: these act on whoever the
+  // session says you are.
+  account: {
+    settings: () => "/api/account/settings",
+  },
+
+  profile: {
+    detail: (username) => `/api/profile/${encodeURIComponent(username)}`,
+  },
+
+  community: {
+    forEntry: (mediaId) => `/api/community/${mediaId}`,
   },
 
   contentLabels: {
@@ -88,6 +114,16 @@ export const endpoints = {
     create: () => "/api/announcements/",
     update: () => "/api/announcements/",
     remove: (title) => `/api/announcements/?title=${encodeURIComponent(title)}`,
+  },
+
+  images: {
+    list: (params = "") => `/api/images${params ? `?${params}` : ""}`,
+    upload: () => "/api/images",
+    attach: (imageId) => `/api/images/${imageId}/attach`,
+    detach: (imageId, attachmentId) =>
+      `/api/images/${imageId}/attach/${attachmentId}`,
+    remove: (imageId, force = false) =>
+      `/api/images/${imageId}${force ? "?force=true" : ""}`,
   },
 
   // Watch orders don't fit the resource() CRUD shape: lists and their items
@@ -195,6 +231,15 @@ export const endpoints = {
     entries: (id) => `/api/studio/${id}/entries`,
   },
 
+  // Hand-maintained exchange rates, read by the statistics spend block and
+  // written from the admin page. Not under `system`: those routes all sit
+  // behind manage.pipelines, and the read has to be open to any member who
+  // can open /statistics.
+  fxRates: {
+    get: () => "/api/fx-rates",
+    update: () => "/api/fx-rates",
+  },
+
   system: {
     currentSeason: () => "/api/system/config/current_season",
     logs: () => "/api/system/logs",
@@ -245,6 +290,8 @@ export const endpoints = {
     pullAll: () => "/api/data-control/pull",
     backup: () => "/api/data-control/backup",
     calculateAll: () => "/api/data-control/calculate/all",
+    cleanScan: () => "/api/data-control/clean/scan",
+    cleanApply: () => "/api/data-control/clean/apply",
     checkDuplicates: () => "/api/data-control/check/duplicates",
     checkRemarks: () => "/api/data-control/check/remarks",
     checkCoverImage: () => "/api/data-control/calculate/check-cover-image",

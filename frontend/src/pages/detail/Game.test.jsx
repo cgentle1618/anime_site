@@ -30,8 +30,8 @@ describe("GameProgress", () => {
   });
 });
 
-// The three completion flags are tristate. Unknown must stay blank on the
-// page: rendering "No" would claim the endings were missed.
+// The renderer for steam_progress_sync, the one boolean left in the card. The
+// four completion axes moved to GameCompletionBlock, which has its own tests.
 describe("yesNo", () => {
   it("renders the two answers and drops the unknown", () => {
     expect(yesNo(true)).toBe("Yes");

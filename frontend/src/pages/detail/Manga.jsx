@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
@@ -351,7 +352,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Manga() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, isRoot } = useAuth();
   const { showToast } = useToast();
 
   const [manga, setManga] = useState(null);
@@ -549,9 +550,12 @@ export default function Manga() {
               >
                 Manga{manga.region ? ` · ${manga.region}` : ""}
               </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding
-                  it tidies the spine rather than concealing the value. */}
-              {has("field_group.system_info") && (
+              {/* Cosmetic only: the id is this page's own URL, so hiding it
+                  tidies the spine rather than concealing the value. Gated on
+                  is_root rather than a permission - `super` is
+                  deliberately NOT a root role, and this is the one thing in
+                  the app only the owner's own account sees. */}
+              {isRoot && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -648,7 +652,8 @@ export default function Manga() {
               malScore={manga.mal_rating}
               malRank={manga.mal_rank}
               anilistScore={manga.anilist_rating}
-              updatedAt={manga.updated_at}
+              anilistRank={manga.anilist_rank}
+              anilistPopularityRank={manga.anilist_popularity_rank}
             />
           </header>
 
@@ -674,6 +679,10 @@ export default function Manga() {
             onWatchNextChange={(v, msg) => performPatch({ read_next: v }, msg)}
             onToRewatchChange={(v, msg) => performPatch({ to_reread: v }, msg)}
           />
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={manga.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

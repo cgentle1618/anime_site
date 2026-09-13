@@ -10,6 +10,7 @@ from sqlalchemy import (
     Sequence,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
@@ -50,7 +51,12 @@ class Franchise(Base, NameFallbackMixin):
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
     public_id = Column(
-        Integer, Sequence("franchise_public_id_seq"), nullable=False
+        Integer,
+        Sequence("franchise_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('franchise_public_id_seq'::regclass)"),
+        nullable=False,
     )
     franchise_type = Column(String, nullable=True)
     franchise_name_en = Column(String, nullable=True)
@@ -89,9 +95,6 @@ class Franchise(Base, NameFallbackMixin):
     series = relationship("Series", back_populates="franchise")
     collection = relationship(
         "Collection", back_populates="franchises", foreign_keys=[collection_id]
-    )
-    animes = relationship(
-        "Anime", back_populates="franchise", foreign_keys="[Anime.franchise_id]"
     )
 
     @property
@@ -141,7 +144,14 @@ class Series(Base, NameFallbackMixin):
     )
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("series_public_id_seq"), nullable=False)
+    public_id = Column(
+        Integer,
+        Sequence("series_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('series_public_id_seq'::regclass)"),
+        nullable=False,
+    )
     franchise_id = Column(
         UUID(as_uuid=True),
         ForeignKey("franchise.system_id", ondelete="SET NULL"),
@@ -171,7 +181,6 @@ class Series(Base, NameFallbackMixin):
 
     # Relationships
     franchise = relationship("Franchise", back_populates="series")
-    animes = relationship("Anime", back_populates="series")
 
     @property
     def names_dict(self) -> dict:

@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-08 (POST /api/system/test-bucket removed with the GCP deployment)
+Last verified: 2026-09-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -9,7 +9,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 ## Authentication
 
 - **Public endpoints** — accessible by any visitor (guest or admin).
-- **Admin-only endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie, enforced via `Depends(get_current_admin)` in `app/dependencies.py`.
+- **Capability-gated endpoints** — require a valid JWT in the `access_token` HTTP-Only cookie plus the capability the route names: `require_manage_catalog`, `require_manage_pipelines` or `require_admin_authz` (`app/services/rbac/resolver.py`). There is no single "is an admin" dependency.
 - Login flow: `POST /api/auth/login` → sets cookie → all subsequent admin requests carry it automatically.
 - A missing or invalid cookie on an admin endpoint is **401**, never 403. Public read endpoints additionally resolve a *viewer* and hide what the viewer's role may not see (as 404) — see [Authorization](#authorization) at the end of this file and `docs/authorization.md`.
 
@@ -19,7 +19,9 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 |---|---|---|
 | `limit` / `offset` on list endpoints | collection, franchise, series, all nine media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
 | `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
-| Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it **no longer surfaces as a 500**, which used to make the SPA retry and create duplicates. |
+| Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
+| Personal fields are the viewer's | all nine media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move. Until real accounts ship, a logged-out visitor resolves to the admin, so the public pages are unchanged. A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
+| A novel unit's `my_rating` is the reader's | `/api/novel` | Same idea one level down: served and accepted on each unit, stored in `user_novel_unit_rating`. A `null` rating stores no row. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
 | Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all seventeen entity endpoints: the nine media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
@@ -46,9 +48,11 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
 - [Quote — `/api/quote`](#quote--apiquote)
 - [Meme — `/api/meme`](#meme--apimeme)
+- [Images — `/api/images`](#images--apiimages)
 - [Note — `/api/notes`](#note--apinotes)
 - [Seasonal — `/api/seasonal`](#seasonal--apiseasonal)
 - [Search — `/api/search`](#search--apisearch)
+- [FX Rates — `/api/fx-rates`](#fx-rates--apifx-rates)
 - [Constants — `/api/constants`](#constants--apiconstants)
 - [Options — `/api/options`](#options--apioptions)
 - [Person — `/api/person`](#person--apiperson)
@@ -62,6 +66,10 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
 - [Watch Order — Sections](#watch-order--sections)
+- [My List — `/api/me`](#my-list--apime)
+- [Account — `/api/account`](#account--apiaccount)
+- [Profile — `/api/profile`](#profile--apiprofile)
+- [Community — `/api/community`](#community--apicommunity)
 - [Authorization](#authorization) — `/api/roles`, `/api/users`, `/api/content-labels`
 
 ---
@@ -324,8 +332,22 @@ factory sets them, but pydantic drops an undeclared field silently).
 novels: a `GameCopyIO` item with a `system_id` updates that row, one without
 inserts, and a row the payload omits is **deleted**. Omitting the key
 entirely (`null`) means "not supplied" and leaves the rows alone; `[]` clears
-them. `uq_game_copy_row` (`game_id`, `storefront`, `copy_format`) rejects the
-same edition bought twice on the same store.
+them. `uq_game_copy_row` (`user_id`, `game_id`, `storefront`, `copy_format`)
+rejects the same edition bought twice on the same store by the same person —
+`user_id` leads, so two accounts can each own Hollow Knight, Digital, on
+Steam.
+
+**The `copies` array carries only the acting user's rows**, on the read side
+of both the list and the detail route (`attach_own_copies`). A copy is a
+purchase record, not a fact about the game, so the relationship holds every
+account's rows and the response must not — and `GameCopyIO` exposes no
+`user_id`, so nothing downstream could tell them apart. A caller with no
+account sees an empty array rather than somebody else's purchases.
+
+It is scoped by populating the loaded value, **never** by assigning a
+filtered list to the relationship: `Game.copies` is `cascade="all,
+delete-orphan"`, so an assignment would orphan every row the filter dropped
+and delete it on the next flush.
 
 **`?ownership=Owned`** filters on the derived value rather than a column:
 there is no `games.ownership`, so the filter is an `EXISTS` over `game_copy`
@@ -418,12 +440,15 @@ endpoint gets it and `item_count` for every row in one grouped query.
 `WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
 `WatchOrderCandidate`.
 
-**Item resolution.** `watch_order_item` stores only `(media_type, entry_id)` —
-no foreign key spans eight tables — so the detail endpoint enriches each item
+**Item resolution.** `watch_order_item` stores only a `media_id` foreign key
+— `media_type` and `entry_id` are derived from it (see
+[data-model.md](data-model.md#the-six-tables-that-moved-to-media_id)) — so the
+detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `franchise_id`, `status`,
 `total_episodes` and `ep_special` via `app/services/domain/watch_order.py`. That runs one query
-per media type present, never one per item. An item whose entry no longer
-exists comes back with `missing: true` rather than being dropped.
+per media type present, never one per item. An item whose entry is gone cannot
+occur — the FK cascades — but a step written without an
+entry still comes back with `missing: true` rather than being dropped.
 
 ---
 
@@ -500,64 +525,20 @@ from either end without a second copy of the kind vocabulary.
 
 What is queued to watch or read (kind `next`), or marked for rewatch/reread
 (kind `rewatch`), at entry, series, or franchise scope. **One table backs
-both Plan-page queues** — the `plan_next` name predates the second one; see
-data-model.md. Reads are public (planning state is ordinary catalogue
-data); every write is admin-only, matching media relations and watch orders.
+both Plan-page queues** — the `plan_next` name covers both; see
+data-model.md. **Per user, and gated on `self.list`:** every route requires an
+account that may keep a queue (`401` otherwise) and answers only with the
+caller's own rows. There is no site-owner fallback and no public view of
+anybody's queue. The gate is `require_permission(PERM_SELF_LIST)` at the
+router, so an **administrative** account is refused too — `self.*` is
+ownership rather than privilege and an admin keeps no queue; see
+authorization.md, "The admin account holds no user data". The wire format
+still sends and accepts `scope` and `target_id`, derived from the row's owner
+foreign key.
+
 Replaces the `watch_next` / `read_next` booleans, `franchise.watch_next_group`,
 and the nine `to_rewatch` / `to_reread` booleans — see data-model.md and
 business-rules.md.
-
-| Method   | Path                                          | Auth   | Description                                                                                                     |
-| -------- | ---------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/kinds`                                       | Public | The vocabulary the admin dropdowns and the Plan page tabs read from: `scopes`, `kinds` (`["next", "rewatch"]`), `allowed_scopes` (keyed by kind, then media type, scopes ordered entry/series/franchise), `size_groups` (per media type, `{key, label}` list). |
-| `GET`    | `/?media_type=&scope=&kind=`                   | Public | Every row, each resolved to its target's display data. All three filters optional; omitting `kind` returns both kinds in one call, so the Plan page still loads its whole dataset in one request. |
-| `POST`   | `/`                                            | Admin  | Create one row. Body includes `kind`, defaulting to `"next"` when omitted so every pre-rewatch caller keeps working. `422` for an unknown kind, `400` if the media type may not be planned at that scope for that kind, `404` if the target does not exist, `409` if the `(kind, scope, target_id, media_type)` quadruple already exists. |
-| `DELETE` | `/target?scope=&media_type=&target_id=&kind=`  | Admin  | Un-plan by target rather than by row id, so a toggle needs no id round-trip first. Query params only. `kind` defaults to `"next"` when omitted. `404` if not planned. |
-| `DELETE` | `/{system_id}`                                 | Admin  | Delete by row id. Logs to `deleted_record` as type "Plan Next".                                                    |
-
-**Create body**
-
-```json
-{
-  "media_type": "anime",
-  "scope": "series",
-  "target_id": "…",
-  "remark": null,
-  "kind": "next"
-}
-```
-
-**Read response** — each row resolves its target through the same
-`OWNER_TABLES` map `media_relation` and `watch_order_item` use:
-
-```json
-{
-  "system_id": "…", "media_type": "anime", "scope": "series", "target_id": "…",
-  "remark": null, "kind": "next", "created_at": "…", "updated_at": "…",
-  "missing": false, "display_name": "…", "label": "…", "is_tier": true,
-  "cover_image_file": null, "nav_path": "/series", "expectation": "High"
-}
-```
-
-A deleted target resolves as `missing: true` rather than the row vanishing,
-since the target carries no foreign key. `expectation` is read off whichever
-of `franchise_expectation` / `series_expectation` / `expectation` the target
-actually has, so the Plan page can sort every scope by the same field.
-
-**Entry-level `watch_next` / `read_next` / `to_rewatch` / `to_reread` are not
-endpoints of their own.** They ride along on the existing entry endpoints
-(`/api/anime`, `/api/manga`, etc.) as virtual fields backed by `plan_next`
-rows (`kind='next'` / `kind='rewatch'` respectively) — see business-rules.md.
-Six of the nine dropped `to_rewatch` / `to_reread` columns survive this way:
-anime-movie, movie, tv-show (`to_rewatch`); manga, novel, comic (`to_reread`).
-`anime` and `cartoon` have **no** entry-level rewatch field — both are
-rewatched at franchise scope only, targeted directly through this router with
-`scope=franchise`, `kind=rewatch`. `franchise` and `series` have no rewatch
-field of any kind; their marks go through this router with `scope=franchise`
-/ `scope=series` and `kind=rewatch` directly, never through an entry-style
-boolean on `POST /api/franchise` / `POST /api/series`.
-
----
 
 ## Quote — `/api/quote`
 
@@ -626,10 +607,38 @@ the frontend hides the quote-link control in that case.
 
 ---
 
+## Images — `/api/images`
+
+Upload an image from the caller's own machine and attach it to anything else
+in the catalogue. Every route is behind `require_manage_catalog` — there is
+no public read.
+
+| Method   | Path                          | Auth   | Description                                                                                                                                |
+| -------- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST`   | `/`                           | Catalog | Upload one file (`multipart/form-data`, field `file`). Validates, re-encodes to JPEG, stores it, and returns the `image` row. Attaches it to nothing — upload and attach are separate calls. 413 over `MAX_IMAGE_UPLOAD_MB` (default 10), 422 if the bytes are not a PNG/JPEG/WebP image. |
+| `GET`    | `/`                           | Catalog | The library, paginated (`limit` ≤200, `offset`). `?q=` matches `original_filename`; `?unused=true` restricts to images with no attachment; `?missing=true` restricts to images whose file is not on this machine; `?duplicates=true` is always empty (checksum is unique) and exists to prove dedup rather than to filter anything. |
+| `POST`   | `/{image_id}/attach`          | Catalog | Body: `{owner_type, owner_id, role}`. Points an owner at this image; re-attaching the same `(owner_type, owner_id, role)` replaces rather than duplicating. 400 on an `owner_type` outside `ATTACHABLE_OWNERS`. |
+| `DELETE` | `/{image_id}/attach/{attachment_id}` | Catalog | Detach. The file and its `image` row stay in the library for reuse. |
+| `DELETE` | `/{image_id}`                 | Catalog | Delete the file and its row. 409 while any attachment still points at it, unless `?force=true`. |
+
+**The 404 on attach.** `manage.catalog` says nothing about *which* entries a
+holder may reach, so attaching to a media owner (one of `MEDIA_TABLES`) also
+runs `entry_visible` — the same content-label check a detail read applies —
+and answers **404 "Entry not found."** exactly as a genuinely missing entry
+would, rather than a 403 that would confirm the entry exists. Entity owners
+(`staff`, `character`, `publisher`, `studio`) and `quote`/`meme` carry no
+content label and skip this check.
+
+**Response models:** `ImageOut` (adds `missing` — computed per request from
+whether the file exists on this machine — and `attachments`, the list of
+`AttachmentOut` rows pointing at it), `ImageListOut` (`images` + `total`).
+
+---
+
 ## Note — `/api/notes`
 
 Structured commentary on any owner: one row per bullet, linked resource or
-episode comment. Replaces the `notes` JSONB column that used to sit on the
+episode comment. This is the only storage for them — there is no `notes` JSONB column on the
 seven media tables. Reads are public; every write is admin-only.
 
 Like Meme, a note's owner may be a media entry **or** one of the three
@@ -669,12 +678,20 @@ has no frontend caller yet — it is intentional surface awaiting a reorder UI.
 
 | Method  | Path              | Auth   | Description                                                                                         |
 | ------- | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `GET`   | `/current-season` | Public | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
-| `GET`   | `/`               | Public | List all seasonal records, ordered by `seasonal` descending.                                        |
-| `GET`   | `/{seasonal_id}`  | Public | Get a single seasonal record by its string key (e.g. `"WIN 2026"`).                                 |
-| `PATCH` | `/{seasonal_id}`  | Admin  | Update `my_rating` for a seasonal record. Body: `SeasonalUpdate`.                                   |
+| `GET`   | `/current-season` | `self.list` | Returns `{current_season}` from `system_configs`. Used by frontend to highlight the current season. |
+| `GET`   | `/`               | `self.list` | List the CALLER'S OWN seasonal records, ordered by `seasonal` descending.                           |
+| `GET`   | `/{seasonal_id}`  | `self.list` | Get the caller's own record for one season (e.g. `"WIN 2026"`). `404` when they have none.          |
+| `PATCH` | `/{seasonal_id}`  | `self.list` | Update `my_rating` on the caller's own row. Any real account, not just an admin - the rating is theirs. Body: `SeasonalUpdate`. |
 
-**Response model:** `SeasonalResponse`
+**Response model:** `SeasonalResponse` (unchanged).
+
+**Per user, and behind `self.list`.** A seasonal row is keyed
+`(user_id, seasonal)`, its four counters are aggregates over that user's
+`user_media_list` rows, and `my_rating` is their own - so a logged-out visitor
+gets `401` from every route here rather than somebody else's numbers. The admin
+mirror of the season value, `/api/system/config/current_season`, is untouched.
+`/api/search` stays public, but its `seasonal` bucket holds the caller's own
+rows and is empty for an anonymous searcher.
 
 ---
 
@@ -750,6 +767,36 @@ expand: that is a question about anime names.
 **`related_franchises`** are the franchises the anime results belong to — the
 filter pills on the search page. Not the same set as `results.franchise`, which
 holds franchises whose own name matched.
+
+---
+
+## FX Rates — `/api/fx-rates`
+
+The hand-maintained exchange rates the Statistics page converts game spend
+with. Stored as one JSON string in `system_configs` under the key `fx_rates`
+— one key rather than one per currency, so `as_of` cannot drift out of sync
+with the numbers it describes. `system_configs` is a backed-up sheet tab, so
+rates entered on one machine reach the other by Backup / Pull All.
+
+Rates are typed by hand and stored, never fetched: a personal collection's
+spend does not need live FX, and a stored rate printed beside its `as_of`
+date is honest in a way a stale cached fetch is not.
+
+| Method | Path | Auth               | Description                                                                     |
+| ------ | ---- | ------------------ | ------------------------------------------------------------------------------- |
+| `GET`  | `/`  | Public             | `{base, as_of, rates}`. All null/empty when no rates have been entered.          |
+| `PUT`  | `/`  | `manage.pipelines` | Replace the whole table. Body: `{base, as_of, rates: {CODE: number}}`.           |
+
+Not part of `/api/system` deliberately, and the reason is the gate: every
+route there sits behind `manage.pipelines`, but `/statistics` only asks for
+`self.list`. A member who can see the spend block has to be able to read the
+rates it converts with, so the read is open and only the write is gated.
+
+An unset table and an unparseable stored row answer the same way — no rates
+at all. The page then prints per-currency subtotals and no converted total,
+because a figure built from a rate nobody entered looks exactly like a real
+one. `PUT` forces `rates[base] = 1`; a rate of zero, a non-ISO `as_of` and
+anything that is not a three-letter currency code are refused with `422`.
 
 ---
 
@@ -1286,6 +1333,23 @@ All endpoints in this router require admin authentication.
 
 The per-type Fill / Replace routes are **generated** from `PIPELINES` (`app/services/pipelines/specs.py`) by `_register_media_routes` in `app/routers/data_control.py`, so a new media type gets its routes by adding a spec, not a handler. Each spec yields `POST /fill/{key}` and `POST /replace/{key}/{entry_id}` always, and `POST /replace/{key}` (bulk) only when the spec has a `replace_select` — every type except comic.
 
+### Clean — find and delete rows the sheet has forgotten
+
+Pull only inserts and updates, so an entry deleted on one machine survives every
+Pull All on the other. Clean is the reviewed diff-and-delete that fixes that.
+Full behaviour: [data-actions.md](data-actions.md) section 8.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/clean/scan` | Every local row the sheet no longer mentions, grouped by tab, each with its blast radius, timestamps and `public_id`. Read-only; writes no log row. Returns `last_backup_at` so the caller can tell a genuine orphan from a row created since the last Backup. **503** if any in-scope tab is unreadable or has no data rows — a partial read is indistinguishable from "everything is orphaned". |
+| `POST` | `/clean/apply` | Body `{"items": [{"tab", "system_id"}, ...]}`. Re-runs the scan and deletes only the named ids that are **still** candidates; the rest come back in `skipped` with a reason. Returns `{deleted, per_tab, skipped}`. **503** as above, in which case nothing is deleted. |
+
+Both inherit the router's single gate, `manage.pipelines`. Clean is the one
+route on the router where the access mode used to matter for a real reason: the
+scan report names every orphan in the database, including entries a narrow mode
+conceals, and apply deletes by `system_id`. Both are reachable from any mode —
+see [authorization.md](authorization.md) for why that is accepted.
+
 ### Fill
 
 | Method | Path                | Description                                                                  |
@@ -1345,12 +1409,29 @@ The per-type Fill / Replace routes are **generated** from `PIPELINES` (`app/serv
 | `POST`   | `/calculate/all`                     | Run full Calculate All pipeline (post-processing, derive, sync, cover check). Returns JSON. |
 | `GET`    | `/calculate/check-cover-image`       | Report on missing and orphaned cover images. Optional query param `entry_type`.             |
 | `POST`   | `/calculate/set-cover-image-fields`  | Populate `cover_image_file` fields for entries whose file already exists in storage.        |
-| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`.                          |
+| `POST`   | `/calculate/download-missing-covers` | Re-download missing cover images. Body: `{system_ids?: string[]}`. Skips an entry whose cover attachment points at an uploaded `image` (`uploaded_by` set) rather than re-fetching from MAL over it — an uploaded file cannot be re-fetched by anything, so overwriting the reference would destroy it. Response: `{status, message}`, with a `skipped_uploads` count folded into `message` when non-zero. |
 | `DELETE` | `/calculate/delete-orphaned-covers`  | Delete orphaned cover image files from storage. Returns `{deleted_count}`.                  |
 | `GET`    | `/check/duplicates`                  | Find and report all duplicate entries across all tables. Returns grouped clusters.          |
-| `GET`    | `/check/remarks`                     | Check all comments and remark fields, acting as the Comments/Remarks Review Queue.          |
+| `GET`    | `/check/remarks`                     | The **caller's own** non-empty remarks, grouped by media type — the Remarks Review Queue. A remark belongs to its author, so the response carries one per entry. |
 
 **SSE response format** (streaming endpoints): `text/event-stream` — each event is a JSON string with `{status, current_entry, processed, total}`.
+
+### Every route on `/api/data-control` and `/api/system` needs ONE thing
+
+`require_manage_pipelines`. The caller's access mode is not consulted — 401
+only when the role lacks the permission.
+
+`manage.pipelines` is unscoped on the object axis: no pipeline filters by
+label, field group or media type, so a pipeline reads the whole database and
+writes the same complete sheet whatever mode the caller sits in. A second gate
+requiring an unscoped mode existed, and refused requests without changing a
+byte of output.
+
+Both gates are at **router** level, not per handler, because most of
+`data_control.py`'s routes are registered in a loop over `PIPELINES` rather
+than declared — a per-handler gate would miss them silently, which is how
+`POST /replace/{key}/{entry_id}` kept answering 200 with a hidden entry's
+`display_name` for a year.
 
 ---
 
@@ -1364,6 +1445,10 @@ All endpoints in this router require admin authentication.
 | ------ | ------------------------ | --------------------------------------------------------------------------------- |
 | `GET`  | `/config/current_season` | Get the current season setting from `system_configs`. Returns `{current_season}`. |
 | `POST` | `/config/current_season` | Set the current season. Body: `{current_season: "YYYY SSS"}`.                     |
+
+The other `system_configs` key with an endpoint of its own, `fx_rates`, is
+served from `/api/fx-rates` rather than here, because its read has to reach
+members who are not admins. See that section.
 
 ### Data Control Logs
 
@@ -1411,6 +1496,97 @@ split every part the new step then sat behind.
 
 ---
 
+## My List — `/api/me`
+
+The caller's own `user_media_list` row, for one entry. Gated at **router
+level** on `self.list`, so a route added here later is closed by default; an
+anonymous visitor and a viewer without the permission both get **401**.
+
+The payload keys are the media type's own — `watching_status` for an anime,
+`reading_status` for a manga, `playing_status` for a game — read from
+`LIST_FIELDS` in `app/services/domain/user_list.py`, the single place that says
+which keys a type owns.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. |
+
+Neither route takes a user id, so there is no shape of request that writes
+somebody else's list. Catalogue writes are unaffected and stay behind
+`Depends(require_manage_catalog)` on the per-type entry endpoints.
+
+---
+
+## Account — `/api/account`
+
+The caller's own settings. Any signed-in account, acting only on itself — a
+separate router from `/api/users`, which is admin-only and acts on other
+people. No path takes a user id and the update payload carries no identity, so
+a stray `username` in the body is dropped by pydantic rather than honoured.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/account/settings` | session | `{username, role_name, list_is_public}`. **401** for an anonymous caller. |
+| PATCH | `/api/account/settings` | session | `AccountSettingsUpdate` — `list_is_public` only. Returns the same shape as GET. **401** for an anonymous caller. |
+
+---
+
+## Profile — `/api/profile`
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/profile/{username}` | none | One user's list, every media type in one response. |
+
+Three rules, all enforced in the endpoint:
+
+- **A private list answers 404, not 403**, to everyone but its owner and an
+  admin — the same rule `entry_visible` follows, so a private profile and a
+  username nobody has are the same answer and a stranger cannot enumerate
+  accounts. `list_is_public` is false by default.
+- **A public list is filtered by the *reader's* permissions, not the owner's.**
+  A row whose media type the reader may not see, or which carries a content
+  label they lack, is absent — `apply_media_visibility` in
+  `app/services/rbac/enforcement.py` applies the same two gates as
+  `apply_entry_visibility`, expressed over the `media` supertable.
+- **Personal notes are not on this response at all.**
+
+Response: `{username, list_is_public, is_self, counts[], entries[]}`. Each
+entry is `{media_id, media_type, public_id, display_name, cover_image_file,
+status, my_rating}`, ordered best-rated first — by *rating points*, not by the
+letter, because `my_rating` is a String and `"A+"` sorts before `"A"`
+(`app/services/domain/rating_points.py`). `counts` is tallied from the filtered
+rows rather than by a second `GROUP BY`, or a hidden entry would leak as a
+discrepancy in the totals.
+
+---
+
+## Community — `/api/community`
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/community/{media_id}` | viewer | What the **public** lists say about one entry. `media_id` is the entry's `system_id`. Gated like every per-type route: an entry the viewer may not see and an entry that does not exist both **404**, in the same words. |
+
+Public lists only, which is a correctness rule and not a courtesy: a figure
+that moved when a private list changed would let anyone read a private list one
+bit at a time by watching the number.
+
+An unknown `media_id` **404s** rather than answering an empty aggregate, and
+that is load-bearing rather than tidiness: if a hidden entry 404d while an
+unknown one answered 200, the status code would itself say which ids name real
+entries the caller may not see. The two cases answer identically so that they
+cannot be told apart.
+
+Response: `{media_id, list_count, statuses[], sample_size, average_points,
+average_rating}`. `sample_size` is separate from `list_count` on purpose — a
+work can be on forty lists and rated by six — and the average is computed in
+Python over the letter grades through the same `rating_points` mapping the
+profile ordering uses. An unknown `media_id` answers an **empty aggregate, not
+404**: the detail page's own route already decided whether the entry exists,
+and a 404 here would blank a page that is otherwise fine.
+
+---
+
 ## Authorization
 
 Every read route now resolves a **viewer** (`app/services/rbac/resolver.py`).
@@ -1434,22 +1610,117 @@ Now also returns:
 
 ```json
 { "is_admin": false, "username": null, "role": "guest",
-  "is_superuser": false, "permissions": ["media_type.anime", ...] }
+  "is_root": false,
+  "permissions": ["media_type.anime", "field_group.sources_other", ...],
+  "mode": { "id": "…uuid…", "key": "safe" } }
 ```
 
 This is where the SPA learns what to draw. Hiding in the UI is cosmetic — the
 server has already withheld what the viewer may not see.
+
+**`permissions` merges two axes, and only here.** The `admin.*`, `manage.*`,
+`media_type.*` and `self.*` entries are the ROLE's capability set. The
+`field_group.*` entries come from the active ACCESS MODE minus its denials —
+they are not role permissions. The merged shape is deliberate: the SPA has
+hundreds of `has("field_group.<key>")` calls, and one flat list is what lets
+them all keep working across the two axes. The server never merges the two
+anywhere else.
+
+**Content labels are NOT published.** They scope whole entries server-side,
+the browser never needs them, and listing them would tell a narrowed session
+exactly what it is being kept from.
+
+`mode` is the active access mode. `modes` lists every mode this account
+**holds**, each with `{id, key, label, is_active, requires_password}`.
+
+`requires_password` is the subset test computed **server-side**: narrowing is
+free, adding even one content label or field group asks for the password
+again. It is computed here rather than in the browser because two
+implementations of one rule drift, and the one in the SPA would be the one
+nobody tested - the switch endpoint enforces the rule with the *same*
+function that fills this field. A guest holds no modes and gets `[]`.
+
+Both sides are **effective** sets, after per-account denials: an account
+holding `borderline` minus `nsfw` reaches no more than `normal` does, so
+switching between them is free even though the mode is nominally wider.
+
+### `POST /api/auth/access-mode`
+
+Change the active access mode without logging out.
+
+```json
+{ "mode_id": "...uuid...", "password": "...only when widening..." }
+```
+
+| Answer | When |
+|---|---|
+| **200** + a reissued cookie | narrowing, or widening with the right password |
+| **401** `{detail, requires_password: true}` | widening with no password, so the SPA prompts rather than guessing |
+| **401** | widening with the wrong password |
+| **404** | a mode this account does not hold, *and* a mode that does not exist - identical answers, because which modes exist is not the caller's business. Deliberately **not** flagged `requires_password`: it is not a password problem, and saying so would invite a prompt that cannot help |
+| **401** | a guest: no account, nothing to switch between |
+
+**The reissued cookie keeps the ORIGINAL `exp`, and its `max_age` is the
+REMAINING seconds.** Minting a fresh 24-hour token on each switch would make
+toggling between two modes an unlimited session-extension oracle, and the
+lifetime is flat with no refresh flow and no revocation - so that would be the
+whole session policy defeated by a control whose purpose is to make sessions
+safer. The `max_age` floor stops a switch resurrecting an already-expired
+token, which is the same oracle in miniature.
+
+### `/api/access-modes` — admin (`admin.authz`)
+
+The object axis. A role answers *what may this account do*; an access mode
+answers *which objects can it reach in this session*. Shaped on `/api/roles`
+route for route.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/access-modes/` | Modes with their items and holder counts. |
+| GET | `/api/access-modes/catalog` | Two labelled groups - Content Labels and Field Groups - each item carrying `mode_count`. **Every** content label is listed, including ones no mode carries: a count of zero means that label's entries are hidden from everybody, the owner included, and there is nowhere else to find that out. |
+| GET | `/api/access-modes/{id}` | |
+| POST | `/api/access-modes/` | 409 on a duplicate key; 422 on an unknown label or field group. Created `is_system=False` - that flag marks the four the seeder maintains and is never settable through the API. |
+| PATCH | `/api/access-modes/{id}` | Label, description and sort order. Not `key` — renaming one would detach the seeder from the row it maintains — and nothing about the anonymous policy: a logged-out visitor always resolves the `safe` mode, by key, and no endpoint can move it. |
+| PUT | `/api/access-modes/{id}/grants` | **Replaces both sets**, the same contract as `PUT /roles/{id}/permissions`. **409 for `unrestricted`**, whose sets are derived rather than stored and so cannot be narrowed. |
+| DELETE | `/api/access-modes/{id}` | 409 for a system mode, and 409 for one an account still holds - the FK would cascade the grants away and silently narrow those accounts, possibly to nothing. |
+
+Every write calls `cache.bump()`; `_MODE_CACHE` is keyed on mode id and this
+router is exactly what it caches.
+
+### `PUT /api/users/{id}/access-modes` — admin (`admin.authz`)
+
+Replaces an account's whole set - grants, login default and per-account
+denials - in one payload.
+
+```json
+{ "modes": [ { "mode_id": "...", "is_default": true,
+               "denied_label_keys": [], "denied_field_group_keys": [] } ] }
+```
+
+**A denial naming something the mode does not carry is 422.** A mode is a
+ceiling, so such a denial subtracts nothing and storing it would be a no-op
+that reads like a setting. Two defaults is 422 as well, rather than the 500
+`ix_one_default_mode_per_user` would give. An **empty list is allowed**: an
+account holding no mode resolves the empty object set, which is fail-closed
+and a legitimate way to park somebody.
+
+`ManagedUserResponse` carries `access_modes`, so the admin page reads one
+source and this endpoint returns the same shape.
+
+**A new account holds `safe` and only `safe`** (`POST /api/users/`). An
+invitee starts narrow and is widened deliberately, rather than starting wide
+and being narrowed if somebody remembers.
 
 ### `/api/roles` — admin
 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/roles/` | Roles with their grants and user counts. |
-| GET | `/api/roles/catalog` | Every grantable permission, grouped by family (`admin`, `media_type`, `field_group`, `label`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. |
+| GET | `/api/roles/catalog` | Every grantable permission, grouped by family — **four of them** (`admin`, `manage`, `media_type`, `self`) with human labels. The role editor is built from this, so its checkboxes cannot drift from what the write path accepts. `field_group` and `label` are deliberately absent: they are the access-mode axis, and a role cannot express "minus this label" because permission resolution is a union. |
 | GET | `/api/roles/{id}` | |
 | POST | `/api/roles/` | 409 on a duplicate name, 422 on an unknown permission. |
 | PATCH | `/api/roles/{id}` | Label, description, sort order. `name` is not editable — code reads `guest` and `admin` by name. |
-| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a superuser role. |
+| PUT | `/api/roles/{id}/permissions` | **Replaces the whole set**, the same contract as `PUT /api/credits/...`. 409 on a root role. |
 | DELETE | `/api/roles/{id}` | 409 if `is_system` or still held by users. |
 
 Also 409: giving the `guest` role the `admin` permission (anonymous requests
@@ -1462,7 +1733,7 @@ No self-registration; accounts are created here only.
 
 | Method | Path | Body / notes |
 |---|---|---|
-| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`). Passwords never leave the server. |
+| GET | `/api/users/` | Every account as `ManagedUserResponse` (`id`, `username`, `role_id`, `role_name`, `list_is_public`). `list_is_public` is **read-only here** — it is the account holder's decision, written only through `PATCH /api/account/settings`, and deliberately absent from `ManagedUserUpdate`. Passwords never leave the server. |
 | POST | `/api/users/` | `ManagedUserCreate` (`username`, `password`, `role_id`). 201. 409 on a taken username, 422 on an unknown role. |
 | PATCH | `/api/users/{id}` | `ManagedUserUpdate` — any of `username`, `password`, `role_id`. 409 if the new username is taken, or if the change would demote the last account that can still administer the site. |
 | DELETE | `/api/users/{id}` | **204**. 409 if you are deleting yourself, or the last administering account. |
@@ -1474,14 +1745,14 @@ Vocabulary CRUD, plus per-entry assignment:
 | Method | Path | Body / notes |
 |---|---|---|
 | GET | `/api/content-labels/` | Every label as `ContentLabelResponse` (`system_id`, `key`, `label`, `description`, `sort_order`, `permission` = `label.<key>`). |
-| POST | `/api/content-labels/` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. |
+| POST | `/api/content-labels/` | `ContentLabelCreate` (`key`, `label`, `description`, `sort_order`). 201. 409 if the key exists. Grants the new label to the `unrestricted` mode and to no other, so that tagging an entry with it does not hide that entry from every session in the installation. |
 | PATCH | `/api/content-labels/{id}` | `ContentLabelUpdate` — `label`, `description`, `sort_order`. `key` is not editable; the permission string is derived from it. |
 | DELETE | `/api/content-labels/{id}` | **204**. Cascades the entry assignments and the role grants for `label.<key>`. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | The label keys this entry carries. |
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing entry, 422 on an unknown label. |
 
 A newly created label is granted to nobody, so applying it hides the entry from
-everyone except superusers until a role is given `label.<key>`. That is the
+everyone except root roles until a role is given `label.<key>`. That is the
 safe direction.
 
 ### What gating touches

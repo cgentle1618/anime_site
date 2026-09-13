@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-07 (Play Anytime dashboard section)
+Last verified: 2026-09-13
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -46,12 +46,12 @@ are a large share of the bundle and never needed on first paint.
 | `/person/:system_id` | `detail/Person.jsx` | lazy |
 | `/character/:system_id` | `detail/Character.jsx` | lazy |
 | `/watch-order/:system_id` | `detail/WatchOrder.jsx` → `WatchOrderPage.jsx` | lazy |
-| `/seasonal` | `public/SeasonalOverall.jsx` | lazy |
-| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy |
+| `/seasonal` | `public/SeasonalOverall.jsx` | lazy, **login required** |
+| `/seasonal/:seasonal_id` | `public/SeasonalDetail.jsx` | lazy, **login required** |
 | `/future-releases` | `public/FutureReleases.jsx` | lazy |
-| `/statistics` | `public/Statistics.jsx` | lazy |
+| `/statistics` | `public/Statistics.jsx` | lazy, **login required** |
 | `/completions` | `public/Completions.jsx` | lazy |
-| `/plan` | `public/Plan.jsx` | lazy |
+| `/plan` | `public/Plan.jsx` | lazy, **login required** |
 | `/quote` | `public/Quotes.jsx` | lazy |
 | `/meme` | `public/Memes.jsx` | lazy |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
@@ -69,7 +69,7 @@ about styling.
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
 | `library` | Library | mega-panel (`columns`) | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` · **Entities**: Studio `/library/studio` (also matches `/studio`), Publisher `/library/publisher` (also matches `/publisher`), Person `/library/person` (also matches `/person`), Character `/library/character` (also matches `/character`) · **ACG**: Anime, Anime Movie, Manga, Novel, Game `/library/game` (also matches `/game`), Seiyuu `/library/seiyuu` · **Reality**: TV Show, Movie, Cartoon, Comic |
-| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal`, Future Releases `/future-releases`, Completions `/completions` |
+| `track` | Track | flat `items` | Plan `/plan`, Seasonal `/seasonal` (both `requires: "self.list"` — see below), Future Releases `/future-releases`, Completions `/completions` |
 | `insights` | Insights | flat | Statistics `/statistics`, Quotes `/quote`, Memes `/meme` ┃ Relations `/relations`, Watch Orders `/watch-orders` — these two carry `requires: "admin"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires: "admin"` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults` |
 | `note` | Note | flat, `requires: "admin"` | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described |
@@ -95,10 +95,18 @@ identity. The Entry, Note and Admin tabs are gated by `has("admin")` from
 click-outside closes, Escape returns focus to the trigger, ArrowUp/Down cycle
 links inside `[data-nav-panel]`, any route change closes the panel and the
 mobile drawer. Session controls: theme toggle (moon/sun, `useTheme().toggle`,
-`aria-pressed`), and for admins an "Admin" badge, **Back up** (POST
-`/api/data-control/backup`, toasts "Backup completed successfully" /
-"Backup failed") and **Log out** (POST `/api/auth/logout`, then
-`refetchAuth()`); guests get **Log in** → `/login?next=<current path>`.
+`aria-pressed`), a session indicator, and a theme toggle. The indicator always renders: the
+account's `username` when signed in, **Guest** when not. It is a value, so it
+keeps the body face and its own casing - the mono uppercase treatment belongs
+to labels. The **Admin** chip beside it is a capability and stays gated on
+`isAdmin`, as does **Back up** (POST `/api/data-control/backup`, toasts
+"Backup completed successfully" / "Backup failed", also behind
+`has("manage.pipelines")`). **Log out** (POST `/api/auth/logout`, then a full
+load of the page it is on, so nothing cached for the outgoing account
+survives) follows the indicator rather than the chip: it renders for any
+signed-in account, because a strip naming you with no way out is a dead end.
+Guests get **Log in** → `/login?next=<current path>`. The mobile drawer
+repeats all of it, indicator first.
 
 **`components/layout/NavSearch.jsx`** is the universal search box. It
 debounces 250 ms, discards stale responses by request id, and calls
@@ -152,6 +160,19 @@ File `pages/public/Index.jsx`.
 `useApiQuery(["announcements"], "/api/announcements/")`. Announcements are kept
 out of the combined loading/error gate so a failure there never blanks the
 dashboard.
+
+**Card or list**: each division's `TypeFilterBar` carries a **View** toggle
+(Cards / List) at its right end. It is one setting for the whole dashboard —
+flipping it in any division changes all three — and it persists per browser in
+`localStorage` through `lib/dashboardView.js`, never server-side. In list view
+a section renders one `DashboardTable` holding every type it contains, instead
+of a grid of tiles grouped by type: Type is a column, so the per-type
+sub-headings would say the same thing twice. The columns are Title, Type,
+Status, Rating and Progress; each row's Progress carries its own unit (`ep`,
+`ch`, `vol`, `iss`, `h`) because the types do not measure the same thing. List
+view has **no stepper** — tracking stays in card view and on the entry page.
+The table scrolls sideways inside its own wrapper below ~640px so the page
+itself never does.
 
 **Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
 division with a `scrollY + 140` threshold):
@@ -279,25 +300,35 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 (`/api/anime/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`,
 `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`), each
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
-them**, so a game can never supply a collection cover — the same shape of gap
-comics used to have on the franchise pages. Search over the five
+them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`.
 No filter panel, no table view, no admin controls. Renders `CollectionCard`
 with member count.
 
 ### FranchiseLibrary — `/library/franchise`
 
-File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`
-and the entry lists **except `/api/comic/` and `/api/game/`** — so a comic- or
-game-only franchise never gets a cover fallback from its own entries, and its
-"Comic" filter category relies solely on `franchise_type`. (The equivalent
-omission on the franchise and series *hub* pages was fixed with the games
-work; this page was not.) Filter panel "Type": Anime, Manga, Novel, Anime
-Movie, Movie, TV, Cartoon, Comic, Other (Anime/Manga only count when the type is ACG
-*and* the franchise actually has such entries). Sort
-`title (default) | my_rating | franchise_expectation`. The grid/table toggle
-exists but **table view is a "Table View Under Development" placeholder**.
-Grid renders `FranchiseCard`.
+File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`,
+`/api/collection/` and **all nine** entry lists, each `?limit=2000`, driven by
+the `ENTRY_SOURCES` table at the top of the file rather than by nine
+positional bindings. The full nine is a requirement, not a preference:
+`getFranchiseCover()` falls back to the placeholder silently for any entry
+type the caller leaves out, and the table's Entries column counts whatever
+`ENTRY_SOURCES` lists, so a gap there undercounts it.
+
+Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
+Comic, Other (Anime/Manga only count when the type is ACG *and* the franchise
+actually has such entries) — **there is no Game category**, so a Game-only
+franchise files under "Other". Sort
+`title (default) | my_rating | franchise_expectation`, shared by both views.
+
+Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
+whose markup and class names mirror the table in `LibraryLayout.jsx` so the
+two read as one component: Franchise (a `Link` built by `entityPath`, plain
+text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
+Entries, Expectation (`lg`), My. The breakpoint in brackets is where that
+column collapses, so Franchise, Entries and My are what survives at phone
+width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself
+rather than widening the page. Clicking a row navigates to the franchise.
 
 ### StudioLibrary — `/library/studio`
 
@@ -568,6 +599,11 @@ admin-only) on Anime, TV (`watch_next` + `to_rewatch`), Cartoon
 (`playing_status`, `to_replay`) — Game passes **no** `onEpChange`, which is
 what drops the stepper: a game has no unit to count off, and playtime lives in
 its own Progress slip instead.
+Game also renders `components/tracker/GameCompletionBlock` directly below the
+tracker: `completion_level` plus the three `GAME_COMPLETION_FLAGS` axes as
+four selects, each patching the one field it changed and sending `null` rather
+than `""` for the unset option. Same two guards as `MyTrackerCard` — nothing
+at all for a logged-out visitor, read-only `Chip`s for a signed-in non-admin.
 AnimeMovie and Movie inline a status/rating/Watch Next/To Rewatch tracker;
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `read_next`, `to_reread`); Novel uses `components/tracker/NovelTrackerBlock`
@@ -585,7 +621,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版商 (linked), Anime Studio (card shown only when any value) | |
 | Novel | Region, Type, Version, 本傳/外傳, Serialization Status, Release/End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版商 (linked, conditional) | **Units** card (`NovelUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and remark; admins get the editor with reorder/add/remove and a Save → PATCH, read-only viewers get a plain list keyed by each row's server-computed `display_key`; hidden entirely for a viewer when the novel has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Main Line, Serialization/Reading Status, Release Year, Issue Total | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no Autofill, no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Playing Status, Completion Level, All Endings / All Achievements / All Collected (a row of three tristates; an unset one is dropped rather than shown as "No"), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than the bare literal it used to hard-code), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
+| Game | Type, Base Game (a link to `/game/{base_game_id}`), Release Status, Release Date, Current Patch, Steam Progress Sync (the one flag left here: it governs whether Steam may write this entry's progress, so it is a fact about the source rather than an answer about a playthrough — playing status and the four completion axes are editable in the tracker and Completion blocks instead), Metacritic / Metacritic User (each carries its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, and a missing score drops the field), Ownership (server-derived), Copies (a count) | Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer — the whole card is skipped when none of the four has a value | **Progress** slip (`GameProgress`: playtime against `hltb_main`, achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); **Prices** card (MSRP and current price in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date and remark — sorted by `position`, and rendered only when the game has copies, so the Info card's count is no longer their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played / hltb_main`; a Remarks slip that appears only when a remark already exists; `SourcesCard` with `igdbLink`; no Autofill, no `RelationsSection`, no `ScoreBlock`, no Cast |
 
 `MarkAiringModal` is not used by any detail page; only `MediaCard` opens it.
 
@@ -595,10 +631,13 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 fetches `/api/notes/sections?owner_type=` and `/api/notes?owner_type=&owner_id=`
 (cancellable), renders a "Notes" card for ungrouped sections plus one card per
 registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
-`MemeSection`. `SHAPES` now maps seven registry-driven shapes — `name_entries`
-(`NameEntriesSection`) joined it for the game-only `guides` and
-`builds_and_mods` sections. `hideSections` is the only place the frontend names
-a section key; see systems/notes.md.
+`MemeSection`. `SHAPES` maps all eight stored shapes to components,
+`name_entries` → `NameEntriesSection` among them, so a new registry section
+needs no frontend change as long as it reuses an existing shape — the 26
+game-only sections of the 攻略, 劇情 and 待辦 groups all did. Group cards render
+in registry first-appearance order, so a group's position is decided by where
+its first section sits in `NOTE_SECTIONS`. `hideSections` is the only place the
+frontend names a section key; see systems/notes.md.
 
 ### WatchOrderPage — `/watch-order/:system_id`
 
@@ -616,6 +655,19 @@ scope, chips for 2–6 lists (select above 6), inline guide capped at 10 steps
 with a "see full" link, and an admin-only **Add built-in order** button
 (`POST /api/watch-order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/watch-orders` page.
+
+### Four pages that need an account
+
+`/plan`, `/seasonal`, `/seasonal/:seasonal_id` and `/statistics` sit inside
+`<Route element={<ProtectedRoute permission="self.list" />}>` in `App.jsx`.
+They are built from `plan_next` and `seasonal`, which are per-user tables whose
+API routes answer `401` to a stranger, so a logged-out visitor is redirected to
+`/login?next=…` rather than shown a page that fills with errors. `requireAuth`
+gates on "is anyone logged in" rather than on a permission, mirroring the
+server's `get_current_user_id`. Their nav rows carry `requires: "self.list"`,
+the navigation config's spelling of "a signed-in member" (the guest role does
+not hold it; both `user` and `admin` do), so a guest is not shown links that
+would only bounce them.
 
 ### SeasonalOverall — `/seasonal` · SeasonalDetail — `/seasonal/:seasonal_id`
 
@@ -704,8 +756,10 @@ and delete, followed by `invalidateQueries` on the grouped key.
 
 File `pages/public/Login.jsx`. Heading "Admin Access". POSTs
 `/api/auth/login` as `application/x-www-form-urlencoded` (`username`,
-`password`), then `refetchAuth()` and navigates to `?next` when it starts with
-`/`, otherwise `/system` (replace). Errors show inline and as a toast.
+`password`), then **loads** `?next` when it starts with `/` and does not point
+back at `/login`, otherwise `/system`. A full page load, not a route change -
+everything cached up to that moment was cached as a guest. Errors show inline
+and as a toast.
 
 ### UnderDevelopment — `/under-development`
 
@@ -715,12 +769,11 @@ lost it once `/library/seiyuu` shipped.
 
 ## Known rough edges (as of this commit)
 
-- Cover resolution: FranchisePage and SeriesPage were fixed to pass every
-  entry list they load (comics had been missing there too), but
-  `FranchiseLibrary` and `usePlanData.allEntriesByFranchise` still skip comics,
-  and **no** cover path outside those two hubs knows about games —
-  `FranchiseLibrary`, `CollectionLibrary` and `CollectionPage` all fetch eight
-  entry lists, not nine.
+- Cover resolution: FranchisePage, SeriesPage and `FranchiseLibrary` pass every
+  entry list, so `getFranchiseCover()` gets the full nine it requires. The
+  remaining gaps are `usePlanData.allEntriesByFranchise`, which still skips
+  comics, and `CollectionLibrary` and `CollectionPage`, which fetch eight entry
+  lists and so can never draw a collection cover from a game.
 - `FutureReleases` has no Games tab, so an unreleased game (`release_status`
   `Rumored` / `Unreleased`, playing status `Play When Released`) shows up
   nowhere on that page.

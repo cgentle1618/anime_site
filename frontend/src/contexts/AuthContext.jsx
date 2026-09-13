@@ -4,8 +4,9 @@
 // permission set, not just the admin flag, because a viewer can now hold some
 // permissions and not others.
 //
-// `isAdmin` keeps its old meaning and shape: every existing consumer reads it
-// to enable or hide a control, and none of them should have to change.
+// `isAdmin` keeps its old shape (a boolean every existing consumer reads to
+// enable or hide a control) but not its old meaning: it now reports whether
+// the viewer holds manage.catalog, not the deleted bare admin permission.
 //
 // Hiding here is cosmetic. The server already withholds what a viewer may not
 // see, so this only stops the UI drawing empty frames around nothing.
@@ -24,8 +25,14 @@ const ANONYMOUS = {
   isAdmin: false,
   username: null,
   role: "guest",
-  isSuperuser: false,
+  isRoot: false,
   permissions: [],
+  // The OBJECT axis. `mode` is the active access mode; `modes` is every mode
+  // this account holds, each already carrying `requires_password` - the
+  // server computes that subset test so the SPA never models it. A guest
+  // holds none.
+  mode: null,
+  modes: [],
   loading: false,
 };
 
@@ -43,8 +50,10 @@ export function AuthProvider({ children }) {
           isAdmin: data.is_admin,
           username: data.username,
           role: data.role ?? "guest",
-          isSuperuser: data.is_superuser ?? false,
+          isRoot: data.is_root ?? false,
           permissions: data.permissions ?? [],
+          mode: data.mode ?? null,
+          modes: data.modes ?? [],
           loading: false,
         });
       } else {
@@ -63,11 +72,21 @@ export function AuthProvider({ children }) {
   // A Set so has() stays O(1) on pages that ask about many permissions.
   const held = useMemo(() => new Set(auth.permissions), [auth.permissions]);
 
-  // Mirrors Viewer.has on the server, superuser short-circuit included, so a
+  // Mirrors Viewer.has on the server, root short-circuit included, so a
   // new content label or field group does not have to be granted to the admin.
+  //
+  // The one exception mirrors the server's: the short-circuit does NOT cover
+  // the `self` family. self.list and self.personal_notes are ownership, not
+  // privilege - an admin account administers the site and does not keep a
+  // library of its own. Both halves move together or neither does: with only
+  // the server half, the nav would advertise Plan, Seasonal and Statistics to
+  // an admin and the API would answer 401 on each.
   const has = useCallback(
-    (permission) => auth.isSuperuser || held.has(permission),
-    [auth.isSuperuser, held],
+    (permission) =>
+      permission.startsWith("self.")
+        ? held.has(permission)
+        : auth.isRoot || held.has(permission),
+    [auth.isRoot, held],
   );
 
   const value = useMemo(

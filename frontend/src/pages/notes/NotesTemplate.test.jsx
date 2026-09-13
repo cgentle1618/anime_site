@@ -109,8 +109,10 @@ describe("NotesTemplate groups", () => {
 
   it("leaves ungrouped sections outside the card", async () => {
     renderTemplate();
+    // Wait for the group label this test reaches for, not for a section that
+    // may paint a tick earlier - see the collapse-when-empty test below.
     await waitFor(() =>
-      expect(screen.getByText("Overview")).toBeInTheDocument(),
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
     );
     const group = screen.getByText("音樂 Music").closest("div.bg-surface");
     expect(group).not.toBeNull();
@@ -167,7 +169,7 @@ describe("NotesTemplate standalone sections", () => {
   it("renders a standalone section outside the Notes card and outside every group", async () => {
     renderTemplate();
     await waitFor(() =>
-      expect(screen.getByText("Resources")).toBeInTheDocument(),
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
     );
     expect(screen.getAllByText("Resources")).toHaveLength(1);
     const notesCard = screen.getByText("Notes").closest("div.bg-surface");
@@ -227,7 +229,14 @@ describe("NotesTemplate collapse-when-empty", () => {
   it("collapses the Notes card and the group card when both are empty", async () => {
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
-    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    // Wait for the GROUP card, not for "Notes". The two cards are siblings
+    // rendered from one sections fetch, and the Notes header can paint a tick
+    // before the group does - so waiting on "Notes" and then reaching for
+    // the group synchronously is a race the test loses on a slower machine.
+    // Wait for the last thing to arrive, then assert on both.
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
     const notesCard = screen.getByText("Notes").closest("div.bg-surface");
     expect(notesCard.textContent).not.toContain("Overview");
     const groupCard = screen.getByText("音樂 Music").closest("div.bg-surface");

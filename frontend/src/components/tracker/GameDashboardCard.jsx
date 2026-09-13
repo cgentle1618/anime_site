@@ -4,15 +4,15 @@
 // off, so its progress bar is playtime measured against the main-story
 // estimate and the figure below it is read-only for everyone. Achievements
 // take the bar instead when the game reports a total and no estimate exists.
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
+import { EntryRow } from "./DashboardTable";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
-export default function GameDashboardCard({ game, franchise }) {
-  const navigate = useNavigate();
+export default function GameDashboardCard({ game, franchise, view = "card" }) {
 
   const title = getDisplayName(game, "game") || "Unknown Title";
   const subTitle = franchise
@@ -29,13 +29,34 @@ export default function GameDashboardCard({ game, franchise }) {
       ? Math.min(100, Math.round((played / estimate) * 100))
       : 0;
 
+  const cardPath = entityPath("game", game);
+
+  // Hours, not a count of anything - the unit in the cell is what stops this
+  // column being read as episodes.
+  if (view === "list") {
+    return (
+      <EntryRow
+        path={cardPath}
+        title={title}
+        subTitle={subTitle}
+        type="Game"
+        status={game.playing_status}
+        rating={game.my_rating}
+        progress={
+          played != null
+            ? `${played}${hasEstimate ? `/${estimate}` : ""} h`
+            : ""
+        }
+        percent={hasEstimate && played != null ? `${progressPercent}%` : null}
+      />
+    );
+  }
+
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
-      onClick={() => {
-        const path = entityPath("game", game);
-        if (path) navigate(path);
-      }}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full relative isolate${
+        cardPath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
@@ -73,7 +94,17 @@ export default function GameDashboardCard({ game, franchise }) {
             className="font-display font-bold text-text text-base line-clamp-2 leading-tight min-w-0"
             title={title}
           >
-            {title}
+            {cardPath ? (
+              // The stretched link: the anchor is the title and its ::after
+              // covers the card, so a middle click or ctrl-click anywhere on
+              // the card opens the entry, while the tracker controls below
+              // stay outside the anchor and above the overlay.
+              <Link to={cardPath} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                {title}
+              </Link>
+            ) : (
+              title
+            )}
           </h3>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mt-1 mb-2">
             {subTitle}
@@ -94,10 +125,7 @@ export default function GameDashboardCard({ game, franchise }) {
         </div>
       </div>
 
-      <div
-        className="p-3 border-t border-border mt-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative z-10 p-3 border-t border-border mt-auto">
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Playtime</span>
           <span className="text-text">{hasEstimate ? `${progressPercent}%` : ""}</span>

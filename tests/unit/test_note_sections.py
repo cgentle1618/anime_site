@@ -1,5 +1,6 @@
 """Unit tests for the notes section registry."""
 
+import dataclasses
 
 from app.utils import note_sections as ns
 from app.utils.media_resolver import OWNER_TABLES
@@ -40,8 +41,8 @@ def test_only_remark_is_singleton():
 def test_only_declared_sections_have_kinds():
     with_kinds = [s.key for s in ns.NOTE_SECTIONS if s.kinds]
     assert with_kinds == [
-        "builds_and_mods",
         "highlights",
+        "mods_and_tools",
         "op",
         "ed",
         "ost",
@@ -187,6 +188,9 @@ def test_op_ed_kinds_exclude_retired_values():
 def test_retired_sections_are_gone():
     assert ns.section_by_key("special_changes") is None
     assert ns.section_by_key("special_episodes") is None
+    # Replaced by the 攻略 group; their rows were migrated, not dropped.
+    assert ns.section_by_key("guides") is None
+    assert ns.section_by_key("builds_and_mods") is None
 
 
 def test_anime_sections_in_registry_order():
@@ -422,3 +426,137 @@ def test_insert_songs_tracks_status_but_not_type():
     assert sec.statuses == ns.MUSIC_STATUSES
     assert sec.kinds == ()
     assert sec.default_kind is None
+
+
+# --- scope -----------------------------------------------------------------
+# catalog: one shared set of rows, admin-authored, read by everyone.
+# personal: one set per user, read only by its author.
+# Sections backed by their own table (quotes, memes) store no note row and so
+# have no scope to declare.
+PERSONAL_KEYS = {
+    "remark",
+    "advantages",
+    "disadvantages",
+    "double_edged",
+    "episode_comments",
+    "questions",
+    "personal_reviews",
+    # The 待辦 buckets. Four sections rather than one with a kind, because
+    # sort_index orders rows within one (owner, section) pair.
+    "todo_now",
+    "todo_next",
+    "todo_later",
+    "todo_maybe",
+}
+
+CATALOG_KEYS = {
+    "op",
+    "ed",
+    "insert_songs",
+    "ost",
+    "op_ed_changes",
+    "extended_episodes",
+    "adaptation",
+    "resources",
+    "public_reviews",
+    "highlights",
+    "highlight_episodes",
+    "highlight_passages",
+    "highlight_moments",
+    "analysis",
+    "cinematography",
+    "craft",
+    "foreshadowing",
+    "symmetry",
+    # 攻略 Guides
+    "beginner",
+    "controls",
+    "trivia",
+    "side_quests",
+    "builds_and_styles",
+    "stats_and_points",
+    "skills",
+    "collectibles",
+    "items",
+    "weapons_and_gear",
+    "characters_guide",
+    "enemies",
+    "endings",
+    "mods_and_tools",
+    "guide_resources",
+    # 劇情 Story
+    "main_plot",
+    "side_plot",
+    "character_arcs",
+    "lore",
+    "timeline",
+    "mysteries",
+    "story_other",
+}
+
+
+def test_scope_has_no_default():
+    """
+    The guard the whole scheme rests on. With a default, the next section added
+    would inherit it silently - and if that default were `catalog`, one
+    person's private note would be published to every user by omission.
+    """
+    field = {f.name: f for f in dataclasses.fields(ns.NoteSection)}["scope"]
+    assert field.default is dataclasses.MISSING
+    assert field.default_factory is dataclasses.MISSING
+
+
+def test_every_stored_section_declares_a_real_scope():
+    for sec in ns.NOTE_SECTIONS:
+        if sec.shape in ns.STORED_SHAPES:
+            assert sec.scope in (ns.SCOPE_CATALOG, ns.SCOPE_PERSONAL), (
+                f"{sec.key} declares scope {sec.scope!r}"
+            )
+
+
+def test_external_sections_carry_no_scope():
+    # quotes and memes are universal - shared, unfiltered, no per-user copies -
+    # and are stored in their own tables, so a scope on them would mean nothing.
+    external = [s for s in ns.NOTE_SECTIONS if s.shape == ns.SHAPE_EXTERNAL]
+    assert {s.key for s in external} == {"quotes", "memes"}
+    for sec in external:
+        assert sec.scope is None
+
+
+def test_the_personal_sections_are_exactly_these_eleven():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
+        PERSONAL_KEYS
+    )
+    assert ns.PERSONAL_SECTIONS == PERSONAL_KEYS
+
+
+def test_the_catalog_sections_are_exactly_these_forty():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_CATALOG} == (
+        CATALOG_KEYS
+    )
+    assert ns.CATALOG_SECTIONS == CATALOG_KEYS
+
+
+def test_the_two_scopes_partition_every_stored_section():
+    stored = {s.key for s in ns.NOTE_SECTIONS if s.shape in ns.STORED_SHAPES}
+    assert len(stored) == 51
+    assert ns.PERSONAL_SECTIONS | ns.CATALOG_SECTIONS == stored
+    assert not (ns.PERSONAL_SECTIONS & ns.CATALOG_SECTIONS)
+
+
+def test_sections_by_scope_returns_registry_order():
+    keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
+    assert keys == [
+        "remark",
+        "advantages",
+        "disadvantages",
+        "double_edged",
+        "personal_reviews",
+        "episode_comments",
+        # The 待辦 run sits after `symmetry` and before the music group.
+        "todo_now",
+        "todo_next",
+        "todo_later",
+        "todo_maybe",
+        "questions",
+    ]

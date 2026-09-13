@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
@@ -204,7 +205,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Novel() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, isRoot } = useAuth();
   const { showToast } = useToast();
 
   const [novel, setNovel] = useState(null);
@@ -418,9 +419,12 @@ export default function Novel() {
               >
                 Novel{novel.type ? ` · ${novel.type}` : ""}
               </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding
-                  it tidies the spine rather than concealing the value. */}
-              {has("field_group.system_info") && (
+              {/* Cosmetic only: the id is this page's own URL, so hiding it
+                  tidies the spine rather than concealing the value. Gated on
+                  is_root rather than a permission - `super` is
+                  deliberately NOT a root role, and this is the one thing in
+                  the app only the owner's own account sees. */}
+              {isRoot && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -517,7 +521,8 @@ export default function Novel() {
               malScore={novel.mal_rating}
               malRank={novel.mal_rank}
               anilistScore={novel.anilist_rating}
-              updatedAt={novel.updated_at}
+              anilistRank={novel.anilist_rank}
+              anilistPopularityRank={novel.anilist_popularity_rank}
             />
           </header>
 
@@ -546,6 +551,10 @@ export default function Novel() {
               performPatch({ progress_display: v || null }, "Progress display updated")
             }
           />
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={novel.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

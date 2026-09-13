@@ -11,7 +11,12 @@ import uuid
 import pytest
 
 from app import models
-from app.services.rbac.permissions import PERM_ADMIN, media_type_perm
+from app.services.rbac.permissions import (
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
+    media_type_perm,
+)
 
 ROLES = "/api/roles/"
 USERS = "/api/users/"
@@ -39,17 +44,62 @@ def test_the_admin_api_is_closed_to_a_guest(client, path):
 # ---------------------------------------------------------------------------
 
 def test_the_catalog_lists_every_family(admin_client):
+    """Four families, and NOT field_group or label.
+
+    Those two are the access-mode axis since Phase B. Offering them in the
+    role editor would let an admin grant something no mode could ever take
+    away, because permission resolution is a union.
+    """
     families = {f["family"] for f in admin_client.get("/api/roles/catalog").json()}
-    assert families == {"admin", "media_type", "field_group", "label"}
+    assert families == {"admin", "manage", "media_type", "self"}
 
 
-def test_a_new_label_appears_in_the_catalog(admin_client):
+def test_catalog_serves_the_self_family(admin_client):
+    """
+    The role editor's checkbox grid is built from this response, so a new
+    family appears in the UI with no frontend change. That is the point of
+    serving the catalog instead of mirroring it.
+    """
+    r = admin_client.get("/api/roles/catalog")
+    assert r.status_code == 200
+
+    families = {block["family"]: block for block in r.json()}
+    assert "self" in families
+
+    names = {p["permission"] for p in families["self"]["permissions"]}
+    assert names == {"self.list", "self.personal_notes"}
+
+
+def test_a_self_permission_can_be_granted_to_a_role(admin_client):
+    role_id = admin_client.post(
+        ROLES,
+        json={"name": "listers", "label": "Listers", "permissions": []},
+    ).json()["system_id"]
+
+    r = admin_client.put(
+        f"/api/roles/{role_id}/permissions",
+        json={"permissions": ["self.list"]},
+    )
+    assert r.status_code == 200
+    assert "self.list" in r.json()["permissions"]
+
+
+def test_a_new_label_never_appears_in_the_role_catalog(admin_client):
+    """It used to, and must not any more.
+
+    A content label scopes which ENTRIES a session reaches, which is the
+    access mode's axis. The role editor serving it would be offering a grant
+    that cannot be narrowed.
+    """
     admin_client.post(
         LABELS, json={"key": "spoiler", "label": "Spoiler", "sort_order": 0}
     )
     catalog = admin_client.get("/api/roles/catalog").json()
-    label_family = next(f for f in catalog if f["family"] == "label")
-    assert "label.spoiler" in {p["permission"] for p in label_family["permissions"]}
+    assert not any(f["family"] == "label" for f in catalog)
+    every_permission = {
+        p["permission"] for f in catalog for p in f["permissions"]
+    }
+    assert not any(p.startswith("label.") for p in every_permission)
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +236,7 @@ def test_an_unknown_role_is_rejected(admin_client):
 
 def test_you_cannot_delete_yourself(admin_client, db_session):
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
     response = admin_client.delete(f"/api/users/{me.id}")
     assert response.status_code == 409
@@ -196,7 +246,7 @@ def test_the_last_administrator_cannot_be_demoted(admin_client, db_session):
     """Otherwise one PATCH locks everyone out of their own site."""
     guest = _role_id(admin_client, "guest")
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
 
     # The lifespan seeds a real "admin" account into the test database, so
@@ -218,7 +268,7 @@ def test_demotion_is_allowed_while_another_admin_remains(admin_client, db_sessio
     )
 
     me = db_session.query(models.User).filter(
-        models.User.username == "testadmin"
+        models.User.username == "aaa_testadmin"
     ).first()
     response = admin_client.patch(f"/api/users/{me.id}", json={"role_id": guest})
     assert response.status_code == 200
@@ -276,12 +326,44 @@ def test_labelling_an_entry_hides_it_from_a_guest(admin_client, client, sample_a
 
 
 def test_the_guest_role_can_never_be_granted_admin(admin_client):
-    """An anonymous request resolves to the guest role's grants, so admin on
-    guest would make every visitor an administrator with one misclick."""
+    """An anonymous request resolves to the guest role's grants, so admin.authz
+    on guest would make every visitor an administrator with one misclick."""
     guest_id = _role_id(admin_client, "guest")
     response = admin_client.put(
-        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_ADMIN]}
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_ADMIN_AUTHZ]}
     )
     assert response.status_code == 409
     after = admin_client.get(f"{ROLES}{guest_id}").json()
-    assert PERM_ADMIN not in after["permissions"]
+    assert PERM_ADMIN_AUTHZ not in after["permissions"]
+
+
+def test_the_guest_role_can_never_be_granted_manage_catalog(admin_client):
+    """manage.catalog on guest would let any anonymous visitor write the
+    collection - the same widened guard as admin.authz, added when the bare
+    `admin` permission split into three named ones in Phase A."""
+    guest_id = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_MANAGE_CATALOG]}
+    )
+    assert response.status_code == 409
+    body = response.json()
+    assert "guest" in body["detail"].lower()
+    assert PERM_MANAGE_CATALOG in body["detail"]
+    after = admin_client.get(f"{ROLES}{guest_id}").json()
+    assert PERM_MANAGE_CATALOG not in after["permissions"]
+
+
+def test_the_guest_role_can_never_be_granted_manage_pipelines(admin_client):
+    """manage.pipelines on guest would let any anonymous visitor run Backup,
+    Pull, Fill, Replace or Calculate - the worst possible grant for an
+    unauthenticated caller, since Pull All overwrites every table."""
+    guest_id = _role_id(admin_client, "guest")
+    response = admin_client.put(
+        f"{ROLES}{guest_id}/permissions", json={"permissions": [PERM_MANAGE_PIPELINES]}
+    )
+    assert response.status_code == 409
+    body = response.json()
+    assert "guest" in body["detail"].lower()
+    assert PERM_MANAGE_PIPELINES in body["detail"]
+    after = admin_client.get(f"{ROLES}{guest_id}").json()
+    assert PERM_MANAGE_PIPELINES not in after["permissions"]

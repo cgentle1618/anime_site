@@ -97,7 +97,7 @@ async function asList(res) {
 
 export default function SeriesPage() {
   const { publicId } = useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -1830,7 +1830,7 @@ export default function SeriesPage() {
       {showRemark && (
         <RemarkModal
           value={remark}
-          isAdmin={isAdmin}
+          canEdit={has("self.personal_notes")}
           onChange={setRemark}
           onClose={() => {
             saveRemark();

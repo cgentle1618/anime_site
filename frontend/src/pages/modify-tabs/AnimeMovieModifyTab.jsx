@@ -3,6 +3,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -307,11 +308,13 @@ export default function AnimeMovieModifyTab({
       />
 
       <SectionHeader icon="fa-image" title="Cover & Notes" />
-      <Field label="Cover Image File" hint="e.g. 5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="anime-movie"
+          ownerId={editingItem?.system_id}
+          role="cover"
           value={amf.cover_image_file}
-          onChange={(e) => uam("cover_image_file", e.target.value)}
+          onChange={(key) => uam("cover_image_file", key)}
         />
       </Field>
       <Field label="Remark">

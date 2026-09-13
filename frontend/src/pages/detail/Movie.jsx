@@ -5,6 +5,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import { creditValue } from "../../components/info/PersonLinks";
 import NamingCard from "../../components/info/NamingCard";
@@ -41,7 +42,7 @@ const lineageLinkCls =
 export default function Movie() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, isRoot } = useAuth();
   const { showToast } = useToast();
 
   const [movie, setMovie] = useState(null);
@@ -234,9 +235,12 @@ export default function Movie() {
               >
                 Movie{movie.movie_type ? ` · ${movie.movie_type}` : ""}
               </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding
-                  it tidies the spine rather than concealing the value. */}
-              {has("field_group.system_info") && (
+              {/* Cosmetic only: the id is this page's own URL, so hiding it
+                  tidies the spine rather than concealing the value. Gated on
+                  is_root rather than a permission - `super` is
+                  deliberately NOT a root role, and this is the one thing in
+                  the app only the owner's own account sees. */}
+              {isRoot && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -427,6 +431,10 @@ export default function Movie() {
               </div>
             </div>
           </Slip>
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={movie.system_id} />
 
           {/* Detail Cards */}
           <div className="space-y-6">

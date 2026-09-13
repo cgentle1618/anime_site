@@ -14,7 +14,7 @@ import uuid
 import pytest
 
 from app import models
-from tests.api.test_visibility import HIDDEN_NAME, hidden_anime, nsfw_label  # noqa: F401
+from tests.api.conftest import HIDDEN_NAME, hidden_anime, nsfw_label  # noqa: F401
 
 
 @pytest.fixture

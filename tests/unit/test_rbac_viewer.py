@@ -1,7 +1,7 @@
 """
 Viewer is the answer to "who is asking", resolved once per request.
 
-A superuser holds every permission without any of them being granted, which is
+A root role holds every permission without any of them being granted, which is
 what keeps a new content label or field group from hiding content from the
 admin the moment it is created.
 """
@@ -12,15 +12,15 @@ GUEST = Viewer(
     username=None,
     role_id=None,
     role_name="guest",
-    is_superuser=False,
+    is_root=False,
     permissions=frozenset({"media_type.anime"}),
 )
 
-SUPERUSER = Viewer(
+ROOT_ROLE = Viewer(
     username="admin",
     role_id=None,
     role_name="admin",
-    is_superuser=True,
+    is_root=True,
     permissions=frozenset(),
 )
 
@@ -33,10 +33,10 @@ def test_an_ungranted_permission_is_not_held():
     assert not GUEST.has("media_type.manga")
 
 
-def test_a_superuser_holds_a_permission_nobody_granted():
-    """The point of is_superuser: no grant list to keep in step."""
-    assert SUPERUSER.has("label.nsfw")
-    assert SUPERUSER.has("anything.at.all")
+def test_a_root_role_holds_a_permission_nobody_granted():
+    """The point of is_root: no grant list to keep in step."""
+    assert ROOT_ROLE.has("label.nsfw")
+    assert ROOT_ROLE.has("anything.at.all")
 
 
 def test_a_guest_is_anonymous():

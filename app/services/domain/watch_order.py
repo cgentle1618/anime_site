@@ -22,6 +22,7 @@ from app.models import (
     Comic,
     Game,
     Manga,
+    Media,
     Movies,
     Novel,
     TVShows,
@@ -90,6 +91,29 @@ def normalize_importance(value: Any) -> str:
         return DEFAULT_IMPORTANCE
     text = str(value).strip().title()
     return text if text in ITEM_IMPORTANCE else DEFAULT_IMPORTANCE
+
+
+def _attach_personal(db: Session, media_type: str, rows, viewer) -> None:
+    """Put the viewer's own status (and the rest of the list row) back on rows.
+
+    Both payload builders below read `status` with
+    `getattr(entry, _STATUS_FIELDS[media_type])`. Step 1 moves those columns
+    off the detail tables onto `user_media_list`, and getattr on an absent
+    column returns the default silently - so the guide showed None for the
+    status of every step and every candidate, with nothing raising.
+    Re-attaching first is what keeps it honest.
+
+    Costs one IN query per media type, not one per row.
+
+    Imported inside the function, not at module scope: `app.registry` imports
+    the mark_* helpers out of `app.services.domain`, so a top-level import
+    would close a cycle. `drop_hidden_rows` above is imported the same way.
+    """
+    from app.services.domain.user_list import acting_user_id, attach_list_fields
+
+    if not rows:
+        return
+    attach_list_fields(db, media_type, rows, acting_user_id(db, viewer))
 
 
 def _entry_payload(entry: Any, media_type: str) -> Dict[str, Any]:
@@ -185,7 +209,7 @@ def resolve_items(
     remove the broken step.
     """
     items = list(items)
-    if viewer is not None and not viewer.is_superuser:
+    if viewer is not None and not viewer.is_root:
         from app.services.rbac.enforcement import drop_hidden_rows
 
         # A step is removed rather than flagged missing: missing means "broken
@@ -205,6 +229,7 @@ def resolve_items(
         rows = (
             db.query(model).filter(model.system_id.in_(list(entry_ids))).all()
         )
+        _attach_personal(db, media_type, rows, viewer)
         resolved[media_type] = {row.system_id: row for row in rows}
 
     output: List[Dict[str, Any]] = []
@@ -264,18 +289,29 @@ def list_candidate_entries(
     for media_type, model in MEDIA_TYPE_MODELS.items():
         if media_type not in wanted:
             continue
+        # The parent links live on `media`, and an association proxy cannot be
+        # a column expression, so these go through the joined row.
         if series_ids is not None:
             if not hasattr(model, "series_id"):
                 continue
-            query = db.query(model).filter(model.series_id.in_(series_ids))
+            query = (
+                db.query(model)
+                .join(model.media_row)
+                .filter(Media.series_id.in_(series_ids))
+            )
         else:
-            query = db.query(model).filter(model.franchise_id.in_(franchise_ids))
+            query = (
+                db.query(model)
+                .join(model.media_row)
+                .filter(Media.franchise_id.in_(franchise_ids))
+            )
         # The picker must not offer an entry the viewer cannot see.
         if viewer is not None:
             from app.services.rbac.enforcement import apply_entry_visibility
 
             query = apply_entry_visibility(query, model, media_type, db, viewer)
         rows = query.all()
+        _attach_personal(db, media_type, rows, viewer)
         for row in rows:
             total = (
                 getattr(row, _TOTAL_FIELDS[media_type], None)
@@ -422,6 +458,8 @@ def get_entry_franchise_id(
     if model is None:
         return None
     row = (
-        db.query(model.franchise_id).filter(model.system_id == entry_id).first()
+        db.query(Media.franchise_id)
+        .filter(Media.system_id == entry_id)
+        .first()
     )
     return row[0] if row else None

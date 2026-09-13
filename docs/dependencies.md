@@ -1,6 +1,6 @@
 # Dependencies
 
-Last verified: 2026-09-08 (google-cloud-storage removed with the GCP deployment)
+Last verified: 2026-09-08
 
 ## What this is for
 
@@ -92,7 +92,7 @@ without a reason.
 | `pytest-asyncio` | 9f52223 | Async tests use the `anyio` plugin bundled with the httpx/Starlette stack |
 | `factory-boy` | 9f52223 | Never used; sample rows are plain fixtures in `tests/api/conftest.py` |
 | `@dagrejs/dagre` | 9f52223 | Relation layout moved to the in-house `lib/relationLayout.js` |
-| `google-cloud-storage` | 2026-09-08 | The GCP deployment was removed; cover images are stored on local disk only, and `app/utils/gcp_utils.py` went with it. `gspread` and `google-auth` stay — Google Sheets is untouched |
+| `google-cloud-storage` | 2026-09-08 | Cover images are stored on local disk only, so there is no object-storage client and no `app/utils/gcp_utils.py`. Do not re-add either without a storage decision. `gspread` and `google-auth` stay — Google Sheets is unaffected |
 
 Commit 155b298 also re-pinned every runtime package from the 2023-era versions
 (FastAPI 0.110, SQLAlchemy 2.0.23, gspread 5.12, ...) to the versions above and

@@ -37,8 +37,10 @@ class GameCopy(Base):
     __table_args__ = (
         # One game can be Digital-on-Steam and Physical-on-Switch without
         # colliding; buying the same edition on the same store twice cannot.
+        # user_id leads: we can both own Hollow Knight, Digital, on Steam.
         UniqueConstraint(
-            "game_id", "storefront", "copy_format", name="uq_game_copy_row"
+            "user_id", "game_id", "storefront", "copy_format",
+            name="uq_game_copy_row",
         ),
         CheckConstraint(
             r"acquired_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
@@ -54,6 +56,15 @@ class GameCopy(Base):
         UUID(as_uuid=True),
         ForeignKey("games.system_id", ondelete="CASCADE"),
         nullable=False,
+    )
+
+    # Whose purchase this is. A copy is a purchase record, not a fact about
+    # the game, so two people own two rows for the same edition.
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     storefront = Column(String, nullable=True)

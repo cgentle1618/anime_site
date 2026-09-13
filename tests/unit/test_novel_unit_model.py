@@ -5,6 +5,8 @@ from app.utils.constants import NOVEL_UNIT_KINDS, NOVEL_UNIT_KINDS_BY_TYPE
 
 
 def test_novel_unit_columns():
+    """my_rating is deliberately absent: it is one reader's opinion of one
+    unit and moved to user_novel_unit_rating in step 1."""
     cols = {c.name for c in models.NovelUnit.__table__.columns}
     assert cols == {
         "system_id",
@@ -17,7 +19,6 @@ def test_novel_unit_columns():
         "remark",
         "ch_count",
         # Per-unit grade on the MY_RATINGS scale; nothing derives from it.
-        "my_rating",
         "created_at",
         "updated_at",
     }
@@ -35,9 +36,15 @@ def test_novel_unit_check_constraints():
     assert "ck_novel_unit_ch_count_arc_only" in names
 
 
-def test_novel_gains_ch_fin_in_arc_and_drops_json_lists():
+def test_the_two_stage_cursor_lives_on_the_list_row_and_the_json_lists_are_gone():
+    """ch_fin_in_arc was added to `novel` by nv1u2n3i4t5s and moved to
+    user_media_list by m1b7novel: it is one reader's position in the arc they
+    are on, not a fact about the work. It still has to exist somewhere."""
     cols = {c.name for c in models.Novel.__table__.columns}
-    assert "ch_fin_in_arc" in cols
+    assert "ch_fin_in_arc" not in cols
+    assert "ch_fin_in_arc" in {
+        c.name for c in models.UserMediaList.__table__.columns
+    }
     assert "novel_name_each_cn" not in cols
     assert "novel_name_each_en" not in cols
 

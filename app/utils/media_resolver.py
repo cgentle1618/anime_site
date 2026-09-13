@@ -2,7 +2,7 @@
 Shared resolution for tables that reference a row across several tables by a
 (type, id) pair rather than a foreign key.
 
-Two maps are exported. MEDIA_TABLES covers the eight media entry tables and is
+Two maps are exported. MEDIA_TABLES covers the nine media entry tables and is
 what `quote` and `watch_order_item` resolve against. OWNER_TABLES adds the
 three grouping tiers (series, franchise, collection) and is what `meme`
 resolves against, since a meme can belong to a franchise rather than to one

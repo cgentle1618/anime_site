@@ -1,14 +1,17 @@
 // Frontend: page component file for FranchiseLibrary.
 import { useState, useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
+  getDisplayName,
   getSortName,
   getRatingWeight,
   cleanString,
   parseTypes,
 } from "../../utils/media";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
+import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
-import { Eyebrow } from "../../components/ui/primitives";
+import { Chip, Eyebrow } from "../../components/ui/primitives";
 
 const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -34,10 +37,177 @@ function getFilterCategories(franchise, animeSet, mangaSet) {
 
 const EMPTY_FILTERS = { franchiseType: new Set() };
 
+// Every entry table a franchise can hold, paired with the media type its
+// covers are filed under. getFranchiseCover() requires the full set - an
+// entry type left out falls back to the placeholder cover silently - and the
+// Entries column counts whatever is listed here, so a gap undercounts it.
+const ENTRY_SOURCES = [
+  ["anime", "/api/anime/"],
+  ["anime-movie", "/api/anime-movie/"],
+  ["movie", "/api/movies/"],
+  ["tv-show", "/api/tv-shows/"],
+  ["cartoon", "/api/cartoon/"],
+  ["manga", "/api/manga/"],
+  ["novel", "/api/novel/"],
+  ["comic", "/api/comic/"],
+  ["game", "/api/game/"],
+];
+
+// Breakpoints below which a column collapses, matching libraryColumns.jsx.
+// Franchise, Entries and My survive to phone width; the rest fold away.
+const HIDDEN = {
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+};
+
+const TABLE_COLUMNS = [
+  {
+    key: "franchise",
+    header: "Franchise",
+    tdClass: "text-sm font-medium text-text",
+    render: (f) => {
+      const name = getDisplayName(f, "franchise") || "Unknown Franchise";
+      const path = entityPath("franchise", f);
+      // No public_id means no URL to link to, so the name renders as plain
+      // text rather than a link to nowhere. Same rule as FranchiseCard.
+      return path ? (
+        <Link to={path} className="hover:text-brand transition-colors" title={name}>
+          {name}
+        </Link>
+      ) : (
+        name
+      );
+    },
+  },
+  {
+    key: "collection",
+    header: "Collection",
+    thClass: HIDDEN.md,
+    tdClass: `text-xs text-text-muted truncate max-w-[12rem] ${HIDDEN.md}`,
+    render: (f, { collectionDict }) => {
+      const c = collectionDict[f.collection_id];
+      return c ? (
+        getDisplayName(c, "collection") || "Unknown"
+      ) : (
+        <span className="text-text-faint/60 italic">None</span>
+      );
+    },
+  },
+  {
+    key: "type",
+    header: "Type",
+    thClass: HIDDEN.lg,
+    tdClass: `text-center ${HIDDEN.lg}`,
+    render: (f) => {
+      const types = parseTypes(f.franchise_type);
+      if (types.length === 0) return "-";
+      return (
+        <span className="inline-flex flex-wrap gap-1 justify-center">
+          {types.map((t) => (
+            <Chip key={t} className="text-[9px]">
+              {t}
+            </Chip>
+          ))}
+        </span>
+      );
+    },
+  },
+  {
+    key: "entries",
+    header: "Entries",
+    tdClass: "text-center font-mono text-xs text-text tabular-nums",
+    render: (f, { entriesByFranchise }) =>
+      entriesByFranchise[f.system_id]?.length ?? 0,
+  },
+  {
+    key: "expectation",
+    header: "Expectation",
+    thClass: HIDDEN.lg,
+    tdClass: `text-center ${HIDDEN.lg}`,
+    render: (f) =>
+      f.franchise_expectation ? (
+        <Chip className="text-[9px]">{f.franchise_expectation}</Chip>
+      ) : (
+        "-"
+      ),
+  },
+  {
+    key: "my",
+    header: "My",
+    tdClass: "text-center",
+    render: (f) =>
+      f.my_rating ? (
+        <span className="inline-flex items-center justify-center w-6 h-6 border border-brand text-brand font-display font-bold text-sm leading-none">
+          {f.my_rating}
+        </span>
+      ) : (
+        "-"
+      ),
+  },
+];
+
+// Markup and class names mirror the table in LibraryLayout.jsx so the two
+// libraries read as one component rather than two tables that drifted.
+function FranchiseTable({ franchises, columnCtx }) {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
+      <table className="w-full text-left">
+        <thead className="bg-surface border-b border-border sticky top-0 z-10">
+          <tr>
+            {TABLE_COLUMNS.map((col, i) => (
+              <th
+                key={col.key}
+                className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] text-center ${
+                  i < TABLE_COLUMNS.length - 1 ? "border-r border-border" : ""
+                } ${col.thClass ?? ""}`}
+              >
+                {col.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {franchises.map((f) => {
+            const path = entityPath("franchise", f);
+            return (
+              <tr
+                key={f.system_id}
+                onClick={path ? () => navigate(path) : undefined}
+                className={`transition-colors ${
+                  path ? "hover:bg-surface-2 cursor-pointer" : ""
+                }`}
+              >
+                {TABLE_COLUMNS.map((col, i) => (
+                  <td
+                    key={col.key}
+                    className={`px-4 py-2 ${
+                      i < TABLE_COLUMNS.length - 1 ? "border-r border-border" : ""
+                    } ${col.tdClass ?? ""}`}
+                  >
+                    {col.render(f, columnCtx)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+async function fetchList(path) {
+  const res = await fetch(`${path}?limit=2000`, { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to load data");
+  return res.json();
+}
+
 export default function FranchiseLibrary() {
   const [allFranchises, setAllFranchises] = useState([]);
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
+  const [collectionDict, setCollectionDict] = useState({});
   const [animesByFranchise, setAnimesByFranchise] = useState(new Set());
   const [mangasByFranchise, setMangasByFranchise] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -51,60 +221,23 @@ export default function FranchiseLibrary() {
   useEffect(() => {
     async function load() {
       try {
-        const [fRes, aRes, amRes, mRes, tvRes, cRes, mgRes, nvRes] = await Promise.all(
-          [
-            fetch("/api/franchise/?limit=2000", { credentials: "include" }),
-            fetch("/api/anime/?limit=2000", { credentials: "include" }),
-            fetch("/api/anime-movie/?limit=2000", { credentials: "include" }),
-            fetch("/api/movies/?limit=2000", { credentials: "include" }),
-            fetch("/api/tv-shows/?limit=2000", { credentials: "include" }),
-            fetch("/api/cartoon/?limit=2000", { credentials: "include" }),
-            fetch("/api/manga/?limit=2000", { credentials: "include" }),
-            fetch("/api/novel/?limit=2000", { credentials: "include" }),
-          ],
-        );
-        if (
-          !fRes.ok ||
-          !aRes.ok ||
-          !amRes.ok ||
-          !mRes.ok ||
-          !tvRes.ok ||
-          !cRes.ok ||
-          !mgRes.ok ||
-          !nvRes.ok
-        )
-          throw new Error("Failed to load data");
-        const [
-          franchises,
-          anime,
-          animeMovies,
-          movies,
-          tvShows,
-          cartoons,
-          mangas,
-          novels,
-        ] = await Promise.all([
-          fRes.json(),
-          aRes.json(),
-          amRes.json(),
-          mRes.json(),
-          tvRes.json(),
-          cRes.json(),
-          mgRes.json(),
-          nvRes.json(),
+        const [franchises, collections, ...entryLists] = await Promise.all([
+          fetchList("/api/franchise/"),
+          fetchList("/api/collection/"),
+          ...ENTRY_SOURCES.map(([, path]) => fetchList(path)),
         ]);
         // Tagged with the media type each list was fetched as: covers live
         // in owner-typed folders, so the cover fallback needs it.
-        const allEntries = [
-          ...withMediaType(anime, "anime"),
-          ...withMediaType(animeMovies, "anime-movie"),
-          ...withMediaType(movies, "movie"),
-          ...withMediaType(tvShows, "tv-show"),
-          ...withMediaType(cartoons, "cartoon"),
-          ...withMediaType(mangas, "manga"),
-          ...withMediaType(novels, "novel"),
-        ];
+        const allEntries = ENTRY_SOURCES.flatMap(([type], i) =>
+          withMediaType(entryLists[i], type),
+        );
+        const byType = Object.fromEntries(
+          ENTRY_SOURCES.map(([type], i) => [type, entryLists[i]]),
+        );
         setAllFranchises(franchises);
+        setCollectionDict(
+          Object.fromEntries(collections.map((c) => [c.system_id, c])),
+        );
         setAllEntriesDict(
           Object.fromEntries(allEntries.map((e) => [e.system_id, e])),
         );
@@ -116,10 +249,14 @@ export default function FranchiseLibrary() {
         }
         setAllEntriesByFranchise(byFranchise);
         setAnimesByFranchise(
-          new Set(anime.filter((a) => a.franchise_id).map((a) => a.franchise_id)),
+          new Set(
+            byType.anime.filter((a) => a.franchise_id).map((a) => a.franchise_id),
+          ),
         );
         setMangasByFranchise(
-          new Set(mangas.filter((m) => m.franchise_id).map((m) => m.franchise_id)),
+          new Set(
+            byType.manga.filter((m) => m.franchise_id).map((m) => m.franchise_id),
+          ),
         );
       } catch (e) {
         setError(e.message);
@@ -342,14 +479,7 @@ export default function FranchiseLibrary() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {currentView === "table" ? (
-          <div className="text-center py-16 border border-dashed border-border-strong">
-            <Eyebrow className="mb-1">Table view</Eyebrow>
-            <p className="text-text-muted text-sm">
-              Not built yet — switch to grid view to browse franchises.
-            </p>
-          </div>
-        ) : filteredAndSorted.length === 0 ? (
+        {filteredAndSorted.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-border-strong">
             <Eyebrow className="mb-1">Empty</Eyebrow>
             <p className="text-text-muted text-sm">No franchises found</p>
@@ -372,6 +502,14 @@ export default function FranchiseLibrary() {
               )}
             </p>
           </div>
+        ) : currentView === "table" ? (
+          <FranchiseTable
+            franchises={filteredAndSorted}
+            columnCtx={{
+              collectionDict,
+              entriesByFranchise: allEntriesByFranchise,
+            }}
+          />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredAndSorted.map((franchise) => (

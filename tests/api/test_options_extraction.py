@@ -16,7 +16,7 @@ def test_extraction_creates_no_duplicate_options(db_session):
     db_session.commit()
     from app.services.domain.credits import replace_tags
 
-    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Action"])
+    replace_tags(db_session, a.system_id, "genre_main", ["Action"])
     db_session.commit()
 
     extract_system_options(db_session)
@@ -32,7 +32,7 @@ def test_extraction_records_the_scope_a_value_is_used_in(db_session):
     db_session.commit()
     from app.services.domain.credits import replace_tags
 
-    replace_tags(db_session, "tv-show", show.system_id, "original_source", ["Netflix"])
+    replace_tags(db_session, show.system_id, "original_source", ["Netflix"])
     db_session.commit()
 
     # replace_tags already writes the scope row for the type it was called
@@ -78,7 +78,7 @@ def test_extraction_actually_recreates_a_deleted_scope_row(db_session):
     db_session.commit()
     from app.services.domain.credits import replace_tags
 
-    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Comedy"])
+    replace_tags(db_session, a.system_id, "genre_main", ["Comedy"])
     db_session.commit()
 
     opt = db_session.query(models.SystemOption).filter_by(
@@ -115,8 +115,8 @@ def test_two_entries_sharing_one_option_do_not_duplicate_the_scope_row(db_sessio
     db_session.add_all([a, b])
     db_session.commit()
 
-    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Action"])
-    replace_tags(db_session, "anime", b.system_id, "genre_main", ["Action"])
+    replace_tags(db_session, a.system_id, "genre_main", ["Action"])
+    replace_tags(db_session, b.system_id, "genre_main", ["Action"])
     db_session.commit()
 
     opt = (
@@ -151,7 +151,7 @@ def test_extraction_never_removes_a_scope_row(db_session):
     a = models.Anime(anime_name_cn="丙")
     db_session.add(a)
     db_session.commit()
-    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Mystery"])
+    replace_tags(db_session, a.system_id, "genre_main", ["Mystery"])
     db_session.commit()
 
     opt = (

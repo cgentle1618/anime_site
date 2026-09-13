@@ -49,35 +49,39 @@ def normalize_arc_progress(arc_counts, arc_fin, ch_fin_in_arc):
     return fin, ch
 
 
-def clear_chapter_columns(entry) -> None:
+def clear_chapter_catalog(entry) -> None:
     """
-    Blank every chapter and arc column on a volume-only novel.
+    Blank the work's chapter and arc totals on a volume-only novel.
 
-    A Light Novel or a Novel is counted in volumes, so these columns carry no
-    meaning for it. Nullable totals go to None; the NOT NULL counters go to 0.
+    A Light Novel or a Novel is counted in volumes, so these carry no meaning
+    for it. Both are nullable, so both go to None.
     """
     entry.arc_total = None
     entry.ch_total = None
-    entry.arc_fin = 0
-    entry.ch_fin = 0
-    entry.ch_fin_in_arc = 0
 
 
-def derive_novel_progress(entry) -> None:
+def clear_chapter_list(row) -> None:
+    """The reader's half of the same clear: the counters go to 0, not None -
+    they are a position, and position zero is where you are before you start."""
+    row.arc_fin = 0
+    row.ch_fin = 0
+    row.ch_fin_in_arc = 0
+
+
+def derive_novel_catalog(entry) -> None:
     """
-    Recompute the derived progress columns from the entry's arc rows.
+    Recompute the work's arc_total and ch_total from its arc rows.
 
     Decision B: only arcs are authoritative. Volume rows are optional
-    enrichment, so vol_fin / vol_total_original / vol_total_tw are never
-    touched here. A novel with no arc rows keeps its flat ch_fin / ch_total
-    pair and only has the in-arc cursor zeroed.
+    enrichment, so vol_total_original / vol_total_tw are never touched here.
+    The type gates all of it - a volume-only type is cleared outright and
+    never derives, even when arc rows are present, which a Pull can carry in.
 
-    The type gates all of it. A volume-only type is cleared outright and never
-    derives, even when arc rows are present - the editor cannot create those,
-    but a Pull from the sheet can carry them in.
+    Pure: no session, no queries, and idempotent, because it is called from
+    every write path and from Calculate.
     """
     if getattr(entry, "type", None) in NOVEL_VOLUME_ONLY_TYPES:
-        clear_chapter_columns(entry)
+        clear_chapter_catalog(entry)
         return
 
     arcs = sorted(
@@ -85,17 +89,43 @@ def derive_novel_progress(entry) -> None:
         key=lambda u: _num(u.position),
     )
     if not arcs:
-        entry.ch_fin_in_arc = 0
         return
 
     counts = [_num(u.ch_count) for u in arcs]
-    fin, ch = normalize_arc_progress(counts, entry.arc_fin, entry.ch_fin_in_arc)
-
-    entry.arc_fin = float(fin)
-    entry.ch_fin_in_arc = float(ch)
     entry.arc_total = float(len(arcs))
     entry.ch_total = float(sum(counts))
-    entry.ch_fin = float(sum(counts[:fin]) + ch)
+
+
+def derive_novel_list(row, entry) -> None:
+    """
+    Recompute one reader's arc_fin, ch_fin_in_arc and ch_fin from the work's
+    arc rows and their own cursor.
+
+    The arithmetic is exactly what derive_novel_progress did; what changed is
+    where the answer is written. Two people reading the same web novel fold
+    their own cursors through the same arc widths and land in different
+    places, which is the whole point.
+    """
+    if getattr(entry, "type", None) in NOVEL_VOLUME_ONLY_TYPES:
+        clear_chapter_list(row)
+        return
+
+    arcs = sorted(
+        (u for u in (entry.units or []) if u.unit_kind == "arc"),
+        key=lambda u: _num(u.position),
+    )
+    if not arcs:
+        # No arcs: the flat ch_fin the reader typed stands, and only the
+        # in-arc cursor is meaningless. Same rule derive_novel_progress had.
+        row.ch_fin_in_arc = 0
+        return
+
+    counts = [_num(u.ch_count) for u in arcs]
+    fin, ch = normalize_arc_progress(counts, row.arc_fin, row.ch_fin_in_arc)
+
+    row.arc_fin = float(fin)
+    row.ch_fin_in_arc = float(ch)
+    row.ch_fin = float(sum(counts[:fin]) + ch)
 
 
 def unit_display_key(unit_kind, position, unit_key) -> str:

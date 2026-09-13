@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.calculation import (
     bulk_check_cover_image,
     bulk_delete_orphaned_cover_images,
@@ -26,9 +26,12 @@ from app.services.calculation import (
 from app.services.domain import find_all_duplicates, find_all_remarks
 from app.services.pipelines import fill, replace
 from app.services.pipelines.backup import execute_backup
+from app.services.pipelines.clean import CleanAborted, apply_clean, scan_orphans
 from app.services.pipelines.pull import execute_pull_all, execute_pull_specific
 from app.services.pipelines.specs import PIPELINES
 from app.services.pipelines.tabs import MEDIA_TYPE_FOR_TAB
+from app.services.rbac.permissions import PERM_ADMIN_AUTHZ
+from app.services.rbac.resolver import Viewer, require_manage_pipelines
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,25 @@ class DownloadCoversBody(BaseModel):
 router = APIRouter(
     prefix="/api/data-control",
     tags=["Data Control Pipelines"],
-    dependencies=[Depends(get_current_admin)],
+    # ONE gate: the ROLE. `manage.pipelines` answers "may this account run
+    # pipelines", and nothing asks which access mode it is sitting in.
+    #
+    # There used to be a second gate requiring an unscoped mode (Decision 14),
+    # on the grounds that a narrowed session would write a PARTIAL sheet over
+    # the complete one. No pipeline is viewer-aware, so it never could:
+    # execute_backup reads db.query(tab.model).all(), runner.py reads
+    # db.query(spec.model).all(), and calculation.py says outright that
+    # Calculate "is a pipeline with no viewer". entry_visible and
+    # hidden_label_ids are called only from the entry routers. The gate
+    # refused requests without changing a byte of output.
+    #
+    # ROUTER level, not per handler: most of this router's routes are
+    # registered in a loop over PIPELINES rather than declared, so a
+    # per-handler gate would miss them silently - which is exactly how the
+    # Replace-one oracle survived a year.
+    dependencies=[
+        Depends(require_manage_pipelines),
+    ],
 )
 
 
@@ -128,14 +149,37 @@ def trigger_backup_all(db: Session = Depends(get_db)):
 
 
 @router.post("/pull", summary="Restore every tab from Google Sheets")
-def trigger_pull_all(db: Session = Depends(get_db)):
-    return JSONResponse(content=execute_pull_all(db, action_type="Manual"))
+def trigger_pull_all(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # The router-level gate already established manage.pipelines; this reads
+    # the same viewer to decide whether the three authorization tabs restore
+    # too. See AUTHZ_TABS in tabs.py for why they are separate.
+    return JSONResponse(
+        content=execute_pull_all(
+            db,
+            action_type="Manual",
+            may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+        )
+    )
 
 
 def _register_pull_route(key: str, tab_name: str) -> None:
     @router.post(f"/pull/{key}", summary=f"Restore the {tab_name} tab", name=f"pull_{key}")
-    def trigger_pull(db: Session = Depends(get_db)):
-        return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+    def trigger_pull(
+        db: Session = Depends(get_db),
+        viewer: Viewer = Depends(require_manage_pipelines),
+    ):
+        return _json(
+            execute_pull_specific(
+                db,
+                tab_name,
+                action_type="Manual",
+                log_action=True,
+                may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+            )
+        )
 
 
 # Per-type shortcuts the admin page links to; every other tab goes through
@@ -146,8 +190,80 @@ for _tab, _media in MEDIA_TYPE_FOR_TAB.items():
 
 
 @router.post("/pull/{tab_name}", summary="Restore one sheet tab by name")
-def trigger_pull_specific(tab_name: str, db: Session = Depends(get_db)):
-    return _json(execute_pull_specific(db, tab_name, action_type="Manual", log_action=True))
+def trigger_pull_specific(
+    tab_name: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    return _json(
+        execute_pull_specific(
+            db,
+            tab_name,
+            action_type="Manual",
+            log_action=True,
+            may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ),
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
+# Clean (find rows the sheet has forgotten, then delete the ones an admin ticks)
+# ---------------------------------------------------------------------------
+
+
+class CleanItem(BaseModel):
+    tab: str
+    system_id: str
+
+
+class CleanApplyBody(BaseModel):
+    items: list[CleanItem]
+
+
+@router.get("/clean/scan", summary="Find local rows the sheet no longer mentions")
+def clean_scan(db: Session = Depends(get_db)):
+    """
+    Read-only, and logs nothing - like check/duplicates.
+
+    Both Clean routes are gated on `manage.pipelines` and nothing else.
+
+    Clean is the one place on this router where the removed mode gate did
+    something real, and it is recorded here rather than left to be found. The
+    rest of the router is viewer-blind in a way that made the gate inert; this
+    report is an unrestricted READ of the whole catalogue by construction - it
+    names every orphan row, including entries a narrow mode hides - and apply
+    deletes by system_id. So a narrowed operator now sees orphans it could not
+    see through any entry route.
+
+    Accepted: that operator holds `manage.pipelines`, which is `admin` or
+    `super`, and a mode is a view ceiling they chose for themselves rather
+    than a boundary against them. If this ever needs closing, close it here,
+    by filtering the report - not by gating the router on a mode that the
+    other four pipelines never read.
+    """
+    try:
+        return JSONResponse(content=scan_orphans(db))
+    except CleanAborted as exc:
+        # 503, not 500: the request was fine, the sheet is unavailable or
+        # untrustworthy, and retrying later is the right advice.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/clean/apply", summary="Delete the ticked orphans, after a re-scan")
+def clean_apply(body: CleanApplyBody, db: Session = Depends(get_db)):
+    """
+    Delete the ticked rows, minus any the re-scan no longer calls orphaned.
+
+    The re-scan is why this takes an explicit list of ids rather than a
+    dry_run flag: the destructive call names exactly what it intends to remove,
+    and the server independently re-derives whether each one still qualifies.
+    """
+    try:
+        return JSONResponse(
+            content=apply_clean(db, [item.model_dump() for item in body.items])
+        )
+    except CleanAborted as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -190,5 +306,12 @@ def check_duplicates(db: Session = Depends(get_db)):
 
 
 @router.get("/check/remarks")
-def check_remarks(db: Session = Depends(get_db)):
-    return JSONResponse(content=find_all_remarks(db))
+def check_remarks(
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_manage_pipelines),
+):
+    # The CALLER's own remarks. A remark is a personal-scope note and belongs
+    # to its author (decision 12), and this screen shows one per entry - a
+    # shape that only means something once an author is fixed. Identical to
+    # the old answer on a single-account installation.
+    return JSONResponse(content=find_all_remarks(db, viewer.user_id))

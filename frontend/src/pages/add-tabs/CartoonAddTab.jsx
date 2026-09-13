@@ -2,6 +2,7 @@
 import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -382,12 +383,15 @@ export default function CartoonAddTab({
       />
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. cartoon/5114.jpg or https://...">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="cartoon"
+          role="cover"
           value={cf.cover_image_file}
-          onChange={(e) => uc("cover_image_file", e.target.value)}
-          placeholder="cartoon/5114.jpg"
+          onChange={(key, imageId) => {
+            uc("cover_image_file", key);
+            uc("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

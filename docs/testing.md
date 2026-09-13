@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-08 (test database now lives in the postgres:17 container)
+Last verified: 2026-09-12
 
 ## What this is for
 
@@ -15,10 +15,10 @@ elsewhere.
 
 | Location | Files | Test functions | Needs |
 |---|---|---|---|
-| `tests/unit/` | 59 | 722 | Python only, no database, no network |
-| `tests/api/` | 78 | 878 | PostgreSQL database `anime_site_test` |
+| `tests/unit/` | 94 | 1043 | Python only, no database, no network |
+| `tests/api/` | 126 | 1301 | PostgreSQL database `anime_site_test` |
 | `tests/services/` | 0 (only `__init__.py`) | 0 | placeholder, never populated |
-| `frontend/src/**/*.test.{js,jsx}` | 62 | 495 `it`/`test` blocks | Node + jsdom |
+| `frontend/src/**/*.test.{js,jsx}` | 103 | 852 `it`/`test` blocks | Node + jsdom |
 
 Counts were taken with `grep -E '^\s*(async )?def test_'` on the Python files
 and `grep -E '^\s*(it|test)\('` on the frontend files, so parametrised cases
@@ -71,20 +71,38 @@ PostgreSQL database. `tests/api/conftest.py` does the following:
 
 1. `test_engine` (session scope) refuses to run unless the database name
    contains `test`, then `DROP SCHEMA public CASCADE` / `CREATE SCHEMA public`
-   and `Base.metadata.create_all`. Alembic is never run in tests; the schema
+   and `Base.metadata.create_all`. Alembic is not run for *this* schema; it
    comes from the current models, which is why the drop is needed (stale
-   columns from old runs would otherwise linger). The RBAC roles that
+   columns from old runs would otherwise linger). That blind spot is why the
+   migration chain went 145 revisions unable to build a database at all, so
+   one file does run it: `test_migrations_build_the_schema.py` upgrades a
+   scratch database from empty and compares the result to the models, object
+   by object and column by column. The RBAC roles that
    migration A would normally seed are created once here via
-   `ensure_rbac_seed`. `drop_all` runs at session end.
+   `ensure_rbac_seed`, followed by `ensure_access_mode_seed` and
+   `grant_all_modes_to_existing_accounts`. `drop_all` runs at session end.
+
+   **Anything the lifespan seeds must be seeded here too, committed.** This
+   has caused a hang twice. `with TestClient(app)` runs the lifespan on its
+   OWN connection; if a test transaction has already inserted the same rows
+   uncommitted, the lifespan's INSERT blocks on the unique key - the test
+   waiting on the client, the client waiting on the test, forever. Seeding
+   here first keeps the lifespan's copy to a SELECT. The symptom is a run that
+   produces no output at all rather than a failure, so it reads as "slow"
+   rather than "stuck"; `SELECT ... FROM pg_stat_activity` shows one session
+   `idle in transaction` and one `active` on `Lock: transactionid`.
 2. `db_session` (function scope) opens one connection, begins an outer
    transaction and builds a `sessionmaker(bind=connection,
    join_transaction_mode="create_savepoint")`. Any `commit()` or `rollback()`
    the app performs acts on a SAVEPOINT, so production code paths run
    unchanged while the outer transaction is rolled back at teardown. Nothing a
    test writes survives it.
-3. `_clear_permission_cache` (autouse) bumps the process-global role to
-   permission cache before and after every test, because that cache is not
-   part of the rolled-back transaction.
+3. `_clear_permission_cache` (autouse) bumps the process-global caches before
+   and after every test, because they are not part of the rolled-back
+   transaction. There are **three** of them - role permissions,
+   access-mode items, per-account denials - and one `bump()` clears all three.
+   If that ever stops being true, mode state leaks between tests and the
+   failures are random and order-dependent.
 
 The `anyio` marker in `test_pipeline_runner.py` is served by the `anyio`
 plugin that ships with Starlette/httpx; `pytest-asyncio` was removed.
@@ -118,7 +136,13 @@ the two-stage cursor stepper.
 | `db_session` | function | SQLAlchemy session inside a rolled-back transaction (savepoint mode) |
 | `_clear_permission_cache` | function, autouse | RBAC cache bumped before and after the test |
 | `client` | function | Unauthenticated `TestClient` with `get_db` overridden to `db_session` |
-| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted and a valid `access_token` cookie set |
+| `admin_client` | function | `TestClient` with a `testadmin` user (role `admin`) inserted, all four access modes granted, and a valid `access_token` cookie carrying a `mode` claim |
+| `user_client` / `plain_user` | function | The same for an account on the `user` role |
+| `super_client` / `super_user` | function | The same for the `super` role - both `manage.*`, no `admin.authz`. **This is the account shape that keeps a library**, so it is what a test of a personal endpoint should use: an admin holds no `self.*` grant. Use the fixture rather than building one inline |
+| `mode_client(key, user=None, denials=())` | function | A client sitting in one named access mode. The mode travels in the token claim exactly as in production, so these exercise the real resolution path rather than a `Viewer` built by hand |
+| `mode(key)` / `grant_mode(user, key, denials=(), is_default=False)` | function | The seeded modes, and granting one (optionally minus some labels, named by key) |
+| `nsfw_label` / `hidden_anime` | function | A content label and an entry carrying it. Label fixtures call `carry_label_in_wide_modes`, because a mode's labels are materialised rows and a label created after the seed would otherwise reach no mode - which would make fixture ORDER decide what a mode holds |
+| `catalog_writer(username=…, extra=…, label_keys=())` | function | An account holding `manage.catalog` in a mode carrying NO labels - i.e. a writer who cannot see the labelled entry |
 | `sample_collection` | function | `Collection` "Test Collection" / "測試合集" |
 | `sample_collected_franchise` | function | Anime `Franchise` linked to `sample_collection` |
 | `sample_franchise` | function | Anime `Franchise` "Test Franchise" / "測試系列" |
@@ -126,6 +150,13 @@ the two-stage cursor stepper.
 | `sample_anime` | function | TV `Anime` under `sample_franchise`, 12/12 episodes, Completed |
 | `sample_comic` | function | `Comic` under `sample_franchise`, 6/6 issues, Completed |
 | `role_id_for(db, name)` | helper, not a fixture | Looks up a seeded role's `system_id`; needed because `users.role` is a read-only mapping and fixtures must set `role_id` |
+| `make_viewer(db, client, username, permissions, field_groups=None, label_keys=None)` | helper | Logs `client` in as a new account. `permissions` is the ROLE axis; the two keyword arguments are the OBJECT axis and build a bespoke mode. Both default to "everything", so a test that only cares about capabilities need not mention them |
+
+**A signed-in test client with no `mode` claim resolves the EMPTY object set**
+and every gated field vanishes from every response. Never mint a token by
+hand; use the fixtures above. This has cost two debugging cycles, each time
+presenting as "my route 401s / my field is missing" with nothing wrong in the
+code under test.
 
 Sample rows are `flush()`ed, not committed, so they are visible to the request
 under test and vanish at teardown. Anything you need for other media types you
@@ -138,6 +169,13 @@ Use the project venv's interpreter, not the system Python.
 ```bash
 # One-time: create the test database inside the postgres:17 container
 docker exec anime_site_postgres_db createdb -U postgres anime_site_test
+
+# Working alongside another session? Give yourself your own database and
+# select it with POSTGRES_DB - tests/conftest.py uses os.environ.setdefault,
+# so the variable wins. Two suites sharing one database produce spurious
+# "relation role does not exist" and unique-constraint failures that look
+# exactly like real breakage.
+docker exec anime_site_postgres_db createdb -U postgres anime_site_test_mine
 
 # Backend, all tiers
 venv/Scripts/python -m pytest
@@ -166,6 +204,33 @@ npm run lint            # eslint src
 `test_engine` guard aborts if the configured database name lacks `test`, so a
 mis-set `POSTGRES_DB` fails fast instead of wiping a real database.
 
+## The `media` supertable in tests
+
+`tests/api/conftest.py` builds its schema with `Base.metadata.create_all` and
+**never runs Alembic**, so anything a migration creates has to be attached to
+the metadata as well or it simply does not exist under test. Two things in this
+category, both in `app/models/media_sync.py`:
+
+- the `delete_media_row()` function and the nine `trg_<table>_delete_media`
+  triggers, attached as `after_create` DDL;
+- the nine `<table>_public_id_seq` sequences, declared against the metadata now
+  that no column hangs them.
+
+Four guards keep the supertable honest, and a failure in any of them names the
+media type that was missed rather than the symptom:
+
+| Test | Guards |
+|---|---|
+| `tests/unit/test_media_constraints.py` | Every detail table declares the composite FK, the CHECK and the `media_type` column, and the FK is deferred. Alembic autogenerates none of these |
+| `tests/api/test_media_supertable.py` | The same, in the database: the triggers really exist, a detail row cannot attach to a media row of the wrong type, and deleting either end cleans up both |
+| `tests/api/test_display_name_drift.py` | `media.display_name` is denormalized; this walks every entry and compares the stored value with `compute_display_name` |
+| `tests/api/test_public_id.py` | All nine detail routes resolve by `public_id` **and** by `system_id`, and a non-media route still resolves by its own |
+
+A test that invents a `uuid4()` for a link row's `media_id` will now fail on the
+foreign key: create a real entry and use its `system_id`. Every media entry gets
+its `media` row automatically when it is constructed, so adding the entry is
+enough.
+
 ## Adding tests for a new media type
 
 Most cross-media coverage is table-driven, so a new media type is mostly a
@@ -190,6 +255,45 @@ gets its own files following the comic precedent: `test_comic_model.py`,
 frontend, `lib/autofill.test.js` pins one expected patch per media type and
 `hooks/useFormDefaults.test.js` checks the defaults shape; extend both.
 
+## Gates that compute over a set, and fixtures that look like decoration
+
+**A fixture that exists to make a negative test bite is load-bearing and looks
+like decoration.**
+
+`tests/api/test_pipeline_mode_gate.py` asserts that a session in `safe` or
+`normal` **reaches** a pipeline. Both tests take an `nsfw_label` fixture that
+appears nowhere in their bodies. Remove it as "unused" and they still pass —
+but they now pass because those modes are not actually narrow, which is not
+what the tests claim to show.
+
+The mechanism: a mode counts as narrow by comparison against **all** content
+labels and **all** field groups. With no labels in the database the comparison
+is `set() <= anything`, vacuously true, so `normal` carries everything there is
+to carry and is not narrow at all. The label is what makes a narrow mode
+narrow, and it is equally load-bearing whether the assertion is that the
+narrow session is refused or that it gets through.
+
+Generalised: **any gate that computes over a set is vacuously satisfied when
+the set is empty, and an empty set is exactly what a fresh test database gives
+you.** The dangerous version of this bug is not a loud failure — it is
+`assert response.status_code == 401` against a gate that happens to refuse
+everything for an unrelated reason, going green on day one and staying green
+through the change that breaks it.
+
+Two rules follow:
+
+1. Populate whatever set the gate computes over, and say in the docstring that
+   the fixture is doing that job.
+2. Assert the **mirror** case with the *same* fixture — for a refusal, the
+   wide session getting through; for a "reaches the handler", a refusal that
+   still bites, such as `test_the_role_gate_still_refuses_an_account_without_the_permission`
+   — so a green proves the axis under test did the work rather than something
+   incidental about the route.
+
+This is the same family as "when a loud refusal is being softened, put the
+regression test on the read, not on the write": in both, the assertion runs,
+ends green, and measures nothing.
+
 ## The theme token guard
 
 `frontend/src/theme-tokens.test.js` walks every `.js`, `.jsx` and `.css` file
@@ -205,11 +309,16 @@ to `ALLOWED_FILES` or `ALLOWED_CLASSES` only for a deliberate exception.
 
 ## What CI runs
 
-`.github/workflows/deploy.yml` runs on every push to `main` and every pull
-request. The `test` job:
+`.github/workflows/ci.yml` (workflow name `Tests`) runs on **every pull
+request, and on pushes to `main`**. Nothing else triggers it: a push to a
+feature branch or to `dev` runs no CI at all, which is why every branch reaches
+`dev` by pull request (`CLAUDE.md`, "Git Branches"). There is one job, `test`:
 
-1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test`,
-   user/password `postgres`, and exports the same three variables to the job.
+1. Starts a `postgres:17` service with `POSTGRES_DB=anime_site_test` and
+   user/password `postgres`. Six variables reach the job env: those three,
+   plus `APP_ENV=development` and throwaway values for `JWT_SECRET_KEY` and
+   `ADMIN_PASSWORD` — the runner has no `.env`, and without them the startup
+   secret check refuses to boot and every API test fails.
 2. Python 3.13 (same as the Docker image), `pip install -r requirements-dev.txt`.
 3. `ruff check .`
 4. `pytest -q -p no:cacheprovider` (unit + API).
@@ -218,9 +327,11 @@ request. The `test` job:
 7. `npm run test:run`
 8. `npm run build`
 
-`build-and-deploy` needs `test` to pass and only runs on a push to `main`; it
-builds the Docker image, pushes it to Artifact Registry and deploys to Cloud
-Run. A red test therefore blocks deployment.
+**The workflow deploys nothing**, and there is no second job. A red run is
+therefore always a real test failure and never a failed release. There is no
+deployment at all — [deployment-gcp.md](deployment-gcp.md) records the one
+that existed, and [deployment-selfhost.md](deployment-selfhost.md) is the plan
+for the one that does not yet.
 
 ## Known gaps
 

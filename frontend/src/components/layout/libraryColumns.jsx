@@ -109,10 +109,15 @@ function statusToggleColumn({ key, header, statusField, buttonConfig, fallback, 
     thClass: cls,
     tdClass: `text-center ${cls}`.trim(),
     stopPropagation: true,
-    render: (item, { isAdmin, handleStatusToggle }) => {
+    // `canTrack`, not `isAdmin`. This toggles the VIEWER'S OWN list row, so
+    // the question is self.list - "may you write your own rows" - and not
+    // manage.catalog, which is what isAdmin has meant since Phase A. Gating
+    // it on the catalogue permission made the `user` role usable through the
+    // API and useless through the UI.
+    render: (item, { canTrack, handleStatusToggle }) => {
       const status = item[statusField];
       const btn = buttonConfig(status);
-      if (isAdmin) {
+      if (canTrack) {
         return (
           <button
             type="button"
@@ -178,11 +183,11 @@ export function planFlagColumn(field, header) {
     thClass: HIDDEN.xl,
     tdClass: `text-center ${HIDDEN.xl}`,
     stopPropagation: true,
-    render: (item, { isAdmin, handleStatusToggle }) => (
+    render: (item, { canTrack, handleStatusToggle }) => (
       <input
         type="checkbox"
         checked={!!item[field]}
-        disabled={!isAdmin}
+        disabled={!canTrack}
         onChange={(e) => handleStatusToggle(e, item, e.target.checked, field)}
         className="w-4 h-4 accent-brand disabled:opacity-40"
       />

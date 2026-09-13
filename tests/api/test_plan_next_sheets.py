@@ -32,8 +32,9 @@ def test_plan_next_row_parses():
         }
     )
     assert parsed["media_type"] == "tv-show"
-    assert parsed["scope"] == "series"
-    assert parsed["target_id"] == target
+    # The sheet speaks (scope, target_id); the table speaks foreign keys.
+    assert parsed["series_id"] == target
+    assert parsed["media_id"] is None
     assert parsed["remark"] == "after the movie"
 
 
@@ -42,7 +43,7 @@ def test_an_unparseable_target_becomes_none_rather_than_failing():
         {"system_id": str(uuid.uuid4()), "media_type": "anime", "scope": "entry",
          "target_id": "not-a-uuid"}
     )
-    assert parsed["target_id"] is None
+    assert parsed["media_id"] is None
 
 
 def test_a_media_type_the_code_does_not_know_survives_the_round_trip():
@@ -118,3 +119,73 @@ class TestDroppedRewatchColumns:
 
     def test_comic_parser_drops_to_reread(self):
         assert "to_reread" not in parse_comic_from_sheet({"to_reread": "TRUE"})
+
+
+class TestPlanNextOwnerColumns:
+    """The sheet still speaks (scope, target_id); the table speaks foreign keys."""
+
+    def test_an_entry_row_parses_into_media_id(self):
+        target = uuid.uuid4()
+        parsed = parse_plan_next_from_sheet(
+            {"media_type": "anime", "scope": "entry", "target_id": str(target)}
+        )
+        assert parsed["media_id"] == target
+        assert parsed["franchise_id"] is None
+        assert parsed["series_id"] is None
+        assert "scope" not in parsed
+        assert "target_id" not in parsed
+
+    def test_a_franchise_row_parses_into_franchise_id(self):
+        target = uuid.uuid4()
+        parsed = parse_plan_next_from_sheet(
+            {"media_type": "anime", "scope": "franchise", "target_id": str(target)}
+        )
+        assert parsed["franchise_id"] == target
+        assert parsed["media_id"] is None
+
+    def test_a_series_row_parses_into_series_id(self):
+        target = uuid.uuid4()
+        parsed = parse_plan_next_from_sheet(
+            {"media_type": "comic", "scope": "series", "target_id": str(target)}
+        )
+        assert parsed["series_id"] == target
+
+    def test_an_unparseable_target_leaves_every_owner_none(self):
+        parsed = parse_plan_next_from_sheet(
+            {"media_type": "anime", "scope": "entry", "target_id": "not-a-uuid"}
+        )
+        assert parsed["media_id"] is None
+        assert parsed["franchise_id"] is None
+        assert parsed["series_id"] is None
+
+    def test_an_unknown_scope_leaves_every_owner_none(self):
+        parsed = parse_plan_next_from_sheet(
+            {
+                "media_type": "anime",
+                "scope": "collection",
+                "target_id": str(uuid.uuid4()),
+            }
+        )
+        assert parsed["media_id"] is None
+        assert parsed["franchise_id"] is None
+        assert parsed["series_id"] is None
+
+
+def test_the_plan_next_tab_hides_the_new_columns_and_shows_the_old_pair():
+    from app.services.pipelines.tabs import TAB_BY_NAME
+
+    tab = TAB_BY_NAME["Plan Next"]
+    assert set(tab.drop_columns) == {
+        "user_id",
+        "media_id",
+        "franchise_id",
+        "series_id",
+    }
+    # `username` joined the pair in Step 4: user_id is dropped like the other
+    # three, but unlike them it is not derivable from the row, so the sheet
+    # has to carry the name or Pull files every restored plan under `admin`.
+    assert [name for name, _fn in tab.extra_columns] == [
+        "scope",
+        "target_id",
+        "username",
+    ]

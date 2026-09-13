@@ -1,7 +1,7 @@
 """System-support schemas (options, config, seasonal, logs, deleted records)."""
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -14,6 +14,10 @@ MAX_FIELD_COUNT = 200
 MAX_LIST_LENGTH = 50
 MAX_FIELD_KEY_LENGTH = 64
 _FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
+# Far more currencies than a personal collection will ever be priced in,
+# low enough that the config row stays a row.
+MAX_FX_RATES = 40
+_CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 
 
 def _check_field_key(key: str) -> None:
@@ -173,6 +177,81 @@ class SystemConfigResponse(BaseModel):
     config_value: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FxRatesBase(BaseModel):
+    """
+    The exchange rates the Statistics page converts game spend with.
+
+    Hand-maintained, not fetched: a rate here is a number the owner typed on
+    the day named by `as_of`, so the page prints that date beside every
+    converted figure rather than implying the number is current.
+
+    Stored as one JSON string in system_configs under the key 'fx_rates' -
+    one key rather than one per currency, so `as_of` cannot drift out of
+    sync with the numbers it describes.
+    """
+
+    # The currency every rate is expressed against. rates[base] must be 1.
+    base: str
+    # ISO date the rates were taken. Printed under the converted totals.
+    as_of: str
+    # currency code -> units of that currency per one unit of `base`.
+    rates: Dict[str, float]
+
+    @field_validator("base")
+    @classmethod
+    def _base_is_a_currency_code(cls, v: str) -> str:
+        v = (v or "").strip().upper()
+        if not _CURRENCY_RE.match(v):
+            raise ValueError("base must be a three-letter currency code.")
+        return v
+
+    @field_validator("as_of")
+    @classmethod
+    def _as_of_is_an_iso_date(cls, v: str) -> str:
+        v = (v or "").strip()
+        try:
+            date.fromisoformat(v)
+        except ValueError:
+            raise ValueError("as_of must be an ISO date (YYYY-MM-DD).") from None
+        return v
+
+    @field_validator("rates")
+    @classmethod
+    def _rates_are_positive_currency_codes(cls, v: Dict[str, float]) -> Dict[str, float]:
+        if not v:
+            raise ValueError("At least one rate is required.")
+        if len(v) > MAX_FX_RATES:
+            raise ValueError(f"No more than {MAX_FX_RATES} rates.")
+        cleaned = {}
+        for code, rate in v.items():
+            code = (code or "").strip().upper()
+            if not _CURRENCY_RE.match(code):
+                raise ValueError(f"Invalid currency code '{code}'.")
+            # A zero or negative rate is not a slow-burning data-quality
+            # problem, it is a division by zero in the converter.
+            if rate is None or rate <= 0:
+                raise ValueError(f"Rate for {code} must be greater than zero.")
+            cleaned[code] = float(rate)
+        return cleaned
+
+
+class FxRatesUpdate(FxRatesBase):
+    pass
+
+
+class FxRatesResponse(BaseModel):
+    """
+    Read side. Every field is optional because 'not configured yet' is a
+    normal state the page has to render: it falls back to per-currency
+    subtotals and prints no converted total at all, rather than converting
+    with a rate it does not have.
+    """
+
+    base: Optional[str] = None
+    as_of: Optional[str] = None
+    rates: Dict[str, float] = {}
 
 
 class AnnouncementBase(BaseModel):

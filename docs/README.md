@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-09-08
+Last verified: 2026-09-13
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -43,7 +43,7 @@ right and the doc needs the fix.
 | File | Scope |
 |---|---|
 | [authentication.md](authentication.md) | login, JWT cookie, admin seeding, the frontend auth context |
-| [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating |
+| [authorization.md](authorization.md) | RBAC: roles, permissions, content labels, visibility enforcement, field gating, what a guest sees. Ends with a **Known drift** section naming the three half-finished pieces the authorization redesign has to settle |
 
 ## Frontend
 
@@ -62,14 +62,15 @@ right and the doc needs the fix.
 | [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08; nothing deployed yet** |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
-| [roadmap.md](roadmap.md) | done / next / deferred — the working plan (see the rule in CLAUDE.md) |
 
 ## History
 
 `notes/` holds material that explains the past rather than the present:
 [decisions.md](notes/decisions.md) (design rationales), [migrations-history.md](notes/migrations-history.md)
 (what each notable Alembic revision did), [notes/comicvine-link-conflicts.md](notes/comicvine-link-conflicts.md)
-(a one-off data reconciliation), and worked examples.
+(a one-off data reconciliation), [notes/pytest-lock-contention.md](notes/pytest-lock-contention.md)
+(why an unbounded wait on the shared pytest lock strands it, found during a
+multi-session run), and worked examples.
 
 ## Conventions
 

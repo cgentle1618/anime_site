@@ -9,12 +9,13 @@ Last verified: 2026-09-08
 > (the full list is in
 > [What was removed on 2026-09-08](#what-was-removed-on-2026-09-08)).
 >
-> There is nothing left to flip, redeploy or resume. **Reviving GCP means
-> designing and building it again from scratch** — the branches, the config
-> fields, the storage client and the deploy job would all have to be written
-> anew, and if it happens it will be redesigned rather than restored.
-> Everything below the banner describes how the deployment *was* configured
-> and is kept as a starting reference for whoever does that.
+> There is nothing left to flip, redeploy or resume. **GCP remains a
+> perfectly viable option and this page is kept so that taking it is cheap** —
+> but it is a rebuild, not a restart: the branches, the config fields, the
+> storage client and the deploy job would all have to be written again, and
+> would be redesigned rather than restored. Everything below the banner
+> describes how the deployment *was* configured, which is the starting
+> reference for whoever does that.
 >
 > What is true today:
 >

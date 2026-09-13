@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import pop_remark, upsert_remark
+from app.services.domain import attach_remark, pop_remark, upsert_remark
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -38,6 +39,7 @@ def get_all_collections(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves all Collections from the database.
@@ -71,11 +73,16 @@ def get_all_collections(
     response_model=schemas.CollectionResponse,
     summary="Get Collection by ID",
 )
-def get_collection_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_collection_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single collection by its public_id or its UUID."""
     db_collection = find_entity(db, models.Collection, system_id)
     if not db_collection:
         raise HTTPException(status_code=404, detail="Collection not found.")
+    attach_remark(db, "collection", db_collection, viewer.user_id)
     return db_collection
 
 
@@ -90,7 +97,8 @@ def get_collection_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_collection(
     payload: schemas.CollectionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Collection."""
     try:
@@ -109,9 +117,13 @@ def create_collection(
         db.refresh(new_collection)
 
         if has_remark:
-            upsert_remark(db, "collection", new_collection.system_id, remark)
+            upsert_remark(
+                db, "collection", new_collection.system_id, remark, viewer.user_id
+            )
             db.commit()
             db.refresh(new_collection)
+
+        attach_remark(db, "collection", new_collection, viewer.user_id)
 
         return new_collection
     except Exception as e:
@@ -131,7 +143,8 @@ def update_collection(
     system_id: str,
     payload: schemas.CollectionUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Collection's metadata."""
     db_collection = (
@@ -146,11 +159,15 @@ def update_collection(
     for key, value in update_data.items():
         setattr(db_collection, key, value)
     if has_remark:
-        upsert_remark(db, "collection", db_collection.system_id, remark)
+        upsert_remark(
+            db, "collection", db_collection.system_id, remark, viewer.user_id
+        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_collection)
+
+    attach_remark(db, "collection", db_collection, viewer.user_id)
 
     return db_collection
 
@@ -164,7 +181,8 @@ def patch_collection(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Collection (used for quick inline hub edits)."""
     db_collection = (
@@ -178,11 +196,15 @@ def patch_collection(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_collection, payload)
     if has_remark:
-        upsert_remark(db, "collection", db_collection.system_id, remark)
+        upsert_remark(
+            db, "collection", db_collection.system_id, remark, viewer.user_id
+        )
 
     db_collection.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_collection)
+
+    attach_remark(db, "collection", db_collection, viewer.user_id)
 
     return db_collection
 
@@ -191,7 +213,7 @@ def patch_collection(
 def delete_collection(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Collection.

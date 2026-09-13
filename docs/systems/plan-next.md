@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-10
 
 ## What this is for
 
@@ -10,25 +10,32 @@ The Plan page answers two questions: *what do I watch or read next?* and *what d
 
 ### The `plan_next` table
 
-Owner: `app/models/plan_next.py`. Created by migration `alembic/versions/b872c435410b_add_plan_next_table.py`; `kind` added by `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py`; server default added by `0ac5add00888_add_server_default_next_to_plan_next_.py`.
+Owner: `app/models/plan_next.py`. The revisions that built it are in [notes/migrations-history.md](../notes/migrations-history.md).
 
 | Column | Type | Notes |
 | --- | --- | --- |
 | `system_id` | UUID PK | Row id. `DELETE /api/plan-next/{system_id}` uses it. |
 | `kind` | String, NOT NULL, `server_default="next"` | `next` (queue) or `rewatch` (mark). Vocabulary is `KINDS` in `app/utils/plan_next_kinds.py`, validated in the router, not a DB enum. |
-| `media_type` | String, NOT NULL | Hyphenated key from `MEDIA_TABLES` (`app/utils/media_resolver.py`): `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`. Stored even for group scopes because it is the Plan page tab. |
-| `scope` | String, NOT NULL | `entry`, `series`, or `franchise` (`SCOPES`). |
-| `target_id` | UUID, NOT NULL, **no FK** | The marked thing. Resolved at read time via `OWNER_TABLES` in `app/utils/media_resolver.py` (by `media_type` for entries, by `scope` for groups). |
+| `user_id` | UUID, NOT NULL, FK `users.id` `ON DELETE CASCADE` (`fk_plan_next_user`) | Whose queue this row is. A plan belongs to one account, and deleting the account takes its plans with it. |
+| `media_type` | String, NOT NULL | Hyphenated key from `MEDIA_TABLES` (`app/utils/media_resolver.py`): `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `novel`, `comic`, `game`. Stored on every row, group scopes included, because it is the Plan page tab - it is **not** the owner kind. |
+| `media_id` | UUID, nullable | Entry-scope owner. Its foreign key is the composite `fk_plan_next_media_type` on `(media_id, media_type)` against `media(system_id, media_type)`, so an entry filed under `anime` cannot point at a manga. `ON DELETE CASCADE`. |
+| `franchise_id` | UUID, nullable, FK `franchise.system_id` `ON DELETE CASCADE` (`fk_plan_next_franchise`) | Franchise-scope owner. |
+| `series_id` | UUID, nullable, FK `series.system_id` `ON DELETE CASCADE` (`fk_plan_next_series`) | Series-scope owner. |
 | `remark` | Text, nullable | Free text such as "after the movie". |
 | `created_at` / `updated_at` | DateTime | Taipei-time defaults from `app/database.py`. |
 
-Constraints: `UniqueConstraint(kind, scope, target_id, media_type)` named `uq_plan_next_target` (a franchise can be both queued and marked for rewatch, so `kind` is part of the key), and index `ix_plan_next_kind_type_scope` on `(kind, media_type, scope)`, which is exactly how the Plan page reads one tab of one section.
+Constraints: `ck_plan_next_one_owner`, a `CHECK (num_nonnulls(media_id, franchise_id, series_id) = 1)` so exactly one owner is set; `uq_plan_next_target`, now `UNIQUE NULLS NOT DISTINCT (user_id, kind, media_type, media_id, franchise_id, series_id)` (a franchise can be both queued and marked for rewatch, so `kind` is part of the key, and `NULLS NOT DISTINCT` is needed because two owner columns are NULL on every row); and index `ix_plan_next_user_kind_type` on `(user_id, kind, media_type)`, which is exactly how the Plan page reads one tab of one section for one user.
 
-Three design points worth knowing:
+There is **no collection scope**. `SCOPES` is `("entry", "series", "franchise")`, so the disjoint set is three columns rather than four; a `collection_id` here could never be written, because the API rejects any scope outside `SCOPES`. `note` and `meme` resolve through the full `OWNER_TABLES` and carry a fourth owner column for collections.
+
+`scope` and `target_id` survive as **derived read-only properties** on the model. `OWNER_COLUMN` maps a scope to its column, `owner_kwargs(scope, target_id)` builds the constructor argument, and `scope_for_columns(...)` reads the direction back - all in `app/utils/plan_next_kinds.py`. They stay because they are the API's wire format, the key `drop_hidden_rows` reads, and what the Plan page's JSON and the Google Sheets tab carry: the fact is stored once and read two ways.
+
+Four design points worth knowing:
 
 - **Row existence is the flag.** There is no `is_next` column. Marking inserts, un-marking deletes, so the table only ever holds what is actually planned.
-- **FK-less target.** No single foreign key can span eight entry tables plus `series` and `franchise`, so `plan_next` uses the same `(scope, media_type, target_id)` contract as `media_relation` and `watch_order_item`. Consequences: nothing cascades (see "Group and entry deletes" below), and a deleted target does not make the row disappear. Instead `GET /api/plan-next/` returns it with `missing: true` so an admin can see and fix it.
-- **`kind` has a server default, and that is load-bearing.** A Google Sheets "Plan Next" tab backed up before `kind` existed has no `kind` header. `app/services/pipelines/pull.py` drops every parsed key the header did not carry, so the ORM builds the row with `kind` unset. SQLAlchemy sends an unset NOT NULL column as an explicit `NULL` unless the *model* declares a default, and that fails the NOT NULL check; a database-side `SET DEFAULT` alone does not help because the NULL is sent explicitly. Declaring `server_default="next"` on the model makes SQLAlchemy omit the column so PostgreSQL fills it. Every such row predates rewatch, so `next` is correct. Migration `0ac5add00888` puts the same default on the column so the DB and model agree.
+- **The owner is three real foreign keys** - `media_id` / `franchise_id` / `series_id` - not the FK-less `(scope, media_type, target_id)` contract that `media_relation` and `watch_order_item` still use. Every owner cascades in the database, so there is no `delete_plans_for` to call and a dangling plan row cannot exist: `missing: true` is unreachable for these rows, though the field stays on the schema.
+- **A plan queue is private.** Every `/api/plan-next` route requires an account (`Depends(get_current_user_id)`, 401 otherwise) and answers only with the caller's own rows; `/plan` redirects a logged-out visitor to `/login?next=...`. There is no site-owner fallback and no public view of anybody's queue.
+- **`kind` has a server default, and that is load-bearing.** A Google Sheets "Plan Next" tab backed up before `kind` existed has no `kind` header. `app/services/pipelines/pull.py` drops every parsed key the header did not carry, so the ORM builds the row with `kind` unset. SQLAlchemy sends an unset NOT NULL column as an explicit `NULL` unless the *model* declares a default, and that fails the NOT NULL check; a database-side `SET DEFAULT` alone does not help because the NULL is sent explicitly. Declaring `server_default="next"` on the model makes SQLAlchemy omit the column so PostgreSQL fills it. A row carrying no `kind` is a queue entry rather than a rewatch mark, so `next` is the right answer. The column carries the same default, so the database and the model agree.
 
 ### Size buckets on franchise and series
 
@@ -79,7 +86,7 @@ The two maps differ on purpose: anime is queued one season at a time but rewatch
 | comic | `sum_issue_total` (series only) | ≤3 → `1_3`, ≤10 → `4_10`, else `11_plus` | 1-3 Issues / 4-10 Issues / 11+ Issues |
 | anime-movie, manga, novel | none | no bucket vocabulary on the backend | see UI section for their frontend-only groupings |
 
-Note that anime's `24ep` band covers 13-24 episodes and `30ep_plus` is really "25+"; the labels are round names, not exact bounds. Comic thresholds were chosen from real data: the 99 comics in the collection (all with `issue_total`) split 35 / 35 / 29 across `1-3` / `4-10` / `11+` (the 2026-08-29-plan-next-design design (see notes/decisions.md)).
+Note that anime's `24ep` band covers 13-24 episodes and `30ep_plus` is really "25+"; the labels are round names, not exact bounds. Comic thresholds were chosen from real data, to split the collection into three roughly equal bands across `1-3` / `4-10` / `11+`.
 
 ### Calculate derivation
 
@@ -113,22 +120,23 @@ How the factory uses them (`app/routers/_factory.py`):
 
 ### Group and entry deletes
 
-Because the target is FK-less, every delete path calls `delete_plans_for(db, scope, target_id)` (`app/services/domain/plan_next.py`), scoped by `(scope, target_id)` so the different `system_id` spaces cannot collide. Callers:
+The database does it. `delete_plans_for` no longer exists and no delete path calls anything:
 
-| Caller | Scope |
+| Deleting | What removes the plan rows |
 | --- | --- |
-| `app/routers/franchise.py` (delete franchise) | `franchise` |
-| `app/routers/series.py` (delete series) | `series` |
-| `app/routers/_factory.py` (delete any entry) | `entry` |
+| a franchise (`app/routers/franchise.py`) | `fk_plan_next_franchise` `ON DELETE CASCADE` |
+| a series (`app/routers/series.py`) | `fk_plan_next_series` `ON DELETE CASCADE` |
+| an entry (`app/routers/_factory.py`) | the entry's `AFTER DELETE` trigger removes its `media` row, and `fk_plan_next_media_type` cascades from that |
+| a user | `fk_plan_next_user` `ON DELETE CASCADE` |
 
 ## API
 
-Router: `app/routers/plan_next.py`, prefix `/api/plan-next`, registered in `app/main.py`. Schemas in `app/schemas/plan_next.py`. Reads are public (a plan is ordinary catalogue data, subject to view-authorization filtering); writes require `get_current_admin`.
+Router: `app/routers/plan_next.py`, prefix `/api/plan-next`, registered in `app/main.py`. Schemas in `app/schemas/plan_next.py`. **Every route is gated on `self.list` at the router** (401 otherwise) and reads or writes only the caller's own rows; the routes also take `get_current_user_id` for the id they scope on. There is no additional admin gate on the writes — and an administrative account, holding no `self.*` grant, is refused like anyone else. The wire format is unchanged: `PlanNextRead` still carries `scope` and `target_id`, and `PlanNextCreate` still accepts them.
 
 | Method | Path | Auth | Input | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/plan-next/kinds` | public | none | `{scopes, kinds, allowed_scopes: {kind: {media_type: [scopes]}}, size_groups: {media_type: [{key, label}]}}` | none |
-| GET | `/api/plan-next/` | public | query `media_type?`, `scope?`, `kind?` (all optional filters) | `PlanNextRead[]` | none |
+| GET | `/api/plan-next/kinds` | account | none | `{scopes, kinds, allowed_scopes: {kind: {media_type: [scopes]}}, size_groups: {media_type: [{key, label}]}}` | none |
+| GET | `/api/plan-next/` | account | query `media_type?`, `scope?`, `kind?` (all optional filters) | `PlanNextRead[]`, the caller's own | `400` unknown scope |
 | POST | `/api/plan-next/` | admin | body `PlanNextCreate`: `media_type`, `scope`, `target_id`, `remark?`, `kind` (defaults to `"next"`) | `201` + `PlanNextRead` | `422` unknown kind; `400` unknown scope or scope not allowed for that type/kind; `404` target does not exist; `409` already planned |
 | DELETE | `/api/plan-next/target` | admin | **query params only**: `scope`, `media_type`, `target_id` (required), `kind` (default `next`) | `{"status": "success"}` | `404` "Not planned." |
 | DELETE | `/api/plan-next/{system_id}` | admin | path id | `{"status": "success"}` | `404` "Plan not found." |
@@ -193,5 +201,5 @@ History in one line: migration `b872c435410b` dropped `watch_next`/`read_next` f
 - `app/utils/relation_kinds.py`: the registry `plan_next_kinds.py` is modelled on.
 - `app/services/domain/remark_field.py`: `pop_remark`, the pattern `pop_plan_flag` copies.
 - `app/services/calculation.py`: where `derive_size_groups` runs in the Calculate pipeline.
-- the 2026-08-29-plan-next-design design (see notes/decisions.md): the design spec, including the comic threshold data and the rewatch migration decisions.
+- `notes/decisions.md`: the design spec, including the comic threshold data and the rewatch migration decisions.
 - `../data-model.md`, `docs/api.md`, `docs/options.md`, `../frontend/pages.md`: older overviews that may still describe the boolean columns; this file is the current reference.

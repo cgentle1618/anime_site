@@ -156,11 +156,15 @@ def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
     for _ in range(3):
         admin_client.post("/api/novel/", json=_novel_payload())
 
-    statements = []
+    units, ratings = [], []
 
     def record(conn, cursor, statement, params, context, executemany):
-        if "novel_unit" in statement:
-            statements.append(statement)
+        # user_novel_unit_rating contains "novel_unit" as a substring, so the
+        # two have to be told apart rather than counted together.
+        if "user_novel_unit_rating" in statement:
+            ratings.append(statement)
+        elif "novel_unit" in statement:
+            units.append(statement)
 
     event.listen(test_engine, "before_cursor_execute", record)
     try:
@@ -170,8 +174,11 @@ def test_listing_novels_does_not_n_plus_one(admin_client, test_engine):
 
     assert resp.status_code == 200
     # selectinload issues exactly one query for all novels' units, not one
-    # query per novel.
-    assert len(statements) == 1
+    # query per novel; three novels would give three if it were N+1.
+    assert len(units) == 1
+    # attach_unit_ratings adds exactly one more for every unit on the page,
+    # not one per unit and not one per novel.
+    assert len(ratings) == 1
 
 
 # --- per-unit rating --------------------------------------------------------

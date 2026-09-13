@@ -9,11 +9,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
-    Sequence,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -39,6 +38,22 @@ class Game(Base, NameFallbackMixin):
 
     __tablename__ = "games"
     __table_args__ = (
+        # Pins this row to a media row of its own type: with media's
+        # UNIQUE (system_id, media_type) on the other end, this table's row can
+        # never attach itself to another type's media row.
+        ForeignKeyConstraint(
+            ["system_id", "media_type"],
+            ["media.system_id", "media.media_type"],
+            name="fk_games_media",
+            ondelete="CASCADE",
+            # Deferred because the parent row is written *after* this one: the
+            # media row copies public_id, which a Sequence default does not
+            # mint until this INSERT runs. Both rows land in one transaction
+            # and the pairing is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("media_type = 'game'", name="ck_games_media_type"),
         CheckConstraint(
             r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_games_release_date_iso",
@@ -50,16 +65,6 @@ class Game(Base, NameFallbackMixin):
         CheckConstraint(
             "base_game_id IS NULL OR base_game_id <> system_id",
             name="ck_games_not_self_parent",
-        ),
-        UniqueConstraint(
-            "public_id",
-            name="uq_games_public_id",
-            # Deferred so a Pull can permute public_id across rows inside
-            # one transaction: the sheet can hand row A an id row B still
-            # holds until the restore reaches B. Only the end state has to
-            # be unique, and it is still checked, at COMMIT.
-            deferrable=True,
-            initially="DEFERRED",
         ),
     )
 
@@ -74,19 +79,10 @@ class Game(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id shown in SPA URLs; system_id remains the
-    # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("games_public_id_seq"), nullable=False)
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    # The discriminator half of the composite FK up to `media`. Constant per
+    # table and pinned by ck_games_media_type; it exists so the FK can carry
+    # the type, not because a row could ever be anything else.
+    media_type = Column(String, nullable=False, server_default="game")
 
     game_name_en = Column(String, nullable=True)
     game_name_cn = Column(String, nullable=True)
@@ -103,21 +99,29 @@ class Game(Base, NameFallbackMixin):
         nullable=True,
     )
 
-    playing_status = Column(String, nullable=False, default="Might Play")
     # How deep the finish went. Independent of playing_status: "Active Playing"
     # plus "Main Story" is the ordinary state of having rolled credits and
     # still playing for achievements.
     completion_level = Column(String, nullable=True)
-    # Three tristate flags, orthogonal to completion_level and to each other:
+    # Three completion axes, orthogonal to completion_level and to each other:
     # every ending can be seen on a main-story-only run, and a collectible
     # missed on a Completionist one.
-    all_endings = Column(Boolean, nullable=True)
+    #
+    # Each carries GAME_COMPLETION_FLAGS - "Yes" / "No" / "Inapplicable" - with
+    # NULL as the unrecorded fourth state. A game that ships no endings, or
+    # publishes no achievements, answers "Inapplicable"; that is a claim about
+    # the game, where NULL is only a claim about the row. No CHECK constraint,
+    # matching completion_level and game_type: the vocabulary lives in
+    # app/utils/constants.py and reaches the client via /api/constants.
+    all_endings = Column(String, nullable=True)
     # Stored, never derived from the counts below - they are often unknown
     # (no published achievement list, or the numbers not looked up yet).
-    all_achievements = Column(Boolean, nullable=True)
-    all_collected = Column(Boolean, nullable=True)
-    # Whether Steam may write this entry's progress. Not a completion flag:
-    # it is about the source, not about the game. See the migration.
+    all_achievements = Column(String, nullable=True)
+    all_collected = Column(String, nullable=True)
+    # Whether Steam may write this entry's progress. Not a completion axis: it
+    # is about the source, not about the game, so it stayed a boolean when the
+    # three above became a vocabulary. autofill.py tests it with `is False`,
+    # and NULL means "never asked", which counts as permission.
     steam_progress_sync = Column(Boolean, nullable=True)
     achievements_earned = Column(Integer, nullable=True)
     achievements_total = Column(Integer, nullable=True)
@@ -150,8 +154,6 @@ class Game(Base, NameFallbackMixin):
     metacritic_score = Column(Integer, nullable=True)
     metacritic_user_score = Column(Float, nullable=True)
 
-    my_rating = Column(String, nullable=True)
-    cover_image_file = Column(String, nullable=True)
 
     igdb_id = Column(Integer, nullable=True)
     igdb_link = Column(String, nullable=True)
@@ -160,7 +162,6 @@ class Game(Base, NameFallbackMixin):
     steam_appid = Column(Integer, nullable=True)
     steam_link = Column(String, nullable=True)
 
-    completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

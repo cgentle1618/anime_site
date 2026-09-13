@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-09-07 (repeater form defaults: sources, game copies)
+Last verified: 2026-09-13
 
 **What this is for.** Every route behind `ProtectedRoute` (permission `admin`)
 in `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -19,6 +19,7 @@ the `Admin` nav section, which only renders when `useAuth().has("admin")`.
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit |
 | `/review-queue` | `pages/admin/ReviewQueue.jsx` | Remarks and duplicate clusters to act on |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes |
+| `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) |
 | `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling |
 | `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults |
@@ -236,11 +237,11 @@ the external value alone, so a second API knowing a value by the same string
 keeps its own row.
 
 Category is a closed picker (`forms/OptionCategorySelect.jsx`), the same
-component and the same grouping the Modify and Delete pages browse with. Add
-used to render a text box with a `datalist` of suggestions, which made it the
-one place a category could be coined by typing — and a typo there made a
-category of its own that no other page would list. `POST /api/system-option`
-still accepts any category string; the restriction is the form's. The picker
+component and the same grouping the Modify and Delete pages browse with. It is
+deliberately not a text box with a `datalist`: that lets a category be coined
+by typing, and a typo then makes a category of its own that no other page
+lists. `POST /api/system-option` accepts any category string; the restriction
+is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
 categories under **Other**; a list that yields a single section — the Tags
@@ -278,7 +279,31 @@ no counterpart, because studios carry no scope. `POST /api/publisher/` is
 find-or-create exactly as studio's is.
 
 **Quote / Meme tabs.** `QuoteForm` / `MemeForm` with `QuoteEntryPicker` /
-`MemeOwnerPicker` — see [../systems/quotes-memes.md](../systems/quotes-memes.md).
+`MemeOwnerPicker`, and an `ImagePicker` for the image itself (see
+[components.md](components.md) for the shared picker) — see
+[../systems/quotes-memes.md](../systems/quotes-memes.md).
+
+## /images (`Images.jsx`)
+
+The image library: every file ever uploaded, from this machine or another,
+behind `manage.catalog`. A drop zone accepts multiple files at once
+(`POST /api/images` per file); a grid below shows each image's thumbnail,
+size, dimensions and what it is attached to.
+
+Three filters, each answering one question: **Unused** (no attachment),
+**Not on this machine** (the row exists but the file does not — the normal
+state of an uploaded image after a machine switch, since uploads never travel
+through Backup or Pull), and **Duplicates** (same checksum; always empty in
+practice — checksum is unique — and kept to prove dedup rather than to find
+anything to fix).
+
+**Deletion is unused-only by design.** The API still accepts
+`DELETE /api/images/{id}?force=true` against an attached image, but no button
+here sends it — removing an image that is still in use is a decision made at
+the place that uses it (detach there first), not a blanket "delete anyway"
+from the library. Each tile's **Detach** button removes one attachment
+(`DELETE /api/images/{id}/attach/{attachment_id}`) and leaves the file in the
+library; **Delete** is disabled until every attachment is gone.
 
 ## /modify (`Modify.jsx`)
 
@@ -474,11 +499,10 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic and Source & Platform. That last group lost
-`Publisher / Distributor TW` and `Comic Publisher` when the publisher migration
-retired both categories on 2026-09-07 — publishers are edited on the Entity →
-Publisher tab now, not here — leaving it holding the platform and reference
-vocabularies, which still name an outside party.
+reads as Tags, Game, Comic and Source & Platform. That last group holds the
+platform and reference vocabularies, the ones that name an outside party.
+Publishers and distributors are **not** among them — they are entities, edited
+on the Entity → Publisher tab.
 
 A group left with a single member is demoted into Other rather than printed as
 a heading over one card. The left-hand section index lists one level per tier —
@@ -534,7 +558,11 @@ anyone remembering this file.
 ## /roles, /users, /content-labels
 
 - **Roles** — create roles, replace their permission set from the catalog
-  (`/api/roles/catalog`); the guest role can never receive `admin` (409).
+  (`/api/roles/catalog`). Boxes a role may not change are drawn disabled from
+  the `locked_on` / `locked_off` the role itself carries, and a role with
+  nothing left to decide (`super`, `admin`) gets no Save button. The same
+  table answers 409 on the write path, so a box that looks editable is one the
+  server will accept.
 - **Users** — create users with a role, change role, delete; the last
   administrator and your own account are protected.
 - **Content Labels** — the label vocabulary; deleting a label immediately

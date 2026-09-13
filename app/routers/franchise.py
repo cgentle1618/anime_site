@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import pop_remark, upsert_remark
-from app.services.domain.plan_next import delete_plans_for
+from app.services.domain import attach_remark, pop_remark, upsert_remark
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -40,6 +40,7 @@ def get_all_franchises(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves all high-level Franchises from the database.
@@ -73,11 +74,16 @@ def get_all_franchises(
     response_model=schemas.FranchiseResponse,
     summary="Get Franchise by ID",
 )
-def get_franchise_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_franchise_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single franchise by its public_id or its UUID."""
     db_franchise = find_entity(db, models.Franchise, system_id)
     if not db_franchise:
         raise HTTPException(status_code=404, detail="Franchise not found.")
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
     return db_franchise
 
 
@@ -90,7 +96,8 @@ def get_franchise_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_franchise(
     payload: schemas.FranchiseCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Franchise. Does NOT trigger a background Google Sheets backup in V2."""
     try:
@@ -111,9 +118,13 @@ def create_franchise(
         db.refresh(new_franchise)
 
         if has_remark:
-            upsert_remark(db, "franchise", new_franchise.system_id, remark)
+            upsert_remark(
+                db, "franchise", new_franchise.system_id, remark, viewer.user_id
+            )
             db.commit()
             db.refresh(new_franchise)
+
+        attach_remark(db, "franchise", new_franchise, viewer.user_id)
 
         return new_franchise
     except Exception as e:
@@ -131,7 +142,8 @@ def update_franchise(
     system_id: str,
     payload: schemas.FranchiseUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Franchise's metadata."""
     db_franchise = (
@@ -146,11 +158,15 @@ def update_franchise(
     for key, value in update_data.items():
         setattr(db_franchise, key, value)
     if has_remark:
-        upsert_remark(db, "franchise", db_franchise.system_id, remark)
+        upsert_remark(
+            db, "franchise", db_franchise.system_id, remark, viewer.user_id
+        )
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_franchise)
+
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
 
     return db_franchise
 
@@ -162,7 +178,8 @@ def patch_franchise(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Franchise (useful for quick inline rating edits)."""
     db_franchise = (
@@ -176,11 +193,15 @@ def patch_franchise(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_franchise, payload)
     if has_remark:
-        upsert_remark(db, "franchise", db_franchise.system_id, remark)
+        upsert_remark(
+            db, "franchise", db_franchise.system_id, remark, viewer.user_id
+        )
 
     db_franchise.updated_at = get_taipei_now()
     db.commit()
     db.refresh(db_franchise)
+
+    attach_remark(db, "franchise", db_franchise, viewer.user_id)
 
     return db_franchise
 
@@ -189,7 +210,7 @@ def patch_franchise(
 def delete_franchise(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Franchise.
@@ -207,8 +228,7 @@ def delete_franchise(
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_franchise, "Franchise")
 
-    delete_plans_for(db, "franchise", db_franchise.system_id)
-
+    # fk_plan_next_franchise cascades the franchise's plan rows away.
     db.delete(db_franchise)
     db.commit()
 

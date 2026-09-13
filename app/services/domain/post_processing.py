@@ -10,6 +10,7 @@ from app.models import (
     Cartoon,
     Game,
     Manga,
+    Media,
     Movies,
     Novel,
     TVShows,
@@ -18,6 +19,7 @@ from app.services.domain.autofill import (
     autofill_anime_from_mal,
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
+    autofill_from_anilist,
     autofill_game_from_steam,
     autofill_manga_from_mal,
     autofill_movie_from_imdb,
@@ -29,14 +31,6 @@ from app.services.domain.checking import (
     apply_validate_ch_math,
     apply_validate_episode_math,
     apply_validate_vol_math,
-)
-from app.services.domain.completion import (
-    check_is_movie_completed,
-    check_is_reading_completed,
-    check_is_tv_completed,
-    mark_movie_completed,
-    mark_reading_completed,
-    mark_tv_completed,
 )
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
@@ -51,10 +45,7 @@ from app.services.domain.derivation import (
     derive_season_1_cartoon,
     derive_season_1_tv_show,
 )
-from app.utils.constants import (
-    COMPLETED_READ_STATUSES,
-    COMPLETED_WATCH_STATUSES,
-)
+from app.services.integrations.anilist import ANIME, MANGA
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +63,7 @@ def apply_single_replace_anime(
     autofill_anime_from_mal(
         anime, force_replace_ratings=force_replace_ratings, db=db
     )
+    autofill_from_anilist(anime, ANIME, db)
     anime_post_processing(anime, db)
 
     if not bulk:
@@ -91,6 +83,7 @@ def apply_single_replace_anime_movie(
     autofill_anime_movie_from_mal(
         anime_movie, force_replace_ratings=force_replace_ratings, db=db
     )
+    autofill_from_anilist(anime_movie, ANIME, db)
     anime_movie_post_processing(anime_movie, db)
 
 
@@ -136,6 +129,7 @@ def apply_single_replace_manga(db: Session, manga: Manga, bulk: bool = False) ->
     """
     apply_extract_mal_id_manga_novel(manga)
     autofill_manga_from_mal(manga, force_replace_ratings=True)
+    autofill_from_anilist(manga, MANGA, db)
     manga_post_processing(manga, db)
 
 
@@ -151,6 +145,7 @@ def apply_single_replace_novel(db: Session, novel: Novel, bulk: bool = False) ->
     """
     apply_extract_novel_ids(novel)
     autofill_novel_from_mal(novel, force_replace_ratings=True)
+    autofill_from_anilist(novel, MANGA, db)
 
 
 def apply_single_replace_game(db: Session, game: Game, bulk: bool = False) -> None:
@@ -170,11 +165,11 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
     apply_validate_episode_math(anime)
     apply_check_baha(db, anime, "anime")
 
-    if (
-        check_is_tv_completed(anime)
-        and anime.watching_status not in COMPLETED_WATCH_STATUSES
-    ):
-        mark_tv_completed(anime)
+    # No completion check here any more. Whether an entry is finished is one
+    # person's fact and lives on their user_media_list row; a pipeline that
+    # decided it would be silently rewriting somebody's list. What a pipeline
+    # may still say is that the WORK has finished airing, and only when the
+    # source it fetched from says so - which autofill already writes.
 
     if (
         anime.release_season is None
@@ -190,21 +185,13 @@ def anime_post_processing(anime: Anime, db: Session) -> None:
 
 def anime_movie_post_processing(anime_movie: AnimeMovies, db: Session) -> None:
     apply_check_baha(db, anime_movie, "anime-movie")
-    if (
-        check_is_movie_completed(anime_movie)
-        and anime_movie.watching_status not in COMPLETED_WATCH_STATUSES
-    ):
-        mark_movie_completed(anime_movie)
+    # No completion check here any more - see anime_post_processing.
 
 
 def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
     apply_validate_episode_math(tv_show)
 
-    if (
-        check_is_tv_completed(tv_show)
-        and tv_show.watching_status not in COMPLETED_WATCH_STATUSES
-    ):
-        mark_tv_completed(tv_show)
+    # No completion check here any more - see anime_post_processing.
 
     if tv_show.season_part is None:
         apply_extract_season_from_title(tv_show)
@@ -214,11 +201,7 @@ def tv_show_post_processing(tv_show: TVShows, db: Session) -> None:
 def cartoon_post_processing(cartoon: Cartoon, db: Session) -> None:
     apply_validate_episode_math(cartoon)
 
-    if (
-        check_is_tv_completed(cartoon)
-        and cartoon.watching_status not in COMPLETED_WATCH_STATUSES
-    ):
-        mark_tv_completed(cartoon)
+    # No completion check here any more - see anime_post_processing.
 
     if cartoon.season_part is None:
         apply_extract_season_from_title(cartoon)
@@ -230,11 +213,7 @@ def manga_post_processing(manga: Manga, db: Session) -> None:
     apply_validate_vol_math(manga)
     apply_validate_ch_math(manga)
 
-    if (
-        check_is_reading_completed(manga)
-        and manga.reading_status not in COMPLETED_READ_STATUSES
-    ):
-        mark_reading_completed(manga)
+    # No completion check here any more - see anime_post_processing.
 
 
 def derive_ep_previous_all_anime(db: Session) -> None:
@@ -245,8 +224,8 @@ def derive_ep_previous_all_anime(db: Session) -> None:
     guessed, so ep_previous is all that is still derived franchise-wide.
     """
     rows = (
-        db.query(Anime.franchise_id)
-        .filter(Anime.franchise_id.isnot(None))
+        db.query(Media.franchise_id)
+        .filter(Media.media_type == "anime", Media.franchise_id.isnot(None))
         .distinct()
         .all()
     )

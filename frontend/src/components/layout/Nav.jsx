@@ -8,7 +8,9 @@
 // Every link comes from `config/navigation.js`; the desktop strip and the
 // mobile drawer render the same tree, so there is one place to edit.
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import ModeSwitcher from "./ModeSwitcher";
+import { hardNavigate } from "../../lib/hardNavigate";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToast } from "../../hooks/useToast";
@@ -98,9 +100,8 @@ const DRAWER_ROW =
 
 export default function Nav() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { isAdmin, has, refetchAuth } = useAuth();
+  const { isAdmin, has, username, role } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openKey, setOpenKey] = useState(null);
@@ -172,13 +173,27 @@ export default function Nav() {
     }
   }
 
+  // Signing out is a FULL page load of the page we are on, not a route
+  // change. Swapping the auth snapshot leaves every answer React Query
+  // cached for the outgoing account in place, and `staleTime` serves those
+  // again without asking the server - so the dashboard of the person who
+  // just signed out keeps rendering to a guest. ProtectedRoute sorts out
+  // where a guest may actually stand once the page comes back.
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    await refetchAuth();
-    navigate(location.pathname + location.search, { replace: true });
+    hardNavigate(location.pathname + location.search);
   }
 
-  const loginHref = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
+  // On /login itself the next ProtectedRoute already put in the query string
+  // IS the destination. Rebuilding the link around the current location there
+  // would nest the login page inside its own next, and Login has no
+  // already-signed-in bounce - so a visitor who was sent here from a protected
+  // page and clicked this button instead of filling in the form would sign in
+  // and land straight back on this form.
+  const loginHref =
+    location.pathname === "/login"
+      ? `/login${location.search}`
+      : `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
 
   return (
     <nav className="sticky top-0 z-50">
@@ -198,29 +213,52 @@ export default function Nav() {
             <NavSearch />
 
             <div className="flex items-center gap-2 shrink-0">
-              {isAdmin ? (
-                <>
-                  <span className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5">
-                    Admin
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleBackup}
-                    disabled={backingUp}
-                    className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
-                  >
-                    {backingUp ? "Backing up…" : "Back up"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    title="Log out"
-                    aria-label="Log out"
-                    className={`${INK_ICON_BTN} hover:text-danger`}
-                  >
-                    <i className="fas fa-sign-out-alt text-sm"></i>
-                  </button>
-                </>
+              {/* The role CHIP is a capability and stays gated; the name
+                  beside it is an identity and is not. Three states, one
+                  strip: a guest reads "Guest", any signed-in account reads
+                  its username and gets a way out.
+
+                  It prints the ROLE, never a fixed word. `isAdmin` is
+                  has(manage.catalog), which `super` holds as well as
+                  `admin`, so a chip hard-coding "Admin" labels a super
+                  account with the wrong role - and the two are exactly what
+                  this chip exists to tell apart. */}
+              {isAdmin && (
+                <span
+                  title="Your role"
+                  className="hidden sm:inline-flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-text/60 border border-ink-text/30 px-1.5 py-0.5"
+                >
+                  {role}
+                </span>
+              )}
+              {/* A username is a VALUE, so it keeps the body face and its own
+                  casing - the mono uppercase treatment belongs to labels. */}
+              <span
+                className="hidden sm:inline-flex items-center text-xs text-ink-text/80 max-w-[10rem] truncate"
+                title={username ? `Signed in as ${username}` : "Not signed in"}
+              >
+                {username ?? "Guest"}
+              </span>
+              {isAdmin && has("manage.pipelines") && (
+                <button
+                  type="button"
+                  onClick={handleBackup}
+                  disabled={backingUp}
+                  className="hidden md:inline-flex items-center bg-brand hover:bg-brand-hover px-3 py-1.5 text-xs font-medium text-on-brand transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-text/60"
+                >
+                  {backingUp ? "Backing up…" : "Back up"}
+                </button>
+              )}
+              {username ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Log out"
+                  aria-label="Log out"
+                  className={`${INK_ICON_BTN} hover:text-danger`}
+                >
+                  <i className="fas fa-sign-out-alt text-sm"></i>
+                </button>
               ) : (
                 <Link
                   to={loginHref}
@@ -229,6 +267,12 @@ export default function Nav() {
                   Log in
                 </Link>
               )}
+
+              {/* Renders itself only when this account holds more than one
+                  access mode, and reads no permission - every signed-in
+                  account holds one, and gating it would hide it from the
+                  `user` role that most needs to narrow itself. */}
+              <ModeSwitcher />
 
               <button
                 type="button"
@@ -352,32 +396,51 @@ export default function Nav() {
             ))}
 
             <div className="border-t border-border pt-3">
-              {isAdmin ? (
-                <>
-                  <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleBackup();
-                    }}
-                    className={DRAWER_ROW}
+              {/* The same three states as the desktop strip, and the theme
+                  toggle sits outside them: reading the site in the dark is
+                  not an administrative act. */}
+              <div className="flex items-center gap-2 px-2.5 pb-2">
+                <span className="text-sm text-text-muted truncate">
+                  {username ?? "Guest"}
+                </span>
+                {isAdmin && (
+                  <span
+                    title="Your role"
+                    className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint border border-border px-1.5 py-0.5"
                   >
-                    Back up data
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleLogout();
-                    }}
-                    className="flex w-full items-center px-2.5 py-2 text-sm text-danger hover:bg-danger/10 transition"
-                  >
-                    Log out
-                  </button>
-                </>
+                    {role}
+                  </span>
+                )}
+              </div>
+
+              <button type="button" onClick={toggleTheme} className={DRAWER_ROW}>
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </button>
+
+              {isAdmin && has("manage.pipelines") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleBackup();
+                  }}
+                  className={DRAWER_ROW}
+                >
+                  Back up data
+                </button>
+              )}
+
+              {username ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex w-full items-center px-2.5 py-2 text-sm text-danger hover:bg-danger/10 transition"
+                >
+                  Log out
+                </button>
               ) : (
                 <Link
                   to={loginHref}

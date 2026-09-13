@@ -10,6 +10,12 @@ and both the API schema layer and the frontend read it from here.
 Adding a section is one entry and no migration. Adding a new *shape* is rare
 and costs one nullable column on `note`.
 
+Each section also declares a `scope`: `catalog` sections hold one shared set of
+rows written by admins and read by everyone, `personal` sections hold one set
+per user and are read only by their author. That distinction lives here rather
+than on the table so that changing it later stays a registry edit plus a data
+reassignment - no schema change - which is the whole reason this module exists.
+
 Sections that look similar across media types are deliberately kept distinct
 (`highlights` vs `highlight_episodes` vs `highlight_passages`, `cinematography`
 vs `craft`): the drift is intentional, not accidental.
@@ -63,6 +69,14 @@ STORED_SHAPES = frozenset(
     }
 )
 
+# --- Scopes ---------------------------------------------------------------
+# Whose rows a section holds. The distinction lives here rather than in the
+# schema because this module's own rule is "adding a section is one entry and
+# no migration", and a catalogue/personal reclassification must obey it: it is
+# a registry edit plus a data reassignment, never an ALTER TABLE.
+SCOPE_CATALOG = "catalog"  # one shared set of rows, admin-authored
+SCOPE_PERSONAL = "personal"  # one set per user
+
 # --- Owner groups ---------------------------------------------------------
 # Both derive from media_resolver rather than restating its lists: a new media
 # type must not silently leave a group here stale.
@@ -99,6 +113,20 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
         label="解析 Analysis and Cinematography",
         icon="fa-clapperboard",
     ),
+    # The key `guides` is free only because the SECTION `guides` was retired
+    # when this group replaced it. Group keys and section keys are separate
+    # dicts, so the two could coexist - `analysis_group` above is keyed that way
+    # to avoid making a reader work that out. Here the collision was removed
+    # instead, which is why this key does not need the same suffix.
+    NoteGroup(key="guides", label="攻略 Guides", icon="fa-map"),
+    # 劇情 is what HAPPENS; `analysis_group` above is what it MEANS. Keeping
+    # them apart is why `story_other` exists - a stray observation lands there
+    # rather than drifting into Analysis.
+    NoteGroup(key="story", label="劇情 Story", icon="fa-book-open"),
+    # NOT "進度 Progress": Game.jsx already renders a <Slip title="Progress">
+    # (playtime and achievements) on the same page, and two cards with one name
+    # is the `resources` / `builds_and_mods` collision again.
+    NoteGroup(key="todo", label="待辦 Todo", icon="fa-list-check"),
     NoteGroup(key="music", label="音樂 Music", icon="fa-music"),
     NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
 )
@@ -114,6 +142,14 @@ class NoteSection:
     shape: str
     label: str
     owners: tuple[str, ...]
+    # catalog: one shared set of rows, written by admins, read unfiltered by
+    # everyone. personal: one set per user, read only by its author.
+    # None only for SHAPE_EXTERNAL sections, which store no `note` row at all.
+    #
+    # No default, deliberately. A default would let the next section added
+    # inherit a scope by omission, and the wrong inheritance publishes one
+    # person's private note to every user. A test asserts the absence.
+    scope: str | None
     # Per-owner label overrides; `label` is the fallback.
     labels: dict[str, str] = field(default_factory=dict)
     # The group whose card this section renders inside. None renders flat.
@@ -175,6 +211,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="備註 Remark",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         singleton=True,
     ),
     NoteSection(
@@ -182,6 +219,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="優點 Advantages",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -189,6 +227,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="缺點 Disadvantages",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -196,6 +235,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="優缺點",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -203,6 +243,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_OR_LINK,
         label="大眾評價 Public Reviews",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         group="reviews",
     ),
     NoteSection(
@@ -210,6 +251,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="我的評價 Personal Reviews",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         group="reviews",
     ),
     NoteSection(
@@ -218,6 +260,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="各集評論 Episode Comments",
         owners=("anime", "tv-show", "cartoon", "game"),
+        scope=SCOPE_PERSONAL,
         # A game is cut into chapters or parts rather than episodes, but the
         # section is the same one: a comment on one segment of the work.
         labels={"game": "各章評論 Part Reviews"},
@@ -226,33 +269,12 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="reviews",
     ),
     NoteSection(
-        key="guides",
-        shape=SHAPE_NAME_ENTRIES,
-        label="攻略 Guides",
-        owners=("game",),
-    ),
-    NoteSection(
-        # NOT `resources`: a site-wide `resources` section already exists
-        # (name_links, ALL_OWNERS, standalone), which games already inherit for
-        # plain bookmarks. Reusing the key would silently shadow it, and a
-        # second card also labelled "Resources" would be unreadable - hence a
-        # distinct key AND a distinct label.
-        key="builds_and_mods",
-        shape=SHAPE_NAME_ENTRIES,
-        label="配裝/模組 Builds & Mods",
-        owners=("game",),
-        # Builds, mods and tools took the same shape once guides became
-        # name_entries, so they are one section with a kind rather than three
-        # near-identical ones. Guides stays separate: it is filled for nearly
-        # every game, these are not.
-        kinds=("Build", "Mod", "Tool"),
-    ),
-    NoteSection(
         key="highlights",
         locator_required=True,
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段 Highlights",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 6",
         # The stored data distinguishes a great episode from a great moment or
         # arc, so the section keeps a dropdown even though its siblings do not.
@@ -264,6 +286,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神回/神片段",
         owners=("tv-show", "cartoon", "manga"),
+        scope=SCOPE_CATALOG,
         labels={"manga": "神回"},
         # TV shows and cartoons draw the same distinction anime does. Manga
         # does not, so it keeps the plain field.
@@ -276,6 +299,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT,
         label="神片段",
         owners=("novel",),
+        scope=SCOPE_CATALOG,
     ),
     NoteSection(
         key="highlight_moments",
@@ -283,6 +307,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="神場景 Highlights",
         owners=("game",),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Chapter / Boss, e.g. Ch 3",
     ),
     NoteSection(
@@ -290,6 +315,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="解析 Analysis",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         group="analysis_group",
     ),
     NoteSection(
@@ -297,6 +323,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="分鏡/演出/巧思",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "manga", "series"),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
     ),
@@ -305,6 +332,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_TEXT_LINKS,
         label="巧思",
         owners=("novel",),
+        scope=SCOPE_CATALOG,
         group="analysis_group",
     ),
     NoteSection(
@@ -320,6 +348,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
     ),
@@ -336,8 +365,260 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
             "novel",
         )
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
         group="analysis_group",
+    ),
+    # --- 攻略 Guides ------------------------------------------------------
+    # Fifteen sections rather than one section with a kind, because each is a
+    # list somebody actually keeps separately: which build to run is not the
+    # same question as where the collectibles are. All game-only - 屬性&配點
+    # means nothing for a novel - and all catalogue: a guide is shared.
+    #
+    # `name_entries` where a row is one NAMED thing and what is known about it
+    # (a quest, a build, a boss, an ending); `text_links` where it is advice
+    # with sources and no name. Neither shape renders a locator, so "which
+    # area" is written as an entry line.
+    NoteSection(
+        key="beginner",
+        shape=SHAPE_TEXT_LINKS,
+        label="新手 Beginner",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="controls",
+        shape=SHAPE_TEXT_LINKS,
+        label="操作 Controls",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="trivia",
+        shape=SHAPE_TEXT_LINKS,
+        label="小知識 Trivia",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="side_quests",
+        shape=SHAPE_NAME_ENTRIES,
+        label="支線任務列表 Side Quests",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="builds_and_styles",
+        shape=SHAPE_NAME_ENTRIES,
+        label="配裝&流派 Builds & Styles",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="stats_and_points",
+        shape=SHAPE_TEXT_LINKS,
+        label="屬性&配點 Stats & Points",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="skills",
+        shape=SHAPE_NAME_ENTRIES,
+        label="技能 Skills",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="collectibles",
+        shape=SHAPE_NAME_ENTRIES,
+        label="收集物 Collectibles",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="items",
+        shape=SHAPE_NAME_ENTRIES,
+        label="道具 Items",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="weapons_and_gear",
+        shape=SHAPE_NAME_ENTRIES,
+        label="武器&裝備 Weapons & Gear",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        # NOT `characters`: a `character` table and a /character/:id page
+        # already exist, and a bare `characters` note section would read as
+        # related to them.
+        key="characters_guide",
+        shape=SHAPE_NAME_ENTRIES,
+        label="角色 Characters",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="enemies",
+        shape=SHAPE_NAME_ENTRIES,
+        label="敵人 Enemies",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        key="endings",
+        shape=SHAPE_NAME_ENTRIES,
+        label="結局 Endings",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    NoteSection(
+        # Where `builds_and_mods`'s Mod and Tool rows went. A mod is not a
+        # guide, so it is not folded into one of the sections above; Mod and
+        # Tool stay one section with a kind because they are the same shape.
+        key="mods_and_tools",
+        shape=SHAPE_NAME_ENTRIES,
+        label="模組&工具 Mods & Tools",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+        kinds=("Mod", "Tool"),
+    ),
+    NoteSection(
+        # The old `guides` section: a pointer to somebody else's walkthrough,
+        # which is all it ever held now that the fourteen above cover the
+        # content itself.
+        key="guide_resources",
+        shape=SHAPE_NAME_ENTRIES,
+        label="攻略資源 Guide Resources",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="guides",
+    ),
+    # --- 劇情 Story -------------------------------------------------------
+    # What happens, as opposed to what it means - 解析 Analysis, two cards up,
+    # holds the second. This card is a wall of spoilers and the site has no
+    # spoiler gate; the collapsible card is all today's UI offers.
+    NoteSection(
+        key="main_plot",
+        shape=SHAPE_EPISODE_TEXT,
+        label="主線劇情 Main Plot",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        # Deliberately NOT locator_required, unlike episode_comments and
+        # highlight_moments: a beat remembered without its chapter number is
+        # still a beat, whereas a per-chapter comment about nothing in
+        # particular is not a per-chapter comment.
+        locator_placeholder="Chapter / Part, e.g. Ch 3",
+    ),
+    NoteSection(
+        key="side_plot",
+        shape=SHAPE_EPISODE_TEXT,
+        label="支線劇情 Side Stories",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+        locator_placeholder="Chapter / Part, e.g. Ch 3",
+    ),
+    NoteSection(
+        key="character_arcs",
+        shape=SHAPE_TEXT_LINKS,
+        label="角色劇情 Character Arcs",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        key="lore",
+        shape=SHAPE_TEXT_LINKS,
+        label="世界觀&設定 Lore",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        # Plain text: one ordered list of dated events. Every row wanting a
+        # link would mean this should have been text_links.
+        key="timeline",
+        shape=SHAPE_TEXT,
+        label="時間線 Timeline",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        key="mysteries",
+        shape=SHAPE_TEXT_LINKS,
+        label="未解之謎 Mysteries",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    NoteSection(
+        # The overflow that keeps a stray story observation out of Analysis.
+        key="story_other",
+        shape=SHAPE_TEXT_LINKS,
+        label="其他 Other",
+        owners=("game",),
+        scope=SCOPE_CATALOG,
+        group="story",
+    ),
+    # --- 待辦 Todo --------------------------------------------------------
+    # Four sections rather than one section with a kind, because ordering is
+    # PER SECTION: sort_index orders rows within one (owner, section) pair and
+    # PATCH /api/notes/reorder renumbers the whole section, so a kind-tagged
+    # single section could not order items within a bucket. Moving an item
+    # between buckets is therefore a PATCH of `section`, which the API already
+    # accepts - no UI does it, and none does reorder either.
+    #
+    # Personal, not catalogue: a backlog is one person's. text_links so an item
+    # can carry the guide link that prompted it.
+    NoteSection(
+        key="todo_now",
+        shape=SHAPE_TEXT_LINKS,
+        label="現在進行 Doing now",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_next",
+        shape=SHAPE_TEXT_LINKS,
+        label="接下來 To do next",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_later",
+        shape=SHAPE_TEXT_LINKS,
+        label="未來 To do in the future",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
+    ),
+    NoteSection(
+        key="todo_maybe",
+        shape=SHAPE_TEXT_LINKS,
+        label="可能 Might do",
+        owners=("game",),
+        scope=SCOPE_PERSONAL,
+        group="todo",
     ),
     # --- 音樂 Music -------------------------------------------------------
     # The five sections below form the music group, and the page renders that
@@ -350,6 +631,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="OP",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -360,6 +642,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="ED",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -374,6 +657,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_NAME_LINKS,
         label="插入曲 Insert Song",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         # The only tracking dropdown this section needs, and the same one OP,
         # ED and OST offer. There is no type: an insert song is whatever cut
@@ -387,6 +671,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_MUSIC_TRACK,
         label="OST",
         owners=("anime",),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=MUSIC_TYPES,
         default_kind="normal",
@@ -398,6 +683,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="OP/ED 變動",
         owners=("anime", "tv-show", "cartoon"),
+        scope=SCOPE_CATALOG,
         group="music",
         kinds=OP_ED_KINDS,
         locator_placeholder="Episode(s), e.g. ep 3",
@@ -408,6 +694,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="加長",
         owners=("anime", "tv-show", "cartoon"),
+        scope=SCOPE_CATALOG,
         locator_placeholder="Episode(s), e.g. ep 3",
     ),
     NoteSection(
@@ -416,6 +703,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="改編 Adaptation",
         owners=("anime", "anime-movie", "tv-show", "cartoon", "novel")
         + _SERIES_AND_UP,
+        scope=SCOPE_CATALOG,
         desc_required=("anime", "anime-movie", "novel"),
     ),
     NoteSection(
@@ -423,6 +711,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_NAME_LINKS,
         label="Resources",
         owners=ALL_OWNERS,
+        scope=SCOPE_CATALOG,
         standalone=True,
     ),
     NoteSection(
@@ -430,6 +719,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         shape=SHAPE_EPISODE_TEXT,
         label="Questions",
         owners=ALL_OWNERS,
+        scope=SCOPE_PERSONAL,
         # The locator here is not an episode: it is whatever prompted the
         # question - an episode, a scene, an interview. Optional, because
         # plenty of questions are about the work as a whole.
@@ -446,6 +736,9 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # A quote is said in a specific work, so it stays entry-only - see the
         # class docstring in app/models/quote.py.
         owners=ENTRY_OWNERS,
+        # Universal: shared, unfiltered, no per-user copies. Backed by the
+        # `quote` table, so there is no `note` row to scope.
+        scope=None,
         group="quotes_memes",
     ),
     NoteSection(
@@ -454,11 +747,25 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         label="梗/迷因 Memes",
         # A running gag often spans a franchise, so meme already allows all ten.
         owners=ALL_OWNERS,
+        # Universal, like quotes, and backed by the `meme` table.
+        scope=None,
         group="quotes_memes",
     ),
 )
 
 _BY_KEY = {s.key: s for s in NOTE_SECTIONS}
+
+PERSONAL_SECTIONS: frozenset[str] = frozenset(
+    s.key for s in NOTE_SECTIONS if s.scope == SCOPE_PERSONAL
+)
+CATALOG_SECTIONS: frozenset[str] = frozenset(
+    s.key for s in NOTE_SECTIONS if s.scope == SCOPE_CATALOG
+)
+
+
+def sections_by_scope(scope: str) -> list[NoteSection]:
+    """Every section of one scope, in display order."""
+    return [s for s in NOTE_SECTIONS if s.scope == scope]
 
 
 def section_by_key(key: str) -> NoteSection | None:

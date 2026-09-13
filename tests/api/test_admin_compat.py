@@ -1,11 +1,12 @@
 """
 Every admin-gated route must stay admin-gated.
 
-get_current_admin is reimplemented on top of the RBAC core, and it guards ~130
-call sites that this suite otherwise touches only a handful of. Enumerating the
-routes from the app itself - rather than listing them - means a route that
-loses its guard in a refactor fails here even though no hand-written test
-covers it.
+get_current_admin was reimplemented on top of the RBAC core as three named
+capabilities - admin.authz, manage.catalog, manage.pipelines - which together
+guard the same ~100 call sites that this suite otherwise touches only a
+handful of. Enumerating the routes from the app itself - rather than listing
+them - means a route that loses its guard in a refactor fails here even
+though no hand-written test covers it.
 
 This is a characterization test: it passes before the rewrite and must keep
 passing after. A route added later with no guard does not fail it; only losing
@@ -15,15 +16,21 @@ a guard does.
 import pytest
 from fastapi.routing import APIRoute
 
-from app.dependencies import get_current_admin
 from app.main import app
+from app.services.rbac.resolver import (
+    require_admin_authz,
+    require_manage_catalog,
+    require_manage_pipelines,
+)
 
 PATH_PARAM_STUB = "00000000-0000-0000-0000-000000000000"
 
+ADMIN_GUARDS = (require_admin_authz, require_manage_catalog, require_manage_pipelines)
+
 
 def _guards(dependant) -> bool:
-    """True when get_current_admin appears anywhere in a route's dependency tree."""
-    if dependant.call is get_current_admin:
+    """True when one of the admin-capability dependencies gates a route."""
+    if dependant.call in ADMIN_GUARDS:
         return True
     return any(_guards(sub) for sub in dependant.dependencies)
 

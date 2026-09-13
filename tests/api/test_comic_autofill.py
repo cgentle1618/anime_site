@@ -71,9 +71,9 @@ class TestAutofillComicFromComicvine:
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)
 
-        assert credit_names(db_session, "comic", comic.system_id, "publisher") == ["Marvel"]
-        assert credit_names(db_session, "comic", comic.system_id, "author") == ["Stan Lee"]
-        assert credit_names(db_session, "comic", comic.system_id, "illustrator") == ["Steve Ditko"]
+        assert credit_names(db_session, comic.system_id, "publisher") == ["Marvel"]
+        assert credit_names(db_session, comic.system_id, "author") == ["Stan Lee"]
+        assert credit_names(db_session, comic.system_id, "illustrator") == ["Steve Ditko"]
         assert comic.release_date == "1963"
         assert comic.issue_total == 441
         assert comic.volume_label == "(1963)"
@@ -87,12 +87,12 @@ class TestAutofillComicFromComicvine:
 
         autofill_comic_from_comicvine(comic, db_session)
 
-        assert credit_names(db_session, "comic", comic.system_id, "publisher") == ["Marvel UK"]
-        assert credit_names(db_session, "comic", comic.system_id, "author") == ["J. M. DeMatteis"]
+        assert credit_names(db_session, comic.system_id, "publisher") == ["Marvel UK"]
+        assert credit_names(db_session, comic.system_id, "author") == ["J. M. DeMatteis"]
         assert comic.volume_label == "Legacy"
         assert comic.release_date == "1999"
         # Blank fields are still filled.
-        assert credit_names(db_session, "comic", comic.system_id, "illustrator") == ["Steve Ditko"]
+        assert credit_names(db_session, comic.system_id, "illustrator") == ["Steve Ditko"]
 
     def test_does_not_overwrite_an_existing_cover(self, db_session, patched):
         comic = make_comic(db_session, cover_image_file="my-own-scan.jpg")
@@ -115,13 +115,13 @@ class TestAutofillComicFromComicvine:
         autofill_comic_from_comicvine(comic, db_session)
 
         assert patched["fetch"] == []
-        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
+        assert credit_names(db_session, comic.system_id, "publisher") == []
 
     def test_leaves_entry_untouched_when_the_volume_is_not_found(self, db_session, monkeypatch):
         monkeypatch.setattr(autofill_module, "fetch_comicvine_volume", lambda vid: None)
         comic = make_comic(db_session)
         autofill_comic_from_comicvine(comic, db_session)
-        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
+        assert credit_names(db_session, comic.system_id, "publisher") == []
 
     def test_swallows_fetch_errors_so_one_bad_entry_cannot_abort_a_run(self, db_session, monkeypatch):
         def boom(volume_id):
@@ -131,7 +131,7 @@ class TestAutofillComicFromComicvine:
         comic = make_comic(db_session)
 
         autofill_comic_from_comicvine(comic, db_session)  # must not raise
-        assert credit_names(db_session, "comic", comic.system_id, "publisher") == []
+        assert credit_names(db_session, comic.system_id, "publisher") == []
 
     def test_skips_the_cover_when_comicvine_has_only_a_placeholder(self, db_session, monkeypatch):
         result = dict(VOLUME_RESULT)

@@ -14,10 +14,15 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.domain import pop_remark, resolve_series_parent_hierarchy, upsert_remark
-from app.services.domain.plan_next import delete_plans_for
+from app.services.domain import (
+    attach_remark,
+    pop_remark,
+    resolve_series_parent_hierarchy,
+    upsert_remark,
+)
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -38,6 +43,7 @@ def get_all_series(
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Retrieves Series from the database.
@@ -68,11 +74,16 @@ def get_all_series(
     response_model=schemas.SeriesResponse,
     summary="Get Series by ID",
 )
-def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
+def get_series_by_id(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
     """Retrieves a single series by its public_id or its UUID."""
     db_series = find_entity(db, models.Series, system_id)
     if not db_series:
         raise HTTPException(status_code=404, detail="Series not found.")
+    attach_remark(db, "series", db_series, viewer.user_id)
     return db_series
 
 
@@ -87,7 +98,8 @@ def get_series_by_id(system_id: str, db: Session = Depends(get_db)):
 def create_series(
     series_in: schemas.SeriesCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """
     Creates a new Series.
@@ -106,9 +118,11 @@ def create_series(
     db.refresh(new_series)
 
     if has_remark:
-        upsert_remark(db, "series", new_series.system_id, remark)
+        upsert_remark(db, "series", new_series.system_id, remark, viewer.user_id)
         db.commit()
         db.refresh(new_series)
+
+    attach_remark(db, "series", new_series, viewer.user_id)
 
     return new_series
 
@@ -120,7 +134,8 @@ def update_series(
     system_id: str,
     series_in: schemas.SeriesUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Fully updates a Series' metadata and smartly resolves hierarchy changes."""
     db_series = (
@@ -133,7 +148,9 @@ def update_series(
     for key, value in update_data.items():
         setattr(db_series, key, value)
     if has_remark:
-        upsert_remark(db, "series", db_series.system_id, remark)
+        upsert_remark(
+            db, "series", db_series.system_id, remark, viewer.user_id
+        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -141,6 +158,8 @@ def update_series(
 
     db.commit()
     db.refresh(db_series)
+
+    attach_remark(db, "series", db_series, viewer.user_id)
 
     return db_series
 
@@ -152,7 +171,8 @@ def patch_series(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Partially updates a Series."""
     db_series = (
@@ -164,7 +184,9 @@ def patch_series(
     payload, remark, has_remark = pop_remark(payload)
     apply_column_patch(db_series, payload)
     if has_remark:
-        upsert_remark(db, "series", db_series.system_id, remark)
+        upsert_remark(
+            db, "series", db_series.system_id, remark, viewer.user_id
+        )
 
     db_series.franchise_id = resolve_series_parent_hierarchy(
         db, db_series.franchise_id, db_series.names_dict
@@ -173,6 +195,8 @@ def patch_series(
     db.commit()
     db.refresh(db_series)
 
+    attach_remark(db, "series", db_series, viewer.user_id)
+
     return db_series
 
 
@@ -180,7 +204,7 @@ def patch_series(
 def delete_series(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Series.
@@ -195,8 +219,7 @@ def delete_series(
 
     log_deleted_record(db, db_series, "Series")
 
-    delete_plans_for(db, "series", db_series.system_id)
-
+    # fk_plan_next_series cascades the series' plan rows away.
     db.delete(db_series)
     db.commit()
 

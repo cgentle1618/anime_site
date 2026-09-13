@@ -9,11 +9,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
-    Sequence,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -27,6 +26,22 @@ class Novel(Base, NameFallbackMixin):
 
     __tablename__ = "novel"
     __table_args__ = (
+        # Pins this row to a media row of its own type: with media's
+        # UNIQUE (system_id, media_type) on the other end, this table's row can
+        # never attach itself to another type's media row.
+        ForeignKeyConstraint(
+            ["system_id", "media_type"],
+            ["media.system_id", "media.media_type"],
+            name="fk_novel_media",
+            ondelete="CASCADE",
+            # Deferred because the parent row is written *after* this one: the
+            # media row copies public_id, which a Sequence default does not
+            # mint until this INSERT runs. Both rows land in one transaction
+            # and the pairing is still checked, at COMMIT.
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("media_type = 'novel'", name="ck_novel_media_type"),
         CheckConstraint(
             r"release_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_novel_release_date_iso",
@@ -34,16 +49,6 @@ class Novel(Base, NameFallbackMixin):
         CheckConstraint(
             r"end_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_novel_end_date_iso",
-        ),
-        UniqueConstraint(
-            "public_id",
-            name="uq_novel_public_id",
-            # Deferred so a Pull can permute public_id across rows inside
-            # one transaction: the sheet can hand row A an id row B still
-            # holds until the restore reaches B. Only the end state has to
-            # be unique, and it is still checked, at COMMIT.
-            deferrable=True,
-            initially="DEFERRED",
         ),
     )
     _name_fields = [
@@ -57,19 +62,10 @@ class Novel(Base, NameFallbackMixin):
     system_id = Column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # Short, stable, per-table id shown in SPA URLs; system_id remains the
-    # join key and never leaves the API.
-    public_id = Column(Integer, Sequence("novel_public_id_seq"), nullable=False)
-    franchise_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("franchise.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    series_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("series.system_id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    # The discriminator half of the composite FK up to `media`. Constant per
+    # table and pinned by ck_novel_media_type; it exists so the FK can carry
+    # the type, not because a row could ever be anything else.
+    media_type = Column(String, nullable=False, server_default="novel")
 
     novel_name_en = Column(String, nullable=True)
     novel_name_cn = Column(String, nullable=True)
@@ -82,24 +78,22 @@ class Novel(Base, NameFallbackMixin):
     version = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
-    reading_status = Column(String, nullable=False, default="Might Read")
 
     vol_total_original = Column(Float, nullable=True)
     vol_total_tw = Column(Float, nullable=True)
-    vol_fin = Column(Float, nullable=False, default=0)
     arc_total = Column(Float, nullable=True)
-    arc_fin = Column(Float, nullable=False, default=0)
     ch_total = Column(Float, nullable=True)
-    ch_fin = Column(Float, nullable=False, default=0)
     # Chapters read into the arc *currently* being read, which is the arc at
     # position arc_fin + 1. Zero for every novel with no arc rows.
-    ch_fin_in_arc = Column(Float, nullable=False, default=0)
-    progress_display = Column(String, nullable=True)
 
-    my_rating = Column(String, nullable=True)
     mal_rating = Column(Float, nullable=True)
     mal_rank = Column(String, nullable=True)
-    anilist_rating = Column(String, nullable=True)
+    # AniList's averageScore is an integer 0-100 and both ranks are
+    # positions. mal_rank next door is a String for historical reasons; that
+    # is not a reason to repeat it.
+    anilist_rating = Column(Integer, nullable=True)
+    anilist_rank = Column(Integer, nullable=True)
+    anilist_popularity_rank = Column(Integer, nullable=True)
 
     release_date = Column(String, nullable=True)
     end_date = Column(String, nullable=True)
@@ -115,10 +109,8 @@ class Novel(Base, NameFallbackMixin):
     openlibrary_link = Column(String, nullable=True)
     openlibrary_id = Column(String, nullable=True)
 
-    cover_image_file = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
-    completed_at = Column(DateTime, nullable=True)
 
     units = relationship(
         "NovelUnit",
@@ -186,9 +178,6 @@ class NovelUnit(Base):
     name_en = Column(String, nullable=True)
     remark = Column(String, nullable=True)
     ch_count = Column(Float, nullable=True)
-    # One of constants.MY_RATINGS. Per-unit and independent: nothing derives
-    # from it, and the novel's own my_rating stays hand-set.
-    my_rating = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

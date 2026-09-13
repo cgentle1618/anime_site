@@ -1,4 +1,5 @@
 // Frontend: tracker component file for NovelTrackerBlock.
+import { useAuth } from "../../contexts/AuthContext";
 import { Button, Chip, Eyebrow, Slip } from "../ui/primitives";
 import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
 import StatusOptions from "../ui/StatusOptions";
@@ -69,6 +70,14 @@ export default function NovelTrackerBlock({
   onToRerereadChange,
   onProgressDisplayChange,
 }) {
+  // A guest has no tracker. The card is titled "My tracker" and every field in
+  // it is one person's - status, rating, progress - so with nobody signed in
+  // there is no "my" and the card does not belong on the page at all. Guarded
+  // here rather than at each of the nine detail pages, so a tenth media type
+  // cannot forget it.
+  const { username } = useAuth();
+  if (!username) return null;
+
   const pd = effectiveProgressDisplay(novel);
   const volHighlighted = pd === "vol_original" || pd === "vol_tw";
   const chHighlighted = pd === "ch" || pd === "arc" || pd === "arc_ch";

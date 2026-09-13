@@ -126,7 +126,13 @@ export default function LibraryLayout({
   isLoading,
   error,
 }) {
-  const { isAdmin } = useAuth();
+  // `has("self.list")`, not isAdmin. The tracker controls in the library
+  // table write the viewer's OWN user_media_list row, so the permission that
+  // authorises them is self.list. isAdmin has meant manage.catalog since
+  // Phase A, and gating a self-service control on a catalogue permission is
+  // what made the `user` role usable through the API and useless in the UI.
+  const { has } = useAuth();
+  const canTrack = has("self.list");
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -198,10 +204,10 @@ export default function LibraryLayout({
     () => ({
       franchiseDict,
       seriesDict,
-      isAdmin,
+      canTrack,
       handleStatusToggle,
     }),
-    [franchiseDict, seriesDict, isAdmin, handleStatusToggle],
+    [franchiseDict, seriesDict, canTrack, handleStatusToggle],
   );
 
   // -------------------------------------------------------------------------

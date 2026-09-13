@@ -26,9 +26,7 @@ def test_detail_response_carries_credits_and_tags(client, db_session):
     credits_service.replace_credits(
         db_session, "anime", a.system_id, "composer", ["澤野弘之"]
     )
-    credits_service.replace_tags(
-        db_session, "anime", a.system_id, "genre_main", ["Action", "Drama"]
-    )
+    credits_service.replace_tags(db_session, a.system_id, "genre_main", ["Action", "Drama"])
     db_session.commit()
 
     body = client.get(f"/api/anime/{a.system_id}").json()
@@ -60,12 +58,8 @@ def test_comic_list_carries_era_and_events(client, db_session):
     c = models.Comic(comic_name_en="Saga")
     db_session.add(c)
     db_session.commit()
-    credits_service.replace_tags(
-        db_session, "comic", c.system_id, "comic_era", ["Modern Age"]
-    )
-    credits_service.replace_tags(
-        db_session, "comic", c.system_id, "comic_event", ["Civil War", "Secret Wars"]
-    )
+    credits_service.replace_tags(db_session, c.system_id, "comic_era", ["Modern Age"])
+    credits_service.replace_tags(db_session, c.system_id, "comic_event", ["Civil War", "Secret Wars"])
     credits_service.replace_credits(
         db_session, "comic", c.system_id, "author", ["Brian K. Vaughan"]
     )
@@ -136,9 +130,7 @@ def test_anime_carries_the_label_tag_and_its_sheet_column(client, db_session):
     is served - and backed up - under its own key.
     """
     a = _anime(db_session, "標籤測試")
-    credits_service.replace_tags(
-        db_session, "anime", a.system_id, "label", ["會跳OP", "很多福利"]
-    )
+    credits_service.replace_tags(db_session, a.system_id, "label", ["會跳OP", "很多福利"])
     db_session.commit()
 
     body = client.get(f"/api/anime/{a.system_id}").json()
@@ -155,9 +147,7 @@ def test_anime_carries_the_quality_tag_and_its_sheet_column(client, db_session):
     column, so it is served - and backed up - under its own key.
     """
     a = _anime(db_session, "品質測試")
-    credits_service.replace_tags(
-        db_session, "anime", a.system_id, "quality", ["作畫崩壞", "神作畫"]
-    )
+    credits_service.replace_tags(db_session, a.system_id, "quality", ["作畫崩壞", "神作畫"])
     db_session.commit()
 
     body = client.get(f"/api/anime/{a.system_id}").json()

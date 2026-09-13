@@ -19,10 +19,14 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
-from app.services.rbac.enforcement import drop_hidden_rows, entry_visible
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.enforcement import (
+    drop_hidden_rows,
+    entry_visible,
+    require_visible_media,
+)
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES, entry_ref_for, resolve_entries
 
@@ -115,6 +119,29 @@ def _validate_media_type(media_type: Optional[str]) -> None:
         raise HTTPException(
             status_code=400, detail=f"Unknown media_type '{media_type}'."
         )
+
+
+def _require_visible_entry(db: Session, viewer, entry_id) -> None:
+    """
+    A quote names an entry via `entry_id` alone, so writing one reaches that
+    entry. The type is resolved from the id by
+    `enforcement.require_visible_media`, never taken from the payload or from
+    the stored row: `Quote.media_type` is a read-only `column_property` derived
+    from `entry_id` (app/models/__init__.py:236-238), so pairing a stale or
+    caller-supplied type with a moved entry_id would gate the move under the
+    wrong media_type.<key> permission.
+
+    Nothing here if the quote names no entry: entry_id is nullable and a
+    free-standing quote is legitimate. When entry_id names no Media row the
+    entry does not exist, and `require_media_row=True` answers that with the
+    same 404 a hidden one gets - absent and hidden stay one answer, in
+    _get_or_404's words.
+    """
+    if not entry_id:
+        return
+    require_visible_media(
+        db, viewer, entry_id, "Quote not found.", require_media_row=True
+    )
 
 
 # ==========================================
@@ -265,16 +292,22 @@ def get_quote(
 def create_quote(
     payload: schemas.QuoteCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
+    viewer: Viewer = Depends(get_viewer),
 ):
     """Creates a new Quote attached to a media entry."""
     _validate_media_type(payload.media_type)
+    _require_visible_entry(db, admin, payload.entry_id)
     try:
+        data = payload.model_dump(exclude_unset=True)
+        # The author is who is asking, not who the payload says they are.
+        data.pop("author_id", None)
         db_quote = models.Quote(
             system_id=uuid.uuid4(),
             created_at=get_taipei_now(),
             updated_at=get_taipei_now(),
-            **payload.model_dump(exclude_unset=True),
+            author_id=viewer.user_id,
+            **data,
         )
         db.add(db_quote)
         db.commit()
@@ -291,11 +324,15 @@ def update_quote(
     quote_id: str,
     payload: schemas.QuoteUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates a Quote."""
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.entry_id)
     _validate_media_type(payload.media_type)
+    update_data = payload.model_dump(exclude_unset=True)
+    if "entry_id" in update_data:
+        _require_visible_entry(db, admin, update_data["entry_id"])
     try:
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(db_quote, key, value)
@@ -314,11 +351,14 @@ def patch_quote(
     quote_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Partially updates a Quote (used for inline edits on the Quote page)."""
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.entry_id)
     _validate_media_type(payload.get("media_type"))
+    if "entry_id" in payload:
+        _require_visible_entry(db, admin, payload["entry_id"])
     try:
         apply_column_patch(db_quote, payload)
         db_quote.updated_at = get_taipei_now()
@@ -335,7 +375,7 @@ def patch_quote(
 def delete_quote(
     quote_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a Quote.
@@ -343,6 +383,7 @@ def delete_quote(
     hand-managed local files, so removing one is the admin's call.
     """
     db_quote = _get_or_404(db, quote_id)
+    _require_visible_entry(db, admin, db_quote.entry_id)
 
     # Stage the deleted record log before actually deleting
     log_deleted_record(db, db_quote, "Quote")

@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-09-07 (publisher credit row added)
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -165,7 +165,7 @@ style label). Vocabulary source and drift guard: [options.md](options.md#novel-u
 | Default status | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Watch"` | `"Might Read"` | `"Might Read"` | `"Might Read"` | `"Might Play"` |
 | Display-name fallback (model `display_name`) | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt | CN → EN → Alt → roman → JP | CN → EN → Alt → roman → JP | **EN → CN → Alt** | CN → EN → Alt → roman → JP |
 | Name order in `NAMING_CONFIGS` (frontend) | cn, en, roman, jp, alt | cn, en, roman, jp, alt | cn, en, alt | cn, en, alt | cn, en, alt | cn, en, roman, jp, alt | cn, en, roman, jp, alt | en, cn, alt | cn, en, roman, jp, alt |
-| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` | No fraction at all: `hours_played` plus **five independent completion axes** - `completion_level`, `all_endings`, `all_achievements`, `all_collected`, `achievements_earned` / `achievements_total`. Nothing is derived from anything, including `all_achievements` from the counts. |
+| Progress columns | `ep_fin` / `ep_total` (+ `ep_previous`, `ep_special`) | — (one sitting) | — (one sitting) | `ep_fin` / `ep_total` | `ep_fin` / `ep_total` | `ch_fin` / `ch_total`, `vol_fin` / `vol_total`, `vol_fin_page` | `ch_fin` / `ch_total` / `ch_fin_in_arc` (derived from `novel_unit` arc rows; cleared outright on `Light Novel` and `Novel`), `vol_fin` / `vol_total_original` / `vol_total_tw` (never derived), `arc_fin` / `arc_total`, `progress_display`, `units` | `issue_fin` / `issue_total` | No fraction at all: `hours_played` plus **five independent completion axes** - `completion_level`, `all_endings`, `all_achievements`, `all_collected`, `achievements_earned` / `achievements_total`. Nothing is derived from anything, including `all_achievements` from the counts. The middle three carry GAME_COMPLETION_FLAGS, so a game with no endings or no achievement list answers `Inapplicable` rather than leaving the axis blank. |
 | Other status column | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `airing_status` | `serialization_status` | `serialization_status` | `serialization_status` | `release_status` |
 | External id / link | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `imdb_id` / `imdb_link` (TMDB + OMDb) | `mal_id` / `mal_link` (Tenrai) | `mal_id` / `mal_link` (Tenrai) | `comicvine_id` / `comicvine_link` (Comic Vine) | `igdb_id` / `igdb_link` (IGDB), plus `steam_appid` / `steam_link` — columns reserved for the deferred Steam sync, written and read by nothing |
 | Sources card heading | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Watch | Where to Read | Where to Read | Where to Read | **Where to Play** |
@@ -182,9 +182,8 @@ header is whatever that tab has always been called, while the label is what a
 reader sees, and `_LABEL_OVERRIDES` in `app/utils/credit_roles.py` owns it.
 Which publishers a type's picker offers is `publisher_scope`
 (see [data-model.md](data-model.md#publisher_scope)), so a games publisher is
-never suggested as an anime distributor. Anime Movie's `distributor_tw` is the
-one column the 2026-09-07 migration genuinely added - that tab never carried a
-distributor before.
+never suggested as an anime distributor. Anime Movie carries a
+`distributor_tw` of its own.
 
 Every type also gets `other` and `restricted` free-form access/reference
 buckets on `media_source`, gated by the `sources_other` / `sources_restricted`
@@ -277,8 +276,12 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `highlight_episodes` | | | | x (kinds) | x (kinds) | x (label `神回`, locator "Chapter(s)") | | | | |
 | `highlight_passages` | | | | | | | x | | | |
 | `highlight_moments` (label `神場景 Highlights`, locator "Chapter / Boss") | | | | | | | | | x | |
-| `guides` (`name_entries`) | | | | | | | | | x | |
-| `builds_and_mods` (`name_entries`, kinds `Build`/`Mod`/`Tool`) | | | | | | | | | x | |
+| 攻略 group — `beginner`, `controls`, `trivia`, `stats_and_points` (`text_links`) | | | | | | | | | x | |
+| 攻略 group — `side_quests`, `builds_and_styles`, `skills`, `collectibles`, `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`, `guide_resources` (`name_entries`) | | | | | | | | | x | |
+| 攻略 group — `mods_and_tools` (`name_entries`, kinds `Mod`/`Tool`) | | | | | | | | | x | |
+| 劇情 group — `main_plot`, `side_plot` (`episode_text`, locator optional) | | | | | | | | | x | |
+| 劇情 group — `character_arcs`, `lore`, `mysteries`, `story_other` (`text_links`), `timeline` (`text`) | | | | | | | | | x | |
+| 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`, personal scope) | | | | | | | | | x | |
 | `cinematography` (`分鏡/演出/巧思`) | x | x | | x | x | x | | | | series |
 | `craft` (`巧思`) | | | | | | | x | | | |
 | `foreshadowing` | x | x | | x | x | x | x | | | both |
@@ -288,4 +291,4 @@ Sections whose `owners` is `ALL_OWNERS` (all nine types plus `series`, `franchis
 | `extended_episodes` (`加長`) | x | | | x | x | | | | | |
 | `adaptation` | x (desc required) | x (desc required) | | x | x | | x (desc required) | | | both |
 
-Movie and comic get only the shared sections. Game's three own sections sit beside the shared ones, and note that its bookmark section is **`builds_and_mods`, not `resources`** - a site-wide `resources` section already exists (shape `name_links`, `ALL_OWNERS`) which games inherit, so reusing the key would have shadowed it. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections. Game carries 27 of its own - `highlight_moments` plus the 攻略 (15), 劇情 (7) and 待辦 (4) groups - beside the shared ones. Its guide bookmarks are **`guide_resources`, inside the 攻略 group**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, standalone) is a separate section games also inherit, and two keys with two labels is deliberate, because a second card called "Resources" would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

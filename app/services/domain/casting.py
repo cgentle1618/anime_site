@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app import models
-from app.routers.constants import CHARACTER_ROLES
+from app.utils.character_roles import CHARACTER_ROLES
 
 # The four ACG media types character_casting.media_type may hold - a subset
 # of MEDIA_TABLES's eight, per ck_casting_voice_scope's own comment.

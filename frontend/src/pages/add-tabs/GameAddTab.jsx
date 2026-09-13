@@ -10,6 +10,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import GameCopiesEditor from "../../components/forms/GameCopiesEditor";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -21,6 +22,7 @@ import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMPLETION_LEVELS,
+  GAME_COMPLETION_FLAGS,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   MY_RATINGS,
@@ -28,6 +30,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import { useAuth } from "../../contexts/AuthContext";
 
 export { defaultGame } from "../../config/formFactories";
 
@@ -181,7 +184,14 @@ export function IgdbSearchBox({ onPick }) {
  * Modify tab. `f` is the form state and `u` its updater, so the two pages
  * differ only in which state object they hand in.
  */
-export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
+// `ownerId` is only passed by GameModifyTab, where the game row already
+// exists - see ImagePicker's own module comment on why a brand-new (Add tab)
+// row has nothing to attach to yet. When it is absent (the Add tab), the
+// picked image cannot be attached until the game is saved, so its id is kept
+// as `pending_image_id` for GameAddTab's caller to attach afterward.
+export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }) {
+  const { has } = useAuth();
+  const canOwnCopies = has("self.list");
   // ck_games_not_self_parent: a game can never be its own base game, so the
   // row being edited is never offered as a parent.
   const baseGameChoices = excludeGameId
@@ -434,8 +444,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
           />
         </Field>
       </div>
-      {/* Three tristate axes, independent of the ladder above and of each
-          other. "All Achievements" is not read from the counts below. */}
+      {/* Three vocabulary axes, independent of the ladder above and of each
+          other. "All Achievements" is not read from the counts below.
+          "Inapplicable" is for a game that has none of that thing at all -
+          no endings to see, no achievement list, nothing to collect - which
+          is a different answer from "No" and from leaving it blank. */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="All Endings" hint="Separate axis from completion level">
           <select
@@ -444,8 +457,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_endings", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="All Achievements">
@@ -455,8 +471,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_achievements", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="All Collected" hint="Every in-game collectible">
@@ -466,8 +485,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_collected", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Steam Progress Sync" hint="Off: Steam never writes playtime here">
@@ -542,16 +564,26 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
         {num("price_current_tw", "Current Price (TW)")}
       </div>
 
-      <SectionHeader icon="fa-box-open" title="Copies" />
-      <Field
-        label="Copies"
-        hint="One row per copy owned or wanted — Ownership on the entry is derived from these"
-      >
-        <GameCopiesEditor
-          items={f.copies}
-          onChange={(v) => u("copies", v)}
-        />
-      </Field>
+      {/* A copy is a personal-ownership row that happens to be edited from a
+          catalogue form, so it is gated on self.list rather than on the
+          manage.catalog this page already required. An administrative
+          account edits the game without acquiring a copy of it; the server
+          skips a `copies` payload from such a caller for the same reason
+          (services/domain/game_copies.py). */}
+      {canOwnCopies && (
+        <>
+          <SectionHeader icon="fa-box-open" title="Copies" />
+          <Field
+            label="Copies"
+            hint="One row per copy owned or wanted — Ownership on the entry is derived from these"
+          >
+            <GameCopiesEditor
+              items={f.copies}
+              onChange={(v) => u("copies", v)}
+            />
+          </Field>
+        </>
+      )}
 
       <SectionHeader icon="fa-external-link-alt" title="Sources" />
       {/* The id, not the link, is what Fill runs on. The public IGDB URL
@@ -635,12 +667,16 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. game/5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="game"
+          ownerId={ownerId}
+          role="cover"
           value={f.cover_image_file}
-          onChange={(e) => u("cover_image_file", e.target.value)}
-          placeholder="game/5114.jpg"
+          onChange={(key, imageId) => {
+            u("cover_image_file", key);
+            u("pending_image_id", ownerId ? null : imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

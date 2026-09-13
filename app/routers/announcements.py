@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
+from app.services.rbac.resolver import Viewer, require_manage_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def list_announcements(db: Session = Depends(get_db)):
 def add_announcement(
     payload: schemas.AnnouncementCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Creates a new announcement. Titles must be unique."""
     title, body = _clean(payload.title, payload.body)
@@ -122,7 +123,7 @@ def add_announcement(
 def update_announcement(
     payload: schemas.AnnouncementUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Updates an announcement's body, and optionally renames its title."""
     original_title = (payload.original_title or "").strip()
@@ -152,7 +153,7 @@ def update_announcement(
 def delete_announcement(
     title: str = Query(..., description="Title of the announcement to delete"),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Deletes an announcement by title."""
     row = _get_row(db, title.strip())

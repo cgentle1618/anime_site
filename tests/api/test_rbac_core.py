@@ -12,13 +12,13 @@ from ordinary viewers and so are never granted to a fresh guest role.
 import uuid
 
 from app import models
-from app.services.rbac.field_groups import FIELD_GROUP_KEYS
 from app.services.rbac.permissions import (
-    PERM_ADMIN,
-    field_group_perm,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
     media_type_perm,
 )
-from app.services.rbac.seed import GUEST_WITHHELD_FIELD_GROUPS, ensure_rbac_seed
+from app.services.rbac.seed import ensure_rbac_seed
 from app.services.security import create_access_token, get_password_hash
 from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
@@ -58,32 +58,32 @@ def test_seed_is_idempotent(db_session):
     assert db_session.query(models.Role).filter(models.Role.name == "guest").count() == 1
 
 
-def test_admin_is_a_superuser_and_needs_no_grants(db_session):
+def test_admin_is_a_root_role_and_needs_no_grants(db_session):
     ensure_rbac_seed(db_session)
     admin = _role(db_session, "admin")
-    assert admin.is_superuser is True
+    assert admin.is_root is True
 
 
-def test_guest_is_granted_every_media_type_and_field_group(db_session):
-    """Day one must be behavior-identical: guest sees what it saw before,
-    except the field groups that exist specifically to withhold something
-    from ordinary viewers (e.g. sources_restricted) - those must never be
-    handed to a fresh guest role by default.
+def test_guest_is_granted_every_media_type_and_no_field_group(db_session):
+    """Day one must be behaviour-identical: guest sees what it saw before.
+
+    Field groups left the role axis in Phase B, so a seeded guest holds none
+    of them - what a logged-out visitor may see of a reachable entry is the
+    `safe` access mode's business now.
     """
     ensure_rbac_seed(db_session)
     grants = _grants(db_session, "guest")
     for media_type in MEDIA_TYPE_KEYS:
         assert media_type_perm(media_type) in grants
-    for key in FIELD_GROUP_KEYS:
-        if key in GUEST_WITHHELD_FIELD_GROUPS:
-            assert field_group_perm(key) not in grants
-        else:
-            assert field_group_perm(key) in grants
+    assert not any(p.startswith("field_group.") for p in grants)
 
 
 def test_guest_is_not_granted_admin(db_session):
     ensure_rbac_seed(db_session)
-    assert PERM_ADMIN not in _grants(db_session, "guest")
+    grants = _grants(db_session, "guest")
+    assert PERM_ADMIN_AUTHZ not in grants
+    assert PERM_MANAGE_CATALOG not in grants
+    assert PERM_MANAGE_PIPELINES not in grants
 
 
 # ---------------------------------------------------------------------------
@@ -95,15 +95,15 @@ def test_me_reports_the_guest_role_for_an_anonymous_caller(client):
     assert body["is_admin"] is False
     assert body["username"] is None
     assert body["role"] == "guest"
-    assert body["is_superuser"] is False
+    assert body["is_root"] is False
     assert media_type_perm("anime") in body["permissions"]
 
 
-def test_me_reports_superuser_for_an_admin(admin_client):
+def test_me_reports_root_for_an_admin(admin_client):
     body = admin_client.get("/api/auth/me").json()
     assert body["is_admin"] is True
-    assert body["username"] == "testadmin"
-    assert body["is_superuser"] is True
+    assert body["username"] == "aaa_testadmin"
+    assert body["is_root"] is True
 
 
 def test_me_survives_a_garbage_cookie(client):

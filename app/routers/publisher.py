@@ -19,11 +19,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.credits import find_publisher
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -37,7 +37,8 @@ def _to_response(
     db: Session, publisher: models.Publisher, viewer=None
 ) -> schemas.PublisherResponse:
     credit_rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.publisher_id == publisher.system_id)
         .all()
     )
@@ -137,7 +138,8 @@ def get_publisher_entries(
         raise HTTPException(status_code=404, detail="Publisher not found.")
 
     rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.publisher_id == system_id)
         .all()
     )
@@ -183,7 +185,7 @@ def get_publisher_entries(
 def create_publisher(
     payload: schemas.PublisherCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a publisher, or returns the existing one under that name.
@@ -235,7 +237,7 @@ def update_publisher(
     system_id: UUID,
     payload: schemas.PublisherUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Fully updates a publisher's metadata and the set of scopes it holds. Since
@@ -270,7 +272,7 @@ def update_publisher(
 def delete_publisher(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a publisher. Its credits cascade away with it - see
@@ -296,7 +298,7 @@ def merge_publisher(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this publisher, then delete the
@@ -313,15 +315,17 @@ def merge_publisher(
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Publisher not found.")
 
+    # media_id alone identifies the entry - it is globally unique across the
+    # nine media tables, which is what the supertable bought.
     held = {
-        (c.media_type, c.entry_id, c.role)
+        (c.media_id, c.role)
         for c in db.query(models.MediaCredit).filter_by(publisher_id=system_id).all()
     }
     moved = 0
     for credit in (
         db.query(models.MediaCredit).filter_by(publisher_id=payload.source_id).all()
     ):
-        if (credit.media_type, credit.entry_id, credit.role) in held:
+        if (credit.media_id, credit.role) in held:
             db.delete(credit)
             continue
         credit.publisher_id = system_id

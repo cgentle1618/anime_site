@@ -6,6 +6,8 @@ postgres_anime_data/
 one_time/
 static/covers/
 !/static/covers/.gitkeep
+static/library/*
+!/static/library/.gitkeep
 .vs/
 
 node_modules/
@@ -21,3 +23,6 @@ frontend_dist/
 
 # (Usually you want to keep this, but ignore if it's for personal use only)
 # CLAUDE.md
+# Local database dumps. Never committed: they hold every account row and
+# every personal note, and the channel for data between machines is Sheets.
+backups/

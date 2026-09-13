@@ -9,13 +9,25 @@ import uuid
 
 from app import models
 
+# `note` addresses its owner with four FK columns now; these suites still think
+# in (owner_type, owner_id), so the pair is translated here.
+_TIER_COLUMNS = {
+    "collection": "collection_id",
+    "franchise": "franchise_id",
+    "series": "series_id",
+}
+
+
+def _owner_filters(owner_type, owner_id):
+    column = _TIER_COLUMNS.get(owner_type, "media_id")
+    return [getattr(models.Note, column) == owner_id]
+
 
 def _remark_rows(db_session, owner_type, owner_id):
     return (
         db_session.query(models.Note)
         .filter(
-            models.Note.owner_type == owner_type,
-            models.Note.owner_id == owner_id,
+            *_owner_filters(owner_type, owner_id),
             models.Note.section == "remark",
         )
         .all()
@@ -61,11 +73,11 @@ def test_patching_an_empty_remark_clears_the_note(
 
 
 def test_a_notes_page_edit_shows_up_on_the_entry(
-    admin_client, db_session, sample_anime
+    super_client, db_session, sample_anime
 ):
     # The notes page posts to /api/notes; the entry response must read the
     # same row back.
-    res = admin_client.post(
+    res = super_client.post(
         "/api/notes",
         json={
             "owner_type": "anime",
@@ -76,7 +88,7 @@ def test_a_notes_page_edit_shows_up_on_the_entry(
     )
     assert res.status_code == 201
 
-    entry = admin_client.get(f"/api/anime/{sample_anime.system_id}")
+    entry = super_client.get(f"/api/anime/{sample_anime.system_id}")
     assert entry.json()["remark"] == "written on the notes page"
 
 

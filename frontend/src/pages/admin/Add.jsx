@@ -34,6 +34,7 @@ import QuoteAddTab from "../add-tabs/QuoteAddTab";
 import MemeAddTab from "../add-tabs/MemeAddTab";
 import { emptyQuote, toQuotePayload } from "../../components/forms/QuoteForm";
 import { emptyMeme, toMemePayload } from "../../components/forms/MemeForm";
+import { attachUploadedImage } from "../../components/forms/ImagePicker";
 import { endpoints } from "../../api/endpoints";
 import ContentLabelPicker, {
   saveEntryLabels,
@@ -224,6 +225,28 @@ export default function Add() {
   async function ensureSourceValues(fields) {
     await ensureSourceValuesLib(fields, sources);
     setSources(await fetchAllSources());
+  }
+
+  // Attaches an image that was picked before its owner row existed - an Add
+  // tab's ImagePicker has no ownerId yet (see ImagePicker.jsx's module
+  // comment), so it hands the image id up as `pending_image_id` instead of
+  // attaching at pick time. Called once the row is saved and has an id, the
+  // same way QuoteForm/MemeForm's post-save attach works in submitQuote()/
+  // submitMeme() above. A no-op when nothing was picked. Failure is surfaced,
+  // not swallowed: the row itself already saved, so silently dropping the
+  // image would leave it attached to nothing and later show as Unused on
+  // /images, where the unused-only Delete would remove a file this row
+  // still names.
+  async function attachPendingImage(imageId, ownerType, ownerId, role, label) {
+    if (!imageId) return;
+    try {
+      await attachUploadedImage(imageId, ownerType, ownerId, role);
+    } catch (err) {
+      showToast(
+        "error",
+        err.message || `${label} saved, but attaching the image failed.`,
+      );
+    }
   }
 
   // Saves a form's credits/tags via PUT /api/credits/{media_type}/{entry_id},
@@ -804,6 +827,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      af.pending_image_id,
+      "anime",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("anime", created.system_id, af);
     await saveCast("anime", created.system_id, af);
 
@@ -966,7 +996,7 @@ export default function Add() {
       return;
     }
     try {
-      await fetchJson(endpoints.quotes.create(), {
+      const created = await fetchJson(endpoints.quotes.create(), {
         method: "POST",
         ...jsonBody(
           toQuotePayload(qf, {
@@ -975,6 +1005,23 @@ export default function Add() {
           }),
         ),
       });
+      // The quote had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (qf.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            qf.pending_image_id,
+            "quote",
+            created.system_id,
+            "quote",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Quote saved, but attaching the image failed.",
+          );
+        }
+      }
       showToast("success", "Quote appended.");
       setLastAdded(qf.text?.trim() || qf.image_file);
       // Keep the entry selected: quotes are usually added several at a time.
@@ -994,7 +1041,7 @@ export default function Add() {
       return;
     }
     try {
-      await fetchJson(endpoints.memes.create(), {
+      const created = await fetchJson(endpoints.memes.create(), {
         method: "POST",
         ...jsonBody(
           toMemePayload(memf, {
@@ -1003,6 +1050,23 @@ export default function Add() {
           }),
         ),
       });
+      // The meme had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (memf.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            memf.pending_image_id,
+            "meme",
+            created.system_id,
+            "cover",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Meme saved, but attaching the image failed.",
+          );
+        }
+      }
       showToast("success", "Meme appended.");
       setLastAdded(memf.text?.trim() || memf.image_file);
       // Keep the entry selected: memes are usually added several at a time.
@@ -1094,6 +1158,13 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      await attachPendingImage(
+        personForm.pending_image_id,
+        "staff",
+        created.system_id,
+        "cover",
+        "Person",
+      );
       showToast("success", "Person appended successfully.");
       setLastAdded(created.display_name);
       setPersonForm(freshForm("person"));
@@ -1133,6 +1204,13 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      await attachPendingImage(
+        characterForm.pending_image_id,
+        "character",
+        created.system_id,
+        "cover",
+        "Character",
+      );
       showToast("success", "Character appended successfully.");
       setLastAdded(created.display_name);
       setCharacterForm(freshForm("character"));
@@ -1172,6 +1250,13 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      await attachPendingImage(
+        studioForm.pending_image_id,
+        "studio",
+        created.system_id,
+        "cover",
+        "Studio",
+      );
       showToast("success", "Studio appended successfully.");
       setLastAdded(created.display_name);
       setStudioForm(freshForm("studio"));
@@ -1215,6 +1300,13 @@ export default function Add() {
     });
     if (res.ok) {
       const created = await res.json();
+      await attachPendingImage(
+        publisherForm.pending_image_id,
+        "publisher",
+        created.system_id,
+        "cover",
+        "Publisher",
+      );
       showToast("success", "Publisher appended successfully.");
       setLastAdded(created.display_name);
       setPublisherForm(freshForm("publisher"));
@@ -1316,6 +1408,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      amf.pending_image_id,
+      "anime-movie",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("anime-movie", created.system_id, amf);
     await saveCast("anime-movie", created.system_id, amf);
 
@@ -1486,6 +1585,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      mf.pending_image_id,
+      "movie",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("movie", created.system_id, mf);
     window.scrollTo(0, 0);
     showToast("success", "Movie appended successfully.");
@@ -1648,6 +1754,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      tvf.pending_image_id,
+      "tv-show",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("tv-show", created.system_id, tvf);
     window.scrollTo(0, 0);
     showToast("success", "TV Show appended successfully.");
@@ -1792,6 +1905,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      cf.pending_image_id,
+      "cartoon",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("cartoon", created.system_id, cf);
     window.scrollTo(0, 0);
     showToast("success", "Cartoon appended successfully.");
@@ -1911,7 +2031,12 @@ export default function Add() {
       mal_rating: mgf.mal_rating !== "" ? parseFloat(mgf.mal_rating) : null,
       mal_rank: mgf.mal_rank !== "" ? parseInt(mgf.mal_rank) : null,
       anilist_rating:
-        mgf.anilist_rating !== "" ? parseFloat(mgf.anilist_rating) : null,
+        mgf.anilist_rating !== "" ? parseInt(mgf.anilist_rating) : null,
+      anilist_rank: mgf.anilist_rank !== "" ? parseInt(mgf.anilist_rank) : null,
+      anilist_popularity_rank:
+        mgf.anilist_popularity_rank !== ""
+          ? parseInt(mgf.anilist_popularity_rank)
+          : null,
       release_date: mgf.release_date || null,
       end_date: mgf.end_date || null,
       anime_studio: mgf.anime_studio || null,
@@ -1947,6 +2072,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      mgf.pending_image_id,
+      "manga",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("manga", created.system_id, mgf);
     await saveCast("manga", created.system_id, mgf);
     window.scrollTo(0, 0);
@@ -2090,7 +2222,12 @@ export default function Add() {
       mal_rating: nvf.mal_rating !== "" ? parseFloat(nvf.mal_rating) : null,
       mal_rank: nvf.mal_rank !== "" ? parseInt(nvf.mal_rank) : null,
       anilist_rating:
-        nvf.anilist_rating !== "" ? parseFloat(nvf.anilist_rating) : null,
+        nvf.anilist_rating !== "" ? parseInt(nvf.anilist_rating) : null,
+      anilist_rank: nvf.anilist_rank !== "" ? parseInt(nvf.anilist_rank) : null,
+      anilist_popularity_rank:
+        nvf.anilist_popularity_rank !== ""
+          ? parseInt(nvf.anilist_popularity_rank)
+          : null,
       release_date: nvf.release_date || null,
       end_date: nvf.end_date || null,
       read_order: nvf.read_order !== "" ? parseFloat(nvf.read_order) : null,
@@ -2142,6 +2279,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      nvf.pending_image_id,
+      "novel",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("novel", created.system_id, nvf);
     await saveCast("novel", created.system_id, nvf);
     window.scrollTo(0, 0);
@@ -2318,6 +2462,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      cmf.pending_image_id,
+      "comic",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("comic", created.system_id, cmf);
     window.scrollTo(0, 0);
     showToast("success", "Comic appended successfully.");
@@ -2475,6 +2626,13 @@ export default function Add() {
       return;
     }
     const created = await res.json();
+    await attachPendingImage(
+      gmf.pending_image_id,
+      "game",
+      created.system_id,
+      "cover",
+      "Entry",
+    );
     await saveCredits("game", created.system_id, gmf);
     window.scrollTo(0, 0);
     showToast("success", "Game appended successfully.");

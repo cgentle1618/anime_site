@@ -94,15 +94,15 @@ def test_never_touches_the_english_name(db_session, patched):
 def test_igdb_english_is_translated_through_the_alias_table(db_session, patched):
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
-    assert tag_values(db_session, "game", game.system_id, "game_genre") == ["角色扮演"]
-    assert tag_values(db_session, "game", game.system_id, "game_theme") == ["奇幻"]
+    assert tag_values(db_session, game.system_id, "game_genre") == ["角色扮演"]
+    assert tag_values(db_session, game.system_id, "game_theme") == ["奇幻"]
 
 
 def test_a_console_generation_folds_into_one_platform_value(db_session, patched):
     """PS4 and PS5 are one PlayStation tag, not two - replace_tags keeps both."""
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
-    assert tag_values(db_session, "game", game.system_id, "game_platform") == [
+    assert tag_values(db_session, game.system_id, "game_platform") == [
         "PlayStation",
         "PC",
     ]
@@ -118,15 +118,15 @@ def test_an_unmatched_igdb_value_is_skipped_not_stored_raw(
     )
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
-    assert tag_values(db_session, "game", game.system_id, "game_genre") == []
+    assert tag_values(db_session, game.system_id, "game_genre") == []
     assert "Roguelite" in caplog.text
 
 
 def test_developer_becomes_a_studio_and_publisher_a_publisher(db_session, patched):
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
-    assert credit_names(db_session, "game", game.system_id, "studio") == ["FromSoftware"]
-    assert credit_names(db_session, "game", game.system_id, "publisher") == [
+    assert credit_names(db_session, game.system_id, "studio") == ["FromSoftware"]
+    assert credit_names(db_session, game.system_id, "publisher") == [
         "Bandai Namco"
     ]
 

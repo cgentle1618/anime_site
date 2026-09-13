@@ -15,7 +15,12 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services.domain.size_group import bucket_for
 from app.utils.media_resolver import OWNER_TABLES
-from app.utils.plan_next_kinds import PLAN_FLAG_FIELDS, SIZE_MEASURE, scope_allowed
+from app.utils.plan_next_kinds import (
+    PLAN_FLAG_FIELDS,
+    SIZE_MEASURE,
+    owner_kwargs,
+    scope_allowed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +97,32 @@ def target_exists(db: Session, scope: str, media_type: str, target_id: UUID) -> 
     )
 
 
+def target_visible(db: Session, viewer, scope: str, media_type: str, target_id: UUID) -> bool:
+    """
+    Whether this viewer may see the planned target.
+
+    Only entry scope can carry a content label - franchise and series are
+    groups, not labelled media - so group-scope targets are always visible
+    here and the row's own existence is the only gate.
+    """
+    if scope != "entry":
+        return True
+    from app.services.rbac.enforcement import entry_visible
+
+    return entry_visible(db, viewer, media_type, target_id)
+
+
 def validate_plan_target(
-    db: Session, scope: str, media_type: str, target_id: UUID, kind: str = "next"
+    db: Session, scope: str, media_type: str, target_id: UUID, kind: str = "next", *, viewer=None
 ):
     """
     Returns None when the triple is plannable, else a human-readable reason.
+
+    A target that exists but is hidden from this viewer (a content label they
+    lack) reads back the same "No {scope} with id {target_id}." a genuinely
+    missing target does - the caller turns that into a 404, never a 403, so a
+    hidden entry is indistinguishable from a missing one. viewer is optional
+    so existing internal callers (Pull) that have no viewer keep working.
 
     Kept here rather than in the router so Pull can reuse it later.
     """
@@ -104,17 +130,23 @@ def validate_plan_target(
         return f"{media_type} cannot be planned at {scope} scope."
     if not target_exists(db, scope, media_type, target_id):
         return f"No {scope} with id {target_id}."
+    if not target_visible(db, viewer, scope, media_type, target_id):
+        return f"No {scope} with id {target_id}."
     return None
 
 
-def entry_flag(db: Session, media_type: str, entry_id: UUID, kind: str = "next") -> bool:
-    """Whether one entry is queued. Backs the watch_next / read_next fields."""
+def entry_flag(
+    db: Session, media_type: str, entry_id: UUID, kind: str = "next", *, user_id
+) -> bool:
+    """Whether one entry is queued BY THIS USER. Backs watch_next / read_next."""
+    if user_id is None:
+        return False
     return (
         db.query(models.PlanNext)
         .filter(
-            models.PlanNext.scope == "entry",
+            models.PlanNext.user_id == user_id,
             models.PlanNext.media_type == media_type,
-            models.PlanNext.target_id == entry_id,
+            models.PlanNext.media_id == entry_id,
             models.PlanNext.kind == kind,
         )
         .first()
@@ -122,13 +154,18 @@ def entry_flag(db: Session, media_type: str, entry_id: UUID, kind: str = "next")
     )
 
 
-def planned_entry_ids(db: Session, media_type: str, kind: str = "next") -> set:
-    """Every queued entry id of one media type, for list endpoints."""
+def planned_entry_ids(
+    db: Session, media_type: str, kind: str = "next", *, user_id
+) -> set:
+    """Every entry id of one media type this user has queued, for list endpoints."""
+    if user_id is None:
+        return set()
     rows = (
-        db.query(models.PlanNext.target_id)
+        db.query(models.PlanNext.media_id)
         .filter(
-            models.PlanNext.scope == "entry",
+            models.PlanNext.user_id == user_id,
             models.PlanNext.media_type == media_type,
+            models.PlanNext.media_id.isnot(None),
             models.PlanNext.kind == kind,
         )
         .all()
@@ -137,21 +174,29 @@ def planned_entry_ids(db: Session, media_type: str, kind: str = "next") -> set:
 
 
 def set_entry_flag(
-    db: Session, media_type: str, entry_id: UUID, planned: bool, kind: str = "next"
+    db: Session,
+    media_type: str,
+    entry_id: UUID,
+    planned: bool,
+    kind: str = "next",
+    *,
+    user_id,
 ) -> None:
     """
-    Upsert or delete the entry-scope row behind watch_next / read_next.
+    Upsert or delete THIS USER's entry-scope row behind watch_next / read_next.
 
     The flag stays on the entry schemas so the Add and Modify forms, the detail
     pages and the library filters keep working unchanged; plan_next is the only
     place the fact is stored.
     """
+    if user_id is None:
+        return
     existing = (
         db.query(models.PlanNext)
         .filter(
-            models.PlanNext.scope == "entry",
+            models.PlanNext.user_id == user_id,
             models.PlanNext.media_type == media_type,
-            models.PlanNext.target_id == entry_id,
+            models.PlanNext.media_id == entry_id,
             models.PlanNext.kind == kind,
         )
         .first()
@@ -159,7 +204,10 @@ def set_entry_flag(
     if planned and existing is None:
         db.add(
             models.PlanNext(
-                media_type=media_type, scope="entry", target_id=entry_id, kind=kind
+                user_id=user_id,
+                media_type=media_type,
+                kind=kind,
+                **owner_kwargs("entry", entry_id),
             )
         )
     elif not planned and existing is not None:
@@ -184,7 +232,7 @@ def pop_plan_flag(media_type: str, data: dict):
     return rest, present
 
 
-def attach_plan_flag(db: Session, media_type: str, entry) -> None:
+def attach_plan_flag(db: Session, media_type: str, entry, *, user_id) -> None:
     """
     Set every virtual flag on an ORM instance before it is serialized.
 
@@ -193,27 +241,8 @@ def attach_plan_flag(db: Session, media_type: str, entry) -> None:
     - SQLAlchemy does not manage it.
     """
     for field, kind in PLAN_FLAG_FIELDS.get(media_type, ()):
-        setattr(entry, field, entry_flag(db, media_type, entry.system_id, kind=kind))
-
-
-def delete_plans_for(db: Session, scope: str, target_id: UUID) -> int:
-    """
-    Remove every plan row pointing at one deleted thing.
-
-    The target is FK-less - no single foreign key can span the eight entry
-    tables plus series and franchise - so nothing cascades and each delete path
-    has to call this, the same obligation media_relation already carries.
-    Scoped by (scope, target_id) rather than by target_id alone, so the eight
-    system_id spaces cannot collide.
-    """
-    rows = (
-        db.query(models.PlanNext)
-        .filter(
-            models.PlanNext.scope == scope,
-            models.PlanNext.target_id == target_id,
+        setattr(
+            entry,
+            field,
+            entry_flag(db, media_type, entry.system_id, kind, user_id=user_id),
         )
-        .all()
-    )
-    for row in rows:
-        db.delete(row)
-    return len(rows)

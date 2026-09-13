@@ -47,10 +47,12 @@ def test_a_franchise_given_by_name_is_resolved_or_created(db_session, sheet):
 
 
 def test_an_idless_row_matching_by_name_updates_instead_of_duplicating(db_session, sheet):
-    existing = models.AnimeMovies(anime_movie_name_en="Your Name", my_rating="A")
+    # mal_rank, not my_rating: the personal columns left anime_movies in
+    # step 1, and this test is about matching by name, not about ratings.
+    existing = models.AnimeMovies(anime_movie_name_en="Your Name", mal_rank="A")
     db_session.add(existing)
     db_session.flush()
-    sheet(["anime_movie_name_en", "my_rating"], [["Your Name", "S"]])
+    sheet(["anime_movie_name_en", "mal_rank"], [["Your Name", "S"]])
 
     result = pull.execute_pull_specific(db_session, "Anime Movie", log_action=False)
 
@@ -58,7 +60,7 @@ def test_an_idless_row_matching_by_name_updates_instead_of_duplicating(db_sessio
     assert result["rows_added"] == 0
     assert db_session.query(models.AnimeMovies).count() == 1
     db_session.refresh(existing)
-    assert existing.my_rating == "S"
+    assert existing.mal_rank == "S"
 
 
 def test_backup_writes_the_tab_under_its_real_name(db_session, monkeypatch):

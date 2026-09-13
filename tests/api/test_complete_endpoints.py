@@ -15,81 +15,77 @@ from app import models
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def sample_anime_movie(db_session, sample_franchise):
+def sample_anime_movie(db_session, sample_franchise, list_row):
     entry = models.AnimeMovies(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_movie_name_en="Test Anime Movie",
-        watching_status="Watching",
         airing_status="Finished Airing",
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching")
     return entry
 
 
 @pytest.fixture
-def sample_tv_show(db_session, sample_franchise):
+def sample_tv_show(db_session, sample_franchise, list_row):
     entry = models.TVShows(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         tv_name_en="Test TV Show",
-        watching_status="Watching",
         airing_status="Finished Airing",
         ep_total=10,
-        ep_fin=5,
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching", ep_fin=5)
     return entry
 
 
 @pytest.fixture
-def sample_cartoon(db_session, sample_franchise):
+def sample_cartoon(db_session, sample_franchise, list_row):
     entry = models.Cartoon(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         cartoon_name_en="Test Cartoon",
-        watching_status="Watching",
         airing_status="Finished Airing",
         ep_total=8,
-        ep_fin=3,
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching", ep_fin=3)
     return entry
 
 
 @pytest.fixture
-def sample_movie(db_session, sample_franchise):
+def sample_movie(db_session, sample_franchise, list_row):
     entry = models.Movies(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Test Movie",
-        watching_status="Watching",
         airing_status="Finished Airing",
     )
     db_session.add(entry)
     db_session.flush()
+    list_row(entry, status="Watching")
     return entry
 
 
 @pytest.fixture
-def sample_manga(db_session, sample_franchise):
+def sample_manga(db_session, sample_franchise, list_row):
     entry = models.Manga(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         manga_name_en="Test Manga",
-        reading_status="Reading",
         serialization_status="連載中",
         ch_total=50,
-        ch_fin=20,
         vol_total=5,
-        vol_fin=2,
-        vol_fin_page=100,
     )
     db_session.add(entry)
     db_session.flush()
+    # Part-read: the position /complete must carry to the totals.
+    list_row(entry, status="Reading", ch_fin=20, vol_fin=2, vol_fin_page=100)
     return entry
 
 
@@ -105,19 +101,21 @@ class TestCompleteAnime:
         assert data["watching_status"] == "Completed"
         assert data["airing_status"] == "Finished Airing"
 
-    def test_ep_fin_set_to_ep_total(self, admin_client, db_session, sample_franchise):
+    def test_ep_fin_set_to_ep_total(
+        self, admin_client, db_session, sample_franchise, list_row
+    ):
         entry = models.Anime(
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
             anime_name_en="Incomplete Anime",
             airing_type="TV",
             airing_status="Finished Airing",
-            watching_status="Watching",
             ep_total=24,
-            ep_fin=10,
         )
         db_session.add(entry)
         db_session.flush()
+        # Part-watched: the progress the endpoint must carry to ep_total.
+        list_row(entry, status="Watching", ep_fin=10)
         response = admin_client.post(f"/api/anime/{entry.system_id}/complete")
         assert response.status_code == 200
         assert response.json()["ep_fin"] == 24
@@ -257,7 +255,6 @@ class TestCompleteManga:
             system_id=uuid.uuid4(),
             franchise_id=sample_franchise.system_id,
             manga_name_en="Cancelled Manga",
-            reading_status="Reading",
             serialization_status="腰斬",
         )
         db_session.add(cancelled)

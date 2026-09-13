@@ -18,15 +18,15 @@ from app import models
 
 
 @pytest.fixture
-def sample_anime_movie(db_session, sample_franchise):
+def sample_anime_movie(db_session, sample_franchise, list_row):
     m = models.AnimeMovies(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         anime_movie_name_en="Test Anime Movie",
-        watching_status="Completed",
     )
     db_session.add(m)
     db_session.flush()
+    list_row(m, status="Completed")
     return m
 
 
@@ -93,7 +93,6 @@ def orderable_franchise(db_session, sample_franchise, sample_anime):
             franchise_id=sample_franchise.system_id,
             anime_name_en="Second Entry",
             airing_type="TV",
-            watching_status="Might Watch",
             release_date="2005",
         )
     )
@@ -143,9 +142,13 @@ class TestGetWatchOrderDetail:
         assert [i["position"] for i in data["items"]] == [1.0, 2.0, 3.0]
 
     def test_items_are_resolved_to_display_data(
-        self, client, sample_list, sample_items, sample_anime
+        self, admin_client, sample_list, sample_items, sample_anime
     ):
-        data = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()
+        # admin_client: `status` comes off the caller's own list row, and a
+        # logged-out visitor has no list to read it from.
+        data = admin_client.get(
+            f"/api/watch-order/lists/{sample_list.system_id}"
+        ).json()
         first = data["items"][0]
         assert first["missing"] is False
         assert first["display_name"] == "Test Anime"
@@ -165,7 +168,7 @@ class TestGetWatchOrderDetail:
         assert (anime_steps[1]["ep_start"], anime_steps[1]["ep_end"]) == (11, 12)
 
     def test_ep_special_is_resolved_onto_the_step(
-        self, client, db_session, sample_franchise, sample_list
+        self, client, db_session, sample_franchise, sample_list, list_row
     ):
         """ep_special 0 is a real episode number, not an absent value."""
         anime = models.Anime(
@@ -173,11 +176,11 @@ class TestGetWatchOrderDetail:
             franchise_id=sample_franchise.system_id,
             anime_name_en="Episode Zero",
             airing_type="Special",
-            watching_status="Completed",
             ep_special=0,
         )
         db_session.add(anime)
         db_session.flush()
+        list_row(anime, status="Completed")
         db_session.add(
             models.WatchOrderItem(
                 system_id=uuid.uuid4(),
@@ -203,16 +206,21 @@ class TestGetWatchOrderDetail:
         # An unmarked step reads back as Normal, not as null.
         assert items[0]["importance"] == "Normal"
 
-    def test_dangling_entry_is_flagged_not_dropped(
+    def test_an_entryless_step_is_flagged_not_dropped(
         self, client, db_session, sample_list
     ):
+        """
+        A step can no longer point at an entry that does not exist - media_id
+        is a real FK - but it can still point at nothing at all, which is what
+        the m0c5worder migration left pre-existing orphans as. Such a step is
+        still rendered, flagged, rather than silently dropped from the list.
+        """
         db_session.add(
             models.WatchOrderItem(
                 system_id=uuid.uuid4(),
                 list_id=sample_list.system_id,
                 position=1.0,
-                media_type="anime",
-                entry_id=uuid.uuid4(),
+                entry_id=None,
             )
         )
         db_session.flush()
@@ -223,6 +231,38 @@ class TestGetWatchOrderDetail:
         assert len(items) == 1
         assert items[0]["missing"] is True
         assert items[0]["display_name"] is None
+
+    def test_deleting_the_entry_takes_its_step_with_it(
+        self, client, db_session, sample_list
+    ):
+        """
+        media_id CASCADEs, unlike quote's SET NULL: a step is almost pure
+        pointer - ep_start, ep_end and position only mean something relative to
+        an entry - so an entry-less step would be a blank row in a curated list.
+        """
+        from sqlalchemy import text
+
+        anime = models.Anime(anime_name_cn="會被刪除的")
+        db_session.add(anime)
+        db_session.flush()
+        sid = anime.system_id
+        db_session.add(
+            models.WatchOrderItem(
+                system_id=uuid.uuid4(),
+                list_id=sample_list.system_id,
+                position=1.0,
+                entry_id=sid,
+            )
+        )
+        db_session.commit()
+
+        db_session.execute(text("DELETE FROM anime WHERE system_id = :s"), {"s": sid})
+        db_session.commit()
+
+        items = client.get(f"/api/watch-order/lists/{sample_list.system_id}").json()[
+            "items"
+        ]
+        assert items == []
 
 
 class TestMediaScope:
@@ -366,7 +406,6 @@ class TestReleaseOrder:
                 franchise_id=orderable_franchise.system_id,
                 anime_name_en="Added Later",
                 airing_type="TV",
-                watching_status="Might Watch",
                 release_date="2030",
             )
         )
@@ -392,7 +431,6 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en=name,
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date=date,
                 )
             )
@@ -414,14 +452,12 @@ class TestReleaseOrder:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="No date",
                     airing_type="TV",
-                    watching_status="Might Watch",
                 ),
                 models.Anime(
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Dated",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="1999",
                 ),
             ]
@@ -609,14 +645,12 @@ class TestAnimeOnlyBuiltIn:
                     franchise_id=sample_franchise.system_id,
                     anime_name_en="Second Anime",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="2005",
                 ),
                 models.Manga(
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     manga_name_en="A Manga",
-                    reading_status="Might Read",
                     release_date="2003",
                 ),
             ]
@@ -683,7 +717,6 @@ class TestAnimeOnlyBuiltIn:
                     system_id=uuid.uuid4(),
                     franchise_id=sample_franchise.system_id,
                     manga_name_en=f"Manga {n}",
-                    reading_status="Might Read",
                 )
                 for n in (1, 2)
             ]
@@ -718,7 +751,6 @@ class TestSeriesOwnedBuiltIn:
                     series_id=sample_series.system_id,
                     anime_name_en=f"Series Anime {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date=year,
                 )
                 for n, year in ((1, "2010"), (2, "2012"))
@@ -745,7 +777,6 @@ class TestSeriesOwnedBuiltIn:
                 franchise_id=sample_franchise.system_id,
                 anime_name_en="Outside The Series",
                 airing_type="TV",
-                watching_status="Might Watch",
                 release_date="2011",
             )
         )
@@ -803,7 +834,6 @@ class TestCollectionOptOut:
                     franchise_id=sample_collected_franchise.system_id,
                     anime_name_en=f"Disney-ish {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                     release_date="200%d" % n,
                 )
                 for n in (1, 2)
@@ -842,7 +872,6 @@ class TestCollectionOptOut:
                     franchise_id=sample_collected_franchise.system_id,
                     anime_name_en=f"Fine {n}",
                     airing_type="TV",
-                    watching_status="Might Watch",
                 )
                 for n in (1, 2)
             ]
@@ -866,18 +895,18 @@ class TestCandidates:
         assert any(c["display_name"] == "Test Anime" for c in data)
 
     def test_collection_candidates_come_from_member_franchises(
-        self, client, db_session, sample_collection, sample_collected_franchise
+        self, client, db_session, sample_collection, sample_collected_franchise,
+        list_row,
     ):
-        db_session.add(
-            models.Anime(
-                system_id=uuid.uuid4(),
-                franchise_id=sample_collected_franchise.system_id,
-                anime_name_en="Collected Anime",
-                airing_type="TV",
-                watching_status="Completed",
-            )
+        collected = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_collected_franchise.system_id,
+            anime_name_en="Collected Anime",
+            airing_type="TV",
         )
+        db_session.add(collected)
         db_session.flush()
+        list_row(collected, status="Completed")
 
         data = client.get(
             f"/api/watch-order/candidates?collection_id={sample_collection.system_id}"
@@ -885,14 +914,14 @@ class TestCandidates:
         assert [c["display_name"] for c in data] == ["Collected Anime"]
 
     def test_candidate_carries_the_fields_a_row_needs(
-        self, client, sample_franchise, sample_anime
+        self, admin_client, sample_franchise, sample_anime
     ):
         """
         The editor appends a picked candidate straight into its local list, so
         the payload must match the resolver's shape - a missing field would
         render the new row blank until a reload.
         """
-        data = client.get(
+        data = admin_client.get(
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"
         ).json()
         anime = next(c for c in data if c["media_type"] == "anime")
@@ -902,19 +931,18 @@ class TestCandidates:
         assert anime["franchise_id"] == str(sample_franchise.system_id)
 
     def test_candidate_carries_ep_special(
-        self, client, db_session, sample_franchise
+        self, client, db_session, sample_franchise, list_row
     ):
-        db_session.add(
-            models.Anime(
-                system_id=uuid.uuid4(),
-                franchise_id=sample_franchise.system_id,
-                anime_name_en="Special Episode",
-                airing_type="Special",
-                watching_status="Completed",
-                ep_special=14.5,
-            )
+        special_entry = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            anime_name_en="Special Episode",
+            airing_type="Special",
+            ep_special=14.5,
         )
+        db_session.add(special_entry)
         db_session.flush()
+        list_row(special_entry, status="Completed")
 
         data = client.get(
             f"/api/watch-order/candidates?franchise_id={sample_franchise.system_id}"

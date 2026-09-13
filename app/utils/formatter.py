@@ -15,6 +15,14 @@ from uuid import UUID
 from app.services.domain.watch_order import normalize_importance
 from app.utils import release_date
 
+# The vocabulary the three game completion axes carry. Imported so the sheet
+# parser and the API cannot disagree about what a valid value is.
+from app.utils.constants import GAME_COMPLETION_FLAGS
+
+# The scope -> owner column map. plan_next_kinds imports only media_resolver,
+# so there is no cycle.
+from app.utils.plan_next_kinds import OWNER_COLUMN
+
 # ==========================================
 # FORMATTERS (DB -> Google Sheets)
 # ==========================================
@@ -114,6 +122,37 @@ def _uuid_or_none(val: Any) -> Any:
     """
     parsed = parse_from_sheet(val, UUID)
     return parsed if isinstance(parsed, UUID) else None
+
+
+def parse_completion_flag(val_str: Any) -> Optional[str]:
+    """
+    Parses one of games.all_endings / all_achievements / all_collected.
+
+    These are a GAME_COMPLETION_FLAGS vocabulary, not booleans, because
+    "Inapplicable" - the game has no endings at all - is a different answer
+    from "No", and both differ from the blank "not recorded yet" (None).
+
+    Sheets written before the columns became a vocabulary hold TRUE and FALSE,
+    and a backup is the only copy of the data that crosses between the two dev
+    machines, so Pull has to keep reading them: anything parse_from_sheet would
+    have called a boolean maps to "Yes" / "No". A value that is neither the
+    vocabulary nor a boolean is dropped to None rather than stored, because no
+    code branch would recognise it.
+    """
+    if val_str is None or str(val_str).strip() == "":
+        return None
+
+    raw = str(val_str).strip()
+    for flag in GAME_COMPLETION_FLAGS:
+        if raw.casefold() == flag.casefold():
+            return flag
+
+    legacy = parse_from_sheet(raw, bool)
+    if legacy is True:
+        return "Yes"
+    if legacy is False:
+        return "No"
+    return None
 
 
 def parse_from_sheet(val_str: str, expected_type: Any) -> Any:
@@ -246,11 +285,9 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "list_id": _uuid_or_none(raw.get("list_id")),
         "position": parse_from_sheet(raw.get("position"), float),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        # entry_id has no foreign key - it points at whichever media table
-        # media_type names - so an unparseable cell becomes None and the row
-        # shows up in the guide as a missing step.
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # media_id is a real FK now; an unparseable cell becomes None and the
+        # row shows up in the guide as a missing step.
+        "media_id": _media_id_or_none(raw),
         # Real FK, unlike entry_id: an unparseable cell becomes None and the
         # step restores ungrouped rather than pointing at nothing.
         "section_id": _uuid_or_none(raw.get("section_id")),
@@ -265,6 +302,74 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
+
+
+def parse_user_media_list_from_sheet(raw: dict) -> dict:
+    """
+    One user's list row, keyed naturally rather than by uuid.
+
+    media_type + public_id identifies the entry and username identifies the
+    person, because the sheet's uuids belong to whichever database last ran a
+    Backup while public_id is stable and is already in the URLs. Pull resolves
+    both to real ids before writing; a row whose key is incomplete is refused
+    rather than guessed at.
+    """
+    media_type = parse_from_sheet(raw.get("media_type"), str)
+    public_id = parse_from_sheet(raw.get("public_id"), int)
+    username = parse_from_sheet(raw.get("username"), str)
+    if not media_type or public_id is None or not username:
+        raise ValueError(
+            "User Media List row needs media_type, public_id and username; "
+            f"got {media_type!r}, {public_id!r}, {username!r}"
+        )
+    return {
+        "media_type": media_type,
+        "public_id": public_id,
+        "username": username,
+        "status": parse_from_sheet(raw.get("status"), str),
+        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
+        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
+        "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
+        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
+        "vol_fin": parse_from_sheet(raw.get("vol_fin"), float),
+        "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int),
+        "ch_fin": parse_from_sheet(raw.get("ch_fin"), float),
+        "arc_fin": parse_from_sheet(raw.get("arc_fin"), float),
+        "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float),
+        "progress_display": parse_from_sheet(raw.get("progress_display"), str),
+        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int),
+    }
+
+
+def parse_media_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Media sheet into typed data.
+
+    `media` is the supertable every entry has a row in. Its system_id IS the
+    detail row's system_id, so it is a real identity and travels in the sheet
+    (no DERIVED_IDENTITY_KEYS entry). display_name is derived from the detail
+    row's name columns by compute_display_name; it is restored here so a Media
+    tab pulled before its entry tab satisfies the NOT NULL, and the entry tab
+    then overwrites it with the freshly computed value.
+    """
+    parsed = {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "media_type": parse_from_sheet(raw.get("media_type"), str),
+        "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
+        "franchise_id": parse_from_sheet(raw.get("franchise_id"), UUID),
+        "series_id": parse_from_sheet(raw.get("series_id"), UUID),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+    # public_id and display_name are both NOT NULL. A blank cell - a row a
+    # human added to the sheet by hand - must omit the key rather than emit
+    # None, which would abort the whole tab on the constraint. Omitted, an
+    # UPDATE keeps the stored value and an INSERT fails on that one row.
+    parsed.update(_public_id_from_sheet(raw))
+    display_name = parse_from_sheet(raw.get("display_name"), str)
+    if display_name is not None:
+        parsed["display_name"] = display_name
+    return parsed
 
 
 def parse_media_relation_from_sheet(raw: dict) -> dict:
@@ -295,17 +400,29 @@ def parse_plan_next_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Plan Next sheet into typed data ready for
     the Database.
+
+    The SHEET still carries the (scope, target_id) pair a human can read; the
+    TABLE carries three mutually exclusive foreign keys. The translation is
+    here, so a sheet written before Step 3 restores unchanged. user_id is not
+    in the sheet at all - pull.py stamps the restore owner, the `admin`
+    account (Step 4 of the programme replaces that with a username column).
     """
+    scope = parse_from_sheet(raw.get("scope"), str)
+    # No foreign key in the sheet - the target is whichever table scope and
+    # media_type name - so an unparseable cell becomes None and the row is
+    # rejected by pull.py rather than failing the whole tab.
+    target_id = _uuid_or_none(raw.get("target_id"))
+    owners = {"media_id": None, "franchise_id": None, "series_id": None}
+    column = OWNER_COLUMN.get(scope or "")
+    if column and target_id is not None:
+        owners[column] = target_id
+
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        # Preserved as written, not coerced: a media type or scope added in a
-        # newer version must survive a round trip through an older one.
+        # Preserved as written, not coerced: a media type added in a newer
+        # version must survive a round trip through an older one.
         "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "scope": parse_from_sheet(raw.get("scope"), str),
-        # No foreign key - the target is whichever table scope and media_type
-        # name - so an unparseable cell becomes None and the row shows up in
-        # the admin page as a missing target rather than failing the Pull.
-        "target_id": _uuid_or_none(raw.get("target_id")),
+        **owners,
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
@@ -438,18 +555,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "ep_previous": parse_from_sheet(raw.get("ep_previous"), int),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
         "ep_special": parse_from_sheet(raw.get("ep_special"), float),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "release_season": parse_from_sheet(raw.get("release_season"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "broadcast_day": parse_from_sheet(raw.get("broadcast_day"), str),
         "broadcast_time": parse_from_sheet(raw.get("broadcast_time"), time),
-        "my_watch_day": parse_from_sheet(raw.get("my_watch_day"), str),
         "studio": parse_from_sheet(raw.get("studio"), str),
         "director": parse_from_sheet(raw.get("director"), str),
         "producer": parse_from_sheet(raw.get("producer"), str),
@@ -464,11 +577,14 @@ def parse_anime_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -490,11 +606,13 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "anime_movie_name_jp": parse_from_sheet(raw.get("anime_movie_name_jp"), str),
         "anime_movie_name_alt": parse_from_sheet(raw.get("anime_movie_name_alt"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "length_min": parse_from_sheet(raw.get("length_min"), int),
         "release_date_jp": release_date.normalize(parse_from_sheet(raw.get("release_date_jp"), str)),
         "release_date_tw": release_date.normalize(parse_from_sheet(raw.get("release_date_tw"), str)),
@@ -508,7 +626,6 @@ def parse_anime_movie_from_sheet(raw: dict) -> dict:
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -527,8 +644,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "movie_name_cn": parse_from_sheet(raw.get("movie_name_cn"), str),
         "movie_name_alt": parse_from_sheet(raw.get("movie_name_alt"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "movie_type": parse_from_sheet(raw.get("movie_type"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
@@ -549,7 +664,6 @@ def parse_movie_from_sheet(raw: dict) -> dict:
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
     }
     parsed.update(_public_id_from_sheet(raw))
     return parsed
@@ -571,17 +685,13 @@ def parse_tv_show_from_sheet(raw: dict) -> dict:
         "season_part": parse_from_sheet(raw.get("season_part"), str),
         "source_official": parse_from_sheet(raw.get("source_official"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -605,18 +715,14 @@ def parse_cartoon_from_sheet(raw: dict) -> dict:
         "source_official": parse_from_sheet(raw.get("source_official"), str),
         "airing_type": parse_from_sheet(raw.get("airing_type"), str),
         "airing_status": parse_from_sheet(raw.get("airing_status"), str),
-        "watching_status": parse_from_sheet(raw.get("watching_status"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "ep_total": parse_from_sheet(raw.get("ep_total"), int),
-        "ep_fin": parse_from_sheet(raw.get("ep_fin"), int),
         "length_ep_min": parse_from_sheet(raw.get("length_ep_min"), int),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "imdb_rating": parse_from_sheet(raw.get("imdb_rating"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -641,17 +747,15 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "region": parse_from_sheet(raw.get("region"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "vol_total": parse_from_sheet(raw.get("vol_total"), int),
-        "vol_fin": parse_from_sheet(raw.get("vol_fin"), int) or 0,
-        "vol_fin_page": parse_from_sheet(raw.get("vol_fin_page"), int) or 0,
         "ch_total": parse_from_sheet(raw.get("ch_total"), int),
-        "ch_fin": parse_from_sheet(raw.get("ch_fin"), int) or 0,
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "author_plot": parse_from_sheet(raw.get("author_plot"), str),
         "author_draw": parse_from_sheet(raw.get("author_draw"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
@@ -661,7 +765,6 @@ def parse_manga_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -688,21 +791,17 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "version": parse_from_sheet(raw.get("version"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "vol_total_original": parse_from_sheet(raw.get("vol_total_original"), float),
         "vol_total_tw": parse_from_sheet(raw.get("vol_total_tw"), float),
-        "vol_fin": parse_from_sheet(raw.get("vol_fin"), float) or 0.0,
         "arc_total": parse_from_sheet(raw.get("arc_total"), float),
-        "arc_fin": parse_from_sheet(raw.get("arc_fin"), float) or 0.0,
         "ch_total": parse_from_sheet(raw.get("ch_total"), float),
-        "ch_fin": parse_from_sheet(raw.get("ch_fin"), float) or 0.0,
-        "ch_fin_in_arc": parse_from_sheet(raw.get("ch_fin_in_arc"), float) or 0.0,
-        "progress_display": parse_from_sheet(raw.get("progress_display"), str),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "mal_rating": parse_from_sheet(raw.get("mal_rating"), float),
         "mal_rank": parse_from_sheet(raw.get("mal_rank"), str),
-        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), str),
+        "anilist_rating": parse_from_sheet(raw.get("anilist_rating"), int),
+        "anilist_rank": parse_from_sheet(raw.get("anilist_rank"), int),
+        "anilist_popularity_rank": parse_from_sheet(
+            raw.get("anilist_popularity_rank"), int
+        ),
         "author": parse_from_sheet(raw.get("author"), str),
         "illustrator": parse_from_sheet(raw.get("illustrator"), str),
         "release_date": release_date.normalize(parse_from_sheet(raw.get("release_date"), str)),
@@ -715,7 +814,6 @@ def parse_novel_from_sheet(raw: dict) -> dict:
         "openlibrary_link": parse_from_sheet(raw.get("openlibrary_link"), str),
         "openlibrary_id": parse_from_sheet(raw.get("openlibrary_id"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -777,16 +875,11 @@ def parse_comic_from_sheet(raw: dict) -> dict:
         # still carrying the column is ignored rather than restored - the
         # comic publisher is the `publisher` column above.
         "issue_total": parse_from_sheet(raw.get("issue_total"), int),
-        "issue_fin": parse_from_sheet(raw.get("issue_fin"), int) or 0,
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
-        "reading_status": parse_from_sheet(raw.get("reading_status"), str)
-        or "Might Read",
         "read_order": parse_from_sheet(raw.get("read_order"), float),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "comicvine_id": parse_from_sheet(raw.get("comicvine_id"), int),
         "comicvine_link": parse_from_sheet(raw.get("comicvine_link"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -814,12 +907,10 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "game_name_alt": parse_from_sheet(raw.get("game_name_alt"), str),
         "game_type": parse_from_sheet(raw.get("game_type"), str),
         "base_game_id": parse_from_sheet(raw.get("base_game_id"), UUID),
-        "playing_status": parse_from_sheet(raw.get("playing_status"), str)
-        or "Might Play",
         "completion_level": parse_from_sheet(raw.get("completion_level"), str),
-        "all_endings": parse_from_sheet(raw.get("all_endings"), bool),
-        "all_achievements": parse_from_sheet(raw.get("all_achievements"), bool),
-        "all_collected": parse_from_sheet(raw.get("all_collected"), bool),
+        "all_endings": parse_completion_flag(raw.get("all_endings")),
+        "all_achievements": parse_completion_flag(raw.get("all_achievements")),
+        "all_collected": parse_completion_flag(raw.get("all_collected")),
         "steam_progress_sync": parse_from_sheet(raw.get("steam_progress_sync"), bool),
         "achievements_earned": parse_from_sheet(raw.get("achievements_earned"), int),
         "achievements_total": parse_from_sheet(raw.get("achievements_total"), int),
@@ -842,13 +933,11 @@ def parse_game_from_sheet(raw: dict) -> dict:
         "metacritic_user_score": parse_from_sheet(
             raw.get("metacritic_user_score"), float
         ),
-        "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "cover_image_file": parse_from_sheet(raw.get("cover_image_file"), str),
         "igdb_id": parse_from_sheet(raw.get("igdb_id"), int),
         "igdb_link": parse_from_sheet(raw.get("igdb_link"), str),
         "steam_appid": parse_from_sheet(raw.get("steam_appid"), int),
         "steam_link": parse_from_sheet(raw.get("steam_link"), str),
-        "completed_at": parse_from_sheet(raw.get("completed_at"), datetime),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1105,6 +1194,19 @@ def parse_system_option_alias_from_sheet(raw: dict) -> dict:
     }
 
 
+def _media_id_or_none(raw: dict):
+    """
+    The media row a link table's sheet row points at.
+
+    Reads `media_id`, falling back to `entry_id` for a sheet written before
+    the link tables moved onto the media supertable. The fallback is exact,
+    not a guess: media.system_id IS the old entry_id - the Phase A backfill
+    reused each detail row's existing UUID - so an older sheet restores with
+    no loss. Kept so a Backup taken before the move can still be pulled.
+    """
+    return _uuid_or_none(raw.get("media_id") or raw.get("entry_id"))
+
+
 def parse_media_source_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Media Source sheet into typed data ready
@@ -1113,7 +1215,7 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     option_id is deliberately absent. system_option mints a different uuid in
     every database, so the sheet carries the option's category and value
     instead and pull.py resolves them - the same treatment credits and tags
-    get. entry_id needs no such step: entry ids are identical everywhere.
+    get. media_id needs no such step: entry ids are identical everywhere.
 
     option_category/option_value themselves are also absent here: they are
     not Model columns, so parse_row_to_dict's raw dict (still available to
@@ -1123,8 +1225,7 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "media_id": _media_id_or_none(raw),
         # Preserved as written, not coerced: a kind or bucket added in a newer
         # version must survive a round trip through an older one.
         "kind": parse_from_sheet(raw.get("kind"), str),
@@ -1134,6 +1235,43 @@ def parse_media_source_from_sheet(raw: dict) -> dict:
         "url": parse_from_sheet(raw.get("url"), str),
         "position": parse_from_sheet(raw.get("position"), int),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
+def parse_user_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Users sheet into typed data ready for the
+    Database.
+
+    Neither `hashed_password` nor `role_id` is emitted, because neither is in
+    the sheet: the password is credential material that deliberately does not
+    travel (pull.py stamps UNUSABLE_PASSWORD_HASH on a fresh account instead),
+    and role_id is minted per database - the role NAME travels as an extra
+    column and pull.py resolves it locally.
+
+    `username` is the identity, not `id`: the admin account is minted by
+    app/main.py's lifespan on every machine, so the same person holds a
+    different uuid on each - see pull.py's DERIVED_IDENTITY_KEYS.
+
+    list_is_public and is_installation_owner are coerced rather than left
+    None: both columns are NOT NULL, and a blank cell means false, not
+    "unknown". A sheet written before either column existed has no header for
+    it at all, which is the same case and the same answer.
+
+    THIS IS AN EXPLICIT PROJECTION, NOT A COLUMN SWEEP. A column added to the
+    User model does not travel until it is named here, and the failure is
+    silent on the machine doing the Backup - it shows up as the OTHER machine
+    disagreeing after a Pull. `is_installation_owner` in particular must
+    travel, or the two databases disagree about whose collection this is and
+    each files restored rows under a different account.
+    """
+    is_public = parse_from_sheet(raw.get("list_is_public"), bool)
+    is_owner = parse_from_sheet(raw.get("is_installation_owner"), bool)
+    return {
+        "id": parse_from_sheet(raw.get("id"), UUID),
+        "username": parse_from_sheet(raw.get("username"), str),
+        "list_is_public": bool(is_public),
+        "is_installation_owner": bool(is_owner),
     }
 
 
@@ -1164,13 +1302,12 @@ def parse_media_content_label_from_sheet(raw: dict) -> dict:
 
     label_id round-trips as a plain UUID: the Content Label tab restores first
     and pull.py translates the other database's label uuid into the local one
-    before this row is stored. entry_id needs no such step - entry ids are
+    before this row is stored. media_id needs no such step - entry ids are
     identical everywhere.
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        "media_id": _media_id_or_none(raw),
         "label_id": _uuid_or_none(raw.get("label_id")),
         "position": parse_from_sheet(raw.get("position"), int),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -1209,12 +1346,14 @@ def parse_quote_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "media_type": parse_from_sheet(raw.get("media_type"), str),
-        # entry_id has no foreign key - it points at whichever media table
-        # media_type names - and unlike the media tabs there is no
-        # name-resolution step for it in Pull, so an unparseable cell becomes
-        # None and the quote shows up on the page as unlinked.
-        "entry_id": _uuid_or_none(raw.get("entry_id")),
+        # media_id is a real FK now, but there is no name-resolution step for
+        # it in Pull, so an unparseable cell becomes None and the quote shows
+        # up on the page as unlinked - the same state SET NULL leaves a quote
+        # in when its entry is deleted.
+        "media_id": _media_id_or_none(raw),
+        # NOT NULL in the database; Pull falls back to the admin when the cell
+        # is blank or names no known user.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "text": parse_from_sheet(raw.get("text"), str),
         "translation": parse_from_sheet(raw.get("translation"), str),
         "language": parse_from_sheet(raw.get("language"), str),
@@ -1241,12 +1380,18 @@ def parse_meme_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
-        # owner_id has no foreign key - it points at whichever of the ten owner
-        # tables owner_type names - and there is no name-resolution step for it
-        # in Pull, so an unparseable cell becomes None and the meme shows up on
-        # the page as unlinked.
-        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # The four owner columns replaced the (owner_type, owner_id) pair, as
+        # on Note. A sheet backed up before that change still carries the pair,
+        # so it is read as a fallback and resolved by pull.py.
+        "media_id": _uuid_or_none(raw.get("media_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "_legacy_owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        "_legacy_owner_id": _uuid_or_none(raw.get("owner_id")),
+        # NOT NULL in the database; Pull falls back to the admin when the cell
+        # is blank or names no known user.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "text": parse_from_sheet(raw.get("text"), str),
         "image_file": parse_from_sheet(raw.get("image_file"), str),
         # A real foreign key with a UNIQUE constraint, so a junk cell must not
@@ -1269,12 +1414,22 @@ def parse_note_from_sheet(raw: dict) -> dict:
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
-        "owner_type": parse_from_sheet(raw.get("owner_type"), str),
-        # owner_id has no foreign key - it points at whichever of the ten owner
-        # tables owner_type names - and there is no name-resolution step for it
-        # in Pull, so an unparseable cell becomes None and the note shows up
-        # unlinked rather than failing the import.
-        "owner_id": _uuid_or_none(raw.get("owner_id")),
+        # The four owner columns replaced the (owner_type, owner_id) pair. A
+        # sheet backed up before that change still carries the pair, so it is
+        # read as a fallback and resolved by pull.py against media and the
+        # three tier tables - otherwise every note in an old sheet loses its
+        # owner on the round trip.
+        "media_id": _uuid_or_none(raw.get("media_id")),
+        "collection_id": _uuid_or_none(raw.get("collection_id")),
+        "franchise_id": _uuid_or_none(raw.get("franchise_id")),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "_legacy_owner_type": parse_from_sheet(raw.get("owner_type"), str),
+        "_legacy_owner_id": _uuid_or_none(raw.get("owner_id")),
+        # A real foreign key that is NOT NULL, so an unparseable or absent cell
+        # cannot become None. Pull resolves it in a second pass against the
+        # Users tab; `None` here means "fall back to the admin", which
+        # app/services/pipelines/pull.py applies.
+        "author_id": _uuid_or_none(raw.get("author_id")),
         "section": parse_from_sheet(raw.get("section"), str),
         # `episode` is the column's pre-rename header. Sheets backed up before
         # the rename must still Pull, or every anchor in them is lost, so the

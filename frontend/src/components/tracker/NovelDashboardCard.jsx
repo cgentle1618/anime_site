@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import {
   getCoverUrl,
@@ -8,6 +8,7 @@ import {
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 import { entityPath } from "../../lib/entityPath";
+import { EntryRow } from "./DashboardTable";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -26,8 +27,8 @@ export default function NovelDashboardCard({
   franchise,
   isAdmin,
   onProgressChange,
+  view = "card",
 }) {
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const title = getDisplayName(novel, "novel") || "Unknown Title";
@@ -197,7 +198,6 @@ export default function NovelDashboardCard({
                 onChange={(e) =>
                   handleVolChange(parseFloat(e.target.value) || 0)
                 }
-                onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">{total}</span>
@@ -246,7 +246,6 @@ export default function NovelDashboardCard({
                 onChange={(e) =>
                   handleArcFinInput(parseFloat(e.target.value) || 0)
                 }
-                onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint text-[9px]">/{arcTotal}</span>
               <span className="text-text-faint mx-0.5">·</span>
@@ -258,7 +257,6 @@ export default function NovelDashboardCard({
                 onChange={(e) =>
                   handleChInArcInput(parseFloat(e.target.value) || 0)
                 }
-                onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint text-[9px]">/{chInArcTotal}</span>
             </div>
@@ -309,7 +307,6 @@ export default function NovelDashboardCard({
                 onChange={(e) =>
                   handleChChange(parseFloat(e.target.value) || 0)
                 }
-                onClick={(e) => e.stopPropagation()}
               />
               <span className="text-text-faint mx-1 text-xs">/</span>
               <span className="text-text-faint w-12 text-center">{total}</span>
@@ -337,13 +334,37 @@ export default function NovelDashboardCard({
     }
   }
 
+  const cardPath = entityPath("novel", novel);
+
+  // The unit follows the entry's progress_display: a novel tracked by volume
+  // must not report its position in chapters, which is the same trap the
+  // Progress column exists to avoid across types.
+  if (view === "list") {
+    const byVolume = pd === "vol_tw" || pd === "vol_original";
+    const volTotal =
+      pd === "vol_tw" ? novel.vol_total_tw : novel.vol_total_original;
+    const listProgress = byVolume
+      ? `${novel.vol_fin ?? 0}/${volTotal ?? "?"} vol`
+      : `${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} ch`;
+    return (
+      <EntryRow
+        path={cardPath}
+        title={title}
+        subTitle={subTitle}
+        type="Novel"
+        status={novel.reading_status}
+        rating={novel.my_rating}
+        progress={listProgress}
+        percent={progressLabel !== "Ongoing" ? progressLabel : null}
+      />
+    );
+  }
+
   return (
     <div
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full cursor-pointer relative isolate"
-      onClick={() => {
-        const path = entityPath("novel", novel);
-        if (path) navigate(path);
-      }}
+      className={`bg-surface border border-border hover:border-border-strong transition-colors flex flex-col h-full relative isolate${
+        cardPath ? " cursor-pointer" : ""
+      }`}
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
@@ -381,7 +402,17 @@ export default function NovelDashboardCard({
             className="font-display font-bold text-text text-base line-clamp-2 leading-tight mb-1"
             title={title}
           >
-            {title}
+            {cardPath ? (
+              // The stretched link: the anchor is the title and its ::after
+              // covers the card, so a middle click or ctrl-click anywhere on
+              // the card opens the entry, while the tracker controls below
+              // stay outside the anchor and above the overlay.
+              <Link to={cardPath} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                {title}
+              </Link>
+            ) : (
+              title
+            )}
           </h3>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
             {subTitle}
@@ -396,10 +427,7 @@ export default function NovelDashboardCard({
         </div>
       </div>
 
-      <div
-        className="p-3 border-t border-border mt-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative z-10 p-3 border-t border-border mt-auto">
         <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
           <span>Progress</span>
           <span className="text-text">{progressLabel}</span>

@@ -12,11 +12,11 @@ it("watch column shows the status as text to a viewer and a toggle to an admin",
   const col = watchButtonColumn();
   const item = { watching_status: "Watching" };
 
-  render(<div>{col.render(item, { isAdmin: false, handleStatusToggle: vi.fn() })}</div>);
+  render(<div>{col.render(item, { canTrack: false, handleStatusToggle: vi.fn() })}</div>);
   expect(screen.getByText("Watching")).toBeInTheDocument();
 
   const toggle = vi.fn();
-  render(<div>{col.render(item, { isAdmin: true, handleStatusToggle: toggle })}</div>);
+  render(<div>{col.render(item, { canTrack: true, handleStatusToggle: toggle })}</div>);
   fireEvent.click(screen.getByRole("button"));
   expect(toggle).toHaveBeenCalledWith(expect.anything(), item, expect.any(String));
 });
@@ -25,7 +25,7 @@ it("plan-flag column reports the field it is bound to", () => {
   const toggle = vi.fn();
   const col = planFlagColumn("read_next", "Read Next");
   expect(col.key).toBe("read_next");
-  render(<div>{col.render({ read_next: false }, { isAdmin: true, handleStatusToggle: toggle })}</div>);
+  render(<div>{col.render({ read_next: false }, { canTrack: true, handleStatusToggle: toggle })}</div>);
   fireEvent.click(screen.getByRole("checkbox"));
   expect(toggle).toHaveBeenCalledWith(expect.anything(), { read_next: false }, true, "read_next");
 });

@@ -9,6 +9,7 @@ from app.services.domain.autofill import (
     autofill_anime_movie_from_mal,
     autofill_cartoon_from_imdb,
     autofill_comic_from_comicvine,
+    autofill_from_anilist,
     autofill_game_from_igdb,
     autofill_game_from_steam,
     autofill_manga_from_mal,
@@ -43,16 +44,19 @@ from app.services.domain.checking import (
     has_missing_values_tv_show,
 )
 from app.services.domain.completion import (
-    apply_completion_timestamp,
-    check_is_movie_completed,
-    check_is_reading_completed,
-    check_is_tv_completed,
-    mark_comic_completed,
-    mark_game_completed,
-    mark_movie_completed,
-    mark_novel_completed,
-    mark_reading_completed,
-    mark_tv_completed,
+    apply_list_completion_timestamp,
+    mark_comic_catalog,
+    mark_comic_list,
+    mark_game_catalog,
+    mark_game_list,
+    mark_movie_catalog,
+    mark_movie_list,
+    mark_novel_catalog,
+    mark_novel_list,
+    mark_reading_catalog,
+    mark_reading_list,
+    mark_tv_catalog,
+    mark_tv_list,
 )
 from app.services.domain.derivation import (
     apply_calculate_seasonal_from_month,
@@ -72,6 +76,7 @@ from app.services.domain.derivation import (
     derive_season_1_cartoon,
     derive_season_1_tv_show,
 )
+from app.services.domain.display_name import compute_display_name
 from app.services.domain.duplicates import (
     find_all_duplicates,
     find_duplicate_anime,
@@ -88,6 +93,7 @@ from app.services.domain.duplicates import (
     find_duplicate_tv_show,
 )
 from app.services.domain.game_copies import (
+    attach_own_copies,
     derive_game_ownership,
     write_game_copies,
 )
@@ -107,7 +113,8 @@ from app.services.domain.novel_unit_writer import (
     write_novel_units,
 )
 from app.services.domain.novel_units import (
-    derive_novel_progress,
+    derive_novel_catalog,
+    derive_novel_list,
     normalize_arc_progress,
     unit_display_key,
 )
@@ -130,8 +137,14 @@ from app.services.domain.post_processing import (
     manga_post_processing,
     tv_show_post_processing,
 )
+from app.services.domain.rating_points import (
+    points_to_letter,
+    rating_points,
+    rating_rank_case,
+)
 from app.services.domain.remark_field import (
     REMARK_SECTION,
+    attach_remark,
     pop_remark,
     upsert_remark,
 )
@@ -141,6 +154,20 @@ from app.services.domain.remarks import (
 from app.services.domain.seasonal import (
     create_missing_seasonal,
     sync_seasonal_counts,
+)
+from app.services.domain.user_list import (
+    DEFAULT_STATUS,
+    LIST_FIELDS,
+    STATUS_FIELD,
+    acting_user_id,
+    apply_list_payload,
+    attach_list_fields,
+    attach_unit_ratings,
+    ensure_list_row,
+    installation_owner_id,
+    join_list,
+    list_row,
+    split_list_payload,
 )
 from app.services.domain.watch_order import (
     MEDIA_TYPE_MODELS,
@@ -154,6 +181,10 @@ from app.services.domain.watch_order import (
 )
 
 __all__ = [
+    "compute_display_name",
+    "rating_points",
+    "points_to_letter",
+    "rating_rank_case",
     "casting_rows",
     "replace_casting",
     "CastingValidationError",
@@ -184,18 +215,22 @@ __all__ = [
     "has_missing_values_studio",
     "apply_check_baha",
     "find_duplicate_entities",
-    "check_is_tv_completed",
-    "check_is_movie_completed",
-    "check_is_reading_completed",
-    "mark_tv_completed",
-    "mark_movie_completed",
-    "mark_reading_completed",
-    "mark_novel_completed",
-    "mark_comic_completed",
-    "mark_game_completed",
-    "apply_completion_timestamp",
+    "mark_tv_catalog",
+    "mark_tv_list",
+    "mark_movie_catalog",
+    "mark_movie_list",
+    "mark_reading_catalog",
+    "mark_reading_list",
+    "mark_novel_catalog",
+    "mark_novel_list",
+    "mark_comic_catalog",
+    "mark_comic_list",
+    "mark_game_catalog",
+    "mark_game_list",
+    "apply_list_completion_timestamp",
     "find_all_remarks",
     "REMARK_SECTION",
+    "attach_remark",
     "pop_remark",
     "upsert_remark",
     "find_duplicate_franchises",
@@ -237,6 +272,7 @@ __all__ = [
     "derive_season_1_cartoon",
     "autofill_anime_from_mal",
     "autofill_anime_movie_from_mal",
+    "autofill_from_anilist",
     "autofill_manga_from_mal",
     "autofill_comic_from_comicvine",
     "autofill_game_from_igdb",
@@ -264,10 +300,24 @@ __all__ = [
     "cartoon_post_processing",
     "manga_post_processing",
     "derive_ep_previous_all_anime",
-    "derive_novel_progress",
+    "derive_novel_catalog",
+    "derive_novel_list",
     "normalize_arc_progress",
     "unit_display_key",
     "write_novel_units",
+    "attach_own_copies",
     "write_game_copies",
     "derive_game_ownership",
+    "STATUS_FIELD",
+    "DEFAULT_STATUS",
+    "LIST_FIELDS",
+    "acting_user_id",
+    "installation_owner_id",
+    "list_row",
+    "ensure_list_row",
+    "attach_list_fields",
+    "attach_unit_ratings",
+    "split_list_payload",
+    "apply_list_payload",
+    "join_list",
 ]

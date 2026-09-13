@@ -11,6 +11,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
+import CommunityCard from "../../components/info/CommunityCard";
 import InfoCard from "../../components/info/InfoCard";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import {
@@ -21,6 +22,7 @@ import {
 import NamingCard from "../../components/info/NamingCard";
 import SourcesCard from "../../components/info/SourcesCard";
 import MyTrackerCard from "../../components/tracker/MyTrackerCard";
+import GameCompletionBlock from "../../components/tracker/GameCompletionBlock";
 import GameNotes from "./GameNotes";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import {
@@ -65,8 +67,9 @@ export function outOf(value, max) {
   return Number.isFinite(n) ? `${n} / ${max}` : null;
 }
 
-// Tristate: null is "never recorded", and the InfoCard drops a null field
-// rather than showing a misleading "No".
+// Tristate: null is "never recorded", and the InfoCard renders an em dash for
+// it rather than a misleading "No". The renderer for steam_progress_sync,
+// which is a boolean lock on Steam writes rather than an answer about play.
 export function yesNo(value) {
   if (value == null) return null;
   return value ? "Yes" : "No";
@@ -193,7 +196,7 @@ export function GameCopiesSection({ copies }) {
 export default function Game() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin, has, isRoot } = useAuth();
   const { showToast } = useToast();
 
   const [game, setGame] = useState(null);
@@ -370,7 +373,12 @@ export default function Game() {
               >
                 Game{game.game_type ? ` · ${game.game_type}` : ""}
               </span>
-              {has("field_group.system_info") && (
+              {/* Cosmetic only: the id is this page's own URL, so hiding it
+                  tidies the spine rather than concealing the value. Gated on
+                  is_root rather than a permission - `super` is
+                  deliberately NOT a root role, and this is the one thing in
+                  the app only the owner's own account sees. */}
+              {isRoot && (
                 <span
                   className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
                   style={{ writingMode: "vertical-rl" }}
@@ -486,6 +494,19 @@ export default function Game() {
             }
           />
 
+          {/* How deep the finish went, and the three axes beside it. Next to
+              the tracker rather than in Information: these are answers about a
+              playthrough, not facts about the game. */}
+          <GameCompletionBlock
+            game={game}
+            isAdmin={isAdmin}
+            onChange={(patch) => performPatch(patch, "Completion updated")}
+          />
+
+          {/* What every public list says about it, beside what I say.
+              Renders nothing when no public list holds this entry. */}
+          <CommunityCard mediaId={game.system_id} />
+
           <Slip title="Progress">
             <GameProgress game={game} />
           </Slip>
@@ -520,17 +541,11 @@ export default function Game() {
                   { label: "Current Patch", value: game.current_patch },
                 ],
                 [
-                  { label: "Playing Status", value: game.playing_status },
-                  { label: "Completion Level", value: game.completion_level },
-                ],
-                [
-                  // Three independent axes; null is "unknown", not "no".
-                  { label: "All Endings", value: yesNo(game.all_endings) },
-                  {
-                    label: "All Achievements",
-                    value: yesNo(game.all_achievements),
-                  },
-                  { label: "All Collected", value: yesNo(game.all_collected) },
+                  // Playing status and the four completion axes are NOT here:
+                  // they are editable in My tracker and the Completion block
+                  // above. This one stays because it is a fact about the
+                  // source - whether Steam may write this entry's progress -
+                  // rather than an answer about a playthrough.
                   {
                     label: "Steam Progress Sync",
                     value: yesNo(game.steam_progress_sync),

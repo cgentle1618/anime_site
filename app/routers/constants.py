@@ -13,10 +13,11 @@ admin-only and lives in app/services/integrations/catalog.py.
 
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_current_admin
 from app.services.domain.watch_order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
+from app.services.rbac.resolver import require_manage_catalog
 from app.utils import constants as c
+from app.utils.character_roles import CHARACTER_ROLES
 from app.utils.credit_roles import (
     OPTION_CATEGORIES,
     PERSON_ROLES,
@@ -26,9 +27,10 @@ from app.utils.media_resolver import MEDIA_TYPE_KEYS
 
 router = APIRouter(prefix="/api/constants", tags=["Constants"])
 
-# What a character is to the work, from MAL's own two-way split. Nullable on
-# character_casting: an admin entering a cast by hand need not classify.
-CHARACTER_ROLES: tuple[str, ...] = ("Main", "Supporting")
+# CHARACTER_ROLES is imported above, not defined here. It moved to
+# app/utils/character_roles.py so that services/domain/casting.py could stop
+# importing this router - that import closed a real cycle. The /api/constants
+# payload below still publishes it, so nothing outward changed.
 
 
 def _values(enum_cls) -> list[str]:
@@ -66,6 +68,7 @@ def get_constants() -> dict[str, list[str]]:
         "comic_type": list(c.COMIC_TYPES),
         "game_type": list(c.GAME_TYPES),
         "completion_level": list(c.COMPLETION_LEVELS),
+        "game_completion_flag": list(c.GAME_COMPLETION_FLAGS),
         "game_release_status": list(c.GAME_RELEASE_STATUSES),
         # The four game_copy vocabularies. Prefixed game_ where the column
         # name alone (storefront, ownership, acquisition) would say nothing
@@ -109,7 +112,7 @@ def get_constants() -> dict[str, list[str]]:
 
 @router.get("/external-apis", summary="Get External API Field Coverage")
 def get_external_api_coverage(
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require_manage_catalog),
 ) -> dict:
     """
     Which external API writes which field, and whether it fills or replaces it.

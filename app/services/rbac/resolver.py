@@ -20,6 +20,14 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import ALGORITHM, SECRET_KEY, get_db
 from app.services.rbac import cache
+from app.services.rbac.modes import resolve_mode
+from app.services.rbac.permissions import (
+    FAMILY_SELF,
+    PERM_ADMIN_AUTHZ,
+    PERM_MANAGE_CATALOG,
+    PERM_MANAGE_PIPELINES,
+    split_perm,
+)
 
 GUEST_ROLE = "guest"
 
@@ -31,21 +39,71 @@ class Viewer:
     username: Optional[str]
     role_id: Optional[UUID]
     role_name: str
-    is_superuser: bool
+    is_root: bool
     permissions: frozenset[str]
-    # The decoded JWT, kept only so get_current_admin can hand back what it
-    # always did. Nothing reads it for authorization.
+    # The resolved user's id, so a request can join their user_media_list row
+    # without a second lookup. None for a guest - see user_list.acting_user_id
+    # for what a guest reads until step 2 ships accounts. Declared here rather
+    # than beside `username` as the plan suggested: a dataclass cannot put a
+    # defaulted field before an undefaulted one, and GUEST_FALLBACK does not
+    # pass it.
+    user_id: Optional[UUID] = None
+    # The decoded JWT. Nothing reads this for authorization, and now that the
+    # old single-admin dependency that used to hand it back is gone, no call
+    # site reads it at all - it is dead weight kept here rather than removed
+    # in this task, since removing it is a separate decision.
     token_payload: Optional[dict[str, Any]] = field(default=None)
+    # ------------------------------------------------------------------
+    # The ACTIVE access mode, resolved per request.
+    # ------------------------------------------------------------------
+    # `permissions` above still means the ROLE's capability set, and has() is
+    # unchanged. The two axes are disjoint by construction: the role axis
+    # holds admin.*, manage.*, media_type.* and self.*; these four fields hold
+    # content labels and field groups. Neither can express the other, which is
+    # what lets an admin account sit in a narrow mode.
+    mode_id: Optional[UUID] = None
+    mode_key: Optional[str] = None
+    # The labels this session may SEE. enforcement.hidden_label_ids derives
+    # the complement; do not invert this.
+    visible_label_ids: frozenset[UUID] = frozenset()
+    field_groups: frozenset[str] = frozenset()
 
     def has(self, permission: str) -> bool:
-        return self.is_superuser or permission in self.permissions
+        """
+        Whether this viewer holds one permission.
+
+        THE ROOT SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
+        is the whole of "an admin account holds no user data" (spec:
+        docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md).
+        `self.list` and `self.personal_notes` are not privileges - they are
+        OWNERSHIP, the right to keep rows of your own. "May do anything to the
+        system" and "has a personal library" are different claims, and
+        conflating them is how every personal row in the first installation
+        came to belong to the `admin` account.
+
+        Expressed here rather than as refusals in the write routes on purpose:
+        a rule spelled out in twenty routers is a rule that will be missing
+        from the twenty-first. The SPA's AuthContext.has() mirrors this -
+        both halves or neither, or the two surfaces disagree about what the
+        admin may see and the nav advertises a page the API refuses.
+
+        Everything else still short-circuits, so a content label or a media
+        type added tomorrow hides nothing from an admin.
+        """
+        if split_perm(permission)[0] == FAMILY_SELF:
+            return permission in self.permissions
+        return self.is_root or permission in self.permissions
 
 
+# The object-set fields take their defaults, which are empty - already the
+# fail-closed answer. A viewer we could not resolve sees nothing labelled and
+# no gated field, which is stricter than the guest default mode and correct:
+# we do not know who this is.
 GUEST_FALLBACK = Viewer(
     username=None,
     role_id=None,
     role_name=GUEST_ROLE,
-    is_superuser=False,
+    is_root=False,
     permissions=frozenset(),
 )
 
@@ -57,6 +115,23 @@ def _decode(request: Request) -> Optional[dict[str, Any]]:
     try:
         return jwt.decode(token.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
+        return None
+
+
+def _mode_claim(payload: Optional[dict[str, Any]]) -> Optional[UUID]:
+    """
+    The `mode` claim as a uuid, or None.
+
+    A missing, empty or malformed claim is None, which resolve_mode turns into
+    the empty set for a signed-in caller. Fail closed: a claim we cannot parse
+    must not be treated as "no restriction".
+    """
+    raw = (payload or {}).get("mode")
+    if not raw:
+        return None
+    try:
+        return UUID(str(raw))
+    except (ValueError, AttributeError, TypeError):
         return None
 
 
@@ -75,8 +150,9 @@ def role_for_user(db: Session, user: Optional[models.User]) -> Optional[models.R
 
 def resolve_viewer(request: Request, db: Session) -> Viewer:
     """
-    A plain function, not a dependency, so get_current_admin and /api/auth/me
-    can call it directly rather than through FastAPI's injection.
+    A plain function, not a dependency, so /api/auth/me and the capability
+    dependencies below (require_admin_authz and friends) can call it directly
+    rather than through FastAPI's injection.
     """
     try:
         payload = _decode(request)
@@ -92,13 +168,20 @@ def resolve_viewer(request: Request, db: Session) -> Viewer:
         if role is None:
             return GUEST_FALLBACK
 
+        mode = resolve_mode(db, user, _mode_claim(payload))
+
         return Viewer(
             username=user.username if user else None,
+            user_id=user.id if user else None,
             role_id=role.system_id,
             role_name=role.name,
-            is_superuser=bool(role.is_superuser),
+            is_root=bool(role.is_root),
             permissions=cache.permissions_for(db, role.system_id),
             token_payload=payload,
+            mode_id=mode.mode_id,
+            mode_key=mode.mode_key,
+            visible_label_ids=mode.label_ids,
+            field_groups=mode.field_groups,
         )
     except Exception:
         # A viewer we cannot resolve sees what an anonymous stranger sees.
@@ -114,8 +197,8 @@ def require_permission(permission: str):
     """
     Dependency factory gating a route on one permission.
 
-    401 rather than 403, matching the message and header get_current_admin has
-    always sent, so the SPA's error handling sees one shape.
+    401 rather than 403, matching the one error message and header shape the
+    SPA's error handling has always expected.
     """
 
     def _dependency(viewer: Viewer = Depends(get_viewer)) -> Viewer:
@@ -128,3 +211,30 @@ def require_permission(permission: str):
         return viewer
 
     return _dependency
+
+
+# The three capability gates, bound once at import. Routers depend on these by
+# name rather than calling require_permission inline, so that swapping a
+# router's gate is a one-word edit and so that grepping for a capability finds
+# every route holding it.
+require_admin_authz = require_permission(PERM_ADMIN_AUTHZ)
+require_manage_catalog = require_permission(PERM_MANAGE_CATALOG)
+require_manage_pipelines = require_permission(PERM_MANAGE_PIPELINES)
+
+
+def viewer_user_id(viewer) -> Optional[UUID]:
+    """
+    The viewer's OWN user id, or None when nobody is logged in.
+
+    There is deliberately no fallback to another account. plan_next and
+    seasonal are per-user from Step 3 on, and every route that returns them
+    demands a real account through get_current_user_id. This helper exists for
+    the two paths that stay public and must simply show nothing per-user: the
+    entry watch_next / read_next flags on the catalogue endpoints, and the
+    seasonal bucket of /api/search. None there means "no flags, empty bucket",
+    never "somebody else's".
+
+    Takes no Session and holds no policy - it is one attribute read plus the
+    None-viewer guard that _factory._finish(db, entry, viewer=None) needs.
+    """
+    return getattr(viewer, "user_id", None) if viewer is not None else None

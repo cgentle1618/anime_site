@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-09-08 (cover URLs are local-disk only)
+Last verified: 2026-09-13
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -58,9 +58,13 @@ toggled inside a hub does not update the library cache until it goes stale.
 ## Contexts
 
 - **`AuthContext`** — `GET /api/auth/me` on mount; exposes `isAdmin`,
-  `username`, `role`, `isSuperuser`, `permissions`, `loading`, `has(permission)`
-  (superuser short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
-  gate on `has("admin")`; page controls gate on `isAdmin`.
+  `username`, `role`, `isRoot`, `permissions`, `loading`, `has(permission)`
+  (root short-circuit) and `refetchAuth()`. `ProtectedRoute` and the nav
+  gate on `has("admin")`; page controls gate on `isAdmin`. `refetchAuth()` is
+  *not* how an identity change is applied: sign-in, sign-out and an
+  access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
+  load the page again, because the cached answers around them belong to the
+  outgoing identity. See `docs/authentication.md`.
 - **`ThemeContext`** — `theme` (`"light"|"dark"`, what is on screen),
   `preference` (`"light"|"dark"|"system"`), `setTheme`, `toggle`. The choice is
   stored in `localStorage["cg1618:theme"]`; `"system"` follows
@@ -156,9 +160,28 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 - **`components/tracker`** — `DashboardCard`, `NovelDashboardCard`,
   `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
   the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
-  `ComicDashboardCard`, `GameDashboardCard`, `MyTrackerCard`, `WeeklySchedule`,
+  `ComicDashboardCard`, `GameDashboardCard`, `DashboardTable`,
+  `MyTrackerCard`, `GameCompletionBlock` (the game detail page's four
+  completion selects — game-only columns, so deliberately not folded into
+  `MyTrackerCard`, which serves nine types), `WeeklySchedule`,
   `RelationsSection`, `WatchOrderSection`, `WatchOrderGuide`,
   `WatchOrderEditor`.
+  The four dashboard cards take a `view` prop (`"card"` | `"list"`). In
+  `"list"` they reuse every derivation above their return and render one
+  `<EntryRow>` from `DashboardTable` instead of a tile, so the dashboard's
+  list view adds no second data path — a media type that gets its progress
+  wrong gets it wrong in both views, which is the point. `DashboardTable`
+  defines the five columns (Title, Type, Status, Rating, Progress) exactly
+  once; a type writing its own `<td>`s would drift out of alignment with the
+  others the first time a column changed. Because the four types measure
+  different things, every row carries its unit in the Progress cell
+  (`12/28 ep`, `97/364 ch`, `4/12 vol`, `44/144 iss`, `62/55 h`) — the column
+  is five honest measurements rather than one dishonest one. There is no
+  stepper in list view: a one-line row has nowhere to put a control without
+  becoming a card again, so tracking stays in card view and on the entry
+  page. The mode is chosen in each division's type-filter bar, is one setting
+  for the whole dashboard, and persists per browser through
+  `lib/dashboardView.js` (`cg1618:dashboard-view`) — never server-side.
   `MyTrackerCard` renders its −/input/+ stepper **only when the caller passes
   an `onEpChange`**; a game passes none, so its card shows status, rating and
   the To Replay checkbox alone rather than an inert `0 / undefined` counter
@@ -208,7 +231,17 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   (the `game_copy` rows a game's Add/Modify tab sends as `copies`; controlled
   exactly like `NovelUnitsEditor` — the parent owns the array, every add /
   remove / edit / reorder goes out through `onChange` with `position`
-  renumbered 1..n, and the array handed in is never mutated).
+  renumbered 1..n, and the array handed in is never mutated), `ImagePicker`
+  (an inline "upload or choose from the library" control: upload
+  (`POST /api/images`) and attach (`POST /api/images/{id}/attach`) are two
+  separate calls made in sequence, since an image can exist in the library
+  with no owner. A brand-new quote or meme has no `ownerId` until first
+  saved, so attach is silently skipped in that one case — the upload still
+  succeeds and hands back a storage key for the form to persist on save; once
+  an `ownerId` exists, an attach failure (an unsupported owner type, or the
+  content-label 404) is surfaced rather than swallowed. Used today in
+  `QuoteForm` and `MemeForm`; the entry, staff and character forms still take
+  `cover_image_file`/`photo_file`/`logo_file` as a plain text input).
 - **`components/modals`** — `AnnouncementModal`, `RemarkModal`,
   `MarkAiringModal`, `CreateNewEntityModal`, `FranchiseCreateModal`.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
@@ -223,11 +256,45 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   chrome. `NameEntriesSection` renders the `name_entries` shape — a titled
   list whose items are each `{type: "text" | "link", value, label}` stored in
   the note's own `entries` column, never in `links` — and offers a kind
-  dropdown built from `section.kinds` when the registry declares any. Its two
-  owners are the game-only `guides` (no kinds) and `builds_and_mods` (Build /
-  Mod / Tool); the latter is labelled 配裝/模組 Builds & Mods and is
-  deliberately **not** keyed `resources`, which already exists site-wide.
-  `NotesTemplate`'s `SHAPES` map now holds seven registry-driven shapes.
+  dropdown built from `section.kinds` when the registry declares any. Its
+  owners are the eleven game-only sections of the 攻略 group that each hold one
+  named thing — `side_quests`, `builds_and_styles`, `skills`, `collectibles`,
+  `items`, `weapons_and_gear`, `characters_guide`, `enemies`, `endings`,
+  `mods_and_tools` (kinds Mod / Tool, the only one of the eleven with a
+  dropdown) and `guide_resources`. `guide_resources` is deliberately **not**
+  keyed `resources`, which already exists site-wide.
+  `NotesTemplate`'s `SHAPES` map covers all eight stored shapes.
+
+## The access-mode admin pages (`pages/admin/`)
+
+`AccessModes.jsx` and the panel inside `Users.jsx` edit the **object axis** -
+which entries and fields a session can reach. Both are shaped on their role
+equivalents so the pair read the same way, and both carry one control whose
+shape is a guarantee rather than a style choice.
+
+| Control | Shape | Why it cannot be a checkbox / free field |
+|---|---|---|
+| Guest default (`AccessModes.jsx`) | **no control at all** | A logged-out visitor always resolves the `safe` mode, which is what that mode means rather than something an administrator picks. There is no column to store a choice, so the page offers none; `safe`'s own description carries the fact. |
+| Per-account denials (`Users.jsx`) | **the mode's own list, tick-to-deny** | Denials only subtract - an account's reach is always a subset of its mode's - so showing the ceiling and letting you remove from it is structurally incapable of naming something outside it. |
+| Login default (`Users.jsx`) | a radio among the modes that account **holds** | It cannot drift out of the granted set, which is the same guarantee the partial unique index gives in the database. |
+
+**`homelessLabelKeys` is exported for its tests**, and is the one piece of
+logic on either page that can be wrong in a way nobody would notice. A content
+label carried by no mode hides its entries from everyone, the owner included;
+the warning computes from the **draft**, so it appears the moment the last
+mode carrying a label is unticked - while it can still be reconsidered -
+rather than after a save and a reload, by which point it is a record rather
+than a warning.
+
+An account holding **no** mode is called out in red on the users table. It
+reaches nothing, which is fail-closed and correct and looks exactly like a
+broken site.
+
+Both pages sit behind `admin.authz` on **both** SPA permission surfaces -
+`App.jsx`'s route gate and `navigation.js` - and the nav link inherits the
+admin section's `requires` rather than declaring its own.
+`navigation.test.js` asserts that inheritance, because a second declaration
+is a second place to keep in step.
 
 ## `lib/` utilities
 
@@ -238,7 +305,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | `formatters.js` | `getSourceValues(sources, source)` (filters the `fetchAllSources()` bag by category/scope/**usage** for a `ComboBox`) and display formatters |
 | `payloads.js` | form state → request body for every media type, including mapping the `SourcesEditor` array into the `sources` write-payload key |
 | `autofill.js`, `ensureSourceValues.js` | fill a form from a picked row; keep option sources consistent |
-| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/static/covers/<key>` on every host - the app serves its own covers off local disk, and since the GCP deployment was removed on 2026-09-08 there is no hostname switch and no bucket URL left; the column holds a full `<owner_type>/<id>.jpg` key, so the URL builder just concatenates). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. That is the bug the games work fixed — the franchise and series hero lists had omitted **comics** too — and the docstring that said "six flat entry arrays" was corrected with it. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/` and `getQuoteImageUrl` still returns `null` off localhost, a deliberate hold to be revisited with self-hosting rather than a hosting constraint - callers just check for null |
+| `covers.js` | `getCoverUrl`, `FALLBACK_SVG` (`/static/covers/<key>` on every host, except a `library/`-prefixed key — an uploaded image — which resolves to `/static/<key>` instead, since the library root is a sibling of `covers/` under `static/`, not part of it. The app serves its own images off local disk, so there is no hostname switch and no bucket URL). `withMediaType` for tagging a fetched list so the convention-filename fallback knows which folder to look in — an untagged entry falls back to the placeholder rather than a broken URL plus the grouping-tier resolvers `getFranchiseCover` / `getSeriesCover` / `getCollectionCover`. `getSeriesCover` takes one flat combined list and its caller must pass **every** entry list the page loaded: a series whose `cover_entry_id` points at a type left out silently falls back to the placeholder. Passing fewer lists than the page loaded is the standing bug here, and it fails silently. Also `isLocalHost` and `getQuoteImageUrl`: quote images live under `static/quotes/`, and a `library/`-prefixed key (an uploaded quote or meme image) resolves the same way `getCoverUrl` resolves one — off the localhost hold, which only ever existed because there was no way to get a file onto the machine at all |
 | `status.js` | status button configs (`getStatusButtonConfig`, `getReadingButtonConfig`, `getPlayingButtonConfig`) and `getCardStatusConfig(type, status)`, which picks between them from two `Set`s (`READ_TYPES`, `PLAY_TYPES`) rather than a chain of `||` — a tenth media type is one entry, not another ternary arm |
 | `sources.js` | **not** related to `media_source`/`SourcesCard` despite the name — `fetchAllSources()` is the generic `{options, studios, publishers, people}` suggestion bag every Add/Modify dropdown (`ComboBox`, `SourcesEditor` included) draws from. `people` and `publishers` are **maps**, not flat lists: people fan out by `{role, scope}` and publishers by media type, one `/api/publisher/?scope=` request per scope, because a publisher is offered only where its `publisher_scope` rows say — a games publisher must not be suggested as an anime distributor. Studios stay a single flat list; they have no scope concept. Same naming collision as "label" - see [`CLAUDE.md`](../../CLAUDE.md) |
 | `enrich.js` | `enrichEntry(type, id)`: POST replace, re-read the entry, `null` on failure |

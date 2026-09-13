@@ -55,6 +55,8 @@ const FutureReleases = lazy(() => import("./pages/public/FutureReleases"));
 const Completions = lazy(() => import("./pages/public/Completions"));
 const Quotes = lazy(() => import("./pages/public/Quotes"));
 const Memes = lazy(() => import("./pages/public/Memes"));
+const Settings = lazy(() => import("./pages/public/Settings"));
+const Profile = lazy(() => import("./pages/public/Profile"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const Add = lazy(() => import("./pages/admin/Add"));
 const Modify = lazy(() => import("./pages/admin/Modify"));
@@ -62,15 +64,18 @@ const Delete = lazy(() => import("./pages/admin/Delete"));
 const FormDefaults = lazy(() => import("./pages/admin/FormDefaults"));
 const DataHistory = lazy(() => import("./pages/admin/DataHistory"));
 const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
+const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
 const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
 const Aliases = lazy(() => import("./pages/admin/Aliases"));
 const ExternalApis = lazy(() => import("./pages/admin/ExternalApis"));
+const Images = lazy(() => import("./pages/admin/Images"));
 const Roles = lazy(() => import("./pages/admin/Roles"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const ContentLabels = lazy(() => import("./pages/admin/ContentLabels"));
 
+const AccessModes = lazy(() => import("./pages/admin/AccessModes"));
 function RouteFallback() {
   return <div className="p-8 text-sm text-text-faint">Loading…</div>;
 }
@@ -143,26 +148,51 @@ export default function App() {
                 <Route path="/person/:publicId/:slug?" element={<Person />} />
                 <Route path="/character/:publicId/:slug?" element={<Character />} />
                 <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
-                <Route path="/seasonal" element={<SeasonalOverall />} />
-                <Route
-                  path="/seasonal/:seasonal_id"
-                  element={<SeasonalDetail />}
-                />
-                <Route path="/statistics" element={<Statistics />} />
                 <Route path="/completions" element={<Completions />} />
                 <Route path="/quote" element={<Quotes />} />
                 <Route path="/meme" element={<Memes />} />
-                <Route path="/plan" element={<Plan />} />
+                {/* Public: the server answers 404 for a list the caller may
+                    not read, so no ProtectedRoute belongs here. */}
+                <Route path="/user/:username" element={<Profile />} />
                 <Route
                   path="/under-development"
                   element={<UnderDevelopment />}
                 />
 
-                {/* These routes are protected by <ProtectedRoute />. */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/system" element={<Admin />} />
-                  <Route path="/data-history" element={<DataHistory />} />
-                  <Route path="/review-queue" element={<ReviewQueue />} />
+                {/* Per-user pages: a plan queue and a season's counters belong
+                    to one account, and their APIs 401 a stranger.
+
+                    `permission="self.list"`, not `requireAuth`. These asked
+                    two different questions until 2026-09-12: the route let in
+                    any signed-in account while navigation.js listed the links
+                    only for self.list holders, so the NAV was the stricter
+                    surface and these pages were reachable but unlisted - the
+                    opposite of the usual mismatch, and harder to notice
+                    because nothing looks broken. The two surfaces have to ask
+                    the same question; self.list is the right one, since every
+                    control on these pages writes the viewer's own rows. */}
+                <Route element={<ProtectedRoute permission="self.list" />}>
+                  <Route path="/seasonal" element={<SeasonalOverall />} />
+                  <Route
+                    path="/seasonal/:seasonal_id"
+                    element={<SeasonalDetail />}
+                  />
+                  <Route path="/statistics" element={<Statistics />} />
+                  <Route path="/plan" element={<Plan />} />
+                </Route>
+
+                {/* Any signed-in member, not an admin: ProtectedRoute's
+                    default permission ("admin") no longer exists, so this
+                    block asks for self.list explicitly - an admin still
+                    passes because is_root short-circuits every check. */}
+                <Route element={<ProtectedRoute permission="self.list" />}>
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+
+                {/* Catalogue work. manage.catalog is what the SPA's isAdmin
+                    has meant since Phase A, so a super account reaches all of
+                    these. */}
+                <Route element={<ProtectedRoute permission="manage.catalog" />}>
                   <Route path="/add" element={<Add />} />
                   <Route path="/modify" element={<Modify />} />
                   <Route path="/delete" element={<Delete />} />
@@ -172,9 +202,28 @@ export default function App() {
                   <Route path="/options" element={<SystemOptions />} />
                   <Route path="/aliases" element={<Aliases />} />
                   <Route path="/external-apis" element={<ExternalApis />} />
+                  <Route path="/images" element={<Images />} />
+                </Route>
+
+                {/* Pipeline work: these pages call only /api/system/* and
+                    /api/data-control/*, which require manage.pipelines, not
+                    manage.catalog. */}
+                <Route element={<ProtectedRoute permission="manage.pipelines" />}>
+                  <Route path="/system" element={<Admin />} />
+                  <Route path="/data-history" element={<DataHistory />} />
+                  <Route path="/review-queue" element={<ReviewQueue />} />
+                  <Route path="/clean-orphans" element={<CleanOrphans />} />
+                </Route>
+
+                {/* Changing who may do what. Admin only. */}
+                <Route element={<ProtectedRoute permission="admin.authz" />}>
                   <Route path="/roles" element={<Roles />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/content-labels" element={<ContentLabels />} />
+                  {/* Same gate as its neighbours, and the same one
+                      navigation.js asks for this link - a route gate and its
+                      nav entry must ask the same question. */}
+                  <Route path="/access-modes" element={<AccessModes />} />
                 </Route>
               </Route>
             </Routes>

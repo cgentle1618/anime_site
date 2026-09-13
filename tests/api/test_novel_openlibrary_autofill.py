@@ -81,7 +81,7 @@ class TestFillsBlankFields:
     def test_creates_the_author_credit(self, db_session, patched):
         novel = make_novel(db_session)
         autofill_novel_from_openlibrary(novel, db_session)
-        assert credit_names(db_session, "novel", novel.system_id, "author") == [
+        assert credit_names(db_session, novel.system_id, "author") == [
             "Brandon Sanderson"
         ]
 
@@ -102,7 +102,7 @@ class TestFillOnly:
         novel = make_novel(db_session)
         replace_credits(db_session, "novel", novel.system_id, "author", ["Someone Else"])
         autofill_novel_from_openlibrary(novel, db_session)
-        assert credit_names(db_session, "novel", novel.system_id, "author") == [
+        assert credit_names(db_session, novel.system_id, "author") == [
             "Someone Else"
         ]
 

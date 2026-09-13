@@ -54,5 +54,10 @@ it.each([
   const text = read(card);
   // Card internals use z-10/z-20; without `isolate` on the root those escape
   // into the page stacking context and paint over the sticky section headers.
-  expect(text).toMatch(/cursor-pointer relative isolate/);
+  // `isolate` is the whole point of this guard - it used to match
+  // "cursor-pointer relative isolate" as one literal, but cursor-pointer went
+  // conditional when the cards became stretched links (a card with no path
+  // must not claim to be clickable), and pinning an unrelated utility here
+  // only makes the guard fail for reasons it does not care about.
+  expect(text).toMatch(/relative isolate/);
 });

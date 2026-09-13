@@ -27,6 +27,13 @@ jobs:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: anime_site_test
+      # The runner has no .env, so without these the app's startup check
+      # refuses to boot and every API test fails. They are throwaway values
+      # for a throwaway database - the check tests real secrets by building
+      # its own Settings, not by reading these.
+      APP_ENV: development
+      JWT_SECRET_KEY: ci-not-a-real-secret
+      ADMIN_PASSWORD: ci-not-a-real-password
     steps:
       - uses: actions/checkout@v4
 

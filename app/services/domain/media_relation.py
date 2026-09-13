@@ -327,7 +327,7 @@ def relations_for_entry(
             }
         )
 
-    if viewer is not None and not viewer.is_superuser:
+    if viewer is not None and not viewer.is_root:
         from app.services.rbac.enforcement import filter_visible_pairs
 
         wanted = {
@@ -368,7 +368,7 @@ def graph_for_scope(
 
     `viewer` narrows the canvas to what that viewer may see: a hidden entry is
     neither a node nor a ghost, and every edge touching it is dropped, so the
-    payload can never name it. None (or a superuser) draws everything.
+    payload can never name it. None (or a root role) draws everything.
 
     Entries with no relations are included on purpose: you cannot drag a line
     from a node that is not drawn, and connecting an unconnected entry is the

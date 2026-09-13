@@ -11,6 +11,12 @@
 // /api/form-defaults are layered on top by resolveDefaults() in
 // hooks/useFormDefaults.js -- these factories are what the app falls back to
 // when nothing is configured or the fetch fails.
+//
+// `pending_image_id` is not a real column - it holds the id of an image
+// ImagePicker uploaded before this row existed, so the Add tab's submit
+// handler can attach it once the row is saved and has an id (see
+// ImagePicker.jsx's module comment and attachUploadedImage()). It is never
+// sent to the API and is always reset to null by freshForm() after a save.
 
 export const defaultAnime = () => ({
   anime_name_en: "",
@@ -36,6 +42,8 @@ export const defaultAnime = () => ({
   mal_rating: "",
   mal_rank: "",
   anilist_rating: "",
+  anilist_rank: "",
+  anilist_popularity_rank: "",
   release_season: "",
   release_date: "",
   broadcast_day: "",
@@ -58,6 +66,7 @@ export const defaultAnime = () => ({
   seiyuu: "",
   watch_next: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -75,6 +84,8 @@ export const defaultAnimeMovie = () => ({
   mal_rating: "",
   mal_rank: "",
   anilist_rating: "",
+  anilist_rank: "",
+  anilist_popularity_rank: "",
   release_date_jp: "",
   release_date_tw: "",
   length_min: "",
@@ -88,6 +99,7 @@ export const defaultAnimeMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -115,6 +127,7 @@ export const defaultMovie = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -143,6 +156,7 @@ export const defaultTvShow = () => ({
   watch_next: false,
   to_rewatch: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -171,6 +185,7 @@ export const defaultCartoon = () => ({
   sources: [],
   watch_next: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -197,6 +212,8 @@ export const defaultManga = () => ({
   mal_rating: "",
   mal_rank: "",
   anilist_rating: "",
+  anilist_rank: "",
+  anilist_popularity_rank: "",
   author_plot: "",
   author_draw: "",
   release_date: "",
@@ -210,6 +227,7 @@ export const defaultManga = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -241,6 +259,8 @@ export const defaultNovel = () => ({
   mal_rating: "",
   mal_rank: "",
   anilist_rating: "",
+  anilist_rank: "",
+  anilist_popularity_rank: "",
   author: "",
   illustrator: "",
   release_date: "",
@@ -257,6 +277,7 @@ export const defaultNovel = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -291,6 +312,7 @@ export const defaultComic = () => ({
   read_next: false,
   to_reread: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -308,10 +330,12 @@ export const defaultGame = () => ({
   base_game_id: null,
   playing_status: "Might Play",
   completion_level: "",
-  // Tristate: "" is unset, "true"/"false" are the two answers.
+  // GAME_COMPLETION_FLAGS: "" is unset, and the three answers are stored as
+  // themselves ("Yes" / "No" / "Inapplicable").
   all_endings: "",
   all_achievements: "",
   all_collected: "",
+  // Still a tristate: "" is unset, "true"/"false" are the two answers.
   steam_progress_sync: "",
   achievements_earned: "",
   achievements_total: "",
@@ -355,6 +379,7 @@ export const defaultGame = () => ({
   play_next: false,
   to_replay: false,
   cover_image_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -409,6 +434,7 @@ export const defaultStudio = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  pending_image_id: null,
   country: "",
   website_url: "",
   founded_date: "",
@@ -429,6 +455,7 @@ export const defaultPublisher = () => ({
   display_name_field: "",
   my_rating: "",
   logo_file: "",
+  pending_image_id: null,
   country: "",
   website_url: "",
   founded_date: "",
@@ -448,6 +475,7 @@ export const defaultPerson = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  pending_image_id: null,
   remark: "",
 });
 
@@ -463,6 +491,7 @@ export const defaultCharacter = () => ({
   gender: "",
   my_rating: "",
   photo_file: "",
+  pending_image_id: null,
   remark: "",
 });
 

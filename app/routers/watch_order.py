@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_taipei_now
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain.watch_order import (
     ITEM_IMPORTANCE,
@@ -32,7 +32,8 @@ from app.services.domain.watch_order import (
     list_candidate_entries,
     resolve_items,
 )
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.enforcement import entry_visible
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.entity_ref import find_entity
 
@@ -129,13 +130,42 @@ def _validate_owner(franchise_id, collection_id, series_id=None) -> None:
         )
 
 
-def _validate_entry(db: Session, media_type, entry_id) -> None:
-    """Rejects items pointing at an unknown media type or a nonexistent entry."""
+def _validate_entry(db: Session, media_type, entry_id, viewer) -> None:
+    """
+    Rejects items pointing at an unknown media type, a nonexistent entry, or
+    one this viewer cannot see.
+
+    The third case answers exactly as the second, message included, so a
+    hidden entry cannot be told apart from a missing one by which refusal a
+    write gets back.
+
+    `media_type` and `entry_id` need not come from the same place (a stored
+    `WatchOrderItem` row, a raw payload) and a caller could hand this a
+    mismatched pair - the safety that guarantees this can never smuggle a
+    wrong-but-permitted `media_type` past `entry_visible` does NOT come from
+    `WatchOrderItem.media_type` being a derived column_property (setting it
+    directly on an identity-mapped instance sticks as a plain override and is
+    not recomputed from `entry_id` before flush - a mismatched pair really can
+    exist in memory). It comes from `entry_exists` just above, which looks
+    the id up in `MEDIA_TYPE_MODELS[media_type]`'s own table
+    (`app/services/domain/watch_order.py:442`): `system_id` is a joined-table
+    PK shared with `media`, so a given id exists in exactly one type's table.
+    A `media_type` that disagrees with an id's real type therefore fails
+    `entry_exists` and 400s here before `entry_visible` is ever reached with
+    the wrong type. If `entry_exists` were ever loosened into a lookup against
+    the shared `media` table instead of the per-type table, this guarantee
+    breaks and a caller could pick whichever media_type's permission gates
+    the visibility check.
+    """
     if media_type not in VALID_WATCH_ORDER_MEDIA_TYPES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    if entry_id is None or not entry_exists(db, media_type, entry_id):
+    if (
+        entry_id is None
+        or not entry_exists(db, media_type, entry_id)
+        or not entry_visible(db, viewer, media_type, entry_id)
+    ):
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
         )
@@ -343,24 +373,35 @@ def _summarize_generated(db: Session, auto_lists: List[Any]) -> dict:
     # (franchise_id | series_id) -> {media_type: count}
     by_franchise: dict = {}
     by_series: dict = {}
-    for media_type, model in MEDIA_TYPE_MODELS.items():
-        if every_franchise:
-            for franchise_id, count in (
-                db.query(model.franchise_id, func.count(model.system_id))
-                .filter(model.franchise_id.in_(list(every_franchise)))
-                .group_by(model.franchise_id)
-                .all()
-            ):
-                by_franchise.setdefault(franchise_id, {})[media_type] = count
-        # anime_movies has no series_id, so it never appears in a series scope.
-        if every_series and hasattr(model, "series_id"):
-            for series_key, count in (
-                db.query(model.series_id, func.count(model.system_id))
-                .filter(model.series_id.in_(list(every_series)))
-                .group_by(model.series_id)
-                .all()
-            ):
-                by_series.setdefault(series_key, {})[media_type] = count
+    # One table answers for every media type: the parent links live on `media`,
+    # and media_type is a column there, so what used to be nine grouped queries
+    # per owner is now one grouped query per owner kind.
+    if every_franchise:
+        for media_type, franchise_id, count in (
+            db.query(
+                models.Media.media_type,
+                models.Media.franchise_id,
+                func.count(models.Media.system_id),
+            )
+            .filter(models.Media.franchise_id.in_(list(every_franchise)))
+            .group_by(models.Media.media_type, models.Media.franchise_id)
+            .all()
+        ):
+            by_franchise.setdefault(franchise_id, {})[media_type] = count
+    if every_series:
+        # anime_movies has no series, so its media rows carry series_id NULL
+        # and never match here - the same exclusion the per-model loop made.
+        for media_type, series_key, count in (
+            db.query(
+                models.Media.media_type,
+                models.Media.series_id,
+                func.count(models.Media.system_id),
+            )
+            .filter(models.Media.series_id.in_(list(every_series)))
+            .group_by(models.Media.media_type, models.Media.series_id)
+            .all()
+        ):
+            by_series.setdefault(series_key, {})[media_type] = count
 
     summary = {}
     for l in auto_lists:
@@ -621,7 +662,7 @@ def get_watch_order_candidates(
 def create_watch_order_list(
     payload: schemas.WatchOrderListCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Creates a new watch order owned by one franchise or one collection."""
     _validate_owner(payload.franchise_id, payload.collection_id, payload.series_id)
@@ -750,7 +791,7 @@ def create_release_list(
     series_id: Optional[str] = None,
     anime_only: bool = False,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Gives one owner a built-in order whose steps are generated on read.
@@ -817,7 +858,7 @@ def create_release_list(
 @router.post("/lists/release/backfill", summary="Backfill Built-in Orders")
 def backfill_release_lists(
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Gives every franchise, series and collection its built-in orders, skipping
@@ -838,29 +879,36 @@ def backfill_release_lists(
     skipped_too_small = 0
     skipped_opted_out = 0
 
-    # Entries per franchise and per series, split by media type, in one grouped
-    # query per table rather than per owner.
+    # Entries per franchise and per series, split by media type. The parent
+    # links live on `media`, which also carries media_type, so this is two
+    # grouped queries in total rather than two per table.
     by_franchise: dict = {}
     by_series: dict = {}
-    for media_type, model in MEDIA_TYPE_MODELS.items():
-        for franchise_id, count in (
-            db.query(model.franchise_id, func.count(model.system_id))
-            .group_by(model.franchise_id)
-            .all()
-        ):
-            if franchise_id is not None:
-                bucket = by_franchise.setdefault(franchise_id, {})
-                bucket[media_type] = bucket.get(media_type, 0) + count
+    for media_type, franchise_id, count in (
+        db.query(
+            models.Media.media_type,
+            models.Media.franchise_id,
+            func.count(models.Media.system_id),
+        )
+        .group_by(models.Media.media_type, models.Media.franchise_id)
+        .all()
+    ):
+        if franchise_id is not None:
+            bucket = by_franchise.setdefault(franchise_id, {})
+            bucket[media_type] = bucket.get(media_type, 0) + count
 
-        if hasattr(model, "series_id"):
-            for series_key, count in (
-                db.query(model.series_id, func.count(model.system_id))
-                .group_by(model.series_id)
-                .all()
-            ):
-                if series_key is not None:
-                    bucket = by_series.setdefault(series_key, {})
-                    bucket[media_type] = bucket.get(media_type, 0) + count
+    for media_type, series_key, count in (
+        db.query(
+            models.Media.media_type,
+            models.Media.series_id,
+            func.count(models.Media.system_id),
+        )
+        .group_by(models.Media.media_type, models.Media.series_id)
+        .all()
+    ):
+        if series_key is not None:
+            bucket = by_series.setdefault(series_key, {})
+            bucket[media_type] = bucket.get(media_type, 0) + count
 
     # Franchises whose collection opts out.
     blocked = {
@@ -949,7 +997,7 @@ def update_watch_order_list(
     system_id: str,
     payload: schemas.WatchOrderListUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates a watch order's metadata."""
     db_list = _get_list_or_404(db, system_id)
@@ -976,7 +1024,7 @@ def patch_watch_order_list(
     system_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Partially updates a watch order (used for quick inline edits)."""
     db_list = _get_list_or_404(db, system_id)
@@ -996,7 +1044,7 @@ def patch_watch_order_list(
 def delete_watch_order_list(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a watch order. Its items go with it via ON DELETE
@@ -1052,7 +1100,7 @@ def _steps_to_copy(db: Session, source: models.WatchOrderList) -> List[dict]:
 def duplicate_watch_order_list(
     system_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Copies a watch order and its steps into a new, editable list.
@@ -1125,7 +1173,7 @@ def create_watch_order_item(
     system_id: str,
     payload: schemas.WatchOrderItemCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Adds a step to a watch order. Appends unless `position` is given, which
@@ -1138,7 +1186,7 @@ def create_watch_order_item(
     """
     db_list = _get_list_or_404(db, system_id)
     _reject_if_generated(db_list)
-    _validate_entry(db, payload.media_type, payload.entry_id)
+    _validate_entry(db, payload.media_type, payload.entry_id, admin)
     _validate_importance(payload.importance)
     _validate_section(db, db_list, payload.section_id)
 
@@ -1170,7 +1218,7 @@ def update_watch_order_item(
     item_id: str,
     payload: schemas.WatchOrderItemUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates one step of a watch order."""
     db_item = _get_item_or_404(db, item_id)
@@ -1180,7 +1228,7 @@ def update_watch_order_item(
     for key, value in update_data.items():
         setattr(db_item, key, value)
 
-    _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     _validate_importance(db_item.importance)
     _validate_section(db, db_item.parent_list, db_item.section_id)
 
@@ -1199,7 +1247,7 @@ def patch_watch_order_item(
     item_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Partially updates a step (episode range, importance, note)."""
     db_item = _get_item_or_404(db, item_id)
@@ -1207,7 +1255,7 @@ def patch_watch_order_item(
 
     apply_column_patch(db_item, payload)
 
-    _validate_entry(db, db_item.media_type, db_item.entry_id)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     _validate_importance(db_item.importance)
     _validate_section(db, db_item.parent_list, db_item.section_id)
 
@@ -1221,11 +1269,12 @@ def patch_watch_order_item(
 def delete_watch_order_item(
     item_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Removes one step from a watch order. The media entry is not touched."""
     db_item = _get_item_or_404(db, item_id)
     _reject_if_generated(db_item.parent_list)
+    _validate_entry(db, db_item.media_type, db_item.entry_id, admin)
     db.delete(db_item)
     db.commit()
     return {"status": "success", "message": "Watch order item deleted successfully."}
@@ -1240,7 +1289,7 @@ def reorder_watch_order_items(
     system_id: str,
     payload: schemas.WatchOrderReorder,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Renumbers positions to 1..N in the order the item ids are given, and
@@ -1337,7 +1386,7 @@ def create_watch_order_section(
     system_id: str,
     payload: schemas.WatchOrderSectionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Adds a part to a watch order. Appends unless `position` is given.
@@ -1375,7 +1424,7 @@ def update_watch_order_section(
     section_id: str,
     payload: schemas.WatchOrderSectionUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Fully updates one part of a watch order."""
     db_section = _get_section_or_404(db, section_id)
@@ -1399,7 +1448,7 @@ def patch_watch_order_section(
     section_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """Partially updates a part (name, position, remark)."""
     db_section = _get_section_or_404(db, section_id)
@@ -1417,7 +1466,7 @@ def patch_watch_order_section(
 def delete_watch_order_section(
     section_id: str,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Removes one part. Its steps are NOT removed - `section_id` is SET NULL, so
@@ -1443,7 +1492,7 @@ def reorder_watch_order_sections(
     system_id: str,
     payload: schemas.WatchOrderSectionReorder,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Renumbers section positions to 1..N in the order the ids are given.

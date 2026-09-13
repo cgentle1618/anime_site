@@ -50,16 +50,23 @@ def extract_system_options(db: Session) -> dict:
     }
 
     added = 0
-    for tag in db.query(models.MediaTag).all():
+    # The scope is the tagged entry's media type, which lives on the joined
+    # media row: media_tag carries only media_id.
+    tagged = (
+        db.query(models.MediaTag, models.Media.media_type)
+        .join(models.Media, models.MediaTag.media_id == models.Media.system_id)
+        .all()
+    )
+    for tag, media_type in tagged:
         if TAG_FIELDS.get(tag.field) is None:
             continue
         if tag.option_id not in known_options:
             continue
-        pair = (tag.option_id, tag.media_type)
+        pair = (tag.option_id, media_type)
         if pair in existing:
             continue
         db.add(
-            models.SystemOptionScope(option_id=tag.option_id, scope=tag.media_type)
+            models.SystemOptionScope(option_id=tag.option_id, scope=media_type)
         )
         existing.add(pair)
         added += 1

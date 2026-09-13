@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -33,7 +34,13 @@ class ContentLabel(Base):
     __tablename__ = "content_label"
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
     # Becomes the permission `label.<key>`.
     key = Column(String, nullable=False, unique=True, index=True)
@@ -48,10 +55,13 @@ class MediaContentLabel(Base):
     """
     One content label attached to one media entry.
 
-    The entry endpoint is the FK-less (media_type, entry_id) pair that
-    media_credit, media_tag, media_relation and watch_order_item all use: no
-    single foreign key can span the eight media tables, so the pair is resolved
-    through MEDIA_TABLES in app/utils/media_resolver.py.
+    The entry endpoint is `media_id`, a real foreign key up to the `media`
+    supertable, ON DELETE CASCADE - so a deleted entry takes its labels with
+    it. It was an FK-less (media_type, entry_id) pair until Step 0 gave the
+    nine media tables one shared id space; `media_credit`, `media_tag` and
+    `watch_order_item` moved the same way, and only `media_relation` and
+    `character_casting` still carry a pair, because both ends of those are
+    entries.
 
     Deliberately NOT stored in media_tag. That table is keyed to system_option
     and is written by the Fill and backfill pipelines; putting access control
@@ -61,17 +71,25 @@ class MediaContentLabel(Base):
     __tablename__ = "media_content_label"
     __table_args__ = (
         UniqueConstraint(
-            "media_type", "entry_id", "label_id", name="uq_media_content_label_row"
+            "media_id", "label_id", name="uq_media_content_label_row"
         ),
-        Index("ix_media_content_label_entry", "media_type", "entry_id"),
+        Index("ix_media_content_label_entry", "media_id"),
     )
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
-    # One of MEDIA_TYPE_KEYS (hyphenated).
-    media_type = Column(String, nullable=False)
-    entry_id = Column(UUID(as_uuid=True), nullable=False)
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     label_id = Column(
         UUID(as_uuid=True),
         ForeignKey("content_label.system_id", ondelete="CASCADE"),

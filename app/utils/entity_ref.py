@@ -13,6 +13,8 @@ exponent - deliberately stricter than int(), which happily reads " 47 " and
 import re
 import uuid
 
+from sqlalchemy import select
+
 _POSITIVE_INT = re.compile(r"^[1-9][0-9]*$")
 
 
@@ -32,6 +34,35 @@ def entity_ref_filter(model, ref: str):
     """A SQLAlchemy clause selecting the row this reference names."""
     kind, value = parse_entity_ref(ref)
     return getattr(model, kind) == value
+
+
+def media_entity_ref_filter(model, ref: str):
+    """
+    A clause selecting the media entry this reference names.
+
+    The nine media types keep their public_id on `media`, so a public_id
+    reference resolves through a subquery against it. The eight non-media
+    entities (person, studio, publisher, character, watch_order_list and the
+    three grouping tiers) still hold their own public_id and keep using
+    entity_ref_filter unchanged.
+
+    A subquery rather than a join, deliberately: _get_or_404 builds
+    `db.query(spec.model).filter(clause)` and every caller downstream assumes
+    that query returns detail rows only. A join would change its shape.
+
+    Filtering on public_id alone is safe here because the query is already
+    scoped to one detail table, so it can only match that type's rows - the
+    media_type half of uq_media_type_public_id is implied by the table being
+    queried.
+    """
+    from app.models.media import Media
+
+    kind, value = parse_entity_ref(ref)
+    if kind == "system_id":
+        return model.system_id == value
+    return model.system_id.in_(
+        select(Media.system_id).where(Media.public_id == value)
+    )
 
 
 def find_entity(db, model, ref: str):

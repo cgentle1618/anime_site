@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Anime,
+    Media,
     Seasonal,
+    User,
+    UserMediaList,
 )
 from app.utils.constants import (
     COMPLETED_WATCH_STATUSES,
@@ -36,9 +39,12 @@ _SEASONAL_AIRING_TYPES = {
 
 def create_missing_seasonal(db: Session) -> None:
     """
-    Scans the Anime table for unique combinations of release_season and the year
-    prefix of release_date.
-    Creates a new entry in the Seasonal table (e.g., 'WIN 2026') if it does not already exist.
+    Ensure every user has a row for every season the catalogue mentions.
+
+    The seasons are a CATALOGUE fact - they come from anime.release_season and
+    the year prefix of anime.release_date - but a seasonal row is a PER-USER
+    fact, so it is the cross product that has to exist. A user with nothing in
+    that season gets a row of zeroes, which is what the Seasonal page shows.
     """
     year_expr = func.substr(Anime.release_date, 1, 4)
     unique_combinations = (
@@ -47,19 +53,23 @@ def create_missing_seasonal(db: Session) -> None:
         .distinct()
         .all()
     )
+    seasons = {f"{season} {year}" for season, year in unique_combinations}
+    if not seasons:
+        logger.info("No new seasonal entries needed to be created.")
+        return
+
+    user_ids = [row[0] for row in db.query(User.id).all()]
+    existing = {
+        (row[0], row[1])
+        for row in db.query(Seasonal.user_id, Seasonal.seasonal).all()
+    }
 
     new_seasonals_added = 0
-
-    for season, year in unique_combinations:
-        seasonal_string = f"{season} {year}"
-
-        existing = (
-            db.query(Seasonal).filter(Seasonal.seasonal == seasonal_string).first()
-        )
-
-        if not existing:
-            new_seasonal = Seasonal(seasonal=seasonal_string)
-            db.add(new_seasonal)
+    for user_id in user_ids:
+        for seasonal_string in seasons:
+            if (user_id, seasonal_string) in existing:
+                continue
+            db.add(Seasonal(user_id=user_id, seasonal=seasonal_string))
             new_seasonals_added += 1
 
     if new_seasonals_added > 0:
@@ -71,18 +81,23 @@ def create_missing_seasonal(db: Session) -> None:
 
 def sync_seasonal_counts(db: Session) -> None:
     """
-    Recomputes entry_planned, entry_completed, entry_watching, and entry_dropped for every
-    Seasonal by scanning linked Anime entries. Always overwrites existing counts.
-    Only considers airing_type in TV, ONA, Movie, Special.
+    Recompute entry_planned / entry_completed / entry_watching / entry_dropped
+    for every seasonal row, from THAT ROW'S USER's list. Always overwrites.
+
+    Only anime whose airing_type is TV, ONA, Movie or Special count.
     Planned  = Plan to Watch | Watch When Airs
-    Watching = Active Watching | Passive Watching | Paused.
-    Dropped  = Temp Dropped | Dropped.
+    Watching = Active Watching | Passive Watching | Paused
+    Dropped  = Temp Dropped | Dropped
+
+    The status comes from user_media_list, not from anime: Step 1 moved the
+    personal columns off the catalogue tables, and a per-user count cannot be
+    read from a shared row.
     """
     seasonals = db.query(Seasonal).all()
     if not seasonals:
         return
 
-    seasonal_map = {s.seasonal: s for s in seasonals}
+    seasonal_map = {(s.user_id, s.seasonal): s for s in seasonals}
 
     for s in seasonals:
         s.entry_planned = 0
@@ -90,9 +105,17 @@ def sync_seasonal_counts(db: Session) -> None:
         s.entry_watching = 0
         s.entry_dropped = 0
 
-    animes = (
-        db.query(Anime)
+    rows = (
+        db.query(
+            UserMediaList.user_id,
+            UserMediaList.status,
+            Anime.release_season,
+            Anime.release_date,
+        )
+        .join(Media, Media.system_id == UserMediaList.media_id)
+        .join(Anime, Anime.system_id == Media.system_id)
         .filter(
+            Media.media_type == "anime",
             Anime.release_season.isnot(None),
             Anime.release_date.isnot(None),
             Anime.airing_type.in_(list(_SEASONAL_AIRING_TYPES)),
@@ -100,18 +123,17 @@ def sync_seasonal_counts(db: Session) -> None:
         .all()
     )
 
-    for anime in animes:
-        key = f"{anime.release_season} {str(anime.release_date)[:4]}"
-        s = seasonal_map.get(key)
+    for user_id, status, release_season, release_date in rows:
+        s = seasonal_map.get((user_id, f"{release_season} {str(release_date)[:4]}"))
         if not s:
             continue
-        if anime.watching_status in COMPLETED_WATCH_STATUSES:
+        if status in COMPLETED_WATCH_STATUSES:
             s.entry_completed += 1
-        elif anime.watching_status in _PLANNED_STATUSES:
+        elif status in _PLANNED_STATUSES:
             s.entry_planned += 1
-        elif anime.watching_status in _WATCHING_STATUSES:
+        elif status in _WATCHING_STATUSES:
             s.entry_watching += 1
-        elif anime.watching_status in _DROPPED_STATUSES:
+        elif status in _DROPPED_STATUSES:
             s.entry_dropped += 1
 
     db.commit()

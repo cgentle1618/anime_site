@@ -2,8 +2,19 @@
 
 import uuid
 
-from sqlalchemy import Column, DateTime, Float, Index, String, Text, text
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 
@@ -22,13 +33,18 @@ class Note(Base):
     Columns a shape does not use stay null; this is one table on purpose, so
     adding a section costs a registry entry rather than a migration.
 
-    `owner_id` is deliberately FK-less: it points at whichever of the ten tables
-    `owner_type` names, and no single foreign key can span them - the same
-    reason `meme.owner_id` has none. A deleted owner leaves rows that
-    `app.utils.media_resolver` flags as missing rather than silently dropping.
+    The owner is four nullable foreign keys with a CHECK that exactly one is
+    set: `media_id` for any of the nine media types, and one column each for
+    collection, franchise and series. No single FK can span them, because
+    `media.system_id` cannot hold a franchise id. `owner_type` and `owner_id`
+    survive as read-only Python properties derived from whichever column is
+    set, so every existing caller keeps working - and, being properties rather
+    than columns, they stay out of the Google Sheets row.
 
     Column order matters: `format_model_for_sheet` walks __table__.columns in
-    declaration order, so this is also the Google Sheets column order.
+    declaration order, so this is also the Google Sheets column order. Adding
+    or removing a column here reshapes the Note tab, so a change to this list
+    is a Backup-before and a Backup-after.
     """
 
     __tablename__ = "note"
@@ -38,10 +54,46 @@ class Note(Base):
     )
 
     # --- Linkage ---
-    # The owner may be a media entry OR one of the three grouping tiers: see
-    # OWNER_TABLES in app/utils/media_resolver.
-    owner_type = Column(String, nullable=True, index=True)
-    owner_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # A note's owner is any of the twelve OWNER_TABLES keys - the nine media
+    # types plus collection, franchise and series - and media.system_id cannot
+    # hold a franchise id, so no single FK can span them. Four nullable FKs
+    # with a CHECK that exactly one is set is what makes every owner cascade;
+    # the alternative, an `entity` supertable spanning media and the tiers, was
+    # rejected in the design spec because it could hold nothing but an id.
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    collection_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("collection.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    franchise_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("franchise.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # Who wrote this row. Always set, whatever the section's scope: a catalogue
+    # note has an author too, and recording it is the only provenance the
+    # catalogue has. What scope changes is who the row is FILTERED for, not
+    # whether somebody wrote it - see app/utils/note_sections.py.
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # --- Which section this item belongs to ---
     section = Column(String, nullable=True, index=True)
@@ -78,23 +130,79 @@ class Note(Base):
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
+    media = relationship("Media", lazy="joined")
+
+    # `owner_type` and `owner_id` are no longer stored: they are read back from
+    # whichever of the four FK columns is set. Read-only - every write goes
+    # through the columns - and Python properties rather than columns, which
+    # also keeps them out of the Google Sheets row that
+    # format_model_for_sheet builds from __table__.columns.
+    @property
+    def owner_type(self):
+        if self.media_id is not None:
+            return self.media.media_type if self.media is not None else None
+        if self.collection_id is not None:
+            return "collection"
+        if self.franchise_id is not None:
+            return "franchise"
+        if self.series_id is not None:
+            return "series"
+        return None
+
+    @property
+    def owner_id(self):
+        return self.media_id or self.collection_id or self.franchise_id or self.series_id
+
     __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1",
+            name="ck_note_one_owner",
+        ),
         # The only read path the notes page uses.
-        Index("ix_note_owner_section", "owner_type", "owner_id", "section"),
-        # `remark` is a singleton per owner, and that rule is load-bearing: the
-        # read side is a scalar subquery (see the `remark` column_property in
-        # app/models/__init__.py), so a second remark row for one owner makes
-        # EVERY read of that entity raise "more than one row returned by a
-        # subquery used as an expression" rather than degrade. Declared here as
-        # well as in the database so autogenerate does not propose dropping it
-        # and so create_all-built schemas (the test DB) enforce it too. Mirrors
-        # the index created in revision r1e2m3a4r5k6 - keep the name and the
-        # predicate identical.
+        Index(
+            "ix_note_owner_section",
+            "media_id",
+            "collection_id",
+            "franchise_id",
+            "series_id",
+            "section",
+        ),
+        # `remark` is a singleton per owner PER AUTHOR. It is a personal-scope
+        # section, so two accounts may each hold one on the same entry and
+        # each reads back their own.
+        #
+        # It was per-OWNER until decision 12, because the read side was a
+        # class-level column_property - a scalar subquery, which cannot know
+        # who is asking and raises "more than one row returned by a subquery
+        # used as an expression" the moment a second row exists. That made the
+        # narrow index load-bearing, and a second account's remark was refused
+        # outright. The read path is app.services.domain.remark_field
+        # .attach_remark now, filtered by author, so the index can carry
+        # author_id too.
+        #
+        # BOTH HALVES MOVE TOGETHER OR NEITHER DOES. Relaxing this index while
+        # the read still ignores the author turns a loud database refusal into
+        # an accepted-then-invisible write, which is a data-loss shape rather
+        # than a limitation.
+        #
+        # Declared here as well as in the database so autogenerate does not
+        # propose dropping it and so create_all-built schemas (the test DB)
+        # enforce it too. Mirrors revision n1a2remarkauthor - keep the name and
+        # the predicate identical.
+        #
+        # NULLS NOT DISTINCT is required because three of the four owner
+        # columns are always NULL, and author_id is NULL on rows written before
+        # accounts existed; Postgres would otherwise treat every such row as
+        # unique.
         Index(
             "ix_note_one_remark_per_owner",
-            "owner_type",
-            "owner_id",
+            "media_id",
+            "collection_id",
+            "franchise_id",
+            "series_id",
+            "author_id",
             unique=True,
+            postgresql_nulls_not_distinct=True,
             postgresql_where=text("section = 'remark'"),
         ),
     )

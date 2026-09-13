@@ -34,8 +34,7 @@ LABEL_HEADERS = [
 ]
 MEDIA_LABEL_HEADERS = [
     "system_id",
-    "media_type",
-    "entry_id",
+    "media_id",
     "label_id",
     "position",
     "created_at",
@@ -61,8 +60,8 @@ def test_both_tables_have_a_tab():
 
 
 def test_the_link_tab_restores_after_its_label_and_after_the_entries():
-    # media_content_label cites a label by uuid and an entry by the FK-less
-    # (media_type, entry_id) pair, so both endpoints must already exist.
+    # media_content_label cites a label by uuid and an entry by media_id, a
+    # real FK, so both endpoints must already exist.
     assert TAB_NAMES.index("Content Label") < TAB_NAMES.index("Media Content Label")
     assert TAB_NAMES.index("Anime") < TAB_NAMES.index("Media Content Label")
     assert TAB_NAMES.index("Comic") < TAB_NAMES.index("Media Content Label")
@@ -94,7 +93,9 @@ def test_a_label_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
         }
     )
 
-    result = pull.execute_pull_specific(db_session, "Content Label", log_action=False)
+    result = pull.execute_pull_specific(
+        db_session, "Content Label", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     rows = db_session.query(models.ContentLabel).filter_by(key="nsfw").all()
@@ -114,7 +115,9 @@ def test_a_label_this_database_has_never_seen_inserts(db_session, sheets):
         }
     )
 
-    result = pull.execute_pull_specific(db_session, "Content Label", log_action=False)
+    result = pull.execute_pull_specific(
+        db_session, "Content Label", log_action=False, may_restore_authz=True
+    )
 
     assert result["status"] == "success"
     assert db_session.query(models.ContentLabel).filter_by(key="gore").count() == 1
@@ -147,7 +150,6 @@ def test_a_labelling_translates_the_foreign_label_uuid(db_session, sheets):
                 MEDIA_LABEL_HEADERS,
                 [
                     str(uuid.uuid4()),
-                    "anime",
                     str(anime.system_id),
                     foreign_label_uuid,
                     "0",
@@ -158,21 +160,21 @@ def test_a_labelling_translates_the_foreign_label_uuid(db_session, sheets):
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"
     rows = db_session.query(models.MediaContentLabel).all()
     assert len(rows) == 1
     assert rows[0].label_id == local_label.system_id
-    assert rows[0].entry_id == anime.system_id
+    assert rows[0].media_id == anime.system_id
 
 
 def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
     db_session, sheets
 ):
     """
-    uq_media_content_label_row is (media_type, entry_id, label_id). A sheet row
+    uq_media_content_label_row is (media_id, label_id). A sheet row
     carrying an unknown system_id for a labelling this database already holds
     must update it, not insert a duplicate that collides.
     """
@@ -184,8 +186,7 @@ def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
     db_session.flush()
     existing = models.MediaContentLabel(
         system_id=uuid.uuid4(),
-        media_type="anime",
-        entry_id=anime.system_id,
+        media_id=anime.system_id,
         label_id=local_label.system_id,
         position=0,
     )
@@ -203,7 +204,6 @@ def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
                 MEDIA_LABEL_HEADERS,
                 [
                     str(uuid.uuid4()),
-                    "anime",
                     str(anime.system_id),
                     str(local_label.system_id),
                     "5",
@@ -214,7 +214,7 @@ def test_the_same_labelling_under_a_foreign_row_uuid_updates_in_place(
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"
@@ -246,16 +246,16 @@ def test_a_labelling_whose_label_is_unknown_is_skipped_not_fatal(db_session, she
             "Media Content Label": [
                 MEDIA_LABEL_HEADERS,
                 # First row cites a label neither database's sheet describes.
-                [str(uuid.uuid4()), "anime", str(anime.system_id),
+                [str(uuid.uuid4()), str(anime.system_id),
                  str(uuid.uuid4()), "0", ""],
-                [str(uuid.uuid4()), "anime", str(anime.system_id),
+                [str(uuid.uuid4()), str(anime.system_id),
                  str(local_label.system_id), "1", ""],
             ],
         }
     )
 
     result = pull.execute_pull_specific(
-        db_session, "Media Content Label", log_action=False
+        db_session, "Media Content Label", log_action=False, may_restore_authz=True
     )
 
     assert result["status"] == "success"

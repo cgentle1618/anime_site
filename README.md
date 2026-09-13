@@ -50,7 +50,7 @@ Everything is under [`docs/`](docs/README.md): architecture, data model,
 every API endpoint, business rules, the data-control pipelines, each
 subsystem (watch orders, relations, plan-next, notes, quotes/memes, credits),
 authentication and authorization, the frontend pages and components, testing,
-deployment and the roadmap.
+and deployment.
 
 ## Repository layout
 

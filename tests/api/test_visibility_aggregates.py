@@ -17,15 +17,23 @@ import uuid
 import pytest
 
 from app import models
-from tests.api.test_visibility import HIDDEN_NAME, hidden_anime, nsfw_label  # noqa: F401
+from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.seed import default_guest_permissions
+from tests.api.conftest import (  # noqa: F401
+    HIDDEN_NAME,
+    hidden_anime,
+    make_viewer,
+    nsfw_label,
+)
 
 QUOTE_TEXT = "Zvornik quote body that must not leak"
 MEME_TEXT = "Zvornik meme caption that must not leak"
 
 
 @pytest.fixture
-def hidden_quote(db_session, hidden_anime):
+def hidden_quote(db_session, hidden_anime, admin_user):
     q = models.Quote(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
         media_type="anime",
         entry_id=hidden_anime.system_id,
@@ -37,9 +45,10 @@ def hidden_quote(db_session, hidden_anime):
 
 
 @pytest.fixture
-def general_quote(db_session):
+def general_quote(db_session, admin_user):
     """Not tied to any entry - must survive the filter."""
     q = models.Quote(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(), text="A general quote tied to nothing"
     )
     db_session.add(q)
@@ -48,11 +57,11 @@ def general_quote(db_session):
 
 
 @pytest.fixture
-def hidden_meme(db_session, hidden_anime):
+def hidden_meme(db_session, hidden_anime, admin_user):
     m = models.Meme(
+        author_id=admin_user.id,
         system_id=uuid.uuid4(),
-        owner_type="anime",
-        owner_id=hidden_anime.system_id,
+        media_id=hidden_anime.system_id,
         text=MEME_TEXT,
     )
     db_session.add(m)
@@ -61,13 +70,23 @@ def hidden_meme(db_session, hidden_anime):
 
 
 @pytest.fixture
-def hidden_plan(db_session, hidden_anime):
+def hidden_plan(db_session, super_user, hidden_anime):
+    """A library-keeping account's own plan row on a hidden entry.
+
+    `super_user`, not `admin_user`: since 2026-09-12 an administrative account
+    holds no `self.*` grant, so it has no plan queue to leak and /api/plan-next
+    answers it 401. The `super` role is the account shape that keeps one.
+
+    A plan row belongs to a user from Step 3 on, so the row a viewer might leak
+    is one of their OWN - queued before the entry was labelled, or labelled for
+    their role but not for another's.
+    """
     p = models.PlanNext(
         system_id=uuid.uuid4(),
+        user_id=super_user.id,
         kind="next",
         media_type="anime",
-        scope="entry",
-        target_id=hidden_anime.system_id,
+        media_id=hidden_anime.system_id,
     )
     db_session.add(p)
     db_session.flush()
@@ -151,15 +170,53 @@ def test_notes_for_a_visible_entry_still_work(client, sample_anime):
 # Plan Next
 # ---------------------------------------------------------------------------
 
-def test_a_plan_row_for_a_hidden_entry_is_dropped(client, hidden_plan):
+def test_an_anonymous_visitor_cannot_read_the_plan_queue_at_all(client, hidden_plan):
+    # Per-user from Step 3 on: a refusal, not a filtered page.
+    assert client.get("/api/plan-next/").status_code == 401
+
+
+def test_a_plan_row_for_a_hidden_entry_is_dropped(
+    client, db_session, hidden_anime, hidden_plan
+):
+    # A logged-in viewer whose MODE lacks the label: their OWN plan row on
+    # the hidden entry must not come back. (It was the role that lacked it
+    # until Phase B moved object scoping to the access mode.)
+    # self.list on top of the guest set: reading a plan queue requires being
+    # able to KEEP one, and the guest defaults do not include it. What this
+    # test narrows is the MODE, not the role.
+    make_viewer(
+        db_session,
+        client,
+        "untrusted",
+        default_guest_permissions() | {PERM_SELF_LIST},
+        label_keys=(),
+    )
+    viewer = db_session.query(models.User).filter_by(username="untrusted").one()
+    db_session.add(
+        models.PlanNext(
+            system_id=uuid.uuid4(),
+            user_id=viewer.id,
+            kind="next",
+            media_type="anime",
+            media_id=hidden_anime.system_id,
+        )
+    )
+    db_session.flush()
+
     response = client.get("/api/plan-next/")
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
-    assert str(hidden_plan.target_id) not in response.text
+    assert str(hidden_anime.system_id) not in response.text
 
 
-def test_admin_still_sees_the_plan_row(admin_client, hidden_plan):
-    assert HIDDEN_NAME in admin_client.get("/api/plan-next/").text
+def test_an_unnarrowed_viewer_still_sees_the_plan_row(super_client, hidden_plan):
+    """
+    The mirror of the test above, on the same fixture, so a green there proves
+    the MODE did the hiding rather than the row being absent or the caller
+    being refused outright. It was `admin_client` until 2026-09-12, when an
+    administrative account stopped holding a plan queue at all.
+    """
+    assert HIDDEN_NAME in super_client.get("/api/plan-next/").text
 
 
 # ---------------------------------------------------------------------------
@@ -273,8 +330,7 @@ def test_a_credit_on_a_hidden_entry_is_not_counted(
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=hidden_anime.system_id,
+            media_id=hidden_anime.system_id,
             role="director",
             person_id=person.system_id,
         )
@@ -293,8 +349,7 @@ def test_admin_still_counts_the_credit(admin_client, db_session, hidden_anime):
     db_session.add(
         models.MediaCredit(
             system_id=uuid.uuid4(),
-            media_type="anime",
-            entry_id=hidden_anime.system_id,
+            media_id=hidden_anime.system_id,
             role="director",
             person_id=person.system_id,
         )

@@ -103,7 +103,7 @@ function tvDateScore(t) {
 
 export default function FranchisePage() {
   const { publicId } = useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
   const { showToast } = useToast();
 
   // ── data ──────────────────────────────────────────────────────────────────
@@ -2501,7 +2501,7 @@ export default function FranchisePage() {
       {showRemark && (
         <RemarkModal
           value={remark}
-          isAdmin={isAdmin}
+          canEdit={has("self.personal_notes")}
           onChange={setRemark}
           onClose={() => {
             saveRemark();

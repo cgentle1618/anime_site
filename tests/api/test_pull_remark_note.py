@@ -67,8 +67,7 @@ def _remarks(db_session, owner_id):
     return (
         db_session.query(models.Note)
         .filter(
-            models.Note.owner_type == "anime",
-            models.Note.owner_id == owner_id,
+            models.Note.media_id == owner_id,
             models.Note.section == "remark",
         )
         .all()
@@ -76,12 +75,12 @@ def _remarks(db_session, owner_id):
 
 
 def test_pull_updates_the_existing_remark_instead_of_inserting_a_second(
-    db_session, sample_anime, sheet
+    db_session, sample_anime, sheet, admin_user,
 ):
     owner_id = sample_anime.system_id
     local = models.Note(
-        owner_type="anime",
-        owner_id=owner_id,
+        author_id=admin_user.id,
+        media_id=owner_id,
         section="remark",
         content="local text",
         sort_index=0,
@@ -104,14 +103,14 @@ def test_pull_updates_the_existing_remark_instead_of_inserting_a_second(
 
 
 def test_pull_does_not_fail_the_whole_tab_on_a_stale_remark_id(
-    db_session, sample_anime, sheet
+    db_session, sample_anime, sheet, admin_user,
 ):
     """The other rows of the tab must still land - the old bug lost them all."""
     owner_id = sample_anime.system_id
     db_session.add(
         models.Note(
-            owner_type="anime",
-            owner_id=owner_id,
+            author_id=admin_user.id,
+            media_id=owner_id,
             section="remark",
             content="local text",
             sort_index=0,
@@ -132,8 +131,7 @@ def test_pull_does_not_fail_the_whole_tab_on_a_stale_remark_id(
     others = (
         db_session.query(models.Note)
         .filter(
-            models.Note.owner_type == "anime",
-            models.Note.owner_id == owner_id,
+            models.Note.media_id == owner_id,
             models.Note.section == "overview",
         )
         .all()

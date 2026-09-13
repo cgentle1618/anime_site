@@ -20,11 +20,20 @@ def test_names_dict_covers_all_five():
     assert game.names_dict["jp"] == "ニーア"
 
 
-def test_playing_status_defaults_to_might_play(db_session):
+def test_playing_status_defaults_to_might_play(db_session, admin_user):
+    """The default outlived the column: playing_status moved to the list row
+    in step 1, and a game with no row still reads back as Might Play.
+
+    Asked as a real account. A user_id of None means nobody is asking, and
+    since 2026-09-10 that yields no status at all rather than the default -
+    "Might Play" is a claim about a person."""
+    from app.services.domain.user_list import DEFAULT_STATUS, attach_list_fields
+
     game = models.Game(game_name_en="Default Test")
     db_session.add(game)
     db_session.flush()
-    assert game.playing_status == "Might Play"
+    attach_list_fields(db_session, "game", game, admin_user.id)
+    assert game.playing_status == DEFAULT_STATUS["game"] == "Might Play"
 
 
 def test_a_base_game_may_not_have_a_parent(db_session):
@@ -76,16 +85,20 @@ def test_release_date_must_be_iso(db_session):
     db_session.rollback()
 
 
-def test_one_game_may_hold_two_copies_on_different_formats(db_session):
+def test_one_game_may_hold_two_copies_on_different_formats(db_session, admin_user):
     game = models.Game(game_name_en="Hades")
     db_session.add(game)
     db_session.flush()
     db_session.add_all(
         [
             models.GameCopy(
-                game_id=game.system_id, storefront="Steam", copy_format="Digital"
+                user_id=admin_user.id,
+                game_id=game.system_id,
+                storefront="Steam",
+                copy_format="Digital",
             ),
             models.GameCopy(
+                user_id=admin_user.id,
                 game_id=game.system_id,
                 storefront="Steam",
                 copy_format="Physical",
@@ -95,17 +108,23 @@ def test_one_game_may_hold_two_copies_on_different_formats(db_session):
     db_session.commit()
 
 
-def test_a_duplicate_copy_row_is_rejected(db_session):
+def test_a_duplicate_copy_row_is_rejected(db_session, admin_user):
     game = models.Game(game_name_en="Dup")
     db_session.add(game)
     db_session.flush()
     db_session.add_all(
         [
             models.GameCopy(
-                game_id=game.system_id, storefront="Steam", copy_format="Digital"
+                user_id=admin_user.id,
+                game_id=game.system_id,
+                storefront="Steam",
+                copy_format="Digital",
             ),
             models.GameCopy(
-                game_id=game.system_id, storefront="Steam", copy_format="Digital"
+                user_id=admin_user.id,
+                game_id=game.system_id,
+                storefront="Steam",
+                copy_format="Digital",
             ),
         ]
     )
@@ -114,11 +133,13 @@ def test_a_duplicate_copy_row_is_rejected(db_session):
     db_session.rollback()
 
 
-def test_deleting_a_game_deletes_its_copies(db_session):
+def test_deleting_a_game_deletes_its_copies(db_session, admin_user):
     game = models.Game(game_name_en="Cascade")
     db_session.add(game)
     db_session.flush()
-    db_session.add(models.GameCopy(game_id=game.system_id, storefront="GOG"))
+    db_session.add(models.GameCopy(
+            user_id=admin_user.id, game_id=game.system_id, storefront="GOG"
+        ))
     db_session.commit()
     db_session.delete(game)
     db_session.commit()

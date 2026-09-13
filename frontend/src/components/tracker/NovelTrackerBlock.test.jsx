@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import NovelTrackerBlock from "./NovelTrackerBlock";
 
+// The block hides itself when nobody is signed in - a guest has no tracker -
+// and these tests are about what it renders for somebody who is. Mocked rather
+// than wrapped in an AuthProvider at each of the eighteen render() calls.
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ username: "tester" }),
+}));
+
 const noop = () => {};
 
 function baseProps(overrides = {}) {

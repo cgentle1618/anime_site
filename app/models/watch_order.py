@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -62,7 +63,12 @@ class WatchOrderList(Base):
     # Short, stable, per-table id shown in SPA URLs; system_id remains the
     # join key and never leaves the API.
     public_id = Column(
-        Integer, Sequence("watch_order_list_public_id_seq"), nullable=False
+        Integer,
+        Sequence("watch_order_list_public_id_seq"),
+        # server_default as well as the Sequence: the sequence lets
+        # SQLAlchemy fill this in, the DEFAULT lets a raw INSERT do it too.
+        server_default=text("nextval('watch_order_list_public_id_seq'::regclass)"),
+        nullable=False,
     )
     # CASCADE, not SET NULL as Collection uses: the single-owner check
     # constraint means a nulled owner would leave an unsavable orphan row.
@@ -154,8 +160,18 @@ class WatchOrderItem(Base):
     # slotted between two others without renumbering the whole list.
     position = Column(Float, nullable=True)
 
-    media_type = Column(String, nullable=True)
-    entry_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # CASCADE, unlike quote's SET NULL, and for the opposite reason: a step is
+    # almost pure pointer - ep_start, ep_end, position and section_id only mean
+    # something relative to an entry - so a step left pointing at nothing is a
+    # blank row in a curated list. Nullable all the same: a step may be written
+    # without an entry, and pre-existing orphans were left unattached rather
+    # than deleted by the migration.
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # The optional grouping tier this step belongs to. SET NULL, not CASCADE:
     # deleting a section must leave its steps in the list and simply

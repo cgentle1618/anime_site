@@ -98,8 +98,7 @@ class TestWatchOrderItemParser:
             "list_id",
             "position",
             "section_id",
-            "media_type",
-            "entry_id",
+            "media_id",
             "ep_start",
             "ep_end",
             "importance",
@@ -109,14 +108,13 @@ class TestWatchOrderItemParser:
         }
 
     def test_full_row_round_trips(self):
-        item_id, list_id, entry_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        item_id, list_id, media_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
         parsed = parse_watch_order_item_from_sheet(
             {
                 "system_id": str(item_id),
                 "list_id": str(list_id),
                 "position": "1.5",
-                "media_type": "anime",
-                "entry_id": str(entry_id),
+                "media_id": str(media_id),
                 "ep_start": "1",
                 "ep_end": "10",
                 "importance": "Optional",
@@ -128,8 +126,7 @@ class TestWatchOrderItemParser:
         assert parsed["system_id"] == item_id
         assert parsed["list_id"] == list_id
         assert parsed["position"] == 1.5
-        assert parsed["media_type"] == "anime"
-        assert parsed["entry_id"] == entry_id
+        assert parsed["media_id"] == media_id
         assert parsed["ep_start"] == 1
         assert parsed["ep_end"] == 10
         assert parsed["importance"] == "Optional"
@@ -137,7 +134,7 @@ class TestWatchOrderItemParser:
 
     def test_whole_entry_item_has_no_episode_range(self):
         parsed = parse_watch_order_item_from_sheet(
-            {"media_type": "movie", "ep_start": "", "ep_end": ""}
+            {"ep_start": "", "ep_end": ""}
         )
         assert parsed["ep_start"] is None
         assert parsed["ep_end"] is None
@@ -177,14 +174,23 @@ class TestWatchOrderItemParser:
             == "Essential"
         )
 
-    def test_junk_entry_id_becomes_none(self):
-        """A None entry_id shows up in the guide as a missing step, not a 500."""
-        parsed = parse_watch_order_item_from_sheet({"entry_id": "not-a-uuid"})
-        assert parsed["entry_id"] is None
+    def test_junk_media_id_becomes_none(self):
+        """A None media_id shows up in the guide as a missing step, not a 500."""
+        parsed = parse_watch_order_item_from_sheet({"media_id": "not-a-uuid"})
+        assert parsed["media_id"] is None
 
-    def test_hyphenated_media_type_survives(self):
-        parsed = parse_watch_order_item_from_sheet({"media_type": "anime-movie"})
-        assert parsed["media_type"] == "anime-movie"
+    def test_a_sheet_written_before_the_move_still_restores(self):
+        """
+        An older Backup spells the link `entry_id` with a `media_type` beside
+        it. media.system_id IS that entry_id, so the older sheet restores
+        exactly - including the hyphenated types, which needed no coercion
+        because the type is now read off the media row.
+        """
+        entry_id = uuid.uuid4()
+        parsed = parse_watch_order_item_from_sheet(
+            {"media_type": "anime-movie", "entry_id": str(entry_id)}
+        )
+        assert parsed["media_id"] == entry_id
 
 
 class TestWatchOrderSectionParser:

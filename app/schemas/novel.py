@@ -79,7 +79,9 @@ class NovelBase(BaseModel):
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
-    anilist_rating: Optional[str] = None
+    anilist_rating: Optional[int] = None
+    anilist_rank: Optional[int] = None
+    anilist_popularity_rank: Optional[int] = None
 
     release_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -114,6 +116,12 @@ class NovelUpdate(NovelBase, SourceWriteFields):
 
 
 class NovelResponse(NovelBase, NovelLinkFields):
+    # Redeclared from the base as Optional: a logged-out visitor has no
+    # list, so attach_list_fields sets nothing and this arrives absent.
+    # Only the READ side moves - Create/Update/SheetSync keep the base's
+    # default, because a write that omits a status still means the
+    # default rather than 'nobody'.
+    reading_status: Optional[str] = None
     system_id: UUID
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.

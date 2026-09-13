@@ -24,6 +24,9 @@ from app.services.domain.credits import (
 
 
 def _seed_legacy_studio_column(db_session, entry_id, raw_value):
+    # The pending deferred fk_anime_media event from the caller's flush blocks
+    # ALTER TABLE; resolving it early is what a real COMMIT would do anyway.
+    db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
     db_session.execute(text("ALTER TABLE anime ADD COLUMN studio VARCHAR"))
     db_session.execute(
         text("UPDATE anime SET studio = :v WHERE system_id = :id"),

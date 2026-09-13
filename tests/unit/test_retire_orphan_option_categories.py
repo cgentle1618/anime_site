@@ -23,7 +23,7 @@ from app.utils.credit_roles import (
 _spec = importlib.util.spec_from_file_location(
     "o1r2p3h4a5n6_retire_orphan_option_categories",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/o1r2p3h4a5n6_retire_orphan_option_categories.py",
+    / "alembic/versions_archive/o1r2p3h4a5n6_retire_orphan_option_categories.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)

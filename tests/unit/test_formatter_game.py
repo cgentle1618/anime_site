@@ -7,11 +7,20 @@ from app.utils.formatter import (
 )
 
 
-def test_blank_cells_become_none_and_defaults_apply():
-    parsed = parse_game_from_sheet({"game_name_en": "Hades", "playing_status": ""})
-    assert parsed["playing_status"] == "Might Play"
+def test_blank_cells_become_none():
+    parsed = parse_game_from_sheet({"game_name_en": "Hades"})
     assert parsed["hours_played"] is None
     assert parsed["game_name_cn"] is None
+
+
+def test_playing_status_is_not_parsed_at_all():
+    """Step 1 confined the pipelines: the status is the player's and travels
+    in the User Media List tab, so the Game parser no longer emits it and the
+    Might Play default it used to apply lives in user_list.DEFAULT_STATUS."""
+    parsed = parse_game_from_sheet(
+        {"game_name_en": "Hades", "playing_status": "Completed"}
+    )
+    assert "playing_status" not in parsed
 
 
 def test_release_date_is_normalised():
@@ -49,13 +58,49 @@ def test_alias_parses_its_three_columns():
     assert parsed == {"id": 3, "option_id": None, "source": "igdb", "value": "RPG"}
 
 
-def test_the_completion_flags_parse_as_tristate_booleans():
+def test_the_completion_flags_parse_as_a_four_state_vocabulary():
+    """"Inapplicable" is the fourth state: the game has no endings to see at
+    all, which is a different claim from "I did not see them" and from the
+    blank "I have not recorded this"."""
     parsed = parse_game_from_sheet(
-        {"all_endings": "TRUE", "all_achievements": "FALSE", "all_collected": ""}
+        {
+            "all_endings": "Yes",
+            "all_achievements": "No",
+            "all_collected": "Inapplicable",
+        }
     )
-    assert parsed["all_endings"] is True
-    assert parsed["all_achievements"] is False
-    assert parsed["all_collected"] is None
+    assert parsed["all_endings"] == "Yes"
+    assert parsed["all_achievements"] == "No"
+    assert parsed["all_collected"] == "Inapplicable"
+
+
+def test_a_blank_completion_flag_is_still_unknown():
+    parsed = parse_game_from_sheet({"all_endings": ""})
+    assert parsed["all_endings"] is None
+
+
+def test_completion_flags_accept_the_booleans_older_backups_hold():
+    """A sheet written before these columns became a vocabulary holds TRUE and
+    FALSE. Pull must map those, or it would store the literal string."""
+    parsed = parse_game_from_sheet(
+        {"all_endings": "TRUE", "all_achievements": "false", "all_collected": "Y"}
+    )
+    assert parsed["all_endings"] == "Yes"
+    assert parsed["all_achievements"] == "No"
+    assert parsed["all_collected"] == "Yes"
+
+
+def test_a_completion_flag_outside_the_vocabulary_is_dropped():
+    """Better unknown than a value no code branch recognises."""
+    parsed = parse_game_from_sheet({"all_endings": "banana"})
+    assert parsed["all_endings"] is None
+
+
+def test_steam_progress_sync_stays_a_boolean():
+    """It is a lock on Steam writes, not a completion axis - see
+    autofill.py, which tests it with `is False`."""
+    parsed = parse_game_from_sheet({"steam_progress_sync": "FALSE"})
+    assert parsed["steam_progress_sync"] is False
 
 
 def test_the_metacritic_scores_keep_their_two_scales():

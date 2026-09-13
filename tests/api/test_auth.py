@@ -67,7 +67,7 @@ class TestGetMe:
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is True
-        assert data["username"] == "testadmin"
+        assert data["username"] == "aaa_testadmin"
 
     def test_without_cookie_returns_admin_false(self, client):
         response = client.get("/api/auth/me")
@@ -97,3 +97,73 @@ class TestLogout:
         set_cookie = response.headers.get("set-cookie", "")
         assert "access_token=" in set_cookie
         assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
+
+
+def test_resolved_viewer_carries_the_user_id(db_session, admin_client):
+    """
+    Phase C filters personal notes by author_id, so "who is asking" has to
+    answer with an id and not only a username.
+    """
+    from starlette.requests import Request
+
+    from app.services.rbac.resolver import GUEST_FALLBACK, resolve_viewer
+
+    cookie = admin_client.cookies.get("access_token")
+    scope = {
+        "type": "http",
+        "headers": [(b"cookie", f"access_token={cookie}".encode())],
+    }
+    viewer = resolve_viewer(Request(scope), db_session)
+    admin = (
+        db_session.query(models.User)
+        .filter(models.User.username == viewer.username)
+        .one()
+    )
+    assert viewer.user_id == admin.id
+    assert GUEST_FALLBACK.user_id is None
+
+
+class TestLoginCookieSecurity:
+    """
+    The `secure` flag follows APP_ENV, the way Django's SESSION_COOKIE_SECURE
+    and Rails' config.force_ssl follow their environment - not the request
+    scheme, which behind a tunnel depends on proxy headers being right and
+    fails silently when they are not.
+    """
+
+    def _login(self, client):
+        return client.post(
+            "/api/auth/login",
+            data={"username": "testuser", "password": "correct_password"},
+        )
+
+    def _cookie_header(self, response):
+        for key, value in response.headers.items():
+            if key.lower() == "set-cookie" and value.startswith("access_token="):
+                return value
+        raise AssertionError("no access_token cookie was set")
+
+    def test_production_sets_a_secure_cookie(self, client, user_in_db, monkeypatch):
+        from app.config import ENV_PRODUCTION, settings
+
+        monkeypatch.setattr(settings, "app_env", ENV_PRODUCTION)
+        header = self._cookie_header(self._login(client))
+        assert "Secure" in header
+
+    def test_development_does_not(self, client, user_in_db, monkeypatch):
+        # Plain HTTP locally: a Secure cookie would simply be dropped by the
+        # browser, so login would break on the dev machine.
+        from app.config import ENV_DEVELOPMENT, settings
+
+        monkeypatch.setattr(settings, "app_env", ENV_DEVELOPMENT)
+        header = self._cookie_header(self._login(client))
+        assert "Secure" not in header
+
+    def test_the_cookie_stays_httponly_in_both_modes(
+        self, client, user_in_db, monkeypatch
+    ):
+        from app.config import ENV_DEVELOPMENT, ENV_PRODUCTION, settings
+
+        for env in (ENV_DEVELOPMENT, ENV_PRODUCTION):
+            monkeypatch.setattr(settings, "app_env", env)
+            assert "HttpOnly" in self._cookie_header(self._login(client))

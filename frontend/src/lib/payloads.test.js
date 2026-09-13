@@ -128,17 +128,23 @@ describe("game steam_appid", () => {
   });
 });
 
-// The three completion flags are tristate selects: "" is "unknown", not false.
+// The three completion axes carry a vocabulary, not a boolean: "" is still
+// "unknown", and "Inapplicable" says the game has none to find.
 describe("game completion flags", () => {
-  it("sends all three as tristate booleans", () => {
+  it("sends all three as vocabulary strings", () => {
     const payload = gameFieldsPayload({
-      all_endings: "true",
-      all_achievements: "false",
-      all_collected: "",
+      all_endings: "Yes",
+      all_achievements: "No",
+      all_collected: "Inapplicable",
     });
-    expect(payload.all_endings).toBe(true);
-    expect(payload.all_achievements).toBe(false);
-    expect(payload.all_collected).toBeNull();
+    expect(payload.all_endings).toBe("Yes");
+    expect(payload.all_achievements).toBe("No");
+    expect(payload.all_collected).toBe("Inapplicable");
+  });
+
+  it("sends an unanswered axis as null, not as a No", () => {
+    const payload = gameFieldsPayload({ all_endings: "" });
+    expect(payload.all_endings).toBeNull();
   });
 });
 

@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -169,11 +170,25 @@ class SystemConfigs(Base):
 
 
 class Seasonal(Base):
-    """Aggregates metrics for specific airing seasons."""
+    """
+    One user's view of one airing season: their rating and their four counts.
+
+    The counters are aggregates over THAT USER's list rows (see
+    app/services/domain/seasonal.py) and my_rating is their own; both were
+    global before Step 3 only because the database held one person. The
+    primary key is therefore the pair, and a deleted user takes their seasons
+    with them.
+    """
 
     __tablename__ = "seasonal"
 
-    seasonal = Column(String, primary_key=True, unique=True, index=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_seasonal_user"),
+        primary_key=True,
+    )
+    # No longer unique on its own: two users hold "WIN 2026" independently.
+    seasonal = Column(String, primary_key=True, index=True)
     my_rating = Column(String, nullable=True)
     entry_planned = Column(Integer, nullable=False, default=0)
     entry_completed = Column(Integer, nullable=False, default=0)
@@ -190,7 +205,7 @@ class Role(Base):
     media type or a field group, so a stored name with no code behind it would
     be inert. Only the grants that bind a permission to a role are data.
 
-    `is_superuser` is not a shortcut. Without it the admin role would need an
+    `is_root` is not a shortcut. Without it the admin role would need an
     explicit grant for every content label and field group, and creating one
     would hide content from the admin until someone remembered to re-grant it.
     """
@@ -198,7 +213,13 @@ class Role(Base):
     __tablename__ = "role"
 
     system_id = Column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        # Declared as well as the Python default so a raw INSERT gets an id
+        # too; every installed database has had this since the migrations.
+        server_default=text("gen_random_uuid()"),
+        index=True,
     )
     name = Column(String, nullable=False, unique=True, index=True)
     label = Column(String, nullable=False)
@@ -206,7 +227,7 @@ class Role(Base):
     # guest and admin: the app reads them by name, so they cannot be renamed
     # or deleted through the API.
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
-    is_superuser = Column(
+    is_root = Column(
         Boolean, nullable=False, default=False, server_default="false"
     )
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
@@ -264,6 +285,37 @@ class User(Base):
         ForeignKey("role.system_id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
+    )
+    # Private by default, and only its owner can change it (PATCH
+    # /api/account/settings). An admin may see the flag on the Users page but
+    # does not set it: whose list is visible is the account holder's decision,
+    # not the inviter's.
+    list_is_public = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    # Whose rows a restore or the Calculate pipeline files under. NOT a
+    # permission and not on any request path - see
+    # services/domain/user_list.py::installation_owner_id for what it answers
+    # and what it deliberately does not. It lives here, as data, so that
+    # moving the collection to another account is a row edit rather than a
+    # commit, and so that the answer travels between the two machines on the
+    # Sheets Users tab. `ix_one_installation_owner` is partial, so at most one
+    # account holds it and any number hold false.
+    is_installation_owner = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_one_installation_owner",
+            # The indexed expression is a constant, not the column: this is a
+            # SITE singleton rather than one-per-something, so there is no
+            # column to key it on. A partial unique index over `(true)` is how
+            # PostgreSQL says "at most one row in the whole table".
+            text("(true)"),
+            unique=True,
+            postgresql_where=text("is_installation_owner"),
+        ),
     )
 
     role_ref = relationship("Role", lazy="joined")

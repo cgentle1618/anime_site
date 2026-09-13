@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-09-07 (Play Anytime playing status)
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -42,7 +42,7 @@ code.
 
 | Tier | Lives in | Who changes it | Read by the frontend via | Examples |
 |---|---|---|---|---|
-| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.credits` |
+| 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_other` |
 | 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
 
@@ -94,6 +94,7 @@ file's own comment calls this Ruling R10). See
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`; `Base Game` is the value `ck_games_base_no_parent` names | `game_type` |
 | `COMPLETION_LEVELS` | `Main Story`, `Main + Extras`, `Post-game`, `Completionist` | `games.completion_level`. A ladder of **content depth only** - every ending seen and achievements earned are separate columns, because they move independently of this | `completion_level` |
 | `GAME_RELEASE_STATUSES` | `Rumored`, `Unreleased`, `Early Access`, `Released`, `Ongoing`, `Discontinued`, `Cancelled` | `games.release_status` | `game_release_status` |
+| `GAME_COMPLETION_FLAGS` | `Yes`, `No`, `Inapplicable` | `games.all_endings`, `games.all_achievements`, `games.all_collected`. `NULL` is outside the vocabulary and means "not recorded yet"; `Inapplicable` means the game has none of that thing to find. `games.steam_progress_sync` is **not** one of these - it is a boolean lock on Steam writes | `game_completion_flag` |
 | `GAME_STOREFRONTS` | `Steam`, `Nintendo eShop`, `PlayStation Store`, `Xbox Store`, `GOG`, `Epic Games Store`, `Physical`, `Other` | `game_copy.storefront` | `game_storefront` |
 | `GAME_OWNERSHIP_KINDS` | `Owned`, `Wishlist`, `Subscription`, `Free`, `Not Owned` | `game_copy.ownership`; also the precedence order `derive_game_ownership` reads | `game_ownership` |
 | `GAME_COPY_FORMATS` | `Digital`, `Physical` | `game_copy.copy_format` | `game_copy_format` |
@@ -105,17 +106,16 @@ file's own comment calls this Ruling R10). See
 | `SEIYUU_STATUSES` | `Need`, `Done` | `anime.seiyuu` (a to-do status, not a cast list) | `seiyuu_status` |
 
 `anime.seiyuu` and the `seiyuu` **person role** below are unrelated, and the
-name collision is deliberate to flag: `anime.seiyuu` predates the cast feature
-and remains exactly what it always was, a `Need`/`Done` to-do flag with no
-list of who voices whom. Now that a real seiyuu concept exists (`character`,
+name collision is worth flagging: `anime.seiyuu` is a `Need`/`Done` to-do flag
+with no list of who voices whom. The real seiyuu concept is elsewhere
+(`character`,
 `character_casting` - see [data-model.md](data-model.md#people-studios-and-links)
 and [systems/credits-and-tags.md](systems/credits-and-tags.md)), do not read
 one as evidence for the other: an anime can show `seiyuu: Done` while having
 zero castings, and vice versa.
 
-**All eight game lists reach `/api/constants`.** They shipped with the games
-backend but were not served until commit `1bd3193`; `get_constants()`
-(`app/routers/constants.py`) now returns `playing_status`, `game_type`,
+**All eight game lists reach `/api/constants`.** `get_constants()`
+(`app/routers/constants.py`) returns `playing_status`, `game_type`,
 `completion_level`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format` and `game_acquisition`. The four
 `game_copy` vocabularies are prefixed `game_` because the column name alone
@@ -128,8 +128,9 @@ Only `playing_status` is wired into the frontend fallback map, though. It is
 the one game list in `CONSTANTS_FALLBACK` in
 `frontend/src/config/fieldOptions.js`, so it is the one `applyConstants()`
 overwrites from the endpoint; `GAME_TYPES`, `COMPLETION_LEVELS`,
-`GAME_RELEASE_STATUSES` and the four `game_copy` arrays are still
-hand-maintained literals in that file, kept matching `constants.py` by hand.
+`GAME_RELEASE_STATUSES`, `GAME_COMPLETION_FLAGS` and the four `game_copy`
+arrays are still hand-maintained literals in that file, kept matching
+`constants.py` by hand.
 
 `/api/constants` also serves four keys from other modules:
 `watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
@@ -237,13 +238,37 @@ media types only.
 | `highlight_episodes` | episode_text | 神回/神片段 (manga: 神回) | tv-show, cartoon, manga | | kinds `HIGHLIGHT_KINDS` for tv-show and cartoon only |
 | `highlight_passages` | text | 神片段 | novel | | |
 | `highlight_moments` | episode_text | 神場景 Highlights | game | | locator required, placeholder "Chapter / Boss" |
-| `guides` | name_entries | 攻略 Guides | game | | |
-| `builds_and_mods` | name_entries | 配裝/模組 Builds & Mods | game | | kinds `Build`, `Mod`, `Tool` |
 | `analysis` | text_links | 解析 Analysis | All | analysis_group | |
 | `cinematography` | text_links | 分鏡/演出/巧思 | anime, anime-movie, tv-show, cartoon, manga, series | analysis_group | |
 | `craft` | text_links | 巧思 | novel | analysis_group | |
 | `foreshadowing` | text_links | Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, novel, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
+| `beginner` | text_links | 新手 Beginner | game | guides | |
+| `controls` | text_links | 操作 Controls | game | guides | |
+| `trivia` | text_links | 小知識 Trivia | game | guides | |
+| `side_quests` | name_entries | 支線任務列表 Side Quests | game | guides | |
+| `builds_and_styles` | name_entries | 配裝&流派 Builds & Styles | game | guides | |
+| `stats_and_points` | text_links | 屬性&配點 Stats & Points | game | guides | |
+| `skills` | name_entries | 技能 Skills | game | guides | |
+| `collectibles` | name_entries | 收集物 Collectibles | game | guides | |
+| `items` | name_entries | 道具 Items | game | guides | |
+| `weapons_and_gear` | name_entries | 武器&裝備 Weapons & Gear | game | guides | |
+| `characters_guide` | name_entries | 角色 Characters | game | guides | |
+| `enemies` | name_entries | 敵人 Enemies | game | guides | |
+| `endings` | name_entries | 結局 Endings | game | guides | |
+| `mods_and_tools` | name_entries | 模組&工具 Mods & Tools | game | guides | kinds `Mod`, `Tool` |
+| `guide_resources` | name_entries | 攻略資源 Guide Resources | game | guides | |
+| `main_plot` | episode_text | 主線劇情 Main Plot | game | story | locator optional, placeholder "Chapter / Part" |
+| `side_plot` | episode_text | 支線劇情 Side Stories | game | story | locator optional, placeholder "Chapter / Part" |
+| `character_arcs` | text_links | 角色劇情 Character Arcs | game | story | |
+| `lore` | text_links | 世界觀&設定 Lore | game | story | |
+| `timeline` | text | 時間線 Timeline | game | story | |
+| `mysteries` | text_links | 未解之謎 Mysteries | game | story | |
+| `story_other` | text_links | 其他 Other | game | story | |
+| `todo_now` | text_links | 現在進行 Doing now | game | todo | personal scope |
+| `todo_next` | text_links | 接下來 To do next | game | todo | personal scope |
+| `todo_later` | text_links | 未來 To do in the future | game | todo | personal scope |
+| `todo_maybe` | text_links | 可能 Might do | game | todo | personal scope |
 | `op` | music_track | OP | anime | music | kinds `MUSIC_TYPES`, default `normal`; statuses `MUSIC_STATUSES` |
 | `ed` | music_track | ED | anime | music | same as `op` |
 | `insert_songs` | episode_name_links | 插入曲 Insert Song | anime | music | statuses `MUSIC_STATUSES`; no kinds |
@@ -265,14 +290,22 @@ Kind vocabularies:
 | `MUSIC_STATUSES` | `Need`, `Pending`, `Done` (same values as `constants.MUSIC_STATUSES`) |
 | `HIGHLIGHT_KINDS` | `神回`, `神片段`, `神篇章` |
 
-**`builds_and_mods` is deliberately not called `resources`.** A site-wide
-`resources` section already exists (`name_links`, all owners), and games
-inherit it for plain bookmarks; reusing the key would have shadowed it, and
-a second card also labelled "Resources" would be unreadable - hence a
-distinct key *and* a distinct label. Builds, mods and tools are one section
-with a `kind` rather than three near-identical ones, because they took the
-same shape once guides became `name_entries`; `guides` stays separate
-because it is filled for nearly every game and these are not.
+**`guide_resources` is not `resources`, and neither replaces the other.** The
+site-wide `resources` section (`name_links`, all owners, standalone) holds
+plain bookmarks and games inherit it; `guide_resources` (`name_entries`,
+game-only, inside the 攻略 group) holds a pointer to somebody else's
+walkthrough with notes attached. Two keys and two labels, because a second
+card also called "Resources" would be unreadable.
+
+**The 攻略 group is fifteen sections rather than one with a `kind`**, because
+each is a list kept separately: which build to run is not the same question as
+where the collectibles are.
+
+**The 待辦 buckets are four sections, not one section with a `kind`.**
+`sort_index` orders rows within one `(owner, section)` pair and
+`PATCH /api/notes/reorder` renumbers the whole section, so a kind-tagged
+single section could not order items *within* a bucket. Moving an item
+between buckets is a PATCH of `section`, which the API already accepts.
 
 The API rejects a kind the section does not list. The old `特殊變動` values
 `回顧` and `其他` belong to no section and cannot be entered.
@@ -326,8 +359,7 @@ declare, **silently**. `GameBase` therefore declares `play_next` and
 
 `anime-movie`, `manga`, `novel` and `game` have no bucket vocabulary. Games
 are deliberately unbucketed for now: length is hours, not a count of
-episodes or issues, and no threshold was agreed - see
-[roadmap.md](roadmap.md#deferred--known-debt).
+episodes or issues, and no threshold has been agreed.
 
 ### Credit roles and tag fields (`app/utils/credit_roles.py`)
 
@@ -349,32 +381,22 @@ it is also the vocabulary of `person_role.role` - one list, not two.
 `producer`, `composer`, `author`, `illustrator`, `seiyuu` - `CREDIT_ROLES`
 filtered to `target == "person"`, which excludes both company keys.
 
-**`target` became a three-value axis on 2026-09-06.** It was `"person"` or
-`"studio"`; the `publisher` role added `"publisher"`, pointing at the new
-`publisher` table (see [data-model.md](data-model.md#publisher)) rather than at
-a `system_option` vocabulary. Every reader of the axis dispatches on all three
-explicitly - a two-way branch whose `else` meant "person" would have minted a
-`Person` row for a publisher credit.
+**`target` is a three-value axis**: `"person"`, `"studio"` or `"publisher"`,
+the last pointing at the `publisher` table (see
+[data-model.md](data-model.md#publisher)) rather than at a `system_option`
+vocabulary. Every reader dispatches on all three explicitly - a two-way branch
+whose `else` means "person" mints a `Person` row for a publisher credit.
 
 **A game's developer *is* its studio.** `studio` widened to `game` rather
 than a new `developer` role: one company that made the work is the same fact
 the anime role records, and a separate key would split one studio's anime and
 game credits across two vocabularies. `director` and `composer` widened the
-same way. `publisher` widened on 2026-09-07 to all six types that credit one
-(anime, anime-movie, manga, novel, comic, game) for the same reason - see
-below.
+same way. `publisher` covers all six types that credit one (anime,
+anime-movie, manga, novel, comic, game) for the same reason - see below.
 
-The temporary `_PENDING_MEDIA_TYPES = {"game"}` allowlist in
-`tests/unit/test_credit_roles.py` - which let the `publisher` role name a
-media type `MEDIA_TABLES` did not yet register - is **gone**, deleted when
-`game` joined the registry. The guard is back to rejecting any unknown key.
-
-**`publisher_tw` and `comic_publisher` are gone.** On 2026-09-06 the entity
-shipped *beside* the vocabulary; on 2026-09-07 it replaced it. Migration
-`pb2m3i4g5r8` turned every `media_tag` row in the `Publisher / Distributor TW`
-and `Comic Publisher` categories into a `publisher` credit (520 credits over 32
-entities), deleted both `TagFields`, and deleted both categories. `publisher`
-is now the last of the vocabularies that named an outside **company** rather
+**There is no `publisher_tw` or `comic_publisher` vocabulary.** A publisher is
+an entity with a page, not a tag: every such value is a `publisher` credit on
+`media_credit`. `publisher` is now the last of the vocabularies that named an outside **company** rather
 than a fact about the work; the remaining comic vocabularies (`comic_imprint`,
 `comic_continuity`, `comic_era`, `comic_event`) stay tag fields, because an
 imprint is arguably a sub-entity of a publisher and the flat `publisher` table
@@ -521,7 +543,6 @@ the bare `admin`, which implies everything.
 
 | Constant | Value |
 |---|---|
-| `PERM_ADMIN` | `admin` |
 | `PERMISSION_FAMILIES` | `media_type`, `field_group`, `label` |
 | `media_type.<key>` | one per hyphenated media type key, e.g. `media_type.tv-show` |
 | `field_group.<key>` | one per `FIELD_GROUP_KEYS` entry |
@@ -532,7 +553,7 @@ the bare `admin`, which implies everything.
 | Key | Label | Gates |
 |---|---|---|
 | `sources_other` | Other Sources | `media_source` rows with `bucket='other'`, every media type; UI block `info.SourcesCard.other` |
-| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from `default_guest_permissions()` via `GUEST_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed.py`) — a fresh guest role does not hold it |
+| `sources_restricted` | Restricted Sources | `media_source` rows with `bucket='restricted'`, every media type; UI block `info.SourcesCard.restricted`. Excluded from the `safe` access mode via `SAFE_WITHHELD_FIELD_GROUPS` (`app/services/rbac/seed_modes.py`) — a fresh install does not serve it to a logged-out visitor |
 | `personal_notes` | Personal Reviews | note section `personal_reviews`; UI block `notes.reviews.personal` |
 | `system_info` | System Info | UI block `detail.SystemInfo` only (frontend-only, no column) |
 | `credits` | Credits | every credit-kind link field per media type, derived from `CREDIT_ROLES`; also `studio_refs` (types with a `studio` role) and `publisher_refs` (types with a `publisher` role); UI block `info.CreditsCard` |
@@ -713,15 +734,11 @@ at rather than taking entry data with it — the drop list is guarded in
 `tests/unit/test_retire_orphan_option_categories.py`, which fails if a live
 category is ever named in it.
 
-Two more retired on 2026-09-07: `Publisher / Distributor TW` and
-`Comic Publisher`, deleted by `pb2m3i4g5r8` after their rows became `publisher`
-credits. (This is what became of the `bilibili` value the earlier migration had
-just moved into `Publisher / Distributor TW`: it is a `publisher` entity now,
-seeded with the `anime` scope even though no entry credits it, since a
-publisher holding no scope rows is offered nowhere. `bilibili (GoodShow)`, also
-credited on nothing, was dropped instead.)
+`Publisher / Distributor TW` and `Comic Publisher` are on the drop list too:
+their rows are `publisher` credits now. `bilibili` among them is a `publisher`
+entity, seeded with the `anime` scope even though no entry credits it, since a
+scope row is cheap and a missing one is invisible.
 
----
 
 ## Tier 3: people, studios and publishers
 
@@ -844,7 +861,7 @@ anime-movie, manga, novel) and comic.
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
-| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - narrowed by Decision G to `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"), now that `novel.type` drives structure and the only genuine remaining choice is JP/KR volumes vs TW volumes; a novel whose stored `progress_display` predates the narrowing (`ch`, `vol_original`, `arc_ch`) is appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
+| `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `novel.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A novel holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
 Relation kinds and note sections are **not** copied: the frontend fetches
 `/api/media-relation/kinds` and the note registry over HTTP.

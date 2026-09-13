@@ -36,6 +36,9 @@ class QuoteUpdate(QuoteBase):
 
 class QuoteResponse(QuoteBase):
     system_id: UUID
+    # Read-only. Set from the request's viewer, never from the payload, which
+    # is why it is on the response schema and not on the create/update base.
+    author_id: Optional[UUID] = None
     # Nullable in the database, and a blank Google Sheets cell parses to None
     # on Pull, so one timestamp-less row must not fail the whole list endpoint.
     created_at: Optional[datetime] = None

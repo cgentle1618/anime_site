@@ -97,7 +97,7 @@ def test_backup_appends_credit_columns_after_the_plain_anime_columns(
     db_session.add(a)
     db_session.commit()
     replace_credits(db_session, "anime", a.system_id, "studio", ["MAPPA", "WIT"])
-    replace_tags(db_session, "anime", a.system_id, "genre_main", ["Action"])
+    replace_tags(db_session, a.system_id, "genre_main", ["Action"])
     db_session.commit()
 
     written = {}
@@ -109,7 +109,12 @@ def test_backup_appends_credit_columns_after_the_plain_anime_columns(
 
     anime_matrix = written["Anime"]
     headers = anime_matrix[0]
-    plain_headers = [c.name for c in models.Anime.__table__.columns]
+    # media_type is dropped from every entry tab (MEDIA_TYPE_ONLY in tabs.py):
+    # it is the constant discriminator for the FK up to `media`, identical on
+    # every row and re-supplied by its server_default on restore.
+    plain_headers = [
+        c.name for c in models.Anime.__table__.columns if c.name != "media_type"
+    ]
 
     # Every original column is still there, in the same order, untouched.
     assert headers[: len(plain_headers)] == plain_headers
@@ -179,7 +184,7 @@ def test_restore_rebuilds_credits_from_the_same_cell(db_session, monkeypatch):
     result = pull.execute_pull_specific(db_session, "Anime", log_action=False)
 
     assert result["status"] == "success"
-    assert credit_names(db_session, "anime", a.system_id, "studio") == ["MAPPA", "WIT"]
+    assert credit_names(db_session, a.system_id, "studio") == ["MAPPA", "WIT"]
 
 
 def test_restore_of_a_new_entry_creates_its_credits(db_session, monkeypatch):
@@ -194,11 +199,11 @@ def test_restore_of_a_new_entry_creates_its_credits(db_session, monkeypatch):
     fresh = (
         db_session.query(models.Anime).filter_by(anime_name_cn="新番").one()
     )
-    assert credit_names(db_session, "anime", fresh.system_id, "studio") == [
+    assert credit_names(db_session, fresh.system_id, "studio") == [
         "MAPPA",
         "WIT",
     ]
-    assert tag_values(db_session, "anime", fresh.system_id, "genre_main") == [
+    assert tag_values(db_session, fresh.system_id, "genre_main") == [
         "Action",
         "Comedy",
     ]
@@ -220,7 +225,7 @@ def test_a_blank_credit_cell_clears_existing_credits(db_session, monkeypatch):
     result = pull.execute_pull_specific(db_session, "Anime", log_action=False)
 
     assert result["status"] == "success"
-    assert credit_names(db_session, "anime", a.system_id, "studio") == []
+    assert credit_names(db_session, a.system_id, "studio") == []
 
 
 def test_a_header_row_missing_the_credit_column_does_not_wipe_it(db_session, monkeypatch):
@@ -240,7 +245,7 @@ def test_a_header_row_missing_the_credit_column_does_not_wipe_it(db_session, mon
     result = pull.execute_pull_specific(db_session, "Anime", log_action=False)
 
     assert result["status"] == "success"
-    assert credit_names(db_session, "anime", a.system_id, "studio") == ["MAPPA"]
+    assert credit_names(db_session, a.system_id, "studio") == ["MAPPA"]
 
 
 def test_movie_original_source_restores_under_its_own_new_header(db_session, monkeypatch):
@@ -257,7 +262,7 @@ def test_movie_original_source_restores_under_its_own_new_header(db_session, mon
 
     assert result["status"] == "success"
     fresh = db_session.query(models.Movies).filter_by(movie_name_cn="新電影").one()
-    assert tag_values(db_session, "movie", fresh.system_id, "original_source") == [
+    assert tag_values(db_session, fresh.system_id, "original_source") == [
         "Netflix"
     ]
 

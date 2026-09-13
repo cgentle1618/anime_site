@@ -16,12 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.credits import find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.rbac.enforcement import filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.entity_ref import find_entity
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
@@ -33,7 +33,8 @@ router = APIRouter(prefix="/api/studio", tags=["Studio Management"])
 
 def _to_response(db: Session, studio: models.Studio, viewer=None) -> schemas.StudioResponse:
     credit_rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.studio_id == studio.system_id)
         .all()
     )
@@ -118,7 +119,8 @@ def get_studio_entries(
         raise HTTPException(status_code=404, detail="Studio not found.")
 
     rows = (
-        db.query(models.MediaCredit.media_type, models.MediaCredit.entry_id)
+        db.query(models.Media.media_type, models.MediaCredit.media_id)
+        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(models.MediaCredit.studio_id == system_id)
         .all()
     )
@@ -166,7 +168,7 @@ def get_studio_entries(
 def create_studio(
     payload: schemas.StudioCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Creates a studio, or returns the existing one under that name.
@@ -204,7 +206,7 @@ def update_studio(
     system_id: UUID,
     payload: schemas.StudioUpdate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Fully updates a studio's metadata. Since every media_credit points at the
@@ -233,7 +235,7 @@ def update_studio(
 def delete_studio(
     system_id: UUID,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Permanently deletes a studio. Its credits cascade away with it - see the
@@ -254,7 +256,7 @@ def merge_studio(
     system_id: UUID,
     payload: schemas.MergeRequest,
     db: Session = Depends(get_db),
-    admin: dict = Depends(get_current_admin),
+    admin: Viewer = Depends(require_manage_catalog),
 ):
     """
     Repoint every credit from `source_id` onto this studio, then delete the
@@ -271,15 +273,17 @@ def merge_studio(
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Studio not found.")
 
+    # media_id alone identifies the entry - it is globally unique across the
+    # nine media tables, which is what the supertable bought.
     held = {
-        (c.media_type, c.entry_id, c.role)
+        (c.media_id, c.role)
         for c in db.query(models.MediaCredit).filter_by(studio_id=system_id).all()
     }
     moved = 0
     for credit in (
         db.query(models.MediaCredit).filter_by(studio_id=payload.source_id).all()
     ):
-        if (credit.media_type, credit.entry_id, credit.role) in held:
+        if (credit.media_id, credit.role) in held:
             db.delete(credit)
             continue
         credit.studio_id = system_id

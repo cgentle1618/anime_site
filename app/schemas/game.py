@@ -52,9 +52,10 @@ class GameBase(BaseModel):
 
     playing_status: str = "Might Play"
     completion_level: Optional[str] = None
-    all_endings: Optional[bool] = None
-    all_achievements: Optional[bool] = None
-    all_collected: Optional[bool] = None
+    # GAME_COMPLETION_FLAGS; None is the unrecorded fourth state.
+    all_endings: Optional[str] = None
+    all_achievements: Optional[str] = None
+    all_collected: Optional[str] = None
     steam_progress_sync: Optional[bool] = None
     achievements_earned: Optional[int] = None
     achievements_total: Optional[int] = None
@@ -110,6 +111,12 @@ class GameUpdate(GameBase, SourceWriteFields):
 
 
 class GameResponse(GameBase, GameLinkFields):
+    # Redeclared from the base as Optional: a logged-out visitor has no
+    # list, so attach_list_fields sets nothing and this arrives absent.
+    # Only the READ side moves - Create/Update/SheetSync keep the base's
+    # default, because a write that omits a status still means the
+    # default rather than 'nobody'.
+    playing_status: Optional[str] = None
     system_id: UUID
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.

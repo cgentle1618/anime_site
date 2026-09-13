@@ -4,6 +4,7 @@ import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -381,9 +382,26 @@ export default function AnimeAddTab({
         <Field label="AniList Rating">
           <input
             className={inputCls}
+            type="number"
             value={af.anilist_rating}
             onChange={(e) => ua("anilist_rating", e.target.value)}
-            placeholder="e.g. 85%"
+            placeholder="85"
+          />
+        </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={af.anilist_rank}
+            onChange={(e) => ua("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={af.anilist_popularity_rank}
+            onChange={(e) => ua("anilist_popularity_rank", e.target.value)}
           />
         </Field>
       </div>
@@ -655,12 +673,15 @@ export default function AnimeAddTab({
           </select>
         </Field>
       </div>
-      <Field label="Cover Image File" hint="e.g. anime/5114.jpg or https://...">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="anime"
+          role="cover"
           value={af.cover_image_file}
-          onChange={(e) => ua("cover_image_file", e.target.value)}
-          placeholder="anime/5114.jpg"
+          onChange={(key, imageId) => {
+            ua("cover_image_file", key);
+            ua("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

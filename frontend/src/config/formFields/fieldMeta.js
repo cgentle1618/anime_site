@@ -47,6 +47,7 @@ import {
   READING_STATUSES,
   RELEASE_SEASONS,
   SEASON_NUMS,
+  GAME_COMPLETION_FLAGS,
   TRISTATE,
   TV_REGIONS,
   WATCHING_STATUSES,
@@ -92,6 +93,11 @@ export const COMMON_FIELD_META = {
   collection_text: { hidden: true },
   franchise_text: { hidden: true },
   series_text: { hidden: true },
+  // Not a real column - the id of an image ImagePicker uploaded before this
+  // row existed, held only so the Add tab's submit handler can attach it
+  // once the row is saved (see formFactories.js and ImagePicker.jsx's module
+  // comment). Never configurable and never copied by auto-fill.
+  pending_image_id: { hidden: true },
 
   // ---- Status ----------------------------------------------------------
   airing_status: {
@@ -141,6 +147,12 @@ export const COMMON_FIELD_META = {
   mal_rank: { label: "MAL Rank", control: "number", group: "Ratings" },
   anilist_rating: {
     label: "AniList Rating",
+    control: "number",
+    group: "Ratings",
+  },
+  anilist_rank: { label: "AniList Rank", control: "number", group: "Ratings" },
+  anilist_popularity_rank: {
+    label: "AniList Popularity Rank",
     control: "number",
     group: "Ratings",
   },
@@ -780,8 +792,7 @@ export const TYPE_FIELD_META = {
     all_endings: {
       label: "All Endings",
       control: "select",
-      options: TRISTATE,
-      coerce: "tristate",
+      options: GAME_COMPLETION_FLAGS,
       group: "Status",
     },
     // Stored, not derived from achievements_earned / achievements_total: a
@@ -789,15 +800,13 @@ export const TYPE_FIELD_META = {
     all_achievements: {
       label: "All Achievements",
       control: "select",
-      options: TRISTATE,
-      coerce: "tristate",
+      options: GAME_COMPLETION_FLAGS,
       group: "Status",
     },
     all_collected: {
       label: "All Collected",
       control: "select",
-      options: TRISTATE,
-      coerce: "tristate",
+      options: GAME_COMPLETION_FLAGS,
       group: "Status",
     },
     // Not a completion flag: it decides whether Steam Fill/Replace may write

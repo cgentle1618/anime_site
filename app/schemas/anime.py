@@ -41,7 +41,9 @@ class AnimeBase(BaseModel):
     my_rating: Optional[str] = None
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
-    anilist_rating: Optional[str] = None
+    anilist_rating: Optional[int] = None
+    anilist_rank: Optional[int] = None
+    anilist_popularity_rank: Optional[int] = None
 
     release_season: Optional[str] = None
     release_date: Optional[str] = None
@@ -72,12 +74,18 @@ class AnimeUpdate(AnimeBase, SourceWriteFields):
 
 
 class AnimeResponse(AnimeBase, AnimeLinkFields):
+    # Redeclared from the base as Optional: a logged-out visitor has no
+    # list, so attach_list_fields sets nothing and this arrives absent.
+    # Only the READ side moves - Create/Update/SheetSync keep the base's
+    # default, because a write that omits a status still means the
+    # default rather than 'nobody'.
+    watching_status: Optional[str] = None
     system_id: UUID
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int
-    # Optional because field_gate blanks them for a viewer without
-    # field_group.system_info, matching the other seven Response schemas.
+    # Optional to match the other seven Response schemas. Nothing gates them
+    # any more - they are served to every viewer and displayed to none.
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

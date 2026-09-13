@@ -9,6 +9,7 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
+import ImagePicker from "../../components/forms/ImagePicker";
 import {
   CollectionNote,
   Field,
@@ -467,10 +468,25 @@ export default function NovelAddTab({
           <input
             className={inputCls}
             type="number"
-            step="0.01"
             value={nvf.anilist_rating}
             onChange={(e) => unv("anilist_rating", e.target.value)}
             placeholder="85"
+          />
+        </Field>
+        <Field label="AniList Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={nvf.anilist_rank}
+            onChange={(e) => unv("anilist_rank", e.target.value)}
+          />
+        </Field>
+        <Field label="AniList Popularity Rank">
+          <input
+            className={inputCls}
+            type="number"
+            value={nvf.anilist_popularity_rank}
+            onChange={(e) => unv("anilist_popularity_rank", e.target.value)}
           />
         </Field>
       </div>
@@ -649,12 +665,15 @@ export default function NovelAddTab({
       </div>
 
       <SectionHeader icon="fa-sticky-note" title="Notes & Other" />
-      <Field label="Cover Image File" hint="e.g. novel/5114.jpg">
-        <input
-          className={inputCls}
+      <Field label="Cover Image">
+        <ImagePicker
+          ownerType="novel"
+          role="cover"
           value={nvf.cover_image_file}
-          onChange={(e) => unv("cover_image_file", e.target.value)}
-          placeholder="novel/5114.jpg"
+          onChange={(key, imageId) => {
+            unv("cover_image_file", key);
+            unv("pending_image_id", imageId);
+          }}
         />
       </Field>
       <Field label="Remark">

@@ -12,9 +12,11 @@ import MemeForm, {
   emptyMeme,
   toMemePayload,
 } from "../../../components/forms/MemeForm";
+import { attachUploadedImage } from "../../../components/forms/ImagePicker";
 import { endpoints } from "../../../api/endpoints";
 import { fetchJson, jsonBody } from "../../../api/client";
 import { getQuoteImageUrl } from "../../../lib/covers";
+import { useToast } from "../../../hooks/useToast";
 import {
   ItemActions,
   LinkPill,
@@ -33,6 +35,7 @@ export default function MemeSection({
   isAdmin,
   onCount,
 }) {
+  const { showToast } = useToast();
   const queryClient = useQueryClient();
   const queryKey = ["memes-by-owner", ownerType, ownerId];
 
@@ -69,7 +72,7 @@ export default function MemeSection({
     if (!draft.text?.trim() && !draft.image_file?.trim()) return;
     setBusy(true);
     try {
-      await fetchJson(endpoints.memes.create(), {
+      const created = await fetchJson(endpoints.memes.create(), {
         method: "POST",
         ...jsonBody(
           toMemePayload(draft, {
@@ -79,6 +82,23 @@ export default function MemeSection({
           }),
         ),
       });
+      // The meme had no id yet when the image was picked, so ImagePicker
+      // could not attach it there - do it now that the row exists.
+      if (draft.pending_image_id) {
+        try {
+          await attachUploadedImage(
+            draft.pending_image_id,
+            "meme",
+            created.system_id,
+            "cover",
+          );
+        } catch (err) {
+          showToast(
+            "error",
+            err.message || "Meme saved, but attaching the image failed.",
+          );
+        }
+      }
       setDraft(emptyMeme());
       setAdding(false);
       await refresh();

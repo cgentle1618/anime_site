@@ -1,7 +1,7 @@
 // Frontend: the one quote field set, shared by the entry Notes section, the
 // admin Quote tab, and the inline editor on the Quote page.
 import { inputCls } from "./FormField";
-import { getQuoteImageUrl } from "../../lib/covers";
+import ImagePicker from "./ImagePicker";
 
 export function emptyQuote(overrides = {}) {
   return {
@@ -13,6 +13,7 @@ export function emptyQuote(overrides = {}) {
     episode: "",
     link: "",
     image_file: "",
+    pending_image_id: null,
     tags: [],
     is_general: false,
     is_favorite: false,
@@ -77,7 +78,6 @@ function Check({ label, checked, onChange, hint }) {
 
 export default function QuoteForm({ val, setVal, showReview = true }) {
   const set = (key, value) => setVal({ ...val, [key]: value });
-  const imageUrl = getQuoteImageUrl(val.image_file);
 
   return (
     <div className="space-y-3">
@@ -171,31 +171,26 @@ export default function QuoteForm({ val, setVal, showReview = true }) {
         />
       </Row>
 
-      {/* Image is local-only: getQuoteImageUrl returns null off localhost, so
-          this whole block disappears in production. */}
-      {getQuoteImageUrl("probe.png") && (
-        <Row
-          label="Image File"
-          hint="Filename inside static/quotes/ — local only, drop the file in yourself"
-        >
-          <input
-            value={val.image_file || ""}
-            onChange={(e) => set("image_file", e.target.value)}
-            placeholder="my-meme.png"
-            className={inputCls}
-          />
-          {imageUrl && (
-            <img
-              src={imageUrl}
-              alt=""
-              className="mt-2 max-h-40 rounded-lg border border-border"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          )}
-        </Row>
-      )}
+      <Row label="Image" hint="Upload a file or pick one already in the library">
+        <ImagePicker
+          ownerType="quote"
+          ownerId={val.system_id}
+          role="quote"
+          value={val.image_file}
+          onChange={(key, imageId) => {
+            // No system_id yet - ImagePicker had nothing to attach to, so
+            // remember the image id and attach it once the quote is saved
+            // (see attachUploadedImage callers). Once system_id exists,
+            // ImagePicker already attached at pick time and nothing is
+            // pending.
+            setVal({
+              ...val,
+              image_file: key,
+              pending_image_id: val.system_id ? null : imageId,
+            });
+          }}
+        />
+      </Row>
 
       <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
         <Check

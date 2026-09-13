@@ -18,7 +18,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.dependencies import get_current_admin, get_db
+from app.dependencies import get_db
 from app.services.domain.media_relation import (
     entry_exists,
     find_duplicate,
@@ -28,7 +28,7 @@ from app.services.domain.media_relation import (
 )
 from app.services.domain.watch_order import list_candidate_entries
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
-from app.services.rbac.resolver import Viewer, get_viewer
+from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.relation_kinds import (
@@ -75,13 +75,34 @@ def _validate_kind(value: str) -> None:
         )
 
 
-def _validate_endpoint(db: Session, media_type: str, entry_id) -> None:
-    """Rejects an endpoint pointing at an unknown table or a missing row."""
+def _validate_endpoint(
+    db: Session, media_type: str, entry_id, viewer, visible=None
+) -> None:
+    """
+    Rejects an endpoint pointing at an unknown table, a missing row, or a row
+    this viewer cannot see.
+
+    The third case answers exactly as the second, message included. Answering
+    404 here, or a distinct message, would turn this validator into the
+    existence oracle the 404 paths are careful not to be: a caller could learn
+    that an entry exists by watching which refusal it gets.
+
+    `visible` is the precomputed result of enforcement.filter_visible_pairs
+    for a bulk caller (reset_scope), which would otherwise re-run
+    hidden_label_ids twice per row. It answers identically to entry_visible
+    for a pair whose media_type is in MEDIA_TABLES - which is guaranteed by
+    the check above it - so passing it changes nothing but the query count.
+    """
     if media_type not in MEDIA_TABLES:
         raise HTTPException(
             status_code=400, detail=f"Unknown media type '{media_type}'."
         )
-    if entry_id is None or not entry_exists(db, media_type, entry_id):
+    reachable = (
+        entry_visible(db, viewer, media_type, entry_id)
+        if visible is None
+        else (media_type, entry_id) in visible
+    )
+    if entry_id is None or not entry_exists(db, media_type, entry_id) or not reachable:
         raise HTTPException(
             status_code=400, detail="Referenced entry does not exist."
         )
@@ -323,7 +344,7 @@ def get_relation_graph(
 def create_relation(
     payload: schemas.MediaRelationCreate,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Stores one relation, normalizing the direction the admin typed.
@@ -332,8 +353,8 @@ def create_relation(
     endpoints sorted. Both rewrites exist so one fact is one row.
     """
     _validate_kind(payload.kind)
-    _validate_endpoint(db, payload.from_type, payload.from_id)
-    _validate_endpoint(db, payload.to_type, payload.to_id)
+    _validate_endpoint(db, payload.from_type, payload.from_id, admin)
+    _validate_endpoint(db, payload.to_type, payload.to_id, admin)
 
     from_type, from_id, relation_type, to_type, to_id = normalize_relation(
         payload.from_type,
@@ -370,7 +391,7 @@ def update_relation(
     system_id: str,
     payload: schemas.MediaRelationUpdate,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Edits the kind, the direction or the remark.
@@ -386,6 +407,10 @@ def update_relation(
     an error: the row genuinely reads the same both ways.
     """
     row = _get_relation_or_404(db, system_id)
+    # Editing a relation is reaching both of its entries: the endpoints being
+    # re-normalized below are the stored ones, not new ones from the payload.
+    _validate_endpoint(db, row.from_type, row.from_id, admin)
+    _validate_endpoint(db, row.to_type, row.to_id, admin)
 
     if payload.kind is not None or payload.swap:
         kind = payload.kind if payload.kind is not None else row.relation_type
@@ -427,7 +452,7 @@ def reset_scope(
     collection_id: Optional[str] = None,
     series_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """
     Clears a whole canvas: every relation the /graph endpoint would draw for
@@ -484,6 +509,26 @@ def reset_scope(
         )
         .all()
     )
+    # One visibility query for the whole scope, not two per row: each
+    # _validate_endpoint call would otherwise re-run hidden_label_ids.
+    visible = filter_visible_pairs(
+        db,
+        admin,
+        [(row.from_type, row.from_id) for row in rows]
+        + [(row.to_type, row.to_id) for row in rows],
+    )
+    for row in rows:
+        # Reaches both entries of every row being removed, same as a single
+        # delete - a bulk reset must not become a bulk existence oracle.
+        #
+        # Behaviour change shipped with Phase C: ONE unreachable endpoint now
+        # fails the WHOLE reset rather than skipping that row. That is
+        # deliberate and fail-closed - a partial reset would tell the caller,
+        # by what survived, exactly which entries it may not see - but it is
+        # not what this route did before, and a dangling endpoint (both are
+        # FK-less by design) fails it for an admin too.
+        _validate_endpoint(db, row.from_type, row.from_id, admin, visible)
+        _validate_endpoint(db, row.to_type, row.to_id, admin, visible)
     for row in rows:
         # Does not commit - the single commit below covers the whole reset.
         log_deleted_record(db, row, "Media Relation")
@@ -502,10 +547,12 @@ def reset_scope(
 def delete_relation(
     system_id: str,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require_manage_catalog),
 ):
     """Removes one relation. The two entries themselves are untouched."""
     row = _get_relation_or_404(db, system_id)
+    _validate_endpoint(db, row.from_type, row.from_id, admin)
+    _validate_endpoint(db, row.to_type, row.to_id, admin)
     # Signature is (db, entry, entry_type), and it deliberately does not
     # commit - the delete below commits both together, as watch_order.py:904
     # does.

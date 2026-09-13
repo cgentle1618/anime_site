@@ -145,3 +145,31 @@ def test_system_option_usage_sequence_is_resynced_after_a_restore(db_session, sh
     ids = {r.id for r in db_session.query(models.SystemOptionUsage).all()}
     assert 1 in ids
     assert len(ids) == 2, "the sequence handed out an id that already existed"
+
+
+def test_a_table_whose_public_id_has_no_sequence_is_skipped(db_session):
+    """
+    `media` carries a public_id but owns no sequence: the value is a copy of
+    the detail row's, minted by that table's own <table>_public_id_seq. Pull
+    walks every tab, so deriving the sequence name from the table name made
+    the whole Pull All crash with
+
+        relation "media_public_id_seq" does not exist
+
+    before any tab was restored. The resync must key off the column's actual
+    Sequence default, not the table's name.
+    """
+    pull.resync_public_id_sequence(db_session, models.Media)
+
+
+def test_an_entry_table_is_still_resynced(db_session):
+    """The guard above must not stop the tables that do own a sequence."""
+    _rewind(db_session, "anime_public_id_seq")
+    a = models.Anime(anime_name_cn="序號測試", public_id=90001)
+    db_session.add(a)
+    db_session.flush()
+
+    pull.resync_public_id_sequence(db_session, models.Anime)
+
+    nxt = db_session.execute(text("SELECT nextval('anime_public_id_seq')")).scalar_one()
+    assert nxt > 90001

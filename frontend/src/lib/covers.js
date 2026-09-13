@@ -13,8 +13,24 @@ export function isLocalHost() {
 
 // Covers are served from local disk by the app itself, under /static/covers/,
 // on every host.
+//
+// The key reaching this function comes from one of two places, and each is
+// relative to a different root:
+//   - image.storage_key (the image table): relative to static/ - a library
+//     upload is `library/<sha>.jpg`, a backfilled legacy row is already
+//     `covers/<owner_type>/<id>.jpg`.
+//   - a legacy mirror column (media.cover_image_file, person.photo_file, ...):
+//     relative to static/covers/, with no prefix - `<owner_type>/<id>.jpg`.
+// So a value that already starts with "covers/" must NOT be prefixed again -
+// doing so doubles the segment (/static/covers/covers/...) and 404s. Do not
+// delete either branch as redundant with the other; they resolve keys from
+// two different roots that both call this function.
 export function getCoverUrl(coverFile) {
   if (!coverFile || coverFile === "N/A") return FALLBACK_SVG;
+  // Library images are not covers and do not live in the cover tree.
+  if (coverFile.startsWith("library/")) return `/static/${coverFile}`;
+  // Backfilled image.storage_key values already carry the covers/ prefix.
+  if (coverFile.startsWith("covers/")) return `/static/${coverFile}`;
   return `/static/covers/${coverFile}`;
 }
 
@@ -24,6 +40,13 @@ export function getCoverUrl(coverFile) {
 // to be revisited when self-hosting lands. Callers just check for null.
 export function getQuoteImageUrl(imageFile) {
   if (!imageFile || imageFile === "N/A") return null;
+  // Uploaded images resolve everywhere. The localhost hold below exists because
+  // there was no way to get a file onto the machine at all - which is the thing
+  // upload removes - so it does not apply to library keys.
+  if (imageFile.startsWith("library/")) return `/static/${imageFile}`;
+  // Same doubled-prefix hazard as getCoverUrl: a backfilled image.storage_key
+  // already carries covers/ and is relative to static/, not to static/quotes/.
+  if (imageFile.startsWith("covers/")) return `/static/${imageFile}`;
   if (!isLocalHost()) return null;
   return `/static/quotes/${imageFile}`;
 }

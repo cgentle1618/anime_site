@@ -23,7 +23,6 @@ def seeded_movie(db_session, sample_franchise):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         movie_name_en="Test Movie",
-        watching_status="Might Watch",
     )
     db_session.add(m)
     db_session.flush()
@@ -41,7 +40,6 @@ def seeded_cartoon(db_session, sample_franchise):
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         cartoon_name_en="Test Cartoon",
-        watching_status="Might Watch",
     )
     db_session.add(c)
     db_session.flush()
@@ -55,7 +53,7 @@ def test_setting_to_rewatch_creates_one_rewatch_row(admin_client, db, seeded_mov
     assert res.status_code == 200
     assert res.json()["to_rewatch"] is True
 
-    rows = db.query(models.PlanNext).filter_by(target_id=seeded_movie).all()
+    rows = db.query(models.PlanNext).filter_by(media_id=seeded_movie).all()
     assert len(rows) == 1
     assert (rows[0].kind, rows[0].scope, rows[0].media_type) == (
         "rewatch",
@@ -68,7 +66,7 @@ def test_clearing_to_rewatch_deletes_the_row(admin_client, db, seeded_movie):
     admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": True})
     admin_client.patch(f"/api/movies/{seeded_movie}", json={"to_rewatch": False})
 
-    assert db.query(models.PlanNext).filter_by(target_id=seeded_movie).count() == 0
+    assert db.query(models.PlanNext).filter_by(media_id=seeded_movie).count() == 0
 
 
 def test_watch_next_and_to_rewatch_are_independent(admin_client, db, seeded_movie):
@@ -91,7 +89,7 @@ def test_comic_uses_to_reread(admin_client, db, seeded_comic):
     assert res.status_code == 200
     assert res.json()["to_reread"] is True
 
-    row = db.query(models.PlanNext).filter_by(target_id=seeded_comic).one()
+    row = db.query(models.PlanNext).filter_by(media_id=seeded_comic).one()
     assert (row.kind, row.media_type) == ("rewatch", "comic")
 
 

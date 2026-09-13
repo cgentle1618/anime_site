@@ -19,7 +19,7 @@ from app.utils.credit_roles import PERSON_ROLES, legal_scopes
 _spec = importlib.util.spec_from_file_location(
     "r0l1c2o3l4p5_collapse_person_roles",
     pathlib.Path(__file__).parents[2]
-    / "alembic/versions/r0l1c2o3l4p5_collapse_person_roles.py",
+    / "alembic/versions_archive/r0l1c2o3l4p5_collapse_person_roles.py",
 )
 migration = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(migration)

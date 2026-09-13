@@ -6,7 +6,13 @@
 import { useRef } from "react";
 import { Button } from "../ui/primitives";
 
-export default function RemarkModal({ value, isAdmin, onChange, onClose }) {
+// `canEdit`, not `canEdit`. A remark is a PERSONAL-scope note and belongs to
+// its author (it is read per viewer by attach_remark, filtered on
+// note.author_id), so the permission that authorises writing one is
+// self.personal_notes - not manage.catalog, which is what canEdit has meant
+// since Phase A. Gating it on the catalogue permission left a `user` account
+// able to write its own remark through the API and unable to through the UI.
+export default function RemarkModal({ value, canEdit, onChange, onClose }) {
   // A remark is there to be read and copied, so selecting it with the mouse
   // must not dismiss the modal. The browser fires `click` on the nearest
   // common ancestor of the mousedown and mouseup targets, so a selection drag
@@ -47,7 +53,7 @@ export default function RemarkModal({ value, isAdmin, onChange, onClose }) {
           </button>
         </div>
         <div className="p-6">
-          {isAdmin ? (
+          {canEdit ? (
             <textarea
               value={value}
               autoFocus
@@ -62,8 +68,8 @@ export default function RemarkModal({ value, isAdmin, onChange, onClose }) {
           )}
         </div>
         <div className="px-6 py-3 border-t border-border flex justify-end">
-          <Button kind={isAdmin ? "primary" : "outline"} onClick={onClose}>
-            {isAdmin ? "Save and close" : "Close"}
+          <Button kind={canEdit ? "primary" : "outline"} onClick={onClose}>
+            {canEdit ? "Save and close" : "Close"}
           </Button>
         </div>
       </div>

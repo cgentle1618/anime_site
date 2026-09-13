@@ -186,7 +186,12 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     my_rating: amf.my_rating || null,
     mal_rating: amf.mal_rating !== "" ? parseFloat(amf.mal_rating) : null,
     mal_rank: amf.mal_rank || null,
-    anilist_rating: amf.anilist_rating || null,
+    anilist_rating: amf.anilist_rating !== "" ? parseInt(amf.anilist_rating) : null,
+    anilist_rank: amf.anilist_rank !== "" ? parseInt(amf.anilist_rank) : null,
+    anilist_popularity_rank:
+      amf.anilist_popularity_rank !== ""
+        ? parseInt(amf.anilist_popularity_rank)
+        : null,
     release_date_jp: amf.release_date_jp || null,
     release_date_tw: amf.release_date_tw || null,
     length_min: amf.length_min !== "" ? parseInt(amf.length_min) : null,
@@ -235,7 +240,12 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     my_rating: af.my_rating || null,
     mal_rating: af.mal_rating !== "" ? parseFloat(af.mal_rating) : null,
     mal_rank: af.mal_rank || null,
-    anilist_rating: af.anilist_rating || null,
+    anilist_rating: af.anilist_rating !== "" ? parseInt(af.anilist_rating) : null,
+    anilist_rank: af.anilist_rank !== "" ? parseInt(af.anilist_rank) : null,
+    anilist_popularity_rank:
+      af.anilist_popularity_rank !== ""
+        ? parseInt(af.anilist_popularity_rank)
+        : null,
     release_season: af.release_season || null,
     release_date: af.release_date || null,
     broadcast_day: af.broadcast_day || null,
@@ -294,9 +304,11 @@ export function gameFieldsPayload(f) {
     // ck_games_base_no_parent: a Base Game may never carry one.
     base_game_id: f.game_type === "Base Game" ? null : f.base_game_id || null,
     completion_level: f.completion_level || null,
-    all_endings: tri(f.all_endings),
-    all_achievements: tri(f.all_achievements),
-    all_collected: tri(f.all_collected),
+    // A vocabulary, not a tristate - the value travels as itself so that
+    // "Inapplicable" survives. "" is still the unrecorded state.
+    all_endings: f.all_endings || null,
+    all_achievements: f.all_achievements || null,
+    all_collected: f.all_collected || null,
     steam_progress_sync: tri(f.steam_progress_sync),
     achievements_earned: int(f.achievements_earned),
     achievements_total: int(f.achievements_total),

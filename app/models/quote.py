@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     String,
     Text,
 )
@@ -27,10 +28,15 @@ class Quote(Base):
     a different shape (see app/models/meme.py); a Meme's content line points
     back at the Quote it also is, when it is one.
 
-    `entry_id` is deliberately FK-less: it points at whichever of the seven
-    media tables `media_type` names, and no single foreign key can span them.
-    A deleted entry therefore leaves a dangling quote, which
-    `app.utils.media_resolver` flags as missing rather than silently dropping.
+    `media_id` is a real foreign key up to the `media` supertable, ON DELETE
+    SET NULL. The rule it encodes: deleting an entry must never destroy
+    hand-written text. A quote carries its own content - text, translation,
+    speaker, episode, tags - so it still reads perfectly once unattached. This
+    replaces the older FK-less pair, which left the reference dangling for
+    `app.utils.media_resolver` to flag as missing; a real FK cannot represent
+    "dangling", and an unattached quote is the nearest honest thing. It is not
+    confused with a deliberately general quote: that is its own flag,
+    `is_general`.
 
     Column order matters: `format_model_for_sheet` walks __table__.columns in
     declaration order, so this is also the Google Sheets column order.
@@ -42,8 +48,24 @@ class Quote(Base):
     )
 
     # --- Linkage ---
-    media_type = Column(String, nullable=True, index=True)
-    entry_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # Nullable: a quote may belong to no entry, either because it was written
+    # that way or because its entry was later deleted.
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("media.system_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Who added this line. Quotes are universal - shared, unfiltered, no
+    # per-user copies - so this is provenance and nothing else: no read
+    # consults it. It exists so that "who put this here?" has an answer, and so
+    # that quote, meme and note agree on the same column.
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # --- Content ---
     text = Column(Text, nullable=True)
@@ -59,9 +81,9 @@ class Quote(Base):
 
     # --- Media ---
     link = Column(String, nullable=True)
-    # Bare filename resolved against static/quotes/ by the frontend. The image
-    # controls are still hidden off localhost, pending a decision on how quote
-    # images are served.
+    # A bare filename resolved against static/quotes/ for a pre-existing quote
+    # image, or a library/-prefixed storage key for an uploaded one, resolved
+    # against /static/ instead.
     image_file = Column(String, nullable=True)
 
     # --- Classification ---

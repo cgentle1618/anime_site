@@ -18,6 +18,7 @@ from app.models import (
     TVShows,
 )
 from app.services.domain.credits import credit_names, replace_credits, replace_tags, tag_values
+from app.services.integrations.anilist import anilist_record
 from app.services.integrations.comicvine import fetch_comicvine_volume
 from app.services.integrations.igdb import fetch_igdb_game, fetch_igdb_time_to_beat
 from app.services.integrations.image_manager import download_cover_image
@@ -34,6 +35,7 @@ from app.services.integrations.tenrai import (
     fetch_tenrai_producer_data,
 )
 from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
 from app.utils.igdb_utils import map_igdb_to_game_data
 from app.utils.imdb_utils import (
@@ -75,7 +77,57 @@ def _write_tenrai_reference_rows(db, media_type: str, entry, j_data) -> None:
         (TWITTER_VALUE, "twitter_link"),
     ):
         upsert_main_source(
-            db, media_type, entry.system_id, "reference", value, j_data.get(key)
+            db, entry.system_id, "reference", value, j_data.get(key)
+        )
+
+
+# The three AniList columns, identical on anime, anime_movies, manga and
+# novel - checked against all four models, not inferred from one.
+_ANILIST_COLUMNS = ("anilist_rating", "anilist_rank", "anilist_popularity_rank")
+
+
+def autofill_from_anilist(entry, anilist_type: str, db: Session = None) -> None:
+    """
+    AniList's score and two all-time ranks for one entry, plus its own link.
+
+    One function for all four media types: they carry the same three columns
+    and differ only in which AniList type they query, so four copies would be
+    four places to fix one bug.
+
+    Reads through the run-scoped cache, so a bulk run has already fetched this
+    entry in a block of 50. The single-entry Replace hook gets no pre_run, and
+    anilist_record falls back to a one-id fetch there.
+
+    All three columns are overwrite fields - a score and a rank drift, which
+    is what Replace is for - but a None NEVER overwrites a real value. An
+    idMal can resolve to a stub record carrying nulls, and without the
+    per-value guard a Replace would blank a good score with it.
+    """
+    mal_id = entry.mal_id
+    if not mal_id:
+        return
+
+    try:
+        mapped = map_anilist_record(anilist_record(mal_id, anilist_type))
+
+        for column in _ANILIST_COLUMNS:
+            value = mapped.get(column)
+            if value is not None:
+                setattr(entry, column, value)
+
+        if db is not None and mapped.get("anilist_link"):
+            from app.services.domain.sources import upsert_main_source
+            from app.utils.source_fields import ANILIST_VALUE
+
+            upsert_main_source(
+                db, entry.system_id, "reference", ANILIST_VALUE,
+                mapped["anilist_link"],
+            )
+
+    except Exception as e:
+        logger.error(
+            f"AniList Autofill failed for {type(entry).__name__} "
+            f"{entry.system_id} (MAL {mal_id}): {e}"
         )
 
 
@@ -304,7 +356,7 @@ def autofill_novel_from_openlibrary(novel: Novel, db: Session) -> None:
 
     try:
         want_editions = not novel.release_date
-        want_authors = not credit_names(db, "novel", novel.system_id, "author")
+        want_authors = not credit_names(db, novel.system_id, "author")
 
         raw_data = fetch_openlibrary_work(
             work_id, want_editions=want_editions, want_authors=want_authors
@@ -355,7 +407,7 @@ def autofill_movie_from_imdb(movie: Movies, db: Session) -> None:
         # Fill-only fields
         if movie.length_min is None:
             movie.length_min = mapped.get("length_min")
-        if not credit_names(db, "movie", movie.system_id, "director"):
+        if not credit_names(db, movie.system_id, "director"):
             replace_credits(
                 db, "movie", movie.system_id, "director", split_names(mapped.get("director"))
             )
@@ -564,15 +616,15 @@ def autofill_comic_from_comicvine(comic: Comic, db: Session) -> None:
             if getattr(comic, field, None) is None:
                 setattr(comic, field, cv_data.get(field))
 
-        if not credit_names(db, "comic", comic.system_id, "author"):
+        if not credit_names(db, comic.system_id, "author"):
             replace_credits(
                 db, "comic", comic.system_id, "author", split_names(cv_data.get("writer"))
             )
-        if not credit_names(db, "comic", comic.system_id, "illustrator"):
+        if not credit_names(db, comic.system_id, "illustrator"):
             replace_credits(
                 db, "comic", comic.system_id, "illustrator", split_names(cv_data.get("artist"))
             )
-        if not credit_names(db, "comic", comic.system_id, "publisher"):
+        if not credit_names(db, comic.system_id, "publisher"):
             replace_credits(
                 db, "comic", comic.system_id, "publisher", split_names(cv_data.get("publisher"))
             )
@@ -681,11 +733,11 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
 
         # A game's developer IS its studio; the publisher is the third entity
         # target, which is why the publisher credit role exists.
-        if not credit_names(db, "game", game.system_id, "studio"):
+        if not credit_names(db, game.system_id, "studio"):
             replace_credits(
                 db, "game", game.system_id, "studio", g_data.get("developers") or []
             )
-        if not credit_names(db, "game", game.system_id, "publisher"):
+        if not credit_names(db, game.system_id, "publisher"):
             replace_credits(
                 db, "game", game.system_id, "publisher", g_data.get("publishers") or []
             )
@@ -699,7 +751,7 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
             ("game_mode", "Game Mode", g_data.get("game_modes")),
             ("game_platform", "Game Platform", g_data.get("platforms")),
         ):
-            if tag_values(db, "game", game.system_id, field):
+            if tag_values(db, game.system_id, field):
                 continue
             resolved = []
             for english in values or []:
@@ -718,7 +770,7 @@ def autofill_game_from_igdb(game: Game, db: Session) -> None:
                 if option.value not in resolved:
                     resolved.append(option.value)
             if resolved:
-                replace_tags(db, "game", game.system_id, field, resolved)
+                replace_tags(db, game.system_id, field, resolved)
 
         # parent_game is why IGDB was chosen over RAWG: it resolves the DLC
         # link automatically. A parent not yet in the database leaves the
