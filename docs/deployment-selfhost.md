@@ -692,14 +692,19 @@ EOF
 sudo reboot
 ```
 
-`power_scheme=1` is continuous-active mode. After the reboot, confirm it took —
-find the interface name first, since it is not `wlan0` on a predictable-names
-system:
+`power_scheme=1` is continuous-active mode; the installed default is `2`,
+balanced. On this box the interface is **`wlp1s0`** (the wired one is `eno1`,
+and it stays `DOWN` until a cable arrives). After the reboot:
 
 ```bash
-ip -br link                       # the wl* interface, e.g. wlp2s0
-iw dev wlp2s0 get power_save      # want: Power save: off
+cat /sys/module/iwlmvm/parameters/power_scheme   # want: 1
+iw dev wlp1s0 get power_save                     # want: Power save: off
 ```
+
+The symptom this fixes is latency, not an outright failure: a local ping across
+the same `/24` sits around **200 ms** with power saving on, against the 1-3 ms
+the link is capable of, because the radio sleeps between packets and every
+request waits for it to wake.
 
 This file is removed along with the `wifis:` block in
 [step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi), once the cable is
