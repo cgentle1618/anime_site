@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1487,11 +1487,17 @@ discrepancy in the totals.
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/api/community/{media_id}` | none | What the **public** lists say about one entry. |
+| GET | `/api/community/{media_id}` | viewer | What the **public** lists say about one entry. `media_id` is the entry's `system_id`. Gated like every per-type route: an entry the viewer may not see and an entry that does not exist both **404**, in the same words. |
 
 Public lists only, which is a correctness rule and not a courtesy: a figure
 that moved when a private list changed would let anyone read a private list one
 bit at a time by watching the number.
+
+An unknown `media_id` **404s** rather than answering an empty aggregate, and
+that is load-bearing rather than tidiness: if a hidden entry 404d while an
+unknown one answered 200, the status code would itself say which ids name real
+entries the caller may not see. The two cases answer identically so that they
+cannot be told apart.
 
 Response: `{media_id, list_count, statuses[], sample_size, average_points,
 average_rating}`. `sample_size` is separate from `list_count` on purpose — a

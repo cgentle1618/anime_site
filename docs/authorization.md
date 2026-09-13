@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 ## What this is for
 
@@ -705,15 +705,6 @@ helper exists because the shortest form has to be the safe one.
 - Seasonal counts (`/api/seasonal`) include hidden entries. The whole prefix
   is behind `self.list`, so this leaks a count to accounts that keep a library,
   never to the public.
-- Community aggregates (`/api/community/{media_id}`) are filtered by
-  `users.list_is_public` and **nothing else**. `community.py` is the only
-  router in the app with **no viewer dependency of any kind** — not a gated
-  endpoint missing two gates, but one answerable unauthenticated. Blast radius
-  is zero while `list_is_public` is false for every account: a game's id, an
-  anime's id and a fabricated uuid all return byte-identical empty bodies. It
-  arms itself the moment a second account makes a list public. Note also that
-  `anime.system_id` FKs to `media.system_id`, so the community key IS the
-  entry's system_id: anything exposing one hands over the other.
 - Watch-order *list* summaries expose `media_types` and `item_count` including
   hidden items.
 - `/static/covers/...` files are served without checks (a cover URL is only
@@ -1151,7 +1142,7 @@ matters is enforced server-side.
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` still answers |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_note_scope_reads.py`, `test_note_scope_writes.py` | personal note sections filter by author; catalogue sections do not; who may write which |
-| `tests/api/test_profile.py`, `test_community_aggregate.py` | a private list 404s; public figures count public lists only |
+| `tests/api/test_profile.py`, `test_community_aggregate.py` | a private list 404s; public figures count public lists only; a community aggregate the viewer may not see 404s in the same words as one that does not exist, and each refusal is paired with its mirror on the same fixture |
 | `frontend/src/components/info/ScoreBlock.test.jsx` | the "Last updated" figure is dropped, not blanked to `—` |
 | `frontend/src/components/tracker/trackerGuard.test.jsx` | the "My tracker" card is withheld from a logged-out visitor |
 
@@ -1246,9 +1237,8 @@ vocabulary whose name and behaviour have drifted apart.
 - **`field_group.personal_notes` reads "Personal Reviews".** The label is
   accurate — it gates the `personal_reviews` section — but the group is a mode
   item, not a role grant, and no admin page says so.
-- **`community.py` has no viewer dependency**, and the seasonal counts include
-  hidden entries. Both are in [Accepted
-  residuals](#accepted-residuals) with their blast radius.
+- **Seasonal counts include hidden entries.** In [Accepted
+  residuals](#accepted-residuals) with its blast radius.
 - **Sessions are flat 24 hours** with no refresh or revocation, and there is
   no password reset — an admin sets one at `/users`. See
   [authentication.md](authentication.md).
