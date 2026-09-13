@@ -44,6 +44,13 @@ Tasks 4-9 run on the box and are not reachable by CI.
 
 Scratch test database in use: `anime_site_prodtest`.
 
+### Open
+
+- **Retire the ~45 leftover documents under `docs/superpowers/`** from finished
+  work. Not a `git rm`: each needs its rationale salvaged into
+  `docs/notes/decisions.md` first, written as the system ended up rather than as
+  it was designed. Its own task, not folded into the deployment work.
+
 ### Self-host bring-up (`docs/prodesk-inspection`, PR #166 - merged)
 
 The box is `homelab`, Ubuntu 26.04.1 LTS, reachable as `ssh homelab`
