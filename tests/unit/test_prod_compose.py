@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-DEPLOY = Path(__file__).resolve().parents[2] / "deploy"
-COMPOSE = DEPLOY / "docker-compose.prod.yml"
-INGRESS = DEPLOY / "cloudflared" / "config.yml"
+ROOT = Path(__file__).resolve().parents[2]
+COMPOSE = ROOT / "docker-compose.prod.yml"
+INGRESS = ROOT / "deploy" / "cloudflared" / "config.yml"
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +66,7 @@ def test_app_carries_an_image_name_alongside_build(compose):
     # Keeps the move to a registry a one-line change: the service already
     # refers to an image by name, so only what that name points at changes.
     app = compose["services"]["app"]
-    assert app["build"]["context"] == ".."
+    assert app["build"]["context"] == "."
     assert app["image"] == "anime-site-app:local"
 
 
@@ -75,14 +75,27 @@ def test_covers_and_library_are_bind_mounts(compose):
     # build-order step 7 adds. static/library/ is the only copy of every
     # uploaded image in existence.
     volumes = compose["services"]["app"]["volumes"]
-    assert any(v.startswith("../static/covers:") for v in volumes)
-    assert any(v.startswith("../static/library:") for v in volumes)
+    assert any(v.startswith("./static/covers:") for v in volumes)
+    assert any(v.startswith("./static/library:") for v in volumes)
 
 
 def test_cloudflared_mounts_its_config_read_only(compose):
     volumes = compose["services"]["cloudflared"]["volumes"]
     assert any(v.endswith("/etc/cloudflared/config.yml:ro") for v in volumes)
     assert any(v.endswith("/etc/cloudflared/credentials.json:ro") for v in volumes)
+
+
+def test_the_compose_file_sits_beside_the_env_it_interpolates():
+    """Compose loads `.env` from the compose file's own directory.
+
+    Moving this file into a subdirectory makes every ${...} below interpolate
+    to an empty string, while `env_file:` keeps working - so the app still
+    starts, with a database password of "". That is the quiet version of this
+    failure, and it is why the file lives at the repository root.
+    """
+    assert COMPOSE.parent == ROOT, (
+        f"{COMPOSE.name} must sit beside .env at the repository root; found it in {COMPOSE.parent}"
+    )
 
 
 def test_ingress_ends_with_a_catch_all():

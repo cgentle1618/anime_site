@@ -4,15 +4,22 @@ The box is `homelab`, an HP ProDesk 600 G4 Desktop Mini. The checkout lives at
 `~/anime_site`, and everything below runs from there.
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml <command>
+docker compose -f docker-compose.prod.yml <command>
 ```
 
 Deploying is `./deploy/deploy.sh`, which dumps the database before it pulls.
 
-The design behind all of this — why the box builds its own image, why the
-ingress is in git, why the data arrives by `pg_dump` — is
-[docs/superpowers/specs/2026-09-13-production-deployment-design.md](../docs/superpowers/specs/2026-09-13-production-deployment-design.md).
-The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md).
+The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md),
+and the reasoning behind this shape is in
+[docs/notes/decisions.md](../docs/notes/decisions.md).
+
+**`docker-compose.prod.yml` lives at the repository root, not in this
+directory.** Compose takes its project directory from the compose file's own
+location and loads `.env` from there, so the same file under `deploy/` would
+look for `deploy/.env` and interpolate every `${...}` to an empty string —
+while `env_file:` kept working, so the app would still start, with a blank
+database password. It does not collide with `docker-compose.yml`, which is the
+development file: Compose only picks that name up by default, never this one.
 
 ## The three services
 
@@ -105,8 +112,8 @@ migration that caused the problem.
 2. **Restore the data:**
 
    ```bash
-   docker compose -f deploy/docker-compose.prod.yml up -d db
-   docker compose -f deploy/docker-compose.prod.yml exec -T db \
+   docker compose -f docker-compose.prod.yml up -d db
+   docker compose -f docker-compose.prod.yml exec -T db \
      pg_restore -U postgres -d anime_site_db --clean --if-exists --no-owner \
      < ~/backups/pre-deploy-<stamp>.dump
    ```
@@ -114,7 +121,7 @@ migration that caused the problem.
 3. **Start:**
 
    ```bash
-   docker compose -f deploy/docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml up -d
    ```
 
 **If only the code is bad and no migration ran**, step 2 is unnecessary and the
@@ -122,7 +129,7 @@ previous image avoids a rebuild:
 
 ```bash
 docker tag anime-site-app:previous anime-site-app:local
-docker compose -f deploy/docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## What this does not protect against

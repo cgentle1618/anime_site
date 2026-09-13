@@ -20,7 +20,11 @@ credentials.json
 # Not needed at runtime
 tests/
 docs/
+# Both are bind-mounted at runtime, so copying them into the image only makes
+# it bigger. static/library/ matters most: it grows with every upload, and
+# without this line every build would carry the whole library.
 static/covers/
+static/library/
 scripts/
 .github/
 .superpowers/
