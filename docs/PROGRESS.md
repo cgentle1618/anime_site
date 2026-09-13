@@ -13,6 +13,11 @@ Last updated: 2026-09-13
 
 ## In flight
 
+Nothing. The game spend block and its hand-maintained FX rates shipped in
+#155 and its year / storefront / cost-per-hour breakdowns on
+`feat/game-spend-breakdowns`, the game 攻略 / 劇情 / 待辦 note groups in #147
+and the AniList columns in #148; `docs/roadmap.md` holds the record for all
+of them.
 | Task | Status |
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |

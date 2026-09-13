@@ -611,10 +611,17 @@ row, so one FK covers game and DLC purchases identically.
 | `position` | Integer | **no** | `0` (server default too) | Order within the game |
 | `created_at` | DateTime | yes | now | No `updated_at` |
 
-Constraint: `uq_game_copy_row` UNIQUE (`game_id`, `storefront`,
+Constraint: `uq_game_copy_row` UNIQUE (`user_id`, `game_id`, `storefront`,
 `copy_format`) - one game can be Digital-on-Steam and Physical-on-Switch
 without colliding, but the same edition cannot be bought twice on the same
-store.
+store by the same person. `user_id` leads: two accounts can each own Hollow
+Knight, Digital, on Steam.
+
+On the read side, `attach_own_copies` narrows a game's `copies` to the acting
+user's rows before the response is built. It populates the loaded value
+rather than assigning to the relationship, because `Game.copies` is
+`cascade="all, delete-orphan"` and an assignment would delete every row the
+filter dropped.
 
 A game's **ownership is derived from these rows and stored nowhere**:
 `derive_game_ownership` (`app/services/domain/game_copies.py`) returns the
