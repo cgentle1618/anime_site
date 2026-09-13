@@ -677,6 +677,34 @@ correct is the classic way to lock oneself out of a headless box.
 Ubuntu Server does not suspend or sleep on its own, so nothing needs disabling
 there.
 
+**If the box is running on WiFi, turn off the radio's power saving.** The
+Wireless-AC 8265 is driven by `iwlwifi`/`iwlmvm`, which idles the radio
+aggressively by default. That is correct for a laptop and wrong for a server:
+it shows up as the machine being unreachable over SSH until something else
+wakes the link, which reads like a dead box rather than a sleeping radio.
+
+```bash
+sudo apt install -y iw
+sudo tee /etc/modprobe.d/iwlwifi.conf >/dev/null <<'EOF'
+options iwlwifi power_save=0
+options iwlmvm power_scheme=1
+EOF
+sudo reboot
+```
+
+`power_scheme=1` is continuous-active mode. After the reboot, confirm it took —
+find the interface name first, since it is not `wlan0` on a predictable-names
+system:
+
+```bash
+ip -br link                       # the wl* interface, e.g. wlp2s0
+iw dev wlp2s0 get power_save      # want: Power save: off
+```
+
+This file is removed along with the `wifis:` block in
+[step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi), once the cable is
+the connection the box keeps.
+
 #### Step 9 — Finish the hardware checks
 
 Most of [phase B](#phase-b--inspect-the-machine-in-the-bundled-windows) was answered from the
@@ -735,6 +763,9 @@ Two things to do at that point, neither of which is automatic:
   `sudo netplan apply`. A machine quietly holding two routes onto the network is
   a machine whose address is hard to explain a year later — and it leaves the
   WiFi password on disk for no reason.
+- **Delete `/etc/modprobe.d/iwlwifi.conf`**, the power-save override added in
+  [step 8](#step-8--housekeeping). It does nothing once the radio is unused, but
+  a stray module option outlives the reason it was written.
 
 ### When this is done
 
