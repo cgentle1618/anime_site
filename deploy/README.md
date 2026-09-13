@@ -71,8 +71,20 @@ CLOUDFLARED_CREDENTIALS=/home/<user>/.cloudflared/<uuid>.json
 GOOGLE_SHEET_ID=<the App Database sheet; never the development one>
 GOOGLE_CREDENTIALS_JSON=<service account JSON, on one line>
 
-COMPOSE_PROJECT_NAME=anime_site
+COMPOSE_PROJECT_NAME=media
 ```
+
+**`COMPOSE_PROJECT_NAME` names the volume**, so it decides which database the
+stack sees. Compose otherwise derives it from the directory, and a checkout
+moved or cloned under another name would come up on a brand-new empty volume
+while the real data sat in the old one — which looks exactly like data loss.
+It is `media` here, matching `media.cg1618.com`; the development machines pin
+`anime_site` for the same reason and must keep it.
+
+**`CLOUDFLARED_CREDENTIALS` must point at a file that exists before
+`cloudflared` first starts.** Docker creates a *directory* at a bind-mount
+source that does not exist, and Task 7 then cannot write the credentials file
+there. Starting only `db` is safe — that mount is never touched.
 
 Plus the third-party API keys, which are account credentials rather than
 per-environment secrets and are reused from a dev machine: `TMDB_API_KEY`,
@@ -128,7 +140,7 @@ migration that caused the problem.
 previous image avoids a rebuild:
 
 ```bash
-docker tag anime-site-app:previous anime-site-app:local
+docker tag media-app:previous media-app:local
 docker compose -f docker-compose.prod.yml up -d
 ```
 

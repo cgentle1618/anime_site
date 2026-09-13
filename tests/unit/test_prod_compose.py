@@ -47,6 +47,15 @@ def test_every_service_restarts_unless_stopped(compose, service):
     assert compose["services"][service]["restart"] == "unless-stopped"
 
 
+@pytest.mark.parametrize("service", ["db", "app", "cloudflared"])
+def test_no_service_hardcodes_a_container_name(compose, service):
+    # Compose derives names from COMPOSE_PROJECT_NAME (media-db-1, ...), which
+    # makes the project name the one place a name is written. A hardcoded
+    # container_name is a second place for a stale one to hide - and this
+    # project has already renamed itself once, from "anime" to a media tracker.
+    assert "container_name" not in compose["services"][service]
+
+
 def test_db_has_a_readiness_healthcheck(compose):
     assert "healthcheck" in compose["services"]["db"]
 
@@ -67,7 +76,7 @@ def test_app_carries_an_image_name_alongside_build(compose):
     # refers to an image by name, so only what that name points at changes.
     app = compose["services"]["app"]
     assert app["build"]["context"] == "."
-    assert app["image"] == "anime-site-app:local"
+    assert app["image"] == "media-app:local"
 
 
 def test_covers_and_library_are_bind_mounts(compose):

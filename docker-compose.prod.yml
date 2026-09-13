@@ -19,7 +19,6 @@
 services:
   db:
     image: postgres:17
-    container_name: anime_site_prod_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -42,8 +41,12 @@ services:
       dockerfile: dockerfile
     # Named even though it is built here, so moving to a registry later is a
     # change to what this name points at rather than a restructure.
-    image: anime-site-app:local
-    container_name: anime_site_prod_app
+    #
+    # No container_name: on any service here. Compose derives container names
+    # from COMPOSE_PROJECT_NAME (media-db-1, media-app-1, ...), which makes the
+    # project name the single place a name is written. A hardcoded
+    # container_name is a second place for a stale one to hide.
+    image: media-app:local
     restart: unless-stopped
     env_file:
       - .env
@@ -64,7 +67,6 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: anime_site_prod_cloudflared
     restart: unless-stopped
     # --no-autoupdate: the image is the unit of upgrade here, and an in-place
     # self-update would restart the tunnel outside anyone's knowledge.
