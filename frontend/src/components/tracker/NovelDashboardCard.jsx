@@ -8,6 +8,7 @@ import {
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { arcStep, effectiveProgressDisplay } from "../../lib/novelUnits";
 import { entityPath } from "../../lib/entityPath";
+import { EntryRow } from "./DashboardTable";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
@@ -26,6 +27,7 @@ export default function NovelDashboardCard({
   franchise,
   isAdmin,
   onProgressChange,
+  view = "card",
 }) {
   const { showToast } = useToast();
 
@@ -333,6 +335,30 @@ export default function NovelDashboardCard({
   }
 
   const cardPath = entityPath("novel", novel);
+
+  // The unit follows the entry's progress_display: a novel tracked by volume
+  // must not report its position in chapters, which is the same trap the
+  // Progress column exists to avoid across types.
+  if (view === "list") {
+    const byVolume = pd === "vol_tw" || pd === "vol_original";
+    const volTotal =
+      pd === "vol_tw" ? novel.vol_total_tw : novel.vol_total_original;
+    const listProgress = byVolume
+      ? `${novel.vol_fin ?? 0}/${volTotal ?? "?"} vol`
+      : `${novel.ch_fin ?? 0}/${novel.ch_total ?? "?"} ch`;
+    return (
+      <EntryRow
+        path={cardPath}
+        title={title}
+        subTitle={subTitle}
+        type="Novel"
+        status={novel.reading_status}
+        rating={novel.my_rating}
+        progress={listProgress}
+        percent={progressLabel !== "Ongoing" ? progressLabel : null}
+      />
+    );
+  }
 
   return (
     <div

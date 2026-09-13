@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-09-12
+Last verified: 2026-09-13
 
 **What this is for.** This is the map of every page a guest can open — which
 route renders which file, what data it pulls and under which React Query key,
@@ -161,6 +161,19 @@ File `pages/public/Index.jsx`.
 out of the combined loading/error gate so a failure there never blanks the
 dashboard.
 
+**Card or list**: each division's `TypeFilterBar` carries a **View** toggle
+(Cards / List) at its right end. It is one setting for the whole dashboard —
+flipping it in any division changes all three — and it persists per browser in
+`localStorage` through `lib/dashboardView.js`, never server-side. In list view
+a section renders one `DashboardTable` holding every type it contains, instead
+of a grid of tiles grouped by type: Type is a column, so the per-type
+sub-headings would say the same thing twice. The columns are Title, Type,
+Status, Rating and Progress; each row's Progress carries its own unit (`ep`,
+`ch`, `vol`, `iss`, `h`) because the types do not measure the same thing. List
+view has **no stepper** — tracking stays in card view and on the entry page.
+The table scrolls sideways inside its own wrapper below ~640px so the page
+itself never does.
+
 **Layout** (an `xl:`-only sticky left TOC, `DashboardTOC`, tracks the active
 division with a `scrollY + 140` threshold):
 
@@ -287,25 +300,35 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 (`/api/anime/`, `/api/anime-movie/`, `/api/movies/`, `/api/tv-shows/`,
 `/api/cartoon/`, `/api/manga/`, `/api/novel/`, `/api/comic/`), each
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
-them**, so a game can never supply a collection cover — the same shape of gap
-comics have on the franchise pages. Search over the five
+them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | collection_expectation`.
 No filter panel, no table view, no admin controls. Renders `CollectionCard`
 with member count.
 
 ### FranchiseLibrary — `/library/franchise`
 
-File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`
-and the entry lists **except `/api/comic/` and `/api/game/`** — so a comic- or
-game-only franchise never gets a cover fallback from its own entries, and its
-"Comic" filter category relies solely on `franchise_type`. (The equivalent
-omission on the franchise and series *hub* pages was fixed with the games
-work; this page was not.) Filter panel "Type": Anime, Manga, Novel, Anime
-Movie, Movie, TV, Cartoon, Comic, Other (Anime/Manga only count when the type is ACG
-*and* the franchise actually has such entries). Sort
-`title (default) | my_rating | franchise_expectation`. The grid/table toggle
-exists but **table view is a "Table View Under Development" placeholder**.
-Grid renders `FranchiseCard`.
+File `pages/library/FranchiseLibrary.jsx`. Raw `fetch` of `/api/franchise/`,
+`/api/collection/` and **all nine** entry lists, each `?limit=2000`, driven by
+the `ENTRY_SOURCES` table at the top of the file rather than by nine
+positional bindings. The full nine is a requirement, not a preference:
+`getFranchiseCover()` falls back to the placeholder silently for any entry
+type the caller leaves out, and the table's Entries column counts whatever
+`ENTRY_SOURCES` lists, so a gap there undercounts it.
+
+Filter panel "Type": Anime, Manga, Novel, Anime Movie, Movie, TV, Cartoon,
+Comic, Other (Anime/Manga only count when the type is ACG *and* the franchise
+actually has such entries) — **there is no Game category**, so a Game-only
+franchise files under "Other". Sort
+`title (default) | my_rating | franchise_expectation`, shared by both views.
+
+Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
+whose markup and class names mirror the table in `LibraryLayout.jsx` so the
+two read as one component: Franchise (a `Link` built by `entityPath`, plain
+text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
+Entries, Expectation (`lg`), My. The breakpoint in brackets is where that
+column collapses, so Franchise, Entries and My are what survives at phone
+width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself
+rather than widening the page. Clicking a row navigates to the franchise.
 
 ### StudioLibrary — `/library/studio`
 
@@ -741,12 +764,11 @@ lost it once `/library/seiyuu` shipped.
 
 ## Known rough edges (as of this commit)
 
-- Cover resolution: FranchisePage and SeriesPage were fixed to pass every
-  entry list they load (comics had been missing there too), but
-  `FranchiseLibrary` and `usePlanData.allEntriesByFranchise` still skip comics,
-  and **no** cover path outside those two hubs knows about games —
-  `FranchiseLibrary`, `CollectionLibrary` and `CollectionPage` all fetch eight
-  entry lists, not nine.
+- Cover resolution: FranchisePage, SeriesPage and `FranchiseLibrary` pass every
+  entry list, so `getFranchiseCover()` gets the full nine it requires. The
+  remaining gaps are `usePlanData.allEntriesByFranchise`, which still skips
+  comics, and `CollectionLibrary` and `CollectionPage`, which fetch eight entry
+  lists and so can never draw a collection cover from a game.
 - `FutureReleases` has no Games tab, so an unreleased game (`release_status`
   `Rumored` / `Unreleased`, playing status `Play When Released`) shows up
   nowhere on that page.
