@@ -34,15 +34,34 @@ Tasks 4-9 run on the box and are not reachable by CI.
 | 1 - production compose file and its guard test | wip anime-site-prod |
 | 2 - `deploy/deploy.sh` | wip anime-site-prod |
 | 3 - `deploy/README.md`, build-order steps 4-6, this table | wip anime-site-prod |
-| 4 - clone, `.env`, db service only | todo |
-| 5 - dump, copy, restore, verify row counts | todo |
-| 6 - first full start, rotate both passwords | todo |
+| 4 - clone, `.env`, db service only | done |
+| 5 - dump, copy, restore, verify row counts | done |
+| 6a - build, start, alembic no-op, app serves | done |
+| 6b - rotate the `admin` and `cg1618` passwords | todo - needs a person at the prompt |
 | 7 - tunnel: login, create, route, run | todo |
 | 8 - App Database sheet, first production Backup | todo |
 | 9 - hotspot test, reboot test, rollback rehearsal | todo |
 | 10 - move the rationale to `notes/decisions.md`, delete the spec and plan | todo |
 
 Scratch test database in use: `anime_site_prodtest`.
+
+**State on the box.** `media-db-1` and `media-app-1` are up; volume
+`media_pgdata`; nothing published to the host and no tunnel, so the only way
+in is an SSH session. The database holds 2081 media, 2 users, 2096 list rows
+at `s1e2asonalix`, and `static/covers/` is byte-identical to the company
+machine (1986 files, 291,704,964 bytes). `static/library/` is empty on both.
+
+**The app is running on the development password hashes.** The dump carried
+them and `app/main.py` skips seeding when `admin` exists - the startup log
+says `[System] Admin account verified.`, which is that branch. Task 6b is the
+fix and is the first thing to do next. Not exposed in the meantime: no
+published ports, no tunnel.
+
+`CLOUDFLARED_CREDENTIALS` in the box's `.env` points at
+`/home/cgentle1618/.cloudflared/credentials.json`, which **does not exist
+yet**. Do not start `cloudflared` before Task 7 creates it - Docker would
+make a directory at that path and the tunnel could not write its credentials
+there.
 
 ### Open
 
