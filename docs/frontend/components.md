@@ -161,7 +161,9 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
   `NovelTrackerBlock` (the detail-page reading-progress widget; both drive
   the novel two-stage arc/chapter cursor via `arcStep` in `lib/novelUnits.js`),
   `ComicDashboardCard`, `GameDashboardCard`, `DashboardTable`,
-  `MyTrackerCard`, `WeeklySchedule`,
+  `MyTrackerCard`, `GameCompletionBlock` (the game detail page's four
+  completion selects — game-only columns, so deliberately not folded into
+  `MyTrackerCard`, which serves nine types), `WeeklySchedule`,
   `RelationsSection`, `WatchOrderSection`, `WatchOrderGuide`,
   `WatchOrderEditor`.
   The four dashboard cards take a `view` prop (`"card"` | `"list"`). In
