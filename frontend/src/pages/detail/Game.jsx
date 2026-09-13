@@ -67,10 +67,20 @@ export function outOf(value, max) {
 }
 
 // Tristate: null is "never recorded", and the InfoCard drops a null field
-// rather than showing a misleading "No".
+// rather than showing a misleading "No". Still the renderer for
+// steam_progress_sync, which is a boolean lock rather than an answer.
 export function yesNo(value) {
   if (value == null) return null;
   return value ? "Yes" : "No";
+}
+
+// The three completion axes carry GAME_COMPLETION_FLAGS, so the stored value
+// IS the label and passes straight through. Deliberately not yesNo(): that
+// would read "Inapplicable" as truthy and render it "Yes", turning "this game
+// has no endings" into "I saw every ending". An unrecorded axis returns null
+// so the InfoCard drops the row rather than claiming anything.
+export function completionFlag(value) {
+  return value || null;
 }
 
 /**
@@ -534,13 +544,20 @@ export default function Game() {
                   { label: "Completion Level", value: game.completion_level },
                 ],
                 [
-                  // Three independent axes; null is "unknown", not "no".
-                  { label: "All Endings", value: yesNo(game.all_endings) },
+                  // Three independent axes; null is "unknown", not "no", and
+                  // "Inapplicable" is the game having none to find.
+                  {
+                    label: "All Endings",
+                    value: completionFlag(game.all_endings),
+                  },
                   {
                     label: "All Achievements",
-                    value: yesNo(game.all_achievements),
+                    value: completionFlag(game.all_achievements),
                   },
-                  { label: "All Collected", value: yesNo(game.all_collected) },
+                  {
+                    label: "All Collected",
+                    value: completionFlag(game.all_collected),
+                  },
                   {
                     label: "Steam Progress Sync",
                     value: yesNo(game.steam_progress_sync),

@@ -21,6 +21,7 @@ import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getDisplayName, getSourceValues, parseTypes } from "../../utils/media";
 import {
   COMPLETION_LEVELS,
+  GAME_COMPLETION_FLAGS,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   MY_RATINGS,
@@ -437,8 +438,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
           />
         </Field>
       </div>
-      {/* Three tristate axes, independent of the ladder above and of each
-          other. "All Achievements" is not read from the counts below. */}
+      {/* Three vocabulary axes, independent of the ladder above and of each
+          other. "All Achievements" is not read from the counts below.
+          "Inapplicable" is for a game that has none of that thing at all -
+          no endings to see, no achievement list, nothing to collect - which
+          is a different answer from "No" and from leaving it blank. */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="All Endings" hint="Separate axis from completion level">
           <select
@@ -447,8 +451,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_endings", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="All Achievements">
@@ -458,8 +465,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_achievements", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="All Collected" hint="Every in-game collectible">
@@ -469,8 +479,11 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources }) {
             onChange={(e) => u("all_collected", e.target.value)}
           >
             <option value="">—</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {GAME_COMPLETION_FLAGS.map((flag) => (
+              <option key={flag} value={flag}>
+                {flag}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Steam Progress Sync" hint="Off: Steam never writes playtime here">

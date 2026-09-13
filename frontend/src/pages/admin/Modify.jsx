@@ -861,9 +861,10 @@ export default function Modify() {
       // via loadCreditsIntoForm(), not here.
       playing_status: g.playing_status || md("game").playing_status,
       completion_level: g.completion_level || "",
-      all_endings: tri(g.all_endings),
-      all_achievements: tri(g.all_achievements),
-      all_collected: tri(g.all_collected),
+      // A vocabulary column, so the value is already the form value.
+      all_endings: g.all_endings || "",
+      all_achievements: g.all_achievements || "",
+      all_collected: g.all_collected || "",
       steam_progress_sync: tri(g.steam_progress_sync),
       achievements_earned: g.achievements_earned ?? "",
       achievements_total: g.achievements_total ?? "",

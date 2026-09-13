@@ -260,23 +260,55 @@ def test_the_three_completion_flags_round_trip(admin_client):
         "/api/game/",
         json={
             "game_name_en": "Nier Automata",
-            "all_endings": True,
-            "all_achievements": False,
+            "all_endings": "Yes",
+            "all_achievements": "No",
             "all_collected": None,
         },
     ).json()
-    assert created["all_endings"] is True
-    assert created["all_achievements"] is False
+    assert created["all_endings"] == "Yes"
+    assert created["all_achievements"] == "No"
     assert created["all_collected"] is None
 
     patched = admin_client.patch(
         f"/api/game/{created['system_id']}",
-        json={"all_collected": True, "achievements_earned": 3, "achievements_total": 50},
+        json={"all_collected": "Yes", "achievements_earned": 3, "achievements_total": 50},
     ).json()
     # The counts say "not everything earned"; the flag is still whatever the
     # user set, because it is not derived.
-    assert patched["all_collected"] is True
-    assert patched["all_achievements"] is False
+    assert patched["all_collected"] == "Yes"
+    assert patched["all_achievements"] == "No"
+
+
+def test_an_axis_the_game_does_not_have_is_inapplicable(admin_client):
+    """The fourth state, and the reason these are not booleans.
+
+    A racing game has no endings to see. "No" would claim they were missed and
+    a blank would claim only that nobody filled the field in, so "Inapplicable"
+    is a recorded answer about the game and must survive the round trip
+    distinctly from both.
+    """
+    created = admin_client.post(
+        "/api/game/",
+        json={
+            "game_name_en": "Forza Horizon 5",
+            "all_endings": "Inapplicable",
+            "all_achievements": "No",
+        },
+    ).json()
+    assert created["all_endings"] == "Inapplicable"
+    assert created["all_achievements"] == "No"
+    # Unanswered stays unanswered - it is not the same claim as Inapplicable.
+    assert created["all_collected"] is None
+
+
+def test_steam_progress_sync_is_not_a_completion_axis(admin_client):
+    """It kept its boolean when the three axes became a vocabulary: it says
+    whether Steam may write, not what happened in the game."""
+    created = admin_client.post(
+        "/api/game/",
+        json={"game_name_en": "Hades", "steam_progress_sync": False},
+    ).json()
+    assert created["steam_progress_sync"] is False
 
 
 def test_the_metacritic_scores_round_trip_and_are_independent(admin_client):
