@@ -24,8 +24,8 @@ Last updated: 2026-09-14
 | 4. verify.sh, the weekly restore drill | done 2d9179a9 |
 | 5. covers.sh, the weekly cover sync | done 9e1d681d |
 | 6. sheets.sh, the nightly Google Sheets backup | done 114dbf4b |
-| 7. systemd units and install.sh | wip task7-session |
-| 8. Documentation | todo |
+| 7. systemd units and install.sh | done ac544d4b |
+| 8. Documentation | wip task8-session |
 | 9. Delivery and the manual rehearsal | todo |
 
 Nothing. The game spend block and its hand-maintained FX rates shipped in
@@ -73,7 +73,6 @@ open:
 
 | Item | Status |
 |---|---|
-| Scheduled backups off the box — build-order step 7 | todo — the off-box copy today is a **manual** Sheets Backup, so the data is only as current as the last time someone ran it. Covers are re-fetchable; `static/library/` is empty, and becomes the sharp case once anything is uploaded |
 | DHCP reservation | blocked — a phone hotspot offers none |
 | Cable handover (step 11) | blocked — no Ethernet yet |
 | Idle power reading | skipped — no meter |

@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-12
+Last verified: 2026-09-15
 
 ## What this is for
 
@@ -293,6 +293,32 @@ Two rules follow:
 This is the same family as "when a loud refusal is being softened, put the
 regression test on the read, not on the write": in both, the assertion runs,
 ends green, and measures nothing.
+
+## An exit code alone is not a pass
+
+`returncode != 0` asserts that *something* went wrong, not that the thing under
+test caught it. A refusal guard needs the specific message asserted, not just a
+nonzero exit — a script can exit 1 for reasons that have nothing to do with the
+guard being tested.
+
+`deploy/backup/restore.sh`'s `--into production` path refuses to run while the
+app container is up, because `create_all` at import would collide with
+`pg_restore`. A test that only checked `returncode != 0` against a broken
+version of that guard would have passed anyway: the broken script still exited
+1, but from an unrelated downstream failure rather than from the guard
+refusing. Only asserting the exact refusal text on stderr (`"Refusing: the app
+service is running"`) tells the two apart.
+
+The sibling hazard is comparing two *computed* values instead of one computed
+value against a fixed literal. `verify.sh` compares its restored
+`alembic_version` against the value stamped into the dump — but both are read
+with a plain `psql -tAc`, and a query that returns zero rows or an unpopulated
+column comes back as `""` on both sides just as easily as it comes back with a
+real value. `"" == ""` passes, and the drill reports success having proven
+nothing. Assert each side is non-empty, with a message naming which one was
+empty, *before* comparing them to each other — and prefer comparing against a
+fixed literal (like asserting a boolean column is exactly `"t"`) over comparing
+two things that can both be empty in the same way.
 
 ## The theme token guard
 

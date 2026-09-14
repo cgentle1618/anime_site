@@ -1,7 +1,7 @@
 # Setting up the self-hosted production box
 
-Last verified: 2026-09-14 (followed end to end; the box it produced is serving
-`media.cg1618.com`)
+Last verified: 2026-09-15 (steps 1-17 followed end to end; the box it produced
+is serving `media.cg1618.com`)
 
 Everything from an unopened used mini PC to a machine serving the application
 over HTTPS, written for someone who has never installed Linux: every screen,
@@ -45,7 +45,7 @@ phase is a heading below, with its steps under it.
 | **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Firmware settings. **After phase B, never before.** |
 | **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
 | **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the hardware readings, the network fixes. The monitor comes off at the start of this phase and does not go back on. |
-| **[F. Deploy the application](#phase-f--deploy-the-application)** | At the dev machine, over SSH | 12-17 | The checkout, the data, the tunnel, the backup sheet, and the tests that prove it recovers. |
+| **[F. Deploy the application](#phase-f--deploy-the-application)** | At the dev machine, over SSH | 12-18 | The checkout, the data, the tunnel, the backup sheet, off-box backups, and the tests that prove it recovers. |
 
 The two sections before phase A are reading, not doing: which Ubuntu, and what
 to have on the desk.
@@ -965,6 +965,68 @@ should not exist.
 5. **Open the development sheet and confirm it is untouched.** Comparing the two
    ids proves the configuration; looking at the sheet proves the outcome.
 
+#### Step 18 — Off-box backups
+
+Two accounts, both outside this box, before anything here runs:
+
+1. **A Cloudflare R2 bucket**, and a **bucket-scoped Object Read & Write** API
+   token for it. A read-only token is not enough — that failure has already
+   been hit here.
+2. **A Healthchecks.io account** with four checks, one per job, each using the
+   **OnCalendar** schedule type (not Simple) with the timezone set to
+   `Asia/Taipei` — see [deployment-selfhost.md](deployment-selfhost.md#backups)
+   for the four schedules and grace windows. Copy each check's ping URL.
+
+Then two files, both mode 600, neither in git:
+
+```
+~/.config/rclone/rclone.conf
+```
+
+```ini
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = <the token's access key id>
+secret_access_key = <the token's secret access key>
+endpoint = https://<account-id>.r2.cloudflarestorage.com
+region = auto
+```
+
+```
+~/anime_site/.env.backup
+```
+
+```
+R2_BUCKET=<bucket name>
+HC_BACKUP_URL=<media-backup check's ping URL>
+HC_SHEETS_URL=<media-sheets check's ping URL>
+HC_COVERS_URL=<media-covers check's ping URL>
+HC_VERIFY_URL=<media-verify check's ping URL>
+```
+
+`.env.backup` is separate from `.env` on purpose: `docker-compose.prod.yml`
+gives the `app` service `env_file: .env`, so anything in `.env` reaches the
+web application — including, for these four variables, write credentials for
+the bucket holding the application's own backups.
+
+Then, on the box:
+
+```bash
+sudo ./deploy/backup/install.sh
+```
+
+which installs `rclone`, installs the four systemd units, and enables three of
+the four timers. **`media-covers.timer` is deliberately left disabled** — its
+first run uploads 283 MB over a metered phone hotspot, a cost worth spending on
+purpose rather than at whatever hour a timer happens to fire. Run it by hand
+once, then enable the timer:
+
+```bash
+./deploy/backup/covers.sh
+sudo systemctl enable --now media-covers.timer
+```
+
 ### Prove it recovers
 
 None of this is finished until the box has been broken on purpose, while it
@@ -1020,6 +1082,10 @@ count came back correct. An untested rollback procedure is a guess.
       untouched.
 - [ ] `docker compose -f docker-compose.prod.yml ps` shows three services, `db`
       healthy, and **no published ports**.
+- [ ] `systemctl list-timers --all | grep media-` shows all four jobs, three
+      enabled and `media-covers.timer` deliberately not (yet).
+- [ ] The four Healthchecks.io checks each show a successful `/start`-then-success
+      ping cycle after the first manual run of each script.
 
 **And it has been broken on purpose:**
 
@@ -1030,11 +1096,6 @@ count came back correct. An untested rollback procedure is a guess.
 work: the DHCP reservation ([step 10](#step-10--give-it-a-fixed-address-on-the-router))
 is impossible on a phone hotspot, and the cable handover
 ([step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi)) waits on a cable.
-
-**What is not done by this procedure is backups off the box.** A deploy takes a
-dump before it pulls, but every one of those dumps lives on the same disk as the
-database it protects, and `static/library/` — every uploaded image — has no
-second copy anywhere. That is the first thing to build after this.
 
 ### When something goes wrong
 

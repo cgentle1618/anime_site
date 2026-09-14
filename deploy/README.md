@@ -174,13 +174,70 @@ back two deploys means it is the wrong image, and only `--build` is correct.
 If only the code is bad and no migration ran, step 2 is unnecessary either
 way.
 
+## Disaster recovery from R2
+
+**This is a different operation from rollback.** Rollback reverses a bad
+deploy using a local dump that still exists on the box's own disk. This
+rebuilds the box from copies that were never on it — the disk itself, or the
+dumps in `~/backups/` alongside it, is gone or untrusted.
+
+**Not yet walked end to end.** The steps below follow the code in
+`deploy/backup/restore.sh` and `deploy/backup/lib.sh`, but nobody has run this
+specific sequence against a real loss. Treat it as a draft until it has been —
+this box has already had one documented procedure (the original rollback) that
+read correctly and was not, and only running it found that out.
+
+1. Install `rclone` and restore `~/.config/rclone/rclone.conf` (the `[r2]`
+   remote — see [docs/setup-selfhost.md](../docs/setup-selfhost.md)) if either
+   is missing on the box being recovered onto.
+2. Pick a dump:
+
+   ```bash
+   rclone lsf r2:<bucket>/db/daily
+   ```
+
+3. Bring it down:
+
+   ```bash
+   rclone copyto r2:<bucket>/db/daily/<name>.dump /tmp/<name>.dump
+   ```
+
+4. Stop the app so `create_all` at import cannot collide with the restore:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml stop app
+   ```
+
+5. Restore with the same script the weekly drill runs, not a hand-typed
+   `pg_restore`:
+
+   ```bash
+   deploy/backup/restore.sh --dump /tmp/<name>.dump --into production --confirm
+   ```
+
+6. Bring the images back:
+
+   ```bash
+   rclone copy r2:<bucket>/covers static/covers
+   rclone copy r2:<bucket>/library static/library
+   ```
+
+7. Start everything:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+8. **Rotate both passwords afterwards**, the same as the [`.env`](#env) restore
+   notes above require — the restored dump carries whatever credentials were
+   live when it was taken.
+
 ## What this does not protect against
 
 A migration that is wrong in a way nobody notices for a week. By then every
 deploy dump either predates the damage uselessly or postdates it. That is what
-the nightly off-box backup — build-order step 7 in
-[docs/deployment-selfhost.md](../docs/deployment-selfhost.md#build-order) — is
-for, and it is the argument for doing that step early rather than last.
+the nightly off-box backup — see [Backups](../docs/deployment-selfhost.md#backups)
+— is for.
 
 ## The tunnel's two credential files
 
