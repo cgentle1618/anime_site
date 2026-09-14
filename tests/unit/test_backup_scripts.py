@@ -155,3 +155,28 @@ def test_library_sync_preserves_deletions():
     # static/library/ is the one store nothing anywhere can re-fetch, so a
     # local rm must not propagate to the only other copy within 24 hours.
     assert "--backup-dir" in body
+
+
+RESTORE = BACKUP_DIR / "restore.sh"
+
+
+def test_restore_refuses_production_without_confirmation():
+    body = RESTORE.read_text(encoding="utf-8")
+    assert "--confirm" in body, "a production restore must be explicit"
+
+
+def test_restore_requires_the_app_to_be_stopped():
+    # app/main.py calls create_all at import, so an app container racing the
+    # restore creates every table and makes pg_restore collide. Learned the
+    # hard way and recorded in docs/notes/decisions.md; encoded here so it
+    # cannot be forgotten under pressure at 2 a.m.
+    body = RESTORE.read_text(encoding="utf-8")
+    assert "create_all" in body, "explain WHY the app must be stopped"
+    assert "ps -q app" in body or "ps --status=running" in body
+
+
+def test_restore_treats_pg_restore_stderr_as_fatal():
+    # pg_restore can exit 0 with errors on stderr. Exit code alone is not a
+    # pass.
+    body = RESTORE.read_text(encoding="utf-8")
+    assert "pg_restore: error" in body
