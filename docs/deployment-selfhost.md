@@ -259,8 +259,9 @@ _archive/       rclone --backup-dir target: anything a sync would delete
                 lands here instead, under the run's timestamp
 ```
 
-Retention (30 daily dumps, 12 monthly) is enforced in R2 by `rclone delete
---min-age`, not locally, so it lives in one place.
+Retention (30 days, 12 months) is enforced in R2 by `rclone delete --min-age`,
+not locally, so it lives in one place. It is a window, not a count — a box
+that has been off for a week holds fewer than 30 dailies, not exactly 30.
 
 **The stamp.** Every dump carries a `backup.stamp` table, written into the
 database (not beside it as a separate file) so it travels inside the `.dump`

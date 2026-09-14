@@ -183,9 +183,8 @@ dumps in `~/backups/` alongside it, is gone or untrusted.
 
 **Not yet walked end to end.** The steps below follow the code in
 `deploy/backup/restore.sh` and `deploy/backup/lib.sh`, but nobody has run this
-specific sequence against a real loss. Treat it as a draft until it has been —
-this box has already had one documented procedure (the original rollback) that
-read correctly and was not, and only running it found that out.
+specific sequence against a real loss. An untested recovery procedure is a
+guess.
 
 1. Install `rclone` and restore `~/.config/rclone/rclone.conf` (the `[r2]`
    remote — see [docs/setup-selfhost.md](../docs/setup-selfhost.md)) if either

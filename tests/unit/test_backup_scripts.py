@@ -195,6 +195,24 @@ def test_library_sync_preserves_deletions():
     assert "--backup-dir" in body
 
 
+def test_library_sync_archives_into_the_documented_prefix():
+    body = BACKUP.read_text(encoding="utf-8")
+    # docs/deployment-selfhost.md's R2 layout table names `_archive/` as the
+    # --backup-dir target. Pinned so a rename here does not silently make
+    # that table wrong.
+    assert "_archive/library/" in body
+
+
+def test_backup_prunes_by_the_documented_retention_window():
+    body = BACKUP.read_text(encoding="utf-8")
+    # docs/deployment-selfhost.md states retention as "(30 days, 12 months)"
+    # against these two exact --min-age values and paths. Retention is
+    # enforced by AGE, not count - the doc deliberately does not claim "30
+    # dumps" - so what must stay true is these literals, not a row count.
+    assert 'rclone delete "r2:${R2_BUCKET}/db/daily"   --min-age 30d' in body
+    assert 'rclone delete "r2:${R2_BUCKET}/db/monthly" --min-age 366d' in body
+
+
 RESTORE = BACKUP_DIR / "restore.sh"
 
 
@@ -462,6 +480,14 @@ def test_covers_job_syncs_covers_and_checks_them():
 def test_covers_job_preserves_deletions():
     body = COVERS.read_text(encoding="utf-8")
     assert "--backup-dir" in body
+
+
+def test_covers_job_archives_into_the_documented_prefix():
+    body = COVERS.read_text(encoding="utf-8")
+    # Same pin as backup.sh's library sync: docs/deployment-selfhost.md's R2
+    # layout table names `_archive/` as the --backup-dir target for covers
+    # too, and this is the only place that path segment is asserted.
+    assert "_archive/covers/" in body
 
 
 def test_covers_job_does_not_touch_the_database():
