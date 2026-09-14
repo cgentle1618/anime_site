@@ -1172,6 +1172,22 @@ def test_install_script_needs_no_sudo_beyond_what_it_documents():
     body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
     assert "systemctl enable --now" in body
     assert "rclone" in body
+
+
+def test_install_defers_the_cover_timer():
+    # The first cover run pushes 283 MB over a metered phone hotspot. That is
+    # the owner's cost to spend deliberately, not one a timer picks at 04:20.
+    # install.sh iterates units/*.timer so a later job needs no edit here, and
+    # this is what stops that convenience from silently enabling this one.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "DEFER=(media-covers.timer)" in body
+
+
+def test_install_enables_timers_by_iteration_not_by_name():
+    # A fifth job should slot in by dropping two files in units/. Naming each
+    # timer here would mean editing this script every time one is added.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert 'for path in "${UNITS}"/*.timer' in body
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -1264,11 +1280,28 @@ sed -i "s#/home/cgentle1618/#/home/${REAL_USER}/#" /etc/systemd/system/media-*.s
 systemctl daemon-reload
 
 echo "==> Enabling timers"
-# media-covers is deliberately NOT enabled here. Its first run uploads 283 MB
-# over a metered phone hotspot, and that is a cost to spend deliberately, not
-# something a timer decides at 04:20. Run covers.sh by hand once, then:
+# Enable whatever units/ contains, minus an explicit defer list. Iterating
+# rather than naming each timer means a later job (a deploy-drift check, say)
+# is added by dropping two unit files in units/ - no edit here.
+#
+# media-covers is on the defer list deliberately. Its first run uploads 283 MB
+# over a metered phone hotspot, and that is a cost to spend on purpose, not one
+# a timer picks at 04:20. Run covers.sh by hand once, then:
 #     sudo systemctl enable --now media-covers.timer
-systemctl enable --now media-backup.timer media-sheets.timer media-verify.timer
+DEFER=(media-covers.timer)
+
+for path in "${UNITS}"/*.timer; do
+    timer="$(basename "${path}")"
+    skip=0
+    for d in "${DEFER[@]}"; do
+        [ "${timer}" = "${d}" ] && skip=1
+    done
+    if [ "${skip}" -eq 1 ]; then
+        echo "    deferring ${timer} (enable it by hand - see the note above)"
+        continue
+    fi
+    systemctl enable --now "${timer}"
+done
 
 systemctl list-timers --all --no-pager | grep media- || true
 echo
