@@ -1,0 +1,16 @@
+[Unit]
+Description=Media tracker: weekly restore drill (verifies the R2 dump)
+# After=media-backup.service (ordering only, no Requires=) matters most after
+# an outage: Persistent=true fires every missed run at boot, and without this
+# the drill could start before the backup it verifies has finished, per
+# lib.sh's own note on why the two properties there matter. It does not gate
+# on media-backup.service's exit status - the drill verifies whatever the
+# newest dump in R2 actually is, and reports to its own Healthchecks check
+# independently of whether last night's dump succeeded.
+After=docker.service network-online.target media-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cgentle1618
+ExecStart=/home/cgentle1618/anime_site/deploy/backup/verify.sh

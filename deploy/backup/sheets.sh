@@ -6,10 +6,26 @@
 # must fail this and leave the R2 backup completely untouched - two jobs, two
 # alerts, independent failure domains.
 #
-# It runs AFTER the dump because execute_backup overwrites every tab.
-# Automating it removes the implicit human gate, so ordering it second means a
-# corrupt night is already captured in R2 first, and Google Sheets' own version
-# history holds the previous revision.
+# It is scheduled AFTER the dump (04:00 for media-backup, 04:10 here) because
+# execute_backup overwrites every tab. Automating it removes the implicit
+# human gate, so on an ordinary night the R2 dump is already written before
+# Sheets is overwritten, and Google Sheets' own version history holds the
+# previous revision as a second fallback behind that.
+#
+# That ordering is enforced by the schedule gap, the shared flock in lib.sh
+# (acquire_lock), and, since deploy/backup/units/media-sheets.service adds
+# After=media-backup.service, systemd job ordering too - which is what keeps
+# the claim true when Persistent=true fires both timers together at boot
+# after an outage instead of ten minutes apart. None of those three make this
+# job wait on media-backup.service's SUCCESS, on purpose: the two jobs have
+# independent failure domains (see above), so sheets.sh still runs, and still
+# reports to its own Healthchecks check, on a night media-backup.service
+# fails. That is fine for what this job actually writes - execute_backup
+# reads the live database directly, not the R2 dump, so a failed R2 upload
+# does not make tonight's Sheets copy any less correct. What does not hold
+# that night is the "already captured in R2 first" guarantee above: the
+# previous night's R2 dump is untouched, but there is no fresh one to fall
+# back to until media-backup.service next succeeds.
 #
 # Note the asymmetry, and do not let it become a false belief: the dump is the
 # backup of record and is restore-verified weekly. The sheet is a current,

@@ -488,3 +488,57 @@ def test_sheets_job_is_a_separate_job_from_the_dump():
 def test_sheets_job_has_its_own_healthcheck():
     body = SHEETS.read_text(encoding="utf-8")
     assert "HC_SHEETS_URL" in body
+
+
+UNITS = BACKUP_DIR / "units"
+
+SCHEDULE = {
+    "media-backup": "*-*-* 04:00:00",
+    "media-sheets": "*-*-* 04:10:00",
+    "media-covers": "Wed *-*-* 04:20:00",
+    "media-verify": "Wed *-*-* 04:40:00",
+}
+
+
+@pytest.mark.parametrize("unit,oncalendar", sorted(SCHEDULE.items()))
+def test_timer_schedule_matches_the_design(unit, oncalendar):
+    body = (UNITS / f"{unit}.timer").read_text(encoding="utf-8")
+    assert f"OnCalendar={oncalendar}" in body
+
+
+@pytest.mark.parametrize("unit", sorted(SCHEDULE))
+def test_every_timer_catches_up_a_missed_run(unit):
+    # The box is on a phone hotspot and may be off overnight. Without
+    # Persistent=true a missed run is simply lost, which is the failure mode
+    # this whole system exists to make visible.
+    body = (UNITS / f"{unit}.timer").read_text(encoding="utf-8")
+    assert "Persistent=true" in body
+
+
+@pytest.mark.parametrize("unit", sorted(SCHEDULE))
+def test_every_service_runs_its_own_script(unit):
+    body = (UNITS / f"{unit}.service").read_text(encoding="utf-8")
+    assert "Type=oneshot" in body
+    assert "deploy/backup/" in body
+
+
+def test_install_script_needs_no_sudo_beyond_what_it_documents():
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "systemctl enable --now" in body
+    assert "rclone" in body
+
+
+def test_install_defers_the_cover_timer():
+    # The first cover run pushes 283 MB over a metered phone hotspot. That is
+    # the owner's cost to spend deliberately, not one a timer picks at 04:20.
+    # install.sh iterates units/*.timer so a later job needs no edit here, and
+    # this is what stops that convenience from silently enabling this one.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "DEFER=(media-covers.timer)" in body
+
+
+def test_install_enables_timers_by_iteration_not_by_name():
+    # A fifth job should slot in by dropping two files in units/. Naming each
+    # timer here would mean editing this script every time one is added.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert 'for path in "${UNITS}"/*.timer' in body
