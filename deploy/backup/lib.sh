@@ -48,7 +48,17 @@ start_job() {
     local name="$1"
     HC_URL="$2"
     LOG_FILE="$(mktemp "/tmp/${name}.XXXXXX.log")"
+    # tee runs in a backgrounded process substitution behind a pipe, so the
+    # shell never waits for it on its own. Save the original descriptors here
+    # so _finish_job can restore them before reading LOG_FILE - restoring
+    # closes tee's end of the pipe, which is what lets it see EOF, flush, and
+    # exit. Skipping that step races the EXIT trap against tee's own buffer:
+    # the last lines echoed before a `set -e` abort - the ones that explain
+    # the failure - can still be sitting in the pipe, unwritten, when
+    # _finish_job's `tail` reads the file.
+    exec 3>&1 4>&2
     exec > >(tee -a "${LOG_FILE}") 2>&1
+    TEE_PID=$!
     trap '_finish_job $?' EXIT
     hc_ping "${HC_URL}" "/start"
     echo "==> ${name} starting $(date --iso-8601=seconds)"
@@ -58,9 +68,17 @@ _finish_job() {
     local rc="$1"
     if [ "${rc}" -eq 0 ]; then
         echo "==> done $(date --iso-8601=seconds)"
-        hc_ping "${HC_URL}" "" "${LOG_FILE}"
     else
         echo "==> FAILED rc=${rc} $(date --iso-8601=seconds)"
+    fi
+    # Restore the original stdout/stderr - this closes tee's pipe - then wait
+    # for tee to drain it and exit, so LOG_FILE is complete before anything
+    # below reads it.
+    exec 1>&3 2>&4
+    wait "${TEE_PID}" 2>/dev/null || true
+    if [ "${rc}" -eq 0 ]; then
+        hc_ping "${HC_URL}" "" "${LOG_FILE}"
+    else
         tail -20 "${LOG_FILE}" > "${LOG_FILE}.tail"
         hc_ping "${HC_URL}" "/fail" "${LOG_FILE}.tail"
         rm -f "${LOG_FILE}.tail"

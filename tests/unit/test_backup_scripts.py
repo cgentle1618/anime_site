@@ -12,6 +12,8 @@ edit and expensive to notice at 04:00 with nobody watching.
 import subprocess
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 BACKUP_DIR = ROOT / "deploy" / "backup"
 LIB = BACKUP_DIR / "lib.sh"
@@ -54,5 +56,40 @@ def test_env_example_is_still_tracked():
 
 
 def test_ci_runs_shellcheck():
-    body = CI.read_text(encoding="utf-8")
-    assert "shellcheck" in body, "CI should lint the shell scripts"
+    # Asserts the outcome, not just the substring: the step must actually be
+    # one of the steps the job runs, with a run command that covers both
+    # deploy/*.sh and deploy/backup/*.sh - not a step that is commented out,
+    # misspelled, or sitting behind a condition that never fires.
+    workflow = yaml.safe_load(CI.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["test"]["steps"]
+    run_commands = [step["run"] for step in steps if "run" in step]
+    shellcheck_runs = [cmd for cmd in run_commands if "shellcheck" in cmd]
+    assert shellcheck_runs, "CI should have a step that runs shellcheck"
+    assert any(
+        "deploy/*.sh" in cmd and "deploy/backup/*.sh" in cmd for cmd in shellcheck_runs
+    ), "the shellcheck step should cover both deploy/*.sh and deploy/backup/*.sh"
+
+
+def test_lib_saves_and_restores_descriptors_around_the_tee_wait():
+    # Structural, not behavioural - see the task report for why a test that
+    # actually exercises the tee race could not be made to fail against the
+    # broken version in this environment (git-bash/MSYS), so it was not
+    # shipped rather than ship one that can't fail for the reason it names.
+    #
+    # What this pins: start_job saves the original stdout/stderr and records
+    # tee's pid: _finish_job restores those descriptors (closing tee's pipe)
+    # and waits for tee BEFORE it reads LOG_FILE for the ping body - not
+    # after. Reordering any one of these four pieces reintroduces the race.
+    body = LIB.read_text(encoding="utf-8")
+    assert "exec 3>&1 4>&2" in body, "start_job should save the original stdout/stderr"
+    assert "TEE_PID=$!" in body, "start_job should capture tee's pid"
+    assert "exec 1>&3 2>&4" in body, "_finish_job should restore the original descriptors"
+    assert 'wait "${TEE_PID}"' in body, "_finish_job should wait for tee to drain"
+
+    restore_index = body.index("exec 1>&3 2>&4")
+    wait_index = body.index('wait "${TEE_PID}"')
+    tail_index = body.index("tail -20")
+    assert restore_index < wait_index < tail_index, (
+        "the descriptor restore and the wait for tee must both happen before "
+        "LOG_FILE is read for the ping body, or the fix does nothing"
+    )
