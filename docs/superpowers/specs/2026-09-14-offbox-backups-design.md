@@ -264,12 +264,25 @@ the delivery rehearsal below.
 
 ## Alerting
 
-| Check | Period | Grace | Fires when |
+Each check uses Healthchecks' **OnCalendar** schedule type, not **Simple**, with
+the timezone set to `Asia/Taipei`. The expression is then byte-identical to the
+systemd timer's own `OnCalendar=`, so the schedule is written once and the two
+cannot drift apart.
+
+| Check | OnCalendar | Grace | Fires when |
 | --- | --- | --- | --- |
-| `media-backup` | 1 day | 6 h | no successful nightly by 10:00 |
-| `media-sheets` | 1 day | 6 h | no successful sheet write by 10:10 |
-| `media-covers` | 1 week | 1 day | no successful cover sync by Thu 04:20 |
-| `media-verify` | 1 week | 1 day | no successful drill by Thu 04:40 |
+| `media-backup` | `*-*-* 04:00:00` | 6 h | no successful nightly by 10:00 |
+| `media-sheets` | `*-*-* 04:10:00` | 6 h | no successful sheet write by 10:10 |
+| `media-covers` | `Wed *-*-* 04:20:00` | 1 day | no successful cover sync by Thu 04:20 |
+| `media-verify` | `Wed *-*-* 04:40:00` | 1 day | no successful drill by Thu 04:40 |
+
+**Simple mode would drift and is wrong here.** It measures the deadline from the
+last ping rather than from a clock time, so a catch-up run fired at boot by
+`Persistent=true` at 09:00 pushes the next deadline to 15:00 the following day,
+and every late run pushes it later again. On a box that is often off overnight
+the alarm would wander away from the schedule it exists to guard. OnCalendar
+anchors to the wall clock: 04:00 is expected at 04:00 whatever happened
+yesterday.
 
 Four checks against a free limit of 20; 100 log entries each is roughly three
 months of nightly history. Email notification is free — the paid credits are for

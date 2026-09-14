@@ -1380,7 +1380,7 @@ there without them ever having been written down." -- docs/deployment-selfhost.m
 
 - [ ] **Step 1: Hand over the setup**
 
-Give the owner, in one message: create the R2 bucket and a bucket-scoped Object Read & Write API token; create the Healthchecks.io account and four checks with the periods and grace windows from the design; write `~/.config/rclone/rclone.conf` and `~/anime_site/.env.backup`, both `chmod 600`; then `sudo ./deploy/backup/install.sh`.
+Give the owner, in one message: create the R2 bucket and a bucket-scoped Object Read & Write API token; create the Healthchecks.io account and four checks using the **OnCalendar** schedule type (not Simple) with timezone `Asia/Taipei`, copying the expressions verbatim from the design's alerting table; write `~/.config/rclone/rclone.conf` and `~/anime_site/.env.backup`, both `chmod 600`; then `sudo ./deploy/backup/install.sh`.
 
 - [ ] **Step 2: Seed the bucket by hand**
 
