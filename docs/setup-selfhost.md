@@ -991,7 +991,31 @@ access_key_id = <the token's access key id>
 secret_access_key = <the token's secret access key>
 endpoint = https://<account-id>.r2.cloudflarestorage.com
 region = auto
+acl = private
+no_check_bucket = true
+no_head = true
 ```
+
+**The last two lines are required, and both fail in ways that look like a
+permissions problem.** The stanza works without them right up until the first
+upload.
+
+`no_check_bucket = true` — rclone verifies the bucket exists before uploading,
+which is a *bucket-level* operation. The token is scoped to objects in one
+bucket, so that pre-flight check returns **403 AccessDenied** and no upload is
+attempted. The token is correct; the check it cannot perform is not.
+
+`no_head = true` — rclone HEADs the object it just wrote to confirm it, and
+addresses that HEAD by the `versionId` the PUT returned. R2 does not implement
+object versioning, so the request returns **501 Not Implemented** and rclone
+reports the transfer as failed. The upload itself has already succeeded, and
+the retry finds the object present, so the job passes with a spurious `ERROR`
+line in its log and its Healthchecks ping.
+
+The upload is still verified: `backup.sh` and `covers.sh` both run
+`rclone check --checksum` after syncing, which compares checksums taken from
+the bucket listing, and the nightly dump is verified by the weekly restore
+drill rather than by a HEAD.
 
 ```
 ~/anime_site/.env.backup
