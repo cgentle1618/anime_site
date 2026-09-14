@@ -257,7 +257,13 @@ describe("NotesTemplate collapse-when-empty", () => {
   it("opens a collapsed card when it is clicked", async () => {
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
-    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    // Wait for the GROUP label, never for "Notes". The loading spinner has its
+    // own <h3>Notes</h3>, so waiting on that text is satisfied before the fetch
+    // resolves - and the click then lands on a heading that does not expand
+    // anything. The group card only exists once loading is false.
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByText("Notes"));
     expect(screen.getByText("Overview")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Overview"));
@@ -267,7 +273,10 @@ describe("NotesTemplate collapse-when-empty", () => {
   it("opens an empty section when Add is clicked, so the draft row shows", async () => {
     vi.mocked(api.fetchNotes).mockResolvedValue([]);
     renderTemplate();
-    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+    // Same reason as above: "Notes" is also the spinner's heading.
+    await waitFor(() =>
+      expect(screen.getByText("音樂 Music")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByText("Notes"));
     const trivia = screen.getByText("Trivia").closest("div.bg-surface");
     fireEvent.click(within(trivia).getByRole("button", { name: /Add/ }));
