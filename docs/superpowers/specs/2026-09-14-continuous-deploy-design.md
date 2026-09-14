@@ -162,8 +162,30 @@ box, and it is the whole basis of the ladder.
     deploy/deploy.sh                 unchanged in substance; gains --ci
     deploy/rollback.sh               the ladder; one implementation, two callers
     deploy/health.sh                 poll /api/health with a timeout
-    deploy/drift.sh                  daily: deployed HEAD vs origin/main -> ping
-    deploy/units/media-drift.{service,timer}
+    deploy/backup/drift.sh           daily: deployed HEAD vs origin/main -> ping
+    deploy/backup/units/media-drift.{service,timer}
+
+**`drift.sh` lives under `deploy/backup/`, not `deploy/`, and that is not
+arbitrary.** Two mechanisms the off-box backup work already installs key off that
+directory, and both pick the file up with no edit to their code:
+
+- the CI lint step is `shellcheck deploy/deploy.sh deploy/backup/*.sh`, so a
+  script placed anywhere else is silently unlinted;
+- `install.sh` iterates `deploy/backup/units/*.timer` and rewrites `User=` and
+  the `/home/<user>/anime_site/deploy/backup/<script>.sh` path from `SUDO_USER`,
+  so the unit files must use that shape to be rewritten correctly.
+
+It also sources `deploy/backup/lib.sh` — `load_env`, `acquire_lock` (the shared
+`flock`), `start_job`, `hc_ping` — rather than reimplementing any of it. `hc_ping`
+returns 0 on an empty URL, which is correct for an optional ping and wrong as a
+config check, so `drift.sh` validates `HC_DRIFT_URL` itself at the top and exits
+non-zero when it is unset.
+
+**That shellcheck line needs one edit from this project**, and it is easy to miss
+because the glob makes it look complete: `rollback.sh` and `health.sh` sit in
+`deploy/`, which is **not** globbed — only `deploy/deploy.sh` is named. Both must
+be added by name, or the two scripts that run unattended during a failed deploy
+are the only ones in the repository nothing lints.
 
 **The workflow does not check out and build.** The runner's workspace is
 `~/actions-runner/_work/...`; the stack only works from `~/anime_site`, where
@@ -283,6 +305,17 @@ walk, and API tests for `/api/health` — 200 when healthy, 503 with the databas
 down, and no detail in the unauthenticated body.
 
 Written before the code, each failing first.
+
+**`shellcheck` is not installed on either development machine**, so the CI step is
+the first place it ever executes against these scripts. Expect the first pull
+request carrying shell to surface findings that look like regressions and are a
+linter running for the first time. Two consequences worth planning for rather than
+discovering: `shellcheck` exits non-zero on **warnings**, not only errors, and
+`SC2154` fires on every variable arriving from `.env` or `.env.backup` at runtime.
+Each script carries a targeted `# shellcheck disable=SC2154` naming the file the
+variables come from. Lowering the step's severity is not the answer — it would
+disarm the check for every script in the repository to silence a known-good
+pattern in a few.
 
 ## Delivery
 
