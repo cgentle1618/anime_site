@@ -59,11 +59,10 @@ open:
 
 | Item | Status |
 |---|---|
-| Backups off the box — build-order step 7 | todo — **the real gap**; `static/library/` has no second copy anywhere |
+| Scheduled backups off the box — build-order step 7 | todo — the off-box copy today is a **manual** Sheets Backup, so the data is only as current as the last time someone ran it. Covers are re-fetchable; `static/library/` is empty, and becomes the sharp case once anything is uploaded |
 | DHCP reservation | blocked — a phone hotspot offers none |
 | Cable handover (step 11) | blocked — no Ethernet yet |
 | Idle power reading | skipped — no meter |
-| Retire the ~45 other documents under `docs/superpowers/` | todo — salvage each one's rationale into `notes/decisions.md` first |
 
 **The auth-hardening gate is closed** (2026-09-10). `APP_ENV` drives the login
 cookie's `Secure` flag and `Settings.validate_secrets()` refuses a default

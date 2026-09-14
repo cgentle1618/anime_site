@@ -16,7 +16,7 @@ through `unresolved_refs`, the same channel an unknown username already uses.
 Backup is deliberately NOT gated: it writes local -> sheet and cannot change
 this database. Only Pull writes authorization data inward.
 
-Decision 10 in docs/superpowers/specs/2026-09-10-authorization-redesign-design.md.
+Decision 10 in docs/notes/decisions.md ("Authorization redesign").
 
 Requires PostgreSQL. See tests/api/conftest.py.
 """
