@@ -8,7 +8,7 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 A finished plan's table is deleted from here; git history — the commits and
 the pull request — keeps the record.
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 ---
 
@@ -22,73 +22,6 @@ record for all of them.
 | Task | Status |
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |
-
-### Production deployment (`feat/production-deployment`)
-
-Plan: `docs/superpowers/plans/2026-09-13-production-deployment.md`.
-Spec: `docs/superpowers/specs/2026-09-13-production-deployment-design.md`.
-Tasks 4-9 run on the box and are not reachable by CI.
-
-| Task | Status |
-|---|---|
-| 1 - production compose file and its guard test | wip anime-site-prod |
-| 2 - `deploy/deploy.sh` | wip anime-site-prod |
-| 3 - `deploy/README.md`, build-order steps 4-6, this table | wip anime-site-prod |
-| 4 - clone, `.env`, db service only | done |
-| 5 - dump, copy, restore, verify row counts | done |
-| 6a - build, start, alembic no-op, app serves | done |
-| 6b - rotate the `admin` and `cg1618` passwords | todo - needs a person at the prompt |
-| 7 - tunnel: login, create, route, run | todo |
-| 8 - App Database sheet, first production Backup | todo |
-| 9 - hotspot test, reboot test, rollback rehearsal | todo |
-| 10 - move the rationale to `notes/decisions.md`, delete the spec and plan | todo |
-
-Scratch test database in use: `anime_site_prodtest`.
-
-**State on the box.** `media-db-1` and `media-app-1` are up; volume
-`media_pgdata`; nothing published to the host and no tunnel, so the only way
-in is an SSH session. The database holds 2081 media, 2 users, 2096 list rows
-at `s1e2asonalix`, and `static/covers/` is byte-identical to the company
-machine (1986 files, 291,704,964 bytes). `static/library/` is empty on both.
-
-**The app is running on the development password hashes.** The dump carried
-them and `app/main.py` skips seeding when `admin` exists - the startup log
-says `[System] Admin account verified.`, which is that branch. Task 6b is the
-fix and is the first thing to do next. Not exposed in the meantime: no
-published ports, no tunnel.
-
-`CLOUDFLARED_CREDENTIALS` in the box's `.env` points at
-`/home/cgentle1618/.cloudflared/credentials.json`, which **does not exist
-yet**. Do not start `cloudflared` before Task 7 creates it - Docker would
-make a directory at that path and the tunnel could not write its credentials
-there.
-
-### Open
-
-- **Retire the ~45 leftover documents under `docs/superpowers/`** from finished
-  work. Not a `git rm`: each needs its rationale salvaged into
-  `docs/notes/decisions.md` first, written as the system ended up rather than as
-  it was designed. Its own task, not folded into the deployment work.
-
-### Self-host bring-up (`docs/prodesk-inspection`, PR #166 - merged)
-
-The box is `homelab`, Ubuntu 26.04.1 LTS, reachable as `ssh homelab`
-(`10.45.216.243`, DHCP and **unreserved**, so the address can move). It is on
-WiFi (`wlp1s0`); `eno1` is down until a cable exists.
-
-| Step | Status |
-|---|---|
-| Phases A-D: stick, inspect, BIOS, install | done |
-| 6 - SSH in, monitor off | done |
-| 7 - base packages and Docker 29.8.0 / compose v5.5.1 | done |
-| 8 - timezone, unattended-upgrades, `apt autoremove` | done |
-| 9 - SMART baseline on `/dev/sda`, `dmidecode` memory | done - agrees with the Windows readings |
-| 10 - DHCP reservation | blocked on a phone hotspot, no reservations possible |
-| 11 - cable handover | blocked no Ethernet yet |
-| Idle power reading | skipped no meter |
-
-The bring-up is otherwise finished: the box is a working Docker host and the
-next move is build-order step 4, the production `docker-compose.yml`.
 
 The game spend block and its hand-maintained FX rates shipped on
 `feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
@@ -116,6 +49,21 @@ which is where the next run should read them.
 ## Open items
 
 Unclaimed. None block using the app.
+
+### Self-host deployment — open items
+
+The application is deployed and serving at `media.cg1618.com`; the bring-up and
+deployment tables are gone, and [deployment-selfhost.md](deployment-selfhost.md)
+and [deploy/README.md](../deploy/README.md) describe the result. What is still
+open:
+
+| Item | Status |
+|---|---|
+| Backups off the box — build-order step 7 | todo — **the real gap**; `static/library/` has no second copy anywhere |
+| DHCP reservation | blocked — a phone hotspot offers none |
+| Cable handover (step 11) | blocked — no Ethernet yet |
+| Idle power reading | skipped — no meter |
+| Retire the ~45 other documents under `docs/superpowers/` | todo — salvage each one's rationale into `notes/decisions.md` first |
 
 **The auth-hardening gate is closed** (2026-09-10). `APP_ENV` drives the login
 cookie's `Secure` flag and `Settings.validate_secrets()` refuses a default

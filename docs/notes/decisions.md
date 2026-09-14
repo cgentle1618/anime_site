@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-08-30 (commit 4339702)
+Last verified: 2026-09-14
 
 ## What this is for
 
@@ -156,3 +156,106 @@ A dated log of the choices that shaped the code and, where it matters, the alter
 - `ensure_rbac_seed` is idempotent and runs from both the migration and lifespan.
 - `users.role` was kept, then dropped and re-exposed via `column_property`.
 - Visibility tests assert on `response.text`.
+
+## 2026-09
+
+### Production deployment (spec: 2026-09-13 production-deployment)
+
+The media tracker runs on `homelab`, an HP ProDesk 600 G4 mini, behind a
+Cloudflare Tunnel at `media.cg1618.com`. Operating detail lives in
+[deploy/README.md](../../deploy/README.md); the machine is
+[deployment-selfhost.md](../deployment-selfhost.md). What follows is why the
+shape is what it is.
+
+- **The box builds its own image** from a git checkout — `git pull` then
+  `docker compose up -d --build`. Rejected: `docker save | ssh docker load`,
+  which pushes ~1 GB per deploy over the box's worst link and leaves it unable
+  to rebuild itself. Deferred: building in CI and pulling from GHCR, which is
+  the conventional answer but would make every pull request build a multi-stage
+  image to serve a box one person deploys by hand. Three constraints keep that
+  switch to about two lines: no environment-specific values in the image, no
+  build args, and an explicit `image:` name beside `build:`.
+- **The tunnel is locally-managed, with its ingress in git.** Rejected: a
+  dashboard token, which is what Cloudflare recommends and is simpler to set
+  up. Which hostnames are publicly reachable is a security decision with
+  written reasoning, and in a dashboard the decision is separated from it.
+- **The tunnel id lives in `.env`, not in the committed `config.yml`.** The
+  design put it in the config; that file then could not be written until the
+  tunnel existed. Passing it on the command line makes the ingress map static
+  and committable first.
+- **`docker-compose.prod.yml` sits at the repository root.** The design put it
+  in `deploy/`, reasoning that a second compose file at the root would collide
+  with the development one. That was wrong — they collide only on a shared
+  *filename*, and Compose never auto-loads this name. What is not wrong is the
+  consequence: Compose takes its project directory from the compose file's own
+  location and loads `.env` from there, so under `deploy/` every `${...}`
+  interpolated to an empty string and the database came up with a blank
+  password, while `env_file:` kept working and the app looked fine.
+  `tests/unit/test_prod_compose.py` fails if it moves back.
+- **Data arrives by `pg_dump`, never through the Sheets pipeline.** Rejected:
+  Pull All from the development sheet. Sheets is built for moving data between
+  the two dev machines and is lossy where that is safe — it re-resolves
+  database-local ids and skips authorization tabs without `admin.authz`. More
+  importantly the sheet holds exactly one version of the data, so a third
+  participant turns a two-way handover into a three-way sync with no merge.
+- **Production has its own sheet, `App Database`, and never reads the
+  development one.** Backup overwrites every tab, so the configuration in which
+  production knows the dev sheet's id is the one that could destroy the dev
+  backup; it should not exist. A new empty spreadsheet is enough —
+  `get_google_sheet_tab` creates each tab on first Backup. The spreadsheet
+  *name* is cosmetic (`open_by_key` is the only way the app opens one); the tab
+  names are not, and `tabs.py` matches them exactly.
+- **The restore happens with only the `db` service running, and both passwords
+  are rotated afterwards.** `app/main.py` calls `create_all` at import, so an
+  app container started against an empty database creates every table and makes
+  `pg_restore` collide. And the dump carries the development password hashes
+  while admin seeding is skipped when the account exists — the startup log line
+  `[System] Admin account verified.` is that branch — so `ADMIN_PASSWORD` is
+  never consulted and production would otherwise run on development
+  credentials.
+- **`restart: unless-stopped`, a `pg_isready` healthcheck on `db`, and
+  deliberately none on `app`.** `unless-stopped` rather than `always` so a
+  deliberate `docker compose stop` survives a daemon restart. No app
+  healthcheck because the catch-all route serves the SPA for any path, so a
+  check against `/` passes with the database down — a healthcheck that lies is
+  worse than none.
+- **No service publishes a port.** The tunnel is the only ingress; `psql` from
+  a laptop goes over SSH. There is no open port to misconfigure.
+- **`COMPOSE_PROJECT_NAME=media`, and no `container_name:` anywhere.** The
+  project name decides the volume, and therefore which database the stack sees;
+  a checkout moved or cloned under another name would otherwise come up on a
+  new empty volume while the real data sat in the old one. Container names are
+  derived from it rather than hardcoded, so there is one place a name is
+  written. The dev machines pin `anime_site` for the same reason and must keep
+  it.
+- **Every deploy dumps before it pulls, and rollback rebuilds.** A bad
+  migration is the only deploy failure with nothing to recover from:
+  `entrypoint.sh` runs `alembic upgrade head` on every start, and `downgrade`
+  is not a restore — reversing a dropped column recreates it empty. Rollback is
+  three steps, and the third must be `up -d --build`: `git checkout` reverts
+  the source, but the code the container runs is baked into the image and plain
+  `up -d` reuses it. Rejected: taking migrations out of `entrypoint.sh`, which
+  is the textbook separation but makes every deploy two commands with a window
+  where code and schema disagree.
+- **The tunnel needs two credential files.** Cloudflare's image runs as
+  `nonroot` 65532, so the 600 file `cloudflared tunnel create` writes as the
+  invoking user is unreadable to the container. Two copies of one secret, each
+  owned by its consumer, each still 600. Rejected: `chmod 644`, which widens a
+  secret to every user on the box; and `user:` in compose, which bakes a
+  host-specific uid into a committed file.
+- **The unused Ethernet interface is `optional: true` in netplan.** Without it
+  `systemd-networkd-wait-online` blocks on a cable that is not there for its
+  full two-minute timeout, then fails, and `docker.service` waits behind it.
+  Startup went 2 min 18 s → 23.6 s and `systemctl --failed` went from one
+  permanent failure to empty — the second mattering more, because a box that
+  always shows a failure teaches you to skim past the command you would use to
+  find a real one.
+
+**What the design got wrong**, recorded because a design that is only ever
+amended forward teaches nothing about its own reasoning: the compose file's
+location, the tunnel id's home, and the rollback procedure were all wrong in
+the written design and were corrected by running them. Two of the three failed
+*silently* — a blank database password behind a working-looking app, and a
+rollback that restored old data under new code while the site stayed up and the
+row counts came back correct. Both were found by comparing something concrete
+against something else, not by reading.

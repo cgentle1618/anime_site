@@ -1,21 +1,24 @@
 # Deployment (self-hosted HP ProDesk 600 G4 mini + Cloudflare Tunnel)
 
-Last verified: 2026-09-13 (Ubuntu installed and the box is a working Docker host; the production compose file, tunnel ingress and deploy script now exist in `deploy/` — nothing is deployed yet)
+Last verified: 2026-09-14 (the application is deployed and serving at media.cg1618.com; backups — build-order step 7 — are the only part not built)
 
-> ## Status: the box runs; nothing is deployed on it yet
+> ## Status: deployed and serving
 >
-> **The machine is up.** An HP ProDesk 600 G4 Desktop Mini, bought 2026-09-08
-> for NT$5,680 (see [The machine](#the-machine)), inspected and kept, now
-> running **Ubuntu 26.04.1 LTS as `homelab`** with Docker 29.8.0 and key-only
-> SSH. [Bringing up the box](#bringing-up-the-box) is the procedure that was
-> followed, and it is done bar the DHCP reservation, which the box cannot have
-> while it lives on a phone hotspot.
+> **The application is live at `media.cg1618.com`**, running on an HP ProDesk
+> 600 G4 Desktop Mini bought 2026-09-08 for NT$5,680 (see
+> [The machine](#the-machine)) under **Ubuntu 26.04.1 LTS as `homelab`**, in
+> three containers behind a Cloudflare Tunnel. No port is published anywhere;
+> the tunnel is the only ingress. How it is operated and rolled back is
+> [deploy/README.md](../deploy/README.md); why it is shaped this way is
+> [notes/decisions.md](notes/decisions.md).
 >
-> **The application is not on it.** `docker-compose.prod.yml`,
-> `deploy/cloudflared/config.yml` and `deploy/deploy.sh` now exist and are
-> reviewable, but nothing has been built, no data has been loaded and the
-> tunnel has not been created. That work is build-order steps 4-6, planned in
-> `docs/superpowers/plans/2026-09-13-production-deployment.md`.
+> **Two things are deliberately not done.** The DHCP reservation
+> ([step 10](#step-10--give-it-a-fixed-address-on-the-router)) is impossible
+> while the box lives on a phone hotspot, and the cable handover
+> ([step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi)) waits on a
+> cable. **Backups — build-order step 7 — are the real gap**: a deploy takes a
+> dump before it pulls, but nothing yet copies anything off the box, and
+> `static/library/` is the only copy of every uploaded image in existence.
 >
 > The code side has moved too. On **2026-09-08 the GCP code was removed**,
 > which finished the cover-image work listed under
