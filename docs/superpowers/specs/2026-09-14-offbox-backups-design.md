@@ -142,9 +142,21 @@ dump is the one taken that night — which is the exact failure the rollback hit
                                  any step fails ------------------+--> ping /fail
 ```
 
-`set -euo pipefail` with an `EXIT` trap. **There is no path out of any script
-that does not either report success or report failure.** The failure ping body
-carries the last 20 lines of output, so the alert says what broke.
+`set -euo pipefail` with an `EXIT` trap. **Once `start_job` has installed that
+trap, there is no path out of a script that does not either report success or
+report failure.** The failure ping body carries the last 20 lines of output, so
+the alert says what broke.
+
+**Before that point there is.** A missing or malformed `.env`/`.env.backup`, an
+unset variable, or a lock that stays held past `flock -w 3600` all terminate the
+job while it still has no trap and, in the worst case, no ping URL to use. Those
+failures report nothing directly; they surface from outside, as a *missed* check
+within the Healthchecks grace window rather than as a failure alert.
+`load_backup_env` narrows the gap as far as it can go — it validates `R2_BUCKET`
+and the job's own `HC_*_URL` and fails with a message naming the variable, so a
+typo in `.env.backup` is a readable line in the journal instead of `unbound
+variable` — but the dead-man's switch remains the backstop for everything that
+happens before a job knows where to ping.
 
 - **Dump.** `docker compose exec -T db pg_dump -Fc`, reusing `deploy.sh`'s
   empty-file guard — a truncated dump is worse than none because it looks like an

@@ -42,6 +42,8 @@ ssh -L 5433:localhost:5432 homelab   # then psql -h localhost -p 5433
 | Thing | Where | Why not in git |
 | --- | --- | --- |
 | `.env` | `~/anime_site/.env` | secrets; already gitignored |
+| `.env.backup` | `~/anime_site/.env.backup` | R2 write credentials and the Healthchecks ping URLs; kept out of `.env` so `env_file: .env` cannot hand them to the app |
+| rclone remote | `~/.config/rclone/rclone.conf` | R2 access keys |
 | Tunnel credentials, CLI copy | `~/.cloudflared/<uuid>.json` | secret; used by `cloudflared tunnel ...` as you |
 | Tunnel credentials, container copy | `~/.cloudflared/credentials.json` | secret; mounted read-only, **owned by 65532** - see below |
 | `cert.pem` | `~/.cloudflared/cert.pem` | only needed to administer the tunnel |
@@ -186,9 +188,19 @@ dumps in `~/backups/` alongside it, is gone or untrusted.
 specific sequence against a real loss. An untested recovery procedure is a
 guess.
 
-1. Install `rclone` and restore `~/.config/rclone/rclone.conf` (the `[r2]`
-   remote — see [docs/setup-selfhost.md](../docs/setup-selfhost.md)) if either
-   is missing on the box being recovered onto.
+1. Get the two files this needs onto the box being recovered onto:
+
+   - `~/.config/rclone/rclone.conf` with the `[r2]` remote (see
+     [docs/setup-selfhost.md](../docs/setup-selfhost.md)), plus `rclone`
+     itself — this is what reaches the dumps at all.
+   - `~/anime_site/.env`, written by hand per [`.env`](#env) above.
+     `restore.sh` reads `POSTGRES_USER` and `POSTGRES_DB` from it, and the
+     stack cannot start without it.
+
+   **`.env.backup` is not needed for a restore.** `restore.sh` loads only
+   `.env`; the R2 credentials for *this* procedure live in `rclone.conf`.
+   Recreate `.env.backup` afterwards, when the scheduled jobs are put back —
+   they will not run without it, and `install.sh` refuses to run without it.
 2. Pick a dump:
 
    ```bash

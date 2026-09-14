@@ -1016,15 +1016,36 @@ Then, on the box:
 sudo ./deploy/backup/install.sh
 ```
 
-which installs `rclone`, installs the four systemd units, and enables three of
-the four timers. **`media-covers.timer` is deliberately left disabled** — its
-first run uploads 283 MB over a metered phone hotspot, a cost worth spending on
-purpose rather than at whatever hour a timer happens to fire. Run it by hand
-once, then enable the timer:
+which installs `rclone`, installs the eight systemd units (four services and
+four timers), and enables two of the four timers.
+
+**Enabling a timer here runs its job immediately.** Every timer is
+`Persistent=true`, and systemd fires such a timer on first activation whenever
+its `OnCalendar` time has already passed that day. Running `install.sh` at any
+hour after 04:10 therefore performs a real `pg_dump` and upload there and then,
+and a real `media-sheets` run — **which overwrites every tab of the production
+Google Sheet**. Both are wanted, and both are how the first run gets proven, but
+run the script at a moment when that is fine rather than discovering it
+afterwards. Check the two Healthchecks checks once it returns.
+
+**Two timers are deliberately left disabled**, each until its precondition is
+met:
+
+- **`media-covers.timer`** — its first run uploads 283 MB over a metered phone
+  hotspot, a cost worth spending on purpose rather than at whatever hour a
+  timer happens to fire. Run the sync by hand once, then enable it.
+- **`media-verify.timer`** — the weekly drill restores the newest dump in R2
+  and cannot pass while the bucket holds none, so enabling it on install day
+  would make the first Healthchecks event you ever see a *failure* alert on the
+  one job whose whole purpose is to be believed. Enable it once at least one
+  dump exists in `db/daily/`.
 
 ```bash
 ./deploy/backup/covers.sh
 sudo systemctl enable --now media-covers.timer
+
+rclone lsf r2:<bucket>/db/daily        # at least one dump
+sudo systemctl enable --now media-verify.timer
 ```
 
 ### Prove it recovers
@@ -1082,8 +1103,11 @@ count came back correct. An untested rollback procedure is a guess.
       untouched.
 - [ ] `docker compose -f docker-compose.prod.yml ps` shows three services, `db`
       healthy, and **no published ports**.
-- [ ] `systemctl list-timers --all | grep media-` shows all four jobs, three
-      enabled and `media-covers.timer` deliberately not (yet).
+- [ ] `systemctl list-unit-files 'media-*'` shows all eight units, with
+      `media-covers.timer` and `media-verify.timer` deliberately not enabled
+      (yet). Use `list-unit-files`, not `list-timers --all`: the latter lists
+      *loaded* units, and a timer that has never been enabled is typically not
+      loaded, so a correct install would read as a missing one.
 - [ ] The four Healthchecks.io checks each show a successful `/start`-then-success
       ping cycle after the first manual run of each script.
 

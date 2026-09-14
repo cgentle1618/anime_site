@@ -282,6 +282,17 @@ table set matches `backup.stamp.source_tables` exactly; and `users` and
 success ping, not asserted — they are read just before the dump's snapshot,
 so a write landing in that gap would fail the drill for no real reason.
 
+**What a green `media-verify` does not mean.** It compares table *names*
+against `backup.stamp.source_tables`, not row counts, so a table that restored
+empty still passes — `users` and `role` are the only two whose contents are
+checked. And the freshness assertion is a 48-hour window, so a green drill on
+Wednesday is compatible with Wednesday's own backup having failed: it only
+proves a dump from the last two days restores. That night's failure is
+`media-backup`'s alert to raise, not the drill's. Both are deliberate — a
+stricter drill would cry wolf on ordinary writes and on a box that was off
+overnight — but a green drill is evidence about the restore path, not a
+statement that every table and last night's run are fine.
+
 **Alerting.** Each job pings its own Healthchecks.io dead-man's switch —
 `/start` on entry, success or `/fail` from an `EXIT` trap — using the
 **OnCalendar** schedule type (not Simple), so the alarm is anchored to wall-clock
@@ -297,6 +308,18 @@ time rather than drifting later after every late run:
 A dead-man's switch rather than an error reporter, because a job that never
 ran — box off, hotspot down, timer disabled — cannot report anything on its
 own; only something outside the box notices the absence.
+
+**A job that fails before it has loaded its configuration cannot ping either**,
+and this is the backstop for that too. The `EXIT` trap that reports success or
+failure is installed by `start_job`; a missing `.env` or `.env.backup`, a
+variable that is unset or empty, or a lock still held after an hour all end the
+run before that point — and in the `HC_*_URL` case the ping URL is the very
+thing that is missing. Such a run therefore shows up as a **missed** check at
+the end of the grace window, not as a failure alert, with the reason in
+`journalctl -u <unit>`. `load_backup_env` makes that reason legible — it
+refuses with a message naming the missing variable rather than aborting on
+`unbound variable` — but the absence, not the alert, is what is visible from
+outside.
 
 **The asymmetry, stated so it cannot become a false belief.** The `pg_dump` in
 R2 is the backup of record, and it is the only one of the two off-box copies

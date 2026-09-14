@@ -25,7 +25,7 @@ Last updated: 2026-09-14
 | 5. covers.sh, the weekly cover sync | done 9e1d681d |
 | 6. sheets.sh, the nightly Google Sheets backup | done 114dbf4b |
 | 7. systemd units and install.sh | done ac544d4b |
-| 8. Documentation | wip task8-session |
+| 8. Documentation | done afda8bbc |
 | 9. Delivery and the manual rehearsal | todo |
 
 Nothing. The game spend block and its hand-maintained FX rates shipped in
