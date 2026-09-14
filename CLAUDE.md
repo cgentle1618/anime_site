@@ -15,7 +15,7 @@ Start at **`docs/README.md`** — it indexes every doc. Docs are written for hum
 - Auth or visibility → `docs/authentication.md`, `docs/authorization.md`.
 - Pipelines (Backup/Pull/Fill/Replace/Calculate) → `docs/data-actions.md`, `docs/external-apis.md`.
 - Rules and derivations → `docs/business-rules.md`; per-subsystem detail → `docs/systems/*.md`.
-- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Deploy → `docs/deployment-selfhost.md` (the plan); `docs/deployment-gcp.md` is history.
+- Endpoints → `docs/api.md`. UI → `docs/frontend/*.md`; any visual change → `docs/frontend/design-system.md` first. Tests → `docs/testing.md`. Production: what runs → `docs/deployment-selfhost.md`, deploying and rolling back → `deploy/README.md`, building a box from scratch → `docs/setup-selfhost.md`; `docs/deployment-gcp.md` is history.
 - In-flight work → **`docs/PROGRESS.md`**. See "Progress tracking" below.
 
 When you change behaviour, update the matching doc in the same change and bump its `Last verified` line.
@@ -43,10 +43,11 @@ including `docs/authorization.md`,
 `docs/data-model.md`, `docs/api.md` and every `systems/` and `frontend/`
 page — is present-tense only.
 
-Two standing exceptions, both deployment: **`docs/deployment-selfhost.md`**
-is the plan for something not built yet, so it is written in the future tense
-by nature, and **`docs/deployment-gcp.md`** deliberately records that a GCP
-deployment existed, was removed, and could be rebuilt. Leave both as they are.
+One standing exception: **`docs/deployment-gcp.md`** deliberately records that
+a GCP deployment existed, was removed, and could be rebuilt. Leave it as it is.
+`docs/deployment-selfhost.md` used to be a second exception, written in the
+future tense because it described something not built yet; the box is running,
+so it is present-tense like everything else.
 
 ## Tech Stack
 
@@ -56,7 +57,7 @@ deployment existed, was removed, and could be rebuilt. Leave both as they are.
 - **Auth**: JWT in an HTTP-only cookie; RBAC via `Depends(get_current_admin)` / `get_viewer` in `app/dependencies.py`.
 - **Migrations**: Alembic (single head; run on container start).
 - **External services**: Tenrai v1 API (MAL metadata), TMDB, OMDb, Comic Vine, Google Sheets (backup/restore). Cover images are local disk under `static/covers/` — there is no object storage.
-- **Deployment**: none. **Local development is the only runtime.** CI (`.github/workflows/ci.yml`, name `Tests`) runs ruff + pytest + eslint + vitest + the frontend build on **every pull request, and on pushes to `main`** — a push to any other branch runs nothing, which is why the PR is the gate — and it **deploys nothing**. Self-hosting (a mini PC behind a Cloudflare Tunnel) is the intended production and is not built yet — `docs/deployment-selfhost.md`. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; the code supporting it was removed on 2026-09-08, so reviving GCP means building it again from scratch. The record is `docs/deployment-gcp.md`. `dockerfile`, `entrypoint.sh` and `docker-compose.yml` are kept: compose runs Postgres locally and self-hosting will reuse the image.
+- **Deployment**: self-hosted. The app runs on a mini PC at home (`homelab`) in three containers — `postgres:17`, the app built from `dockerfile`, and `cloudflared` — serving `media.cg1618.com` through a Cloudflare Tunnel with **no inbound port open anywhere**. What runs and how it recovers is `docs/deployment-selfhost.md`; deploying and rolling back is `deploy/README.md`; building the box from scratch is `docs/setup-selfhost.md`. **CI deploys nothing**: `.github/workflows/ci.yml` (name `Tests`) runs ruff + pytest + eslint + vitest + the frontend build on **every pull request, and on pushes to `main`** — a push to any other branch runs nothing, which is why the PR is the gate. A deploy is a person running `./deploy/deploy.sh` on the box, which dumps the database before it pulls. `docker-compose.yml` at the root is **development only** (a bare Postgres); production is `docker-compose.prod.yml`, and it sits beside `.env` at the root because Compose loads `.env` from the compose file's own directory. A GCP Cloud Run + Cloud SQL deployment did work until 2026-09-02; its code was removed on 2026-09-08, so reviving GCP means building it again — the record is `docs/deployment-gcp.md`.
 
 ## Development Commands
 
