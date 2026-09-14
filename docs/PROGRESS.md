@@ -19,7 +19,7 @@ Last updated: 2026-09-14
 | Task | Status |
 |---|---|
 | 1. Foundation: lib.sh, gitignore, shellcheck in CI | wip task1-session |
-| 2. Nightly backup: stamp, dump, upload, library | todo |
+| 2. Nightly backup: stamp, dump, upload, library | done e540f38 |
 | 3. restore.sh, one implementation and two callers | todo |
 | 4. verify.sh, the weekly restore drill | todo |
 | 5. covers.sh, the weekly cover sync | todo |

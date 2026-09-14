@@ -12,12 +12,16 @@ edit and expensive to notice at 04:00 with nobody watching.
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 BACKUP_DIR = ROOT / "deploy" / "backup"
 LIB = BACKUP_DIR / "lib.sh"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
+BACKUP = BACKUP_DIR / "backup.sh"
+
+SCRIPTS = ["backup.sh", "restore.sh", "verify.sh", "covers.sh", "sheets.sh"]
 
 
 def test_lib_exists():
@@ -93,3 +97,61 @@ def test_lib_saves_and_restores_descriptors_around_the_tee_wait():
         "the descriptor restore and the wait for tee must both happen before "
         "LOG_FILE is read for the ping body, or the fix does nothing"
     )
+
+
+@pytest.mark.parametrize("name", SCRIPTS)
+def test_every_script_is_strict(name):
+    path = BACKUP_DIR / name
+    if not path.is_file():
+        pytest.skip(f"{name} not written yet")
+    body = path.read_text(encoding="utf-8")
+    assert "set -euo pipefail" in body, f"{name} must be strict"
+
+
+@pytest.mark.parametrize("name", ["backup.sh", "verify.sh", "covers.sh", "sheets.sh"])
+def test_every_scheduled_job_reports_its_own_outcome(name):
+    # Strictness alone is not the guarantee. `set -e` makes a job STOP on an
+    # error; start_job is what makes it SAY so. A scheduled job that exits
+    # non-zero in silence is the exact failure this system exists to remove,
+    # so the two are asserted separately rather than in one test whose name
+    # covers more than its body.
+    path = BACKUP_DIR / name
+    if not path.is_file():
+        pytest.skip(f"{name} not written yet")
+    body = path.read_text(encoding="utf-8")
+    assert "start_job" in body, f"{name} must install the reporting trap"
+
+
+def test_backup_stamps_before_it_dumps():
+    body = BACKUP.read_text(encoding="utf-8")
+    # The stamp is what makes a stale dump fail on a date instead of passing
+    # on plausible row counts. It is worthless if written after the snapshot.
+    assert body.index("backup.stamp") < body.index("pg_dump")
+
+
+def test_backup_refuses_an_empty_dump():
+    body = BACKUP.read_text(encoding="utf-8")
+    assert "-s " in body or "! -s" in body, "must guard against a truncated dump"
+
+
+def test_backup_copies_the_dump_and_syncs_the_library():
+    body = BACKUP.read_text(encoding="utf-8")
+    # copyto, never sync, for the dump: each night is its own object and sync
+    # would delete the previous ones.
+    assert "rclone copyto" in body
+    assert "static/library" in body
+
+
+def test_the_nightly_does_not_touch_covers():
+    # Load-bearing for the data plan: covers are 283 MB and weekly, the dump
+    # and library are tiny and nightly. Nothing else would notice this
+    # silently reverting, and the box is on a metered hotspot.
+    body = BACKUP.read_text(encoding="utf-8")
+    assert "static/covers" not in body
+
+
+def test_library_sync_preserves_deletions():
+    body = BACKUP.read_text(encoding="utf-8")
+    # static/library/ is the one store nothing anywhere can re-fetch, so a
+    # local rm must not propagate to the only other copy within 24 hours.
+    assert "--backup-dir" in body
