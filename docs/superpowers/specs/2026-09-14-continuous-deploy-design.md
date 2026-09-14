@@ -304,4 +304,22 @@ The owner does what cannot be automated:
 - `deploy/README.md` — how a deploy now happens, and the ladder beside rollback.
 - `docs/deployment-selfhost.md` — the healthcheck claim; deploys are automatic.
 - `docs/notes/decisions.md` — this design's rejected alternatives.
-- `docs/PROGRESS.md` — the stale `86982d71c2f1` line removed.
+- `docs/PROGRESS.md` — **three lines mention `86982d71c2f1` and they are three
+  different items.** A single grep hit makes them look alike, which is the
+  "suspect any shape that reads as uniform" case exactly:
+  - the *"`alembic upgrade head` from an EMPTY db fails"* item — **stale, and
+    deleted.** The squash retired it and
+    `tests/api/test_migrations_build_the_schema.py` asserts the from-zero build
+    on every CI run, so it is not merely believed to work.
+  - the *"data migrations that import live ORM models"* item — **a different
+    item, and it stays.** Its two cited examples (`86982d71c2f1`,
+    `pb2m3i4g5r8`) are both gone with the squash, and grepping the current
+    revisions for `from app.` / `import app.` returns **nothing** — the baseline
+    and `g1c2f3flags4` each say in prose that they deliberately freeze literal
+    SQL instead. So the class has zero live instances and the convention is
+    being followed. Only the dead example ids are rewritten; the item itself is
+    left standing, because a convention with no enforcement is not a solved
+    problem and this is the only place it is tracked.
+  - the `anime_site_mig_check` scratch-database row — its stated justification
+    ("because upgrade from an EMPTY database still fails") is now wrong. The
+    justification is corrected; the databases are a separate question.
