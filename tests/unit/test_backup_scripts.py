@@ -445,3 +445,25 @@ def test_drill_refuses_when_no_dumps_are_found(tmp_path):
 
     assert result.returncode != 0
     assert "no dumps" in output
+
+
+COVERS = BACKUP_DIR / "covers.sh"
+
+
+def test_covers_job_syncs_covers_and_checks_them():
+    body = COVERS.read_text(encoding="utf-8")
+    assert "static/covers" in body
+    assert "rclone sync" in body
+    # rclone check compares checksums taken from the bucket LISTING, so it
+    # verifies 283 MB without downloading any of it - a few Class A ops.
+    assert "rclone check" in body
+
+
+def test_covers_job_preserves_deletions():
+    body = COVERS.read_text(encoding="utf-8")
+    assert "--backup-dir" in body
+
+
+def test_covers_job_does_not_touch_the_database():
+    body = COVERS.read_text(encoding="utf-8")
+    assert "pg_dump" not in body

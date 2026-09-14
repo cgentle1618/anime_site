@@ -21,8 +21,8 @@ Last updated: 2026-09-14
 | 1. Foundation: lib.sh, gitignore, shellcheck in CI | done 67459bc9 |
 | 2. Nightly backup: stamp, dump, upload, library | done bae35da8 |
 | 3. restore.sh, one implementation and two callers | done 01aadaf9 |
-| 4. verify.sh, the weekly restore drill | wip task4-session |
-| 5. covers.sh, the weekly cover sync | todo |
+| 4. verify.sh, the weekly restore drill | done 2d9179a9 |
+| 5. covers.sh, the weekly cover sync | wip task5-6-session |
 | 6. sheets.sh, the nightly Google Sheets backup | todo |
 | 7. systemd units and install.sh | todo |
 | 8. Documentation | todo |
