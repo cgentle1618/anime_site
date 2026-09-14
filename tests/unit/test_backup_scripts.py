@@ -9,6 +9,9 @@ What is pinned here is the set of properties that are cheap to break in an
 edit and expensive to notice at 04:00 with nobody watching.
 """
 
+import os
+import shutil
+import stat
 import subprocess
 from pathlib import Path
 
@@ -180,3 +183,89 @@ def test_restore_treats_pg_restore_stderr_as_fatal():
     # pass.
     body = RESTORE.read_text(encoding="utf-8")
     assert "pg_restore: error" in body
+
+
+def _find_bash() -> str | None:
+    # On this Windows box, plain "bash" on PATH can resolve to the WSL relay
+    # shim in System32 rather than a real shell - it "succeeds" at being
+    # found and then fails every invocation with a WSL relay error. Prefer
+    # Git for Windows' own bash, which is what the Bash tool itself uses;
+    # fall back to whatever `bash` resolves to elsewhere (Linux CI, macOS).
+    for candidate in (
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+        r"C:\Program Files\Git\bin\bash.exe",
+    ):
+        if Path(candidate).is_file():
+            return candidate
+    return shutil.which("bash")
+
+
+BASH = _find_bash()
+
+
+def _make_fake_docker(bin_dir: Path, rc: int, stderr_msg: str = "docker daemon down") -> None:
+    # A fake `docker` early on PATH, standing in for the real one so the
+    # app-running guard can be exercised without Docker or a compose stack.
+    # `docker compose -f ... ps -q app` is the only invocation restore.sh
+    # makes before pg_restore, so failing unconditionally is enough.
+    docker = bin_dir / "docker"
+    docker.write_text(
+        f"#!/usr/bin/env bash\necho '{stderr_msg}' >&2\nexit {rc}\n",
+        encoding="utf-8",
+    )
+    docker.chmod(docker.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _run_restore(tmp_path: Path, bin_dir: Path, extra_args: list[str]) -> subprocess.CompletedProcess:
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    (repo_dir / ".env").write_text(
+        "POSTGRES_USER=postgres\nPOSTGRES_DB=proddb\nPOSTGRES_PASSWORD=x\n",
+        encoding="utf-8",
+    )
+    (repo_dir / ".env.backup").write_text("", encoding="utf-8")
+
+    dump = tmp_path / "fake.dump"
+    dump.write_bytes(b"not a real dump, just non-empty")
+
+    env = dict(os.environ)
+    env["REPO_DIR"] = str(repo_dir)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    return subprocess.run(
+        [BASH, str(RESTORE), "--dump", str(dump), *extra_args],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_restore_refuses_when_the_app_running_check_itself_fails(tmp_path):
+    # The structural test above only checks that `ps -q app` appears in the
+    # file - it would pass unchanged against a version where a failed
+    # `docker compose ps` is silently read as "app not running" and a restore
+    # proceeds anyway. This exercises the actual guard: `$(...)` inside an
+    # `if` never trips `set -e` and never surfaces the command's own exit
+    # status, so the check must capture that status explicitly.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_fake_docker(bin_dir, rc=1)
+
+    result = _run_restore(tmp_path, bin_dir, ["--into", "production", "--confirm"])
+
+    assert result.returncode != 0
+    assert "could not determine whether the app is running" in result.stderr
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_restore_refuses_production_without_confirm_behaviourally(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_fake_docker(bin_dir, rc=0)
+
+    result = _run_restore(tmp_path, bin_dir, ["--into", "production"])
+
+    assert result.returncode != 0
+    assert "requires --confirm" in result.stderr

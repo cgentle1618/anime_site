@@ -29,9 +29,9 @@ USAGE
 DUMP="" INTO="" DATABASE="" CONFIRM=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --dump)     DUMP="$2"; shift 2 ;;
-        --into)     INTO="$2"; shift 2 ;;
-        --database) DATABASE="$2"; shift 2 ;;
+        --dump)     [ $# -ge 2 ] || usage; DUMP="$2"; shift 2 ;;
+        --into)     [ $# -ge 2 ] || usage; INTO="$2"; shift 2 ;;
+        --database) [ $# -ge 2 ] || usage; DATABASE="$2"; shift 2 ;;
         --confirm)  CONFIRM=1; shift ;;
         *)          usage ;;
     esac
@@ -56,7 +56,20 @@ case "${INTO}" in
         # against the database during a restore creates every table and makes
         # pg_restore collide. Stop it first:
         #     docker compose -f docker-compose.prod.yml stop app
-        if [ -n "$("${COMPOSE[@]}" ps -q app)" ]; then
+        #
+        # `$(...)` inside an `if` condition only ever tests -n/-z on stdout -
+        # it does NOT trip `set -e` and does NOT surface the command's own
+        # exit status, so a failing `docker compose ps` (daemon down, bad
+        # REPO_DIR, compose missing) would silently read as "app not running"
+        # and let a restore proceed against an unknown app state. Capture the
+        # exit status explicitly and refuse rather than guess.
+        app_id="$("${COMPOSE[@]}" ps -q app)" || {
+            echo "Refusing: could not determine whether the app is running." >&2
+            echo "  docker compose failed. Fix that first - a restore while the app" >&2
+            echo "  is up collides with create_all at import." >&2
+            exit 1
+        }
+        if [ -n "${app_id}" ]; then
             echo "Refusing: the app service is running." >&2
             echo "  Stop it first - create_all at import will collide with pg_restore." >&2
             exit 1
