@@ -32,9 +32,9 @@ Last verified: 2026-09-08
 >   working against the local database. `gspread` and `google-auth` remain in
 >   `requirements.txt`.
 >
-> Local development is the only runtime — see [setup-local.md](setup-local.md).
-> Self-hosting is the intended future production and is still only a plan:
-> [deployment-selfhost.md](deployment-selfhost.md).
+> Production is now self-hosted on a mini PC at home behind a Cloudflare
+> Tunnel — [deployment-selfhost.md](deployment-selfhost.md). Local development
+> is [setup-local.md](setup-local.md).
 
 **What this is for.** How the app got from a push on `main` to a running
 Cloud Run revision, and what was different about the code when it ran there.

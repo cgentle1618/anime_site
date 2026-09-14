@@ -328,10 +328,12 @@ feature branch or to `dev` runs no CI at all, which is why every branch reaches
 8. `npm run build`
 
 **The workflow deploys nothing**, and there is no second job. A red run is
-therefore always a real test failure and never a failed release. There is no
-deployment at all — [deployment-gcp.md](deployment-gcp.md) records the one
-that existed, and [deployment-selfhost.md](deployment-selfhost.md) is the plan
-for the one that does not yet.
+therefore always a real test failure and never a failed release. That is still
+true now production exists: the box is deployed by a person running
+`./deploy/deploy.sh` on it, never by CI, which holds no credentials for it —
+see [deployment-selfhost.md](deployment-selfhost.md). CI's only relationship
+with production is that the pull request is the gate everything passes through
+first.
 
 ## Known gaps
 
