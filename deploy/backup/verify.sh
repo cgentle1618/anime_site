@@ -31,7 +31,16 @@ WORK="$(mktemp -d)"
 # docker rm itself errors (container already gone, daemon hiccup), so its
 # own failure is swallowed with `|| true` rather than aborting the trap
 # before WORK is cleaned up.
-trap 'docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; rm -rf "${WORK}"' EXIT
+#
+# `trap ... EXIT` REPLACES a previously installed EXIT trap rather than
+# stacking with it, and start_job already installed one (`_finish_job`,
+# which pings Healthchecks and flushes the log). Overwriting it here would
+# make the drill silently stop reporting its own outcome - the exact failure
+# start_job exists to prevent. So this trap does the container/workdir
+# cleanup FIRST (a hung Healthchecks call must not leave a leaked container
+# behind it) and then calls _finish_job itself, with the exit code captured
+# before either cleanup command can change $?.
+trap 'rc=$?; docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; rm -rf "${WORK}"; _finish_job "${rc}"' EXIT
 
 # --- Fetch the newest dump from R2 ------------------------------------------
 # `rclone lsf | sort | tail -1` is a pipeline, so with `pipefail` (set above)
