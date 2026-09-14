@@ -269,3 +269,139 @@ def test_restore_refuses_production_without_confirm_behaviourally(tmp_path):
 
     assert result.returncode != 0
     assert "requires --confirm" in result.stderr
+
+
+VERIFY = BACKUP_DIR / "verify.sh"
+
+
+def test_drill_is_network_isolated():
+    # Isolation by construction rather than by care. The alternative - a
+    # scratch database inside the live db container - puts nothing but a
+    # correct shell variable between the drill and a --clean against
+    # production.
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "--network none" in body
+
+
+def test_drill_fetches_from_r2_not_from_disk():
+    # The local dump was deleted after upload precisely so this cannot test
+    # the wrong artifact. Downloading proves the object exists, is readable
+    # with the box's credentials, and survived transfer.
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "rclone copyto" in body or "rclone copy" in body
+
+
+def test_drill_calls_the_real_restore_script():
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "restore.sh" in body, "the drill must run the disaster path, not a copy of it"
+
+
+def test_drill_asserts_stamp_freshness_and_alembic_head():
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "taken_at" in body
+    assert "alembic_head" in body
+    assert "48 hours" in body
+
+
+def test_drill_asserts_the_table_set_matches_the_stamp():
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "source_tables" in body
+
+
+def test_drill_always_removes_its_container():
+    body = VERIFY.read_text(encoding="utf-8")
+    assert "trap" in body and "docker rm -f" in body
+
+
+def _make_fake_rclone(bin_dir: Path, lsf_rc: int, lsf_out: str = "") -> None:
+    # A fake `rclone` early on PATH standing in for the real one, so the
+    # "no dumps found" / "rclone itself failed" refusal paths can be
+    # exercised without R2 credentials or network access. verify.sh's first
+    # rclone call is `rclone lsf ... --files-only`; failing that call (rather
+    # than returning it empty) is what proves the guard does not fail open.
+    rclone = bin_dir / "rclone"
+    rclone.write_text(
+        f"""#!/usr/bin/env bash
+if [ "$1" = "lsf" ]; then
+    printf '%s' "{lsf_out}"
+    exit {lsf_rc}
+fi
+echo "unexpected rclone invocation: $*" >&2
+exit 1
+""",
+        encoding="utf-8",
+    )
+    rclone.chmod(rclone.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _make_fake_flock(bin_dir: Path) -> None:
+    # Real `flock` is not on PATH in this git-bash/MSYS environment (the same
+    # gap noted above for the tee race), so acquire_lock would fail before
+    # verify.sh ever reaches the rclone call it is being tested against. The
+    # fake only needs to behave like a successful, uncontended lock: exit 0
+    # regardless of arguments.
+    flock = bin_dir / "flock"
+    flock.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    flock.chmod(flock.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _run_verify(tmp_path: Path, bin_dir: Path) -> subprocess.CompletedProcess:
+    repo_dir = tmp_path / "repo"
+    (repo_dir / "deploy" / "backup").mkdir(parents=True)
+    (repo_dir / ".env").write_text(
+        "POSTGRES_USER=postgres\nPOSTGRES_DB=proddb\nPOSTGRES_PASSWORD=x\n",
+        encoding="utf-8",
+    )
+    (repo_dir / ".env.backup").write_text(
+        "R2_BUCKET=media-test\nHC_VERIFY_URL=\n",
+        encoding="utf-8",
+    )
+
+    env = dict(os.environ)
+    env["REPO_DIR"] = str(repo_dir)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    return subprocess.run(
+        [BASH, str(VERIFY)],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_drill_refuses_when_rclone_lsf_itself_fails(tmp_path):
+    # This is the fail-open shape from Task 3, applied to `rclone lsf`: if the
+    # command that lists dumps ERRORS rather than returning an empty list, a
+    # naive `$(rclone lsf ...)` still reads as "" and a script that only
+    # checks `[ -n "$newest" ]` concludes "no dumps" and can proceed to fetch
+    # nothing meaningful. The drill must instead refuse loudly and distinctly
+    # from the legitimate empty-bucket case.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_fake_flock(bin_dir)
+    _make_fake_rclone(bin_dir, lsf_rc=1, lsf_out="")
+
+    result = _run_verify(tmp_path, bin_dir)
+    # start_job merges stdout and stderr through `tee`, so the refusal
+    # message lands in stdout, not stderr - check the combined output.
+    output = (result.stdout + result.stderr).lower()
+
+    assert result.returncode != 0
+    assert "no dumps" not in output
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_drill_refuses_when_no_dumps_are_found(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_fake_flock(bin_dir)
+    _make_fake_rclone(bin_dir, lsf_rc=0, lsf_out="")
+
+    result = _run_verify(tmp_path, bin_dir)
+    output = (result.stdout + result.stderr).lower()
+
+    assert result.returncode != 0
+    assert "no dumps" in output
