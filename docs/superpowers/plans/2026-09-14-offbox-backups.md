@@ -612,7 +612,21 @@ case "${INTO}" in
         # against the database during a restore creates every table and makes
         # pg_restore collide. Stop it first:
         #     docker compose -f docker-compose.prod.yml stop app
-        if [ -n "$("${COMPOSE[@]}" ps -q app)" ]; then
+        # Test the invocation's OWN exit status. `$(...)` captures stdout only,
+        # so if docker compose itself fails - daemon down, wrong REPO_DIR,
+        # compose file missing - stdout is empty, `set -e` does not fire
+        # (the substitution sits in an `if` condition, so its status is never
+        # tested), and `[ -n "" ]` reads as "the app is not running". The
+        # script would then restore over production with the app's real state
+        # unknown. A guard that fails open is worse than no guard, and broken
+        # docker tooling is exactly the situation a disaster restore happens in.
+        app_id="$("${COMPOSE[@]}" ps -q app)" || {
+            echo "Refusing: could not determine whether the app is running." >&2
+            echo "  docker compose failed. Fix that first - restoring while the" >&2
+            echo "  app is up collides with create_all at import." >&2
+            exit 1
+        }
+        if [ -n "${app_id}" ]; then
             echo "Refusing: the app service is running." >&2
             echo "  Stop it first - create_all at import will collide with pg_restore." >&2
             exit 1
