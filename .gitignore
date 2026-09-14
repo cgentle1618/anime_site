@@ -26,3 +26,4 @@ frontend_dist/
 # Local database dumps. Never committed: they hold every account row and
 # every personal note, and the channel for data between machines is Sheets.
 backups/
+.superpowers/
