@@ -509,12 +509,31 @@ work — but the gate was left rather than removed blind.
 
 ## What is not done
 
-- **Backups off the box.** This is the real gap. A deploy takes a dump before
-  it pulls, but every one of those dumps lives on the same SSD as the database
-  it protects, and `static/library/` — every uploaded image — has no second
-  copy anywhere. Nightly `pg_dump` plus a sync of both image directories to R2
-  is the plan; R2 is the backup target rather than the primary store, which is
-  the decision recorded in [notes/decisions.md](notes/decisions.md).
+- **Scheduled backups off the box.** What exists today is a **manual** Google
+  Sheets Backup, run by a person from `/system`. It is genuinely off-box, so
+  the database is not one disk failure away from gone — but it is only as
+  current as the last time somebody remembered. The deploy dumps in
+  `~/backups/` do not help here: they live on the same SSD as the database they
+  protect.
+
+  What each store would actually cost to lose, today:
+
+  | Store | Recoverable? |
+  | --- | --- |
+  | Database | **Yes**, from the App Database sheet — back to the last manual Backup |
+  | `static/covers/` (283 MB) | **Yes, with effort** — re-fetchable from the metadata APIs. Time and API quota, not data |
+  | `static/library/` | Empty. Nothing uploaded yet |
+
+  So the work is to schedule what already exists, plus a `pg_dump` and an image
+  sync to R2 — R2 as the backup target rather than the primary store, which is
+  the decision in [notes/decisions.md](notes/decisions.md).
+
+  **This gets sharper the moment anything is uploaded.** `static/library/` is
+  the one store the Sheets backup cannot stand in for: the sheet carries a
+  reference to an uploaded image, never the bytes. Until then the warning is
+  anticipatory, and the 1,987 rows in `image` are backfilled references to
+  existing covers (`storage_key` = `covers/…`, `checksum` = `legacy:…`), not
+  uploads.
 - **A DHCP reservation**, which is impossible while the box lives on a phone
   hotspot. Its address is whatever DHCP hands out, and `ssh` failing is the
   signal that it moved.

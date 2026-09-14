@@ -11,7 +11,7 @@ in Viewer.has() made `self.list` a privilege, so every personal row in the
 first installation accumulated on the administrative account. `self.*` is
 ownership, not privilege - an admin administers the site and does not keep a
 library on it. Spec:
-docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md.
+docs/notes/decisions.md ("Admin holds no user data").
 
 The plan wrote this file against an `/api/me` router it believed Step 1 had
 shipped. Step 1 did not: it kept every list write inside the per-type entry

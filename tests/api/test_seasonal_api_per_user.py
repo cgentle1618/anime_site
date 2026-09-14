@@ -11,7 +11,7 @@ administrative account holds no `self.*` grant and every route in this prefix
 answers it 401. The `super` role is the account shape that legitimately keeps
 a library - it holds both self.* grants and manage.catalog, so the catalogue
 writes some of these tests make still land. Spec:
-docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md.
+docs/notes/decisions.md ("Admin holds no user data").
 """
 
 import uuid
