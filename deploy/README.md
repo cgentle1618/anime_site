@@ -131,19 +131,48 @@ migration that caused the problem.
      < ~/backups/pre-deploy-<stamp>.dump
    ```
 
-3. **Start:**
+3. **Rebuild and start — `--build` is not optional:**
 
    ```bash
-   docker compose -f docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml up -d --build
    ```
 
-**If only the code is bad and no migration ran**, step 2 is unnecessary and the
-previous image avoids a rebuild:
+   **Without `--build` the rollback does not roll anything back.** `git
+   checkout` reverts the source on disk, but the application code the container
+   runs is baked into `media-app:local`, and plain `up -d` happily reuses that
+   image. You get old data running under new code — which is the exact failure
+   the warning above describes, arrived at by following the procedure meant to
+   avoid it.
+
+   It fails silently: the site stays up, the row counts look right, nothing
+   complains. On a rollback that mattered, `alembic upgrade head` would then
+   re-apply the migration being escaped.
+
+   **Verify it took**, because "the site is up" proves nothing about which code
+   is serving. Compare a file that differs between the two revisions on disk
+   and inside the container:
+
+   ```bash
+   stat -c %a deploy/deploy.sh
+   docker compose -f docker-compose.prod.yml exec -T app stat -c %a /app/deploy/deploy.sh
+   ```
+
+   They must agree. If the container still shows the newer value, the rebuild
+   did not happen.
+
+**The fast path, when rolling back exactly one deploy:** `deploy.sh` tags the
+outgoing image before it builds, so the previous one is still there and no
+rebuild is needed:
 
 ```bash
 docker tag media-app:previous media-app:local
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+`media-app:previous` is a **single slot**, overwritten by every deploy. Rolling
+back two deploys means it is the wrong image, and only `--build` is correct.
+If only the code is bad and no migration ran, step 2 is unnecessary either
+way.
 
 ## What this does not protect against
 
