@@ -14,6 +14,20 @@ Last updated: 2026-09-14
 
 ## In flight
 
+### Off-box backups to R2 (`feat/offbox-backups`)
+
+| Task | Status |
+|---|---|
+| 1. Foundation: lib.sh, gitignore, shellcheck in CI | wip task1-session |
+| 2. Nightly backup: stamp, dump, upload, library | todo |
+| 3. restore.sh, one implementation and two callers | todo |
+| 4. verify.sh, the weekly restore drill | todo |
+| 5. covers.sh, the weekly cover sync | todo |
+| 6. sheets.sh, the nightly Google Sheets backup | todo |
+| 7. systemd units and install.sh | todo |
+| 8. Documentation | todo |
+| 9. Delivery and the manual rehearsal | todo |
+
 Nothing. The game spend block and its hand-maintained FX rates shipped in
 #155 and its year / storefront / cost-per-hour breakdowns on
 `feat/game-spend-breakdowns`, the game 攻略 / 劇情 / 待辦 note groups in #147

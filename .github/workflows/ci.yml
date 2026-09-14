@@ -49,6 +49,9 @@ jobs:
       - name: Lint backend
         run: ruff check .
 
+      - name: Lint shell scripts
+        run: shellcheck deploy/deploy.sh deploy/backup/*.sh
+
       - name: Backend tests
         run: pytest -q -p no:cacheprovider
 

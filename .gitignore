@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 .env
+.env.backup
 credentials.json
 postgres_anime_data/
 one_time/
