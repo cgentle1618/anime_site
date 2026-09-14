@@ -181,11 +181,22 @@ returns 0 on an empty URL, which is correct for an optional ping and wrong as a
 config check, so `drift.sh` validates `HC_DRIFT_URL` itself at the top and exits
 non-zero when it is unset.
 
-**That shellcheck line needs one edit from this project**, and it is easy to miss
-because the glob makes it look complete: `rollback.sh` and `health.sh` sit in
-`deploy/`, which is **not** globbed — only `deploy/deploy.sh` is named. Both must
-be added by name, or the two scripts that run unattended during a failed deploy
-are the only ones in the repository nothing lints.
+`rollback.sh` and `health.sh` stay in `deploy/` rather than following `drift.sh`,
+because the split is by **what a script is**, not by who wrote it: those two are
+deploy machinery, and a human runs `rollback.sh` by hand during an incident. A
+scheduled job that sources `lib.sh` and takes the shared `flock` belongs with the
+other scheduled jobs; an incident tool does not.
+
+The CI lint line is widened to cover them:
+
+    shellcheck deploy/*.sh deploy/backup/*.sh
+
+It matches the same single file today and covers `deploy/` from then on. **A
+complete glob is the point, not a convenience** — appending script names to a
+maintained list would work and depends on every future author remembering, while
+the failure being guarded against produces *no signal at all*: an unlinted script
+does not fail, it is simply never checked. The mechanism covering a silent failure
+must not itself depend on somebody noticing.
 
 **The workflow does not check out and build.** The runner's workspace is
 `~/actions-runner/_work/...`; the stack only works from `~/anime_site`, where
