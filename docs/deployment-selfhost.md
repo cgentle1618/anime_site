@@ -751,6 +751,54 @@ and zero reallocated sectors. The memory output should show two 8 GB sticks. If
 either disagrees with what Windows reported, trust this one and re-read
 everything, since something was misread the first time.
 
+#### Step 9a — Mark the unused interface optional
+
+**A box with no Ethernet cable boots two minutes slower than it needs to, and
+ends up with a permanently failed unit.** The installer writes an `eno1` entry
+into `/etc/netplan/00-installer-config.yaml`, netplan generates a
+`systemd-networkd-wait-online` drop-in that waits for it, and with no cable in
+the socket that wait runs its full timeout and then fails:
+
+```
+2min 58ms systemd-networkd-wait-online.service
+ExecStart=/lib/systemd/systemd-networkd-wait-online -i eno1:degraded
+Active: failed (Result: exit-code)
+```
+
+`docker.service` is ordered after `network-online.target`, so every container
+waits behind it. WiFi itself is up in about seven seconds.
+
+The installer also leaves `eno1` with **no `dhcp4`** — only `match` and
+`set-name` — so the day a cable arrives the link comes up with no address.
+Both are one edit:
+
+```yaml
+  ethernets:
+    eno1:
+      match:
+        macaddress: <the I219-LM MAC>
+      set-name: eno1
+      dhcp4: true
+      optional: true
+```
+
+Then `sudo netplan generate`, and confirm `eno1` has left the generated
+`ExecStart` in
+`/run/systemd/generator.late/systemd-networkd-wait-online.service.d/10-netplan.conf`
+— it should name `wlp1s0` instead, so the target still means something. The
+change only takes effect at the next boot.
+
+Measured on this box: startup **2 min 18 s → 23.6 s**, userspace
+**2 min 5.7 s → 6.0 s**, containers serving **14 seconds** after boot instead
+of two minutes, and `systemctl --failed` empty instead of permanently showing
+one failure — which is the part that matters most, because a box that always
+has a failed unit teaches you to skim past the command you would use to find a
+real one.
+
+`optional: true` does not disable the interface. It means boot need not block
+on it; a cable plugged in later still gets configured, so there is nothing to
+undo in [step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi).
+
 #### Step 10 — Give it a fixed address on the router
 
 Log in to the router and add a **DHCP reservation** binding the box's MAC address

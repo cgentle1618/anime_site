@@ -42,7 +42,8 @@ ssh -L 5433:localhost:5432 homelab   # then psql -h localhost -p 5433
 | Thing | Where | Why not in git |
 | --- | --- | --- |
 | `.env` | `~/anime_site/.env` | secrets; already gitignored |
-| Tunnel credentials | `~/.cloudflared/<uuid>.json` | secret; mounted read-only |
+| Tunnel credentials, CLI copy | `~/.cloudflared/<uuid>.json` | secret; used by `cloudflared tunnel ...` as you |
+| Tunnel credentials, container copy | `~/.cloudflared/credentials.json` | secret; mounted read-only, **owned by 65532** - see below |
 | `cert.pem` | `~/.cloudflared/cert.pem` | only needed to administer the tunnel |
 | Dumps | `~/backups/` | the last five, plus the migration dump |
 
@@ -151,6 +152,38 @@ deploy dump either predates the damage uselessly or postdates it. That is what
 the nightly off-box backup — build-order step 7 in
 [docs/deployment-selfhost.md](../docs/deployment-selfhost.md#build-order) — is
 for, and it is the argument for doing that step early rather than last.
+
+## The tunnel's two credential files
+
+`cloudflared tunnel create` writes one file, named after the tunnel's uuid and
+owned by you at mode 600. **The container cannot read it.** Cloudflare's image
+runs as the `nonroot` user `65532:65532`, so a 600 file owned by uid 1000 is a
+permission error, and `cloudflared` crash-loops with:
+
+    couldn't read tunnel credentials from /etc/cloudflared/credentials.json:
+    open /etc/cloudflared/credentials.json: permission denied
+
+So there are two copies of the same secret, each owned by its consumer and each
+still mode 600:
+
+    ~/.cloudflared/<uuid>.json      owned by you    - the CLI uses this
+    ~/.cloudflared/credentials.json owned by 65532  - the container mounts this
+
+Made with:
+
+```bash
+cp ~/.cloudflared/<uuid>.json ~/.cloudflared/credentials.json
+sudo chown 65532:65532 ~/.cloudflared/credentials.json
+chmod 600 ~/.cloudflared/credentials.json
+```
+
+**Rejected: `chmod 644`.** It works, and it makes a tunnel credential readable
+by every user on the box - a secret Cloudflare's own output tells you to keep.
+**Rejected: `user: "1000:1000"` on the service.** It also works, and it bakes a
+host-specific uid into a committed compose file.
+
+If a future image changes that uid, this is the cause: the symptom is
+`permission denied` on a file that plainly exists.
 
 ## Adding another project's hostname
 
