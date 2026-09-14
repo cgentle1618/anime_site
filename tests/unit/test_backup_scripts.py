@@ -467,3 +467,24 @@ def test_covers_job_preserves_deletions():
 def test_covers_job_does_not_touch_the_database():
     body = COVERS.read_text(encoding="utf-8")
     assert "pg_dump" not in body
+
+
+SHEETS = BACKUP_DIR / "sheets.sh"
+
+
+def test_sheets_job_calls_execute_backup_in_the_app_container():
+    body = SHEETS.read_text(encoding="utf-8")
+    assert "execute_backup" in body
+    assert "exec -T app" in body
+
+
+def test_sheets_job_is_a_separate_job_from_the_dump():
+    # Never inside backup.sh. Google's API being down, or the app container
+    # being unhealthy, must fail THIS job and leave the R2 backup untouched.
+    body = (BACKUP_DIR / "backup.sh").read_text(encoding="utf-8")
+    assert "execute_backup" not in body
+
+
+def test_sheets_job_has_its_own_healthcheck():
+    body = SHEETS.read_text(encoding="utf-8")
+    assert "HC_SHEETS_URL" in body

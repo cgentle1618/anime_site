@@ -22,8 +22,8 @@ Last updated: 2026-09-14
 | 2. Nightly backup: stamp, dump, upload, library | done bae35da8 |
 | 3. restore.sh, one implementation and two callers | done 01aadaf9 |
 | 4. verify.sh, the weekly restore drill | done 2d9179a9 |
-| 5. covers.sh, the weekly cover sync | wip task5-6-session |
-| 6. sheets.sh, the nightly Google Sheets backup | todo |
+| 5. covers.sh, the weekly cover sync | done 9e1d681d |
+| 6. sheets.sh, the nightly Google Sheets backup | wip task5-6-session |
 | 7. systemd units and install.sh | todo |
 | 8. Documentation | todo |
 | 9. Delivery and the manual rehearsal | todo |
