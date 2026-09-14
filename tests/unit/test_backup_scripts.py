@@ -10,6 +10,7 @@ edit and expensive to notice at 04:00 with nobody watching.
 """
 
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -123,6 +124,40 @@ def test_every_scheduled_job_reports_its_own_outcome(name):
         pytest.skip(f"{name} not written yet")
     body = path.read_text(encoding="utf-8")
     assert "start_job" in body, f"{name} must install the reporting trap"
+
+
+TRAP_EXIT_RE = re.compile(r"trap\s+'([^']*)'\s+EXIT")
+
+
+@pytest.mark.parametrize("name", SCRIPTS)
+def test_a_scripts_own_exit_trap_does_not_silently_drop_the_reporting_one(name):
+    # `trap ... EXIT` REPLACES a previously installed handler; it does not
+    # stack. start_job (lib.sh) installs `trap '_finish_job $?' EXIT`, which
+    # pings Healthchecks and flushes the log. A script that calls start_job
+    # and then installs its OWN EXIT trap - e.g. to remove a throwaway
+    # container - silently drops _finish_job unless its own trap calls it
+    # too. verify.sh did exactly this in 413ca969 (found by inspection, not
+    # by a test) before being fixed to chain the two. This generalises the
+    # check to every script in the series, present or future, with both
+    # properties - covers.sh and sheets.sh (Tasks 5, 6) are exposed to the
+    # identical hazard once written.
+    path = BACKUP_DIR / name
+    if not path.is_file():
+        pytest.skip(f"{name} not written yet")
+    body = path.read_text(encoding="utf-8")
+    if "start_job" not in body:
+        pytest.skip(f"{name} does not call start_job")
+    trap_bodies = TRAP_EXIT_RE.findall(body)
+    if not trap_bodies:
+        return  # no local trap installed - start_job's own trap stays live
+    # trap installs replace each other in order, so only the LAST one
+    # installed is the one actually live at exit time.
+    last_trap = trap_bodies[-1]
+    assert "_finish_job" in last_trap, (
+        f"{name} installs its own EXIT trap after start_job, which replaces "
+        "start_job's reporting trap rather than stacking with it - the "
+        "script's trap must call _finish_job itself"
+    )
 
 
 def test_backup_stamps_before_it_dumps():
@@ -389,8 +424,13 @@ def test_drill_refuses_when_rclone_lsf_itself_fails(tmp_path):
     # message lands in stdout, not stderr - check the combined output.
     output = (result.stdout + result.stderr).lower()
 
+    # `returncode != 0` plus an absence check is not an assertion about THIS
+    # failure - an unrelated early failure (acquire_lock, load_env, a missing
+    # fixture) also exits non-zero and also never prints "no dumps", so it
+    # would pass too. Assert the specific rclone-failure message instead, the
+    # same pattern test_drill_refuses_when_no_dumps_are_found already uses.
     assert result.returncode != 0
-    assert "no dumps" not in output
+    assert "rclone lsf failed" in output
 
 
 @pytest.mark.skipif(BASH is None, reason="requires bash")

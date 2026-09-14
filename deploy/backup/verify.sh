@@ -113,6 +113,16 @@ fi
 
 stamped_head="$(q "SELECT alembic_head FROM backup.stamp;")"
 actual_head="$(q "SELECT version_num FROM alembic_version;")"
+# stamped_head and actual_head are two independently-sourced q() results, and
+# either can come back as a legitimately EMPTY string on a query that
+# SUCCEEDS - zero rows in backup.stamp, or a version_num column that exists
+# but was never populated - without tripping set -e. "" == "" would then pass
+# the comparison below and report success on a restore that taught this drill
+# nothing. Unlike the freshness check above (which compares against the fixed
+# literal "t") these two compare only against each other, so each is checked
+# non-empty FIRST, with its own message naming which one was empty.
+[ -n "${stamped_head}" ] || { echo "backup.stamp.alembic_head is EMPTY." >&2; exit 1; }
+[ -n "${actual_head}" ] || { echo "Restored alembic_version is EMPTY." >&2; exit 1; }
 if [ "${stamped_head}" != "${actual_head}" ]; then
     echo "MISMATCH: stamp says ${stamped_head}, restored says ${actual_head}" >&2
     exit 1
@@ -126,6 +136,12 @@ echo "==> Asserting the table set"
 expected="$(q "SELECT source_tables FROM backup.stamp;")"
 restored="$(q "SELECT string_agg(tablename, ',' ORDER BY tablename)
                  FROM pg_tables WHERE schemaname = 'public';")"
+# Same vacuous-empty hazard as above: an empty public schema after a
+# broken-but-non-erroring restore reads back as "" from string_agg, same as
+# an empty backup.stamp.source_tables would. Check each non-empty before
+# comparing them to each other, with a distinct message per side.
+[ -n "${expected}" ] || { echo "backup.stamp.source_tables is EMPTY." >&2; exit 1; }
+[ -n "${restored}" ] || { echo "Restored public schema has NO TABLES." >&2; exit 1; }
 if [ "${expected}" != "${restored}" ]; then
     echo "TABLE SET DIFFERS." >&2
     diff <(tr ',' '\n' <<<"${expected}") <(tr ',' '\n' <<<"${restored}") >&2 || true
