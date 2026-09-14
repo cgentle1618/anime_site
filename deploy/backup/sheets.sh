@@ -32,8 +32,9 @@
 # independent, UNVERIFIED second copy. The only honest check available here is
 # that the pipeline reported success.
 #
-# HC_SHEETS_URL is not assigned here - load_env (deploy/backup/lib.sh) sources
-# it at runtime from .env.backup.
+# HC_SHEETS_URL is not assigned here - load_backup_env (deploy/backup/lib.sh)
+# sources it at runtime from .env.backup, and refuses to continue if it is
+# missing or empty.
 # shellcheck disable=SC2154
 
 set -euo pipefail
@@ -42,6 +43,7 @@ set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
 load_env
+load_backup_env HC_SHEETS_URL
 acquire_lock
 start_job "media-sheets" "${HC_SHEETS_URL}"
 

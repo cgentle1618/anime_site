@@ -10,8 +10,9 @@
 # perfectly and reports entirely plausible row counts. It fails here on a
 # date.
 #
-# R2_BUCKET and HC_VERIFY_URL are not assigned here - load_env
-# (deploy/backup/lib.sh) sources them at runtime from .env.backup.
+# R2_BUCKET and HC_VERIFY_URL are not assigned here - load_backup_env
+# (deploy/backup/lib.sh) sources them at runtime from .env.backup, and refuses
+# to continue if either is missing or empty.
 # shellcheck disable=SC2154
 
 set -euo pipefail
@@ -20,6 +21,7 @@ set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
 load_env
+load_backup_env HC_VERIFY_URL
 acquire_lock
 start_job "media-verify" "${HC_VERIFY_URL}"
 
@@ -30,7 +32,10 @@ WORK="$(mktemp -d)"
 # noticed. rm -rf can't be the whole story either: it must run even if
 # docker rm itself errors (container already gone, daemon hiccup), so its
 # own failure is swallowed with `|| true` rather than aborting the trap
-# before WORK is cleaned up.
+# before WORK is cleaned up. `rm -rf` carries the same `|| true` for the same
+# reason one step further on: the trap body runs under `set -e`, so a non-zero
+# rm (a busy mount, a permission the container left behind) would exit the trap
+# before _finish_job and the drill would report nothing at all.
 #
 # `trap ... EXIT` REPLACES a previously installed EXIT trap rather than
 # stacking with it, and start_job already installed one (`_finish_job`,
@@ -40,7 +45,7 @@ WORK="$(mktemp -d)"
 # cleanup FIRST (a hung Healthchecks call must not leave a leaked container
 # behind it) and then calls _finish_job itself, with the exit code captured
 # before either cleanup command can change $?.
-trap 'rc=$?; docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; rm -rf "${WORK}"; _finish_job "${rc}"' EXIT
+trap 'rc=$?; docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; rm -rf "${WORK}" || true; _finish_job "${rc}"' EXIT
 
 # --- Fetch the newest dump from R2 ------------------------------------------
 # `rclone lsf | sort | tail -1` is a pipeline, so with `pipefail` (set above)

@@ -9,8 +9,9 @@
 # anywhere can re-fetch.
 #
 # POSTGRES_USER, POSTGRES_DB, R2_BUCKET and HC_BACKUP_URL are not assigned
-# here - load_env (deploy/backup/lib.sh) sources them at runtime from .env
-# and .env.backup.
+# here - load_env and load_backup_env (deploy/backup/lib.sh) source them at
+# runtime from .env and .env.backup respectively, and load_backup_env refuses
+# to continue if R2_BUCKET or HC_BACKUP_URL is missing or empty.
 # shellcheck disable=SC2154
 
 set -euo pipefail
@@ -19,6 +20,7 @@ set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
 load_env
+load_backup_env HC_BACKUP_URL
 acquire_lock
 start_job "media-backup" "${HC_BACKUP_URL}"
 

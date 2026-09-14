@@ -10,8 +10,9 @@
 # inconvenience and is re-fetchable from the metadata APIs. A database seven
 # days stale is not, which is why the dump stays nightly.
 #
-# R2_BUCKET and HC_COVERS_URL are not assigned here - load_env
-# (deploy/backup/lib.sh) sources them at runtime from .env.backup.
+# R2_BUCKET and HC_COVERS_URL are not assigned here - load_backup_env
+# (deploy/backup/lib.sh) sources them at runtime from .env.backup, and refuses
+# to continue if either is missing or empty.
 # shellcheck disable=SC2154
 
 set -euo pipefail
@@ -20,6 +21,7 @@ set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
 load_env
+load_backup_env HC_COVERS_URL
 acquire_lock
 start_job "media-covers" "${HC_COVERS_URL}"
 

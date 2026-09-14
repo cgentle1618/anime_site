@@ -25,7 +25,22 @@ LIB = BACKUP_DIR / "lib.sh"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 BACKUP = BACKUP_DIR / "backup.sh"
 
-SCRIPTS = ["backup.sh", "restore.sh", "verify.sh", "covers.sh", "sheets.sh"]
+# Discovered, not listed. A hardcoded list silently stops covering the series
+# the moment a script is added to deploy/backup/ - and the properties below
+# (strictness, and not dropping the reporting trap) are exactly the ones whose
+# absence is invisible until 04:00 with nobody watching. lib.sh is excluded
+# because it is sourced rather than run and has no `set -euo pipefail` of its
+# own; install.sh is deliberately INCLUDED, because it must be strict too and
+# the trap test below skips anything that does not call start_job.
+SCRIPTS = sorted(p.name for p in BACKUP_DIR.glob("*.sh") if p.name != "lib.sh")
+
+
+def test_the_script_series_is_discovered_not_listed():
+    # Guards the glob itself: an empty or mis-rooted BACKUP_DIR would make
+    # every parametrized test below collect zero cases and pass vacuously.
+    assert {"backup.sh", "restore.sh", "verify.sh", "covers.sh", "sheets.sh"} <= set(
+        SCRIPTS
+    ), f"the glob should find the known scripts, found {SCRIPTS}"
 
 
 def test_lib_exists():
@@ -126,7 +141,11 @@ def test_every_scheduled_job_reports_its_own_outcome(name):
     assert "start_job" in body, f"{name} must install the reporting trap"
 
 
-TRAP_EXIT_RE = re.compile(r"trap\s+'([^']*)'\s+EXIT")
+# Both quote styles. The single-quoted-only version of this pattern found
+# nothing in a script written `trap "..." EXIT`, so the test returned green
+# with zero trap bodies to check - a vacuous pass sitting inside the very test
+# written to catch this class of bug.
+TRAP_EXIT_RE = re.compile(r"""trap\s+(?P<quote>['"])(?P<body>.*?)(?P=quote)\s+EXIT""", re.DOTALL)
 
 
 @pytest.mark.parametrize("name", SCRIPTS)
@@ -147,7 +166,7 @@ def test_a_scripts_own_exit_trap_does_not_silently_drop_the_reporting_one(name):
     body = path.read_text(encoding="utf-8")
     if "start_job" not in body:
         pytest.skip(f"{name} does not call start_job")
-    trap_bodies = TRAP_EXIT_RE.findall(body)
+    trap_bodies = [m.group("body") for m in TRAP_EXIT_RE.finditer(body)]
     if not trap_bodies:
         return  # no local trap installed - start_job's own trap stays live
     # trap installs replace each other in order, so only the LAST one
@@ -276,7 +295,10 @@ def _run_restore(tmp_path: Path, bin_dir: Path, extra_args: list[str]) -> subpro
         "POSTGRES_USER=postgres\nPOSTGRES_DB=proddb\nPOSTGRES_PASSWORD=x\n",
         encoding="utf-8",
     )
-    (repo_dir / ".env.backup").write_text("", encoding="utf-8")
+    # No .env.backup is written here, deliberately. restore.sh reads nothing
+    # out of it and must not require it: a box being rebuilt after a
+    # disaster may have only .env recovered by hand, and the restore cannot
+    # be blocked on a file holding credentials it never uses.
 
     dump = tmp_path / "fake.dump"
     dump.write_bytes(b"not a real dump, just non-empty")
@@ -387,6 +409,16 @@ exit 1
     rclone.chmod(rclone.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
+def _make_fake_curl(bin_dir: Path) -> None:
+    # hc_ping shells out to curl. The fixtures below now set a real-looking
+    # HC_VERIFY_URL because load_backup_env refuses an empty one, so without
+    # this the /start ping would spend curl's three retries and five-second
+    # delays trying to reach it. The fake only has to succeed instantly.
+    curl = bin_dir / "curl"
+    curl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    curl.chmod(curl.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
 def _make_fake_flock(bin_dir: Path) -> None:
     # Real `flock` is not on PATH in this git-bash/MSYS environment (the same
     # gap noted above for the tee race), so acquire_lock would fail before
@@ -405,8 +437,10 @@ def _run_verify(tmp_path: Path, bin_dir: Path) -> subprocess.CompletedProcess:
         "POSTGRES_USER=postgres\nPOSTGRES_DB=proddb\nPOSTGRES_PASSWORD=x\n",
         encoding="utf-8",
     )
+    # HC_VERIFY_URL is set, not blank: load_backup_env refuses an empty one,
+    # which is the whole point of it. _make_fake_curl keeps the ping cheap.
     (repo_dir / ".env.backup").write_text(
-        "R2_BUCKET=media-test\nHC_VERIFY_URL=\n",
+        "R2_BUCKET=media-test\nHC_VERIFY_URL=http://127.0.0.1:9/ping\n",
         encoding="utf-8",
     )
 
@@ -435,6 +469,7 @@ def test_drill_refuses_when_rclone_lsf_itself_fails(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _make_fake_flock(bin_dir)
+    _make_fake_curl(bin_dir)
     _make_fake_rclone(bin_dir, lsf_rc=1, lsf_out="")
 
     result = _run_verify(tmp_path, bin_dir)
@@ -456,6 +491,7 @@ def test_drill_refuses_when_no_dumps_are_found(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _make_fake_flock(bin_dir)
+    _make_fake_curl(bin_dir)
     _make_fake_rclone(bin_dir, lsf_rc=0, lsf_out="")
 
     result = _run_verify(tmp_path, bin_dir)
@@ -463,6 +499,50 @@ def test_drill_refuses_when_no_dumps_are_found(tmp_path):
 
     assert result.returncode != 0
     assert "no dumps" in output
+
+
+@pytest.mark.skipif(BASH is None, reason="requires bash")
+def test_drill_names_a_missing_healthchecks_variable(tmp_path):
+    # The sharpest version of the pre-trap silence: ONE typo in .env.backup
+    # (HC_VERIFY_URL spelled HC_VERIFY_UR) used to abort on `set -u` with
+    # "unbound variable" BEFORE start_job installed the reporting trap, on
+    # every run, for the life of the box - a job that says nothing at all,
+    # which is a false belief of coverage rather than a gap in it. The ping is
+    # still impossible when the ping URL is what is missing (the Healthchecks
+    # grace window catches that from outside), but the journal must name the
+    # variable rather than print "unbound variable".
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_fake_flock(bin_dir)
+    _make_fake_curl(bin_dir)
+
+    repo_dir = tmp_path / "repo"
+    (repo_dir / "deploy" / "backup").mkdir(parents=True)
+    (repo_dir / ".env").write_text("POSTGRES_DB=proddb\n", encoding="utf-8")
+    (repo_dir / ".env.backup").write_text("R2_BUCKET=media-test\n", encoding="utf-8")
+
+    env = dict(os.environ)
+    env["REPO_DIR"] = str(repo_dir)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["HOME"] = str(tmp_path)
+
+    result = subprocess.run(
+        [BASH, str(VERIFY)], capture_output=True, text=True, env=env, timeout=30
+    )
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "HC_VERIFY_URL is missing or empty" in output, output
+    assert "unbound variable" not in output, output
+
+
+def test_restore_does_not_need_the_backup_env_file():
+    # Structural mirror of the fixture above: restore.sh loads .env and only
+    # .env, so a rebuilt box with no .env.backup can still restore.
+    body = RESTORE.read_text(encoding="utf-8")
+    assert "load_backup_env" not in body
+    assert "R2_BUCKET" not in body
+    assert "HC_" not in body
 
 
 COVERS = BACKUP_DIR / "covers.sh"
@@ -560,7 +640,18 @@ def test_install_defers_the_cover_timer():
     # install.sh iterates units/*.timer so a later job needs no edit here, and
     # this is what stops that convenience from silently enabling this one.
     body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
-    assert "DEFER=(media-covers.timer)" in body
+    assert "DEFER=(media-covers.timer media-verify.timer)" in body
+
+
+def test_install_defers_the_verify_timer():
+    # Persistent=true fires a timer on first activation when its OnCalendar
+    # time has already passed, so `enable --now` at any hour after 04:40 runs
+    # the drill immediately - against an R2 bucket that, on install day, holds
+    # no dump at all. The owner's first-ever Healthchecks event would then be a
+    # FAILURE alert on the one job whose whole purpose is to be believed.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    assert "media-verify.timer" in body
+    assert "DEFER=(media-covers.timer media-verify.timer)" in body
 
 
 def test_install_enables_timers_by_iteration_not_by_name():

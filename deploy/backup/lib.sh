@@ -13,16 +13,54 @@ COMPOSE=(docker compose -f "${REPO_DIR}/docker-compose.prod.yml")
 LOCK_FILE="${HOME}/.cache/media-backup.lock"
 LOG_FILE=""
 
-# Loads the app's .env (POSTGRES_*) and the backup's own .env.backup
-# (Healthchecks URLs, bucket name). Kept in two files because
-# docker-compose.prod.yml gives the app service `env_file: .env`, so anything
-# put there is handed to the web application - including, otherwise, write
-# credentials for the bucket holding its own backups.
+# The two config files load separately, and the split is deliberate on both
+# sides.
+#
+# They are two files because docker-compose.prod.yml gives the app service
+# `env_file: .env`, so anything put there is handed to the web application -
+# including, otherwise, write credentials for the bucket holding its own
+# backups.
+#
+# They are two FUNCTIONS because restore.sh needs only the first. A box being
+# rebuilt after a disaster has .env recovered by hand and very possibly no
+# .env.backup at all, and the restore must not be blocked on a file holding
+# credentials it never reads.
+
+# load_env: the app's own .env (POSTGRES_USER, POSTGRES_DB). All restore.sh
+# needs.
 load_env() {
     [ -f "${REPO_DIR}/.env" ] || { echo "No ${REPO_DIR}/.env" >&2; return 1; }
+    # shellcheck disable=SC1091
+    set -a; . "${REPO_DIR}/.env"; set +a
+}
+
+# load_backup_env <HC_VARIABLE_NAME>
+# The backup jobs' own .env.backup (Healthchecks URLs, bucket name), plus the
+# validation that makes a typo in it loud.
+#
+# Without this, `start_job "x" "${HC_VERIFY_URL}"` with that name misspelled in
+# .env.backup aborts on `set -u` BEFORE start_job installs the reporting trap:
+# one typo, and the job says nothing at all, on every run, for the life of the
+# box - a false belief of coverage, which is worse than no backup. Here the
+# same typo is a named message in the journal instead.
+#
+# A ping is still impossible when the ping URL itself is what is missing. That
+# case is caught from outside by the Healthchecks grace window, as a missed
+# check rather than a failure alert - see docs/deployment-selfhost.md.
+load_backup_env() {
+    local hc_var="${1:?load_backup_env needs the name of the HC_*_URL variable for this job}" var
     [ -f "${REPO_DIR}/.env.backup" ] || { echo "No ${REPO_DIR}/.env.backup" >&2; return 1; }
     # shellcheck disable=SC1091
-    set -a; . "${REPO_DIR}/.env"; . "${REPO_DIR}/.env.backup"; set +a
+    set -a; . "${REPO_DIR}/.env.backup"; set +a
+    # `${!name:-}`, never a bare `${!name}`: under `set -u` the bare form
+    # aborts with "unbound variable" and loses the message below, which is the
+    # entire point of this function.
+    for var in R2_BUCKET "${hc_var}"; do
+        [ -n "${!var:-}" ] || {
+            echo "${var} is missing or empty in ${REPO_DIR}/.env.backup" >&2
+            return 1
+        }
+    done
 }
 
 acquire_lock() {

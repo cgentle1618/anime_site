@@ -9,7 +9,10 @@
 # disaster path is proven every Wednesday instead of being assumed.
 #
 # POSTGRES_USER and POSTGRES_DB are not assigned here - load_env
-# (deploy/backup/lib.sh) sources them at runtime from .env.
+# (deploy/backup/lib.sh) sources them at runtime from .env. This script reads
+# nothing out of .env.backup and deliberately does not load it: a box being
+# rebuilt after a disaster may have only .env recovered, and the restore must
+# not be blocked on a file holding credentials it never uses.
 # shellcheck disable=SC2154
 
 set -euo pipefail
