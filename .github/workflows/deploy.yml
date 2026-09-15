@@ -1,0 +1,126 @@
+name: Deploy
+
+# Box-initiated by necessity. No service on the production machine publishes a
+# port (tests/unit/test_prod_compose.py fails if one appears), its only ingress
+# is an outbound Cloudflare Tunnel, and it sits on a phone hotspot with no DHCP
+# reservation - so it has no stable address either. GitHub cannot push, ssh or
+# webhook into it. A self-hosted runner long-polls GitHub outbound instead.
+#
+# main only. main is production and moves solely by a release pull request from
+# dev, and the box's checkout tracks main, so this trigger and that checkout are
+# the same decision stated twice.
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy
+  # Never cancel a deploy in flight. A cancelled run can leave the box between
+  # `git pull` and `up -d --build`, which is a state no exit code describes.
+  cancel-in-progress: false
+
+jobs:
+  # Runs on GitHub rather than the box: it needs only the diff, and it decides
+  # which of the two deploy jobs runs - including whether the owner must approve
+  # before anything touches production.
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      migration: ${{ steps.check.outputs.migration }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # A zero `before` means no comparable range - a first push, a
+          # force-push, or a branch created at this sha. The safe answer is the
+          # gated lane: a needless approval prompt costs one tap, while a
+          # migration deployed unattended is the one failure this pipeline must
+          # not have.
+          if [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No comparable range; treating as a migration deploy."
+            echo "migration=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # `|| true` on the grep alone, never on the api call: an API failure
+          # must not read as "no migrations".
+          files="$(gh api "repos/${{ github.repository }}/compare/${BEFORE}...${AFTER}" --jq '.files[].filename')"
+
+          if printf '%s\n' "${files}" | grep -q '^alembic/versions/'; then
+            echo "migration=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migration=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The common case: frontend work, fixes, docs. Nothing here can lose data,
+  # because the database is never modified.
+  deploy:
+    needs: classify
+    if: needs.classify.outputs.migration == 'false'
+    runs-on: [self-hosted, homelab]
+    steps:
+      # No actions/checkout. The runner's workspace is ~/actions-runner/_work/...
+      # and the stack only works from ~/anime_site, where .env lives, where
+      # static/covers and static/library are bind-mounted, and where
+      # COMPOSE_PROJECT_NAME=media decides WHICH VOLUME is the real database. A
+      # deploy from the runner's own checkout would come up on a brand-new empty
+      # volume while the real data sat in the old one - which looks exactly like
+      # data loss.
+      # The exit code is captured rather than just allowed to fail the step,
+      # because WHICH failure it was decides whether rolling back is correct.
+      - name: Deploy
+        id: deploy
+        run: |
+          cd "$HOME/anime_site"
+          rc=0
+          ./deploy/deploy.sh --ci || rc=$?
+          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
+          exit "${rc}"
+
+      # Exit 2 only: the deploy RAN and the result is unhealthy, so the database
+      # may have been migrated and the previous image is the way back. Exit 1 is
+      # a refusal to start - wrong branch, no .env, an unapproved migration -
+      # which leaves production untouched and still serving, and where rolling
+      # back would take a working site down to "recover" from nothing.
+      # `if: failure()` alone cannot tell those apart.
+      - name: Roll back
+        if: failure() && steps.deploy.outputs.rc == '2'
+        run: cd "$HOME/anime_site" && ./deploy/rollback.sh
+
+  # Identical steps, one difference: `environment: production` carries a
+  # required reviewer, so this job waits for the owner before it runs.
+  #
+  # The gate exists because a migration is the only class of change that can
+  # destroy data, and because `alembic downgrade` is not a restore - reversing a
+  # dropped column recreates it empty. MIGRATION_APPROVED is what deploy.sh's
+  # own re-check looks for, so the approval travels to the box rather than
+  # living only in GitHub's audit log.
+  deploy-migration:
+    needs: classify
+    if: needs.classify.outputs.migration == 'true'
+    runs-on: [self-hosted, homelab]
+    environment: production
+    steps:
+      - name: Deploy
+        id: deploy
+        env:
+          MIGRATION_APPROVED: "1"
+        run: |
+          cd "$HOME/anime_site"
+          rc=0
+          ./deploy/deploy.sh --ci || rc=$?
+          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
+          exit "${rc}"
+
+      # Exit 2 only, for the same reason as the ungated job - and it matters
+      # more here, because this is the lane where a migration has run and
+      # rollback.sh may have schema to reverse.
+      - name: Roll back
+        if: failure() && steps.deploy.outputs.rc == '2'
+        run: cd "$HOME/anime_site" && ./deploy/rollback.sh

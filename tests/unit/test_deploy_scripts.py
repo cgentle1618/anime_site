@@ -147,6 +147,36 @@ def test_rollback_freezes_with_a_distinct_exit_code():
     assert "exit 3" in (DEPLOY / "rollback.sh").read_text(encoding="utf-8")
 
 
+# drift.sh lives in deploy/backup/ because of what it IS - a scheduled job
+# sourcing lib.sh and taking the shared lock, like the other four - but it
+# belongs to the deploy pipeline, so its assertions live here with the rest of
+# it rather than among the backup jobs' own.
+DRIFT = ROOT / "deploy" / "backup" / "drift.sh"
+
+
+def test_drift_validates_its_ping_url_through_the_shared_check():
+    # hc_ping() returns 0 on an empty URL - right for an optional ping, wrong as
+    # a config check - so an unvalidated HC_DRIFT_URL would make this job report
+    # success forever while alerting nobody, which is the exact false belief of
+    # coverage it exists to prevent. load_backup_env is where that check lives,
+    # and it runs BEFORE start_job installs the reporting trap, which is the
+    # half a bespoke check in this file would get wrong.
+    assert "load_backup_env HC_DRIFT_URL" in DRIFT.read_text(encoding="utf-8")
+
+
+def test_drift_compares_the_box_against_main():
+    body = DRIFT.read_text(encoding="utf-8")
+    assert "origin/main" in body
+    assert "rev-parse HEAD" in body
+
+
+def test_drift_measures_age_from_the_commit_not_from_first_notice():
+    # A box that was off for a week must report the true age on its first run
+    # back. Measuring from when this check first noticed would restart the clock
+    # at boot and hide exactly the outage the check exists to surface.
+    assert "git log -1 --format=%ct" in DRIFT.read_text(encoding="utf-8")
+
+
 def test_rollback_tells_the_owner_data_was_not_restored():
     # The single most dangerous thing this pipeline could do is report a
     # successful rollback in a way that implies the data came back with it.
