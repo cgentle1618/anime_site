@@ -38,6 +38,13 @@ timers, Docker Compose, FastAPI, Alembic, pytest, Healthchecks.io.
 - **Stage explicitly. Never a directory pathspec, never a bare `git commit`.**
   Always `git commit -m "..." -- <exact paths>`. On `docs/PROGRESS.md` use
   `git add -p` — another session writes to that file.
+- **One exception, for the executable bit only.** The pathspec form re-reads
+  each path from the working tree and therefore **discards an index-only
+  change**, which is what `git update-index --chmod=+x` produces on a Windows
+  checkout. A commit adding a script must omit the pathspec — after checking
+  `git diff --cached --name-status` shows only your files. This is safe here and
+  nowhere else: a worktree has its own index file, so no other session can have
+  staged anything in it. Task 4, Step 5 has the exact sequence.
 - **No AI attribution in any commit message or PR body.** No `Co-Authored-By`,
   no `Claude-Session`, no `Generated with`, no `claude.ai` link. No trailers at
   all. This overrides the harness's own per-session reminder.
@@ -535,24 +542,58 @@ def test_every_script_fails_fast(name):
     assert "set -euo pipefail" in body, name
 
 
-@pytest.mark.parametrize("name", SCRIPTS)
-def test_every_script_is_executable_in_git(name):
-    # Git stores one permission bit, and a file added from Windows arrives
-    # without it. The script then exists, reads correctly, and cannot be run -
-    # and the failure surfaces on the box as "Permission denied" from a
-    # workflow step, long after review. The off-box backup work shipped exactly
-    # this and found it only on the box.
-    #
-    # Asserts git's INDEX, not the working tree: a Windows checkout's on-disk
-    # mode says nothing about what was committed. Fix with
-    #   git update-index --chmod=+x deploy/<name>
+def _committed_mode(relative_path: str) -> str:
+    """The mode in the COMMIT, not the index and not the working tree.
+
+    `git ls-files -s` reads the INDEX and is the wrong question here, in a way
+    that is green against a broken commit. CLAUDE.md mandates
+    `git commit -- <exact paths>` so one session cannot sweep another's staged
+    work - and that pathspec form RE-READS each path from the working tree,
+    which discards an index-only change. A mode bit on a Windows checkout with
+    core.fileMode off is exactly an index-only change. Verified here:
+
+        git update-index --chmod=+x probe.sh   -> index 100755
+        git commit -m "..." -- probe.sh
+        git ls-files -s probe.sh               -> 100755   (the index)
+        git ls-tree -r HEAD probe.sh           -> 100644   (the truth)
+
+    In CI a fresh checkout makes index == HEAD, so an index-reading test passes
+    there whether or not the fix is in the commit. The divergence exists only on
+    the machine where the scripts are being written, which is the machine that
+    needs to catch it.
+
+    ls-tree's output is `<mode> <type> <sha>\\t<path>`, tab-separated before the
+    path, so split on the tab first.
+    """
     import subprocess
 
-    mode = subprocess.run(
-        ["git", "ls-files", "-s", f"deploy/{name}"],
+    out = subprocess.run(
+        ["git", "ls-tree", "-r", "HEAD", relative_path],
         cwd=ROOT, capture_output=True, text=True, check=True,
-    ).stdout.split()[0]
-    assert mode == "100755", f"deploy/{name} is committed as {mode}, not executable"
+    ).stdout.strip()
+    assert out, f"{relative_path} is not in HEAD"
+    meta, _path = out.split("\t", 1)
+    return meta.split()[0]
+
+
+@pytest.mark.parametrize("name", SCRIPTS)
+def test_every_script_is_executable_in_the_commit(name):
+    # Git stores one permission bit and a file added from Windows arrives
+    # without it. The script then exists, reads correctly, and cannot be run -
+    # surfacing on the box as "Permission denied" from a workflow step, long
+    # after review. The off-box backup work shipped exactly this.
+    mode = _committed_mode(f"deploy/{name}")
+    assert mode == "100755", (
+        f"deploy/{name} is committed as {mode}. Fix with\n"
+        f"  git update-index --chmod=+x deploy/{name}\n"
+        "and then commit WITHOUT a pathspec - see the note in Task 4 Step 5."
+    )
+
+
+def test_the_sourced_library_is_not_executable():
+    # lib.sh is sourced, never run. A test asserting only that things ARE 755
+    # would quietly endorse the opposite error, so pin both directions.
+    assert _committed_mode("deploy/backup/lib.sh") == "100644"
 
 
 def test_health_polls_the_endpoint_and_not_the_catch_all():
@@ -621,10 +662,31 @@ Task 7, and remove the marker in Task 7.
 
 - [ ] **Step 5: Commit**
 
+**The executable bit needs a different commit form, and this is the one place
+this plan departs from the mandated pathspec.** `git commit -- <paths>` re-reads
+each path from the working tree and discards an index-only change, which is
+exactly what a mode bit is on a Windows checkout. Committing the usual way would
+land the test and not the fix — and the test would still pass locally.
+
 ```bash
-git commit -m "feat(deploy): poll the health endpoint from inside the container" -- \
-  deploy/health.sh tests/unit/test_deploy_scripts.py
+git add deploy/health.sh tests/unit/test_deploy_scripts.py
+git update-index --chmod=+x deploy/health.sh
+
+# Confirm the index holds only your files before committing without a pathspec.
+git diff --cached --name-status
+
+# No pathspec: it would drop the mode bit. Safe here because this worktree has
+# its own index - no other session can have staged anything in it.
+git commit -m "feat(deploy): poll the health endpoint from inside the container"
+
+# Verify the COMMIT, not the index. These disagree precisely when this is wrong.
+git ls-tree -r HEAD deploy/health.sh    # must print 100755
 ```
+
+Do the same in every later task that adds a script. Prove the test bites once,
+by hand: `git update-index --chmod=-x deploy/health.sh`, run the test, expect a
+failure naming that file, then restore it. If it stays green you are reading the
+index.
 
 ---
 
