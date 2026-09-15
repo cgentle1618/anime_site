@@ -183,10 +183,14 @@ deploy using a local dump that still exists on the box's own disk. This
 rebuilds the box from copies that were never on it — the disk itself, or the
 dumps in `~/backups/` alongside it, is gone or untrusted.
 
-**Not yet walked end to end.** The steps below follow the code in
-`deploy/backup/restore.sh` and `deploy/backup/lib.sh`, but nobody has run this
-specific sequence against a real loss. An untested recovery procedure is a
-guess.
+**Walked end to end**, against a scratch stack on the box: dump fetched from
+R2, restored with the script below, application started against the restored
+database and served real rows. What it has not been run against is an actual
+loss, where the box itself is gone and `.env` is being retyped from a password
+manager. Steps 1 and 8 are the parts that rehearsal cannot exercise.
+
+To rehearse it again without touching production, see
+[Rehearsing it](#rehearsing-it) below.
 
 1. Get the two files this needs onto the box being recovered onto:
 
@@ -242,6 +246,59 @@ guess.
 8. **Rotate both passwords afterwards**, the same as the [`.env`](#env) restore
    notes above require — the restored dump carries whatever credentials were
    live when it was taken.
+
+### What the walk-through turned up
+
+- **Step 4 stops `app` only.** `db` must stay up — it is what `restore.sh`
+  executes `pg_restore` inside. Stopping the whole stack leaves nothing to
+  restore into.
+- **The guard prints what it is about to destroy before it acts**, as row
+  counts. On a real recovery that line is how you confirm the target is the
+  database you meant. Against an empty scratch database it printed `(0 rows)`,
+  which is the shape to expect when recovering onto a fresh box.
+- **`/api/system/health` answers 200.** It does not exist — the catch-all route
+  serves the SPA for any unmatched path, which is also why no service in
+  `docker-compose.prod.yml` has an app healthcheck. Do not use an HTTP 200 on an
+  arbitrary path as evidence the application came up. Check `Content-Type`:
+  the real API answers `application/json`, the catch-all answers `text/html`.
+- **`/openapi.json` is the honest liveness check.** It is served by FastAPI
+  itself rather than the catch-all, so a route count coming back proves the
+  application loaded rather than that a file was served.
+
+### Rehearsing it
+
+The whole procedure can be run against a scratch stack that is incapable of
+touching production, because `lib.sh` honours `REPO_DIR`. Point it at a
+directory holding its own compose file and `.env`:
+
+```bash
+mkdir -p ~/rehearsal/static/covers ~/rehearsal/static/library
+cd ~/rehearsal
+cp ~/anime_site/docker-compose.prod.yml ~/anime_site/.env .
+sed -i 's/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=rehearsal/' .env
+```
+
+Then edit the copied compose file to **remove the `cloudflared` service** — a
+second tunnel would serve `media.cg1618.com` from the scratch stack — and bind
+the app to loopback, `127.0.0.1:8001:8000`, so nothing reaches the LAN.
+
+**Verify the project name before creating or destroying anything.** The project
+decides which volume Compose uses, so a wrong one aims `down -v` at production's
+data:
+
+```bash
+docker compose -f docker-compose.prod.yml config --format json   | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])'   # must print: rehearsal
+```
+
+Bring up `db` alone, then run the ordinary steps 2, 3 and 5 above with
+`REPO_DIR=$HOME/rehearsal` in front of `restore.sh`. Tear down with
+`docker compose -f docker-compose.prod.yml down -v` after re-checking the
+project name.
+
+Restoring `covers/` is worth skipping in a rehearsal — it is 283 MB over a
+metered connection and uses the same `rclone copy` the weekly sync already
+proves. `library/` is worth restoring every time: it is small, and it is the
+one store nothing can re-fetch.
 
 ## What this does not protect against
 
