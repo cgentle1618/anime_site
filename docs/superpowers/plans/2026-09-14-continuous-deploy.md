@@ -1175,13 +1175,12 @@ the same item:
    and `tests/api/test_migrations_build_the_schema.py` asserts the from-zero
    build on every CI run.
 2. *"Data migrations that import live ORM models break whenever a later
-   migration adds a column"* — **a different item; it stays.** Rewrite only its
-   parenthetical: both revisions it cites as examples (`86982d71c2f1`,
-   `pb2m3i4g5r8`) were retired by the squash, and
-   `grep -hn "^\s*(from|import)\s+app\b" alembic/versions/*.py` now returns
-   nothing. Say that the class has no live instances and the convention is
-   followed but unenforced. **Do not delete the item** — it is the only place
-   this is tracked.
+   migration adds a column"* — **a different item, and NOT yours.** It was
+   closed on the `test/orm-imports-in-migrations` branch (`8e01ba0`), which
+   added `tests/unit/test_migration_imports.py` to enforce it. **Leave this line
+   exactly as you find it.** If that branch has merged, the line already reads
+   `done`; if it has not, editing it here creates the `docs/PROGRESS.md`
+   collision this plan exists to avoid.
 3. The `anime_site_mig_check` scratch-database row, whose justification
    *"because `alembic upgrade head` from an EMPTY database still fails"* is now
    wrong. Correct the justification.
