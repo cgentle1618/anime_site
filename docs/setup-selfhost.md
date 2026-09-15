@@ -754,9 +754,15 @@ The repository is public, so no deploy key is needed.
 
 ```bash
 ssh homelab
-git clone --branch dev https://github.com/cgentle1618/anime_site.git ~/anime_site
+git clone --branch main https://github.com/cgentle1618/anime_site.git ~/anime_site
 cd ~/anime_site
 ```
+
+**`main`, not `dev`.** `main` is production and moves only by a release pull
+request from `dev`, so cloning it is what makes that gate real: a merge to
+`dev` reaches this box only once it has been promoted. `deploy.sh` pulls
+whichever branch is checked out and does not name one, so the branch chosen
+here is the whole of the decision.
 
 **Write `.env` by hand. Do not copy one from a development machine** —
 `DATABASE_URL` is honoured verbatim, so a stale `localhost` value silently

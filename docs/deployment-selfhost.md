@@ -108,6 +108,11 @@ Windows licence stops mattering after that.
 One Compose project, `media`, defined by `docker-compose.prod.yml` at the
 repository root, from a git checkout at `~/anime_site` on the box.
 
+**That checkout tracks `main`.** `deploy.sh` pulls whatever branch is checked
+out rather than naming one, so this is what decides that production runs
+released code: work reaches `dev` by pull request and reaches the box only
+after a release pull request promotes `dev` to `main`.
+
 | Service | Image | What it is |
 | --- | --- | --- |
 | `db` | `postgres:17` | The database. Data in the named volume `media_pgdata`. |
