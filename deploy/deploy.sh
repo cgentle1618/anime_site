@@ -27,8 +27,10 @@ fi
 
 mkdir -p "${BACKUP_DIR}"
 
-# shellcheck disable=SC1091
-set -a; . ./.env; set +a
+set -a
+# shellcheck disable=SC1091  # runtime file; not present at lint time
+. ./.env
+set +a
 
 stamp="$(date +%Y%m%d-%H%M%S)"
 dump="${BACKUP_DIR}/pre-deploy-${stamp}.dump"

@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
         *)          usage ;;
     esac
 done
-[ -n "${DUMP}" ] && [ -n "${INTO}" ] || usage
+if [ -z "${DUMP}" ] || [ -z "${INTO}" ]; then usage; fi
 [ -s "${DUMP}" ] || { echo "Dump ${DUMP} is missing or empty." >&2; exit 1; }
 
 load_env

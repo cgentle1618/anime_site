@@ -9,6 +9,7 @@
 # backup it verifies has finished.
 
 REPO_DIR="${REPO_DIR:-${HOME}/anime_site}"
+# shellcheck disable=SC2034  # consumed by the scripts that source this file
 COMPOSE=(docker compose -f "${REPO_DIR}/docker-compose.prod.yml")
 LOCK_FILE="${HOME}/.cache/media-backup.lock"
 LOG_FILE=""
@@ -30,8 +31,10 @@ LOG_FILE=""
 # needs.
 load_env() {
     [ -f "${REPO_DIR}/.env" ] || { echo "No ${REPO_DIR}/.env" >&2; return 1; }
-    # shellcheck disable=SC1091
-    set -a; . "${REPO_DIR}/.env"; set +a
+    set -a
+    # shellcheck disable=SC1091  # runtime file; not present at lint time
+    . "${REPO_DIR}/.env"
+    set +a
 }
 
 # load_backup_env <HC_VARIABLE_NAME>
@@ -50,8 +53,10 @@ load_env() {
 load_backup_env() {
     local hc_var="${1:?load_backup_env needs the name of the HC_*_URL variable for this job}" var
     [ -f "${REPO_DIR}/.env.backup" ] || { echo "No ${REPO_DIR}/.env.backup" >&2; return 1; }
-    # shellcheck disable=SC1091
-    set -a; . "${REPO_DIR}/.env.backup"; set +a
+    set -a
+    # shellcheck disable=SC1091  # runtime file; not present at lint time
+    . "${REPO_DIR}/.env.backup"
+    set +a
     # `${!name:-}`, never a bare `${!name}`: under `set -u` the bare form
     # aborts with "unbound variable" and loses the message below, which is the
     # entire point of this function.
