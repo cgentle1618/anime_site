@@ -919,12 +919,19 @@ shape is what it is.
   `[System] Admin account verified.` is that branch — so `ADMIN_PASSWORD` is
   never consulted and production would otherwise run on development
   credentials.
-- **`restart: unless-stopped`, a `pg_isready` healthcheck on `db`, and
-  deliberately none on `app`.** `unless-stopped` rather than `always` so a
-  deliberate `docker compose stop` survives a daemon restart. No app
-  healthcheck because the catch-all route serves the SPA for any path, so a
-  check against `/` passes with the database down — a healthcheck that lies is
-  worse than none.
+- **`restart: unless-stopped`, a `pg_isready` healthcheck on `db`, and one on
+  `app` that probes `/api/health` rather than `/`.** `unless-stopped` rather
+  than `always` so a deliberate `docker compose stop` survives a daemon restart.
+  The app went without any healthcheck while the only available probe was the
+  catch-all route, which serves the SPA for any path and so returns 200 with the
+  database down; a healthcheck that lies is worse than none. What made one
+  honest is an endpoint that opens a session, reads `alembic_version` and
+  compares it to the head the running code expects — failing both when the
+  database is gone and when the schema and the image disagree. Rejected:
+  reporting the revision in the public body. The tunnel routes every path at
+  `media.cg1618.com` to `app:8000`, so that would publish the schema version and
+  migration cadence to anyone who asks; the detail is gated on
+  `manage.pipelines` and the public body is a bare status.
 - **No service publishes a port.** The tunnel is the only ingress; `psql` from
   a laptop goes over SSH. There is no open port to misconfigure.
 - **`COMPOSE_PROJECT_NAME=media`, and no `container_name:` anywhere.** The

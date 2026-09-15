@@ -64,11 +64,23 @@ def test_app_waits_for_a_healthy_db(compose):
     assert compose["services"]["app"]["depends_on"]["db"]["condition"] == "service_healthy"
 
 
-def test_app_has_no_healthcheck(compose):
-    # Deliberate. The catch-all route at app/main.py serves the SPA for any
-    # path, so a check against "/" passes with the database down. A healthcheck
-    # that lies is worse than none.
-    assert "healthcheck" not in compose["services"]["app"]
+def test_the_app_healthcheck_does_not_probe_the_catch_all_route(compose):
+    # `app` carried no healthcheck at all until /api/health existed, and the
+    # reasoning was right rather than an oversight: the catch-all route at
+    # app/main.py serves the SPA for any path, so a check against "/" returns
+    # 200 with the database down, and a healthcheck that lies is worse than
+    # none.
+    #
+    # /api/health retires that reasoning by opening a real session, reading
+    # alembic_version, and comparing it to the head the running code expects -
+    # so it fails when the database is gone AND when the schema and the image
+    # disagree, which is the state a half-rolled-back deploy leaves behind.
+    #
+    # This pins the DISTINCTION, not the presence. Repointing the probe at "/"
+    # must fail rather than pass quietly, because that single character is the
+    # whole difference between a check and a lie.
+    probe = " ".join(compose["services"]["app"]["healthcheck"]["test"])
+    assert "/api/health" in probe, probe
 
 
 def test_app_carries_an_image_name_alongside_build(compose):

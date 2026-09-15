@@ -183,9 +183,15 @@ every deploy takes a dump first.
 Without that, a boot where PostgreSQL is slower than the application makes the
 application crash-loop through Alembic until it wins.
 
-**`app` deliberately has no healthcheck.** The catch-all route serves the SPA
-for any path, so a check against `/` passes with the database completely down.
-A healthcheck that lies is worse than none.
+**`app` is probed on `/api/health`, and the path matters more than the probe.**
+The catch-all route serves the SPA for any path, so a check against `/` passes
+with the database completely down — a healthcheck that lies is worse than none,
+which is why this service went without one until an honest probe existed.
+`/api/health` opens a database session, reads `alembic_version`, and compares it
+to the head the running code expects, so it fails both when the database is gone
+and when the schema and the image disagree. The second is the state a
+half-rolled-back deploy leaves behind, where the site still serves pages and
+every weaker probe passes.
 
 ### Where the secrets are
 
