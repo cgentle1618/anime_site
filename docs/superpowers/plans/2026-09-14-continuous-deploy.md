@@ -542,6 +542,30 @@ def test_every_script_fails_fast(name):
     assert "set -euo pipefail" in body, name
 
 
+**Do not write this test — it already exists.** `tests/unit/test_backup_scripts.py::test_every_executed_script_is_executable_in_git`
+covers `deploy/backup/` and `deploy/deploy.sh`, reads `git ls-tree -r HEAD`
+rather than the index, and already exempts the sourced-only `lib.sh` at 100644.
+It does **not** cover `deploy/health.sh` or `deploy/rollback.sh`.
+
+**Widen its path list instead of adding a second test:**
+
+```python
+    out = subprocess.run(
+        ["git", "ls-tree", "-r", "HEAD", "deploy/"],
+        cwd=ROOT,
+```
+
+One path, not a list of three. Same argument as the shellcheck glob: a complete
+path cannot be forgotten, a maintained list can, and an unlinted or
+non-executable script produces no signal at all. Everything else in that test —
+the `.sh` filter, the `sourced_only` exemption, the assertions — already does the
+right thing for the new scripts.
+
+The helper below is what an earlier draft of this plan would have added. It is
+kept only as the explanation of **why `ls-tree` and not `ls-files`**, because
+that distinction is the whole reason the existing test is trustworthy:
+
+```python
 def _committed_mode(relative_path: str) -> str:
     """The mode in the COMMIT, not the index and not the working tree.
 
@@ -576,24 +600,10 @@ def _committed_mode(relative_path: str) -> str:
     return meta.split()[0]
 
 
-@pytest.mark.parametrize("name", SCRIPTS)
-def test_every_script_is_executable_in_the_commit(name):
-    # Git stores one permission bit and a file added from Windows arrives
-    # without it. The script then exists, reads correctly, and cannot be run -
-    # surfacing on the box as "Permission denied" from a workflow step, long
-    # after review. The off-box backup work shipped exactly this.
-    mode = _committed_mode(f"deploy/{name}")
-    assert mode == "100755", (
-        f"deploy/{name} is committed as {mode}. Fix with\n"
-        f"  git update-index --chmod=+x deploy/{name}\n"
-        "and then commit WITHOUT a pathspec - see the note in Task 4 Step 5."
-    )
+```
 
-
-def test_the_sourced_library_is_not_executable():
-    # lib.sh is sourced, never run. A test asserting only that things ARE 755
-    # would quietly endorse the opposite error, so pin both directions.
-    assert _committed_mode("deploy/backup/lib.sh") == "100644"
+End of the explanatory helper. The live assertion is the widened path in
+`test_backup_scripts.py` above.
 
 
 def test_health_polls_the_endpoint_and_not_the_catch_all():
@@ -1155,14 +1165,15 @@ check has a regular period, so the switch works.
 - [ ] **Step 1: Write the failing test**
 
 ```python
-def test_drift_validates_its_ping_url_rather_than_pinging_nowhere():
-    # lib.sh's hc_ping() returns 0 on an empty URL, which is right for an
-    # optional ping and wrong as a config check: an unset HC_DRIFT_URL would
-    # make this job succeed silently forever while alerting nobody - the exact
-    # false belief of coverage the job exists to prevent.
+def test_drift_validates_its_ping_url_through_the_shared_check():
+    # hc_ping() returns 0 on an empty URL - right for an optional ping, wrong as
+    # a config check - so an unvalidated HC_DRIFT_URL would make this job succeed
+    # silently forever while alerting nobody, which is the exact false belief of
+    # coverage the job exists to prevent. load_backup_env is where that check
+    # lives, and it runs BEFORE start_job installs the reporting trap, which is
+    # the half a bespoke check in this file would get wrong.
     body = (ROOT / "deploy" / "backup" / "drift.sh").read_text(encoding="utf-8")
-    assert "HC_DRIFT_URL" in body
-    assert "exit 1" in body
+    assert "load_backup_env HC_DRIFT_URL" in body
 
 
 def test_drift_timer_persists_across_a_box_that_was_off():
@@ -1174,36 +1185,50 @@ def test_drift_timer_persists_across_a_box_that_was_off():
 
 - [ ] **Step 3: Write `deploy/backup/drift.sh`**
 
+**`lib.sh` already does the validation an earlier draft of this plan hand-rolled.**
+`load_backup_env <HC_VAR_NAME>` sources `.env.backup` and refuses to continue if
+that variable or `R2_BUCKET` is missing or empty — and its reasoning is sharper
+than mine was: the check has to happen *before* `start_job` installs the
+reporting trap, because `set -u` on a misspelled variable would otherwise abort
+the script before anything could report, silently, on every run, for the life of
+the box. Use it. Do not write a bespoke check.
+
+Follow `deploy/backup/covers.sh` exactly for the idiom — `. "$(dirname "$0")/lib.sh"`,
+then `load_env`, `load_backup_env`, `acquire_lock`, `start_job`, and `REPO_DIR`
+rather than a relative `cd`.
+
 ```bash
 #!/usr/bin/env bash
 # Daily: has main reached the box?
 #
-# Lives in deploy/backup/ rather than deploy/ so the CI lint glob and
-# install.sh's units/*.timer loop and User=/path rewrite all pick it up with no
-# edit to the backup work's files.
+# GitHub cannot see the case this exists for: a runner offline when a merge
+# lands queues the job silently and the merge simply never deploys, which looks
+# exactly like success until somebody visits the site. A dead-man's switch on
+# the DEPLOY job cannot cover it either - Healthchecks fires on a ping missing
+# within an expected period, deploys are irregular, and a job that never started
+# cannot ping. A daily check has a regular period, so the switch works.
+#
+# Lives in deploy/backup/ rather than deploy/ so the CI lint glob, install.sh's
+# units/*.timer loop and its User=/path rewrite all pick it up with no edit to
+# the backup work's files.
+#
+# HC_DRIFT_URL is not assigned here - load_backup_env sources it at runtime from
+# .env.backup and refuses to continue if it is missing or empty.
+# shellcheck disable=SC2154
 
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."
-
-# shellcheck disable=SC1091
-. deploy/backup/lib.sh
+# shellcheck source=deploy/backup/lib.sh
+. "$(dirname "$0")/lib.sh"
 
 load_env
-
-# shellcheck disable=SC2154  # HC_DRIFT_URL arrives from .env.backup
-if [ -z "${HC_DRIFT_URL:-}" ]; then
-    echo "HC_DRIFT_URL is unset in .env.backup. Refusing to run." >&2
-    echo "hc_ping() returns 0 on an empty URL, so continuing would report" >&2
-    echo "success forever while alerting nobody." >&2
-    exit 1
-fi
-
+load_backup_env HC_DRIFT_URL
 acquire_lock
-start_job media-drift "${HC_DRIFT_URL}"
+start_job "media-drift" "${HC_DRIFT_URL}"
 
 GRACE_HOURS=6
 
+cd "${REPO_DIR}"
 git fetch origin main --quiet
 local_rev="$(git rev-parse HEAD)"
 remote_rev="$(git rev-parse origin/main)"
