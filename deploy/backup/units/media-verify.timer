@@ -1,0 +1,13 @@
+[Unit]
+Description=Media tracker: weekly restore drill, Wednesdays at 04:40 Asia/Taipei
+
+[Timer]
+OnCalendar=Wed *-*-* 04:40:00
+# The box lives on a phone hotspot and may be off overnight. Without this a
+# missed run is lost silently, which is worse than it looks - the whole point
+# of the dead-man's switch is that a run that never happened is visible.
+Persistent=true
+Unit=media-verify.service
+
+[Install]
+WantedBy=timers.target

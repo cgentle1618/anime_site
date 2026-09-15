@@ -1,0 +1,15 @@
+[Unit]
+Description=Media tracker: nightly Google Sheets backup
+# After=media-backup.service (ordering only, no Requires=) makes the ordering
+# claim in sheets.sh's header actually hold when both timers fire together at
+# boot after an outage (Persistent=true) rather than ten minutes apart. It
+# does not gate on media-backup.service's exit status, so the two jobs keep
+# independent failure domains: sheets.sh still runs, and still reports to its
+# own Healthchecks check, on a night media-backup.service fails.
+After=docker.service network-online.target media-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cgentle1618
+ExecStart=/home/cgentle1618/anime_site/deploy/backup/sheets.sh
