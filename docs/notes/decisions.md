@@ -1,6 +1,6 @@
 # Design decisions
 
-Last verified: 2026-09-14
+Last verified: 2026-09-15
 
 ## What this is for
 
@@ -965,3 +965,137 @@ the written design and were corrected by running them. Two of the three failed
 rollback that restored old data under new code while the site stayed up and the
 row counts came back correct. Both were found by comparing something concrete
 against something else, not by reading.
+
+### Off-box backups (spec: 2026-09-14 offbox-backups)
+
+Four host-side scripts on `homelab`, scheduled by systemd timers and alerted
+through Healthchecks.io, give the database and the uploaded-image tree a copy
+off the box. Detail lives in [deployment-selfhost.md](../deployment-selfhost.md#backups);
+this is why the shape is what it is.
+
+- **R2 as the backup target, not the primary store.** Local disk stays the
+  source of truth for every read the application does; R2 only ever receives
+  copies. `deployment-selfhost.md` cited this decision as living here before
+  it actually did — this entry is what makes that citation true.
+- **Uploaded images stay on local disk rather than moving to object storage.**
+  A backup script that copies ordinary files with `rclone sync` needs no
+  application code and works even when the app is broken — which is exactly
+  when a restore is needed.
+- **Host-side scripts, not an app pipeline**, for the same reason: the backup
+  has to work when the app is unhealthy, and a broken app is the case that
+  actually matters. `sheets.sh` is the one job that does call into the app
+  (`execute_backup`), because Sheets access lives entirely behind that
+  pipeline; the database dump and the file syncs do not.
+- **The stamp is written INSIDE the dump**, as a row in its own `backup`
+  schema, rather than as a JSON file uploaded beside it. Rejected: the
+  sidecar-file shape, because a fresh metadata file pairs happily with a stale
+  dump and the freshness check passes on data that proves nothing.
+- **`source_tables` is read from `pg_tables`** — what production actually had
+  at dump time — rather than compared against the SQLAlchemy models. Detects a
+  partial dump from the dump's own contents and needs no healthy app
+  container to check against.
+- **The verify drill's throwaway database runs with `--network none`**,
+  rather than as a scratch database inside the live `db` container. Rejected:
+  the scratch-database-in-production-container shape, where only a correctly
+  set shell variable stands between a drill restore and `--clean` against the
+  real data. `--network none` makes the throwaway incapable of reaching
+  production by construction, not by convention.
+- **One restore implementation, `restore.sh`, with two callers** — the weekly
+  drill and a human in a disaster — differing only in their guards, never in
+  their logic. A disaster procedure verified by different code from what
+  actually runs it is verified by nothing; running the drill against
+  `restore.sh` every week proves the 2 a.m. path works, not a description of
+  it.
+- **Row counts are reported in the drill's success ping, not asserted.** They
+  are read just before `pg_dump` takes its snapshot, so a write landing in
+  that gap would fail the drill for a reason that has nothing to do with
+  backup correctness. A backup system that cries wolf gets ignored, which is
+  its own kind of silent failure.
+- **`static/covers/` syncs weekly, `static/library/` nightly**, split by
+  recoverability on a metered link. A stale cover is re-fetchable from the
+  metadata APIs; an uploaded image is not recoverable from anywhere else.
+  283 MB of covers is worth spending deliberately, not at whatever hour a
+  timer happens to fire — `install.sh` leaves `media-covers.timer` disabled
+  until the first sync is run by hand.
+- **The Google Sheets Backup is scheduled and automatic, and deliberately
+  unverified.** This reverses an earlier decision to leave Sheets manual, on
+  the reasoning that a scheduled Backup removes the human gate that used to
+  catch a bad write before it overwrote every tab. The R2 dump is the backup
+  of record and is restore-verified weekly; the sheet is a current,
+  independent second copy whose only check is that the pipeline reported
+  success. That asymmetry is deliberate, not an oversight, and is stated
+  explicitly in `deployment-selfhost.md` so it cannot become a false belief.
+- **A dead-man's switch (Healthchecks.io) rather than an error reporter.** A
+  job that runs and fails can report its own failure on the way out; a job
+  that never runs at all — box off, hotspot down, timer disabled — executes
+  nothing and can report nothing about itself. Only something outside the box
+  can notice an absence.
+- **Healthchecks' OnCalendar schedule type, not Simple.** Simple measures its
+  deadline from the last ping, so a catch-up run fired late by
+  `Persistent=true` after an outage pushes the next deadline later, and every
+  subsequent late run pushes it later again — the alarm drifts away from the
+  schedule it exists to guard. OnCalendar anchors to the wall clock instead:
+  04:00 is expected at 04:00 regardless of what happened the day before.
+- **`media-sheets.service` and `media-verify.service` declare
+  `After=media-backup.service` with no `Requires=`.** The shared `flock` in
+  `lib.sh` is a pure mutex — it serialises the four jobs but does not order
+  them. Without `After=`, `Persistent=true` firing every missed timer
+  simultaneously at boot could let Sheets overwrite every tab before the
+  night's dump had run, or let the drill verify against a dump not yet
+  finished. `Requires=` was rejected: it would fail Sheets and the drill
+  outright on any night the dump job fails, which are meant to be independent
+  failure domains reporting to independent alerts.
+- **Backup secrets live in `~/anime_site/.env.backup`, not `.env`.**
+  `docker-compose.prod.yml` gives the `app` service `env_file: .env`, so
+  anything placed there is injected into the running web application —
+  including, for these variables, write credentials for the very bucket
+  holding the application's own backups.
+
+**What the design got wrong**, found by running it on the box rather than by
+reading it — three of the six were invisible from a Windows development machine:
+
+- **The spec's load-bearing sentence for its own second requirement was false.**
+  It claimed there is no path out of any script that does not report success or
+  failure. There are four, all before `start_job` installs the trap:
+  `load_env` failing, a syntax error while sourcing `.env`, `acquire_lock`
+  timing out, and an unset `HC_*_URL` aborting under `set -u`. The last is the
+  sharp one — a single typo in `.env.backup` yields a job that never reports,
+  on every run. `load_backup_env` now validates the names it exists to load,
+  and the remaining gap is stated rather than denied.
+- **`Persistent=true` does not fire a timer on first activation.** It catches up
+  a run missed while the machine was off, but only for a timer that has run
+  before; on first enable systemd writes the stamp as of that moment and has
+  nothing to catch up. `install.sh` and the setup guide both told the operator
+  that enabling had just taken a backup and overwritten the production sheet.
+  Neither had happened, and the claim was also the stated reason for deferring
+  `media-verify.timer`. The deferral survives on its real reason — the drill
+  cannot pass against an empty bucket.
+- **The production guard in `restore.sh` failed open.** `[ -n "$(compose ps -q
+  app)" ]` captures stdout only, so a `docker compose` failure read as "the app
+  is stopped" and let a restore proceed with the app's real state unknown. A
+  guard that fails open is worse than no guard, and broken docker tooling is
+  exactly the situation a disaster restore happens in. Command substitutions
+  are now audited by asking what the script concludes when the command *fails*
+  rather than returns empty.
+- **`rclone` needs `no_check_bucket` and `no_head` for R2**, and the design
+  anticipated neither. Both present as permissions problems: a bucket-scoped
+  token cannot perform rclone's pre-flight bucket check (403), and R2 does not
+  implement object versioning, so rclone's post-upload HEAD by `versionId`
+  returns 501 and a successful upload is reported as failed.
+- **The scripts shipped non-executable.** `core.fileMode` is off on the Windows
+  development machines, so `chmod +x` never reaches a commit; and the
+  `git commit -- <paths>` form this project requires re-reads those paths from
+  the working tree, discarding a bit staged with `git update-index`. Every
+  timer would have failed at 04:00 through a check that had never been armed.
+- **A failed Healthchecks ping was silent.** `|| true` correctly stops a network
+  blip failing a backup, and incorrectly discarded the one case that matters: a
+  ping URL that is wrong rather than missing, where the job succeeds and reports
+  to nowhere. Not failing and saying nothing are different things.
+
+Two things the implementation improved on the design rather than merely
+correcting: `source_tables` is read from `pg_tables` — what production actually
+had at dump time — instead of from the application's models, which detects a
+partial dump and needs no healthy app container; and `After=media-backup.service`
+with no `Requires=` was added once it was clear that the shared `flock`
+serialises the jobs but does not order them, so a boot catch-up could let the
+Sheets overwrite precede the dump it is supposed to follow.

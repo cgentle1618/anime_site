@@ -8,6 +8,8 @@ docker compose -f docker-compose.prod.yml <command>
 ```
 
 Deploying is `./deploy/deploy.sh`, which dumps the database before it pulls.
+See [What a deploy covers](#what-a-deploy-covers) for the two things it does
+not.
 
 The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md),
 and the reasoning behind this shape is in
@@ -20,6 +22,52 @@ look for `deploy/.env` and interpolate every `${...}` to an empty string —
 while `env_file:` kept working, so the app would still start, with a blank
 database password. It does not collide with `docker-compose.yml`, which is the
 development file: Compose only picks that name up by default, never this one.
+
+## What a deploy covers
+
+```bash
+cd ~/anime_site && ./deploy/deploy.sh
+```
+
+**The code has to be on `main` first.** `deploy.sh` pulls whichever branch is
+checked out and never names one; the box is on `main`, so work reaches it only
+after a release pull request promotes `dev`. Merging to `dev` deploys nothing.
+
+**Do not `git pull` or `git checkout` first.** `deploy.sh` records
+`git rev-parse HEAD` beside the dump *after* taking it, as the revision a
+rollback returns to. Moving `HEAD` beforehand makes it record the version you
+are moving *to*, which is useless as a rollback target — and the mistake is
+invisible until the rollback needs it.
+
+What one run does: dumps the database and refuses to continue if the dump is
+empty, records the revision beside it, tags the outgoing image
+`media-app:previous`, pulls, rebuilds and restarts, then prunes to the last five
+dumps. Migrations apply themselves, because `entrypoint.sh` runs
+`alembic upgrade head` on every start. The frontend rebuilds, because that is
+the first stage of `dockerfile`.
+
+### Two things it does not do
+
+**Systemd units are not reinstalled.** `deploy.sh` touches nothing under
+`/etc/systemd/system`. A change to any file in `deploy/backup/units/` — a
+schedule, an `After=`, a new job — arrives in the checkout and **does not reach
+the running timers**. The live units keep the old definition, nothing errors,
+and `systemctl cat media-backup.timer` and the file in the repository quietly
+disagree. After any change under `deploy/backup/units/`, or to `install.sh`
+itself:
+
+```bash
+sudo ./deploy/backup/install.sh
+```
+
+It is idempotent: the packages are already present, the units are overwritten,
+`daemon-reload` runs, and timers already enabled stay enabled.
+
+**New environment variables do not appear.** `deploy.sh` never writes `.env` or
+`.env.backup`. A change that requires a new key needs it added by hand first, or
+the job or container fails on the next start — `load_backup_env` refuses by
+name, which is the loud case; a variable the application reads through
+`settings` may simply be `None`, which is the quiet one.
 
 ## The three services
 
@@ -42,6 +90,8 @@ ssh -L 5433:localhost:5432 homelab   # then psql -h localhost -p 5433
 | Thing | Where | Why not in git |
 | --- | --- | --- |
 | `.env` | `~/anime_site/.env` | secrets; already gitignored |
+| `.env.backup` | `~/anime_site/.env.backup` | R2 write credentials and the Healthchecks ping URLs; kept out of `.env` so `env_file: .env` cannot hand them to the app |
+| rclone remote | `~/.config/rclone/rclone.conf` | R2 access keys |
 | Tunnel credentials, CLI copy | `~/.cloudflared/<uuid>.json` | secret; used by `cloudflared tunnel ...` as you |
 | Tunnel credentials, container copy | `~/.cloudflared/credentials.json` | secret; mounted read-only, **owned by 65532** - see below |
 | `cert.pem` | `~/.cloudflared/cert.pem` | only needed to administer the tunnel |
@@ -174,13 +224,136 @@ back two deploys means it is the wrong image, and only `--build` is correct.
 If only the code is bad and no migration ran, step 2 is unnecessary either
 way.
 
+## Disaster recovery from R2
+
+**This is a different operation from rollback.** Rollback reverses a bad
+deploy using a local dump that still exists on the box's own disk. This
+rebuilds the box from copies that were never on it — the disk itself, or the
+dumps in `~/backups/` alongside it, is gone or untrusted.
+
+**Walked end to end**, against a scratch stack on the box: dump fetched from
+R2, restored with the script below, application started against the restored
+database and served real rows. What it has not been run against is an actual
+loss, where the box itself is gone and `.env` is being retyped from a password
+manager. Steps 1 and 8 are the parts that rehearsal cannot exercise.
+
+To rehearse it again without touching production, see
+[Rehearsing it](#rehearsing-it) below.
+
+1. Get the two files this needs onto the box being recovered onto:
+
+   - `~/.config/rclone/rclone.conf` with the `[r2]` remote (see
+     [docs/setup-selfhost.md](../docs/setup-selfhost.md)), plus `rclone`
+     itself — this is what reaches the dumps at all.
+   - `~/anime_site/.env`, written by hand per [`.env`](#env) above.
+     `restore.sh` reads `POSTGRES_USER` and `POSTGRES_DB` from it, and the
+     stack cannot start without it.
+
+   **`.env.backup` is not needed for a restore.** `restore.sh` loads only
+   `.env`; the R2 credentials for *this* procedure live in `rclone.conf`.
+   Recreate `.env.backup` afterwards, when the scheduled jobs are put back —
+   they will not run without it, and `install.sh` refuses to run without it.
+2. Pick a dump:
+
+   ```bash
+   rclone lsf r2:<bucket>/db/daily
+   ```
+
+3. Bring it down:
+
+   ```bash
+   rclone copyto r2:<bucket>/db/daily/<name>.dump /tmp/<name>.dump
+   ```
+
+4. Stop the app so `create_all` at import cannot collide with the restore:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml stop app
+   ```
+
+5. Restore with the same script the weekly drill runs, not a hand-typed
+   `pg_restore`:
+
+   ```bash
+   deploy/backup/restore.sh --dump /tmp/<name>.dump --into production --confirm
+   ```
+
+6. Bring the images back:
+
+   ```bash
+   rclone copy r2:<bucket>/covers static/covers
+   rclone copy r2:<bucket>/library static/library
+   ```
+
+7. Start everything:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+8. **Rotate both passwords afterwards**, the same as the [`.env`](#env) restore
+   notes above require — the restored dump carries whatever credentials were
+   live when it was taken.
+
+### What the walk-through turned up
+
+- **Step 4 stops `app` only.** `db` must stay up — it is what `restore.sh`
+  executes `pg_restore` inside. Stopping the whole stack leaves nothing to
+  restore into.
+- **The guard prints what it is about to destroy before it acts**, as row
+  counts. On a real recovery that line is how you confirm the target is the
+  database you meant. Against an empty scratch database it printed `(0 rows)`,
+  which is the shape to expect when recovering onto a fresh box.
+- **`/api/system/health` answers 200.** It does not exist — the catch-all route
+  serves the SPA for any unmatched path, which is also why no service in
+  `docker-compose.prod.yml` has an app healthcheck. Do not use an HTTP 200 on an
+  arbitrary path as evidence the application came up. Check `Content-Type`:
+  the real API answers `application/json`, the catch-all answers `text/html`.
+- **`/openapi.json` is the honest liveness check.** It is served by FastAPI
+  itself rather than the catch-all, so a route count coming back proves the
+  application loaded rather than that a file was served.
+
+### Rehearsing it
+
+The whole procedure can be run against a scratch stack that is incapable of
+touching production, because `lib.sh` honours `REPO_DIR`. Point it at a
+directory holding its own compose file and `.env`:
+
+```bash
+mkdir -p ~/rehearsal/static/covers ~/rehearsal/static/library
+cd ~/rehearsal
+cp ~/anime_site/docker-compose.prod.yml ~/anime_site/.env .
+sed -i 's/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=rehearsal/' .env
+```
+
+Then edit the copied compose file to **remove the `cloudflared` service** — a
+second tunnel would serve `media.cg1618.com` from the scratch stack — and bind
+the app to loopback, `127.0.0.1:8001:8000`, so nothing reaches the LAN.
+
+**Verify the project name before creating or destroying anything.** The project
+decides which volume Compose uses, so a wrong one aims `down -v` at production's
+data:
+
+```bash
+docker compose -f docker-compose.prod.yml config --format json   | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])'   # must print: rehearsal
+```
+
+Bring up `db` alone, then run the ordinary steps 2, 3 and 5 above with
+`REPO_DIR=$HOME/rehearsal` in front of `restore.sh`. Tear down with
+`docker compose -f docker-compose.prod.yml down -v` after re-checking the
+project name.
+
+Restoring `covers/` is worth skipping in a rehearsal — it is 283 MB over a
+metered connection and uses the same `rclone copy` the weekly sync already
+proves. `library/` is worth restoring every time: it is small, and it is the
+one store nothing can re-fetch.
+
 ## What this does not protect against
 
 A migration that is wrong in a way nobody notices for a week. By then every
 deploy dump either predates the damage uselessly or postdates it. That is what
-the nightly off-box backup — build-order step 7 in
-[docs/deployment-selfhost.md](../docs/deployment-selfhost.md#build-order) — is
-for, and it is the argument for doing that step early rather than last.
+the nightly off-box backup — see [Backups](../docs/deployment-selfhost.md#backups)
+— is for.
 
 ## The tunnel's two credential files
 

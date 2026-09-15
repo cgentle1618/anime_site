@@ -59,7 +59,6 @@ open:
 
 | Item | Status |
 |---|---|
-| Scheduled backups off the box — build-order step 7 | todo — the off-box copy today is a **manual** Sheets Backup, so the data is only as current as the last time someone ran it. Covers are re-fetchable; `static/library/` is empty, and becomes the sharp case once anything is uploaded |
 | DHCP reservation | blocked — a phone hotspot offers none |
 | Cable handover (step 11) | blocked — no Ethernet yet |
 | Idle power reading | skipped — no meter |

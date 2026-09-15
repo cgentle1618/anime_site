@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-09-12
+Last verified: 2026-09-15
 
 ## What this is for
 
@@ -293,6 +293,65 @@ Two rules follow:
 This is the same family as "when a loud refusal is being softened, put the
 regression test on the read, not on the write": in both, the assertion runs,
 ends green, and measures nothing.
+
+## An exit code alone is not a pass
+
+`returncode != 0` asserts that *something* went wrong, not that the thing under
+test caught it. A refusal guard needs the specific message asserted, not just a
+nonzero exit — a script can exit 1 for reasons that have nothing to do with the
+guard being tested.
+
+`deploy/backup/restore.sh`'s `--into production` path refuses to run while the
+app container is up, because `create_all` at import would collide with
+`pg_restore`. A test that only checked `returncode != 0` against a broken
+version of that guard would have passed anyway: the broken script still exited
+1, but from an unrelated downstream failure rather than from the guard
+refusing. Only asserting the exact refusal text on stderr (`"Refusing: the app
+service is running"`) tells the two apart.
+
+The sibling hazard is comparing two *computed* values instead of one computed
+value against a fixed literal. `verify.sh` compares its restored
+`alembic_version` against the value stamped into the dump — but both are read
+with a plain `psql -tAc`, and a query that returns zero rows or an unpopulated
+column comes back as `""` on both sides just as easily as it comes back with a
+real value. `"" == ""` passes, and the drill reports success having proven
+nothing. Assert each side is non-empty, with a message naming which one was
+empty, *before* comparing them to each other — and prefer comparing against a
+fixed literal (like asserting a boolean column is exactly `"t"`) over comparing
+two things that can both be empty in the same way.
+
+## A test can assert the wrong copy of the thing it is guarding
+
+A test is only as good as the artefact it reads. `test_backup_scripts.py`
+asserts that every executed script under `deploy/backup/` is mode `100755`,
+because `systemd`'s `ExecStart` needs the bit set. The first version read it
+with `git ls-files -s`, which reports the **index**. It passed against a commit
+where every one of those scripts was `100644`.
+
+The index and the commit diverge for a specific and reachable reason. The
+development machines are Windows with `core.fileMode` off, so `chmod +x` there
+never reaches git; the bit has to be set with `git update-index --chmod=+x`,
+which stages it. But committing with an explicit pathspec — `git commit -- <paths>`,
+which this project requires so a session cannot sweep another's staged work —
+**re-reads those paths from the working tree**, discarding a change that exists
+only in the index. The index then says `100755`, the commit says `100644`, and
+a test reading the index is green against a broken commit.
+
+In CI the two always agree, because a fresh checkout makes the index equal
+`HEAD`. So the failure is invisible exactly where the code is written and
+invisible again where it is checked. The test now reads `git ls-tree -r HEAD`.
+
+Two things generalise from it:
+
+- **Assert the artefact that ships.** For anything git carries as metadata
+  rather than content — a file mode, a symlink target, whether a path is
+  tracked at all — read the commit, not the index or the working tree.
+- **Nothing failed when this shipped.** The test passed locally, passed in CI,
+  and was absent from the commit it was written to protect. It was caught
+  because the pull request's changed-file count looked too small, and a
+  `git show --stat` confirmed the mode changes were not in it. When a check and
+  its delivery mechanism can fail independently, a green check is evidence about
+  the check only.
 
 ## The theme token guard
 

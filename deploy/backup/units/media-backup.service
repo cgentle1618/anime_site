@@ -1,0 +1,9 @@
+[Unit]
+Description=Media tracker: nightly database dump and library mirror to R2
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cgentle1618
+ExecStart=/home/cgentle1618/anime_site/deploy/backup/backup.sh

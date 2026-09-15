@@ -1,7 +1,7 @@
 # Production: the self-hosted box
 
-Last verified: 2026-09-14 (the application is deployed and serving at
-`media.cg1618.com`; backups off the box are the only part not built)
+Last verified: 2026-09-15 (the application is deployed and serving at
+`media.cg1618.com`)
 
 **What this is.** The application runs on an HP ProDesk 600 G4 Desktop Mini at
 home, under Ubuntu Server, in three Docker containers, reached from the Internet
@@ -107,6 +107,11 @@ Windows licence stops mattering after that.
 
 One Compose project, `media`, defined by `docker-compose.prod.yml` at the
 repository root, from a git checkout at `~/anime_site` on the box.
+
+**That checkout tracks `main`.** `deploy.sh` pulls whatever branch is checked
+out rather than naming one, so this is what decides that production runs
+released code: work reaches `dev` by pull request and reaches the box only
+after a release pull request promotes `dev` to `main`.
 
 | Service | Image | What it is |
 | --- | --- | --- |
@@ -230,6 +235,112 @@ instead of permanently showing one failure — the second mattering more, becaus
 a box that always shows a failure teaches you to skim past the command you
 would use to find a real one.
 
+## Backups
+
+Four systemd timers, all on the box and all sourcing `deploy/backup/lib.sh`,
+serialise on one `flock` so two never run at once:
+
+| Job | Schedule (Asia/Taipei) | Script | Does |
+| --- | --- | --- | --- |
+| `media-backup` | daily 04:00 | `backup.sh` | Stamps the database, `pg_dump`s it, uploads to R2, mirrors `static/library/`, prunes old dumps |
+| `media-sheets` | daily 04:10 | `sheets.sh` | Runs the application's own Google Sheets Backup pipeline |
+| `media-covers` | Wed 04:20 | `covers.sh` | Syncs `static/covers/` (283 MB) to R2 |
+| `media-verify` | Wed 04:40 | `verify.sh` | Restores the newest R2 dump into a throwaway container and asserts it |
+
+`media-sheets.service` and `media-verify.service` both declare
+`After=media-backup.service` with no `Requires=` — ordering without coupling,
+so a night `media-backup` fails still runs the other two and still reports to
+their own alert, rather than one failure silently cancelling jobs that do not
+depend on it.
+
+**R2 layout**, one bucket:
+
+```
+db/daily/       nightly pg_dump, one object per run, 30-day retention
+db/monthly/     the 1st-of-month dump, kept 12 months
+library/        mirror of static/library/
+covers/         mirror of static/covers/ (weekly)
+_archive/       rclone --backup-dir target: anything a sync would delete
+                lands here instead, under the run's timestamp
+```
+
+Retention (30 days, 12 months) is enforced in R2 by `rclone delete --min-age`,
+not locally, so it lives in one place. It is a window, not a count — a box
+that has been off for a week holds fewer than 30 dailies, not exactly 30.
+
+**The stamp.** Every dump carries a `backup.stamp` table, written into the
+database (not beside it as a separate file) so it travels inside the `.dump`
+and cannot pair a fresh timestamp with a stale backup. It records when the
+dump was taken, the git revision and Alembic head at that moment, and the
+full list of `public` tables read from `pg_tables` — what production actually
+had, not what the models say it should have, so a partial dump shows up as a
+missing table name with no live app container required to detect it.
+
+**The weekly drill (`media-verify`)** is what makes the backup provable rather
+than assumed: it downloads the newest dump from R2, restores it with
+`restore.sh` — the same script a person runs by hand in a disaster, not a
+reimplementation of it — into a `postgres:17` container started with
+`--network none`, and asserts three things: the stamp is under 48 hours old
+and its Alembic head matches the restored `alembic_version`; the restored
+table set matches `backup.stamp.source_tables` exactly; and `users` and
+`role` each restore non-empty. Row counts for every table are reported in the
+success ping, not asserted — they are read just before the dump's snapshot,
+so a write landing in that gap would fail the drill for no real reason.
+
+**What a green `media-verify` does not mean.** It compares table *names*
+against `backup.stamp.source_tables`, not row counts, so a table that restored
+empty still passes — `users` and `role` are the only two whose contents are
+checked. And the freshness assertion is a 48-hour window, so a green drill on
+Wednesday is compatible with Wednesday's own backup having failed: it only
+proves a dump from the last two days restores. That night's failure is
+`media-backup`'s alert to raise, not the drill's. Both are deliberate — a
+stricter drill would cry wolf on ordinary writes and on a box that was off
+overnight — but a green drill is evidence about the restore path, not a
+statement that every table and last night's run are fine.
+
+**Alerting.** Each job pings its own Healthchecks.io dead-man's switch —
+`/start` on entry, success or `/fail` from an `EXIT` trap — using the
+**OnCalendar** schedule type (not Simple), so the alarm is anchored to wall-clock
+time rather than drifting later after every late run:
+
+| Check | Grace | Fires when |
+| --- | --- | --- |
+| `media-backup` | 6 h | no successful nightly by 10:00 |
+| `media-sheets` | 6 h | no successful sheet write by 10:10 |
+| `media-covers` | 1 day | no successful cover sync by Thursday 04:20 |
+| `media-verify` | 1 day | no successful drill by Thursday 04:40 |
+
+A dead-man's switch rather than an error reporter, because a job that never
+ran — box off, hotspot down, timer disabled — cannot report anything on its
+own; only something outside the box notices the absence.
+
+**A job that fails before it has loaded its configuration cannot ping either**,
+and this is the backstop for that too. The `EXIT` trap that reports success or
+failure is installed by `start_job`; a missing `.env` or `.env.backup`, a
+variable that is unset or empty, or a lock still held after an hour all end the
+run before that point — and in the `HC_*_URL` case the ping URL is the very
+thing that is missing. Such a run therefore shows up as a **missed** check at
+the end of the grace window, not as a failure alert, with the reason in
+`journalctl -u <unit>`. `load_backup_env` makes that reason legible — it
+refuses with a message naming the missing variable rather than aborting on
+`unbound variable` — but the absence, not the alert, is what is visible from
+outside.
+
+**The asymmetry, stated so it cannot become a false belief.** The `pg_dump` in
+R2 is the backup of record, and it is the only one of the two off-box copies
+that is restore-verified, every week, by `media-verify`. The Google Sheets
+Backup that `media-sheets` runs nightly is a current, independent second copy
+of the same data — but nothing restores it and checks the result. Its only
+verification is that the pipeline itself reported success. Reasoning about
+recoverability from the sheet as if it carried the same guarantee as the R2
+dump is wrong.
+
+Why R2 rather than the sheet as the backup of record, why images stay on local
+disk instead of object storage, and the rest of this design's reasoning is
+[notes/decisions.md](notes/decisions.md#off-box-backups-spec-2026-09-14-offbox-backups).
+Restoring from R2 in an actual disaster is
+[deploy/README.md](../deploy/README.md#disaster-recovery-from-r2).
+
 ## Deploying, and what CI does
 
 **CI deploys nothing.** `.github/workflows/ci.yml` runs ruff, pytest, eslint,
@@ -245,6 +356,12 @@ cd ~/anime_site && ./deploy/deploy.sh
 
 which dumps the database, records the revision that dump belongs to, tags the
 outgoing image `media-app:previous`, pulls, rebuilds and restarts.
+
+**It does not reinstall the systemd units and does not write `.env`.** A change
+under `deploy/backup/units/` arrives in the checkout while the running timers
+keep the old definition, silently — re-run `sudo ./deploy/backup/install.sh`
+after one. A change needing a new environment variable needs it added by hand.
+Both are in [deploy/README.md](../deploy/README.md#what-a-deploy-covers).
 
 **The box builds its own image** rather than pulling one from a registry.
 Building in CI and pulling from GHCR is the conventional answer and stays
@@ -312,24 +429,22 @@ in. Resizing just those would cut the image store by ~45%. Not worth doing for
 space, but it is why the comic library will feel slowest over the tunnel, and
 it is what grows fastest as comics are added.
 
-### What does need planning: backups, not capacity
+### Backups are what made capacity not a risk
 
-280 MB is small enough that a complete off-box backup is trivial — a nightly
-`pg_dump` plus an rsync of `static/covers/` and `static/library/` (which
-includes `static/library/thumbs/`) is a couple of hundred megabytes today,
-comfortably inside Cloudflare R2's free tier, though `static/library/` grows
-with every upload in a way the cover directories do not, so that figure is a
-floor rather than a fixed one. Since these directories will exist on exactly
-one disk in this box, this is the part of the storage story that actually
-carries risk. **A second copy is not optional.**
+280 MB is small enough that a complete off-box copy is trivial — comfortably
+inside Cloudflare R2's free tier even as `static/library/` grows with every
+upload in a way the cover directories do not. See [Backups](#backups) for the
+schedule, and [notes/decisions.md](notes/decisions.md#off-box-backups-spec-2026-09-14-offbox-backups)
+for why R2 and not something else.
 
-The two halves of that copy are not equally recoverable. A missing cover is
-an inconvenience — `download-missing-covers` re-fetches it from MAL, TMDB,
-Comic Vine and friends. A missing uploaded image is permanent: nothing
-re-fetches it, uploads never travel through the Google Sheets Backup/Pull
-pipeline (which carries the reference, not the bytes), and `static/library/`
-is the only copy anywhere. That asymmetry is the reason to actually verify
-the nightly sync runs, not just that it is configured.
+The two image directories are not equally recoverable, which is why one syncs
+nightly and the other weekly. A missing cover is an inconvenience —
+`download-missing-covers` re-fetches it from MAL, TMDB, Comic Vine and
+friends — so `static/covers/` syncs weekly. A missing uploaded image is
+permanent: nothing re-fetches it, uploads never travel through the Google
+Sheets Backup/Pull pipeline (which carries the reference, not the bytes), and
+`static/library/` is the only copy anywhere — so it syncs every night,
+alongside the database dump.
 
 ## Running cost
 
@@ -509,31 +624,6 @@ work — but the gate was left rather than removed blind.
 
 ## What is not done
 
-- **Scheduled backups off the box.** What exists today is a **manual** Google
-  Sheets Backup, run by a person from `/system`. It is genuinely off-box, so
-  the database is not one disk failure away from gone — but it is only as
-  current as the last time somebody remembered. The deploy dumps in
-  `~/backups/` do not help here: they live on the same SSD as the database they
-  protect.
-
-  What each store would actually cost to lose, today:
-
-  | Store | Recoverable? |
-  | --- | --- |
-  | Database | **Yes**, from the App Database sheet — back to the last manual Backup |
-  | `static/covers/` (283 MB) | **Yes, with effort** — re-fetchable from the metadata APIs. Time and API quota, not data |
-  | `static/library/` | Empty. Nothing uploaded yet |
-
-  So the work is to schedule what already exists, plus a `pg_dump` and an image
-  sync to R2 — R2 as the backup target rather than the primary store, which is
-  the decision in [notes/decisions.md](notes/decisions.md).
-
-  **This gets sharper the moment anything is uploaded.** `static/library/` is
-  the one store the Sheets backup cannot stand in for: the sheet carries a
-  reference to an uploaded image, never the bytes. Until then the warning is
-  anticipatory, and the 1,987 rows in `image` are backfilled references to
-  existing covers (`storage_key` = `covers/…`, `checksum` = `legacy:…`), not
-  uploads.
 - **A DHCP reservation**, which is impossible while the box lives on a phone
   hotspot. Its address is whatever DHCP hands out, and `ssh` failing is the
   signal that it moved.

@@ -1,7 +1,7 @@
 # Setting up the self-hosted production box
 
-Last verified: 2026-09-14 (followed end to end; the box it produced is serving
-`media.cg1618.com`)
+Last verified: 2026-09-15 (steps 1-17 followed end to end; the box it produced
+is serving `media.cg1618.com`)
 
 Everything from an unopened used mini PC to a machine serving the application
 over HTTPS, written for someone who has never installed Linux: every screen,
@@ -45,7 +45,7 @@ phase is a heading below, with its steps under it.
 | **[C. Set the BIOS](#phase-c--set-the-bios)** | At the box, monitor and keyboard | 3 | Firmware settings. **After phase B, never before.** |
 | **[D. Install Ubuntu](#phase-d--install-ubuntu)** | At the box, monitor and keyboard | 4-5 | Boot the installer and answer its screens. **SSH is switched on here**, inside the installer. |
 | **[E. Finish over SSH](#phase-e--finish-the-setup-over-ssh)** | At the dev machine, over SSH | 6-11 | Docker, housekeeping, the hardware readings, the network fixes. The monitor comes off at the start of this phase and does not go back on. |
-| **[F. Deploy the application](#phase-f--deploy-the-application)** | At the dev machine, over SSH | 12-17 | The checkout, the data, the tunnel, the backup sheet, and the tests that prove it recovers. |
+| **[F. Deploy the application](#phase-f--deploy-the-application)** | At the dev machine, over SSH | 12-18 | The checkout, the data, the tunnel, the backup sheet, off-box backups, and the tests that prove it recovers. |
 
 The two sections before phase A are reading, not doing: which Ubuntu, and what
 to have on the desk.
@@ -754,9 +754,15 @@ The repository is public, so no deploy key is needed.
 
 ```bash
 ssh homelab
-git clone --branch dev https://github.com/cgentle1618/anime_site.git ~/anime_site
+git clone --branch main https://github.com/cgentle1618/anime_site.git ~/anime_site
 cd ~/anime_site
 ```
+
+**`main`, not `dev`.** `main` is production and moves only by a release pull
+request from `dev`, so cloning it is what makes that gate real: a merge to
+`dev` reaches this box only once it has been promoted. `deploy.sh` pulls
+whichever branch is checked out and does not name one, so the branch chosen
+here is the whole of the decision.
 
 **Write `.env` by hand. Do not copy one from a development machine** —
 `DATABASE_URL` is honoured verbatim, so a stale `localhost` value silently
@@ -965,6 +971,119 @@ should not exist.
 5. **Open the development sheet and confirm it is untouched.** Comparing the two
    ids proves the configuration; looking at the sheet proves the outcome.
 
+#### Step 18 — Off-box backups
+
+Two accounts, both outside this box, before anything here runs:
+
+1. **A Cloudflare R2 bucket**, and a **bucket-scoped Object Read & Write** API
+   token for it. A read-only token is not enough — that failure has already
+   been hit here.
+2. **A Healthchecks.io account** with four checks, one per job, each using the
+   **OnCalendar** schedule type (not Simple) with the timezone set to
+   `Asia/Taipei` — see [deployment-selfhost.md](deployment-selfhost.md#backups)
+   for the four schedules and grace windows. Copy each check's ping URL.
+
+Then two files, both mode 600, neither in git:
+
+```
+~/.config/rclone/rclone.conf
+```
+
+```ini
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = <the token's access key id>
+secret_access_key = <the token's secret access key>
+endpoint = https://<account-id>.r2.cloudflarestorage.com
+region = auto
+acl = private
+no_check_bucket = true
+no_head = true
+```
+
+**The last two lines are required, and both fail in ways that look like a
+permissions problem.** The stanza works without them right up until the first
+upload.
+
+`no_check_bucket = true` — rclone verifies the bucket exists before uploading,
+which is a *bucket-level* operation. The token is scoped to objects in one
+bucket, so that pre-flight check returns **403 AccessDenied** and no upload is
+attempted. The token is correct; the check it cannot perform is not.
+
+`no_head = true` — rclone HEADs the object it just wrote to confirm it, and
+addresses that HEAD by the `versionId` the PUT returned. R2 does not implement
+object versioning, so the request returns **501 Not Implemented** and rclone
+reports the transfer as failed. The upload itself has already succeeded, and
+the retry finds the object present, so the job passes with a spurious `ERROR`
+line in its log and its Healthchecks ping.
+
+The upload is still verified: `backup.sh` and `covers.sh` both run
+`rclone check --checksum` after syncing, which compares checksums taken from
+the bucket listing, and the nightly dump is verified by the weekly restore
+drill rather than by a HEAD.
+
+```
+~/anime_site/.env.backup
+```
+
+```
+R2_BUCKET=<bucket name>
+HC_BACKUP_URL=<media-backup check's ping URL>
+HC_SHEETS_URL=<media-sheets check's ping URL>
+HC_COVERS_URL=<media-covers check's ping URL>
+HC_VERIFY_URL=<media-verify check's ping URL>
+```
+
+`.env.backup` is separate from `.env` on purpose: `docker-compose.prod.yml`
+gives the `app` service `env_file: .env`, so anything in `.env` reaches the
+web application — including, for these four variables, write credentials for
+the bucket holding the application's own backups.
+
+Then, on the box:
+
+```bash
+sudo ./deploy/backup/install.sh
+```
+
+which installs `rclone`, installs the eight systemd units (four services and
+four timers), and enables two of the four timers.
+
+**Enabling a timer does not run its job, so nothing is backed up when this
+returns.** `Persistent=true` catches up a run missed while the machine was off,
+which is why these timers use it — but only for a timer that has run before. On
+first activation systemd writes the stamp as of that moment and has nothing to
+catch up, so the first run is the next scheduled one.
+
+Run the three jobs by hand once, in this order. Each proves its job and arms its
+Healthchecks check, which stays grey and unmonitored until its first ping:
+
+```bash
+./deploy/backup/backup.sh    # dump to R2 — first, because the drill needs one
+./deploy/backup/sheets.sh    # OVERWRITES EVERY TAB of the production sheet
+./deploy/backup/verify.sh    # the drill: restores that dump and asserts it
+```
+
+**Two timers are deliberately left disabled**, each until its precondition is
+met:
+
+- **`media-covers.timer`** — its first run uploads 283 MB over a metered phone
+  hotspot, a cost worth spending on purpose rather than at whatever hour a
+  timer happens to fire. Run the sync by hand once, then enable it.
+- **`media-verify.timer`** — the weekly drill restores the newest dump in R2
+  and cannot pass while the bucket holds none. Its scheduled Wednesday 04:40 run
+  would then fail, making the first Healthchecks event you ever see a *failure*
+  alert on the one job whose whole purpose is to be believed. Enable it once at
+  least one dump exists in `db/daily/`.
+
+```bash
+./deploy/backup/covers.sh
+sudo systemctl enable --now media-covers.timer
+
+rclone lsf r2:<bucket>/db/daily        # at least one dump
+sudo systemctl enable --now media-verify.timer
+```
+
 ### Prove it recovers
 
 None of this is finished until the box has been broken on purpose, while it
@@ -1020,6 +1139,13 @@ count came back correct. An untested rollback procedure is a guess.
       untouched.
 - [ ] `docker compose -f docker-compose.prod.yml ps` shows three services, `db`
       healthy, and **no published ports**.
+- [ ] `systemctl list-unit-files 'media-*'` shows all eight units, with
+      `media-covers.timer` and `media-verify.timer` deliberately not enabled
+      (yet). Use `list-unit-files`, not `list-timers --all`: the latter lists
+      *loaded* units, and a timer that has never been enabled is typically not
+      loaded, so a correct install would read as a missing one.
+- [ ] The four Healthchecks.io checks each show a successful `/start`-then-success
+      ping cycle after the first manual run of each script.
 
 **And it has been broken on purpose:**
 
@@ -1030,11 +1156,6 @@ count came back correct. An untested rollback procedure is a guess.
 work: the DHCP reservation ([step 10](#step-10--give-it-a-fixed-address-on-the-router))
 is impossible on a phone hotspot, and the cable handover
 ([step 11](#step-11--once-the-cable-is-in-if-setup-used-wifi)) waits on a cable.
-
-**What is not done by this procedure is backups off the box.** A deploy takes a
-dump before it pulls, but every one of those dumps lives on the same disk as the
-database it protects, and `static/library/` — every uploaded image — has no
-second copy anywhere. That is the first thing to build after this.
 
 ### When something goes wrong
 
