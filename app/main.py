@@ -38,6 +38,7 @@ from app.routers import (
     franchise,
     fx_rates,
     game,
+    health,
     images,
     manga,
     me_list,
@@ -208,6 +209,11 @@ if FRONTEND_DIST.exists():
 # ==========================================
 
 app.include_router(auth.router)
+
+# Before the catch-all SPA route below, like every router here. A router
+# registered after it would be shadowed and return the SPA with a 200 - which is
+# precisely the lying healthcheck this endpoint exists to replace.
+app.include_router(health.router)
 
 app.include_router(options.router)
 app.include_router(constants.router)
