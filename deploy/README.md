@@ -8,6 +8,8 @@ docker compose -f docker-compose.prod.yml <command>
 ```
 
 Deploying is `./deploy/deploy.sh`, which dumps the database before it pulls.
+See [What a deploy covers](#what-a-deploy-covers) for the two things it does
+not.
 
 The machine itself is [docs/deployment-selfhost.md](../docs/deployment-selfhost.md),
 and the reasoning behind this shape is in
@@ -20,6 +22,52 @@ look for `deploy/.env` and interpolate every `${...}` to an empty string —
 while `env_file:` kept working, so the app would still start, with a blank
 database password. It does not collide with `docker-compose.yml`, which is the
 development file: Compose only picks that name up by default, never this one.
+
+## What a deploy covers
+
+```bash
+cd ~/anime_site && ./deploy/deploy.sh
+```
+
+**The code has to be on `main` first.** `deploy.sh` pulls whichever branch is
+checked out and never names one; the box is on `main`, so work reaches it only
+after a release pull request promotes `dev`. Merging to `dev` deploys nothing.
+
+**Do not `git pull` or `git checkout` first.** `deploy.sh` records
+`git rev-parse HEAD` beside the dump *after* taking it, as the revision a
+rollback returns to. Moving `HEAD` beforehand makes it record the version you
+are moving *to*, which is useless as a rollback target — and the mistake is
+invisible until the rollback needs it.
+
+What one run does: dumps the database and refuses to continue if the dump is
+empty, records the revision beside it, tags the outgoing image
+`media-app:previous`, pulls, rebuilds and restarts, then prunes to the last five
+dumps. Migrations apply themselves, because `entrypoint.sh` runs
+`alembic upgrade head` on every start. The frontend rebuilds, because that is
+the first stage of `dockerfile`.
+
+### Two things it does not do
+
+**Systemd units are not reinstalled.** `deploy.sh` touches nothing under
+`/etc/systemd/system`. A change to any file in `deploy/backup/units/` — a
+schedule, an `After=`, a new job — arrives in the checkout and **does not reach
+the running timers**. The live units keep the old definition, nothing errors,
+and `systemctl cat media-backup.timer` and the file in the repository quietly
+disagree. After any change under `deploy/backup/units/`, or to `install.sh`
+itself:
+
+```bash
+sudo ./deploy/backup/install.sh
+```
+
+It is idempotent: the packages are already present, the units are overwritten,
+`daemon-reload` runs, and timers already enabled stay enabled.
+
+**New environment variables do not appear.** `deploy.sh` never writes `.env` or
+`.env.backup`. A change that requires a new key needs it added by hand first, or
+the job or container fails on the next start — `load_backup_env` refuses by
+name, which is the loud case; a variable the application reads through
+`settings` may simply be `None`, which is the quiet one.
 
 ## The three services
 
