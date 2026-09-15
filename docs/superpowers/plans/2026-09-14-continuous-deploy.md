@@ -535,6 +535,26 @@ def test_every_script_fails_fast(name):
     assert "set -euo pipefail" in body, name
 
 
+@pytest.mark.parametrize("name", SCRIPTS)
+def test_every_script_is_executable_in_git(name):
+    # Git stores one permission bit, and a file added from Windows arrives
+    # without it. The script then exists, reads correctly, and cannot be run -
+    # and the failure surfaces on the box as "Permission denied" from a
+    # workflow step, long after review. The off-box backup work shipped exactly
+    # this and found it only on the box.
+    #
+    # Asserts git's INDEX, not the working tree: a Windows checkout's on-disk
+    # mode says nothing about what was committed. Fix with
+    #   git update-index --chmod=+x deploy/<name>
+    import subprocess
+
+    mode = subprocess.run(
+        ["git", "ls-files", "-s", f"deploy/{name}"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.split()[0]
+    assert mode == "100755", f"deploy/{name} is committed as {mode}, not executable"
+
+
 def test_health_polls_the_endpoint_and_not_the_catch_all():
     body = (DEPLOY / "health.sh").read_text(encoding="utf-8")
     assert "/api/health" in body
@@ -690,6 +710,33 @@ if [ "${CI_MODE}" -eq 1 ]; then
 fi
 ```
 
+**Record the Alembic head beside the dump.** `deploy.sh` already writes
+`${dump}.revision` (a git sha). A git sha is **not** an Alembic revision id, and
+tier 2 needs the revision the database was at before this deploy — so write that
+down at dump time, from the database, rather than deriving it later from the sha.
+Immediately after the `git rev-parse HEAD > "${dump}.revision"` line:
+
+```bash
+# The alembic revision this dump belongs to. THIS is rollback.sh's downgrade
+# target. Read from the database rather than from any image's revision files:
+# it is the only source that states what the schema actually was, and it is
+# true even when the checkout has moved. (The off-box backup's nightly stamp
+# records the same pair for the same reason.)
+"${COMPOSE[@]}" exec -T db \
+    psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tA \
+    -c "SELECT version_num FROM alembic_version" \
+    | tr -d '[:space:]' > "${dump}.alembic"
+
+if [ ! -s "${dump}.alembic" ]; then
+    echo "Could not read alembic_version. Refusing to deploy." >&2
+    exit 1
+fi
+echo "    schema was at $(cat "${dump}.alembic")"
+```
+
+Refusing when it is empty matters for the same reason the empty-dump guard does:
+a missing target looks like a rollback option right up until tier 2 needs it.
+
 Replace the final `"${COMPOSE[@]}" ps` block with:
 
 ```bash
@@ -824,11 +871,19 @@ if [ -n "${added}" ]; then
         fi
     done
 
-    echo "==> Downgrading to ${previous_rev}'s head"
+    # The target is the revision the database was at when the dump was taken,
+    # written by deploy.sh from alembic_version itself. Do NOT derive it from
+    # the git sha - a sha is not a revision id - and do not read it from an
+    # image's revision files, which report what that image KNOWS rather than
+    # what the schema WAS.
+    target="$(cat "${dump}.alembic")"
+    [ -n "${target}" ] || freeze
+
+    echo "==> Downgrading to ${target}"
     # Using the NEW image on purpose: it is the only one holding the revision
     # files being reversed. media-app:previous has never heard of them, which is
     # exactly why swapping the image first would crash-loop.
-    "${COMPOSE[@]}" run --rm --no-deps app alembic downgrade "${previous_rev:0:12}" || freeze
+    "${COMPOSE[@]}" run --rm --no-deps app alembic downgrade "${target}" || freeze
 fi
 
 echo "==> Restoring the previous image"
@@ -849,18 +904,21 @@ echo "== Rolled back to ${previous_rev} and healthy. =="
 echo "== SCHEMA was reversed. DATA was not restored. Verify your data. =="
 ```
 
-**The `downgrade` target is wrong as written and you must fix it.** `${previous_rev:0:12}`
-truncates a git sha, which is not an Alembic revision id. Read the head from the
-previous image instead:
+**On why the target is read from a file and not computed.** Two plausible
+alternatives were considered and both are worse:
 
-```bash
-target="$("${COMPOSE[@]}" run --rm --no-deps --entrypoint sh app -c \
-    'cd /app && python -m alembic heads 2>/dev/null | head -1 | cut -d" " -f1')"
-```
+- **Truncating the git sha** (`${previous_rev:0:12}`) — simply wrong; a git sha
+  is not an Alembic revision id and they share no namespace.
+- **Asking the previous image** —
+  `docker run --rm --network none --entrypoint alembic media-app:previous heads`
+  works (verified on the box; it reads revision *files*, so it needs no network,
+  no database and no volumes). But it reports what that image **knows**, not
+  what the schema **was**, and those differ precisely when the checkout has
+  moved — which is the situation a rollback is in.
 
-Run that against `media-app:previous`, not the new image — it is the previous
-code's head you are downgrading *to*. Write it, then confirm by hand on the box
-during Task 10's rehearsal before trusting it.
+`deploy.sh` writing `alembic_version` down at dump time removes the derivation
+entirely: the value is read from the database that is being protected, by the
+step that protects it.
 
 - [ ] **Step 4: Run the tests, then the full suite under the lock**
 
@@ -1231,8 +1289,21 @@ Task 5 inserts the poll after that. If the poll fails, the dump prune has alread
 run — which is harmless (it keeps five) but means the ordering is worth a glance
 during review.
 
-**The one step in this plan that is knowingly incomplete** is Task 6, Step 3:
-the `alembic downgrade` target. The naive `${previous_rev:0:12}` is a git sha and
-is wrong; the correct value is the previous image's Alembic head, and the plan
-says so inline rather than pretending otherwise. It must be resolved before Task
-10's rehearsal, and the rehearsal is what proves it.
+**The downgrade target — resolved, and worth reading before Task 6.** An earlier
+draft of this plan left it open. `deploy.sh` now writes the database's own
+`alembic_version` beside the dump (Task 5) and `rollback.sh` reads that file
+(Task 6), so nothing is derived from a git sha and nothing is asked of an image.
+
+**What no rehearsal will prove.** A deploy that adds no revision leaves every
+source in agreement — both images' heads and the live `alembic_version` all
+match — so it exercises tier 2's mechanism while never asking the question tier 2
+exists to answer. The only honest test is a deploy that **adds** a migration and
+is then reversed, which is why Task 10 requires a deliberately broken *migration*
+and not only a deliberately broken commit.
+
+**Expect defects that reading cannot find.** The off-box backup work turned up
+four on the real box that were invisible from a Windows machine: two R2 faults
+that both presented as permission errors, `install.sh` reporting a backup that
+did not exist, and **the executable bit missing from every script in git**. That
+last one is a class this plan is fully exposed to, so it is pinned by a test in
+Task 4 rather than left to whoever first runs a deploy.
