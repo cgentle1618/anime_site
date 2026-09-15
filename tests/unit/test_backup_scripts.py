@@ -678,7 +678,12 @@ def test_every_executed_script_is_executable_in_git():
     # while the commit says 100644. An ls-files assertion is green against a
     # broken commit, which is how this test first shipped.
     out = subprocess.run(
-        ["git", "ls-tree", "-r", "HEAD", "deploy/backup/", "deploy/deploy.sh"],
+        # The whole of deploy/, not a list of paths. A complete path cannot be
+        # forgotten and a maintained list can - and what is being guarded
+        # produces no signal at all: a script committed 100644 does not fail, it
+        # simply cannot run, and only on the box. deploy/health.sh and
+        # deploy/rollback.sh joined this directory after that list was written.
+        ["git", "ls-tree", "-r", "HEAD", "deploy/"],
         cwd=ROOT,
         capture_output=True,
         text=True,
