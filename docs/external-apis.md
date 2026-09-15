@@ -42,7 +42,7 @@ A note on names: the MAL client is **Tenrai v1**. Any `jikan` still lurking in c
 | Open Library | `https://openlibrary.org` | none | `app/services/integrations/openlibrary.py` | `app/utils/openlibrary_utils.py` | `novel` (no MAL link) |
 | IGDB | `https://api.igdb.com/v4` (token from `https://id.twitch.tv/oauth2/token`) | `settings.igdb_client_id` ← `IGDB_CLIENT_ID` **and** `settings.igdb_client_secret` ← `IGDB_CLIENT_SECRET` | `app/services/integrations/igdb.py` | `app/utils/igdb_utils.py` | `games` |
 | Steam | `https://store.steampowered.com/api` (no key) **and** `https://api.steampowered.com` (`settings.steam_api_key` ← `STEAM_API_KEY`, `settings.steam_id` ← `STEAM_ID`) | `settings.steam_api_key` / `settings.steam_id`, both optional | `app/services/integrations/steam.py` | `app/utils/steam_utils.py` | `games` |
-| Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
+| Google Sheets | via `gspread` | `settings.google_sheet_id` ← `GOOGLE_SHEET_ID`; `settings.google_credentials_json` ← `GOOGLE_CREDENTIALS_JSON` (falls back to a local `credentials.json`; the two branches are environment-split, see [Google Sheets](#google-sheets)) | `app/services/integrations/sheets.py` | `app/utils/formatter.py` | Backup / Pull |
 
 A missing key is never fatal: each client logs `"<NAME> environment variable is not set."` and returns `None` (or `[]`), so a Fill run simply fills nothing from that source. Open Library is the exception in a different direction: it has no key at all, so this failure mode does not apply to it — see [Open Library](#open-library).
 
@@ -565,11 +565,26 @@ Sheets is the backup target and restore source. `sheets.py` contains no database
 | Item | Value |
 |---|---|
 | Library | `gspread` (pinned `6.2.1` in `requirements.txt`) with `google-auth`. Scopes: `spreadsheets` and `drive`. |
-| Credentials | `settings.google_credentials_json` (a JSON string) → `Credentials.from_service_account_info`; if unset, `Credentials.from_service_account_file("credentials.json")`. |
+| Credentials | `settings.google_credentials_json` (a JSON string) → `Credentials.from_service_account_info`; if unset, `Credentials.from_service_account_file("credentials.json")`. **The two branches are split by environment and neither is tested** — see below. |
 | Spreadsheet | opened by key from `settings.google_sheet_id`; missing → `ValueError`. |
 | Tabs | `get_google_sheet_tab(tab_name)` creates a missing tab with `rows=1000, cols=50`. |
 | Read | `get_all_raw_rows(tab_name)` → `worksheet.get_all_values()`. `[]` means an empty tab; an unreadable tab raises `SheetsUnavailableError` so Pull cannot mistake an outage for "no data". |
 | Write | `bulk_overwrite_sheet(tab_name, matrix)` refuses an empty matrix, writes the new data at `A1` **first**, then `batch_clear`s the leftover rows/columns beyond it — a failed write leaves the previous backup intact. |
+
+**Which branch runs depends on the machine, and each is proven only where the
+other never executes.** The development machines hold a `credentials.json` in
+the project root and leave `GOOGLE_CREDENTIALS_JSON` unset, so they take the
+file branch. The production box has no such file and sets the variable — the
+container already receives `.env`, and a file would need its own bind mount, so
+`.dockerignore` excludes it — so it takes the `from_service_account_info`
+branch. CI sets neither, and no test exercises either: the Sheets tests mock
+above credential loading.
+
+The consequence for anyone editing that function: **local success proves only
+half of it.** A change that breaks the variable branch passes everything
+reachable from a development machine and fails first on the box, where the
+nightly `media-sheets` job is what surfaces it — as a Healthchecks failure
+alert, not as silence.
 
 ### Error classification and retry (`_execute_with_retry`)
 
