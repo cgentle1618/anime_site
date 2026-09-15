@@ -659,3 +659,45 @@ def test_install_enables_timers_by_iteration_not_by_name():
     # timer here would mean editing this script every time one is added.
     body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
     assert 'for path in "${UNITS}"/*.timer' in body
+
+
+def test_every_executed_script_is_executable_in_git():
+    # systemd's ExecStart and verify.sh's direct call to restore.sh both need
+    # the bit set IN GIT, not merely in someone's working tree. The Windows
+    # development machines have core.fileMode off, so a `chmod +x` there is
+    # invisible to git and never reaches a commit - which is how all seven of
+    # these shipped as 100644 and every timer would have failed on the box.
+    #
+    # deploy.sh has already been fixed for this same reason once
+    # (cc3f2d52 "fix(deploy): make deploy.sh executable"), which is why it is
+    # asserted here too rather than left to be rediscovered a third time.
+    # `git ls-tree HEAD`, NOT `git ls-files -s`: the first reads the COMMIT,
+    # the second reads the index. They diverge exactly when this bug is
+    # present - `git commit -- <paths>` re-reads those paths from the working
+    # tree and discards an index-only mode change, so the index says 100755
+    # while the commit says 100644. An ls-files assertion is green against a
+    # broken commit, which is how this test first shipped.
+    out = subprocess.run(
+        ["git", "ls-tree", "-r", "HEAD", "deploy/backup/", "deploy/deploy.sh"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    modes = {}
+    for line in out.splitlines():
+        meta, path = line.split("	", 1)
+        mode = meta.split()[0]
+        if path.endswith(".sh"):
+            modes[path] = mode
+    assert modes, "expected to find shell scripts under deploy/"
+
+    # lib.sh is sourced, never executed, so it is deliberately not executable.
+    sourced_only = {"deploy/backup/lib.sh"}
+    not_executable = sorted(
+        p for p, m in modes.items() if m != "100755" and p not in sourced_only
+    )
+    assert not not_executable, f"not executable in git: {not_executable}"
+
+    for p in sorted(sourced_only & modes.keys()):
+        assert modes[p] == "100644", f"{p} is sourced, not executed - it should not be 100755"
