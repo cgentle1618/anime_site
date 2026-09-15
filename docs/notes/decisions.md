@@ -1106,3 +1106,85 @@ partial dump and needs no healthy app container; and `After=media-backup.service
 with no `Requires=` was added once it was clear that the shared `flock`
 serialises the jobs but does not order them, so a boot catch-up could let the
 Sheets overwrite precede the dump it is supposed to follow.
+
+### Continuous deployment (spec: 2026-09-14 continuous-deploy)
+
+A merge to `main` deploys itself. What runs is
+[deploy/README.md](../../deploy/README.md); this is why it has that shape.
+
+- **A self-hosted GitHub Actions runner on the box, long-polling outbound.**
+  The constraint decides this: no service publishes a port, the only ingress is
+  an outbound Cloudflare Tunnel, and the hotspot gives no stable address, so
+  GitHub cannot push, `ssh` or webhook in. Rejected: a `git ls-remote` poll loop
+  on a systemd timer — fewer moving parts and it fits the timers already here,
+  but deploy logs would live only on the box and there is no approval mechanism,
+  which the migration gate needs. Rejected: a signed webhook through the tunnel
+  — instant and no polling, at the cost of a publicly reachable endpoint that
+  runs deploys, whose safety rests on getting HMAC verification right.
+- **The workflow is a trigger; the logic is shell.** Its deploy step is
+  `./deploy/deploy.sh --ci` from `~/anime_site`. Rejected: expressing the steps
+  as workflow steps, which reads better in the GitHub UI and gives each step its
+  own log — and makes the unattended path diverge from the path a person walks
+  during an incident. That divergence is the shape of the rollback failure this
+  box already had once, where a documented procedure was wrong in a way only
+  executing it revealed. `rollback.sh` is run by a human and by the workflow,
+  and it is the same script for the same reason.
+- **Never from the runner's workspace.** `~/actions-runner/_work/...` has no
+  `.env`, none of the bind mounts, and no `COMPOSE_PROJECT_NAME` — so a deploy
+  from there comes up on a brand-new empty volume while the real data sits in
+  the old one, which looks exactly like data loss.
+- **Two lanes, split on whether the merge adds a file under
+  `alembic/versions/`.** Without a revision it deploys unattended; with one it
+  waits for approval in the `production` GitHub Environment. The gate is not
+  about risk in general — it is that a migration is the only change that can
+  destroy data, and that `alembic downgrade` is not a restore. An unclassifiable
+  push — a zero `before` sha from a force-push — takes the gated lane: a
+  needless approval costs one tap, the other error does not.
+- **Classification is checked twice, in two places, against two different
+  truths.** GitHub compares one push range; the box re-checks against its own
+  `HEAD` and refuses unless `MIGRATION_APPROVED=1`. A runner offline across two
+  merges leaves GitHub's range covering only the later one, and only the box
+  knows how far behind the box is.
+- **The rollback ladder reverses schema and never restores data.** Tier 1 is a
+  refusal to start, where nothing was touched. Tier 2 downgrades and swaps back
+  to `media-app:previous`. Tier 3 freezes and prints what a human needs.
+  Rejected: restoring the pre-deploy dump automatically, which would discard
+  every write since that dump in order to recover from a failure that usually
+  did not touch data at all. Tier 2's message says *"verify your data"* rather
+  than *"all good"*, because the most dangerous thing here would be reporting a
+  rollback in a way that implies the data came back with it.
+- **The downgrade runs from the NEW image and targets a revision recorded at
+  dump time.** The new image is the only one holding the revision files being
+  reversed — `media-app:previous` has never heard of them, and starting it first
+  crash-loops, because `entrypoint.sh`'s `alembic upgrade head` cannot locate a
+  revision its own files do not contain (verified against a scratch database:
+  `Can't locate revision identified by`). The target is read from
+  `alembic_version` by `deploy.sh` and written beside the dump. Rejected:
+  deriving it from the git sha, which is a different namespace entirely.
+  Rejected: asking `media-app:previous` for its head, which works and answers
+  what that image *knows* rather than what the schema *was* — and those diverge
+  exactly when a rollback is happening.
+- **`downgrade()` is proven in CI before anything leans on it at 4 a.m.**
+  `tests/api/test_migration_round_trip.py` walks upgrade → downgrade → upgrade
+  against a scratch database and compares the schema object-for-object, because
+  exit codes alone pass for a pair that runs cleanly and lands somewhere else. A
+  migration that cannot be reversed in principle declares
+  `irreversible = True`; `rollback.sh` greps for that same literal line and
+  freezes instead of downgrading. Rejected: an opt-out marker for a `downgrade()`
+  that is merely wrong — that is a defect to fix, and a waiver invisible in
+  review gets used the first time somebody is in a hurry.
+- **`/api/health` retires the no-healthcheck rule rather than contradicting it.**
+  The old reasoning was right: the catch-all route serves the SPA for any path,
+  so a probe against `/` passes with the database down. The endpoint opens a
+  session, reads `alembic_version` and compares it to the head the running code
+  expects — so it also fails when schema and image disagree, which is the state
+  a half-rolled-back deploy leaves behind and the state every weaker probe calls
+  healthy. The public body is a bare status; the revisions are gated on
+  `manage.pipelines`, because the tunnel routes every path to `app:8000` and
+  there is no such thing as an internal path here.
+- **The fifth timer watches for drift, not for deploys.** A runner offline when
+  a merge lands queues the job silently, and that looks exactly like success. A
+  dead-man's switch on the deploy job cannot cover it — Healthchecks fires on a
+  ping missing within an expected period, deploys are irregular so there is no
+  period to configure, and a job that never started cannot ping. A daily check
+  comparing the box's `HEAD` to `origin/main` has a period, so the switch works.

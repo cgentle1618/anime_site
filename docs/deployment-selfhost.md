@@ -243,7 +243,7 @@ would use to find a real one.
 
 ## Backups
 
-Four systemd timers, all on the box and all sourcing `deploy/backup/lib.sh`,
+Five systemd timers, all on the box and all sourcing `deploy/backup/lib.sh`,
 serialise on one `flock` so two never run at once:
 
 | Job | Schedule (Asia/Taipei) | Script | Does |
@@ -252,6 +252,19 @@ serialise on one `flock` so two never run at once:
 | `media-sheets` | daily 04:10 | `sheets.sh` | Runs the application's own Google Sheets Backup pipeline |
 | `media-covers` | Wed 04:20 | `covers.sh` | Syncs `static/covers/` (283 MB) to R2 |
 | `media-verify` | Wed 04:40 | `verify.sh` | Restores the newest R2 dump into a throwaway container and asserts it |
+| `media-drift` | daily 10:00 | `drift.sh` | Checks that `main` has actually reached this box |
+
+**`media-drift` is not a backup job**, and it is here because it is a scheduled
+job that shares the lock and the alerting rather than because it shares the
+subject. It covers the one deploy failure GitHub cannot report: a self-hosted
+runner offline when a merge lands queues the job silently, so the merge never
+deploys and nothing says so — the site simply keeps serving the previous
+release. A dead-man's switch on the deploy job cannot cover that, because
+Healthchecks fires on a ping missing within an expected *period*, deploys are
+irregular, and a job that never started cannot ping. A daily check has a period,
+so the switch works. It runs at 10:00 rather than in the 04:00 window because it
+is meant to be acted on; `drift.sh`'s own six-hour grace window is what stops an
+overnight merge alerting before its deploy has had a chance.
 
 `media-sheets.service` and `media-verify.service` both declare
 `After=media-backup.service` with no `Requires=` — ordering without coupling,
@@ -315,6 +328,7 @@ time rather than drifting later after every late run:
 | `media-sheets` | 6 h | no successful sheet write by 10:10 |
 | `media-covers` | 1 day | no successful cover sync by Thursday 04:20 |
 | `media-verify` | 1 day | no successful drill by Thursday 04:40 |
+| `media-drift` | 6 h | no successful drift check by 16:00 |
 
 A dead-man's switch rather than an error reporter, because a job that never
 ran — box off, hotspot down, timer disabled — cannot report anything on its
@@ -349,19 +363,44 @@ Restoring from R2 in an actual disaster is
 
 ## Deploying, and what CI does
 
-**CI deploys nothing.** `.github/workflows/ci.yml` runs ruff, pytest, eslint,
-vitest and the frontend build on every pull request and on pushes to `main`. It
-has no deployment job and no credentials for this box. The pull request is the
-gate; nothing reaches the box automatically.
+**`ci.yml` deploys nothing** — it runs ruff, shellcheck, pytest, eslint, vitest
+and the frontend build on every pull request and on pushes to `main`, and has no
+deployment job. Deploying is a second workflow, `deploy.yml`.
 
-**A deploy is a person running one script on the box:**
+**A merge to `main` deploys itself.** `deploy.yml` triggers on a push to `main`
+and runs on a **self-hosted runner on the box**, which long-polls GitHub
+outbound. That is the only shape available: no service here publishes a port,
+the only ingress is an outbound tunnel, and the box has no stable address — so
+GitHub cannot push, `ssh` or webhook in, and the box has to reach out.
+
+The workflow is a trigger and nothing else. Its deploy step is
+`cd ~/anime_site && ./deploy/deploy.sh --ci`; every piece of logic stays in
+shell, versioned and shellchecked, so the unattended path and the path a person
+walks at 2 a.m. are the same path.
+
+**It does not run from the runner's own workspace.** That is
+`~/actions-runner/_work/...`, and the stack only works from `~/anime_site` —
+where `.env` lives, where `static/covers` and `static/library` are bind-mounted,
+and where `COMPOSE_PROJECT_NAME=media` decides *which volume* is the real
+database. A deploy from the runner's checkout would come up on a brand-new empty
+volume while the real data sat in the old one, which looks exactly like data
+loss.
+
+**A merge carrying an Alembic revision waits for approval** in the `production`
+GitHub Environment; one that does not deploys unattended. Failure climbs a
+three-tier ladder that reverses schema but never restores data — both are
+[deploy/README.md](../deploy/README.md#when-an-automatic-deploy-fails).
+
+**Running it by hand is still supported and still correct**, and is what you do
+when the runner is down:
 
 ```bash
 cd ~/anime_site && ./deploy/deploy.sh
 ```
 
-which dumps the database, records the revision that dump belongs to, tags the
-outgoing image `media-app:previous`, pulls, rebuilds and restarts.
+Either way it dumps the database, records the git revision **and the Alembic
+revision** that dump belongs to, tags the outgoing image `media-app:previous`,
+pulls, rebuilds, restarts, and waits for `/api/health`.
 
 **It does not reinstall the systemd units and does not write `.env`.** A change
 under `deploy/backup/units/` arrives in the checkout while the running timers
@@ -373,8 +412,10 @@ Both are in [deploy/README.md](../deploy/README.md#what-a-deploy-covers).
 Building in CI and pulling from GHCR is the conventional answer and stays
 available — the compose file already names the image, carries no build args and
 bakes in no environment-specific values, so the switch is about two lines. It
-is not done because CI would then build a multi-stage image on every pull
-request to serve a box one person deploys by hand.
+is not done for a reason the hotspot decides rather than the tooling: a registry
+deploy ships roughly a gigabyte to the box per release, over its worst link.
+That is the same argument that already ruled out `docker save | ssh docker load`.
+When Ethernet arrives, this is worth revisiting.
 
 **The dump before the pull is the only protection against a bad migration.**
 Migrations run on every start, so by the time one is visible it has already

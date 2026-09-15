@@ -23,7 +23,32 @@ while `env_file:` kept working, so the app would still start, with a blank
 database password. It does not collide with `docker-compose.yml`, which is the
 development file: Compose only picks that name up by default, never this one.
 
-## What a deploy covers
+## A deploy happens by itself
+
+**Merging a release pull request to `main` deploys it.** Nobody logs into the
+box. A self-hosted GitHub Actions runner lives there and long-polls GitHub
+outbound — which is the only shape available, because no service here publishes
+a port, the only ingress is an outbound Cloudflare Tunnel, and the box has no
+stable address on its hotspot. GitHub cannot reach in, so the box reaches out.
+
+There are two lanes, and which one a merge takes is decided by whether it adds a
+file under `alembic/versions/`:
+
+| The merge | What happens |
+| --- | --- |
+| No new revision | Deploys immediately, unattended. Nothing here can lose data — the database is never modified. |
+| Adds a revision | **Waits for your approval** in the `production` GitHub Environment, then deploys. |
+
+The gate exists because a migration is the only class of change that can destroy
+data, and because `alembic downgrade` is not a restore: reversing a dropped
+column recreates it empty. Approving is one tap; the alternative is a schema
+change reaching production while you are asleep.
+
+If the deploy fails, [the ladder](#when-an-automatic-deploy-fails) below runs.
+
+### Running it by hand
+
+Still supported, still correct, and still what you do when the runner is down:
 
 ```bash
 cd ~/anime_site && ./deploy/deploy.sh
@@ -32,6 +57,8 @@ cd ~/anime_site && ./deploy/deploy.sh
 **The code has to be on `main` first.** `deploy.sh` pulls whichever branch is
 checked out and never names one; the box is on `main`, so work reaches it only
 after a release pull request promotes `dev`. Merging to `dev` deploys nothing.
+The automatic path passes `--ci`, which additionally **refuses to run unless the
+checkout is on `main`** — the by-hand path trusts you to look.
 
 **Do not `git pull` or `git checkout` first.** `deploy.sh` records
 `git rev-parse HEAD` beside the dump *after* taking it, as the revision a
@@ -40,11 +67,59 @@ are moving *to*, which is useless as a rollback target — and the mistake is
 invisible until the rollback needs it.
 
 What one run does: dumps the database and refuses to continue if the dump is
-empty, records the revision beside it, tags the outgoing image
-`media-app:previous`, pulls, rebuilds and restarts, then prunes to the last five
-dumps. Migrations apply themselves, because `entrypoint.sh` runs
-`alembic upgrade head` on every start. The frontend rebuilds, because that is
-the first stage of `dockerfile`.
+empty, records the git revision **and the Alembic revision** beside it, tags the
+outgoing image `media-app:previous`, pulls, rebuilds and restarts, waits for
+`/api/health`, then prunes to the last five dumps. Migrations apply themselves,
+because `entrypoint.sh` runs `alembic upgrade head` on every start. The frontend
+rebuilds, because that is the first stage of `dockerfile`.
+
+**Two files travel beside every dump, not one.** `.revision` is the git sha and
+`.alembic` is what `alembic_version` held at dump time. They are not
+interchangeable: a git sha is not an Alembic revision id, and the rollback's
+`alembic downgrade` needs the second. It is read from the database rather than
+worked out later from the first, because asking an image for its head answers
+what that image *knows* rather than what the schema *was* — and those diverge
+exactly when a rollback is happening.
+
+## When an automatic deploy fails
+
+The pipeline climbs a ladder and stops at the first rung that works.
+
+| | Situation | What runs | Where it leaves you |
+| --- | --- | --- | --- |
+| 1 | The build or the deploy **refused to start** — wrong branch, no `.env`, an unapproved migration | Nothing | Production untouched and still serving the previous release |
+| 2 | The deploy **ran** and `/api/health` did not come back | `rollback.sh`: reverse the schema if a migration ran, retag `media-app:previous`, restart, re-check health | Site back up on the previous release. **Schema reversed; data NOT restored** |
+| 3 | Tier 2 failed, or the revision declares `irreversible = True` | Nothing further | Frozen, with the dump path, both revisions and this procedure printed |
+
+**Tier 2 never restores data, and its message says so.** It reverses schema, not
+content. If the migration dropped a column, that data exists only in the
+pre-deploy dump — so a tier 2 message reads *"rolled back; verify your data"*,
+never *"all good"*. Restoring automatically would discard every write since the
+dump in order to recover from a failure that usually did not touch data at all.
+That trade is yours to make, which is what tier 3 is for.
+
+**Nothing in this pipeline ever restores the production database
+automatically.** Tier 3 stages the restore and stops; the procedure is
+[Disaster recovery from R2](#disaster-recovery-from-r2) below.
+
+`rollback.sh` is a script you can run yourself, and running it is exactly what
+the workflow does — no separate automated path. A procedure verified by a
+different piece of code is verified by nothing, which is how the rollback
+documented here was wrong in a way only executing it revealed.
+
+### A merge that never deploys
+
+The one failure GitHub cannot report. If the runner is offline when you merge,
+the job queues silently — no failure appears, the site stays up on the previous
+release, and nothing says the new code is not running.
+
+A dead-man's switch on the deploy job cannot cover it: Healthchecks fires when a
+ping fails to arrive within an expected period, deploys are irregular so there is
+no period to configure, and a job that never started cannot ping. So the check is
+daily and watches for **drift** instead — `deploy/backup/drift.sh` compares the
+box's `HEAD` against `origin/main` and alerts when they have differed for more
+than six hours. That also catches a deploy that failed silently, and a checkout
+that has wandered off `main`.
 
 ### Two things it does not do
 
@@ -160,6 +235,12 @@ development sheet's id must never appear in this file, and production never runs
 Pull All.
 
 ## Rollback
+
+**This is the full manual procedure, including the data restore.** An automatic
+deploy failure runs `./deploy/rollback.sh` instead, which does tiers 1 and 2 of
+[the ladder](#when-an-automatic-deploy-fails) — code and schema — and
+deliberately stops short of step 2 below. Come here when the ladder froze at tier
+3, or when you are rolling back by hand.
 
 Three steps, in this order. **Restoring the data without reverting the code does
 not work**: the next start runs `alembic upgrade head` and re-applies the
