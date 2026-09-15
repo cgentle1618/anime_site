@@ -701,3 +701,64 @@ def test_every_executed_script_is_executable_in_git():
 
     for p in sorted(sourced_only & modes.keys()):
         assert modes[p] == "100644", f"{p} is sourced, not executed - it should not be 100755"
+
+
+def test_install_tells_the_operator_to_run_the_jobs_by_hand():
+    # Enabling a timer does NOT run it. Persistent=true catches up a run missed
+    # while the machine was off, but only for a timer that has run before; on
+    # first activation systemd writes the stamp as of that moment and has
+    # nothing to catch up. Measured on the box: after enabling, every unit had
+    # an empty ActiveEnterTimestamp, the journal held no entries, and R2 held
+    # no dump.
+    #
+    # So install.sh returning is not the end of the setup, and a Healthchecks
+    # check stays grey and unmonitored until its first ping. If this guidance
+    # is ever dropped, the next operator believes they have backups and has
+    # none - which is the precise false belief this system exists to prevent.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    for script in ("backup.sh", "sheets.sh", "verify.sh"):
+        assert script in body, f"install.sh must tell the operator to run {script} by hand"
+
+
+@pytest.mark.skipif(_find_bash() is None, reason="needs bash")
+def test_hc_ping_warns_when_the_ping_fails_but_does_not_fail_the_job(tmp_path):
+    # A ping URL that is WRONG rather than missing passes load_backup_env's
+    # non-empty check, so the job runs, succeeds, and reports to nowhere. The
+    # old `|| true` discarded curl's failure without a trace, leaving the grace
+    # window expiring hours later as the only signal - with nothing to say why.
+    # Observed on the box by corrupting one character of HC_BACKUP_URL.
+    #
+    # Both halves are asserted, because each without the other is a defect:
+    # warning but failing would turn a network blip into a backup failure;
+    # succeeding but silent is what shipped.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    curl = bin_dir / "curl"
+    curl.write_text('#!/usr/bin/env bash\necho "curl: (22) HTTP 400" >&2\nexit 22\n')
+    curl.chmod(0o755)
+
+    harness = tmp_path / "harness.sh"
+    harness.write_text(
+        "set -euo pipefail\n"
+        f". {(BACKUP_DIR / 'lib.sh').as_posix()}\n"
+        'hc_ping "https://hc-ping.com/deadbeef-0000-0000-0000-000000000000" "/fail"\n'
+        'echo "REACHED_THE_END"\n'
+    )
+
+    env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+    result = subprocess.run(
+        [_find_bash(), str(harness)], capture_output=True, text=True, env=env
+    )
+
+    # It must not fail the job: the line after hc_ping has to run.
+    assert result.returncode == 0, result.stderr
+    assert "REACHED_THE_END" in result.stdout
+
+    # And it must not be silent.
+    assert "WARNING" in result.stderr
+    assert "ping failed" in result.stderr
+
+    # The ping URL is a credential - anyone holding it can post a false
+    # success - so it must not reach the journal in full.
+    assert "deadbeef-0000-0000-0000-000000000000" not in result.stderr
+    assert "<redacted>" in result.stderr

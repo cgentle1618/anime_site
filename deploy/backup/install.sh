@@ -31,14 +31,17 @@ sed -i "s#/home/cgentle1618/#/home/${REAL_USER}/#" /etc/systemd/system/media-*.s
 systemctl daemon-reload
 
 echo "==> Enabling timers"
-# READ THIS BEFORE THE ENABLE BELOW RUNS. Every timer here is Persistent=true,
-# which means systemd fires it on first activation whenever its OnCalendar time
-# has already passed today and no stamp exists in /var/lib/systemd/timers. On a
-# one-time install at, say, 14:00, `systemctl enable --now` therefore runs the
-# 04:00 jobs RIGHT THEN, not tomorrow morning: a real pg_dump and upload, and a
-# real media-sheets run, which OVERWRITES EVERY TAB of the production Google
-# Sheet. That is intended and it is how the first run gets proven - but it is
-# not a surprise to discover afterwards.
+# ENABLING A TIMER HERE DOES NOT RUN ITS JOB. Persistent=true catches up a run
+# missed while the machine was off, which is why these timers use it - but it
+# only does so for a timer that has run BEFORE. On first activation systemd
+# writes the stamp in /var/lib/systemd/timers as of that moment and has nothing
+# to catch up, so nothing fires until the next scheduled time. Measured: after
+# enabling at 18:52, every unit had an empty ActiveEnterTimestamp, the journal
+# held no entries for any of them, and R2 held no dump.
+#
+# So after this script returns, NOTHING HAS BEEN BACKED UP YET. Run the jobs by
+# hand once - see the closing message - which both proves them and arms their
+# Healthchecks checks.
 #
 # Enable whatever units/ contains, minus an explicit defer list. Iterating
 # rather than naming each timer means a later job (a deploy-drift check, say)
@@ -49,11 +52,13 @@ echo "==> Enabling timers"
 # a timer picks at 04:20. Run covers.sh by hand once, then:
 #     sudo systemctl enable --now media-covers.timer
 #
-# media-verify is on it for the mirror-image reason: the drill CANNOT pass
-# before a dump exists in R2, so enabling it here makes the owner's first-ever
-# Healthchecks event a FAILURE alert on the one job whose whole purpose is to
-# be believed. An alerting system that cries wolf on day one teaches its owner
-# to skim past it. Enable it once at least one dump is in db/daily/:
+# media-verify is on it because the drill CANNOT pass before a dump exists in
+# R2. Enabling it does not run it, but the scheduled Wednesday 04:40 run would
+# fail against an empty bucket if no backup had run first - and an alerting
+# system that cries wolf on day one teaches its owner to skim past it. The
+# narrow case is an install between Wed 04:00 and Wed 04:40, where the drill's
+# next run precedes the next nightly dump. Enable it once a dump is in
+# db/daily/:
 #     sudo systemctl enable --now media-verify.timer
 DEFER=(media-covers.timer media-verify.timer)
 
@@ -79,10 +84,17 @@ echo
 cat <<'DONE'
 ==> Done.
 
-  Enabled now: media-backup.timer, media-sheets.timer. Because both are
-  Persistent=true, enabling them just ran tonight's jobs immediately - a real
-  dump and upload, and a real Google Sheets Backup that overwrote every tab of
-  the production sheet. Check both Healthchecks checks.
+  Enabled now: media-backup.timer, media-sheets.timer. They have NOT run -
+  enabling a timer does not trigger it, and Persistent=true only catches up a
+  run missed by a timer that has run before. Nothing is backed up yet; the
+  first scheduled run is 04:00 tomorrow.
+
+  RUN THESE BY HAND NOW. Each proves its job works and arms its Healthchecks
+  check, which stays grey and unmonitored until its first ping:
+
+    ./deploy/backup/backup.sh    dump to R2 - do this first, the drill needs it
+    ./deploy/backup/sheets.sh    OVERWRITES EVERY TAB of the production sheet
+    ./deploy/backup/verify.sh    the drill: restores the dump and asserts it
 
   NOT enabled, on purpose - enable each by hand when its precondition is met:
 
