@@ -1050,3 +1050,52 @@ this is why the shape is what it is.
   anything placed there is injected into the running web application —
   including, for these variables, write credentials for the very bucket
   holding the application's own backups.
+
+**What the design got wrong**, found by running it on the box rather than by
+reading it — three of the six were invisible from a Windows development machine:
+
+- **The spec's load-bearing sentence for its own second requirement was false.**
+  It claimed there is no path out of any script that does not report success or
+  failure. There are four, all before `start_job` installs the trap:
+  `load_env` failing, a syntax error while sourcing `.env`, `acquire_lock`
+  timing out, and an unset `HC_*_URL` aborting under `set -u`. The last is the
+  sharp one — a single typo in `.env.backup` yields a job that never reports,
+  on every run. `load_backup_env` now validates the names it exists to load,
+  and the remaining gap is stated rather than denied.
+- **`Persistent=true` does not fire a timer on first activation.** It catches up
+  a run missed while the machine was off, but only for a timer that has run
+  before; on first enable systemd writes the stamp as of that moment and has
+  nothing to catch up. `install.sh` and the setup guide both told the operator
+  that enabling had just taken a backup and overwritten the production sheet.
+  Neither had happened, and the claim was also the stated reason for deferring
+  `media-verify.timer`. The deferral survives on its real reason — the drill
+  cannot pass against an empty bucket.
+- **The production guard in `restore.sh` failed open.** `[ -n "$(compose ps -q
+  app)" ]` captures stdout only, so a `docker compose` failure read as "the app
+  is stopped" and let a restore proceed with the app's real state unknown. A
+  guard that fails open is worse than no guard, and broken docker tooling is
+  exactly the situation a disaster restore happens in. Command substitutions
+  are now audited by asking what the script concludes when the command *fails*
+  rather than returns empty.
+- **`rclone` needs `no_check_bucket` and `no_head` for R2**, and the design
+  anticipated neither. Both present as permissions problems: a bucket-scoped
+  token cannot perform rclone's pre-flight bucket check (403), and R2 does not
+  implement object versioning, so rclone's post-upload HEAD by `versionId`
+  returns 501 and a successful upload is reported as failed.
+- **The scripts shipped non-executable.** `core.fileMode` is off on the Windows
+  development machines, so `chmod +x` never reaches a commit; and the
+  `git commit -- <paths>` form this project requires re-reads those paths from
+  the working tree, discarding a bit staged with `git update-index`. Every
+  timer would have failed at 04:00 through a check that had never been armed.
+- **A failed Healthchecks ping was silent.** `|| true` correctly stops a network
+  blip failing a backup, and incorrectly discarded the one case that matters: a
+  ping URL that is wrong rather than missing, where the job succeeds and reports
+  to nowhere. Not failing and saying nothing are different things.
+
+Two things the implementation improved on the design rather than merely
+correcting: `source_tables` is read from `pg_tables` — what production actually
+had at dump time — instead of from the application's models, which detects a
+partial dump and needs no healthy app container; and `After=media-backup.service`
+with no `Requires=` was added once it was clear that the shared `flock`
+serialises the jobs but does not order them, so a boot catch-up could let the
+Sheets overwrite precede the dump it is supposed to follow.
