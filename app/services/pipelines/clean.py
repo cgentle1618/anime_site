@@ -13,7 +13,7 @@ foreign keys cascade it into credits, sources, notes, quotes and every user's
 list rows. An identity rule borrowed from an upsert path has to be re-derived
 before it gates a delete; see Decision 3b in the spec.
 
-Spec: docs/superpowers/specs/2026-09-11-clean-orphaned-data-design.md
+Spec: docs/notes/decisions.md ("Clean orphaned data")
 """
 
 from dataclasses import dataclass, field

@@ -1,6 +1,6 @@
 # Documentation index
 
-Last verified: 2026-09-13
+Last verified: 2026-09-15
 
 These docs describe the CG1618 Media Tracker as it is in the code. Every file
 opens with a short "what this is for", then reference sections. Each file
@@ -59,7 +59,8 @@ right and the doc needs the fix.
 | File | Scope |
 |---|---|
 | [deployment-gcp.md](deployment-gcp.md) | **History.** How the GCP deployment worked: Docker image, CI, Cloud Run, Cloud SQL, GCS, and the Sheets service account (that part still live). It went down 2026-09-02 and **the code supporting it was removed on 2026-09-08**; reviving GCP means building it again, not redeploying. Kept as the reference for that, and for the container image self-hosting will reuse. |
-| [deployment-selfhost.md](deployment-selfhost.md) | the intended production: an HP ProDesk 600 G4 mini at home behind a Cloudflare Tunnel — the machine, its bring-up, networking, the build order, and what the code still needs before it can be exposed. **Hardware bought 2026-09-08; nothing deployed yet** |
+| [deployment-selfhost.md](deployment-selfhost.md) | **production, as it runs**: an HP ProDesk 600 G4 mini at home serving `media.cg1618.com` through a Cloudflare Tunnel — the machine, the three containers, how it recovers unattended, networking, storage, cost and off-box backups. **Live** |
+| [setup-selfhost.md](setup-selfhost.md) | how that box was built, from an unopened used mini PC to a machine serving over HTTPS — every screen and every answer. Read once |
 | [testing.md](testing.md) | test layout, fixtures, how to run, what CI runs, known gaps |
 | [dependencies.md](dependencies.md) | every Python and npm package and why it is there |
 

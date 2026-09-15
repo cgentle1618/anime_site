@@ -1,0 +1,81 @@
+# Production, on the homelab box. Run from the repository root:
+#
+#   docker compose -f docker-compose.prod.yml <command>
+#
+# or through deploy/deploy.sh, which takes a dump before it pulls. How this is
+# operated, what is in .env, and how to roll back are in deploy/README.md.
+#
+# This file lives at the repository root ON PURPOSE. Compose takes its project
+# directory from the compose file's own location and loads `.env` from there,
+# so the same file under deploy/ would look for deploy/.env and silently
+# interpolate every ${...} below to an empty string. `env_file:` is a separate
+# mechanism and would keep working, which is what makes the failure quiet.
+#
+# It does not collide with docker-compose.yml - that is the development file,
+# running a bare PostgreSQL and nothing else. Compose only picks up
+# `docker-compose.yml`/`compose.yaml` by default, never this name, so
+# production is always explicit: `-f docker-compose.prod.yml`.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # $$ escapes compose's own interpolation, so the shell inside the
+      # container expands these rather than compose expanding them here.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    # Named even though it is built here, so moving to a registry later is a
+    # change to what this name points at rather than a restructure.
+    #
+    # No container_name: on any service here. Compose derives container names
+    # from COMPOSE_PROJECT_NAME (media-db-1, media-app-1, ...), which makes the
+    # project name the single place a name is written. A hardcoded
+    # container_name is a second place for a stale one to hide.
+    image: media-app:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # entrypoint.sh binds ${PORT:-8080}; the ingress routes to app:8000.
+      PORT: 8000
+    volumes:
+      # Bind mounts, not named volumes, so rsync and the backup see ordinary
+      # files. static/library/ is the only copy of every uploaded image there
+      # is - it cannot be re-fetched the way covers can.
+      - ./static/covers:/app/static/covers
+      - ./static/library:/app/static/library
+    depends_on:
+      db:
+        # Without this, a boot where PostgreSQL is slower than the app makes
+        # the app crash-loop through `alembic upgrade head` until it wins.
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # --no-autoupdate: the image is the unit of upgrade here, and an in-place
+    # self-update would restart the tunnel outside anyone's knowledge.
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run ${TUNNEL_ID}
+    volumes:
+      - ./deploy/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ${CLOUDFLARED_CREDENTIALS}:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      - app
+
+volumes:
+  pgdata:

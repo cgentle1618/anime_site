@@ -1,0 +1,25 @@
+# Cloudflare Tunnel ingress for the homelab box.
+#
+# The tunnel's id is NOT here. It is passed on the command line from TUNNEL_ID
+# in the box's .env, which keeps this file static and committable - it can be
+# written before the tunnel exists. The id is not a secret either way; the
+# credentials JSON is, and it is mounted read-only from a path the box's .env
+# names.
+
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Adding a project is three lines here plus one `cloudflared tunnel route
+  # dns <tunnel> <hostname>`. The full planned map, the port assignments and
+  # the reasoning behind the names are in docs/deployment-selfhost.md.
+  #
+  # Before adding journal, health or money: those hold a different class of
+  # data, and the Cloudflare Access decision belongs BEFORE the ingress rule
+  # exists, not after. tests/unit/test_prod_compose.py fails if one appears
+  # here, which is the reminder.
+  - hostname: media.cg1618.com
+    service: http://app:8000
+
+  # Required catch-all. cloudflared refuses to start without it, and it must
+  # be the last rule.
+  - service: http_status:404

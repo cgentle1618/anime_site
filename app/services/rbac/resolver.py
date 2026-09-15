@@ -74,7 +74,7 @@ class Viewer:
 
         THE ROOT SHORT-CIRCUIT DOES NOT COVER THE `self` FAMILY, and that
         is the whole of "an admin account holds no user data" (spec:
-        docs/superpowers/specs/2026-09-12-admin-holds-no-user-data.md).
+        docs/notes/decisions.md ("Admin holds no user data")).
         `self.list` and `self.personal_notes` are not privileges - they are
         OWNERSHIP, the right to keep rows of your own. "May do anything to the
         system" and "has a personal library" are different claims, and

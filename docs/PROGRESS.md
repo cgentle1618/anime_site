@@ -8,11 +8,25 @@ Status values: `todo` - `wip <who>` - `done <sha>` - `blocked <one clause>` - `s
 A finished plan's table is deleted from here; git history — the commits and
 the pull request — keeps the record.
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 ---
 
 ## In flight
+
+### Off-box backups to R2 (`feat/offbox-backups`)
+
+| Task | Status |
+|---|---|
+| 1. Foundation: lib.sh, gitignore, shellcheck in CI | done 67459bc9 |
+| 2. Nightly backup: stamp, dump, upload, library | done bae35da8 |
+| 3. restore.sh, one implementation and two callers | done 01aadaf9 |
+| 4. verify.sh, the weekly restore drill | done 2d9179a9 |
+| 5. covers.sh, the weekly cover sync | done 9e1d681d |
+| 6. sheets.sh, the nightly Google Sheets backup | done 114dbf4b |
+| 7. systemd units and install.sh | done ac544d4b |
+| 8. Documentation | done afda8bbc |
+| 9. Delivery and the manual rehearsal | todo |
 
 Nothing. The game spend block and its hand-maintained FX rates shipped in
 #155 and its year / storefront / cost-per-hour breakdowns on
@@ -49,6 +63,19 @@ which is where the next run should read them.
 ## Open items
 
 Unclaimed. None block using the app.
+
+### Self-host deployment — open items
+
+The application is deployed and serving at `media.cg1618.com`; the bring-up and
+deployment tables are gone, and [deployment-selfhost.md](deployment-selfhost.md)
+and [deploy/README.md](../deploy/README.md) describe the result. What is still
+open:
+
+| Item | Status |
+|---|---|
+| DHCP reservation | blocked — a phone hotspot offers none |
+| Cable handover (step 11) | blocked — no Ethernet yet |
+| Idle power reading | skipped — no meter |
 
 **The auth-hardening gate is closed** (2026-09-10). `APP_ENV` drives the login
 cookie's `Secure` flag and `Settings.validate_secrets()` refuses a default
