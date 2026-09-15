@@ -357,6 +357,12 @@ cd ~/anime_site && ./deploy/deploy.sh
 which dumps the database, records the revision that dump belongs to, tags the
 outgoing image `media-app:previous`, pulls, rebuilds and restarts.
 
+**It does not reinstall the systemd units and does not write `.env`.** A change
+under `deploy/backup/units/` arrives in the checkout while the running timers
+keep the old definition, silently — re-run `sudo ./deploy/backup/install.sh`
+after one. A change needing a new environment variable needs it added by hand.
+Both are in [deploy/README.md](../deploy/README.md#what-a-deploy-covers).
+
 **The box builds its own image** rather than pulling one from a registry.
 Building in CI and pulling from GHCR is the conventional answer and stays
 available — the compose file already names the image, carries no build args and
