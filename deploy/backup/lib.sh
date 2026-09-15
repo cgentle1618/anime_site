@@ -78,11 +78,27 @@ acquire_lock() {
 # A failed ping must never fail the job it is reporting on - the dead-man's
 # switch catches a missing ping on its own, and turning a network blip into a
 # backup failure would be the tail wagging the dog.
+#
+# But not failing is not the same as saying nothing. A ping URL that is WRONG
+# rather than missing passes load_backup_env's non-empty check, so the job runs,
+# succeeds, and reports to nowhere: hc-ping.com answers 400, curl -f fails, and
+# the old `|| true` discarded it without a trace. The only remaining signal was
+# the grace window expiring hours later with nothing to say why. Observed on the
+# box by corrupting one character of HC_BACKUP_URL: the run reported success
+# locally and the check never moved.
+#
+# So warn on stderr, which systemd puts in the journal, and still return 0. The
+# URL is redacted because anyone holding it can post a false success.
 hc_ping() {
-    local url="${1:-}" suffix="${2:-}" body="${3:-/dev/null}"
+    local url="${1:-}" suffix="${2:-}" body="${3:-/dev/null}" err="" rc=0
     [ -n "${url}" ] || return 0
-    curl -fsS -m 10 --retry 3 --retry-delay 5 \
-        --data-binary "@${body}" "${url}${suffix}" >/dev/null 2>&1 || true
+    # `|| rc=$?` keeps this a tested context, so `set -e` does not abort here.
+    local -a args=(-fsS -m 10 --retry 3 --retry-delay 5 --data-binary "@${body}")
+    err="$(curl "${args[@]}" "${url}${suffix}" 2>&1 >/dev/null)" || rc=$?
+    [ "${rc}" -eq 0 ] && return 0
+    echo "WARNING: Healthchecks ping failed (curl rc=${rc}): ${url%/*}/<redacted>${suffix}" >&2
+    [ -n "${err}" ] && echo "WARNING:   ${err}" >&2
+    return 0
 }
 
 # start_job <name> <healthchecks-url>
