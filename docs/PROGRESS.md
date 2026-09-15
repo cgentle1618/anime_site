@@ -23,7 +23,7 @@ record for all of them.
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |
 | Continuous deployment tasks 1-9 - health endpoint, compose probe, migration round trip, deploy/rollback/health/drift scripts, deploy workflow, docs (`feat/continuous-deploy`) | wip anime-site-90 |
-| Continuous deployment task 10 - register the runner, create the `production` environment, add the fifth Healthchecks check, rehearse with a deliberately broken migration | todo owner |
+| Continuous deployment task 10 - register the runner, create the `production` environment, add the fifth Healthchecks check, rehearse with a deliberately broken migration | todo owner - steps are in [deploy/README.md](../deploy/README.md#setting-up-the-automatic-deploy) |
 | Migration revisions must not import the application (`test/orm-imports-in-migrations`) | done 66a8902c, unmerged |
 
 The game spend block and its hand-maintained FX rates shipped on

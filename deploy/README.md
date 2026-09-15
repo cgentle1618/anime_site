@@ -468,6 +468,65 @@ host-specific uid into a committed compose file.
 If a future image changes that uid, this is the cause: the symptom is
 `permission denied` on a file that plainly exists.
 
+## Setting up the automatic deploy
+
+One-time, on the box. Until all of this is done, `deploy.yml` has no runner to
+pick up its jobs and merges to `main` queue silently — which is exactly what
+`media-drift` alerts on, so expect that alert if the runner is ever removed.
+
+**The repository must stay private.** GitHub warns against self-hosted runners
+on public repositories, and the reason is specific: a fork's pull request would
+become code execution on this machine.
+
+1. **Register the runner.** GitHub → repository → Settings → Actions → Runners →
+   New self-hosted runner (Linux x64) gives a download and a token. Install into
+   `~/actions-runner`, and when `config.sh` asks for labels, add **`homelab`** —
+   `deploy.yml` targets `[self-hosted, homelab]`.
+
+   ```bash
+   cd ~/actions-runner
+   ./config.sh --url https://github.com/cgentle1618/anime_site --token <token>
+   sudo ./svc.sh install "$USER"   # run as you, not root: it needs your docker group and ~/anime_site
+   sudo ./svc.sh start
+   ```
+
+   Installing it as a service is what makes it survive a reboot. A runner
+   started in a shell dies with the SSH session, and the failure is silent.
+
+2. **Create the `production` environment.** Settings → Environments → New
+   environment, named exactly `production`, with **Required reviewers** set to
+   yourself. This is the migration gate: `deploy.yml`'s `deploy-migration` job
+   names this environment, and without the reviewer the gate exists in name
+   only and schema changes deploy unattended.
+
+3. **Add the fifth Healthchecks check.** Name it `media-drift`, period 1 day,
+   grace 6 hours. Put its ping URL in `~/anime_site/.env.backup` as
+   `HC_DRIFT_URL=...`, then install the new timer:
+
+   ```bash
+   sudo ./deploy/backup/install.sh
+   sudo systemctl start media-drift.service   # enabling a timer does not run it
+   ```
+
+   `drift.sh` refuses to start when `HC_DRIFT_URL` is missing, rather than
+   running and reporting nowhere.
+
+4. **Rehearse it, twice.** Merging a working change proves only the happy path.
+
+   - A deliberately broken **commit** — the app fails to start — should deploy,
+     fail health, roll back to `media-app:previous`, and come back up.
+   - A deliberately broken **migration**. This one is not optional and not
+     interchangeable with the first: a deploy that adds no revision leaves the
+     image's head and the database's `alembic_version` in agreement, so it
+     exercises tier 2's mechanism while never asking the question tier 2 exists
+     to answer. Only a deploy that *adds* a revision tests whether the right
+     downgrade target was chosen.
+
+   Write whatever the rehearsal turns up into this file **as it actually ran**.
+   The rollback procedure here was wrong once in a way only executing it
+   revealed, and the backup work found four defects on this box that were
+   invisible from a Windows machine.
+
 ## Adding another project's hostname
 
 Three lines in `deploy/cloudflared/config.yml`, above the catch-all, then:
