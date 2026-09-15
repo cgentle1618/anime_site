@@ -701,3 +701,20 @@ def test_every_executed_script_is_executable_in_git():
 
     for p in sorted(sourced_only & modes.keys()):
         assert modes[p] == "100644", f"{p} is sourced, not executed - it should not be 100755"
+
+
+def test_install_tells_the_operator_to_run_the_jobs_by_hand():
+    # Enabling a timer does NOT run it. Persistent=true catches up a run missed
+    # while the machine was off, but only for a timer that has run before; on
+    # first activation systemd writes the stamp as of that moment and has
+    # nothing to catch up. Measured on the box: after enabling, every unit had
+    # an empty ActiveEnterTimestamp, the journal held no entries, and R2 held
+    # no dump.
+    #
+    # So install.sh returning is not the end of the setup, and a Healthchecks
+    # check stays grey and unmonitored until its first ping. If this guidance
+    # is ever dropped, the next operator believes they have backups and has
+    # none - which is the precise false belief this system exists to prevent.
+    body = (BACKUP_DIR / "install.sh").read_text(encoding="utf-8")
+    for script in ("backup.sh", "sheets.sh", "verify.sh"):
+        assert script in body, f"install.sh must tell the operator to run {script} by hand"
