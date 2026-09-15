@@ -1,0 +1,16 @@
+[Unit]
+Description=Media tracker: daily deploy drift check at 10:00 Asia/Taipei
+
+[Timer]
+# 10:00 rather than the 04:00 backup window: this one is meant to be ACTED on.
+# An alert that a merge never deployed is useful when the owner is awake, and
+# the six-hour grace window inside drift.sh already absorbs an overnight merge.
+OnCalendar=*-*-* 10:00:00
+# The box lives on a phone hotspot and may be off. Without this a missed run is
+# lost silently - and a check whose whole job is noticing an absence must not
+# itself go absent unnoticed.
+Persistent=true
+Unit=media-drift.service
+
+[Install]
+WantedBy=timers.target

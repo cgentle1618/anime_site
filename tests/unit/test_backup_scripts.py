@@ -603,7 +603,27 @@ SCHEDULE = {
     "media-sheets": "*-*-* 04:10:00",
     "media-covers": "Wed *-*-* 04:20:00",
     "media-verify": "Wed *-*-* 04:40:00",
+    # Not in the 04:00 window on purpose: this one is meant to be acted on, so
+    # it fires when the owner is awake. drift.sh's own six-hour grace window is
+    # what stops an overnight merge alerting before the deploy has had a chance.
+    "media-drift": "*-*-* 10:00:00",
 }
+
+
+def test_every_timer_has_a_schedule_here():
+    # SCHEDULE is hand-written, and the three parametrized tests below iterate
+    # IT rather than the directory - so a timer added without a line here is
+    # silently unchecked: no OnCalendar assertion, no Persistent=true assertion,
+    # no service assertion, and nothing red to say so. media-drift.timer was
+    # added after this list was written and was invisible to all three.
+    #
+    # Checking the directory against the list is what makes the list safe to
+    # keep: a hand-maintained map is fine when something complete is watching it.
+    on_disk = {p.stem for p in UNITS.glob("*.timer")}
+    assert on_disk == set(SCHEDULE), (
+        f"timers without a SCHEDULE entry: {sorted(on_disk - set(SCHEDULE))}; "
+        f"SCHEDULE entries without a timer: {sorted(set(SCHEDULE) - on_disk)}"
+    )
 
 
 @pytest.mark.parametrize("unit,oncalendar", sorted(SCHEDULE.items()))
@@ -678,7 +698,12 @@ def test_every_executed_script_is_executable_in_git():
     # while the commit says 100644. An ls-files assertion is green against a
     # broken commit, which is how this test first shipped.
     out = subprocess.run(
-        ["git", "ls-tree", "-r", "HEAD", "deploy/backup/", "deploy/deploy.sh"],
+        # The whole of deploy/, not a list of paths. A complete path cannot be
+        # forgotten and a maintained list can - and what is being guarded
+        # produces no signal at all: a script committed 100644 does not fail, it
+        # simply cannot run, and only on the box. deploy/health.sh and
+        # deploy/rollback.sh joined this directory after that list was written.
+        ["git", "ls-tree", "-r", "HEAD", "deploy/"],
         cwd=ROOT,
         capture_output=True,
         text=True,

@@ -22,6 +22,8 @@ record for all of them.
 | Task | Status |
 |---|---|
 | Game completion axes become editable and leave the Information card (`feat/game-completion-tracker`) | wip anime-site-9c |
+| Continuous deployment tasks 1-9 - health endpoint, compose probe, migration round trip, deploy/rollback/health/drift scripts, deploy workflow, docs (`feat/continuous-deploy`) | wip anime-site-90 |
+| Continuous deployment task 10 - register the runner, create the `production` environment, add the fifth Healthchecks check, rehearse with a deliberately broken migration | todo owner - steps are in [deploy/README.md](../deploy/README.md#setting-up-the-automatic-deploy) |
 
 The game spend block and its hand-maintained FX rates shipped on
 `feat/game-cost-stats`, the game 攻略 / 劇情 / 待辦 note groups in #147 and the
@@ -93,7 +95,6 @@ otherwise.
 | `Note`, `Meme` and `Quote` tabs carry `author_id` as a raw uuid, so authorship does not round-trip | Each machine's lifespan mints its own `admin`, and the `Users` tab's username match keeps the local id - so the other machine's admin rows restore under this one's. `709f9f00` stopped the `Quote` tab dying on it (FK violation, whole tab rolled back); the durable fix is a `username` column on the three tabs, the way `Plan Next` has one. Invisible with one account; needed before a second person writes a note. `tabs.py:259/268/269` | todo |
 | Two community-adjacent measurements are still unanswered | (a) does any endpoint return an entry's `system_id` for a type the viewer lacks - now answerable, `anime_site_db` is at `o1a1ownerflag`; (b) the same for a label-hidden entry - `media_content_label` has **0 rows** in the real database, 2 labels defined and nothing labelled, so the sharper case can be argued but not demonstrated there. The third question - 404 or empty aggregate - is answered and shipped | todo |
 | The `guest` role has no `media_type.game`, so a logged-out visitor sees an empty Games library | `role_permission` rows were seeded 2026-08-29, before games existed; the other eight types are granted. Pre-dates Step 1 and is a permissions decision, not a bug to fix blind - grant it on `/roles` if guests should see games | todo |
-| `alembic upgrade head` from an EMPTY db fails at `86982d71c2f1` | pre-existing; blocks a from-scratch deploy | todo |
 | Data migrations that import live ORM models break whenever a later migration adds a column | closed — `tests/unit/test_migration_imports.py` fails any revision in `alembic/versions/` that imports from `app`. The two revisions this item used to cite as examples went with the baseline squash, and the convention was already being followed; nothing enforced it until now. Scoped to `versions/` and not `versions_archive/`, where 145 retired revisions include 10 violations | done 66a8902c |
 | Startup dies when stdout is not UTF-8 - emoji prints, and the error handler itself throws, hiding the real cause | `app/main.py` 108/118/123/129 | todo |
 | `delete_studio` never calls `delete_cover_image` (logo leak; publisher does) | `app/routers/studio.py` | todo |
@@ -122,7 +123,7 @@ otherwise.
 | Step 4 sheet | the **company** database ran a Backup and a Pull All by hand on 2026-09-10, after the code landed: the sheet now carries the `Users` and `User Media List` tabs and a `username` column on Plan Next and Seasonal. **The home machine must `git pull` before its next Pull All** - an older checkout has no Users tab and no username resolution, so it would restore the accounts nowhere and file every plan and season rating under `admin`. No migration is involved; the schema is unchanged by this step |
 | Step 4 test db | `anime_site_test_step4`, created 2026-09-10 in the container; droppable |
 | Step 5 test db | `anime_site_test_step5`, created 2026-09-10 in the container (home); Step 5 was finished on it; droppable |
-| Phase B test dbs | `anime_site_test_phaseb` (the suite; created 2026-09-11) and `anime_site_mig_check` (a pg_dump restore of `anime_site_db`, used to exercise `n1a1accessmode` forwards and back because `alembic upgrade head` from an EMPTY database still fails at `86982d71c2f1`). Both droppable |
+| Phase B test dbs | `anime_site_test_phaseb` (the suite; created 2026-09-11) and `anime_site_mig_check` (a pg_dump restore of `anime_site_db`, used to exercise `n1a1accessmode` forwards and back, at a time when `alembic upgrade head` could not build an empty database - the baseline squash fixed that, and `tests/api/test_migrations_build_the_schema.py` now asserts it on every CI run). Both droppable |
 | Clean-orphans test db | `anime_site_test_clean`, created 2026-09-11 in the container for `clean-session`; droppable |
 | Community-gate test db | `anime_site_test_community_gate`, created 2026-09-13 for `fix/community-gate`; the tree's own app database is `anime_site_community_gate`. Both droppable |
 | Owner-flag test db | `anime_site_test_owner`, created 2026-09-12 for the admin-holds-no-user-data change: a `pg_dump` restore of the real `anime_site_db`, used to exercise `o1a1ownerflag` forwards, backwards and forwards again before it was applied for real, then reused for the suite; droppable |

@@ -59,6 +59,22 @@ services:
       # is - it cannot be re-fetched the way covers can.
       - ./static/covers:/app/static/covers
       - ./static/library:/app/static/library
+    healthcheck:
+      # /api/health, never "/". The catch-all route serves the SPA for any path,
+      # so a probe against "/" returns 200 with the database down - which is why
+      # this service carried no healthcheck at all until that endpoint existed.
+      #
+      # python rather than curl: the runtime image is python:3.13-slim and does
+      # not ship curl. urlopen raises on a 503, which is the non-zero exit.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # Generous on purpose: entrypoint.sh runs `alembic upgrade head` before
+      # uvicorn binds, and a migration on a cold box takes longer than any
+      # sensible probe interval. A short start_period would mark a correctly
+      # migrating container unhealthy and restart it mid-migration.
+      start_period: 120s
     depends_on:
       db:
         # Without this, a boot where PostgreSQL is slower than the app makes
